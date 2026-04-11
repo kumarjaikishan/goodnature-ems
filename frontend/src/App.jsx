@@ -11,12 +11,7 @@ import { Avatar } from '@mui/material';
 import dayjs from 'dayjs';
 import { FaRegUser } from 'react-icons/fa';
 
-import PublicLayout from './pages/landingPage/PublicLayout';
-import LandingPage from './pages/landingPage/landingPage';
 import ScrollToTop from './components/ScrollToTop';
-import PaymentSuccess from './pages/membership/PaymentSuccess';
-import Rukhi from './pages/membership/rukhi';
-import Membershipdata from './pages/developer/Membership';
 import Transactions from './pages/developer/Membership';
 // import  Errorpage  from './pages/error/Errorpage';
 
@@ -26,11 +21,6 @@ const Login = lazy(() => import('./pages/Login'));
 const Logout = lazy(() => import('./pages/logout'));
 const Errorpage = lazy(() => import('./pages/error/Errorpage'));
 
-const AboutUs = lazy(() => import('./pages/Others/aboutus'));
-const Contact = lazy(() => import('./pages/Others/contact'));
-const PrivacyPolicy = lazy(() => import('./pages/Others/privacy'));
-const TermsAndConditions = lazy(() => import('./pages/Others/terms'));
-const RefundAndCancellationPolicy = lazy(() => import('./pages/Others/refund'));
 const Membership = lazy(() => import('./pages/membership/membership'));
 const LeaveBalancePage = lazy(() => import('./pages/leaveledger/leaveledger'));
 
@@ -129,15 +119,7 @@ const routesByRole = {
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
-  grant: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['grant']} />}>
-      <Route index element={<LedgerListPage />} />
-      <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<LedgerListPage />} />
-      <Route path=":id" element={<LedgerDetailPage />} />
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-  ),
+
   superadmin: (
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['superadmin']} />}>
       <Route index element={<AdminDashboard />} />
@@ -223,7 +205,7 @@ function App() {
 
     const role = user?.profile?.role;
 
-    if (['superadmin', 'admin', 'manager', 'grant', 'demo'].includes(role)) {
+    if (['superadmin', 'admin', 'manager', 'demo'].includes(role)) {
       dispatch(FirstFetch());
     } else if (role === 'employee') {
       dispatch(empFirstFetch());
@@ -353,20 +335,7 @@ function App() {
       >
         <Routes>
           {/* Public routes */}
-
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/payment-success" element={<PaymentSuccess />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms-conditions" element={<TermsAndConditions />} />
-            <Route path="/refund-policy" element={<RefundAndCancellationPolicy />} />
-            <Route path="/cancellation-policy" element={<RefundAndCancellationPolicy />} />
-            <Route path="/pricing" element={<Membership />} />
-            <Route path="/resetpassword/:token" element={<PasswordReset />} />
-          </Route>
-          <Route path="/rukhi" element={<Rukhi />} />
+          <Route path="/resetpassword/:token" element={<PasswordReset />} />
 
 
           <Route
@@ -376,6 +345,10 @@ function App() {
           <Route
             path="/dashboard"
             element={!islogin && <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/"
+            element={!islogin ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
           />
           <Route path="/logout" element={<Logout />} />
 
