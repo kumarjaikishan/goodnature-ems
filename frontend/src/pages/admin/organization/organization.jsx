@@ -8,7 +8,7 @@ import {
     InputAdornment,
     FormControlLabel
 } from '@mui/material';
-import { MdExpandLess, MdExpandMore } from "react-icons/md";
+import { MdExpandLess, MdExpandMore, MdSettingsSuggest } from "react-icons/md";
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { apiClient } from '../../../utils/apiClient';
@@ -271,7 +271,7 @@ export default function OrganizationSettings() {
     return (
         <div className="w-full flex h-screen overflow-hidden flex-col md:flex-row gap-4 p-4 md:p-6 bg-gray-50">
             <div className="flex-1 space-y-6 overflow-y-auto px-2 pb-10 scrollbar-hide">
-                
+
                 {/* 1. Company Information */}
                 <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
@@ -280,14 +280,14 @@ export default function OrganizationSettings() {
                         {openSection === 'company' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'company' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <CompanyInfo 
-                            companyinp={companyinp} 
-                            setcompany={setcompany} 
-                            isload={isload} 
-                            setisload={setisload} 
-                            handleImage={handleImage} 
-                            addCompany={addCompany} 
-                            profile={profile} 
+                        <CompanyInfo
+                            companyinp={companyinp}
+                            setcompany={setcompany}
+                            isload={isload}
+                            setisload={setisload}
+                            handleImage={handleImage}
+                            addCompany={addCompany}
+                            profile={profile}
                         />
                     </div>
                 </div>
@@ -300,11 +300,11 @@ export default function OrganizationSettings() {
                         {openSection === 'branches' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'branches' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <BranchManager 
-                            branch={branch} 
-                            setopenviewmodal={setopenviewmodal} 
-                            handleEditBranch={handleEditBranch} 
-                            styles={styles} 
+                        <BranchManager
+                            branch={branch}
+                            setopenviewmodal={setopenviewmodal}
+                            handleEditBranch={handleEditBranch}
+                            styles={styles}
                         />
                     </div>
                 </div>
@@ -329,16 +329,16 @@ export default function OrganizationSettings() {
                         {openSection === 'devices' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'devices' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <DeviceManager 
-                            companyinp={companyinp} 
-                            setcompany={setcompany} 
-                            isOnline={isOnline} 
-                            deviceRefresh={deviceRefresh} 
-                            refreshload={refreshload} 
-                            removeDevice={removeDevice} 
-                            addDevice={addDevice} 
-                            handleSubmit={handleSubmit} 
-                            isload={isload} 
+                        <DeviceManager
+                            companyinp={companyinp}
+                            setcompany={setcompany}
+                            isOnline={isOnline}
+                            deviceRefresh={deviceRefresh}
+                            refreshload={refreshload}
+                            removeDevice={removeDevice}
+                            addDevice={addDevice}
+                            handleSubmit={handleSubmit}
+                            isload={isload}
                         />
                     </div>
                 </div>
@@ -351,14 +351,14 @@ export default function OrganizationSettings() {
                         {openSection === 'telegram' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'telegram' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <TelegramSettings 
-                            companyinp={companyinp} 
-                            setcompany={setcompany} 
-                            handleChange={handleChange} 
-                            fetchgroup={fetchgroup} 
-                            teleloading={teleloading} 
-                            isload={isload} 
-                            handleSubmit={handleSubmit} 
+                        <TelegramSettings
+                            companyinp={companyinp}
+                            setcompany={setcompany}
+                            handleChange={handleChange}
+                            fetchgroup={fetchgroup}
+                            teleloading={teleloading}
+                            isload={isload}
+                            handleSubmit={handleSubmit}
                         />
                     </div>
                 </div>
@@ -385,35 +385,35 @@ export default function OrganizationSettings() {
                         {openSection === 'rules' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'rules' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <AttendanceRules 
-                            companyinp={companyinp} 
-                            setcompany={setcompany} 
-                            handleChange={handleChange} 
-                            handleNestedChange={handleNestedChange} 
-                            handleSubmit={handleSubmit} 
-                            isload={isload} 
+                        <AttendanceRules
+                            companyinp={companyinp}
+                            setcompany={setcompany}
+                            handleChange={handleChange}
+                            handleNestedChange={handleNestedChange}
+                            handleSubmit={handleSubmit}
+                            isload={isload}
                         />
                     </div>
                 </div>
 
                 {/* 8. Payroll Policies */}
-                <div className='border shadow-lg bg-purple-50 border-dashed border-purple-400 rounded-md'>
+                <div className='border hidden shadow-lg bg-purple-50 border-dashed border-purple-400 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-purple-200 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('policies')}>
                         <span className="font-semibold text-lg text-primary">Default Payroll Policies</span>
                         {openSection === 'policies' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'policies' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <PayrollPolicies 
-                            companyinp={companyinp} 
-                            setcompany={setcompany} 
-                            handleSubmit={handleSubmit} 
+                        <PayrollPolicies
+                            companyinp={companyinp}
+                            setcompany={setcompany}
+                            handleSubmit={handleSubmit}
                         />
                     </div>
                 </div>
 
                 {/* 9. Leave Policies */}
-                <div className='border shadow-lg bg-white border-dashed border-blue-300 rounded-md'>
+                <div className='border hidden shadow-lg bg-white border-dashed border-blue-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-blue-50 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('leavePolicies')}>
                         <span className="font-semibold text-lg text-blue-700">Leave Policies</span>
@@ -425,18 +425,23 @@ export default function OrganizationSettings() {
                 </div>
 
                 {/* 10. Leave Visibility Settings */}
-                <div className='border shadow-lg bg-white border-dashed border-orange-300 rounded-md'>
+                <div className='border hidden shadow-lg bg-white border-dashed border-orange-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-orange-50 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('leaveSettings')}>
-                        <span className="font-semibold text-lg text-orange-700">Leave Visibility Settings</span>
+                        <div className="flex gap-2 font-semibold text-lg text-orange-700">
+                            <MdSettingsSuggest size={24} color="#1a3353" />
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a3353' }}>
+                                Ledger Visibility Settings
+                            </Typography>
+                        </div>
                         {openSection === 'leaveSettings' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'leaveSettings' ? 'max-h-fit p-4' : 'max-h-0'}`}>
-                        <LeaveSettings 
-                            data={companyinp} 
-                            onChange={handleChange} 
-                            onSubmit={handleSubmit} 
-                            isload={isload} 
+                        <LeaveSettings
+                            data={companyinp}
+                            onChange={handleChange}
+                            onSubmit={handleSubmit}
+                            isload={isload}
                         />
                     </div>
                 </div>

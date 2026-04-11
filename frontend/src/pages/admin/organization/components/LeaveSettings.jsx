@@ -12,13 +12,7 @@ const LeaveSettings = ({ data, onChange, onSubmit, isload }) => {
 
     return (
         <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e4e8', bgcolor: '#fff' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-                <MdSettingsSuggest size={24} color="#1a3353" />
-                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a3353' }}>
-                    Leave Visibility Settings
-                </Typography>
-            </Box>
-            <Divider sx={{ mb: 3 }} />
+           
             
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <FormControlLabel
