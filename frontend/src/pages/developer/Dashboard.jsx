@@ -1,0 +1,482 @@
+import { apiClient } from '../../utils/apiClient'
+import React, { useEffect, useState } from 'react'
+import DataTable from 'react-data-table-component'
+import { useCustomStyles } from '../admin/attandence/attandencehelper'
+import { BiMessageRoundedError } from 'react-icons/bi'
+import dayjs from 'dayjs'
+import { Button, TextField } from '@mui/material'
+import { GoPlus } from 'react-icons/go'
+import { MdEmojiFlags, MdOutlineModeEdit } from "react-icons/md";
+import { AiOutlineDelete } from "react-icons/ai";
+import Modalbox from '../../components/custommodal/Modalbox'
+import { toast } from 'react-toastify'
+import { IoInformation } from 'react-icons/io5'
+import swal from 'sweetalert';
+
+const DeveloperDashboard = () => {
+
+    useEffect(() => {
+        fetche()
+    }, [])
+
+    const init = {
+        userid: '',
+        name: '',
+        email: '',
+        password: ''
+    }
+    const [users, setusers] = useState([]);
+    const [passmodal, setpassmodal] = useState(false);
+    const [inp, setinp] = useState(init);
+    const [isedit, setisedit] = useState(false)
+    const [isloading, setisloading] = useState(false)
+
+    const [demoModal, setDemoModal] = useState(false);
+    const [demoInp, setDemoInp] = useState({
+        companyId: "",
+        name: "",
+        email: "",
+        password: "",
+    });
+    const [demoListModal, setDemoListModal] = useState(false);
+    const [demoList, setDemoList] = useState([]);
+
+    const fetche = async () => {
+        try {
+            const data = await apiClient({
+                url: "developerfetch"
+            });
+            setusers(data.users)
+        } catch (error) {
+            console.error('Error fetching developer data:', error);
+        }
+    }
+
+    const adduser = async (e) => {
+        e.preventDefault();
+        try {
+            const data = await apiClient({
+                url: "User",
+                method: "POST",
+                body: inp
+            });
+            setpassmodal(false)
+            fetche();
+            toast.success(data.message, { autoClose: 1800 });
+        } catch (error) {
+            console.error('Error adding user:', error);
+        }
+    }
+
+    const edite = (user) => {
+        // console.log(user)
+        setinp({
+            userid: user?._id,
+            name: user?.registeredName,
+            email: user?.email,
+        })
+        setisedit(true)
+        setpassmodal(true)
+    }
+
+    const deletee = (userid) => {
+        swal({
+            title: 'Are you sure?',
+            text: 'Once deleted, you will not be able to recover this',
+            icon: 'warning',
+            buttons: true,
+            dangerMode: true,
+        }).then(async (willDelete) => {
+            if (willDelete) {
+                try {
+                    const data = await apiClient({
+                        url: `User/${userid}`,
+                        method: "DELETE"
+                    });
+
+                    fetche();
+                    toast.success(data.message, { autoClose: 1800 });
+                } catch (error) {
+                    console.error('Error deleting user:', error);
+                }
+            }
+        });
+    }
+
+    const saveedit = async () => {
+        try {
+            const data = await apiClient({
+                url: `User/${inp.userid}`,
+                method: "PUT",
+                body: { name: inp.name, email: inp.email }
+            });
+            setpassmodal(false)
+            fetche();
+            toast.success(data.message, { autoClose: 1800 });
+        } catch (error) {
+            console.error('Error saving user edit:', error);
+        }
+    }
+
+    const deploy = async (project) => {
+        swal({
+            title: `Are you sure you want to Deploy ${project}?`,
+            icon: "warning",
+            buttons: true,
+            dangerMode: true,
+        }).then(async (proceed) => {
+            if (proceed) {
+                setisloading(true)
+                const toastId = toast.loading(`Deploying ${project}...`);
+
+                try {
+                    const data = await apiClient({
+                        url: `deploy/${project}`,
+                        method: "GET"
+                    });
+
+                    toast.update(toastId, {
+                        render: data.message,
+                        type: "success",
+                        isLoading: false,
+                        autoClose: 1800,
+                    });
+                } catch (error) {
+                    toast.update(toastId, {
+                        render: error.message || "Error during deployment",
+                        type: "error",
+                        isLoading: false,
+                        autoClose: 3000,
+                    });
+                    console.error('Deployment error:', error);
+                } finally {
+                    setisloading(false)
+                }
+            }
+        });
+    };
+
+
+    const cancel = () => {
+        setpassmodal(false);
+        setinp(init);
+        setisedit(false);
+    }
+
+    const handleCreateDemo = (user) => {
+        setDemoInp({ companyId: user?.companyId, email: "", password: "" });
+        setDemoModal(true);
+    };
+    
+    const handleShowDemos = async (user) => {
+        // Dummy IDs for now
+        try {
+            const data = await apiClient({
+                url: `demo/${user.companyId}`
+            });
+
+            setDemoList(data.demousers);
+            setDemoListModal(true);
+        } catch (error) {
+            console.error('Error fetching demos:', error);
+        }
+
+
+    };
+
+    const demodelete = async (userid) => {
+        // Dummy IDs for now
+        try {
+            const data = await apiClient({
+                url: `demo/${userid}`,
+                method: "DELETE"
+            });
+            toast.success(data.message)
+        } catch (error) {
+            console.error('Error deleting demo:', error);
+        }
+    };
+
+    const columns = [
+        {
+            name: "S.No",
+            selector: (row, index) => index + 1,
+            width: "60px",
+        },
+        {
+            name: "Name",
+            selector: (row) => row?.registeredName ?? '',
+            width: "160px",
+        },
+        {
+            name: "Email",
+            selector: (row) => row.email,
+            //  width: "160px",
+        },
+        {
+            name: "Date",
+            selector: (row) => dayjs(row.createdAt).format("DD MMM, YY"),
+            width: "90px",
+        },
+        {
+            name: "Status",
+            selector: (row) => row.stat || "-",
+            width: "110px",
+        },
+        {
+            name: "Action",
+            width: "140px",
+            cell: (row) => (
+                <div className="flex gap-2">
+                    <span
+                        className="text-[18px] text-blue-500 cursor-pointer"
+                        title="Edit"
+                        onClick={() => handleShowDemos(row)}
+                    >
+                        <IoInformation />
+                    </span>
+                    <span
+                        className="text-[18px] text-blue-500 cursor-pointer"
+                        title="Edit"
+                        onClick={() => handleCreateDemo(row)}
+                    >
+                        <MdEmojiFlags />
+                    </span>
+                    <span
+                        className="text-[18px] text-blue-500 cursor-pointer"
+                        title="Edit"
+                        onClick={() => edite(row)}
+                    >
+                        <MdOutlineModeEdit />
+                    </span>
+                    <span
+                        className="text-[18px] text-red-500 cursor-pointer"
+                        title="Delete"
+                        onClick={() => deletee(row._id)}
+                    >
+                        <AiOutlineDelete />
+                    </span>
+                </div>
+            ),
+        },
+    ];
+
+    return (
+        <div>
+            <div className='my-1 flex justify-end gap-2'>
+                <Button
+                    variant="contained"
+                    className="flex-[2] md:w-fit md:flex-none"
+                    // startIcon={<GoPlus />}
+                    loading={isloading}
+                    onClick={() => deploy('accusoft')}
+                >
+                    Accusoft
+                </Button>
+                <Button
+                    variant="contained"
+                    className="flex-[2] md:w-fit md:flex-none"
+                    // startIcon={<GoPlus />}
+                    loading={isloading}
+                    onClick={() => deploy('battlefiesta')}
+                >
+                    battlefiesta
+                </Button>
+                <Button
+                    variant="contained"
+                    className="flex-[2] md:w-fit md:flex-none"
+                    // startIcon={<GoPlus />}
+                    loading={isloading}
+                    onClick={() => deploy('office')}
+                >
+                    EMS
+                </Button>
+                <Button
+                    variant="contained"
+                    className="flex-[2] md:w-fit md:flex-none"
+                    // startIcon={<GoPlus />}
+                    loading={isloading}
+                    onClick={() => deploy('portfolio')}
+                >
+                    Portfolio
+                </Button>
+                <Button
+                    variant="contained"
+                    className="flex-[2] md:w-fit md:flex-none"
+                    startIcon={<GoPlus />}
+                    onClick={() => setpassmodal(true)}
+                >
+                    Add User
+                </Button>
+            </div>
+            <DataTable
+                columns={columns}
+                data={users}
+                pagination
+                customStyles={useCustomStyles()}
+                highlightOnHover
+                noDataComponent={
+                    <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
+                        <BiMessageRoundedError className="text-xl" /> No records found matching your criteria.
+                    </div>
+                }
+            />
+
+            {/* creating new company id */}
+            <Modalbox open={passmodal} onClose={() => {
+                setpassmodal(false);
+            }}>
+                <div className="membermodal w-[500px]" >
+                    <form onSubmit={adduser}>
+                        <h2>Add New User</h2>
+                        <span className="modalcontent ">
+                            <div className='flex flex-col gap-3 w-full'>
+                                <TextField fullWidth required
+                                    value={inp.name}
+                                    onChange={(e) => setinp({ ...inp, name: e.target.value })}
+                                    label="Name" size="small"
+
+                                />
+                                <TextField fullWidth required type='email'
+                                    value={inp.email}
+                                    onChange={(e) => setinp({ ...inp, email: e.target.value })}
+                                    label="Email" size="small"
+
+                                />
+
+                                {!isedit && <TextField fullWidth required type='password'
+                                    value={inp.password}
+                                    onChange={(e) => setinp({ ...inp, password: e.target.value })}
+                                    label="Passowrd" size="small"
+                                />}
+
+                                <div>
+                                    {isedit ? <Button variant="contained" sx={{ mr: 2 }} onClick={saveedit} >Save</Button>
+                                        : <Button variant="contained" sx={{ mr: 2 }} type="submit" >Add User</Button>}
+
+                                    <Button variant="outlined" onClick={cancel} sx={{ mr: 2 }} >Cancel</Button>
+                                </div>
+                            </div>
+                        </span>
+                    </form>
+                </div>
+            </Modalbox>
+
+            {/* 🧩 Create Demo Account Modal */}
+            <Modalbox open={demoModal} onClose={() => setDemoModal(false)}>
+                <div className="membermodal w-[400px]">
+                    <form
+                        onSubmit={async (e) => {
+                            e.preventDefault();
+                            try {
+                                const data = await apiClient({
+                                    url: "demo",
+                                    method: "POST",
+                                    body: demoInp
+                                });
+                                toast.success(data.message, { autoClose: 2000 });
+                                setDemoModal(false);
+                            } catch (err) {
+                                console.error('Error creating demo:', err);
+                            }
+                        }}
+                    >
+                        <h2>Create Demo Account</h2>
+                        <span className="modalcontent ">
+                            <div className="flex flex-col gap-3 mt-3">
+                                <TextField
+                                    fullWidth
+                                    label="Company ID"
+                                    value={demoInp.companyId}
+                                    disabled
+                                    size="small"
+                                />
+                                <TextField
+                                    fullWidth
+                                    required
+                                    variant='standard'
+                                    label="Name"
+                                    value={demoInp.name}
+                                    onChange={(e) =>
+                                        setDemoInp({ ...demoInp, name: e.target.value })
+                                    }
+                                    size="small"
+                                />
+                                <TextField
+                                    fullWidth
+                                    required
+                                    variant='standard'
+                                    label="Demo Email"
+                                    value={demoInp.email}
+                                    onChange={(e) =>
+                                        setDemoInp({ ...demoInp, email: e.target.value })
+                                    }
+                                    size="small"
+                                />
+                                <TextField
+                                    fullWidth
+                                    required
+                                    variant='standard'
+                                    type="password"
+                                    label="Password"
+                                    value={demoInp.password}
+                                    onChange={(e) =>
+                                        setDemoInp({ ...demoInp, password: e.target.value })
+                                    }
+                                    size="small"
+                                />
+                                <div className="flex justify-end gap-2 mt-2">
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => setDemoModal(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button variant="contained" type="submit">
+                                        Create
+                                    </Button>
+                                </div>
+                            </div>
+                        </span>
+                    </form>
+                </div>
+            </Modalbox>
+
+            {/* 🧾 Show Demo IDs Modal */}
+            <Modalbox open={demoListModal} onClose={() => setDemoListModal(false)}>
+                <div className="membermodal w-[400px]">
+                    <form>
+                        <h2>Demo Accounts</h2>
+                        <span className="modalcontent ">
+                            {demoList.length < 1 && <div className='text-center'>No Demo Id found</div>}
+                            <ul className="mt-3 space-y-2">
+                                {demoList?.map((demo, i) => (
+                                    <li
+                                        key={i}
+                                        className="flex justify-between bg-gray-50 p-2 rounded-md text-sm"
+                                    >
+                                        <span className="text-gray-500">{i + 1}. {demo.name}</span>
+                                        <span>{demo.email}</span>
+                                        <span onClick={() => demodelete(demo._id)} className=' text-red-600 text-2xl cursor-pointer'><AiOutlineDelete /> </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </span>
+                        <span className='modalbody'>
+                            <Button
+                                variant="outlined"
+                                onClick={() => setDemoListModal(false)}
+                            >
+                                Close
+                            </Button>
+                        </span>
+                    </form>
+                </div>
+            </Modalbox>
+        </div>
+    )
+}
+
+export default DeveloperDashboard;
+
+

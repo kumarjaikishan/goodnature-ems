@@ -1,0 +1,502 @@
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import {
+  Paper, Checkbox, Typography, FormControl, Select, MenuItem,
+  InputLabel, Button, Avatar,
+} from '@mui/material';
+import {
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+} from '@mui/material';
+import { IoIosSend } from "react-icons/io";
+import { useSelector } from 'react-redux';
+import Modalbox from '../../../components/custommodal/Modalbox';
+import dayjs from 'dayjs';
+import { FirstFetch } from '../../../../store/userSlice';
+import { toast } from 'react-toastify';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import { bulkMarkAttendanceApi } from '../../../api/attendance.api';
+
+const BulkMark = ({
+  openmodal, init, setopenmodal,
+  isUpdate, isload, setisload, setinp, setisUpdate, dispatch
+}) => {
+
+  const profile = useSelector((state) => state.user.profile);
+  const attandence = useSelector((state) => state.user.attandence);
+  const employee = useSelector((state) => state.user.employee);
+  const branch = useSelector((state) => state.user.branch);
+  const department = useSelector((state) => state.user.department);
+
+  const [checkedemployee, setcheckedemployee] = useState([]);
+  const [rowData, setRowData] = useState({});
+  const [selectedBranch, setselectedBranch] = useState('all');
+  const [selecteddepartment, setselecteddepartment] = useState('all');
+  const [attandenceDate, setattandenceDate] = useState(dayjs());
+
+  const [toall, settoall] = useState({
+    punchIn: null,
+    punchOut: null,
+    status: ''
+  });
+
+  // 🔥 OPTIMIZATION 1: Employee Map (O(1) lookup in submit)
+  const employeeMap = useMemo(() => {
+    const map = new Map();
+    employee?.forEach(e => map.set(e._id, e));
+    return map;
+  }, [employee]);
+
+  // 🔥 OPTIMIZATION 2: Attendance Map (O(1) lookup instead of .find O(n))
+  const attendanceMap = useMemo(() => {
+    if (!attandenceDate || !attandence) return new Map();
+
+    const map = new Map();
+    const selectedDateStr = dayjs(attandenceDate).format("YYYY-MM-DD");
+
+    attandence.forEach(a => {
+      if (dayjs(a.date).format("YYYY-MM-DD") === selectedDateStr) {
+        map.set(a.employeeId._id, a);
+      }
+    });
+
+    return map;
+  }, [attandenceDate, attandence]);
+
+  // Filter employees
+  const filteredEmployee = useMemo(() => {
+    if (!employee) return [];
+
+    return employee.filter(e => {
+      const isactive = e.status !== false;
+      const matchBranch =
+        selectedBranch !== "all" ? e.branchId === selectedBranch : true;
+
+      // 🔥 FIX: Compare department by _id (not department name)
+      const matchDepartment =
+        selecteddepartment !== "all"
+          ? e.department?._id === selecteddepartment
+          : true;
+
+      return matchBranch && matchDepartment && isactive;
+    });
+  }, [employee, selectedBranch, selecteddepartment]);
+
+  // 🔥 OPTIMIZATION 3: O(n) initialization using attendanceMap
+  useEffect(() => {
+    if (!openmodal) return;   // 🔥 ADD THIS
+
+    if (!employee) return;
+
+    const newRowData = {};
+    const newChecked = [];
+
+    employee.forEach(emp => {
+      const existing = attendanceMap.get(emp._id);
+
+      if (existing) {
+        newChecked.push(emp._id);
+        newRowData[emp._id] = {
+          punchIn: existing.punchIn
+            ? dayjs(existing.punchIn).format("HH:mm")
+            : null,
+          punchOut: existing.punchOut
+            ? dayjs(existing.punchOut).format("HH:mm")
+            : null,
+          status: existing.status || "absent",
+        };
+      } else {
+        newRowData[emp._id] = {
+          punchIn: null,
+          punchOut: null,
+          status: "absent",
+        };
+      }
+    });
+
+    setRowData(newRowData);
+    setcheckedemployee(newChecked);
+
+  }, [openmodal, employee, attendanceMap]);
+
+
+  // Apply to all (kept same logic)
+  useEffect(() => {
+    if (!toall) return;
+
+    setRowData(prev => {
+      const updated = { ...prev };
+
+      filteredEmployee.forEach(emp => {
+        updated[emp._id] = {
+          ...updated[emp._id],
+          ...(toall.punchIn && { punchIn: toall.punchIn }),
+          ...(toall.punchOut && { punchOut: toall.punchOut }),
+          ...(toall.status && { status: toall.status }),
+        };
+      });
+
+      return updated;
+    });
+
+    setcheckedemployee(filteredEmployee.map(e => e._id));
+
+  }, [toall, filteredEmployee]);
+
+  const handleCheckbox = useCallback((empId) => {
+    setcheckedemployee(prev =>
+      prev.includes(empId)
+        ? prev.filter(id => id !== empId)
+        : [...prev, empId]
+    );
+  }, []);
+
+  const handleAllSelect = useCallback((e) => {
+    if (e.target.checked) {
+      setcheckedemployee(filteredEmployee.map(e => e._id));
+    } else {
+      setcheckedemployee([]);
+    }
+  }, [filteredEmployee]);
+
+  const handleTimeChange = useCallback((empId, field, value) => {
+    setRowData(prev => ({
+      ...prev,
+      [empId]: {
+        ...prev[empId],
+        [field]: value,
+        status: ['weekly off', 'holiday', 'half day']
+          .includes(prev[empId].status)
+          ? prev[empId].status
+          : 'present',
+      }
+    }));
+
+    setcheckedemployee(prev =>
+      prev.includes(empId) ? prev : [...prev, empId]
+    );
+
+  }, []);
+
+  const handleStatusChange = useCallback((empId, value) => {
+    setRowData(prev => ({
+      ...prev,
+      [empId]: {
+        ...prev[empId],
+        status: value
+      }
+    }));
+
+    setcheckedemployee(prev =>
+      prev.includes(empId) ? prev : [...prev, empId]
+    );
+
+  }, []);
+
+  // 🔥 OPTIMIZATION 4: O(1) employee lookup in submit
+  const handleSubmit = useCallback(async (e) => {
+
+    e.preventDefault();
+
+    if (checkedemployee.length === 0) {
+      toast.info("Please Mark at least one employee.");
+      return;
+    }
+
+    const selectedDateStr = attandenceDate.format('YYYY-MM-DD');
+
+    const selectedData = checkedemployee.map(employeeId => {
+
+      const record = rowData[employeeId];
+      if (!record) return null;
+
+      const { punchIn, punchOut, status } = record;
+
+      const emp = employeeMap.get(employeeId); // O(1)
+      if (!emp) return null;
+
+      const data = {
+        employeeId,
+        empId: emp.empId,
+        status,
+        branchId: emp.branchId,
+        date: attandenceDate.toISOString(),
+      };
+
+      if (punchIn) {
+        data.punchIn =
+          new Date(`${selectedDateStr}T${punchIn}`).toISOString();
+      }
+
+      if (punchOut) {
+        data.punchOut =
+          new Date(`${selectedDateStr}T${punchOut}`).toISOString();
+      }
+
+      return data;
+
+    }).filter(Boolean);
+
+    if (selectedData.length === 0) {
+      toast.info("No valid attendance data to submit.");
+      return;
+    }
+
+    try {
+      setisload(true);
+
+      await bulkMarkAttendanceApi(selectedData);
+
+      dispatch(FirstFetch());
+      setcheckedemployee([]);
+      setattandenceDate(dayjs());
+      setopenmodal(false);
+
+      toast.success("Attendance marked successfully.");
+    } catch (error) {
+      console.error("Bulk Attendance Error:", error);
+      toast.error(error.message || "Failed to mark attendance.");
+    } finally {
+      setisload(false);
+    }
+
+  }, [
+    checkedemployee,
+    rowData,
+    employeeMap,
+    attandenceDate,
+    dispatch,
+    setisUpdate,
+    setopenmodal
+  ]);
+
+  return (
+    <Modalbox open={openmodal} outside={false} onClose={() => setopenmodal(false)}>
+      <div className="membermodal w-[600px] md:w-[800px]">
+        <form onSubmit={handleSubmit}>
+          {/* ... Rest of the JSX remains the same */}
+          <div className="modalhead">Bulk Mark Attendance</div>
+          <span className="modalcontent overflow-x-auto">
+            <div className='flex flex-col gap-4'>
+              {/* 🔹 Filters */}
+              <div className='w w-full flex justify-between gap-2'>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Select Branch</InputLabel>
+                  <Select
+                    label="Select Branch"
+                    value={selectedBranch}
+                    onChange={(e) => setselectedBranch(e.target.value)}
+                  >
+                    <MenuItem value="all"><em>All</em></MenuItem>
+                    {/* {branch?.map((b, i) => (
+                      <MenuItem key={i} value={b._id}>{b.name}</MenuItem>
+                    ))} */}
+
+                    {profile?.role === 'manager'
+                      ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
+                        ?.map((list) => (
+                          <MenuItem key={list._id} value={list._id}>
+                            {list.name}
+                          </MenuItem>
+                        ))
+                      :
+                      branch?.map((list) => (
+                        <MenuItem key={list._id} value={list._id}> {list.name} </MenuItem>
+                      ))
+                    }
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" disabled={selectedBranch === 'all'} fullWidth>
+                  <InputLabel>Select Department</InputLabel>
+                  <Select
+                    label="Select Department"
+                    value={selecteddepartment}
+                    onChange={(e) => setselecteddepartment(e.target.value)}
+                  >
+                    <MenuItem value="all"><em>All</em></MenuItem>
+                    {(selectedBranch !== 'all'
+                      ? department.filter(i => i.branchId._id === selectedBranch)
+                      : department
+                    )?.map((d, i) => (
+                      <MenuItem key={i} value={d._id}>{d.department}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    slotProps={{ textField: { size: 'small' } }}
+                    onChange={(newValue) => setattandenceDate(newValue)}
+                    format="DD-MM-YYYY"
+                    value={attandenceDate}
+                    sx={{ width: '100%' }}
+                    label="Select date"
+                    maxDate={dayjs()}
+                  />
+                </LocalizationProvider>
+              </div>
+
+              {/* 🔹 Apply to All */}
+              <div className="relative border-dashed border border-primary rounded-md w-full grid grid-cols-1 md:grid-cols-3 gap-4 p-2 pt-4">
+                <span className="absolute top-0 left-3 -translate-y-1/2 bg-white px-2 text-sm font-medium text-primary">
+                  Apply To All Fields
+                </span>
+
+                <div className="flex flex-col w-full">
+                  <label className="text-sm font-medium text-gray-700 mb-1 text-left">Punch In</label>
+                  <input
+                    type="time"
+                    className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded"
+                    value={toall.punchIn || ""}
+                    onChange={(e) => settoall({ ...toall, punchIn: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex flex-col w-full">
+                  <label className="text-sm font-medium text-gray-700 mb-1 text-left">Punch Out</label>
+                  <input
+                    type="time"
+                    className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded"
+                    value={toall.punchOut || ""}
+                    onChange={(e) => settoall({ ...toall, punchOut: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex flex-col w-full">
+                  <label className="text-sm font-medium text-gray-700 mb-1 text-left">Status</label>
+                  <FormControl size="small" className="w-full">
+                    <Select
+                      value={toall.status}
+                      onChange={(e) => settoall({ ...toall, status: e.target.value })}
+                      className="w-full"
+                    >
+                      <MenuItem value=''>Select Status</MenuItem>
+                      <MenuItem value="present">Present</MenuItem>
+                      <MenuItem value="leave">Leave</MenuItem>
+                      <MenuItem value="absent">Absent</MenuItem>
+                      <MenuItem value="weekly off">Weekly Off</MenuItem>
+                      <MenuItem value="holiday">Holiday</MenuItem>
+                      <MenuItem value="half day">Half Day</MenuItem>
+                    </Select>
+                  </FormControl>
+                </div>
+              </div>
+
+              {/* 🔹 Employee Table */}
+              <div className='border border-dashed border-primary rounded w-full'>
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            onChange={handleAllSelect}
+                            checked={checkedemployee.length > 0 && checkedemployee.length === filteredEmployee.length}
+                            indeterminate={checkedemployee.length > 0 && checkedemployee.length < filteredEmployee.length}
+                          />
+                        </TableCell>
+                        <TableCell>Employee Name</TableCell>
+                        <TableCell>Punch In</TableCell>
+                        <TableCell>Punch Out</TableCell>
+                        <TableCell>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                      {filteredEmployee?.slice(0, 10).map((emp) => (
+                        <TableRow key={emp._id}>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={checkedemployee.includes(emp._id)}
+                              onChange={() => handleCheckbox(emp._id)}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Avatar
+                                alt={emp.userid.name}
+                                src={cloudinaryUrl(emp.profileimage, {
+                                  format: "webp",
+                                  width: 100,
+                                  height: 100,
+                                })}
+                                sx={{ width: 30, height: 30 }}
+                              />
+                              <Typography variant="body2">{emp.userid.name}</Typography>
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <input
+                              type="time"
+                              className="form-input outline-0 border-1 border-primary border-dashed p-1 rounded"
+                              value={rowData[emp._id]?.punchIn || ""}
+                              onChange={(e) => handleTimeChange(emp._id, "punchIn", e.target.value)}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <input
+                              type="time"
+                              className="form-input outline-0 border-1 border-primary border-dashed p-1 rounded"
+                              value={rowData[emp._id]?.punchOut || ""}
+                              onChange={(e) => handleTimeChange(emp._id, "punchOut", e.target.value)}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <FormControl fullWidth size="small">
+                              <Select
+                                value={rowData[emp._id]?.status ?? ""}
+                                onChange={(e) => handleStatusChange(emp._id, e.target.value)}
+                              >
+                                <MenuItem value="present">Present</MenuItem>
+                                <MenuItem value="leave">Leave</MenuItem>
+                                <MenuItem value="absent">Absent</MenuItem>
+                                <MenuItem value="weekly off">Weekly off</MenuItem>
+                                <MenuItem value="holiday">Holiday</MenuItem>
+                                <MenuItem value="half day">Half Day</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </div>
+            </div>
+          </span>
+          <div className='modalfooter'>
+            <Button
+              size="small"
+              onClick={() => {
+                setopenmodal(false);
+                setisUpdate(false);
+                setinp(init);
+              }}
+              variant="outlined"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              loading={isload}
+              loadingPosition="end"
+              endIcon={<IoIosSend />}
+              variant="contained"
+              type="submit"
+            >
+              {isUpdate ? 'Update' : 'Add'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Modalbox>
+  );
+};
+
+export default React.memo(BulkMark);
