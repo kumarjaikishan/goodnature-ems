@@ -20,6 +20,7 @@ router.post('/', (req, res) => {
     console.log("➡️ POst request on essl index page");
     res.send('OK');
 });
+
 router.get('/api/refreshDevice/:deviceSN', async (req, res, next) => {
     const { deviceSN } = req.params;
     const whichcomapny = await company.findOne({ "devices.SN": deviceSN }).select('_id devices');
