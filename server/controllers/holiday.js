@@ -59,7 +59,30 @@ const getholidays = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+const bulkImportHolidays = async (req, res) => {
+    const { holidays } = req.body;
 
+    if (!Array.isArray(holidays) || holidays.length === 0) {
+        return res.status(400).json({ message: 'No holiday data provided' });
+    }
 
+    try {
+        const docs = holidays.map(h => ({
+            companyId: req.user.companyId,
+            userid: req.user.id,
+            name: h.name,
+            fromDate: dayjs(h.fromDate).format('YYYY-MM-DD'),
+            toDate: dayjs(h.toDate || h.fromDate).format('YYYY-MM-DD'),
+            type: ['National', 'Religious', 'Public', 'Other'].includes(h.type) ? h.type : 'Other',
+            description: h.description || '',
+        }));
 
-module.exports = { addholiday, getholidays, updateholiday, deleteholiday };
+        const result = await holidaymodal.insertMany(docs, { ordered: false });
+        res.json({ message: `${result.length} holiday(s) imported successfully` });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error during import' });
+    }
+};
+
+module.exports = { addholiday, getholidays, updateholiday, deleteholiday, bulkImportHolidays };

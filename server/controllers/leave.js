@@ -150,6 +150,16 @@ const updatenotification = async (req, res, next) => {
   }
 };
 
+const deletenotification = async (req, res, next) => {
+  try {
+    await notificationmodal.deleteMany({ userId: req.user.id });
+    return res.status(200).json({ message: "Notifications cleared" });
+  } catch (error) {
+    console.error("Delete notification error:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 
 const createLeavePolicy = async (req, res, next) => {
   try {
@@ -228,5 +238,6 @@ module.exports = {
   getPolicies,
   updateLeavePolicy,
   deleteLeavePolicy,
-  approveLeave
+  approveLeave,
+  deletenotification
 };

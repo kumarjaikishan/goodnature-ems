@@ -9,6 +9,12 @@ const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, set
 
     const adddepartcall = async (e) => {
         e.preventDefault();
+
+        // Validation: Ensure status is either 'approved' or 'rejected'
+        if (!inp.status || inp.status === 'pending') {
+            return toast.warn("Please select a status (Approve or Reject) before updating.");
+        }
+
         try {
             let url = "leavehandle";
             let method = "POST";

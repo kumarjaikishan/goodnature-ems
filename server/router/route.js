@@ -95,6 +95,7 @@ router.route('/getholidays').get(authmiddlewre, holiday.getholidays);
 router.route('/addholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 2), holiday.addholiday);
 router.route('/updateholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 3), holiday.updateholiday);
 router.route('/deleteholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 4), holiday.deleteholiday);
+router.route('/bulkImportHolidays').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 2), holiday.bulkImportHolidays);
 
 router.route('/notices').get(authmiddlewre, notice.getNotices);
 router.route('/notice').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), notice.createNotice);
@@ -107,6 +108,7 @@ router.route('/fetchleave').get(authmiddlewre, authorizeRoles('superadmin', 'adm
 router.route('/employeefetch').get(authmiddlewre, authorizeRoles('employee'), employeemiddlewre, leave.employeefetch);
 router.route('/empFirstFetch').get(authmiddlewre, authorizeRoles('employee'), leave.employeefetch);
 router.route('/updatenotification').get(authmiddlewre, leave.updatenotification);
+router.route('/deletenotification').delete(authmiddlewre, leave.deletenotification);
 
 // Leave Policy Routes
 router.route('/leave-policies')

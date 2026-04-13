@@ -200,7 +200,7 @@ const EmployeeDashboard = () => {
         </motion.div>
 
         {/* Next Holiday */}
-        <motion.div variants={itemVariants} className="bg-gradient-to-br from-amber-500 to-orange-600 p-5 rounded-3xl shadow-lg border-none hover:shadow-orange-200 transition-all group overflow-hidden relative">
+        <motion.div variants={itemVariants} className="bg-gradient-to-br hidden from-amber-500 to-orange-600 p-5 rounded-3xl shadow-lg border-none hover:shadow-orange-200 transition-all group overflow-hidden relative">
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-4">
               <div className="p-3 bg-white/20 rounded-2xl text-white">

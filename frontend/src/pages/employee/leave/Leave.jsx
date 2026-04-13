@@ -69,10 +69,16 @@ const EmpLeave = () => {
         e.preventDefault();
         if (!inp.fromDate) return toast.warn('From Date is required')
         try {
+            // Format dates as YYYY-MM-DD strings to avoid UTC timezone shift
+            const payload = {
+                ...inp,
+                fromDate: dayjs(inp.fromDate).format('YYYY-MM-DD'),
+                toDate: inp.toDate ? dayjs(inp.toDate).format('YYYY-MM-DD') : dayjs(inp.fromDate).format('YYYY-MM-DD'),
+            };
             const data = await request({
                 url: "addleave",
                 method: "POST",
-                body: inp
+                body: payload
             });
 
             setopenmodal(false)
@@ -89,7 +95,7 @@ const EmpLeave = () => {
             {/* <h2 className="text-2xl mb-4 font-bold text-slate-800">Manage Leaves</h2> */}
             <div className='flex justify-end mb-2'>
                 <div className="flex gap-2">
-                    <Button variant='contained' startIcon={<GoPlus />} onClick={() => setopenmodal(true)}>Add Leave</Button>
+                    <Button variant='contained' startIcon={<GoPlus />} onClick={() => setopenmodal(true)}>Add Leave Request</Button>
                 </div>
             </div>
             <DataTable
@@ -106,48 +112,55 @@ const EmpLeave = () => {
                 <div className="membermodal w-[400px]">
                     <form onSubmit={handleSubmit}>
                         <h2>Add Leave Request</h2>
-                        <span className="modalcontent ">
+                        <span className="modalcontent">
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                <FormControl required fullWidth size="small">
-                                    <InputLabel>Leave Policy</InputLabel>
-                                    <Select
-                                        label="Leave Policy"
-                                        value={inp.policyId}
-                                        onChange={(e) => changehandle(e.target.value, "policyId")}
-                                    >
-                                        {policies.map((p) => (
-                                            <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <Box className="flex flex-col gap-4 mt-2">
+                                    <FormControl required fullWidth size="small">
+                                        <InputLabel>Leave Policy</InputLabel>
+                                        <Select
+                                            label="Leave Policy"
+                                            value={inp.policyId}
+                                            onChange={(e) => changehandle(e.target.value, "policyId")}
+                                        >
+                                            {policies.map((p) => (
+                                                <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
 
-                                <DatePicker
-                                    label="From Date"
-                                    format='dd/MM/yyyy'
-                                    required
-                                    value={inp.fromDate}
-                                    onChange={(newValue) => changehandle(newValue, 'fromDate')}
-                                    slotProps={{ textField: { fullWidth: true } }}
-                                />
+                                    <div className='flex flex-col md:flex-row gap-3'>
+                                        <DatePicker
+                                            label="From Date"
+                                            format='dd/MM/yyyy'
+                                            required
+                                            value={inp.fromDate}
+                                            onChange={(newValue) => changehandle(newValue, 'fromDate')}
+                                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                        />
 
-                                <DatePicker
-                                    format='dd/MM/yyyy'
-                                    label="To Date"
-                                    value={inp.toDate}
-                                    onChange={(newValue) => changehandle(newValue, 'toDate')}
-                                    slotProps={{ textField: { fullWidth: true } }}
-                                />
-                                <TextField
-                                    label="Reason"
-                                    required
-                                    multiline
-                                    minRows={2}
-                                    maxRows={5}
-                                    value={inp.reason}
-                                    onChange={(e) => changehandle(e.target.value, 'reason')}
-                                    fullWidth
-                                />
-                                <div className='flex w-full justify-end gap-3'>
+                                        <DatePicker
+                                            format='dd/MM/yyyy'
+                                            label="To Date"
+                                            value={inp.toDate}
+                                            onChange={(newValue) => changehandle(newValue, 'toDate')}
+                                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                        />
+                                    </div>
+
+                                    <TextField
+                                        label="Reason"
+                                        required
+                                        multiline
+                                        minRows={2}
+                                        maxRows={5}
+                                        value={inp.reason}
+                                        onChange={(e) => changehandle(e.target.value, 'reason')}
+                                        fullWidth
+                                        size="small"
+                                    />
+                                </Box>
+
+                                <div className='modalfooter'>
                                     <Button onClick={() => { setopenmodal(false); setinp(init) }} variant="outlined" >
                                         Cancel
                                     </Button>
@@ -180,12 +193,12 @@ export const columns = [
         selector: (row) => dayjs(row.fromDate).format('DD MMM, YYYY')
     },
     {
-        name: "Policy",
-        selector: (row) => row.policyId?.name || "N/A"
-    },
-    {
         name: "TO",
         selector: (row) => dayjs(row.toDate).format('DD MMM, YYYY')
+    },
+    {
+        name: "Policy",
+        selector: (row) => row.policyId?.name || "N/A"
     },
     {
         name: "Reason",

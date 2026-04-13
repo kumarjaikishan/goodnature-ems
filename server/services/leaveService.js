@@ -5,6 +5,7 @@ const LeavePolicy = require('../models/leavePolicy');
 const Attendance = require('../models/attandence');
 const dayjs = require('dayjs');
 const mongoose = require('mongoose');
+const Notification = require('../models/notification');
 
 class LeaveService {
   async applyLeave(leaveData, session) {
@@ -117,6 +118,19 @@ class LeaveService {
         { upsert: true, session }
       );
       current = current.add(1, 'day');
+    }
+
+    // Create Notification for the Employee
+    try {
+      const notification = new Notification({
+        userId: emp.userid._id || emp.userid, // Assuming userid is populated or matches user model
+        message: `Your leave request from ${dayjs(leaveRequest.fromDate).format('DD MMM')} to ${dayjs(leaveRequest.toDate).format('DD MMM')} has been approved.`,
+        read: false,
+        createdAt: new Date()
+      });
+      await notification.save({ session });
+    } catch (notifError) {
+      console.error("Failed to create leave approval notification:", notifError);
     }
 
     return leaveRequest;

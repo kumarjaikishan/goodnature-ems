@@ -318,6 +318,20 @@ const AttendanceReport = () => {
                         </Select>
                     </FormControl>
 
+                    {/* Year */}
+                    <FormControl size="small" className="md:w-[100px] w-[47%]">
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                            value={filters.year}
+                            label="Year"
+                            onChange={(e) => handleFilterChange("year", e.target.value)}
+                        >
+                            {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
+                                <MenuItem key={y} value={y}>{y}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
                     {/* Month */}
                     <FormControl size="small" className="md:w-[130px] w-[47%]">
                         <InputLabel>Month</InputLabel>
@@ -332,19 +346,6 @@ const AttendanceReport = () => {
                         </Select>
                     </FormControl>
 
-                    {/* Year */}
-                    <FormControl size="small" className="md:w-[100px] w-[47%]">
-                        <InputLabel>Year</InputLabel>
-                        <Select
-                            value={filters.year}
-                            label="Year"
-                            onChange={(e) => handleFilterChange("year", e.target.value)}
-                        >
-                            {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
-                                <MenuItem key={y} value={y}>{y}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </div>
                 <div className=" w-full md:w-fit">
                     {/* <Button onClick={exportCSV} className="flex-1" variant='outlined' startIcon={<FiDownload />} >Export</Button> */}

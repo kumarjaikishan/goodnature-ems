@@ -249,8 +249,12 @@ const checkin = async (req, res) => {
         return res.status(400).json({ message: 'Invalid punchIn time' });
       }
 
-      // 🔹 Helper functions
-      const getMinutes = (date) => date.getHours() * 60 + date.getMinutes();
+      // 🔹 Helper functions (IST = UTC+5:30)
+      const IST_OFFSET_MS = 330 * 60 * 1000;
+      const getMinutes = (date) => {
+        const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+        return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+      };
 
       const parseTime = (t) => {
         const [h, m] = t.split(':').map(Number);
@@ -415,8 +419,12 @@ const checkout = async (req, res) => {
 
     record.punchOut = punchOutTime;
 
-    // 🔹 Helpers
-    const getMinutes = (date) => date.getHours() * 60 + date.getMinutes();
+    // 🔹 Helpers (IST = UTC+5:30)
+    const IST_OFFSET_MS = 330 * 60 * 1000;
+    const getMinutes = (date) => {
+      const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+      return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+    };
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
@@ -706,7 +714,12 @@ const bulkMarkAttendance = async (req, res) => {
     // 🔹 preload company
     const companyData = await company.findById(companyId);
 
-    const getMinutes = (date) => date.getHours() * 60 + date.getMinutes();
+    // IST = UTC+5:30
+    const IST_OFFSET_MS = 330 * 60 * 1000;
+    const getMinutes = (date) => {
+      const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+      return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+    };
 
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
@@ -937,7 +950,12 @@ const bulkMarkAttendanceExcel = async (req, res) => {
     const companyId = req.user.companyId;
     const companyData = await company.findById(companyId);
 
-    const getMinutes = (date) => date.getHours() * 60 + date.getMinutes();
+    // IST = UTC+5:30
+    const IST_OFFSET_MS = 330 * 60 * 1000;
+    const getMinutes = (date) => {
+      const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+      return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+    };
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;

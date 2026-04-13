@@ -2,8 +2,9 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Sidebar from '../components/sidebar';
+import ContentLoader from '../components/ContentLoader';
 
 const ProtectedRoutes = ({ allowedRoles = [] }) => {
   const { islogin } = useSelector((state) => state.auth);
@@ -60,7 +61,9 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
       <div className="flex-1 bg-gray-100 overflow-auto overflow-x-hidden">
         <Navbar />
         <div className="p-1 md:p-2">
-          <Outlet />
+          <Suspense fallback={<ContentLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     </div>
