@@ -273,7 +273,7 @@ export default function OrganizationSettings() {
             <div className="flex-1 space-y-6 overflow-y-auto px-2 pb-10 scrollbar-hide">
 
                 {/* 1. Company Information */}
-                <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
+                <div className='border hidden shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('company')}>
                         <span className="font-semibold text-lg">Company Information</span>

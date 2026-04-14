@@ -50,17 +50,15 @@ app.use([
 // Optional: log incoming requests
 // ----------------------
 app.use((req, res, next) => {
-  console.log(`📡 Incoming: ${req.method} ${req.url}`);
-  if (req.bodyRaw) console.log('Raw Body:', req.bodyRaw);
+  // console.log(`📡 Incoming: ${req.method} ${req.url}`);
+  // if (req.bodyRaw) console.log('Raw Body:', req.bodyRaw);
   next();
 });
-
 
 
 // ----------------------
 // Routes
 // ----------------------
-
 
 app.use('/api', route);
 app.get('/events', eventsHandler);
