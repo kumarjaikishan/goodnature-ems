@@ -191,18 +191,36 @@ const addemployee = async (req, res, next) => {
         }
         const empId = await generateNextEmpId(req.user.companyId);
 
+        // Pre-allocate IDs to solve circular dependency
+        const employeeObjectId = new mongoose.Types.ObjectId();
+        const ledgerObjectId = new mongoose.Types.ObjectId();
+
         const query = new employeeModal({
+            _id: employeeObjectId,
             companyId: req.user.companyId,
-            userid: resulten._id, designation, salary, empId, employeeName, branchId, profileimage: uploadResult?.secure_url, department,
+            userid: resulten._id,
+            designation,
+            salary,
+            empId,
+            employeeName,
+            branchId,
+            profileimage: uploadResult?.secure_url,
+            department,
+            ledgerId: ledgerObjectId // Link ledger beforehand
         });
         const resulte = await query.save({ session });
 
         // creating ledger for employee
-        const ledger = new Ledger({ companyId: req.user.companyId, name: employeeName, employeeId: resulten._id, profileImage: uploadResult?.secure_url });
-        const ledid = await ledger.save();
+        const ledger = new Ledger({
+            _id: ledgerObjectId,
+            companyId: req.user.companyId,
+            name: employeeName,
+            employeeId: employeeObjectId, // Link employee correctly
+            profileImage: uploadResult?.secure_url
+        });
+        await ledger.save({ session });
 
         await usermodal.findByIdAndUpdate(resulten._id, { employeeId: resulte._id }).session(session)
-        await employeeModal.findByIdAndUpdate(resulte._id, { ledgerId: ledid._id }).session(session)
 
         // Step 4: Commit transaction
         await session.commitTransaction();
