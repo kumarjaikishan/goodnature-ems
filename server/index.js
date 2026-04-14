@@ -6,14 +6,14 @@ const PORT = process.env.PORT || 5008;
 const errorHandle = require('./utils/error_util');
 const route = require('./router/route');
 const esslRoutes = require('./essl');
-const { eventsHandler } = require('./utils/sse'); 
+const { eventsHandler } = require('./utils/sse');
 const { webhook } = require('./services/payment');
 require('./conn/conn');
 
 // Enable CORS
 app.use(cors({
-   origin: "http://localhost:5173",
-    credentials: true
+  origin: "http://localhost:5173",
+  credentials: true
 }));
 
 app.post(
@@ -50,10 +50,12 @@ app.use([
 // Optional: log incoming requests
 // ----------------------
 app.use((req, res, next) => {
-  // console.log(`📡 Incoming: ${req.method} ${req.url}`);
-  // if (req.bodyRaw) console.log('Raw Body:', req.bodyRaw);
+  console.log(`📡 Incoming: ${req.method} ${req.url}`);
+  if (req.bodyRaw) console.log('Raw Body:', req.bodyRaw);
   next();
 });
+
+
 
 // ----------------------
 // Routes
