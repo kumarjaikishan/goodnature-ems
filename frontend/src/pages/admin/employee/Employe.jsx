@@ -282,44 +282,57 @@ const Employe = () => {
     // console.log(employee)
     // console.log(branch)
     setisupdate(true);
+    const safeValue = (val) => (val === undefined || val === null || val === 'undefined') ? '' : val;
+
     setInp({
       employeeId: employee._id,
-      branchId: employee?.branchId,
-      department: employee?.department?._id,
-      employeeName: employee?.userid?.name,
-      email: employee?.userid?.email,
-      dob: employee?.dob,
-      salary: employee?.salary,
-      status: employee?.status,
+      branchId: safeValue(employee?.branchId),
+      department: safeValue(employee?.department?._id),
+      employeeName: safeValue(employee?.userid?.name),
+      email: safeValue(employee?.userid?.email),
+      dob: employee?.dob ? employee.dob.split('T')[0] : '', // Format to yyyy-MM-dd
+      salary: employee?.salary || 0,
+      status: employee?.status ?? true,
 
-      empId: Number(employee?.empId?.split('EMP')[1]),
-      guardian: employee?.guardian,
+      empId: employee?.empId ? Number(employee.empId.split('EMP')[1]) : '',
+      guardian: {
+        name: safeValue(employee?.guardian?.name),
+        relation: safeValue(employee?.guardian?.relation) || 'S/o'
+      },
 
-      acHolderName: employee?.acHolderName,
-      bankName: employee?.bankName,
-      bankbranch: employee?.bankbranch,
-      acnumber: employee?.acnumber,
-      ifscCode: employee?.ifscCode,
-      upi: employee?.upi,
-      adhaar: employee?.adhaar,
-      pan: employee?.pan,
-      deviceUserId: employee?.deviceUserId,
+      acHolderName: safeValue(employee?.acHolderName),
+      bankName: safeValue(employee?.bankName),
+      bankbranch: safeValue(employee?.bankbranch),
+      acnumber: safeValue(employee?.acnumber),
+      ifscCode: safeValue(employee?.ifscCode),
+      upi: safeValue(employee?.upi),
+      adhaar: safeValue(employee?.adhaar),
+      pan: safeValue(employee?.pan),
+      deviceUserId: safeValue(employee?.deviceUserId),
 
-      designation: employee?.designation,
-      phone: employee?.phone,
-      address: employee?.address || '',
-      gender: employee?.gender || 'male',
-      bloodGroup: employee?.bloodGroup,
-      Emergencyphone: employee?.Emergencyphone,
-      skills: employee?.skills,
-      maritalStatus: employee?.maritalStatus || true,
-      achievements: employee?.achievements,
-      education: employee?.education,
+      designation: safeValue(employee?.designation),
+      phone: safeValue(employee?.phone),
+      address: safeValue(employee?.address),
+      gender: safeValue(employee?.gender) || 'male',
+      bloodGroup: safeValue(employee?.bloodGroup),
+      Emergencyphone: safeValue(employee?.Emergencyphone),
+      skills: employee?.skills || [],
+      maritalStatus: employee?.maritalStatus ?? true,
+      achievements: (employee?.achievements || []).map(ach => ({
+        title: safeValue(ach.title),
+        description: safeValue(ach.description),
+        date: ach.date ? ach.date.split('T')[0] : ''
+      })),
+      education: (employee?.education || []).map(edu => ({
+        degree: safeValue(edu.degree),
+        institution: safeValue(edu.institution),
+        date: edu.date ? edu.date.split('T')[0] : ''
+      })),
 
-      overridedefaultPolicies: employee?.overridedefaultPolicies,
-      allowances: employee?.allowances, // [{ name: "HRA", mode: "percentage", value: 40 }]
-      bonuses: employee?.bonuses,
-      deductions: employee?.deductions
+      overridedefaultPolicies: employee?.overridedefaultPolicies || false,
+      allowances: employee?.allowances || [],
+      bonuses: employee?.bonuses || [],
+      deductions: employee?.deductions || []
     });
     if (employee.profileimage) {
       setPhotoPreview(employee.profileimage);
@@ -593,13 +606,13 @@ const Employe = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <TextField fullWidth required value={inp.employeeName} onChange={(e) => handleChange(e, 'employeeName')} label="Name" size="small" />
-                    <TextField fullWidth required value={inp.email} onChange={(e) => handleChange(e, 'email')} label="Email" size="small" />
+                    <TextField fullWidth required value={inp.employeeName || ''} onChange={(e) => handleChange(e, 'employeeName')} label="Name" size="small" />
+                    <TextField fullWidth required value={inp.email || ''} onChange={(e) => handleChange(e, 'email')} label="Email" size="small" />
                   </div>
 
                   <div className="flex gap-2">
-                    <TextField fullWidth value={inp.designation} onChange={(e) => handleChange(e, 'designation')} label="Designation" size="small" />
-                    <TextField fullWidth value={inp.salary} onChange={(e) => handleChange(e, 'salary')} label="Salary" size="small" />
+                    <TextField fullWidth value={inp.designation || ''} onChange={(e) => handleChange(e, 'designation')} label="Designation" size="small" />
+                    <TextField fullWidth value={inp.salary || ''} onChange={(e) => handleChange(e, 'salary')} label="Salary" size="small" />
                   </div>
 
 
@@ -608,7 +621,7 @@ const Employe = () => {
                     <TextField
                       fullWidth
                       type="number"
-                      value={inp.empId}
+                      value={inp.empId || ''}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val.length <= 3) {
@@ -629,7 +642,7 @@ const Employe = () => {
                     {/* Guardian Name with prefix dropdown */}
                     <TextField
                       fullWidth
-                      value={inp?.guardian?.name}
+                      value={inp?.guardian?.name || ''}
                       onChange={(e) =>
                         setInp((prev) => ({
                           ...prev,
@@ -718,13 +731,13 @@ const Employe = () => {
                           gridTemplateColumns: '1fr 1fr',
                           gap: 2,
                         }}>
-                          <TextField fullWidth value={inp.phone} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'phone')} label="Phone" size="small" />
-                          <TextField fullWidth value={inp.Emergencyphone} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'Emergencyphone')} label="Emergency/ Relative Phone" size="small" />
-                          <TextField fullWidth value={inp.address} onChange={(e) => handleChange(e, 'address')} label="Address" size="small" />
-                          <TextField fullWidth value={inp.bloodGroup} onChange={(e) => handleChange(e, 'bloodGroup')} label="Blood Group" size="small" />
-                          <TextField fullWidth inputProps={{ maxLength: 12 }} value={inp.adhaar} onChange={(e) => handleChange(e, 'adhaar')} label="Adhaar No." size="small" />
-                          <TextField fullWidth inputProps={{ maxLength: 10 }} value={inp.pan} onChange={(e) => handleChange(e, 'pan')} label="Pan No." size="small" />
-                          <TextField InputLabelProps={{ shrink: true }} fullWidth value={inp.dob} type="date" onChange={(e) => handleChange(e, 'dob')} label="Date of Birth" size="small" />
+                          <TextField fullWidth value={inp.phone || ''} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'phone')} label="Phone" size="small" />
+                          <TextField fullWidth value={inp.Emergencyphone || ''} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'Emergencyphone')} label="Emergency/ Relative Phone" size="small" />
+                          <TextField fullWidth value={inp.address || ''} onChange={(e) => handleChange(e, 'address')} label="Address" size="small" />
+                          <TextField fullWidth value={inp.bloodGroup || ''} onChange={(e) => handleChange(e, 'bloodGroup')} label="Blood Group" size="small" />
+                          <TextField fullWidth inputProps={{ maxLength: 12 }} value={inp.adhaar || ''} onChange={(e) => handleChange(e, 'adhaar')} label="Adhaar No." size="small" />
+                          <TextField fullWidth inputProps={{ maxLength: 10 }} value={inp.pan || ''} onChange={(e) => handleChange(e, 'pan')} label="Pan No." size="small" />
+                          <TextField InputLabelProps={{ shrink: true }} fullWidth value={inp.dob || ''} type="date" onChange={(e) => handleChange(e, 'dob')} label="Date of Birth" size="small" />
                           <FormControl size="small">
                             <InputLabel>Marital Status</InputLabel>
                             <Select
@@ -779,12 +792,12 @@ const Employe = () => {
                           gridTemplateColumns: '1fr 1fr',
                           gap: 2,
                         }}>
-                          <TextField fullWidth value={inp.acHolderName} onChange={(e) => handleChange(e, 'acHolderName')} label="A/C Holder Name" size="small" />
-                          <TextField fullWidth value={inp.bankName} onChange={(e) => handleChange(e, 'bankName')} label="Bank Name" size="small" />
-                          <TextField fullWidth value={inp.bankbranch} onChange={(e) => handleChange(e, 'bankbranch')} label="Branch" size="small" />
-                          <TextField fullWidth value={inp.acnumber} onChange={(e) => handleChange(e, 'acnumber')} label="A/C No." size="small" />
-                          <TextField fullWidth value={inp.ifscCode} onChange={(e) => handleChange(e, 'ifscCode')} label="IFSC Code" size="small" />
-                          <TextField fullWidth value={inp.upi} onChange={(e) => handleChange(e, 'upi')} label="Upi Id/No." size="small" />
+                          <TextField fullWidth value={inp.acHolderName || ''} onChange={(e) => handleChange(e, 'acHolderName')} label="A/C Holder Name" size="small" />
+                          <TextField fullWidth value={inp.bankName || ''} onChange={(e) => handleChange(e, 'bankName')} label="Bank Name" size="small" />
+                          <TextField fullWidth value={inp.bankbranch || ''} onChange={(e) => handleChange(e, 'bankbranch')} label="Branch" size="small" />
+                          <TextField fullWidth value={inp.acnumber || ''} onChange={(e) => handleChange(e, 'acnumber')} label="A/C No." size="small" />
+                          <TextField fullWidth value={inp.ifscCode || ''} onChange={(e) => handleChange(e, 'ifscCode')} label="IFSC Code" size="small" />
+                          <TextField fullWidth value={inp.upi || ''} onChange={(e) => handleChange(e, 'upi')} label="Upi Id/No." size="small" />
                         </Box>
                       </div>
 
@@ -819,13 +832,13 @@ const Employe = () => {
                               <TextField
                                 label="Title"
                                 size="small"
-                                value={ach.title}
+                                value={ach.title || ''}
                                 onChange={(e) => handleNestedChange(e, 'achievements', idx, 'title')}
                               />
                               <TextField
                                 label="Description"
                                 size="small"
-                                value={ach.description}
+                                value={ach.description || ''}
                                 onChange={(e) => handleNestedChange(e, 'achievements', idx, 'description')}
                               />
                               <TextField
@@ -833,7 +846,7 @@ const Employe = () => {
                                 size="small"
                                 label="Date"
                                 InputLabelProps={{ shrink: true }}
-                                value={ach.date}
+                                value={ach.date || ''}
                                 onChange={(e) => handleNestedChange(e, 'achievements', idx, 'date')}
                               />
                               {/* <Button color="error" onClick={() => removeItem('achievements', idx)}>Remove</Button> */}
@@ -850,13 +863,13 @@ const Employe = () => {
                               <TextField
                                 label="Degree"
                                 size="small"
-                                value={edu.degree}
+                                value={edu.degree || ''}
                                 onChange={(e) => handleNestedChange(e, 'education', idx, 'degree')}
                               />
                               <TextField
                                 label="Institution"
                                 size="small"
-                                value={edu.institution}
+                                value={edu.institution || ''}
                                 onChange={(e) => handleNestedChange(e, 'education', idx, 'institution')}
                               />
                               <TextField
@@ -864,7 +877,7 @@ const Employe = () => {
                                 size="small"
                                 label="Date"
                                 InputLabelProps={{ shrink: true }}
-                                value={edu.date}
+                                value={edu.date || ''}
                                 onChange={(e) => handleNestedChange(e, 'education', idx, 'date')}
                               />
                               {/* <Button color="error" onClick={() => removeItem('education', idx)}>Remove</Button> */}
@@ -932,7 +945,7 @@ const Employe = () => {
                                         size="small"
                                         required
                                         className="flex-1"
-                                        value={item.name}
+                                        value={item.name || ''}
                                         onChange={(e) => {
                                           const updated = policies.map((policy, i) =>
                                             i === idx ? { ...policy, name: e.target.value } : policy
@@ -968,7 +981,7 @@ const Employe = () => {
                                         label={item.type === 'amount' ? '₹' : '%'}
                                         type="number"
                                         size="small"
-                                        value={item.value}
+                                        value={item.value || ''}
                                         required
                                         className="w-[90px]"
                                         onChange={(e) => {

@@ -309,18 +309,18 @@ const checkin = async (req, res) => {
     // 🔹 Leave handling
     if (status === "leave") {
       // Fetch default leave policy
-      let policy = await LeavePolicy.findOne({ 
-        companyId: req.user.companyId, 
-        name: { $regex: /^casual$/i } 
+      let policy = await LeavePolicy.findOne({
+        companyId: req.user.companyId,
+        name: { $regex: /^casual$/i }
       });
-      
+
       if (!policy) {
         policy = await LeavePolicy.findOne({ companyId: req.user.companyId });
       }
 
       if (!policy) {
-        return res.status(400).json({ 
-          message: 'No leave policy found for this company. Please create a leave policy (e.g., "Casual") first.' 
+        return res.status(400).json({
+          message: 'No leave policy found for this company. Please create a leave policy (e.g., "Casual") first.'
         });
       }
 
@@ -359,9 +359,9 @@ const checkin = async (req, res) => {
       sendToClients(
         {
           type: 'attendance_update',
-          payload: { 
-            action: normalizedStatusCheck === 'present' ? 'checkin' : normalizedStatusCheck, 
-            data: updatedRecord 
+          payload: {
+            action: normalizedStatusCheck === 'present' ? 'checkin' : normalizedStatusCheck,
+            data: updatedRecord
           }
         },
         req.user.companyId,
@@ -1425,18 +1425,18 @@ const editattandence = async (req, res) => {
 
       if (!existingLeave) {
         // Fetch default leave policy
-        let policy = await LeavePolicy.findOne({ 
-          companyId: req.user.companyId, 
-          name: { $regex: /^casual$/i } 
+        let policy = await LeavePolicy.findOne({
+          companyId: req.user.companyId,
+          name: { $regex: /^casual$/i }
         });
-        
+
         if (!policy) {
           policy = await LeavePolicy.findOne({ companyId: req.user.companyId });
         }
 
         if (!policy) {
-          return res.status(400).json({ 
-            message: 'No leave policy found for this company. Please create a leave policy (e.g., "Casual") first.' 
+          return res.status(400).json({
+            message: 'No leave policy found for this company. Please create a leave policy (e.g., "Casual") first.'
           });
         }
 

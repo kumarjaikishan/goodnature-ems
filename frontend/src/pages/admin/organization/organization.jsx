@@ -269,8 +269,8 @@ export default function OrganizationSettings() {
     };
 
     return (
-        <div className="w-full flex h-screen overflow-hidden flex-col md:flex-row gap-4 p-4 md:p-6 bg-gray-50">
-            <div className="flex-1 space-y-6 overflow-y-auto px-2 pb-10 scrollbar-hide">
+        <div className="w-full flex h-screen overflow-hidden flex-col md:flex-row gap-4 p-1 md:p-6 bg-gray-50">
+            <div className="flex-1 space-y-6 overflow-y-auto pb-10 scrollbar-hide">
 
                 {/* 1. Company Information */}
                 <div className='border hidden shadow-lg bg-white border-dashed border-gray-300 rounded-md'>

@@ -216,18 +216,18 @@ export const columns = ({
               </span>
               {isSpecialDay ? (
                 <span className="ml-2 px-1 py-1 rounded bg-green-100 text-green-800">
-                  Overtime {row.workingMinutes} min
+                  Overtime {minutesinhours(row.workingMinutes)}
                 </span>
               ) : (
                 <>
                   {row.shortMinutes > 0 && (
                     <span className="ml-2 px-1 py-1 rounded bg-amber-100 text-amber-800">
-                      Short {row.shortMinutes} min
+                      Short {minutesinhours(row.shortMinutes)}
                     </span>
                   )}
                   {row.overtimeMinutes > 0 && (
                     <span className="ml-2 p-1 rounded bg-green-100 text-green-800">
-                      Overtime {row.overtimeMinutes} min
+                      Overtime {minutesinhours(row.overtimeMinutes)}
                     </span>
                   )}
                 </>

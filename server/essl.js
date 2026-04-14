@@ -3,11 +3,13 @@ const router = express.Router();
 const Attendance = require('./models/attandence');
 const employee = require('./models/employee');
 const company = require('./models/company');
+const BranchModal = require('./models/branch')
 const { sendToClients } = require('./utils/sse');
 const { sendTelegramMessage, sendTelegramMessageseperate } = require('./utils/telegram');
 const dayjs = require("dayjs");
 const utc = require("dayjs/plugin/utc");
 const timezone = require("dayjs/plugin/timezone");
+const { createLedger } = require('./controllers/ledger');
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -67,107 +69,163 @@ router.get('/essl/iclock/getrequest.aspx', async (req, res) => {
 
 // POST request for device
 router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) => {
-    const raw = req.bodyRaw || '';
-    const deviceSN = req.query.SN || null;
-    // console.log('deviceSN', deviceSN)
-    // console.log('raw', raw)
+    try {
+        const raw = req.bodyRaw || '';
+        const deviceSN = req.query.SN || null;
 
-    if (raw.startsWith('USER')) {
-        // Parse user data
-        const users = raw.trim().split('\n').map(line => {
-            const obj = {};
-            line.split(/\s+/).forEach(part => {
-                const [key, ...rest] = part.split('=');
-                obj[key] = rest.join('');
-            });
-            return obj;
-        });
-        // console.log('🧑 Users:', users);
+        if (!raw) return res.send('OK');
 
-    } else if (raw.startsWith('OPLOG')) {
-        // Parse device operation log
-        const logs = raw.trim().split('\n').map(line => {
-            const parts = line.split(/\s+/);
-            return {
-                type: parts[0],
-                PIN: parts[1],
-                DeviceID: parts[2],
-                Timestamp: parts[3] + ' ' + parts[4],
-                VerifyMode: parts[5],
-                Status: parts[6],
-                WorkCode: parts[7],
-                Reserved: parts[8]
+        // =========================
+        // HANDLE LIVE ATTLOG
+        // =========================
+        if (/^\d+\s/.test(raw)) {
+            const fields = raw.trim().split(/\s+/);
+
+            const attendancee = {
+                PIN: fields[0],
+                Timestamp: fields[1] + ' ' + fields[2],
+                Status: fields[3],
+                VerifyMode: fields[4]
             };
-        });
-        // console.log('📋 Operation Logs:', logs);
 
-    } else if (/^\d+\s/.test(raw)) {
-        // Parse live attendance (ATTLOG)
-        const fields = raw.trim().split(/\s+/);
-        const attendancee = {
-            PIN: fields[0],
-            Timestamp: fields[1] + ' ' + fields[2],
-            VerifyMode: fields[4],
-            Status: fields[3]
-        };
+            console.log('⏱ Live Attendance:', attendancee);
 
-        console.log('⏱ Live Attendance:', attendancee);
-        // console.log('⏱ raw field:', fields);
+            const status = parseInt(attendancee.Status, 10);
 
-        const status = parseInt(attendancee.Status, 10);
+            // Only allow punchIn (0) and punchOut (1)
+            if (status > 1) return res.send('OK');
 
-        if (status > 1 || attendancee.VerifyMode != 1) {
-            console.log(`status code:${status}, not punch In or Out Code`)
-            return res.send('ok')
-        }
+            const deviceUserId = attendancee.PIN;
+            const recordTime = attendancee.Timestamp;
 
-        // otherwise process further for attenense
-        // status code 0 = punchin and 1 = punchout
-
-        try {
-            let deviceUserId = attendancee.PIN;
-            let recordTime = attendancee.Timestamp;
-
-            // const whichcomapny = await company.findOne({ deviceSN }).select('_id');
-            const whichcomapny = await company.findOne({ "devices.SN": deviceSN }).select('_id devices');
-            // console.log('whichcomapny', whichcomapny)
-
-            // 1️⃣ Find employee by esslId
-            const employeeDoc = await employee.findOne({ companyId: whichcomapny._id, deviceUserId }).select('_id branchId empId companyId');
-            if (!employeeDoc) {
-                console.warn(`⚠️ No employee found with esslId ${deviceUserId}`);
-                return;
-            }
-
-            // 2️⃣ Normalize punch time → strip seconds & ms
+            // =========================
+            // NORMALIZE TIME
+            // =========================
             const punchDate = new Date(recordTime);
-            punchDate.setSeconds(0, 0); // ✅ keep only till minutes
+            if (isNaN(punchDate)) {
+                console.warn("Invalid date:", recordTime);
+                return res.send('OK');
+            }
+            punchDate.setSeconds(0, 0);
 
-            // 2.1️⃣ Normalize attendance date to UTC midnight
             const dateObj = new Date(Date.UTC(
                 punchDate.getUTCFullYear(),
                 punchDate.getUTCMonth(),
                 punchDate.getUTCDate()
             ));
 
-            // 3️⃣ Check existing attendance for same employee + date
+            // =========================
+            // FIND COMPANY
+            // =========================
+            const whichCompany = await company.findOne({ "devices.SN": deviceSN }).select('_id');
+
+            if (!whichCompany) {
+                console.warn(`No company for SN ${deviceSN}`);
+                return res.send('OK');
+            }
+
+            // =========================
+            // FIND EMPLOYEE
+            // =========================
+            const employeeDoc = await employee.findOne({
+                companyId: whichCompany._id,
+                deviceUserId
+            }).select('_id branchId empId companyId');
+
+            if (!employeeDoc) {
+                console.warn(`No employee for deviceUserId ${deviceUserId}`);
+                return res.send('OK');
+            }
+
+            // =========================
+            // FETCH SNAPSHOT
+            // =========================
+            const companyData = await company.findById(employeeDoc.companyId);
+            const branch = await BranchModal.findById(employeeDoc.branchId);
+
+            let snapshot = {};
+
+            if (branch?.defaultsetting) {
+                snapshot = {
+                    officeTime: companyData?.officeTime,
+                    gracePeriod: companyData?.gracePeriod,
+                    workingMinutes: companyData?.workingMinutes,
+                    attendanceRules: companyData?.attendanceRules
+                };
+            } else {
+                snapshot = {
+                    officeTime: branch?.setting?.officeTime,
+                    gracePeriod: branch?.setting?.gracePeriod,
+                    workingMinutes: branch?.setting?.workingMinutes,
+                    attendanceRules: branch?.setting?.attendanceRules
+                };
+            }
+
+            // =========================
+            // FIND ATTENDANCE
+            // =========================
             let attendance = await Attendance.findOne({
                 employeeId: employeeDoc._id,
                 date: dateObj
             });
 
+            // =========================
+            // COMMON TIME HELPERS
+            // =========================
+            const IST_OFFSET_MS = 330 * 60 * 1000;
+
+            const getMinutes = (date) => {
+                const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+                return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+            };
+
+            const parseTime = (t) => {
+                if (!t) return null;
+                const [h, m] = t.split(':').map(Number);
+                return h * 60 + m;
+            };
+
+            // =========================
+            // CHECK-IN
+            // =========================
             if (!attendance) {
-                // 4️⃣ First punch → create Punch In
+
+                const earlyBefore = parseTime(snapshot?.attendanceRules?.considerEarlyEntryBefore);
+                const lateAfter = parseTime(snapshot?.attendanceRules?.considerLateEntryAfter);
+
+                const punchInMin = getMinutes(punchDate);
+
+                let punchInStatus = "onTime";
+
+                if (earlyBefore !== null && punchInMin < earlyBefore) {
+                    punchInStatus = "early";
+                } else if (lateAfter !== null && punchInMin > lateAfter) {
+                    punchInStatus = "late";
+                }
+
                 attendance = new Attendance({
                     companyId: employeeDoc.companyId,
                     branchId: employeeDoc.branchId,
                     empId: employeeDoc.empId,
                     employeeId: employeeDoc._id,
+
                     date: dateObj,
                     status: 'present',
+                    source: 'device',
+
                     punchIn: punchDate,
-                    source: 'device'
+                    punchInStatus,
+
+                    dutyStart: snapshot?.officeTime?.in,
+                    dutyEnd: snapshot?.officeTime?.out,
+
+                    rulesSnapshot: snapshot,
+
+                    workingMinutes: 0,
+                    overtimeMinutes: 0,
+                    shortMinutes: 0
                 });
+
                 await attendance.save();
 
                 const updatedRecord = await Attendance.findById(attendance._id)
@@ -185,57 +243,45 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         type: 'attendance_update',
                         payload: { action: 'checkin', data: updatedRecord }
                     },
-                    (employeeDoc?.companyId).toString(),
-                    (employeeDoc?.branchId).toString() || null
+                    employeeDoc.companyId.toString(),
+                    employeeDoc.branchId?.toString() || null
                 );
 
-                let hey = await company.findById(updatedRecord.companyId).select('telegram telegramNotifcation');
-
-                if (
-                    hey?.telegramNotifcation &&
-                    hey?.telegram?.token &&
-                    hey?.telegram?.groupId
-                ) {
-                    sendTelegramMessageseperate(
-                        hey.telegram.token,
-                        hey.telegram.groupId,
-                        `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
-                            .utc()
-                            .add(5, 'hours')
-                            .add(30, 'minutes')
-                            .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
-                                .utc()
-                                .add(5, 'hours')
-                                .add(30, 'minutes')
-                                .format("DD/MM/YY")}`
-                    )
-                }
-
-                // sendTelegramMessage(
-                //     `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
-                //         .utc()
-                //         .add(5, 'hours')
-                //         .add(30, 'minutes')
-                //         .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
-                //             .utc()
-                //             .add(5, 'hours')
-                //             .add(30, 'minutes')
-                //             .format("DD/MM/YY")}`
-                // );
-
-                // console.log(`✅ Punch In recorded for employee ${employeeDoc.empId} on ${dateObj.toDateString()}`);
             } else {
-                // 5️⃣ If already has punchIn but no punchOut → set Punch Out with calculations
+
+                // =========================
+                // CHECK-OUT
+                // =========================
                 if (!attendance.punchOut) {
+
                     attendance.punchOut = punchDate;
 
-                    // ✅ Calculate working minutes
+                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes?.fullDay || 480;
+
                     const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
                     attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
 
-                    // ✅ Calculate short minutes (assuming 480 min = 8 hours workday)
-                    const short = 480 - attendance.workingMinutes;
+                    const short = expectedMinutes - attendance.workingMinutes;
                     attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
+
+                    const overtime = attendance.workingMinutes - expectedMinutes;
+                    attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
+
+                    // ✅ punchOutStatus
+                    const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
+                    const lateExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerLateExitAfter);
+
+                    const punchOutMin = getMinutes(punchDate);
+
+                    let punchOutStatus = "onTime";
+
+                    if (earlyExit !== null && punchOutMin < earlyExit) {
+                        punchOutStatus = "early";
+                    } else if (lateExit !== null && punchOutMin > lateExit) {
+                        punchOutStatus = "late";
+                    }
+
+                    attendance.punchOutStatus = punchOutStatus;
 
                     await attendance.save();
 
@@ -254,55 +300,252 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                             type: 'attendance_update',
                             payload: { action: 'checkOut', data: updatedRecord }
                         },
-                        (employeeDoc?.companyId).toString(),
-                        (employeeDoc?.branchId).toString() || null
+                        employeeDoc.companyId.toString(),
+                        employeeDoc.branchId?.toString() || null
                     );
 
-                    let hey = await company.findById(updatedRecord.companyId).select('telegram telegramNotifcation');
-
-                    if (
-                        hey?.telegramNotifcation &&
-                        hey?.telegram?.token &&
-                        hey?.telegram?.groupId
-                    ) {
-                        sendTelegramMessageseperate(
-                            hey.telegram.token,
-                            hey.telegram.groupId,
-                            `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
-                                .utc()
-                                .add(5, 'hours')
-                                .add(30, 'minutes')
-                                .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
-                                    .utc()
-                                    .add(5, 'hours')
-                                    .add(30, 'minutes')
-                                    .format("DD/MM/YY")}`
-                        )
-                    }
-                    // sendTelegramMessage(`${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchIn).format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn).format("DD/MM/YY")}`)
-                    // sendTelegramMessage(
-                    //     `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
-                    //         .utc()
-                    //         .add(5, 'hours')
-                    //         .add(30, 'minutes')
-                    //         .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
-                    //             .utc()
-                    //             .add(5, 'hours')
-                    //             .add(30, 'minutes')
-                    //             .format("DD/MM/YY")}`
-                    // );
-
-                    // console.log(`✅ Punch Out recorded for employee ${employeeDoc.empId} on ${dateObj.toDateString()} | Working: ${attendance.workingMinutes} min | Short: ${attendance.shortMinutes} min`);
                 } else {
-                    console.log(`ℹ️ Extra punch ignored for employee ${employeeDoc.empId} on ${dateObj.toDateString()}`);
+                    console.log(`Extra punch ignored for ${employeeDoc.empId}`);
                 }
             }
-        } catch (error) {
-            console.error("❌ Error recording attendance:", error.message);
         }
-    }
 
-    res.send('OK'); // Device requires exact "OK"
+        return res.send('OK');
+
+    } catch (error) {
+        console.error("ESSL ERROR:", error);
+        return res.send('OK');
+    }
 });
+
+
+
+// router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) => {
+//     try {
+//         const raw = req.bodyRaw || '';
+//         const deviceSN = req.query.SN || null;
+
+//         if (!raw) return res.send('OK');
+
+//         // =========================
+//         // HANDLE ATTLOG (LIVE DATA)
+//         // =========================
+//         if (/^\d+\s/.test(raw)) {
+//             const fields = raw.trim().split(/\s+/);
+
+//             const attendancee = {
+//                 PIN: fields[0],
+//                 Timestamp: fields[1] + ' ' + fields[2],
+//                 Status: fields[3],
+//                 VerifyMode: fields[4]
+//             };
+
+//             console.log('⏱ Live Attendance:', attendancee);
+
+//             const status = parseInt(attendancee.Status, 10);
+
+//             // Only allow punchIn (0) and punchOut (1)
+//             if (status > 1) {
+//                 return res.send('OK');
+//             }
+
+//             const deviceUserId = attendancee.PIN;
+//             const recordTime = attendancee.Timestamp;
+
+//             // ✅ Normalize punch time FIRST (FIXED BUG)
+//             const punchDate = new Date(recordTime);
+//             if (isNaN(punchDate)) {
+//                 console.warn("Invalid punch date:", recordTime);
+//                 return res.send('OK');
+//             }
+//             punchDate.setSeconds(0, 0);
+
+//             // ✅ Normalize attendance date
+//             const dateObj = new Date(Date.UTC(
+//                 punchDate.getUTCFullYear(),
+//                 punchDate.getUTCMonth(),
+//                 punchDate.getUTCDate()
+//             ));
+
+//             // =========================
+//             // FIND COMPANY
+//             // =========================
+//             const whichCompany = await company.findOne({ "devices.SN": deviceSN }).select('_id');
+
+//             if (!whichCompany) {
+//                 console.warn(`⚠️ No company found for device SN ${deviceSN}`);
+//                 return res.send('OK');
+//             }
+
+//             // =========================
+//             // FIND EMPLOYEE
+//             // =========================
+//             const employeeDoc = await employee.findOne({
+//                 companyId: whichCompany._id,
+//                 deviceUserId
+//             }).select('_id branchId empId companyId');
+
+//             if (!employeeDoc) {
+//                 console.warn(`⚠️ No employee found with deviceUserId ${deviceUserId}`);
+//                 return res.send('OK');
+//             }
+
+//             // =========================
+//             // FETCH SETTINGS SNAPSHOT
+//             // =========================
+//             const companyData = await company.findById(employeeDoc.companyId);
+//             const branch = await BranchModal.findById(employeeDoc.branchId);
+
+//             let snapshot = {};
+
+//             if (branch?.defaultsetting) {
+//                 snapshot = {
+//                     officeTime: companyData?.officeTime,
+//                     gracePeriod: companyData?.gracePeriod,
+//                     workingMinutes: companyData?.workingMinutes,
+//                     attendanceRules: companyData?.attendanceRules
+//                 };
+//             } else {
+//                 snapshot = {
+//                     officeTime: branch?.setting?.officeTime,
+//                     gracePeriod: branch?.setting?.gracePeriod,
+//                     workingMinutes: branch?.setting?.workingMinutes,
+//                     attendanceRules: branch?.setting?.attendanceRules
+//                 };
+//             }
+
+//             // =========================
+//             // FIND EXISTING ATTENDANCE
+//             // =========================
+//             let attendance = await Attendance.findOne({
+//                 employeeId: employeeDoc._id,
+//                 date: dateObj
+//             });
+
+//             // =========================
+//             // FIRST PUNCH (CHECK-IN)
+//             // =========================
+//             if (!attendance) {
+
+//                 // ✅ Calculate punchInStatus SAFELY
+//                 const IST_OFFSET_MS = 330 * 60 * 1000;
+
+//                 const getMinutes = (date) => {
+//                     const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+//                     return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+//                 };
+
+//                 const parseTime = (t) => {
+//                     if (!t) return null;
+//                     const [h, m] = t.split(':').map(Number);
+//                     return h * 60 + m;
+//                 };
+
+//                 const earlyBefore = parseTime(snapshot?.attendanceRules?.considerEarlyEntryBefore);
+//                 const lateAfter = parseTime(snapshot?.attendanceRules?.considerLateEntryAfter);
+
+//                 const punchInMin = getMinutes(punchDate);
+
+//                 let punchInStatus = "onTime";
+
+//                 if (earlyBefore !== null && punchInMin < earlyBefore) {
+//                     punchInStatus = "early";
+//                 } else if (lateAfter !== null && punchInMin > lateAfter) {
+//                     punchInStatus = "late";
+//                 }
+
+//                 // ✅ Create attendance
+//                 attendance = new Attendance({
+//                     companyId: employeeDoc.companyId,
+//                     branchId: employeeDoc.branchId,
+//                     empId: employeeDoc.empId,
+//                     employeeId: employeeDoc._id,
+
+//                     date: dateObj,
+//                     status: 'present',
+//                     source: 'device',
+
+//                     punchIn: punchDate,
+//                     punchInStatus,
+
+//                     dutyStart: snapshot?.officeTime?.in,
+//                     dutyEnd: snapshot?.officeTime?.out,
+
+//                     rulesSnapshot: snapshot,
+
+//                     workingMinutes: 0,
+//                     overtimeMinutes: 0,
+//                     shortMinutes: 0
+//                 });
+
+//                 await attendance.save();
+
+//                 // 🔁 realtime update
+//                 const updatedRecord = await Attendance.findById(attendance._id)
+//                     .populate({
+//                         path: 'employeeId',
+//                         select: 'userid profileimage',
+//                         populate: {
+//                             path: 'userid',
+//                             select: 'name'
+//                         }
+//                     });
+
+//                 sendToClients(
+//                     {
+//                         type: 'attendance_update',
+//                         payload: { action: 'checkin', data: updatedRecord }
+//                     },
+//                     employeeDoc.companyId.toString(),
+//                     employeeDoc.branchId?.toString() || null
+//                 );
+
+//             } else {
+
+//                 // =========================
+//                 // SECOND PUNCH (CHECK-OUT)
+//                 // =========================
+//                 if (!attendance.punchOut) {
+
+//                     attendance.punchOut = punchDate;
+
+//                     const expectedMinutes = snapshot?.workingMinutes?.fullDay || 480;
+
+//                     const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
+
+//                     attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
+
+//                     // ✅ SHORT TIME
+//                     const short = expectedMinutes - attendance.workingMinutes;
+//                     attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
+
+//                     // ✅ OVERTIME
+//                     const overtime = attendance.workingMinutes - expectedMinutes;
+//                     attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
+
+//                     console.log("DEBUG:", {
+//                         expectedMinutes,
+//                         working: attendance.workingMinutes,
+//                         short,
+//                         overtime
+//                     });
+
+//                     await attendance.save();
+//                 } else {
+//                     // Ignore extra punches (as per your requirement)
+//                     console.log(`ℹ️ Extra punch ignored for ${employeeDoc.empId}`);
+//                 }
+//             }
+//         }
+
+//         return res.send('OK'); // VERY IMPORTANT for device
+
+//     } catch (error) {
+//         console.error("❌ ESSL Error:", error);
+//         return res.send('OK'); // Never break device flow
+//     }
+// });
+
+
 
 module.exports = router;

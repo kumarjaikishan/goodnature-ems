@@ -111,9 +111,19 @@ const Attandence = () => {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ];
 
+  // const minutesinhours = useCallback((minutes) => {
+  //   const hour = Math.floor(minutes / 60);
+  //   const minute = minutes % 60;
+  //   return `${hour}h ${minute}m`;
+  // }, []);
   const minutesinhours = useCallback((minutes) => {
     const hour = Math.floor(minutes / 60);
     const minute = minutes % 60;
+
+    if (hour === 0) {
+      return `${minute}m`;
+    }
+
     return `${hour}h ${minute}m`;
   }, []);
 

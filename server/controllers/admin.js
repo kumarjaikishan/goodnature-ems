@@ -262,28 +262,29 @@ const updateemployee = async (req, res, next) => {
         for (const key in req.body) {
             let value = req.body[key];
 
-            // Parse JSON fields if needed
+            // Handle JSON fields
             if (jsonFields.includes(key) && typeof value === "string") {
                 try {
                     value = JSON.parse(value);
                 } catch (e) {
-                    // fallback to empty array/object
-                    if (["allowances", "bonuses", "deductions", "achievements", "education"].includes(key)) {
-                        value = [];
-                    } else if (key === "guardian") {
-                        value = { name: "", relation: "S/o" };
-                    }
+                    value = (key === "guardian") ? { name: "", relation: "S/o" } : [];
                 }
             }
 
             // Handle type conversion
             if (key === "salary") value = Number(value) || 0;
-            if (key === "status" || key === "defaultPolicies") value = (value === true || value === "true");
+            if (key === "status" || key === "overridedefaultPolicies") value = (value === true || value === "true");
 
-            // Separate user and employee fields
-            if (["employeeName", "email", "branchId", "department"].includes(key)) {
+            // Map fields correctly
+            if (key === "employeeName") {
+                userUpdateData.name = value;
+                employeeUpdateData.employeeName = value;
+            } else if (key === "email") {
+                userUpdateData.email = value;
+            } else if (["branchId", "department"].includes(key)) {
                 userUpdateData[key] = value;
-            } else if (key !== "employeeId") {
+                employeeUpdateData[key] = value;
+            } else if (key !== "employeeId" && key !== "empId") {
                 employeeUpdateData[key] = value;
             }
         }
@@ -315,8 +316,23 @@ const updateemployee = async (req, res, next) => {
             }
         }
 
-        await usermodal.findByIdAndUpdate(existingEmployee.userid, userUpdateData, { new: true });
+        // UPDATE EVERYTHING
+        if (Object.keys(userUpdateData).length > 0) {
+            await usermodal.findByIdAndUpdate(existingEmployee.userid, userUpdateData);
+        }
+
         const updatedEmployee = await employeeModal.findByIdAndUpdate(employeeId, employeeUpdateData, { new: true, runValidators: true });
+
+        // Update Ledger if name or photo changed
+        if (employeeName || req.file) {
+            let ledgerUpdate = {};
+            if (employeeName) ledgerUpdate.name = employeeName;
+            if (employeeUpdateData.profileimage) ledgerUpdate.profileImage = employeeUpdateData.profileimage;
+            
+            if (Object.keys(ledgerUpdate).length > 0) {
+                await Ledger.findOneAndUpdate({ employeeId: employeeId }, ledgerUpdate);
+            }
+        }
 
         if (!updatedEmployee) {
             return next({ status: 400, message: "Failed to update employee." });
