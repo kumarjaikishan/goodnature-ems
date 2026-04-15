@@ -155,9 +155,9 @@ const departmentlist = async (req, res, next) => {
 
 const addemployee = async (req, res, next) => {
 
-    const { employeeName, branchId, department, email, password = 'employee', designation, salary } = req.body;
+    const { email, password = 'employee' } = req.body;
 
-    if (!employeeName || !email || !department || !branchId) {
+    if (!req.body.employeeName || !email || !req.body.department || !req.body.branchId) {
         return res.status(400).json({ message: "Please Fill required Fields" });
     }
     const role = 'employee';
@@ -173,7 +173,7 @@ const addemployee = async (req, res, next) => {
             return res.status(409).json({ message: 'Email already in use.' });
         }
 
-        let createUser = new usermodal({ companyId: req.user.companyId, name: employeeName, email, role, password });
+        let createUser = new usermodal({ companyId: req.user.companyId, name: req.body.employeeName, email, role, password });
         let resulten = await createUser.save({ session });
 
         // Step 2: Upload profile image to Cloudinary
@@ -195,26 +195,46 @@ const addemployee = async (req, res, next) => {
         const employeeObjectId = new mongoose.Types.ObjectId();
         const ledgerObjectId = new mongoose.Types.ObjectId();
 
-        const query = new employeeModal({
+        const jsonFields = ["allowances", "bonuses", "deductions", "achievements", "education", "guardian"];
+        
+        let employeeData = {
             _id: employeeObjectId,
             companyId: req.user.companyId,
             userid: resulten._id,
-            designation,
-            salary,
             empId,
-            employeeName,
-            branchId,
             profileimage: uploadResult?.secure_url,
-            department,
-            ledgerId: ledgerObjectId // Link ledger beforehand
-        });
+            ledgerId: ledgerObjectId
+        };
+
+        for (const key in req.body) {
+            let value = req.body[key];
+
+            if (jsonFields.includes(key) && typeof value === "string") {
+                try {
+                    value = JSON.parse(value);
+                } catch (e) {
+                    value = (key === "guardian") ? { name: "", relation: "S/o" } : [];
+                }
+            }
+
+            // Type conversions
+            if (key === "salary") value = Number(value) || 0;
+            if (key === "status" || key === "overridedefaultPolicies") value = (value === true || value === "true");
+
+            // Avoid overwriting pre-calculated fields or redundant ones
+            if (!["_id", "companyId", "userid", "empId", "ledgerId", "photo", "password"].includes(key)) {
+                employeeData[key] = value;
+            }
+        }
+
+        const query = new employeeModal(employeeData);
         const resulte = await query.save({ session });
 
         // creating ledger for employee
         const ledger = new Ledger({
             _id: ledgerObjectId,
             companyId: req.user.companyId,
-            name: employeeName,
+            name: req.body.employeeName,
             employeeId: employeeObjectId, // Link employee correctly
             profileImage: uploadResult?.secure_url
         });

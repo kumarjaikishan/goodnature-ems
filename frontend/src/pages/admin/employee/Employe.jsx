@@ -236,12 +236,15 @@ const Employe = () => {
     } else {
       const formData = new FormData();
 
-      formData.append('employeeName', inp.employeeName);
-      formData.append('branchId', inp.branchId);
-      formData.append('department', inp.department);
-      formData.append('email', inp.email);
-      formData.append('designation', inp.designation);
-      formData.append('salary', inp.salary);
+      Object.keys(inp).forEach(key => {
+        const value = inp[key];
+        // Handle complex types
+        if (Array.isArray(value) || typeof value === 'object') {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value);
+        }
+      });
 
       if (employeePhoto) {
         let resizedfile = await handleImage(350, employeePhoto);

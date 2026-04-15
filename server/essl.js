@@ -51,7 +51,6 @@ router.get(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], (req, res) => {
 // Device heartbeat / info request
 router.get('/essl/iclock/getrequest.aspx', async (req, res) => {
     // console.log("➡️ GET /iclock/getrequest.aspx");
-    console.log("heartbeat ESSL SN:", req.query.SN);
 
     const deviceSN = req.query.SN;
     const now = new Date();
@@ -117,7 +116,8 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             // =========================
             // FIND COMPANY
             // =========================
-            const whichCompany = await company.findOne({ "devices.SN": deviceSN }).select('_id');
+            const whichCompany = await company.findOne({ "devices.SN": deviceSN }).select('_id telegram telegramNotifcation');
+
 
             if (!whichCompany) {
                 console.warn(`No company for SN ${deviceSN}`);
@@ -247,6 +247,27 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                     employeeDoc.branchId?.toString() || null
                 );
 
+
+                if (
+                    whichCompany?.telegramNotifcation &&
+                    whichCompany?.telegram?.token &&
+                    whichCompany?.telegram?.groupId
+                ) {
+                    sendTelegramMessageseperate(
+                        whichCompany.telegram.token,
+                        whichCompany.telegram.groupId,
+                        `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
+                            .utc()
+                            .add(5, 'hours')
+                            .add(30, 'minutes')
+                            .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
+                                .utc()
+                                .add(5, 'hours')
+                                .add(30, 'minutes')
+                                .format("DD/MM/YY")}`
+                    )
+                }
+
             } else {
 
                 // =========================
@@ -304,6 +325,27 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         employeeDoc.branchId?.toString() || null
                     );
 
+
+                    if (
+                        whichCompany?.telegramNotifcation &&
+                        whichCompany?.telegram?.token &&
+                        whichCompany?.telegram?.groupId
+                    ) {
+                        sendTelegramMessageseperate(
+                            whichCompany.telegram.token,
+                            whichCompany.telegram.groupId,
+                            `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
+                                .utc()
+                                .add(5, 'hours')
+                                .add(30, 'minutes')
+                                .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
+                                    .utc()
+                                    .add(5, 'hours')
+                                    .add(30, 'minutes')
+                                    .format("DD/MM/YY")}`
+                        )
+                    }
+
                 } else {
                     console.log(`Extra punch ignored for ${employeeDoc.empId}`);
                 }
@@ -317,235 +359,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
         return res.send('OK');
     }
 });
-
-
-
-// router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) => {
-//     try {
-//         const raw = req.bodyRaw || '';
-//         const deviceSN = req.query.SN || null;
-
-//         if (!raw) return res.send('OK');
-
-//         // =========================
-//         // HANDLE ATTLOG (LIVE DATA)
-//         // =========================
-//         if (/^\d+\s/.test(raw)) {
-//             const fields = raw.trim().split(/\s+/);
-
-//             const attendancee = {
-//                 PIN: fields[0],
-//                 Timestamp: fields[1] + ' ' + fields[2],
-//                 Status: fields[3],
-//                 VerifyMode: fields[4]
-//             };
-
-//             console.log('⏱ Live Attendance:', attendancee);
-
-//             const status = parseInt(attendancee.Status, 10);
-
-//             // Only allow punchIn (0) and punchOut (1)
-//             if (status > 1) {
-//                 return res.send('OK');
-//             }
-
-//             const deviceUserId = attendancee.PIN;
-//             const recordTime = attendancee.Timestamp;
-
-//             // ✅ Normalize punch time FIRST (FIXED BUG)
-//             const punchDate = new Date(recordTime);
-//             if (isNaN(punchDate)) {
-//                 console.warn("Invalid punch date:", recordTime);
-//                 return res.send('OK');
-//             }
-//             punchDate.setSeconds(0, 0);
-
-//             // ✅ Normalize attendance date
-//             const dateObj = new Date(Date.UTC(
-//                 punchDate.getUTCFullYear(),
-//                 punchDate.getUTCMonth(),
-//                 punchDate.getUTCDate()
-//             ));
-
-//             // =========================
-//             // FIND COMPANY
-//             // =========================
-//             const whichCompany = await company.findOne({ "devices.SN": deviceSN }).select('_id');
-
-//             if (!whichCompany) {
-//                 console.warn(`⚠️ No company found for device SN ${deviceSN}`);
-//                 return res.send('OK');
-//             }
-
-//             // =========================
-//             // FIND EMPLOYEE
-//             // =========================
-//             const employeeDoc = await employee.findOne({
-//                 companyId: whichCompany._id,
-//                 deviceUserId
-//             }).select('_id branchId empId companyId');
-
-//             if (!employeeDoc) {
-//                 console.warn(`⚠️ No employee found with deviceUserId ${deviceUserId}`);
-//                 return res.send('OK');
-//             }
-
-//             // =========================
-//             // FETCH SETTINGS SNAPSHOT
-//             // =========================
-//             const companyData = await company.findById(employeeDoc.companyId);
-//             const branch = await BranchModal.findById(employeeDoc.branchId);
-
-//             let snapshot = {};
-
-//             if (branch?.defaultsetting) {
-//                 snapshot = {
-//                     officeTime: companyData?.officeTime,
-//                     gracePeriod: companyData?.gracePeriod,
-//                     workingMinutes: companyData?.workingMinutes,
-//                     attendanceRules: companyData?.attendanceRules
-//                 };
-//             } else {
-//                 snapshot = {
-//                     officeTime: branch?.setting?.officeTime,
-//                     gracePeriod: branch?.setting?.gracePeriod,
-//                     workingMinutes: branch?.setting?.workingMinutes,
-//                     attendanceRules: branch?.setting?.attendanceRules
-//                 };
-//             }
-
-//             // =========================
-//             // FIND EXISTING ATTENDANCE
-//             // =========================
-//             let attendance = await Attendance.findOne({
-//                 employeeId: employeeDoc._id,
-//                 date: dateObj
-//             });
-
-//             // =========================
-//             // FIRST PUNCH (CHECK-IN)
-//             // =========================
-//             if (!attendance) {
-
-//                 // ✅ Calculate punchInStatus SAFELY
-//                 const IST_OFFSET_MS = 330 * 60 * 1000;
-
-//                 const getMinutes = (date) => {
-//                     const istDate = new Date(date.getTime() + IST_OFFSET_MS);
-//                     return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-//                 };
-
-//                 const parseTime = (t) => {
-//                     if (!t) return null;
-//                     const [h, m] = t.split(':').map(Number);
-//                     return h * 60 + m;
-//                 };
-
-//                 const earlyBefore = parseTime(snapshot?.attendanceRules?.considerEarlyEntryBefore);
-//                 const lateAfter = parseTime(snapshot?.attendanceRules?.considerLateEntryAfter);
-
-//                 const punchInMin = getMinutes(punchDate);
-
-//                 let punchInStatus = "onTime";
-
-//                 if (earlyBefore !== null && punchInMin < earlyBefore) {
-//                     punchInStatus = "early";
-//                 } else if (lateAfter !== null && punchInMin > lateAfter) {
-//                     punchInStatus = "late";
-//                 }
-
-//                 // ✅ Create attendance
-//                 attendance = new Attendance({
-//                     companyId: employeeDoc.companyId,
-//                     branchId: employeeDoc.branchId,
-//                     empId: employeeDoc.empId,
-//                     employeeId: employeeDoc._id,
-
-//                     date: dateObj,
-//                     status: 'present',
-//                     source: 'device',
-
-//                     punchIn: punchDate,
-//                     punchInStatus,
-
-//                     dutyStart: snapshot?.officeTime?.in,
-//                     dutyEnd: snapshot?.officeTime?.out,
-
-//                     rulesSnapshot: snapshot,
-
-//                     workingMinutes: 0,
-//                     overtimeMinutes: 0,
-//                     shortMinutes: 0
-//                 });
-
-//                 await attendance.save();
-
-//                 // 🔁 realtime update
-//                 const updatedRecord = await Attendance.findById(attendance._id)
-//                     .populate({
-//                         path: 'employeeId',
-//                         select: 'userid profileimage',
-//                         populate: {
-//                             path: 'userid',
-//                             select: 'name'
-//                         }
-//                     });
-
-//                 sendToClients(
-//                     {
-//                         type: 'attendance_update',
-//                         payload: { action: 'checkin', data: updatedRecord }
-//                     },
-//                     employeeDoc.companyId.toString(),
-//                     employeeDoc.branchId?.toString() || null
-//                 );
-
-//             } else {
-
-//                 // =========================
-//                 // SECOND PUNCH (CHECK-OUT)
-//                 // =========================
-//                 if (!attendance.punchOut) {
-
-//                     attendance.punchOut = punchDate;
-
-//                     const expectedMinutes = snapshot?.workingMinutes?.fullDay || 480;
-
-//                     const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
-
-//                     attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
-
-//                     // ✅ SHORT TIME
-//                     const short = expectedMinutes - attendance.workingMinutes;
-//                     attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
-
-//                     // ✅ OVERTIME
-//                     const overtime = attendance.workingMinutes - expectedMinutes;
-//                     attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
-
-//                     console.log("DEBUG:", {
-//                         expectedMinutes,
-//                         working: attendance.workingMinutes,
-//                         short,
-//                         overtime
-//                     });
-
-//                     await attendance.save();
-//                 } else {
-//                     // Ignore extra punches (as per your requirement)
-//                     console.log(`ℹ️ Extra punch ignored for ${employeeDoc.empId}`);
-//                 }
-//             }
-//         }
-
-//         return res.send('OK'); // VERY IMPORTANT for device
-
-//     } catch (error) {
-//         console.error("❌ ESSL Error:", error);
-//         return res.send('OK'); // Never break device flow
-//     }
-// });
-
 
 
 module.exports = router;
