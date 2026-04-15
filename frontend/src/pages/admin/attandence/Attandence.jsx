@@ -468,7 +468,7 @@ const AttendanceControls = React.memo(({
 
       {/* top buttons */}
       <div className="flex justify-between items-center mb-4 flex-wrap">
-        <div className="flex w-full md:w-auto p-1 items-center gap-2 rounded bg-primary text-white">
+        <div className="flex mb-1 w-full md:w-auto p-1 items-center gap-2 rounded bg-primary text-white">
           <p
             onClick={() => setmarkattandence(false)}
             className={`px-2 py-1 rounded cursor-pointer ${!markattandence && "text-primary bg-white"}`}

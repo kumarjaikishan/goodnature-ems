@@ -434,6 +434,9 @@ export default AttenPerformance;
 const minutesinhours = (mins) => {
     const h = Math.floor(mins / 60);
     const m = mins % 60;
+    if (h == 0) {
+        return `${m}m`
+    }
     return `${h}h ${m}m`;
 };
 
@@ -563,12 +566,12 @@ const columns = () => [
                         <span className="block w-[60px]">{minutesinhours(wm)}</span>
                         {(emp.shortMinutes > 0 && !isSpecialDay) && (
                             <span className="ml-2 px-1 py-1 rounded bg-amber-100 text-amber-800">
-                                Short {emp.shortMinutes} min
+                                Short {minutesinhours(emp.shortMinutes)}
                             </span>
                         )}
                         {(emp.overtimeMinutes > 0 || isSpecialDay) && (
                             <span className="ml-2 p-1 rounded bg-green-100 text-green-800">
-                                Overtime {emp.overtimeMinutes || emp.workingMinutes} min
+                                Overtime {minutesinhours(emp.overtimeMinutes) || emp.workingMinutes}
                             </span>
                         )}
                     </span>
