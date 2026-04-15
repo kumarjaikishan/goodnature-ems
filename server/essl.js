@@ -126,7 +126,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             }
 
             // manual telegram notoifcation off
-            whichCompany.telegramNotifcation = false;
+            // whichCompany.telegramNotifcation = false;
 
             const log = new Essl({
                 companyId: whichCompany._id,
