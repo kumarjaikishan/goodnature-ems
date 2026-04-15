@@ -9,7 +9,7 @@ const { sendTelegramMessage, sendTelegramMessageseperate } = require('./utils/te
 const dayjs = require("dayjs");
 const utc = require("dayjs/plugin/utc");
 const timezone = require("dayjs/plugin/timezone");
-const { createLedger } = require('./controllers/ledger');
+const Essl = require('./models/essllivelogs')
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -89,6 +89,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
             console.log('⏱ Live Attendance:', attendancee);
 
+
             const status = parseInt(attendancee.Status, 10);
 
             // Only allow punchIn (0) and punchOut (1)
@@ -123,6 +124,20 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 console.warn(`No company for SN ${deviceSN}`);
                 return res.send('OK');
             }
+
+            // manual telegram notoifcation off
+            whichCompany.telegramNotifcation = false;
+
+            const log = new Essl({
+                companyId: whichCompany._id,
+                pin: attendancee.PIN,
+                timestamp: attendancee.Timestamp, // ✅ UTC fix
+                status: parseInt(attendancee.Status),
+                verifyMode: parseInt(attendancee.VerifyMode),
+                raw: raw
+            });
+
+            await log.save();
 
             // =========================
             // FIND EMPLOYEE
@@ -359,6 +374,5 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
         return res.send('OK');
     }
 });
-
 
 module.exports = router;

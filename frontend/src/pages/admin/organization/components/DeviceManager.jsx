@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TextField, Button, IconButton } from '@mui/material';
 import { FaWifi, FaTrash } from 'react-icons/fa';
 import { MdOutlineWifiOff } from "react-icons/md";
@@ -6,12 +6,17 @@ import { FiRefreshCw } from 'react-icons/fi';
 import dayjs from 'dayjs';
 
 const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refreshload, removeDevice, addDevice, handleSubmit, isload }) => {
-    
+
     const updateDevice = (index, field, value) => {
         const newDevices = [...companyinp.devices];
         newDevices[index][field] = value;
         setcompany({ ...companyinp, devices: newDevices });
     };
+    useState(() => {
+        // console.log(companyinp?.devices)
+        companyinp?.devices?.forEach((elem) => deviceRefresh(elem?.SN))
+
+    }, [])
 
     return (
         <div className='space-y-4'>

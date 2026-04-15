@@ -51,7 +51,7 @@ app.use([
 // ----------------------
 app.use((req, res, next) => {
   // console.log(`📡 Incoming: ${req.method} ${req.url}`);
-  if (req.bodyRaw) console.log('📡 Incoming essl request: ', req.bodyRaw);
+  // if (req.bodyRaw) console.log('📡 Incoming essl request: ', req.bodyRaw);
   next();
 });
 
