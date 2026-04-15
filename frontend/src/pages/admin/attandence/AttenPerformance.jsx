@@ -64,6 +64,7 @@ const AttenPerformance = () => {
         []
     );
 
+
     const setting = useMemo(() => {
         if (!company) return null;
 

@@ -1157,6 +1157,7 @@ async function calculateStats(record, companyData, branch) {
   if (!snapshot) return; // Cannot calculate without rules
 
   const wm = snapshot.workingMinutes;
+  // console.log("already snapshot", wm)
   const overtimeRules = snapshot.overtimeRules || {};
 
   const day = new Date(record.date).getUTCDay();
@@ -1210,7 +1211,7 @@ async function calculateStats(record, companyData, branch) {
       overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
     }
     if (workingMinutes < wm.fullDay) {
-      shortMinutes = wm.fullDay - workingMinutes;
+      shortMinutes = wm.shortDayThreshold - workingMinutes;
     }
 
     // Only clear holiday/weekly off remarks if not applicable (meaning not holiday/weekly off)

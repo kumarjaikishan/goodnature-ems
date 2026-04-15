@@ -525,16 +525,17 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 if (!attendance.punchOut) {
 
                     attendance.punchOut = punchDate;
+                    // console.log("snapshot", attendance?.rulesSnapshot);
 
-                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes?.fullDay || 480;
+                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes;
 
                     const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
                     attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
 
-                    const short = expectedMinutes - attendance.workingMinutes;
+                    const short = expectedMinutes.shortDayThreshold - attendance.workingMinutes;
                     attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
 
-                    const overtime = attendance.workingMinutes - expectedMinutes;
+                    const overtime = attendance.workingMinutes - expectedMinutes.overtimeAfterMinutes;
                     attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
 
                     // ✅ punchOutStatus
