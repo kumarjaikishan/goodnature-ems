@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require('express');
 const cors = require('cors');
 const app = express();
@@ -21,6 +22,7 @@ app.post(
   express.raw({ type: "application/json" }),
   webhook
 );
+
 
 // ----------------------
 // Normal API parsers
@@ -46,7 +48,7 @@ app.use([
   });
 });
 
-// console.log("Timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
+console.log("Timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
 // console.log("Local Hours:", new Date().getHours());
 // console.log("UTC Hours:", new Date().getUTCHours());
 
