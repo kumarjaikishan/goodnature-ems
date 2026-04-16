@@ -9,13 +9,18 @@ const Holiday = require('../models/holiday');
 const { sendToClients } = require('../utils/sse');
 const { sendTelegramMessage, sendTelegramMessageseperate } = require('../utils/telegram');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 const BranchModal = require('../models/branch');
 const company = require('../models/company');
 const {
   parseAttendanceDateTime,
   getAttendanceDateUTC,
   getMinutesInAttendanceTimezone,
-  mergeAttendanceDateAndTime
+  mergeAttendanceDateAndTime,
+  ATTENDANCE_TIMEZONE
 } = require('../utils/attendanceTime');
 
 /**
@@ -57,15 +62,14 @@ const webattandence = async (req, res, next) => {
       return res.status(400).json({ message: 'Missing required fields: employeeId, departmentId, or date' });
     }
 
-    // Convert input to Date objects
-    const dateObj = new Date(date);
-    if (isNaN(dateObj)) {
+    // ✅ Normalize to proper UTC-midnight Date (consistent with ESSL + checkin)
+    const parsedDate = parseAttendanceDateTime(date);
+    if (!parsedDate) {
       return res.status(400).json({ message: 'Invalid date format' });
     }
+    const dateObj = getAttendanceDateUTC(parsedDate);
 
-    const dateOnly = dateObj.toDateString(); // Used to match one date per day
-
-    let attendance = await Attendance.findOne({ employeeId, date: dateOnly });
+    let attendance = await Attendance.findOne({ employeeId, date: dateObj });
 
     // === PUNCH-OUT FLOW ===
     if (attendance) {
@@ -77,11 +81,9 @@ const webattandence = async (req, res, next) => {
         return res.status(400).json({ message: 'Missing punchOut time for punch-out' });
       }
 
-      const punchOutTime = new Date(punchOut);
-      const punchInTime = new Date(attendance.punchIn);
-
-      if (isNaN(punchOutTime) || isNaN(punchInTime)) {
-        return res.status(400).json({ message: 'Invalid punchIn or punchOut time' });
+      const punchOutTime = parseAttendanceDateTime(punchOut);
+      if (!punchOutTime || isNaN(punchOutTime.getTime())) {
+        return res.status(400).json({ message: 'Invalid punchOut time' });
       }
 
       attendance.punchOut = punchOutTime;
@@ -103,12 +105,8 @@ const webattandence = async (req, res, next) => {
           }
         });
 
-      // 🔹 Realtime update
       sendToClients(
-        {
-          type: 'attendance_update',
-          payload: { action: 'checkOut', data: updatedRecord }
-        },
+        { type: 'attendance_update', payload: { action: 'checkOut', data: updatedRecord } },
         req.user.companyId,
         attendance.branchId || null
       );
@@ -117,8 +115,10 @@ const webattandence = async (req, res, next) => {
     }
 
     // === PUNCH-IN FLOW ===
-    const punchInTime = punchIn ? new Date(punchIn) : new Date();
-    if (isNaN(punchInTime)) {
+    // ✅ Merge: take HH:MM from punchIn but use the attendance date as the base
+    const rawPunchIn = punchIn ? parseAttendanceDateTime(punchIn) : null;
+    const punchInTime = rawPunchIn ? mergeAttendanceDateAndTime(dateObj, rawPunchIn) : null;
+    if (rawPunchIn && (!punchInTime || isNaN(punchInTime.getTime()))) {
       return res.status(400).json({ message: 'Invalid punchIn time' });
     }
     const empDoc = await employee.findById(employeeId).select('branchId');
@@ -130,8 +130,7 @@ const webattandence = async (req, res, next) => {
       companyId: req.user.companyId,
       branchId: empDoc.branchId,
       employeeId,
-      departmentId,
-      date: dateOnly,
+      date: dateObj,
       punchIn: punchInTime,
       dutyStart: snapshot?.officeTime?.in || "10:00",
       dutyEnd: snapshot?.officeTime?.out || "18:00",
@@ -151,12 +150,8 @@ const webattandence = async (req, res, next) => {
         }
       });
 
-    // 🔹 Realtime update
     sendToClients(
-      {
-        type: 'attendance_update',
-        payload: { action: 'checkin', data: updatedRecord }
-      },
+      { type: 'attendance_update', payload: { action: 'checkin', data: updatedRecord } },
       req.user.companyId,
       empDoc.branchId || null
     );
@@ -164,6 +159,10 @@ const webattandence = async (req, res, next) => {
     return res.json({ message: 'Punch-in recorded', attendance: updatedRecord });
 
   } catch (error) {
+    // ✅ Handle MongoDB duplicate key (already checked in from another source)
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Attendance already recorded for this employee on this date' });
+    }
     console.error("Attendance error:", error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -248,9 +247,13 @@ const checkin = async (req, res) => {
     let punchInStatus = null;
 
     if (!isAbsentOrLeave) {
-      punchInTime = punchIn ? parseAttendanceDateTime(punchIn) : new Date();
+      // ✅ Anchor punchIn HH:MM to the attendance dateObj (fixes past-date mismatch)
+      const rawPunchIn = punchIn ? parseAttendanceDateTime(punchIn) : null;
+      punchInTime = rawPunchIn
+        ? mergeAttendanceDateAndTime(dateObj, rawPunchIn)
+        : null; // no fallback to new Date() — we don't know the time for past dates
 
-      if (!punchInTime || Number.isNaN(punchInTime.getTime())) {
+      if (rawPunchIn && (!punchInTime || Number.isNaN(punchInTime.getTime()))) {
         return res.status(400).json({ message: 'Invalid punchIn time' });
       }
 
@@ -374,6 +377,10 @@ const checkin = async (req, res) => {
     });
 
   } catch (error) {
+    // ✅ Handle duplicate key: ESSL may have already created a record for this date
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Attendance already recorded for this employee on this date' });
+    }
     console.error(error);
     return res.status(500).json({ message: 'Server error', error });
   }
@@ -409,8 +416,8 @@ const checkout = async (req, res) => {
       return res.status(400).json({ message: 'Punch-in missing' });
     }
 
-    // 🔹 Parse punchOut
-    const punchOutTime = parseAttendanceDateTime(punchOut);
+    // 🔹 Parse punchOut — anchor HH:MM to attendance date
+    const punchOutTime = mergeAttendanceDateAndTime(dateObj, parseAttendanceDateTime(punchOut));
     if (!punchOutTime || Number.isNaN(punchOutTime.getTime())) {
       return res.status(400).json({ message: 'Invalid punchOut time' });
     }
@@ -753,8 +760,9 @@ const bulkMarkAttendance = async (req, res) => {
         };
       }
 
-      const punchInDate = punchIn ? parseAttendanceDateTime(punchIn) : null;
-      const punchOutDate = punchOut ? parseAttendanceDateTime(punchOut) : null;
+      // ✅ Anchor HH:MM to attendance date so bulk records match ESSL format
+      const punchInDate = punchIn ? mergeAttendanceDateAndTime(dateObj, parseAttendanceDateTime(punchIn)) : null;
+      const punchOutDate = punchOut ? mergeAttendanceDateAndTime(dateObj, parseAttendanceDateTime(punchOut)) : null;
 
       let punchInStatus = null;
       let punchOutStatus = null;
@@ -986,8 +994,10 @@ const bulkMarkAttendanceExcel = async (req, res) => {
         };
       }
 
-      const punchInDate = punchIn ? parseAttendanceDateTime(punchIn) : null;
-      const punchOutDate = punchOut ? parseAttendanceDateTime(punchOut) : null;
+      // ✅ Anchor HH:MM to attendance date (Excel import may have today's time on past dates)
+      const punchInDate = punchIn ? mergeAttendanceDateAndTime(dateObj, parseAttendanceDateTime(punchIn)) : null;
+      const punchOutDate = punchOut ? mergeAttendanceDateAndTime(dateObj, parseAttendanceDateTime(punchOut)) : null;
+
 
       let punchInStatus = null;
       let punchOutStatus = null;

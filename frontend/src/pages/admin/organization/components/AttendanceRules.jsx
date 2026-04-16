@@ -95,78 +95,84 @@ const AttendanceRules = ({ companyinp, setcompany, handleChange, handleNestedCha
             </Box>
 
             {/* ================= ATTENDANCE RULES ================= */}
-            <Box className="p-4 bg-white rounded shadow grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="Consider Early Entry Before"
-                    value={companyinp.attendanceRules.considerEarlyEntryBefore}
-                    onChange={e => handleChange('attendanceRules', 'considerEarlyEntryBefore', e.target.value)}
-                />
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="Consider Late Entry After"
-                    value={companyinp.attendanceRules.considerLateEntryAfter}
-                    onChange={e => handleChange('attendanceRules', 'considerLateEntryAfter', e.target.value)}
-                />
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="Consider Early Exit Before"
-                    value={companyinp.attendanceRules.considerEarlyExitBefore}
-                    onChange={e => handleChange('attendanceRules', 'considerEarlyExitBefore', e.target.value)}
-                />
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="Consider Late Exit After"
-                    value={companyinp.attendanceRules.considerLateExitAfter}
-                    onChange={e => handleChange('attendanceRules', 'considerLateExitAfter', e.target.value)}
-                />
+            <Box className="p-4 bg-slate-50 rounded shadow">
+                <h3 className="text-lg font-semibold mb-4">Early/late Rules</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="Consider Early Entry Before"
+                        value={companyinp.attendanceRules.considerEarlyEntryBefore}
+                        onChange={e => handleChange('attendanceRules', 'considerEarlyEntryBefore', e.target.value)}
+                    />
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="Consider Late Entry After"
+                        value={companyinp.attendanceRules.considerLateEntryAfter}
+                        onChange={e => handleChange('attendanceRules', 'considerLateEntryAfter', e.target.value)}
+                    />
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="Consider Early Exit Before"
+                        value={companyinp.attendanceRules.considerEarlyExitBefore}
+                        onChange={e => handleChange('attendanceRules', 'considerEarlyExitBefore', e.target.value)}
+                    />
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="Consider Late Exit After"
+                        value={companyinp.attendanceRules.considerLateExitAfter}
+                        onChange={e => handleChange('attendanceRules', 'considerLateExitAfter', e.target.value)}
+                    />
+                </div>
             </Box>
 
             {/* ================= ESSL PUNCH WINDOW ================= */}
-            <Box className="p-4 bg-white rounded shadow grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="ESSL Punch-In Start"
-                    value={companyinp.attendanceRules.esslPunchInStart || "00:00"}
-                    onChange={e => handleChange('attendanceRules', 'esslPunchInStart', e.target.value)}
-                    helperText="ESSL punch-in will be accepted only after this time."
-                />
+            <Box className="p-4 bg-slate-50 rounded shadow">
+                <h3 className="text-lg font-semibold mb-4">Biometric Rules</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="ESSL Punch-In Start"
+                        value={companyinp.attendanceRules.esslPunchInStart || "00:00"}
+                        onChange={e => handleChange('attendanceRules', 'esslPunchInStart', e.target.value)}
+                        helperText="ESSL punch-in will be accepted only after this time."
+                    />
 
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="ESSL Punch-In End"
-                    value={companyinp.attendanceRules.esslPunchInEnd || "23:59"}
-                    onChange={e => handleChange('attendanceRules', 'esslPunchInEnd', e.target.value)}
-                    helperText="ESSL punch-in will be accepted only up to this time."
-                />
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="ESSL Punch-In End"
+                        value={companyinp.attendanceRules.esslPunchInEnd || "23:59"}
+                        onChange={e => handleChange('attendanceRules', 'esslPunchInEnd', e.target.value)}
+                        helperText="ESSL punch-in will be accepted only up to this time."
+                    />
 
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="ESSL Punch-Out Start"
-                    value={companyinp.attendanceRules.esslPunchOutStart || "00:00"}
-                    onChange={e => handleChange('attendanceRules', 'esslPunchOutStart', e.target.value)}
-                    helperText="ESSL punch-out will be accepted only after this time."
-                />
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="ESSL Punch-Out Start"
+                        value={companyinp.attendanceRules.esslPunchOutStart || "00:00"}
+                        onChange={e => handleChange('attendanceRules', 'esslPunchOutStart', e.target.value)}
+                        helperText="ESSL punch-out will be accepted only after this time."
+                    />
 
-                <TextField
-                    fullWidth
-                    type="time"
-                    label="ESSL Punch-Out End"
-                    value={companyinp.attendanceRules.esslPunchOutEnd || "23:59"}
-                    onChange={e => handleChange('attendanceRules', 'esslPunchOutEnd', e.target.value)}
-                    helperText="ESSL punch-out will be accepted only up to this time."
-                />
+                    <TextField
+                        fullWidth
+                        type="time"
+                        label="ESSL Punch-Out End"
+                        value={companyinp.attendanceRules.esslPunchOutEnd || "23:59"}
+                        onChange={e => handleChange('attendanceRules', 'esslPunchOutEnd', e.target.value)}
+                        helperText="ESSL punch-out will be accepted only up to this time."
+                    />
+                </div>
             </Box>
 
             {/* ================= OVERTIME RULES ================= */}
-            <Box className="p-4 bg-white rounded shadow">
+            <Box className="p-4 bg-slate-50 rounded shadow">
                 <h3 className="text-lg font-semibold mb-4">Overtime Rules</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Holiday */}

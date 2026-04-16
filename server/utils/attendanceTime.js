@@ -55,12 +55,20 @@ function parseAttendanceDateTime(value, inputTimezone = ATTENDANCE_TIMEZONE) {
   return Number.isNaN(fallback.getTime()) ? null : fallback;
 }
 
-function getAttendanceDateUTC(dateLike) {
-  const date = parseAttendanceDateTime(dateLike);
-  if (!date) return null;
+// function getAttendanceDateUTC(dateLike) {
+//   const date = parseAttendanceDateTime(dateLike);
+//   if (!date) return null;
 
+//   const key = dayjs(date).tz(ATTENDANCE_TIMEZONE).format("YYYY-MM-DD");
+//   return dayjs.tz(`${key} 00:00:00`, ATTENDANCE_TIMEZONE).utc().toDate();
+// }
+function getAttendanceDateUTC(date) {
+  if (!date) return null;
+  // Convert punch timestamp → local date string in attendance timezone (e.g. IST)
+  // e.g. UTC 12:27 → IST 17:57 → "2026-04-16"
   const key = dayjs(date).tz(ATTENDANCE_TIMEZONE).format("YYYY-MM-DD");
-  return dayjs.tz(`${key} 00:00:00`, ATTENDANCE_TIMEZONE).utc().toDate();
+  // Return UTC midnight for that calendar date → "2026-04-16T00:00:00.000Z"
+  return dayjs.utc(key).toDate();
 }
 
 function getAttendanceDateKey(dateLike) {

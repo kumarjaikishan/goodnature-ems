@@ -13,7 +13,8 @@ const Essl = require('./models/essllivelogs')
 const {
     parseAttendanceDateTime,
     getAttendanceDateUTC,
-    getMinutesInAttendanceTimezone
+    getMinutesInAttendanceTimezone,
+    ATTENDANCE_TIMEZONE
 } = require('./utils/attendanceTime');
 
 const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
@@ -104,7 +105,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 VerifyMode: fields[4]
             };
 
-            console.log('⏱ Live Attendance:', attendancee);
+            // console.log('⏱ Live Attendance:', attendancee);
 
 
             const status = parseInt(attendancee.Status, 10);
@@ -308,13 +309,9 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         whichCompany.telegram.token,
                         whichCompany.telegram.groupId,
                         `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
-                            .utc()
-                            .add(5, 'hours')
-                            .add(30, 'minutes')
+                            .tz(ATTENDANCE_TIMEZONE)
                             .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
-                                .utc()
-                                .add(5, 'hours')
-                                .add(30, 'minutes')
+                                .tz(ATTENDANCE_TIMEZONE)
                                 .format("DD/MM/YY")}`
                     )
                 }
@@ -418,13 +415,9 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                             whichCompany.telegram.token,
                             whichCompany.telegram.groupId,
                             `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
-                                .utc()
-                                .add(5, 'hours')
-                                .add(30, 'minutes')
+                                .tz(ATTENDANCE_TIMEZONE)
                                 .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
-                                    .utc()
-                                    .add(5, 'hours')
-                                    .add(30, 'minutes')
+                                    .tz(ATTENDANCE_TIMEZONE)
                                     .format("DD/MM/YY")}`
                         )
                     }
