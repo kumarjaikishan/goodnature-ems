@@ -21,7 +21,17 @@ const rulesSnapshotSchema = new mongoose.Schema({
     considerEarlyEntryBefore: String,
     considerLateEntryAfter: String,
     considerEarlyExitBefore: String,
-    considerLateExitAfter: String
+    considerLateExitAfter: String,
+    esslPunchInStart: String,
+    esslPunchInEnd: String,
+    esslPunchOutStart: String,
+    esslPunchOutEnd: String,
+    missingPunchIn: {
+      enabled: { type: Boolean, default: false },
+      checkTime: String,
+      action: { type: String, enum: ['markAbsent', 'autoPunchIn'] },
+      autoPunchInTime: String
+    }
   },
   overtimeRules: {
     holiday: {

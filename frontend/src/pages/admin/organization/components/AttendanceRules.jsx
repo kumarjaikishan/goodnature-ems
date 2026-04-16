@@ -96,19 +96,73 @@ const AttendanceRules = ({ companyinp, setcompany, handleChange, handleNestedCha
 
             {/* ================= ATTENDANCE RULES ================= */}
             <Box className="p-4 bg-white rounded shadow grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(companyinp.attendanceRules).map(([key, value]) => {
-                    const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-                    return (
-                        <TextField
-                            key={key}
-                            fullWidth
-                            type="time"
-                            label={label}
-                            value={value}
-                            onChange={e => handleChange('attendanceRules', key, e.target.value)}
-                        />
-                    );
-                })}
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="Consider Early Entry Before"
+                    value={companyinp.attendanceRules.considerEarlyEntryBefore}
+                    onChange={e => handleChange('attendanceRules', 'considerEarlyEntryBefore', e.target.value)}
+                />
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="Consider Late Entry After"
+                    value={companyinp.attendanceRules.considerLateEntryAfter}
+                    onChange={e => handleChange('attendanceRules', 'considerLateEntryAfter', e.target.value)}
+                />
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="Consider Early Exit Before"
+                    value={companyinp.attendanceRules.considerEarlyExitBefore}
+                    onChange={e => handleChange('attendanceRules', 'considerEarlyExitBefore', e.target.value)}
+                />
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="Consider Late Exit After"
+                    value={companyinp.attendanceRules.considerLateExitAfter}
+                    onChange={e => handleChange('attendanceRules', 'considerLateExitAfter', e.target.value)}
+                />
+            </Box>
+
+            {/* ================= ESSL PUNCH WINDOW ================= */}
+            <Box className="p-4 bg-white rounded shadow grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="ESSL Punch-In Start"
+                    value={companyinp.attendanceRules.esslPunchInStart || "00:00"}
+                    onChange={e => handleChange('attendanceRules', 'esslPunchInStart', e.target.value)}
+                    helperText="ESSL punch-in will be accepted only after this time."
+                />
+
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="ESSL Punch-In End"
+                    value={companyinp.attendanceRules.esslPunchInEnd || "23:59"}
+                    onChange={e => handleChange('attendanceRules', 'esslPunchInEnd', e.target.value)}
+                    helperText="ESSL punch-in will be accepted only up to this time."
+                />
+
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="ESSL Punch-Out Start"
+                    value={companyinp.attendanceRules.esslPunchOutStart || "00:00"}
+                    onChange={e => handleChange('attendanceRules', 'esslPunchOutStart', e.target.value)}
+                    helperText="ESSL punch-out will be accepted only after this time."
+                />
+
+                <TextField
+                    fullWidth
+                    type="time"
+                    label="ESSL Punch-Out End"
+                    value={companyinp.attendanceRules.esslPunchOutEnd || "23:59"}
+                    onChange={e => handleChange('attendanceRules', 'esslPunchOutEnd', e.target.value)}
+                    helperText="ESSL punch-out will be accepted only up to this time."
+                />
             </Box>
 
             {/* ================= OVERTIME RULES ================= */}

@@ -78,7 +78,11 @@ export default function OrganizationSettings() {
             considerEarlyEntryBefore: '09:50',
             considerLateEntryAfter: '10:10',
             considerEarlyExitBefore: '17:50',
-            considerLateExitAfter: '18:15'
+            considerLateExitAfter: '18:15',
+            esslPunchInStart: '00:00',
+            esslPunchInEnd: '23:59',
+            esslPunchOutStart: '00:00',
+            esslPunchOutEnd: '23:59'
         },
         payrollPolicies: {
             allowances: [],

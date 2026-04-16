@@ -43,7 +43,11 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
         considerEarlyEntryBefore: '09:50',
         considerLateEntryAfter: '10:10',
         considerEarlyExitBefore: '17:50',
-        considerLateExitAfter: '18:15'
+        considerLateExitAfter: '18:15',
+        esslPunchInStart: '00:00',
+        esslPunchInEnd: '23:59',
+        esslPunchOutStart: '00:00',
+        esslPunchOutEnd: '23:59'
       }
     }
   }
@@ -60,7 +64,20 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
     // setUsers(employee)
     setBranch(prev => ({ ...prev, companyId: company._id }))
     // if (editbranch) setBranch(editbranchdata)
-    if (editbranch) setBranch(prev => ({ ...prev, ...editbranchdata }))
+    if (editbranch) {
+      setBranch(prev => ({
+        ...prev,
+        ...editbranchdata,
+        setting: {
+          ...prev.setting,
+          ...(editbranchdata?.setting || {}),
+          attendanceRules: {
+            ...prev.setting.attendanceRules,
+            ...(editbranchdata?.setting?.attendanceRules || {})
+          }
+        }
+      }))
+    }
   }, [company, editbranch]);
 
   useEffect(() => {
@@ -293,36 +310,173 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
                 </Select>
               </FormControl>
 
-              {Object.entries(branch.setting.attendanceRules).map(([key, value]) => {
-                const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-                const helperMap = {
-                  considerEarlyEntryBefore: 'Considered early if punched before this time',
-                  considerLateEntryAfter: 'Considered late if punched after this time',
-                  considerEarlyExitBefore: 'Considered early exit if leaving before this time',
-                  considerLateExitAfter: 'Considered late exit if leaving after this time',
-                };
-
-                return (
-                  <TextField
-                    key={key}
-                    fullWidth
-                    size='small'
-                    label={label}
-                    type="time"
-                    value={value}
-                    onChange={e =>
-                      setBranch(prev => ({
-                        ...prev,
-                        setting: {
-                          ...prev.setting,
-                          attendanceRules: { ...prev.setting.attendanceRules, [key]: e.target.value }
-                        }
-                      }))
+              <TextField
+                fullWidth
+                size='small'
+                label="Consider Early Entry Before"
+                type="time"
+                value={branch.setting.attendanceRules.considerEarlyEntryBefore}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        considerEarlyEntryBefore: e.target.value
+                      }
                     }
-                    helperText={helperMap[key]}
-                  />
-                );
-              })}
+                  }))
+                }
+                helperText="Considered early if punched before this time"
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="Consider Late Entry After"
+                type="time"
+                value={branch.setting.attendanceRules.considerLateEntryAfter}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        considerLateEntryAfter: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="Considered late if punched after this time"
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="Consider Early Exit Before"
+                type="time"
+                value={branch.setting.attendanceRules.considerEarlyExitBefore}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        considerEarlyExitBefore: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="Considered early exit if leaving before this time"
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="Consider Late Exit After"
+                type="time"
+                value={branch.setting.attendanceRules.considerLateExitAfter}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        considerLateExitAfter: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="Considered late exit if leaving after this time"
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="ESSL Punch-In Start"
+                type="time"
+                value={branch?.setting?.attendanceRules?.esslPunchInStart || '00:00'}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        esslPunchInStart: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="ESSL punch-in will be accepted only after this time."
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="ESSL Punch-In End"
+                type="time"
+                value={branch?.setting?.attendanceRules?.esslPunchInEnd || '23:59'}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        esslPunchInEnd: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="ESSL punch-in will be accepted only up to this time."
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="ESSL Punch-Out Start"
+                type="time"
+                value={branch?.setting?.attendanceRules?.esslPunchOutStart || '00:00'}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        esslPunchOutStart: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="ESSL punch-out will be accepted only after this time."
+              />
+
+              <TextField
+                fullWidth
+                size='small'
+                label="ESSL Punch-Out End"
+                type="time"
+                value={branch?.setting?.attendanceRules?.esslPunchOutEnd || '23:59'}
+                onChange={e =>
+                  setBranch(prev => ({
+                    ...prev,
+                    setting: {
+                      ...prev.setting,
+                      attendanceRules: {
+                        ...prev.setting.attendanceRules,
+                        esslPunchOutEnd: e.target.value
+                      }
+                    }
+                  }))
+                }
+                helperText="ESSL punch-out will be accepted only up to this time."
+              />
             </Box>
           </div>
         )}
