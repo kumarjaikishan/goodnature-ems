@@ -10,6 +10,13 @@ const dayjs = require("dayjs");
 const utc = require("dayjs/plugin/utc");
 const timezone = require("dayjs/plugin/timezone");
 const Essl = require('./models/essllivelogs')
+const {
+    parseAttendanceDateTime,
+    getAttendanceDateUTC,
+    getMinutesInAttendanceTimezone
+} = require('./utils/attendanceTime');
+
+const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -335,18 +342,14 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             // =========================
             // NORMALIZE TIME
             // =========================
-            const punchDate = new Date(recordTime);
-            if (isNaN(punchDate)) {
+            const punchDate = parseAttendanceDateTime(recordTime, ESSL_INPUT_TIMEZONE);
+            if (!punchDate || Number.isNaN(punchDate.getTime())) {
                 console.warn("Invalid date:", recordTime);
                 return res.send('OK');
             }
             punchDate.setSeconds(0, 0);
 
-            const dateObj = new Date(Date.UTC(
-                punchDate.getUTCFullYear(),
-                punchDate.getUTCMonth(),
-                punchDate.getUTCDate()
-            ));
+            const dateObj = getAttendanceDateUTC(punchDate);
 
             // =========================
             // FIND COMPANY
@@ -421,13 +424,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             // =========================
             // COMMON TIME HELPERS
             // =========================
-            const IST_OFFSET_MS = 330 * 60 * 1000;
-
-            const getMinutes = (date) => {
-                const istDate = new Date(date.getTime() + IST_OFFSET_MS);
-                return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-            };
-
             const parseTime = (t) => {
                 if (!t) return null;
                 const [h, m] = t.split(':').map(Number);
@@ -442,7 +438,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 const earlyBefore = parseTime(snapshot?.attendanceRules?.considerEarlyEntryBefore);
                 const lateAfter = parseTime(snapshot?.attendanceRules?.considerLateEntryAfter);
 
-                const punchInMin = getMinutes(punchDate);
+                const punchInMin = getMinutesInAttendanceTimezone(punchDate);
 
                 let punchInStatus = "onTime";
 
@@ -542,7 +538,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                     const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
                     const lateExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerLateExitAfter);
 
-                    const punchOutMin = getMinutes(punchDate);
+                    const punchOutMin = getMinutesInAttendanceTimezone(punchDate);
 
                     let punchOutStatus = "onTime";
 

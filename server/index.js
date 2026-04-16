@@ -46,6 +46,10 @@ app.use([
   });
 });
 
+// console.log("Timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
+// console.log("Local Hours:", new Date().getHours());
+// console.log("UTC Hours:", new Date().getUTCHours());
+
 // ----------------------
 // Optional: log incoming requests
 // ----------------------

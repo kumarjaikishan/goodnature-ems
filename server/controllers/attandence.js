@@ -11,6 +11,12 @@ const { sendTelegramMessage, sendTelegramMessageseperate } = require('../utils/t
 const dayjs = require('dayjs');
 const BranchModal = require('../models/branch');
 const company = require('../models/company');
+const {
+  parseAttendanceDateTime,
+  getAttendanceDateUTC,
+  getMinutesInAttendanceTimezone,
+  mergeAttendanceDateAndTime
+} = require('../utils/attendanceTime');
 
 /**
  * Helper to build a rules snapshot from branch/company settings.
@@ -193,12 +199,11 @@ const checkin = async (req, res) => {
     }
 
     // 🔹 Normalize date (UTC midnight)
-    const parsedDate = new Date(date);
-    const dateObj = new Date(Date.UTC(
-      parsedDate.getUTCFullYear(),
-      parsedDate.getUTCMonth(),
-      parsedDate.getUTCDate()
-    ));
+    const parsedDate = parseAttendanceDateTime(date);
+    const dateObj = getAttendanceDateUTC(parsedDate);
+    if (!dateObj) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
 
     // 🔹 Prevent duplicate attendance
     const existing = await Attendance.findOne({ employeeId, date: dateObj });
@@ -243,19 +248,13 @@ const checkin = async (req, res) => {
     let punchInStatus = null;
 
     if (!isAbsentOrLeave) {
-      punchInTime = punchIn ? new Date(punchIn) : new Date();
+      punchInTime = punchIn ? parseAttendanceDateTime(punchIn) : new Date();
 
-      if (isNaN(punchInTime)) {
+      if (!punchInTime || Number.isNaN(punchInTime.getTime())) {
         return res.status(400).json({ message: 'Invalid punchIn time' });
       }
 
       // 🔹 Helper functions (IST = UTC+5:30)
-      const IST_OFFSET_MS = 330 * 60 * 1000;
-      const getMinutes = (date) => {
-        const istDate = new Date(date.getTime() + IST_OFFSET_MS);
-        return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-      };
-
       const parseTime = (t) => {
         const [h, m] = t.split(':').map(Number);
         return h * 60 + m;
@@ -270,7 +269,7 @@ const checkin = async (req, res) => {
         snapshot.attendanceRules.considerLateEntryAfter
       );
 
-      const punchInMin = getMinutes(punchInTime);
+      const punchInMin = getMinutesInAttendanceTimezone(punchInTime);
 
       punchInStatus = "onTime";
 
@@ -389,12 +388,11 @@ const checkout = async (req, res) => {
     }
 
     // 🔹 Normalize date
-    const parsedDate = new Date(date);
-    const dateObj = new Date(Date.UTC(
-      parsedDate.getUTCFullYear(),
-      parsedDate.getUTCMonth(),
-      parsedDate.getUTCDate()
-    ));
+    const parsedDate = parseAttendanceDateTime(date);
+    const dateObj = getAttendanceDateUTC(parsedDate);
+    if (!dateObj) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
 
     // 🔹 Find record
     const record = await Attendance.findOne({ employeeId, date: dateObj });
@@ -412,19 +410,14 @@ const checkout = async (req, res) => {
     }
 
     // 🔹 Parse punchOut
-    const punchOutTime = new Date(punchOut);
-    if (isNaN(punchOutTime)) {
+    const punchOutTime = parseAttendanceDateTime(punchOut);
+    if (!punchOutTime || Number.isNaN(punchOutTime.getTime())) {
       return res.status(400).json({ message: 'Invalid punchOut time' });
     }
 
     record.punchOut = punchOutTime;
 
     // 🔹 Helpers (IST = UTC+5:30)
-    const IST_OFFSET_MS = 330 * 60 * 1000;
-    const getMinutes = (date) => {
-      const istDate = new Date(date.getTime() + IST_OFFSET_MS);
-      return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-    };
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
@@ -442,7 +435,7 @@ const checkout = async (req, res) => {
     // =========================
     // 🔹 PunchOut Status
     // =========================
-    const punchOutMin = getMinutes(punchOutTime);
+    const punchOutMin = getMinutesInAttendanceTimezone(punchOutTime);
 
     const earlyExitBefore = parseTime(
       snapshot.attendanceRules.considerEarlyExitBefore
@@ -517,15 +510,15 @@ const recordAttendanceFromLogs = async (req, res, next) => {
     }
 
     // 2️⃣ Normalize punch time → strip seconds & ms
-    const punchDate = new Date(recordTime);
+    const punchDate = parseAttendanceDateTime(recordTime);
+    if (!punchDate) {
+      console.warn(`⚠️ Invalid attendance record time: ${recordTime}`);
+      return;
+    }
     punchDate.setSeconds(0, 0); // ✅ keep only till minutes
 
     // 2.1️⃣ Normalize attendance date to UTC midnight
-    const dateObj = new Date(Date.UTC(
-      punchDate.getUTCFullYear(),
-      punchDate.getUTCMonth(),
-      punchDate.getUTCDate()
-    ));
+    const dateObj = getAttendanceDateUTC(punchDate);
 
     // 3️⃣ Check existing attendance for same employee + date
     let attendance = await Attendance.findOne({
@@ -638,11 +631,7 @@ const facecheckin = async (req, res, next) => {
     const punchIn = new Date(now.setSeconds(0, 0));
 
     // Normalize date to UTC 00:00
-    const dateObj = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate()
-    ));
+    const dateObj = getAttendanceDateUTC(now);
 
     // Check if already checked in
     const existing = await Attendance.findOne({ employeeId, date: dateObj });
@@ -715,12 +704,6 @@ const bulkMarkAttendance = async (req, res) => {
     const companyData = await company.findById(companyId);
 
     // IST = UTC+5:30
-    const IST_OFFSET_MS = 330 * 60 * 1000;
-    const getMinutes = (date) => {
-      const istDate = new Date(date.getTime() + IST_OFFSET_MS);
-      return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-    };
-
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
@@ -740,8 +723,9 @@ const bulkMarkAttendance = async (req, res) => {
         source = 'manual'
       } = record;
 
-      const parsedDate = new Date(date);
-      const dateObj = normalizeDateToUTC(parsedDate);
+      const parsedDate = parseAttendanceDateTime(date);
+      const dateObj = getAttendanceDateUTC(parsedDate);
+      if (!dateObj) continue;
 
       // 🔹 get branch
       const branch = await BranchModal.findById(branchId);
@@ -769,8 +753,8 @@ const bulkMarkAttendance = async (req, res) => {
         };
       }
 
-      const punchInDate = punchIn ? new Date(punchIn) : null;
-      const punchOutDate = punchOut ? new Date(punchOut) : null;
+      const punchInDate = punchIn ? parseAttendanceDateTime(punchIn) : null;
+      const punchOutDate = punchOut ? parseAttendanceDateTime(punchOut) : null;
 
       let punchInStatus = null;
       let punchOutStatus = null;
@@ -782,7 +766,7 @@ const bulkMarkAttendance = async (req, res) => {
         const earlyBefore = parseTime(snapshot.attendanceRules.considerEarlyEntryBefore);
         const lateAfter = parseTime(snapshot.attendanceRules.considerLateEntryAfter);
 
-        const min = getMinutes(punchInDate);
+        const min = getMinutesInAttendanceTimezone(punchInDate);
 
         if (min < earlyBefore) punchInStatus = "early";
         else if (min > lateAfter) punchInStatus = "late";
@@ -796,7 +780,7 @@ const bulkMarkAttendance = async (req, res) => {
         const earlyExitBefore = parseTime(snapshot.attendanceRules.considerEarlyExitBefore);
         const lateExitAfter = parseTime(snapshot.attendanceRules.considerLateExitAfter);
 
-        const min = getMinutes(punchOutDate);
+        const min = getMinutesInAttendanceTimezone(punchOutDate);
 
         if (min < earlyExitBefore) punchOutStatus = "early";
         else if (min > lateExitAfter) punchOutStatus = "late";
@@ -851,8 +835,8 @@ const bulkMarkAttendance = async (req, res) => {
             overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
           }
 
-          if (workingMinutes < wm.fullDay) {
-            shortMinutes = wm.fullDay - workingMinutes;
+          if (workingMinutes < wm.shortDayThreshold) {
+            shortMinutes = wm.shortDayThreshold - workingMinutes;
           }
         }
 
@@ -951,11 +935,6 @@ const bulkMarkAttendanceExcel = async (req, res) => {
     const companyData = await company.findById(companyId);
 
     // IST = UTC+5:30
-    const IST_OFFSET_MS = 330 * 60 * 1000;
-    const getMinutes = (date) => {
-      const istDate = new Date(date.getTime() + IST_OFFSET_MS);
-      return istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-    };
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
@@ -981,8 +960,9 @@ const bulkMarkAttendanceExcel = async (req, res) => {
         continue;
       }
 
-      const parsedDate = new Date(date);
-      const dateObj = normalizeDateToUTC(parsedDate);
+      const parsedDate = parseAttendanceDateTime(date);
+      const dateObj = getAttendanceDateUTC(parsedDate);
+      if (!dateObj) continue;
       const branch = await BranchModal.findById(emp.branchId);
 
       let snapshot = {};
@@ -1006,8 +986,8 @@ const bulkMarkAttendanceExcel = async (req, res) => {
         };
       }
 
-      const punchInDate = punchIn ? new Date(punchIn) : null;
-      const punchOutDate = punchOut ? new Date(punchOut) : null;
+      const punchInDate = punchIn ? parseAttendanceDateTime(punchIn) : null;
+      const punchOutDate = punchOut ? parseAttendanceDateTime(punchOut) : null;
 
       let punchInStatus = null;
       let punchOutStatus = null;
@@ -1015,7 +995,7 @@ const bulkMarkAttendanceExcel = async (req, res) => {
       if (punchInDate) {
         const earlyBefore = parseTime(snapshot.attendanceRules.considerEarlyEntryBefore);
         const lateAfter = parseTime(snapshot.attendanceRules.considerLateEntryAfter);
-        const min = getMinutes(punchInDate);
+        const min = getMinutesInAttendanceTimezone(punchInDate);
         if (min < earlyBefore) punchInStatus = "early";
         else if (min > lateAfter) punchInStatus = "late";
         else punchInStatus = "onTime";
@@ -1024,7 +1004,7 @@ const bulkMarkAttendanceExcel = async (req, res) => {
       if (punchOutDate) {
         const earlyExitBefore = parseTime(snapshot.attendanceRules.considerEarlyExitBefore);
         const lateExitAfter = parseTime(snapshot.attendanceRules.considerLateExitAfter);
-        const min = getMinutes(punchOutDate);
+        const min = getMinutesInAttendanceTimezone(punchOutDate);
         if (min < earlyExitBefore) punchOutStatus = "early";
         else if (min > lateExitAfter) punchOutStatus = "late";
         else punchOutStatus = "onTime";
@@ -1065,8 +1045,8 @@ const bulkMarkAttendanceExcel = async (req, res) => {
           if (workingMinutes > wm.overtimeAfterMinutes) {
             overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
           }
-          if (workingMinutes < wm.fullDay) {
-            shortMinutes = wm.fullDay - workingMinutes;
+          if (workingMinutes < wm.shortDayThreshold) {
+            shortMinutes = wm.shortDayThreshold - workingMinutes;
           }
         }
 
@@ -1210,7 +1190,7 @@ async function calculateStats(record, companyData, branch) {
     if (workingMinutes > wm.overtimeAfterMinutes) {
       overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
     }
-    if (workingMinutes < wm.fullDay) {
+    if (workingMinutes < wm.shortDayThreshold) {
       shortMinutes = wm.shortDayThreshold - workingMinutes;
     }
 
@@ -1244,7 +1224,7 @@ const facecheckout = async (req, res, next) => {
     const now = new Date();
     now.setSeconds(0, 0, 0);
 
-    const dateObj = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const dateObj = getAttendanceDateUTC(now);
 
     const record = await Attendance.findOne({ employeeId, date: dateObj });
 
@@ -1323,15 +1303,7 @@ const editattandence = async (req, res) => {
 
     const baseDate = new Date(data.date);
 
-    const mergeDate = (date, time) => {
-      const d = new Date(date);
-      const t = new Date(time);
-      d.setHours(t.getHours(), t.getMinutes(), 0, 0);
-      return d;
-    };
-
-    // 🔹 Helpers
-    const getMinutes = (date) => date.getHours() * 60 + date.getMinutes();
+    const mergeDate = (date, time) => mergeAttendanceDateAndTime(date, time);
 
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
@@ -1358,7 +1330,7 @@ const editattandence = async (req, res) => {
 
       data.punchIn = mergeDate(baseDate, punchIn);
 
-      const min = getMinutes(data.punchIn);
+      const min = getMinutesInAttendanceTimezone(data.punchIn);
 
       const earlyBefore = parseTime(rules.attendanceRules.considerEarlyEntryBefore);
       const lateAfter = parseTime(rules.attendanceRules.considerLateEntryAfter);
@@ -1381,7 +1353,7 @@ const editattandence = async (req, res) => {
 
       data.punchOut = mergeDate(baseDate, punchOut);
 
-      const min = getMinutes(data.punchOut);
+      const min = getMinutesInAttendanceTimezone(data.punchOut);
 
       const earlyExitBefore = parseTime(rules.attendanceRules.considerEarlyExitBefore);
       const lateExitAfter = parseTime(rules.attendanceRules.considerLateExitAfter);
