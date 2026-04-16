@@ -840,11 +840,17 @@ const bulkMarkAttendance = async (req, res) => {
         }
         else {
           if (workingMinutes > wm.overtimeAfterMinutes) {
-            overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
+            // allowFullOvertime: count OT from fullDay instead of overtime threshold
+            const otBase = wm.allowFullOvertime ? wm.fullDay : wm.overtimeAfterMinutes;
+            overtimeMinutes = workingMinutes - otBase;
+            if (overtimeMinutes < 0) overtimeMinutes = 0;
           }
 
           if (workingMinutes < wm.shortDayThreshold) {
-            shortMinutes = wm.shortDayThreshold - workingMinutes;
+            // allowFullShort: count shortage from fullDay instead of shortDayThreshold
+            const shortBase = wm.allowFullShort ? wm.fullDay : wm.shortDayThreshold;
+            shortMinutes = shortBase - workingMinutes;
+            if (shortMinutes < 0) shortMinutes = 0;
           }
         }
 
@@ -1053,10 +1059,16 @@ const bulkMarkAttendanceExcel = async (req, res) => {
           overtimeMinutes = workingMinutes;
         } else {
           if (workingMinutes > wm.overtimeAfterMinutes) {
-            overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
+            // allowFullOvertime: count OT from fullDay instead of overtime threshold
+            const otBase = wm.allowFullOvertime ? wm.fullDay : wm.overtimeAfterMinutes;
+            overtimeMinutes = workingMinutes - otBase;
+            if (overtimeMinutes < 0) overtimeMinutes = 0;
           }
           if (workingMinutes < wm.shortDayThreshold) {
-            shortMinutes = wm.shortDayThreshold - workingMinutes;
+            // allowFullShort: count shortage from fullDay instead of shortDayThreshold
+            const shortBase = wm.allowFullShort ? wm.fullDay : wm.shortDayThreshold;
+            shortMinutes = shortBase - workingMinutes;
+            if (shortMinutes < 0) shortMinutes = 0;
           }
         }
 
@@ -1198,10 +1210,16 @@ async function calculateStats(record, companyData, branch) {
     shortMinutes = 0;
   } else {
     if (workingMinutes > wm.overtimeAfterMinutes) {
-      overtimeMinutes = workingMinutes - wm.overtimeAfterMinutes;
+      // allowFullOvertime: count OT from fullDay baseline instead of the threshold
+      const otBase = wm.allowFullOvertime ? wm.fullDay : wm.overtimeAfterMinutes;
+      overtimeMinutes = workingMinutes - otBase;
+      if (overtimeMinutes < 0) overtimeMinutes = 0;
     }
     if (workingMinutes < wm.shortDayThreshold) {
-      shortMinutes = wm.shortDayThreshold - workingMinutes;
+      // allowFullShort: count shortage from fullDay instead of shortDayThreshold
+      const shortBase = wm.allowFullShort ? wm.fullDay : wm.shortDayThreshold;
+      shortMinutes = shortBase - workingMinutes;
+      if (shortMinutes < 0) shortMinutes = 0;
     }
 
     // Only clear holiday/weekly off remarks if not applicable (meaning not holiday/weekly off)

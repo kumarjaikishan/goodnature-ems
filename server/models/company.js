@@ -55,7 +55,10 @@ const companySchema = new mongoose.Schema({
         fullDay: { type: Number, default: 480 },
         halfDay: { type: Number, default: 240 },
         shortDayThreshold: { type: Number, default: 360 },
-        overtimeAfterMinutes: { type: Number, default: 540 }
+        overtimeAfterMinutes: { type: Number, default: 540 },
+        // ✅ If true, overtime/short is measured from fullDay instead of the threshold
+        allowFullOvertime: { type: Boolean, default: false },
+        allowFullShort: { type: Boolean, default: false }
     },
     weeklyOffs: {
         type: [Number],  // 0 = Sunday, ..., 6 = Saturday

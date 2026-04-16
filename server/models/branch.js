@@ -23,7 +23,9 @@ const branchSchema = new mongoose.Schema({
         fullDay: Number,
         halfDay: Number,
         shortDayThreshold: Number,
-        overtimeAfterMinutes: Number
+        overtimeAfterMinutes: Number,
+        allowFullOvertime: Boolean,
+        allowFullShort: Boolean
       },
       weeklyOffs: [Number],
       attendanceRules: {

@@ -71,8 +71,6 @@ const AttendanceRules = ({ companyinp, setcompany, handleChange, handleNestedCha
                     value={companyinp.workingMinutes.overtimeAfterMinutes}
                     onChange={e => handleChange('workingMinutes', 'overtimeAfterMinutes', Number(e.target.value))}
                 />
-
-                {/* Weekly Off */}
                 <FormControl fullWidth className="md:col-span-2">
                     <InputLabel>Weekly Offs</InputLabel>
                     <Select
@@ -92,6 +90,49 @@ const AttendanceRules = ({ companyinp, setcompany, handleChange, handleNestedCha
                         ))}
                     </Select>
                 </FormControl>
+
+                {/* Overtime calculation mode */}
+                <Box className="md:col-span-3 p-3 bg-amber-50 border border-amber-200 rounded space-y-1">
+                    <p className="text-sm font-semibold text-amber-800 mb-2">Overtime &amp; Short Calculation Mode</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={companyinp.workingMinutes?.allowFullOvertime || false}
+                                    onChange={e => handleChange('workingMinutes', 'allowFullOvertime', e.target.checked)}
+                                />
+                            }
+                            label={
+                                <span className="text-sm">
+                                    <strong>Full Overtime</strong>
+                                    <span className="text-gray-500 ml-1">(OT counted from Full Day, not OT threshold)</span>
+                                </span>
+                            }
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={companyinp.workingMinutes?.allowFullShort || false}
+                                    onChange={e => handleChange('workingMinutes', 'allowFullShort', e.target.checked)}
+                                />
+                            }
+                            label={
+                                <span className="text-sm">
+                                    <strong>Full Short</strong>
+                                    <span className="text-gray-500 ml-1">(Shortage counted from Full Day, not Short threshold)</span>
+                                </span>
+                            }
+                        />
+                    </div>
+                    <p className="text-xs text-amber-700 mt-1">
+                        Example: Worked 495 min, Full Day=480, OT Threshold=490 →
+                        Full OFF: 495−490=5 min OT &nbsp;|&nbsp;
+                        Full ON: 495−480=15 min OT
+                    </p>
+                </Box>
+
+                {/* Weekly Off */}
+
             </Box>
 
             {/* ================= ATTENDANCE RULES ================= */}

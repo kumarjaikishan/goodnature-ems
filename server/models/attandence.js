@@ -15,7 +15,9 @@ const rulesSnapshotSchema = new mongoose.Schema({
     fullDay: Number,
     halfDay: Number,
     shortDayThreshold: Number,
-    overtimeAfterMinutes: Number
+    overtimeAfterMinutes: Number,
+    allowFullOvertime: Boolean,
+    allowFullShort: Boolean
   },
   attendanceRules: {
     considerEarlyEntryBefore: String,

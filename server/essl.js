@@ -361,11 +361,16 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                     const shortThreshold = expectedMinutes.shortDayThreshold || 0;
                     const overtimeThreshold = expectedMinutes.overtimeAfterMinutes || 0;
+                    const fullDay = expectedMinutes.fullDay || 0;
 
-                    const short = shortThreshold - attendance.workingMinutes;
+                    // allowFullShort: count shortage from fullDay instead of shortDayThreshold
+                    const shortBase = expectedMinutes.allowFullShort ? fullDay : shortThreshold;
+                    const short = shortBase - attendance.workingMinutes;
                     attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
 
-                    const overtime = attendance.workingMinutes - overtimeThreshold;
+                    // allowFullOvertime: count OT from fullDay baseline instead of the threshold
+                    const otBase = expectedMinutes.allowFullOvertime ? fullDay : overtimeThreshold;
+                    const overtime = attendance.workingMinutes - otBase;
                     attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
 
                     // ✅ punchOutStatus
