@@ -287,7 +287,7 @@ const Main = () => {
             })}
         </div>
 
-        <div className='flex gap-5'>
+        <div className='flex gap-5 flex-wrap'>
           <span className='flex items-center gap-1 text-green-500 text-[13px] '>
             <span className='block w-[15px] rounded-3xl h-[15px] bg-green-500 '></span> Currently In Premise
           </span>

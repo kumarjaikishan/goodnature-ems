@@ -196,7 +196,7 @@ const addemployee = async (req, res, next) => {
         const ledgerObjectId = new mongoose.Types.ObjectId();
 
         const jsonFields = ["allowances", "bonuses", "deductions", "achievements", "education", "guardian"];
-        
+
         let employeeData = {
             _id: employeeObjectId,
             companyId: req.user.companyId,
@@ -348,7 +348,7 @@ const updateemployee = async (req, res, next) => {
             let ledgerUpdate = {};
             if (employeeName) ledgerUpdate.name = employeeName;
             if (employeeUpdateData.profileimage) ledgerUpdate.profileImage = employeeUpdateData.profileimage;
-            
+
             if (Object.keys(ledgerUpdate).length > 0) {
                 await Ledger.findOneAndUpdate({ employeeId: employeeId }, ledgerUpdate);
             }
@@ -772,6 +772,7 @@ const firstfetch = async (req, res, next) => {
                     $in: employeeIds
                 }
             })
+                .select(' -rulesSnapshot -dutyStart -dutyEnd')
                 .sort({ date: -1, empId: 1 })
                 .populate({
                     path: 'employeeId',
@@ -829,6 +830,7 @@ const firstfetch = async (req, res, next) => {
                 .sort({ empId: 1 });
 
             attendance = await attendanceModal.find({ companyId: compId })
+                .select(' -rulesSnapshot -dutyStart -dutyEnd')
                 .sort({ date: -1, empId: 1 })
                 .populate({
                     path: 'employeeId',

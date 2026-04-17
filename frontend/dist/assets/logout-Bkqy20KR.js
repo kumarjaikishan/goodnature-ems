@@ -1,1 +1,0 @@
-import{u as s,a,r as o,c as r,e as u,s as l}from"./index-CpBXy1hE.js";const c=()=>{const e=s();let t=a();return o.useEffect(()=>(localStorage.removeItem("emstoken"),e(r()),e(u()),e(l(!1)),t("/login")),[]),null};export{c as default};
