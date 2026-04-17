@@ -22,36 +22,8 @@ const {
   mergeAttendanceDateAndTime,
   ATTENDANCE_TIMEZONE
 } = require('../utils/attendanceTime');
+const { getRulesSnapshot, calculateStats } = require('../services/attendanceService');
 
-/**
- * Helper to build a rules snapshot from branch/company settings.
- */
-async function getRulesSnapshot(companyId, branchId) {
-  const companyData = await company.findById(companyId);
-  const branch = await BranchModal.findById(branchId);
-
-  if (!companyData) return null;
-
-  if (branch && !branch.defaultsetting && branch.setting) {
-    return {
-      officeTime: branch.setting.officeTime,
-      gracePeriod: branch.setting.gracePeriod,
-      workingMinutes: branch.setting.workingMinutes,
-      attendanceRules: branch.setting.attendanceRules,
-      weeklyOffs: branch.setting.weeklyOffs,
-      overtimeRules: branch.setting.overtimeRules
-    };
-  }
-
-  return {
-    officeTime: companyData.officeTime,
-    gracePeriod: companyData.gracePeriod,
-    workingMinutes: companyData.workingMinutes,
-    attendanceRules: companyData.attendanceRules,
-    weeklyOffs: companyData.weeklyOffs,
-    overtimeRules: companyData.overtimeRules
-  };
-}
 
 const webattandence = async (req, res, next) => {
   try {
@@ -1142,104 +1114,6 @@ const bulkMarkAttendanceExcel = async (req, res) => {
   }
 };
 
-/**
- * Helper to calculate working, overtime, and short minutes based on rules.
- * Also determines status and remarks for holidays/weekly offs.
- */
-async function calculateStats(record, companyData, branch) {
-  const workingMinutes = Math.floor((record.punchOut - record.punchIn) / (1000 * 60));
-  record.workingMinutes = workingMinutes;
-
-  let snapshot = record.rulesSnapshot;
-  if (!snapshot) {
-    // Fallback for existing records: fetch current rules
-    snapshot = await getRulesSnapshot(companyData._id, branch._id);
-    record.rulesSnapshot = snapshot;
-  }
-  if (!snapshot) return; // Cannot calculate without rules
-
-  const wm = snapshot.workingMinutes;
-  // console.log("already snapshot", wm)
-  const overtimeRules = snapshot.overtimeRules || {};
-
-  const day = new Date(record.date).getUTCDay();
-
-  let isWeeklyOff = false;
-  if (branch.defaultsetting) {
-    isWeeklyOff = companyData.weeklyOffs.includes(day);
-  } else {
-    isWeeklyOff = branch.setting.weeklyOffs.includes(day);
-  }
-  const dateStr = dayjs(record.date).format('YYYY-MM-DD');
-
-  const isHolidayRecord = await Holiday.findOne({
-    companyId: companyData._id,
-    fromDate: dateStr
-  });
-  // console.log("isHolidayRecord",isHolidayRecord)
-
-  const isHoliday = !!isHolidayRecord;
-
-  let overtimeMinutes = 0;
-  let shortMinutes = 0;
-  let remarks = record.remarks || "";
-
-  // =========================
-  // 🔹 Day Type
-  // =========================
-  const dayType = isHoliday ? "holiday" : (isWeeklyOff ? "weekoff" : "normal");
-  record.dayType = dayType;
-
-  // =========================
-  // 🔹 Holiday / Weekly Off Remarks
-  // =========================
-  if (isHoliday && workingMinutes > 0) {
-    remarks = "worked on holiday";
-  } else if (isWeeklyOff && workingMinutes > 0) {
-    remarks = "worked on weekly off";
-  }
-
-  // =========================
-  // 🔹 Overtime Calculation
-  // =========================
-  if (isHoliday && overtimeRules?.holiday?.treatAllAsOvertime) {
-    overtimeMinutes = workingMinutes;
-    shortMinutes = 0;
-  } else if (isWeeklyOff && overtimeRules?.weeklyOff?.treatAllAsOvertime) {
-    overtimeMinutes = workingMinutes;
-    shortMinutes = 0;
-  } else {
-    if (workingMinutes > wm.overtimeAfterMinutes) {
-      // allowFullOvertime: count OT from fullDay baseline instead of the threshold
-      const otBase = wm.allowFullOvertime ? wm.fullDay : wm.overtimeAfterMinutes;
-      overtimeMinutes = workingMinutes - otBase;
-      if (overtimeMinutes < 0) overtimeMinutes = 0;
-    }
-    if (workingMinutes < wm.shortDayThreshold) {
-      // allowFullShort: count shortage from fullDay instead of shortDayThreshold
-      const shortBase = wm.allowFullShort ? wm.fullDay : wm.shortDayThreshold;
-      shortMinutes = shortBase - workingMinutes;
-      if (shortMinutes < 0) shortMinutes = 0;
-    }
-
-    // Only clear holiday/weekly off remarks if not applicable (meaning not holiday/weekly off)
-    if (!isHoliday && !isWeeklyOff) {
-      if (remarks === "worked on holiday" || remarks === "worked on weekly off") {
-        remarks = "";
-      }
-    }
-  }
-
-  record.overtimeMinutes = overtimeMinutes;
-  record.shortMinutes = shortMinutes;
-  record.remarks = remarks;
-
-  if (workingMinutes < wm.halfDay) {
-    record.status = "half day";
-  } else {
-    record.status = "present";
-  }
-}
 
 const facecheckout = async (req, res, next) => {
   try {

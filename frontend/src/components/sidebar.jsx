@@ -42,7 +42,22 @@ const Sidebar = () => {
         { menu: "Dashboard", link: "/dashboard", icon: <VscDashboard />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo"] },
         { menu: "Membership", link: "/dashboard/membership", icon: <VscDashboard />, roles: ["developer"] },
         { menu: "Permissions", link: "/dashboard/permission", icon: <VscDashboard />, roles: ["developer"] },
-        { menu: "Organization", link: "/dashboard/organization", icon: <FaSitemap />, roles: ["admin", "superadmin"] },
+        {
+          menu: "Organization",
+          icon: <FaSitemap />,
+          roles: ["admin", "superadmin"],
+          children: [
+            { menu: "Company Info", link: "/dashboard/organization/company", roles: ["admin", "superadmin"] },
+            { menu: "Branches & Managers", link: "/dashboard/organization/branches", roles: ["admin", "superadmin"] },
+            { menu: "Departments", link: "/dashboard/organization/departments", roles: ["admin", "superadmin"] },
+            { menu: "Device Management", link: "/dashboard/organization/devices", roles: ["admin", "superadmin"] },
+            { menu: "Telegram", link: "/dashboard/organization/telegram", roles: ["admin", "superadmin"] },
+            { menu: "Admin/Manager", link: "/dashboard/organization/admin", roles: ["superadmin"] },
+            { menu: "Attendance Rules", link: "/dashboard/organization/rules", roles: ["admin", "superadmin"] },
+            { menu: "Payroll Policies", link: "/dashboard/organization/payroll", roles: ["admin", "superadmin"] },
+            { menu: "Leave Policies", link: "/dashboard/organization/leave-policies", roles: ["admin", "superadmin"] },
+          ],
+        },
         {
           menu: "Employees",
           icon: <FaUserTie />,

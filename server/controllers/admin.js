@@ -219,7 +219,7 @@ const addemployee = async (req, res, next) => {
 
             // Type conversions
             if (key === "salary") value = Number(value) || 0;
-            if (key === "status" || key === "overridedefaultPolicies") value = (value === true || value === "true");
+            if (key === "status" || key === "overridedefaultPolicies" || key === "allowSeeLedger") value = (value === true || value === "true");
 
             // Avoid overwriting pre-calculated fields or redundant ones
             if (!["_id", "companyId", "userid", "empId", "ledgerId", "photo", "password"].includes(key)) {
@@ -293,7 +293,7 @@ const updateemployee = async (req, res, next) => {
 
             // Handle type conversion
             if (key === "salary") value = Number(value) || 0;
-            if (key === "status" || key === "overridedefaultPolicies") value = (value === true || value === "true");
+            if (key === "status" || key === "overridedefaultPolicies" || key === "allowSeeLedger") value = (value === true || value === "true");
 
             // Map fields correctly
             if (key === "employeeName") {

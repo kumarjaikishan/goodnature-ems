@@ -16,6 +16,7 @@ const {
     getMinutesInAttendanceTimezone,
     ATTENDANCE_TIMEZONE
 } = require('./utils/attendanceTime');
+const { calculateStats } = require('./services/attendanceService');
 
 const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
 
@@ -354,40 +355,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                     attendance.punchOut = punchDate;
 
-                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes || {};
-
-                    const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
-                    attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
-
-                    const shortThreshold = expectedMinutes.shortDayThreshold || 0;
-                    const overtimeThreshold = expectedMinutes.overtimeAfterMinutes || 0;
-                    const fullDay = expectedMinutes.fullDay || 0;
-
-                    // allowFullShort: count shortage from fullDay instead of shortDayThreshold
-                    const shortBase = expectedMinutes.allowFullShort ? fullDay : shortThreshold;
-                    const short = shortBase - attendance.workingMinutes;
-                    attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
-
-                    // allowFullOvertime: count OT from fullDay baseline instead of the threshold
-                    const otBase = expectedMinutes.allowFullOvertime ? fullDay : overtimeThreshold;
-                    const overtime = attendance.workingMinutes - otBase;
-                    attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
-
-                    // ✅ punchOutStatus
-                    const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
-                    const lateExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerLateExitAfter);
-
-                    const punchOutMin = getMinutesInAttendanceTimezone(punchDate);
-
-                    let punchOutStatus = "onTime";
-
-                    if (earlyExit !== null && punchOutMin < earlyExit) {
-                        punchOutStatus = "early";
-                    } else if (lateExit !== null && punchOutMin > lateExit) {
-                        punchOutStatus = "late";
-                    }
-
-                    attendance.punchOutStatus = punchOutStatus;
+                    await calculateStats(attendance, companyData, branch);
 
                     await attendance.save();
 

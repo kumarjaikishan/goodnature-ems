@@ -22,6 +22,9 @@ const getMyLedger = async (req, res, next) => {
     }
 
     const emp = await employee.findById(employeeId);
+    if (!emp?.allowSeeLedger) {
+      return res.status(200).json([]);
+    }
     let ledgerId = emp?.ledgerId;
 
     if (!ledgerId) {

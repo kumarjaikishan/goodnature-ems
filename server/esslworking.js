@@ -13,7 +13,8 @@ const Essl = require('./models/essllivelogs')
 const {
     parseAttendanceDateTime,
     getAttendanceDateUTC,
-    getMinutesInAttendanceTimezone
+    getMinutesInAttendanceTimezone,
+    ATTENDANCE_TIMEZONE
 } = require('./utils/attendanceTime');
 
 const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
@@ -73,240 +74,16 @@ router.get('/essl/iclock/getrequest.aspx', async (req, res) => {
     res.send('OK');
 });
 
-// POST request for device
+function formatMinutesToTime(totalMinutes) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
-// router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) => {
-//     try {
-//         const raw = req.bodyRaw || '';
-//         const deviceSN = req.query.SN || null;
+    // pad with leading zero if needed
+    const formattedHours = String(hours).padStart(2, '0');
+    const formattedMinutes = String(minutes).padStart(2, '0');
 
-//         if (!raw) return res.send('OK');
-
-//         // =========================
-//         // HANDLE LIVE ATTLOG
-//         // =========================
-//         if (/^\d+\s/.test(raw)) {
-
-//             const fields = raw.trim().split(/\s+/);
-
-//             const attendancee = {
-//                 PIN: fields[0],
-//                 Timestamp: fields[1] + ' ' + fields[2],
-//                 Status: fields[3],
-//                 VerifyMode: fields[4]
-//             };
-
-//             console.log('⏱ Live Attendance:', attendancee);
-
-//             const status = parseInt(attendancee.Status, 10);
-//             if (status > 1) return res.send('OK');
-
-//             const deviceUserId = attendancee.PIN;
-//             const recordTime = attendancee.Timestamp;
-
-//             // =========================
-//             // ✅ FIX 1: Parse as UTC
-//             // =========================
-//             const punchDate = new Date(recordTime + 'Z'); // 🔥 IMPORTANT
-//             if (isNaN(punchDate)) {
-//                 console.warn("Invalid date:", recordTime);
-//                 return res.send('OK');
-//             }
-
-//             punchDate.setSeconds(0, 0);
-
-//             // =========================
-//             // ✅ FIX 2: Convert to IST
-//             // =========================
-//             const IST_OFFSET_MS = 330 * 60 * 1000;
-//             const istDate = new Date(punchDate.getTime() + IST_OFFSET_MS);
-
-//             // =========================
-//             // ✅ FIX 3: Correct date grouping (IST)
-//             // =========================
-//             const dateObj = new Date(
-//                 istDate.getFullYear(),
-//                 istDate.getMonth(),
-//                 istDate.getDate()
-//             );
-
-//             // =========================
-//             // FIND COMPANY
-//             // =========================
-//             const whichCompany = await company.findOne({ "devices.SN": deviceSN })
-//                 .select('_id telegram telegramNotifcation');
-
-//             if (!whichCompany) {
-//                 console.warn(`No company for SN ${deviceSN}`);
-//                 return res.send('OK');
-//             }
-
-//             // =========================
-//             // SAVE RAW LOG (GOOD PRACTICE)
-//             // =========================
-//             await Essl.create({
-//                 companyId: whichCompany._id,
-//                 deviceSN,
-//                 pin: attendancee.PIN,
-//                 timestamp: punchDate, // UTC stored
-//                 status,
-//                 verifyMode: parseInt(attendancee.VerifyMode),
-//                 raw
-//             });
-
-//             // =========================
-//             // FIND EMPLOYEE
-//             // =========================
-//             const employeeDoc = await employee.findOne({
-//                 companyId: whichCompany._id,
-//                 deviceUserId
-//             }).select('_id branchId empId companyId');
-
-//             if (!employeeDoc) {
-//                 console.warn(`No employee for deviceUserId ${deviceUserId}`);
-//                 return res.send('OK');
-//             }
-
-//             // =========================
-//             // FETCH SNAPSHOT
-//             // =========================
-//             const companyData = await company.findById(employeeDoc.companyId);
-//             const branch = await BranchModal.findById(employeeDoc.branchId);
-
-//             let snapshot = {};
-
-//             if (branch?.defaultsetting) {
-//                 snapshot = {
-//                     officeTime: companyData?.officeTime,
-//                     gracePeriod: companyData?.gracePeriod,
-//                     workingMinutes: companyData?.workingMinutes,
-//                     attendanceRules: companyData?.attendanceRules
-//                 };
-//             } else {
-//                 snapshot = {
-//                     officeTime: branch?.setting?.officeTime,
-//                     gracePeriod: branch?.setting?.gracePeriod,
-//                     workingMinutes: branch?.setting?.workingMinutes,
-//                     attendanceRules: branch?.setting?.attendanceRules
-//                 };
-//             }
-
-//             // =========================
-//             // FIND ATTENDANCE
-//             // =========================
-//             let attendance = await Attendance.findOne({
-//                 employeeId: employeeDoc._id,
-//                 date: dateObj
-//             });
-
-//             // =========================
-//             // TIME HELPERS (IST BASED)
-//             // =========================
-//             const getMinutes = (date) => {
-//                 const ist = new Date(date.getTime() + IST_OFFSET_MS);
-//                 return ist.getHours() * 60 + ist.getMinutes();
-//             };
-
-//             const parseTime = (t) => {
-//                 if (!t) return null;
-//                 const [h, m] = t.split(':').map(Number);
-//                 return h * 60 + m;
-//             };
-
-//             // =========================
-//             // CHECK-IN
-//             // =========================
-//             if (!attendance) {
-
-//                 const earlyBefore = parseTime(snapshot?.attendanceRules?.considerEarlyEntryBefore);
-//                 const lateAfter = parseTime(snapshot?.attendanceRules?.considerLateEntryAfter);
-
-//                 const punchInMin = getMinutes(punchDate);
-
-//                 let punchInStatus = "onTime";
-
-//                 if (earlyBefore !== null && punchInMin < earlyBefore) {
-//                     punchInStatus = "early";
-//                 } else if (lateAfter !== null && punchInMin > lateAfter) {
-//                     punchInStatus = "late";
-//                 }
-
-//                 attendance = new Attendance({
-//                     companyId: employeeDoc.companyId,
-//                     branchId: employeeDoc.branchId,
-//                     empId: employeeDoc.empId,
-//                     employeeId: employeeDoc._id,
-
-//                     date: dateObj,
-//                     status: 'present',
-//                     source: 'device',
-
-//                     punchIn: punchDate,
-//                     punchInStatus,
-
-//                     dutyStart: snapshot?.officeTime?.in,
-//                     dutyEnd: snapshot?.officeTime?.out,
-
-//                     rulesSnapshot: snapshot,
-
-//                     workingMinutes: 0,
-//                     overtimeMinutes: 0,
-//                     shortMinutes: 0
-//                 });
-
-//                 await attendance.save();
-
-//             } else {
-
-//                 // =========================
-//                 // CHECK-OUT
-//                 // =========================
-//                 if (!attendance.punchOut) {
-
-//                     attendance.punchOut = punchDate;
-
-//                     const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes?.fullDay || 480;
-
-//                     const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
-//                     attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
-
-//                     const short = expectedMinutes - attendance.workingMinutes;
-//                     attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
-
-//                     const overtime = attendance.workingMinutes - expectedMinutes;
-//                     attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
-
-//                     const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
-//                     const lateExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerLateExitAfter);
-
-//                     const punchOutMin = getMinutes(punchDate);
-
-//                     let punchOutStatus = "onTime";
-
-//                     if (earlyExit !== null && punchOutMin < earlyExit) {
-//                         punchOutStatus = "early";
-//                     } else if (lateExit !== null && punchOutMin > lateExit) {
-//                         punchOutStatus = "late";
-//                     }
-
-//                     attendance.punchOutStatus = punchOutStatus;
-
-//                     await attendance.save();
-
-//                 } else {
-//                     console.log(`Extra punch ignored for ${employeeDoc.empId}`);
-//                 }
-//             }
-//         }
-
-//         return res.send('OK');
-
-//     } catch (error) {
-//         console.error("ESSL ERROR:", error);
-//         return res.send('OK');
-//     }
-// });
-
+    return `${formattedHours}:${formattedMinutes}`;
+}
 
 router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) => {
     try {
@@ -328,7 +105,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 VerifyMode: fields[4]
             };
 
-            console.log('⏱ Live Attendance:', attendancee);
+            // console.log('⏱ Live Attendance:', attendancee);
 
 
             const status = parseInt(attendancee.Status, 10);
@@ -447,13 +224,14 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             const punchOutEnd = parseTime(snapshot?.attendanceRules?.esslPunchOutEnd);
 
             if (status === 0 && !isWithinWindow(logMinute, punchInStart, punchInEnd)) {
-                console.log(`Punch-in ignored (outside ESSL punch-in window) for ${employeeDoc.empId} at ${logMinute}`);
+                console.log(`Punch-in ignored (outside ESSL punch-in window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
                 return res.send('OK');
             }
             if (status === 1 && !isWithinWindow(logMinute, punchOutStart, punchOutEnd)) {
-                console.log(`Punch-out ignored (outside ESSL punch-out window) for ${employeeDoc.empId} at ${logMinute}`);
+                console.log(`Punch-out ignored (outside ESSL punch-out window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
                 return res.send('OK');
             }
+
 
             // =========================
             // CHECK-IN
@@ -531,18 +309,15 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         whichCompany.telegram.token,
                         whichCompany.telegram.groupId,
                         `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
-                            .utc()
-                            .add(5, 'hours')
-                            .add(30, 'minutes')
+                            .tz(ATTENDANCE_TIMEZONE)
                             .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
-                                .utc()
-                                .add(5, 'hours')
-                                .add(30, 'minutes')
+                                .tz(ATTENDANCE_TIMEZONE)
                                 .format("DD/MM/YY")}`
                     )
                 }
 
             } else {
+                // For explicit punch-in logs, never force checkout.
                 if (status === 0) {
                     if (!attendance.punchIn) {
                         const earlyBefore = parseTime(snapshot?.attendanceRules?.considerEarlyEntryBefore);
@@ -568,7 +343,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 }
 
                 // =========================
-                // CHECK-OUT
+                // CHECK-OUT (status = 1)
                 // =========================
                 if (!attendance.punchIn) {
                     console.log(`Punch-out ignored (missing punch-in) for ${employeeDoc.empId}`);
@@ -578,18 +353,30 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 if (!attendance.punchOut) {
 
                     attendance.punchOut = punchDate;
-                    // console.log("snapshot", attendance?.rulesSnapshot);
 
-                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes;
+                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes || {};
+                    console.log("expectedMinutes", expectedMinutes)
 
                     const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
                     attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
 
-                    const short = expectedMinutes.shortDayThreshold - attendance.workingMinutes;
-                    attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
+                    const shortThreshold = expectedMinutes.shortDayThreshold || 0;
+                    const overtimeThreshold = expectedMinutes.overtimeAfterMinutes || 0;
+                    const fullDay = expectedMinutes.fullDay || 0;
 
-                    const overtime = attendance.workingMinutes - expectedMinutes.overtimeAfterMinutes;
-                    attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
+                    // allowFullShort: count shortage from fullDay instead of shortDayThreshold
+                    if (attendance.workingMinutes < shortThreshold) {
+                        const shortBase = expectedMinutes.allowFullShort ? fullDay : shortThreshold;
+                        const short = shortBase - attendance.workingMinutes;
+                        attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
+                    }
+
+                    // allowFullOvertime: count OT from fullDay baseline instead of the threshold
+                    if (attendance.workingMinutes > overtimeThreshold) {
+                        const otBase = expectedMinutes.allowFullOvertime ? fullDay : overtimeThreshold;
+                        const overtime = attendance.workingMinutes - otBase;
+                        attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
+                    }
 
                     // ✅ punchOutStatus
                     const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
@@ -638,13 +425,9 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                             whichCompany.telegram.token,
                             whichCompany.telegram.groupId,
                             `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
-                                .utc()
-                                .add(5, 'hours')
-                                .add(30, 'minutes')
+                                .tz(ATTENDANCE_TIMEZONE)
                                 .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
-                                    .utc()
-                                    .add(5, 'hours')
-                                    .add(30, 'minutes')
+                                    .tz(ATTENDANCE_TIMEZONE)
                                     .format("DD/MM/YY")}`
                         )
                     }

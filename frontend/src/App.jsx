@@ -28,6 +28,15 @@ const LeaveBalancePage = lazy(() => import('./pages/leaveledger/leaveledger'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const Employe = lazy(() => import('./pages/admin/employee/Employe'));
 const OrganizationSettings = lazy(() => import('./pages/admin/organization/organization'));
+const CompanyInfoPage = lazy(() => import('./pages/admin/organization/pages/CompanyInfoPage'));
+const BranchManagerPage = lazy(() => import('./pages/admin/organization/pages/BranchManagerPage'));
+const DepartmentPage = lazy(() => import('./pages/admin/organization/pages/DepartmentPage'));
+const DeviceManagementPage = lazy(() => import('./pages/admin/organization/pages/DeviceManagementPage'));
+const TelegramIntegrationPage = lazy(() => import('./pages/admin/organization/pages/TelegramIntegrationPage'));
+const AdminManagerPage = lazy(() => import('./pages/admin/organization/pages/AdminManagerPage'));
+const AttendanceRulesPage = lazy(() => import('./pages/admin/organization/pages/AttendanceRulesPage'));
+const PayrollPoliciesPage = lazy(() => import('./pages/admin/organization/pages/PayrollPoliciesPage'));
+const LeavePoliciesPage = lazy(() => import('./pages/admin/organization/pages/LeavePoliciesPage'));
 const Attandence = lazy(() => import('./pages/admin/attandence/Attandence'));
 const AttenPerformance = lazy(() => import('./pages/admin/attandence/AttenPerformance'));
 const Adminleave = lazy(() => import('./pages/admin/leave/Adminleave'));
@@ -70,6 +79,15 @@ const routesByRole = {
       <Route index element={<AdminDashboard />} />
       <Route path="employe" element={<Employe />} />
       <Route path="organization" element={<OrganizationSettings />} />
+      <Route path="organization/company" element={<CompanyInfoPage />} />
+      <Route path="organization/branches" element={<BranchManagerPage />} />
+      <Route path="organization/departments" element={<DepartmentPage />} />
+      <Route path="organization/devices" element={<DeviceManagementPage />} />
+      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
+      <Route path="organization/admin" element={<AdminManagerPage />} />
+      <Route path="organization/rules" element={<AttendanceRulesPage />} />
+      <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
+      <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
       <Route path="attandence" element={<Attandence />} />
       <Route path="attandence-import" element={<AttendanceExcelImport />} />
       <Route path="attandence_Report" element={<AttendanceReport />} />
@@ -97,6 +115,15 @@ const routesByRole = {
       <Route index element={<AdminDashboard />} />
       <Route path="employe" element={<Employe />} />
       <Route path="organization" element={<OrganizationSettings />} />
+      <Route path="organization/company" element={<CompanyInfoPage />} />
+      <Route path="organization/branches" element={<BranchManagerPage />} />
+      <Route path="organization/departments" element={<DepartmentPage />} />
+      <Route path="organization/devices" element={<DeviceManagementPage />} />
+      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
+      <Route path="organization/admin" element={<AdminManagerPage />} />
+      <Route path="organization/rules" element={<AttendanceRulesPage />} />
+      <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
+      <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
       <Route path="attandence" element={<Attandence />} />
       <Route path="attandence-import" element={<AttendanceExcelImport />} />
       <Route path="attandence_Report" element={<AttendanceReport />} />
@@ -125,6 +152,15 @@ const routesByRole = {
       <Route index element={<AdminDashboard />} />
       <Route path="employe" element={<Employe />} />
       <Route path="organization" element={<OrganizationSettings />} />
+      <Route path="organization/company" element={<CompanyInfoPage />} />
+      <Route path="organization/branches" element={<BranchManagerPage />} />
+      <Route path="organization/departments" element={<DepartmentPage />} />
+      <Route path="organization/devices" element={<DeviceManagementPage />} />
+      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
+      <Route path="organization/admin" element={<AdminManagerPage />} />
+      <Route path="organization/rules" element={<AttendanceRulesPage />} />
+      <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
+      <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
       <Route path="attandence" element={<Attandence />} />
       <Route path="attandence-import" element={<AttendanceExcelImport />} />
       <Route path="attandence_Report" element={<AttendanceReport />} />

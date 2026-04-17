@@ -145,6 +145,10 @@ const employeeSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    allowSeeLedger: {
+        type: Boolean,
+        default: false
+    },
     acHolderName: {
         type: String,
     },

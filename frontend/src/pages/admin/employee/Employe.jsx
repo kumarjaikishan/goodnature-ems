@@ -103,7 +103,8 @@ const Employe = () => {
     overridedefaultPolicies: false,
     allowances: [], // [{ name: "HRA", mode: "percentage", value: 40 }]
     bonuses: [],
-    deductions: []
+    deductions: [],
+    allowSeeLedger: false
   };
   const [inp, setInp] = useState(init);
 
@@ -335,7 +336,8 @@ const Employe = () => {
       overridedefaultPolicies: employee?.overridedefaultPolicies || false,
       allowances: employee?.allowances || [],
       bonuses: employee?.bonuses || [],
-      deductions: employee?.deductions || []
+      deductions: employee?.deductions || [],
+      allowSeeLedger: employee?.allowSeeLedger || false
     });
     if (employee.profileimage) {
       setPhotoPreview(employee.profileimage);
@@ -910,6 +912,18 @@ const Employe = () => {
                     }
                     sx={{ mt: 2 }}
                   />
+                  <div className="flex items-center gap-2">
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={inp.allowSeeLedger}
+                          onChange={(e) => setInp({ ...inp, allowSeeLedger: e.target.checked })}
+                          color="primary"
+                        />
+                      }
+                      label="Allow to see Ledger"
+                    />
+                  </div>
 
                   {/* payroll policies override */}
                   {isupdate && inp.overridedefaultPolicies &&
