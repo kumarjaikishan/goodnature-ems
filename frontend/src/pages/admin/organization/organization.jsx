@@ -9,16 +9,13 @@ import {
     FormControlLabel
 } from '@mui/material';
 import { MdExpandLess, MdExpandMore, MdSettingsSuggest } from "react-icons/md";
-import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { apiClient } from '../../../utils/apiClient';
-import { FirstFetch } from '../../../../store/userSlice';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import Addbranch from './addbranch';
 import { useCustomStyles } from '../attandence/attandencehelper';
-import useImageUpload from "../../../utils/imageresizer";
 import swal from 'sweetalert';
 import dayjs from 'dayjs';
+import { useOrganization } from './useOrganization';
 
 // Import Modular Components
 import CompanyInfo from './components/CompanyInfo';
@@ -43,222 +40,35 @@ const weekdays = [
 ];
 
 export default function OrganizationSettings() {
+    const {
+        companyinp,
+        setcompany,
+        handleChange,
+        handleNestedChange,
+        addDevice,
+        removeDevice,
+        isOnline,
+        deviceRefresh,
+        handleSubmit,
+        fetchgroup,
+        isload,
+        refreshload,
+        teleloading,
+        handleImage,
+        employee,
+        company,
+        branch,
+        profile
+    } = useOrganization();
+    const styles = useCustomStyles();
+
     const [openSection, setOpenSection] = useState(null);
     const [editbranch, seteditbranch] = useState(false);
     const [openviewmodal, setopenviewmodal] = useState(false);
-    const [isload, setisload] = useState(false);
-    const { handleImage } = useImageUpload();
     const [editbranchdata, seteditbranchdata] = useState(null);
-    const [refreshload, setrefreshload] = useState(false);
-    const [teleloading, setteleloading] = useState(false);
-    const [companyinp, setcompany] = useState({
-        name: '',
-        address: '',
-        contact: '',
-        fullname: '',
-        deviceSN: '',
-        devices: [
-            { SN: 'BJ2C194460597', name: 'Head Branch', online: false }
-        ],
-        telegram: {
-            token: '',
-            groupId: '',
-        },
-        telegramNotifcation: false,
-        officeTime: { in: '10:00', out: '18:00', breakMinutes: 30 },
-        gracePeriod: { lateEntryMinutes: 10, earlyExitMinutes: 10 },
-        workingMinutes: {
-            fullDay: 480,
-            halfDay: 240,
-            shortDayThreshold: 360,
-            overtimeAfterMinutes: 490
-        },
-        weeklyOffs: [0],
-        attendanceRules: {
-            considerEarlyEntryBefore: '09:50',
-            considerLateEntryAfter: '10:10',
-            considerEarlyExitBefore: '17:50',
-            considerLateExitAfter: '18:15',
-            esslPunchInStart: '00:00',
-            esslPunchInEnd: '23:59',
-            esslPunchOutStart: '00:00',
-            esslPunchOutEnd: '23:59'
-        },
-        payrollPolicies: {
-            allowances: [],
-            bonuses: [],
-            deductions: []
-        },
-        leaveSettings: {
-            allowEmployeeToSeeLedger: false
-        }
-    });
-
-    const dispatch = useDispatch();
-    const { employee, company, branch, profile } = useSelector((state) => state.user);
-    const styles = useCustomStyles();
-
-    useEffect(() => {
-        if (company) {
-            setcompany(company);
-        }
-    }, [company]);
 
     const toggleSection = (section) => {
         setOpenSection((prev) => (prev === section ? null : section));
-    };
-
-    const handleChange = (section, fieldOrValue, value) => {
-        if (typeof fieldOrValue === 'object') {
-            setcompany(prev => ({
-                ...prev,
-                [section]: fieldOrValue
-            }));
-        } else {
-            setcompany(prev => ({
-                ...prev,
-                [section]: {
-                    ...prev[section],
-                    [fieldOrValue]: value
-                }
-            }));
-        }
-    };
-
-    const handleNestedChange = (parent, child, key, value) => {
-        setcompany(prev => ({
-            ...prev,
-            [parent]: {
-                ...prev[parent],
-                [child]: {
-                    ...prev[parent]?.[child],
-                    [key]: value
-                }
-            }
-        }));
-    };
-
-    const addDevice = () => {
-        setcompany({
-            ...companyinp,
-            devices: [...companyinp.devices, { SN: '', name: '', online: false }]
-        });
-    };
-
-    const removeDevice = (index) => {
-        swal({
-            title: "Delete this device?",
-            icon: "warning",
-            buttons: true,
-            dangerMode: true,
-        }).then((willLogout) => {
-            if (willLogout) {
-                const newDevices = companyinp.devices.filter((_, i) => i !== index);
-                setcompany({ ...companyinp, devices: newDevices });
-            }
-        });
-    };
-
-    const isOnline = (lastHeartbeat) => {
-        if (!lastHeartbeat) return false;
-        const diff = Date.now() - new Date(lastHeartbeat).getTime();
-        return diff < 60000;
-    };
-
-    const deviceRefresh = async (deviceSN) => {
-        try {
-            setrefreshload(true);
-            const data = await apiClient({
-                url: `refreshDevice/${deviceSN}`
-            });
-            setcompany((prev) => ({ ...prev, devices: data.devices }));
-        } catch (error) {
-            console.error('Error refreshing device:', error);
-        } finally {
-            setrefreshload(false);
-        }
-    };
-
-    const fetchgroup = async () => {
-        setteleloading(true);
-        try {
-            const response = await fetch(
-                `https://api.telegram.org/bot${companyinp.telegram.token}/getUpdates`
-            );
-            const data = await response.json();
-
-            if (data.result.length > 0) {
-                let groups = {};
-                data.result.forEach((m) => {
-                    if (m.message?.chat.type === "group") {
-                        let groupId = m.message.chat.id;
-                        if (!groups.hasOwnProperty(groupId)) {
-                            groups[groupId] = {
-                                groupId: Math.abs(m.message.chat.id),
-                                groupName: m.message.chat.title || "",
-                            };
-                        }
-                    }
-                });
-
-                let html = Object.values(groups)
-                    .map((g, i) =>
-                        `<label style="display:block;margin:5px 0">
-                            <input type="radio" name="groupRadio" value="${g.groupId}" ${i === 0 ? "checked" : ""} />
-                            ${g.groupName}
-                        </label>`
-                    )
-                    .join("");
-
-                swal({
-                    title: "Select a Group",
-                    content: {
-                        element: "div",
-                        attributes: { innerHTML: html },
-                    },
-                    buttons: {
-                        cancel: "Cancel",
-                        confirm: { text: "Select", closeModal: true },
-                    },
-                }).then((willConfirm) => {
-                    if (willConfirm) {
-                        const selected = document.querySelector("input[name='groupRadio']:checked")?.value;
-                        if (selected) {
-                            setcompany({
-                                ...companyinp,
-                                telegram: {
-                                    ...companyinp.telegram,
-                                    groupId: selected,
-                                },
-                            });
-                        }
-                    }
-                });
-            }
-        } catch (error) {
-            toast.warn("Error fetching telegram groups");
-            console.error('Telegram API error:', error);
-        } finally {
-            setteleloading(false);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        if (e) e.preventDefault();
-        try {
-            setisload(true);
-            const data = await apiClient({
-                url: "updateCompany",
-                method: "POST",
-                body: companyinp
-            });
-            dispatch(FirstFetch());
-            toast.success(data.message, { autoClose: 1800 });
-        } catch (error) {
-            console.error('Error updating company:', error);
-        } finally {
-            setisload(false);
-        }
     };
 
     const handleEditBranch = (data) => {

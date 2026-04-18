@@ -63,6 +63,92 @@ export const useOrganization = () => {
         }
     }, [company]);
 
+    const fetchgroup = async () => {
+        if (!companyinp.telegram.token) {
+            toast.warn("Please enter a Bot Token first");
+            return;
+        }
+
+        setteleloading(true);
+        try {
+            const response = await fetch(
+                `https://api.telegram.org/bot${companyinp.telegram.token}/getUpdates`
+            );
+            const data = await response.json();
+
+            if (!data.ok) {
+                if (data.error_code === 409) {
+                    toast.error("Telegram API Conflict: A webhook is active on this bot. Please remove the webhook to use the refresh feature.");
+                } else {
+                    toast.error(`Telegram Error: ${data.description || "Unknown error"}`);
+                }
+                return;
+            }
+
+            if (data.result && data.result.length > 0) {
+                let groups = {};
+                data.result.forEach((m) => {
+                    const chat = m.message?.chat || m.my_chat_member?.chat;
+                    if (chat && (chat.type === "group" || chat.type === "supergroup")) {
+                        let groupId = chat.id;
+                        if (!groups.hasOwnProperty(groupId)) {
+                            groups[groupId] = {
+                                groupId: Math.abs(chat.id),
+                                groupName: chat.title || "Unnamed Group",
+                            };
+                        }
+                    }
+                });
+
+                if (Object.keys(groups).length === 0) {
+                    toast.info("No groups found. Make sure the bot is added to a group and you've sent a message or added the bot recently.");
+                    return;
+                }
+
+                let html = Object.values(groups)
+                    .map((g, i) =>
+                        `<label style="display:block;margin:5px 0">
+                            <input type="radio" name="groupRadio" value="${g.groupId}" ${i === 0 ? "checked" : ""} />
+                            ${g.groupName}
+                        </label>`
+                    )
+                    .join("");
+
+                swal({
+                    title: "Select a Group",
+                    content: {
+                        element: "div",
+                        attributes: { innerHTML: html },
+                    },
+                    buttons: {
+                        cancel: "Cancel",
+                        confirm: { text: "Select", closeModal: true },
+                    },
+                }).then((willConfirm) => {
+                    if (willConfirm) {
+                        const selected = document.querySelector("input[name='groupRadio']:checked")?.value;
+                        if (selected) {
+                            setcompany(prev => ({
+                                ...prev,
+                                telegram: {
+                                    ...prev.telegram,
+                                    groupId: selected,
+                                },
+                            }));
+                        }
+                    }
+                });
+            } else {
+                toast.info("No new updates found from Telegram. Try adding the bot to a new group and refresh again.");
+            }
+        } catch (error) {
+            toast.warn("Error fetching telegram groups");
+            console.error('Telegram API error:', error);
+        } finally {
+            setteleloading(false);
+        }
+    };
+
     const handleChange = (section, fieldOrValue, value) => {
         if (typeof fieldOrValue === 'object') {
             setcompany(prev => ({
@@ -162,6 +248,7 @@ export const useOrganization = () => {
         isOnline,
         deviceRefresh,
         handleSubmit,
+        fetchgroup,
         isload,
         setisload,
         refreshload,

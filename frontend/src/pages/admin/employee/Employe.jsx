@@ -900,6 +900,18 @@ const Employe = () => {
                     </div>
                   }
 
+                  <div className="flex items-center gap-2">
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={inp.allowSeeLedger}
+                          onChange={(e) => setInp({ ...inp, allowSeeLedger: e.target.checked })}
+                          color="primary"
+                        />
+                      }
+                      label="Allow to see Ledger"
+                    />
+                  </div>
                   <FormControlLabel
                     label="Override Payroll Policies"
                     control={
@@ -916,18 +928,7 @@ const Employe = () => {
                     }
                     sx={{ mt: 2 }}
                   />
-                  <div className="flex items-center gap-2">
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={inp.allowSeeLedger}
-                          onChange={(e) => setInp({ ...inp, allowSeeLedger: e.target.checked })}
-                          color="primary"
-                        />
-                      }
-                      label="Allow to see Ledger"
-                    />
-                  </div>
+
 
                   {/* payroll policies override */}
                   {isupdate && inp.overridedefaultPolicies &&

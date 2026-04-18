@@ -12,6 +12,11 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                     variant="standard"
                     size="small"
                     className='w-full md:w-[350px]'
+                    slotProps={{
+                        input: {
+                            readOnly: true
+                        }
+                    }}
                     value={companyinp?.telegram?.token || ""}
                     onChange={e => handleChange('telegram', 'token', e.target.value)}
                 />
@@ -23,17 +28,21 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                     className='w-full md:w-[150px]'
                     value={companyinp?.telegram?.groupId || ""}
                     onChange={e => handleChange('telegram', 'groupId', e.target.value)}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <IconButton
-                                    onClick={fetchgroup}
-                                    edge="end"
-                                >
-                                    <FiRefreshCw className={teleloading ? "animate-spin" : ""} />
-                                </IconButton>
-                            </InputAdornment>
-                        ),
+                    slotProps={{
+                        input: {
+                            readOnly: true, // 🔒 makes field readonly
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        onClick={fetchgroup}
+                                        edge="end"
+                                        disabled={teleloading}
+                                    >
+                                        <FiRefreshCw className={teleloading ? "animate-spin" : ""} />
+                                    </IconButton>
+                                </InputAdornment>
+                            )
+                        }
                     }}
                 />
 
@@ -71,7 +80,7 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                     </label>
                 </div>
             </div>
-            
+
             <Button className='float-end' variant="contained" loading={isload} onClick={handleSubmit}>
                 Save Changes
             </Button>
