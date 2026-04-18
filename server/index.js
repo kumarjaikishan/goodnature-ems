@@ -70,7 +70,7 @@ app.use((req, res, next) => {
 app.use('/api', route);
 app.get('/events', eventsHandler);
 app.use('/', esslRoutes);
-app.use('/telegram', TelegramRoute);
+app.use('/api/telegram', TelegramRoute);
 
 // ----------------------
 // 404 handler

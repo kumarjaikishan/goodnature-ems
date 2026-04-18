@@ -8,6 +8,12 @@ const CHAT_ID = '4814061293'; // Your group chat ID
  * @param {string} message - The message text to send
  */
 
+// for setting up teletgram webhook
+// https://api.telegram.org/bot8249382565:AAF9OUUBcUdOhzfKvuCW5bsM2lKIFwMwg7U/setWebhook?url=https://gn.battlefiesta.in/api/telegram/hook
+
+// Check if it’s set correctly:
+// https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
+
 
 // https://api.telegram.org/bot8249382565:AAF9OUUBcUdOhzfKvuCW5bsM2lKIFwMwg7U/getChatAdministrators?chat_id=-4814061293
 // https://api.telegram.org/bot8249382565:AAF9OUUBcUdOhzfKvuCW5bsM2lKIFwMwg7U/getUpdates
@@ -32,7 +38,7 @@ async function sendTelegramMessage(message) {
     console.error('❌ Error sending message:', error.response?.data || error.message);
   }
 }
-async function sendTelegramMessageseperate(token,CHAT_ID,message) {
+async function sendTelegramMessageseperate(token, CHAT_ID, message) {
   try {
     const response = await axios.post(
       `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
@@ -53,5 +59,5 @@ async function sendTelegramMessageseperate(token,CHAT_ID,message) {
   }
 }
 
-module.exports = { sendTelegramMessage,sendTelegramMessageseperate };
+module.exports = { sendTelegramMessage, sendTelegramMessageseperate };
 
