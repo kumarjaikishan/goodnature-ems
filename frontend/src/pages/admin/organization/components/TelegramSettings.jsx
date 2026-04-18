@@ -28,22 +28,21 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                     className='w-full md:w-[150px]'
                     value={companyinp?.telegram?.groupId || ""}
                     onChange={e => handleChange('telegram', 'groupId', e.target.value)}
-                    slotProps={{
-                        input: {
-                            readOnly: true, // 🔒 makes field readonly
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        onClick={fetchgroup}
-                                        edge="end"
-                                        disabled={teleloading}
-                                    >
-                                        <FiRefreshCw className={teleloading ? "animate-spin" : ""} />
-                                    </IconButton>
-                                </InputAdornment>
-                            )
-                        }
-                    }}
+                // slotProps={{
+                //     input: {
+                //         endAdornment: (
+                //             <InputAdornment position="end">
+                //                 <IconButton
+                //                     onClick={fetchgroup}
+                //                     edge="end"
+                //                     disabled={teleloading}
+                //                 >
+                //                     <FiRefreshCw className={teleloading ? "animate-spin" : ""} />
+                //                 </IconButton>
+                //             </InputAdornment>
+                //         )
+                //     }
+                // }}
                 />
 
                 <div className="flex items-center gap-2 mt-2">
