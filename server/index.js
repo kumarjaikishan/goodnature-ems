@@ -57,7 +57,7 @@ console.log("Timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
 // Optional: log incoming requests
 // ----------------------
 app.use((req, res, next) => {
-  console.log(`📡 Incoming: ${req.method} ${req.url}`);
+  // console.log(`📡 Incoming: ${req.method} ${req.url}`);
   // if (req.bodyRaw) console.log('📡 Incoming essl request: ', req.bodyRaw);
   next();
 });
