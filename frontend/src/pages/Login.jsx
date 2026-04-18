@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { TextField, Button, Typography } from "@mui/material";
+import { TextField, Button, Typography, IconButton, InputAdornment } from "@mui/material";
 import { useApi } from "../utils/useApi";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { setlogin } from "../../store/authSlice";
 import { useNavigate } from "react-router-dom";
 import { setuser } from "../../store/userSlice";
+import { Eye, EyeOff } from "lucide-react";
 
 const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const { request, loading: isLoading } = useApi();
     const dispatch = useDispatch();
     let navigate = useNavigate();
@@ -36,6 +38,7 @@ const Login = () => {
             return navigate("/dashboard");
         } catch (error) {
             console.error("Login error:", error);
+            toast.error(error.message || "Login failed");
         }
     };
 
@@ -76,12 +79,26 @@ const Login = () => {
 
                             <TextField
                                 label="Password"
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 fullWidth
                                 required
                                 margin="normal"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    edge="end"
+                                                >
+                                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
                             />
 
                             <Button

@@ -148,7 +148,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 whichCompany.telegramNotifcation = false;
             }
 
-
             const log = new Essl({
                 companyId: whichCompany._id,
                 pin: attendancee.PIN,

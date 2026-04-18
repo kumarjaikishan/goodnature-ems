@@ -87,14 +87,13 @@ const HolidayForm = () => {
     setWeeklyOffs(company?.weeklyOffs || [1]);
   }, [company]);
 
-  useEffect(() => {
+  const handleFromDateBlur = () => {
     if (form.fromDate && !form.toDate) {
-      const from = dayjs(form.fromDate);
-      if (from.isValid()) {
-        setForm(prev => ({ ...prev, toDate: from }));
+      if (dayjs(form.fromDate).isValid()) {
+        setForm(prev => ({ ...prev, toDate: form.fromDate }));
       }
     }
-  }, [form.fromDate]);
+  };
 
 
   useEffect(() => {
@@ -283,8 +282,17 @@ const HolidayForm = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const formattedFromDate = form.fromDate ? dayjs(form.fromDate).format("YYYY-MM-DD") : null;
+      const formattedToDate = form.toDate ? dayjs(form.toDate).format("YYYY-MM-DD") : null;
+
       const endpoint = isUpdate ? 'updateholiday' : 'addholiday';
-      const payload = isUpdate ? { ...form, holidayId } : form;
+      const payload = {
+        ...form,
+        fromDate: formattedFromDate,
+        toDate: formattedToDate,
+        ...(isUpdate ? { holidayId } : {})
+      };
+
       const data = await apiClient({
         url: endpoint,
         method: "POST",
@@ -572,7 +580,7 @@ const HolidayForm = () => {
                 <div className='flex flex-col gap-3 w-full'>
                   <TextField required inputRef={nameInputRef} label="Holiday Name" size="small" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} fullWidth />
                   <div className='flex w-full justify-between gap-2'>
-                    <DatePicker required label="From Date" format='DD/MM/YYYY' value={form.fromDate} onChange={(newValue) => setForm(prev => ({ ...prev, fromDate: newValue }))} slotProps={{ textField: { size: 'small', fullWidth: true } }} />
+                    <DatePicker required label="From Date" format='DD/MM/YYYY' value={form.fromDate} onChange={(newValue) => setForm(prev => ({ ...prev, fromDate: newValue }))} slotProps={{ textField: { size: 'small', fullWidth: true, onBlur: handleFromDateBlur } }} />
                     <DatePicker required label="To Date" format='DD/MM/YYYY' value={form.toDate} onChange={(newValue) => setForm(prev => ({ ...prev, toDate: newValue }))} slotProps={{ textField: { size: 'small', fullWidth: true } }} />
                   </div>
                   {/* Type Selector */}

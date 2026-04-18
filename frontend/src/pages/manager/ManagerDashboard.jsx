@@ -242,7 +242,7 @@ const ManagerDashboard = () => {
 
         {/* employee list */}
         <div className='grid grid-cols-5 md:grid-cols-10 lg:grid-cols-15 gap-2 md:gap-4'>
-          {employeelist?.map((emp) => {
+          {employeelist?.filter((e) => e.status !== false)?.map((emp) => {
             const isPresent = currentpresent.some(att => att.employeeId._id === emp._id);
             const todaypresente = todaypresent.find(att => att.employeeId._id === emp._id);
             return (
