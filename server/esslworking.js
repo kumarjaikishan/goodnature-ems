@@ -16,6 +16,7 @@ const {
     getMinutesInAttendanceTimezone,
     ATTENDANCE_TIMEZONE
 } = require('./utils/attendanceTime');
+const { calculateStats } = require('./services/attendanceService');
 
 const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
 
@@ -233,6 +234,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 }
                 return res.send('OK');
             }
+
             if (status === 1 && !isWithinWindow(logMinute, punchOutStart, punchOutEnd)) {
                 console.log(`Punch-out ignored (outside ESSL punch-out window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
 
@@ -314,7 +316,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                     employeeDoc.branchId?.toString() || null
                 );
 
-
                 if (
                     whichCompany?.telegramNotifcation &&
                     whichCompany?.telegram?.token
@@ -363,10 +364,27 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         attendance.dutyEnd = attendance.dutyEnd || snapshot?.officeTime?.out;
                         await attendance.save();
                     } else {
+                        // console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
                         console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
                         if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                            const message = `EXTRA PUNCH: ${employeeDoc?.userid?.name}, your Punch-In at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored as you are already Punched In.`;
-                            sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
+
+                            const time = dayjs(punchDate)
+                                .tz(ATTENDANCE_TIMEZONE)
+                                .format("hh:mm A");
+
+                            const date = dayjs(punchDate)
+                                .tz(ATTENDANCE_TIMEZONE)
+                                .format("DD MMM YYYY"); // e.g. 18 Apr 2026
+
+                            const message = `⚠️ EXTRA PUNCH
+
+${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored because you are already punched in.`;
+
+                            sendTelegramMessageseperate(
+                                whichCompany.telegram.token,
+                                employeeDoc.telegramId,
+                                message
+                            );
                         }
                     }
                     return res.send('OK');
@@ -388,45 +406,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                     attendance.punchOut = punchDate;
 
-                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes || {};
-                    console.log("expectedMinutes", expectedMinutes)
-
-                    const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
-                    attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
-
-                    const shortThreshold = expectedMinutes.shortDayThreshold || 0;
-                    const overtimeThreshold = expectedMinutes.overtimeAfterMinutes || 0;
-                    const fullDay = expectedMinutes.fullDay || 0;
-
-                    // allowFullShort: count shortage from fullDay instead of shortDayThreshold
-                    if (attendance.workingMinutes < shortThreshold) {
-                        const shortBase = expectedMinutes.allowFullShort ? fullDay : shortThreshold;
-                        const short = shortBase - attendance.workingMinutes;
-                        attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
-                    }
-
-                    // allowFullOvertime: count OT from fullDay baseline instead of the threshold
-                    if (attendance.workingMinutes > overtimeThreshold) {
-                        const otBase = expectedMinutes.allowFullOvertime ? fullDay : overtimeThreshold;
-                        const overtime = attendance.workingMinutes - otBase;
-                        attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
-                    }
-
-                    // ✅ punchOutStatus
-                    const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
-                    const lateExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerLateExitAfter);
-
-                    const punchOutMin = getMinutesInAttendanceTimezone(punchDate);
-
-                    let punchOutStatus = "onTime";
-
-                    if (earlyExit !== null && punchOutMin < earlyExit) {
-                        punchOutStatus = "early";
-                    } else if (lateExit !== null && punchOutMin > lateExit) {
-                        punchOutStatus = "late";
-                    }
-
-                    attendance.punchOutStatus = punchOutStatus;
+                    await calculateStats(attendance, companyData, branch);
 
                     await attendance.save();
 
@@ -480,7 +460,18 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 } else {
                     console.log(`Extra punch ignored for ${employeeDoc.empId}`);
                     if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                        const message = `EXTRA PUNCH: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored as you are already Punched Out.`;
+
+                        const time = dayjs(punchDate)
+                            .tz(ATTENDANCE_TIMEZONE)
+                            .format("hh:mm A");
+
+                        const date = dayjs(punchDate)
+                            .tz(ATTENDANCE_TIMEZONE)
+                            .format("DD MMM YYYY"); // e.g. 18 Apr 2026
+
+                        const message = `⚠️ EXTRA PUNCH-Out
+ ${employeeDoc?.userid?.name}, your Punch-Out at ${time} on ${date} was ignored because you are already punched Out.`;
+
                         sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
                     }
                 }

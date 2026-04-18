@@ -35,7 +35,7 @@ router.post('/hook', (req, res) => {
                     telegramId: from?.id
                 };
 
-                console.log("Telegram User:", userData);
+                // console.log("Telegram User:", userData);
 
                 const message = `🆔 Your Telegram Details
 
