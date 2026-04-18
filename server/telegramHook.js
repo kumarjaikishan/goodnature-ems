@@ -2,19 +2,24 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/hook', (req, res) => {
-    res.sendStatus(200); // respond immediately
+    const update = req.body; // ✅ capture first
 
-    // process async
+    res.sendStatus(200);
+
     setImmediate(() => {
-        const update = req.body;
+        try {
+            const chatId =
+                update?.message?.chat?.id ||
+                update?.edited_message?.chat?.id ||
+                update?.callback_query?.message?.chat?.id;
 
-        const chatId =
-            update.message?.chat?.id ||
-            update.edited_message?.chat?.id;
-
-        if (chatId) {
-            console.log("Chat ID:", chatId);
-            // save to DB here
+            if (chatId) {
+                console.log("Chat ID:", chatId);
+            } else {
+                console.log("No chatId found:", update);
+            }
+        } catch (err) {
+            console.error("Webhook processing error:", err);
         }
     });
 });
