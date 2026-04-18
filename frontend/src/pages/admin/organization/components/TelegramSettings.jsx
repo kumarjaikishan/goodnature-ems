@@ -52,6 +52,23 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                         />
                         <span className="ml-2 text-gray-700 font-medium">Enable Notifications</span>
                     </label>
+                    <label className="flex items-center cursor-pointer select-none ml-4">
+                        <input
+                            type="checkbox"
+                            checked={companyinp?.telegram?.individualNotification || false}
+                            onChange={e =>
+                                setcompany(prev => ({
+                                    ...prev,
+                                    telegram: {
+                                        ...prev.telegram,
+                                        individualNotification: e.target.checked
+                                    }
+                                }))
+                            }
+                            className="w-5 h-5 text-blue-600 bg-gray-200 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                        <span className="ml-2 text-gray-700 font-medium whitespace-nowrap">Individual Notifications</span>
+                    </label>
                 </div>
             </div>
             

@@ -104,7 +104,8 @@ const Employe = () => {
     allowances: [], // [{ name: "HRA", mode: "percentage", value: 40 }]
     bonuses: [],
     deductions: [],
-    allowSeeLedger: false
+    allowSeeLedger: false,
+    telegramId: ''
   };
   const [inp, setInp] = useState(init);
 
@@ -337,7 +338,8 @@ const Employe = () => {
       allowances: employee?.allowances || [],
       bonuses: employee?.bonuses || [],
       deductions: employee?.deductions || [],
-      allowSeeLedger: employee?.allowSeeLedger || false
+      allowSeeLedger: employee?.allowSeeLedger || false,
+      telegramId: safeValue(employee?.telegramId)
     });
     if (employee.profileimage) {
       setPhotoPreview(employee.profileimage);
@@ -689,7 +691,9 @@ const Employe = () => {
                         handleChange({ ...e, target: { ...e.target, value: onlyNums } }, 'deviceUserId');
                       }}
                       label="deviceUserId" size="small" />
-                    {/* <TextField fullWidth required value={inp.email} onChange={(e) => handleChange(e, 'email')} label="Email" size="small" /> */}
+                    <TextField fullWidth value={inp.telegramId || ''}
+                      onChange={(e) => handleChange(e, 'telegramId')}
+                      label="Telegram Chat ID" size="small" />
                   </div>
 
                   <div className="w-full  flex justify-center">

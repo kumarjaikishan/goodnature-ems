@@ -177,7 +177,9 @@ const employeeSchema = new mongoose.Schema({
         type: [Number], // This will store the 128-length descriptor as an array of numbers
         default: null
     },
-
+    telegramId: {
+        type: String,
+    },
 }, { timestamps: true })
 
 

@@ -16,6 +16,7 @@ const {
     getMinutesInAttendanceTimezone,
     ATTENDANCE_TIMEZONE
 } = require('./utils/attendanceTime');
+const { calculateStats } = require('./services/attendanceService');
 
 const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
 
@@ -163,8 +164,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             const employeeDoc = await employee.findOne({
                 companyId: whichCompany._id,
                 deviceUserId
-            }).select('_id branchId empId companyId telegramId userid')
-                .populate('userid', 'name');
+            }).select('_id branchId empId companyId');
 
             if (!employeeDoc) {
                 console.warn(`No employee for deviceUserId ${deviceUserId}`);
@@ -226,20 +226,10 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
             if (status === 0 && !isWithinWindow(logMinute, punchInStart, punchInEnd)) {
                 console.log(`Punch-in ignored (outside ESSL punch-in window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
-
-                if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                    const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-In at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because it's outside the allowed window (${snapshot?.attendanceRules?.esslPunchInStart} - ${snapshot?.attendanceRules?.esslPunchInEnd}).`;
-                    sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                }
                 return res.send('OK');
             }
             if (status === 1 && !isWithinWindow(logMinute, punchOutStart, punchOutEnd)) {
                 console.log(`Punch-out ignored (outside ESSL punch-out window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
-
-                if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                    const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because it's outside the allowed window (${snapshot?.attendanceRules?.esslPunchOutStart} - ${snapshot?.attendanceRules?.esslPunchOutEnd}).`;
-                    sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                }
                 return res.send('OK');
             }
 
@@ -250,10 +240,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             if (!attendance) {
                 if (status !== 0) {
                     console.log(`Punch-out ignored (no punch-in record) for ${employeeDoc.empId}`);
-                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                        const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found for today.`;
-                        sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                    }
                     return res.send('OK');
                 }
 
@@ -317,29 +303,18 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                 if (
                     whichCompany?.telegramNotifcation &&
-                    whichCompany?.telegram?.token
+                    whichCompany?.telegram?.token &&
+                    whichCompany?.telegram?.groupId
                 ) {
-                    const message = `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
-                        .tz(ATTENDANCE_TIMEZONE)
-                        .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
+                    sendTelegramMessageseperate(
+                        whichCompany.telegram.token,
+                        whichCompany.telegram.groupId,
+                        `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
                             .tz(ATTENDANCE_TIMEZONE)
-                            .format("DD/MM/YY")}`;
-
-                    if (whichCompany.telegram.groupId) {
-                        sendTelegramMessageseperate(
-                            whichCompany.telegram.token,
-                            `-${whichCompany.telegram.groupId}`,
-                            message
-                        )
-                    }
-
-                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                        sendTelegramMessageseperate(
-                            whichCompany.telegram.token,
-                            employeeDoc.telegramId,
-                            message
-                        )
-                    }
+                            .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
+                                .tz(ATTENDANCE_TIMEZONE)
+                                .format("DD/MM/YY")}`
+                    )
                 }
 
             } else {
@@ -364,10 +339,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         await attendance.save();
                     } else {
                         console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
-                        if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                            const message = `EXTRA PUNCH: ${employeeDoc?.userid?.name}, your Punch-In at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored as you are already Punched In.`;
-                            sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                        }
                     }
                     return res.send('OK');
                 }
@@ -377,10 +348,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 // =========================
                 if (!attendance.punchIn) {
                     console.log(`Punch-out ignored (missing punch-in) for ${employeeDoc.empId}`);
-                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                        const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found.`;
-                        sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                    }
                     return res.send('OK');
                 }
 
@@ -388,45 +355,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                     attendance.punchOut = punchDate;
 
-                    const expectedMinutes = attendance?.rulesSnapshot?.workingMinutes || {};
-                    console.log("expectedMinutes", expectedMinutes)
-
-                    const diffMinutes = (attendance.punchOut - attendance.punchIn) / (1000 * 60);
-                    attendance.workingMinutes = parseFloat(diffMinutes.toFixed(2));
-
-                    const shortThreshold = expectedMinutes.shortDayThreshold || 0;
-                    const overtimeThreshold = expectedMinutes.overtimeAfterMinutes || 0;
-                    const fullDay = expectedMinutes.fullDay || 0;
-
-                    // allowFullShort: count shortage from fullDay instead of shortDayThreshold
-                    if (attendance.workingMinutes < shortThreshold) {
-                        const shortBase = expectedMinutes.allowFullShort ? fullDay : shortThreshold;
-                        const short = shortBase - attendance.workingMinutes;
-                        attendance.shortMinutes = short > 0 ? parseFloat(short.toFixed(2)) : 0;
-                    }
-
-                    // allowFullOvertime: count OT from fullDay baseline instead of the threshold
-                    if (attendance.workingMinutes > overtimeThreshold) {
-                        const otBase = expectedMinutes.allowFullOvertime ? fullDay : overtimeThreshold;
-                        const overtime = attendance.workingMinutes - otBase;
-                        attendance.overtimeMinutes = overtime > 0 ? parseFloat(overtime.toFixed(2)) : 0;
-                    }
-
-                    // ✅ punchOutStatus
-                    const earlyExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerEarlyExitBefore);
-                    const lateExit = parseTime(attendance?.rulesSnapshot?.attendanceRules?.considerLateExitAfter);
-
-                    const punchOutMin = getMinutesInAttendanceTimezone(punchDate);
-
-                    let punchOutStatus = "onTime";
-
-                    if (earlyExit !== null && punchOutMin < earlyExit) {
-                        punchOutStatus = "early";
-                    } else if (lateExit !== null && punchOutMin > lateExit) {
-                        punchOutStatus = "late";
-                    }
-
-                    attendance.punchOutStatus = punchOutStatus;
+                    await calculateStats(attendance, companyData, branch);
 
                     await attendance.save();
 
@@ -452,37 +381,22 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                     if (
                         whichCompany?.telegramNotifcation &&
-                        whichCompany?.telegram?.token
+                        whichCompany?.telegram?.token &&
+                        whichCompany?.telegram?.groupId
                     ) {
-                        const message = `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
-                            .tz(ATTENDANCE_TIMEZONE)
-                            .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
+                        sendTelegramMessageseperate(
+                            whichCompany.telegram.token,
+                            whichCompany.telegram.groupId,
+                            `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
                                 .tz(ATTENDANCE_TIMEZONE)
-                                .format("DD/MM/YY")}`;
-
-                        if (whichCompany.telegram.groupId) {
-                            sendTelegramMessageseperate(
-                                whichCompany.telegram.token,
-                                `-${whichCompany.telegram.groupId}`,
-                                message
-                            )
-                        }
-
-                        if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                            sendTelegramMessageseperate(
-                                whichCompany.telegram.token,
-                                employeeDoc.telegramId,
-                                message
-                            )
-                        }
+                                .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
+                                    .tz(ATTENDANCE_TIMEZONE)
+                                    .format("DD/MM/YY")}`
+                        )
                     }
 
                 } else {
                     console.log(`Extra punch ignored for ${employeeDoc.empId}`);
-                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                        const message = `EXTRA PUNCH: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored as you are already Punched Out.`;
-                        sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                    }
                 }
             }
         }

@@ -25,6 +25,7 @@ export const useOrganization = () => {
         telegram: {
             token: '',
             groupId: '',
+            individualNotification: false
         },
         telegramNotifcation: false,
         officeTime: { in: '10:00', out: '18:00', breakMinutes: 30 },

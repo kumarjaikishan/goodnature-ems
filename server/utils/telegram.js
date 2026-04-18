@@ -41,9 +41,9 @@ async function sendTelegramMessage(message) {
 async function sendTelegramMessageseperate(token, CHAT_ID, message) {
   try {
     const response = await axios.post(
-      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+      `https://api.telegram.org/bot${token}/sendMessage`,
       {
-        chat_id: `-${CHAT_ID}`,
+        chat_id: CHAT_ID,
         text: message
       },
       {

@@ -203,7 +203,8 @@ const addemployee = async (req, res, next) => {
             userid: resulten._id,
             empId,
             profileimage: uploadResult?.secure_url,
-            ledgerId: ledgerObjectId
+            ledgerId: ledgerObjectId,
+            telegramId: req.body.telegramId
         };
 
         for (const key in req.body) {
@@ -307,6 +308,10 @@ const updateemployee = async (req, res, next) => {
             } else if (key !== "employeeId" && key !== "empId") {
                 employeeUpdateData[key] = value;
             }
+        }
+
+        if (req.body.telegramId !== undefined) {
+            employeeUpdateData.telegramId = req.body.telegramId;
         }
 
         // Handle empId uniqueness

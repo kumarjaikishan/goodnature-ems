@@ -164,7 +164,8 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             const employeeDoc = await employee.findOne({
                 companyId: whichCompany._id,
                 deviceUserId
-            }).select('_id branchId empId companyId');
+            }).select('_id branchId empId companyId telegramId userid')
+                .populate('userid', 'name');
 
             if (!employeeDoc) {
                 console.warn(`No employee for deviceUserId ${deviceUserId}`);
@@ -226,10 +227,21 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
             if (status === 0 && !isWithinWindow(logMinute, punchInStart, punchInEnd)) {
                 console.log(`Punch-in ignored (outside ESSL punch-in window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
+
+                if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+                    const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-In at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because it's outside the allowed window (${snapshot?.attendanceRules?.esslPunchInStart} - ${snapshot?.attendanceRules?.esslPunchInEnd}).`;
+                    sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
+                }
                 return res.send('OK');
             }
+
             if (status === 1 && !isWithinWindow(logMinute, punchOutStart, punchOutEnd)) {
                 console.log(`Punch-out ignored (outside ESSL punch-out window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
+
+                if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+                    const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because it's outside the allowed window (${snapshot?.attendanceRules?.esslPunchOutStart} - ${snapshot?.attendanceRules?.esslPunchOutEnd}).`;
+                    sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
+                }
                 return res.send('OK');
             }
 
@@ -240,6 +252,10 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             if (!attendance) {
                 if (status !== 0) {
                     console.log(`Punch-out ignored (no punch-in record) for ${employeeDoc.empId}`);
+                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+                        const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found for today.`;
+                        sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
+                    }
                     return res.send('OK');
                 }
 
@@ -300,21 +316,31 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                     employeeDoc.branchId?.toString() || null
                 );
 
-
                 if (
                     whichCompany?.telegramNotifcation &&
-                    whichCompany?.telegram?.token &&
-                    whichCompany?.telegram?.groupId
+                    whichCompany?.telegram?.token
                 ) {
-                    sendTelegramMessageseperate(
-                        whichCompany.telegram.token,
-                        whichCompany.telegram.groupId,
-                        `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
+                    const message = `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
+                        .tz(ATTENDANCE_TIMEZONE)
+                        .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
                             .tz(ATTENDANCE_TIMEZONE)
-                            .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
-                                .tz(ATTENDANCE_TIMEZONE)
-                                .format("DD/MM/YY")}`
-                    )
+                            .format("DD/MM/YY")}`;
+
+                    if (whichCompany.telegram.groupId) {
+                        sendTelegramMessageseperate(
+                            whichCompany.telegram.token,
+                            `-${whichCompany.telegram.groupId}`,
+                            message
+                        )
+                    }
+
+                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+                        sendTelegramMessageseperate(
+                            whichCompany.telegram.token,
+                            employeeDoc.telegramId,
+                            message
+                        )
+                    }
                 }
 
             } else {
@@ -338,7 +364,28 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         attendance.dutyEnd = attendance.dutyEnd || snapshot?.officeTime?.out;
                         await attendance.save();
                     } else {
+                        // console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
                         console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
+                        if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+
+                            const time = dayjs(punchDate)
+                                .tz(ATTENDANCE_TIMEZONE)
+                                .format("hh:mm A");
+
+                            const date = dayjs(punchDate)
+                                .tz(ATTENDANCE_TIMEZONE)
+                                .format("DD MMM YYYY"); // e.g. 18 Apr 2026
+
+                            const message = `⚠️ EXTRA PUNCH
+
+${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored because you are already punched in.`;
+
+                            sendTelegramMessageseperate(
+                                whichCompany.telegram.token,
+                                employeeDoc.telegramId,
+                                message
+                            );
+                        }
                     }
                     return res.send('OK');
                 }
@@ -348,6 +395,10 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 // =========================
                 if (!attendance.punchIn) {
                     console.log(`Punch-out ignored (missing punch-in) for ${employeeDoc.empId}`);
+                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+                        const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found.`;
+                        sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
+                    }
                     return res.send('OK');
                 }
 
@@ -381,22 +432,48 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
                     if (
                         whichCompany?.telegramNotifcation &&
-                        whichCompany?.telegram?.token &&
-                        whichCompany?.telegram?.groupId
+                        whichCompany?.telegram?.token
                     ) {
-                        sendTelegramMessageseperate(
-                            whichCompany.telegram.token,
-                            whichCompany.telegram.groupId,
-                            `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
+                        const message = `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
+                            .tz(ATTENDANCE_TIMEZONE)
+                            .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
                                 .tz(ATTENDANCE_TIMEZONE)
-                                .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
-                                    .tz(ATTENDANCE_TIMEZONE)
-                                    .format("DD/MM/YY")}`
-                        )
+                                .format("DD/MM/YY")}`;
+
+                        if (whichCompany.telegram.groupId) {
+                            sendTelegramMessageseperate(
+                                whichCompany.telegram.token,
+                                `-${whichCompany.telegram.groupId}`,
+                                message
+                            )
+                        }
+
+                        if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+                            sendTelegramMessageseperate(
+                                whichCompany.telegram.token,
+                                employeeDoc.telegramId,
+                                message
+                            )
+                        }
                     }
 
                 } else {
                     console.log(`Extra punch ignored for ${employeeDoc.empId}`);
+                    if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
+
+                        const time = dayjs(punchDate)
+                            .tz(ATTENDANCE_TIMEZONE)
+                            .format("hh:mm A");
+
+                        const date = dayjs(punchDate)
+                            .tz(ATTENDANCE_TIMEZONE)
+                            .format("DD MMM YYYY"); // e.g. 18 Apr 2026
+
+                        const message = `⚠️ EXTRA PUNCH-Out
+ ${employeeDoc?.userid?.name}, your Punch-Out at ${time} on ${date} was ignored because you are already punched Out.`;
+
+                        sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
+                    }
                 }
             }
         }

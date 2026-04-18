@@ -36,6 +36,7 @@ const companySchema = new mongoose.Schema({
     telegram: {
         token: { type: String },
         groupId: { type: String },
+        individualNotification: { type: Boolean, default: false }
     },
     telegramNotifcation: {
         type: Boolean,
