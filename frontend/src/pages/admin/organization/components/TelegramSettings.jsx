@@ -1,8 +1,8 @@
 import React from 'react';
-import { 
-    TextField, Button, IconButton, InputAdornment, 
-    Card, CardContent, Grid, Typography, Switch, 
-    FormControlLabel, Box, Divider 
+import {
+    TextField, Button, IconButton, InputAdornment,
+    Card, CardContent, Grid, Typography, Switch,
+    FormControlLabel, Box, Divider
 } from '@mui/material';
 import { FaTrash, FaTelegramPlane } from 'react-icons/fa';
 import { FiRefreshCw } from 'react-icons/fi';
@@ -15,9 +15,10 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                     <FaTelegramPlane size={24} color="#0088cc" style={{ marginRight: '12px' }} />
                     <Typography variant="h6" fontWeight="600">Telegram Bot Configuration</Typography>
                 </Box>
-                
-                <Grid container spacing={3}>
-                    <Grid item xs={12} md={8}>
+
+
+                <div className='flex flex-col gap-4'>
+                    <div className='flex gap-2'>
                         <TextField
                             label="Telegram Bot Token"
                             variant="outlined"
@@ -31,8 +32,7 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                             }}
                             value={companyinp?.telegram?.token || ""}
                         />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
+
                         <TextField
                             label="Group Chat ID"
                             variant="outlined"
@@ -42,13 +42,10 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                             value={companyinp?.telegram?.groupId || ""}
                             onChange={e => handleChange('telegram', 'groupId', e.target.value)}
                         />
-                    </Grid>
 
-                    <Grid item xs={12}>
-                        <Divider sx={{ my: 1 }} />
-                    </Grid>
+                    </div>
 
-                    <Grid item xs={12} md={6}>
+                    <div className='flex flex-col gap-2'>
                         <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Box>
                                 <Typography variant="subtitle1" fontWeight="600">Main Notifications</Typography>
@@ -65,9 +62,7 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                                 }
                             />
                         </Box>
-                    </Grid>
 
-                    <Grid item xs={12} md={6}>
                         <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Box>
                                 <Typography variant="subtitle1" fontWeight="600">Individual Alerts</Typography>
@@ -87,20 +82,22 @@ const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, te
                                 }
                             />
                         </Box>
-                    </Grid>
+                    </div>
+
+
 
                     <Grid item xs={12} sx={{ mt: 2 }}>
-                        <Button 
-                            variant="contained" 
+                        <Button
+                            variant="contained"
                             fullWidth={false}
                             sx={{ minWidth: 150, float: 'right' }}
-                            loading={isload} 
+                            loading={isload}
                             onClick={handleSubmit}
                         >
                             Update Integration
                         </Button>
                     </Grid>
-                </Grid>
+                </div>
             </CardContent>
         </Card>
     );

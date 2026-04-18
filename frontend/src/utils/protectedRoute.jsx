@@ -35,10 +35,10 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
 
   const sidebarWidth = isMobile
     ? sidebarOpen
-      ? extended ? 'w-[160px]' : "w-[60px]"
+      ? extended ? 'w-[180px]' : "w-[60px]"
       : "w-0"
     : sidebarOpen
-      ? "w-[180px]"
+      ? "w-[220px]"
       : "w-[70px]";
 
   // ❌ Not logged in → go to login
