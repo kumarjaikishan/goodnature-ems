@@ -139,7 +139,7 @@ export default function OrganizationSettings() {
                 <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('devices')}>
-                        <span className="font-semibold text-lg">Device Management</span>
+                        <span className="font-semibold text-lg">Device Managemen</span>
                         {openSection === 'devices' ? <MdExpandLess /> : <MdExpandMore />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'devices' ? 'max-h-fit p-4' : 'max-h-0'}`}>

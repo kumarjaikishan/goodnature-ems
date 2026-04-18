@@ -17,6 +17,8 @@ const {
     ATTENDANCE_TIMEZONE
 } = require('./utils/attendanceTime');
 const { calculateStats } = require('./services/attendanceService');
+const { logEsslEvent } = require('./utils/esslLogger');
+const EsslEvent = require('./models/esslEvent');
 
 const ESSL_INPUT_TIMEZONE = process.env.ESSL_INPUT_TIMEZONE || "UTC";
 
@@ -228,20 +230,28 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             if (status === 0 && !isWithinWindow(logMinute, punchInStart, punchInEnd)) {
                 console.log(`Punch-in ignored (outside ESSL punch-in window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
 
-                if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                    const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-In at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because it's outside the allowed window (${snapshot?.attendanceRules?.esslPunchInStart} - ${snapshot?.attendanceRules?.esslPunchInEnd}).`;
-                    sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                }
+                await logEsslEvent({
+                    companyId: whichCompany._id,
+                    employeeId: employeeDoc._id,
+                    empId: employeeDoc.empId,
+                    employeeName: employeeDoc?.userid?.name,
+                    event: `Punch-In Ignored: Outside Window (${snapshot?.attendanceRules?.esslPunchInStart} - ${snapshot?.attendanceRules?.esslPunchInEnd}) tried at ${formatMinutesToTime(logMinute)}`,
+                    type: 'Ignored'
+                });
                 return res.send('OK');
             }
 
             if (status === 1 && !isWithinWindow(logMinute, punchOutStart, punchOutEnd)) {
                 console.log(`Punch-out ignored (outside ESSL punch-out window) for ${employeeDoc.empId} at ${formatMinutesToTime(logMinute)}`);
 
-                if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                    const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because it's outside the allowed window (${snapshot?.attendanceRules?.esslPunchOutStart} - ${snapshot?.attendanceRules?.esslPunchOutEnd}).`;
-                    sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
-                }
+                await logEsslEvent({
+                    companyId: whichCompany._id,
+                    employeeId: employeeDoc._id,
+                    empId: employeeDoc.empId,
+                    employeeName: employeeDoc?.userid?.name,
+                    event: `Punch-Out Ignored: Outside Window (${snapshot?.attendanceRules?.esslPunchOutStart} - ${snapshot?.attendanceRules?.esslPunchOutEnd}) tried at ${formatMinutesToTime(logMinute)}`,
+                    type: 'Ignored'
+                });
                 return res.send('OK');
             }
 
@@ -256,6 +266,14 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found for today.`;
                         sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
                     }
+                    await logEsslEvent({
+                        companyId: whichCompany._id,
+                        employeeId: employeeDoc._id,
+                        empId: employeeDoc.empId,
+                        employeeName: employeeDoc?.userid?.name,
+                        event: `Punch-Out Ignored: No Punch-In record found for today:${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("DD/MM/YY")} `,
+                        type: 'Ignored'
+                    });
                     return res.send('OK');
                 }
 
@@ -296,6 +314,15 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 });
 
                 await attendance.save();
+
+                await logEsslEvent({
+                    companyId: whichCompany._id,
+                    employeeId: employeeDoc._id,
+                    empId: employeeDoc.empId,
+                    employeeName: employeeDoc?.userid?.name,
+                    event: `Punch-In Successful (New Record) at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} for ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("DD/MM/YY")} `,
+                    type: 'Success'
+                });
 
                 const updatedRecord = await Attendance.findById(attendance._id)
                     .populate({
@@ -363,6 +390,15 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         attendance.dutyStart = attendance.dutyStart || snapshot?.officeTime?.in;
                         attendance.dutyEnd = attendance.dutyEnd || snapshot?.officeTime?.out;
                         await attendance.save();
+
+                        await logEsslEvent({
+                            companyId: whichCompany._id,
+                            employeeId: employeeDoc._id,
+                            empId: employeeDoc.empId,
+                            employeeName: employeeDoc?.userid?.name,
+                            event: `Punch-In Successful at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} for ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("DD/MM/YY")} `,
+                            type: 'Success'
+                        });
                     } else {
                         // console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
                         console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
@@ -386,6 +422,14 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
                                 message
                             );
                         }
+                        await logEsslEvent({
+                            companyId: whichCompany._id,
+                            employeeId: employeeDoc._id,
+                            empId: employeeDoc.empId,
+                            employeeName: employeeDoc?.userid?.name,
+                            event: `Extra Punch-In Ignored: Already Punched In for ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("DD MMM YYYY")}`,
+                            type: 'Ignored'
+                        });
                     }
                     return res.send('OK');
                 }
@@ -399,6 +443,14 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
                         const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found.`;
                         sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
                     }
+                    await logEsslEvent({
+                        companyId: whichCompany._id,
+                        employeeId: employeeDoc._id,
+                        empId: employeeDoc.empId,
+                        employeeName: employeeDoc?.userid?.name,
+                        event: `Punch-Out Ignored: Missing Punch-In record for ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("DD MMM YYYY")}`,
+                        type: 'Ignored'
+                    });
                     return res.send('OK');
                 }
 
@@ -407,8 +459,18 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
                     attendance.punchOut = punchDate;
 
                     await calculateStats(attendance, companyData, branch);
-
                     await attendance.save();
+
+                    await logEsslEvent({
+                        companyId: whichCompany._id,
+                        employeeId: employeeDoc._id,
+                        empId: employeeDoc.empId,
+                        employeeName: employeeDoc?.userid?.name,
+                        event: `Punch-Out Successful at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} for ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("DD/MM/YY")} `,
+                        type: 'Success'
+                    });
+
+
 
                     const updatedRecord = await Attendance.findById(attendance._id)
                         .populate({
@@ -474,6 +536,16 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
 
                         sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
                     }
+                    await logEsslEvent({
+                        companyId: whichCompany._id,
+                        employeeId: employeeDoc._id,
+                        empId: employeeDoc.empId,
+                        employeeName: employeeDoc?.userid?.name,
+                        event: `Extra Punch-Out Ignored: Already Punched Out for ${dayjs(punchDate)
+                            .tz(ATTENDANCE_TIMEZONE)
+                            .format("DD MMM YYYY")}`,
+                        type: 'Ignored'
+                    });
                 }
             }
         }
@@ -483,6 +555,18 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
     } catch (error) {
         console.error("ESSL ERROR:", error);
         return res.send('OK');
+    }
+});
+
+router.get('/getEsslEvents/:companyId', async (req, res) => {
+    try {
+        const events = await EsslEvent.find({ companyId: req.params.companyId })
+            .sort({ createdAt: -1 })
+            .limit(20);
+        res.status(200).json(events);
+    } catch (error) {
+        console.error('Error fetching ESSL events:', error);
+        res.status(500).json({ message: 'Error fetching ESSL events' });
     }
 });
 

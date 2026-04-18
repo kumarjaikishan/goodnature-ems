@@ -1,89 +1,108 @@
 import React from 'react';
-import { TextField, Button, IconButton, InputAdornment } from '@mui/material';
-import { FaTrash } from 'react-icons/fa';
+import { 
+    TextField, Button, IconButton, InputAdornment, 
+    Card, CardContent, Grid, Typography, Switch, 
+    FormControlLabel, Box, Divider 
+} from '@mui/material';
+import { FaTrash, FaTelegramPlane } from 'react-icons/fa';
 import { FiRefreshCw } from 'react-icons/fi';
 
 const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, teleloading, isload, handleSubmit }) => {
     return (
-        <div className='space-y-4'>
-            <div className='flex flex-wrap w-full gap-4 items-center mb-2'>
-                <TextField
-                    label="Telegram Bot Token"
-                    variant="standard"
-                    size="small"
-                    className='w-full md:w-[350px]'
-                    slotProps={{
-                        input: {
-                            readOnly: true
-                        }
-                    }}
-                    value={companyinp?.telegram?.token || ""}
-                    onChange={e => handleChange('telegram', 'token', e.target.value)}
-                />
-
-                <TextField
-                    label="Group Id"
-                    variant="standard"
-                    size="small"
-                    className='w-full md:w-[150px]'
-                    value={companyinp?.telegram?.groupId || ""}
-                    onChange={e => handleChange('telegram', 'groupId', e.target.value)}
-                // slotProps={{
-                //     input: {
-                //         endAdornment: (
-                //             <InputAdornment position="end">
-                //                 <IconButton
-                //                     onClick={fetchgroup}
-                //                     edge="end"
-                //                     disabled={teleloading}
-                //                 >
-                //                     <FiRefreshCw className={teleloading ? "animate-spin" : ""} />
-                //                 </IconButton>
-                //             </InputAdornment>
-                //         )
-                //     }
-                // }}
-                />
-
-                <div className="flex items-center gap-2 mt-2">
-                    <label className="flex items-center cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={companyinp?.telegramNotifcation || false}
-                            onChange={e =>
-                                setcompany(prev => ({
-                                    ...prev,
-                                    telegramNotifcation: e.target.checked
-                                }))
-                            }
-                            className="w-5 h-5 text-blue-600 bg-gray-200 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+        <Card variant="outlined" sx={{ borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+            <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <FaTelegramPlane size={24} color="#0088cc" style={{ marginRight: '12px' }} />
+                    <Typography variant="h6" fontWeight="600">Telegram Bot Configuration</Typography>
+                </Box>
+                
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={8}>
+                        <TextField
+                            label="Telegram Bot Token"
+                            variant="outlined"
+                            size="small"
+                            fullWidth
+                            slotProps={{
+                                input: {
+                                    readOnly: true,
+                                    sx: { bgcolor: '#f5f5f5' }
+                                }
+                            }}
+                            value={companyinp?.telegram?.token || ""}
                         />
-                        <span className="ml-2 text-gray-700 font-medium">Enable Notifications</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer select-none ml-4">
-                        <input
-                            type="checkbox"
-                            checked={companyinp?.telegram?.individualNotification || false}
-                            onChange={e =>
-                                setcompany(prev => ({
-                                    ...prev,
-                                    telegram: {
-                                        ...prev.telegram,
-                                        individualNotification: e.target.checked
-                                    }
-                                }))
-                            }
-                            className="w-5 h-5 text-blue-600 bg-gray-200 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                        <TextField
+                            label="Group Chat ID"
+                            variant="outlined"
+                            size="small"
+                            fullWidth
+                            placeholder="e.g. -10012345678"
+                            value={companyinp?.telegram?.groupId || ""}
+                            onChange={e => handleChange('telegram', 'groupId', e.target.value)}
                         />
-                        <span className="ml-2 text-gray-700 font-medium whitespace-nowrap">Individual Notifications</span>
-                    </label>
-                </div>
-            </div>
+                    </Grid>
 
-            <Button className='float-end' variant="contained" loading={isload} onClick={handleSubmit}>
-                Save Changes
-            </Button>
-        </div>
+                    <Grid item xs={12}>
+                        <Divider sx={{ my: 1 }} />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box>
+                                <Typography variant="subtitle1" fontWeight="600">Main Notifications</Typography>
+                                <Typography variant="body2" color="text.secondary">Send attendance alerts to the group</Typography>
+                            </Box>
+                            <Switch
+                                color="primary"
+                                checked={companyinp?.telegramNotifcation || false}
+                                onChange={e =>
+                                    setcompany(prev => ({
+                                        ...prev,
+                                        telegramNotifcation: e.target.checked
+                                    }))
+                                }
+                            />
+                        </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box>
+                                <Typography variant="subtitle1" fontWeight="600">Individual Alerts</Typography>
+                                <Typography variant="body2" color="text.secondary">Private messages to each employee</Typography>
+                            </Box>
+                            <Switch
+                                color="secondary"
+                                checked={companyinp?.telegram?.individualNotification || false}
+                                onChange={e =>
+                                    setcompany(prev => ({
+                                        ...prev,
+                                        telegram: {
+                                            ...prev.telegram,
+                                            individualNotification: e.target.checked
+                                        }
+                                    }))
+                                }
+                            />
+                        </Box>
+                    </Grid>
+
+                    <Grid item xs={12} sx={{ mt: 2 }}>
+                        <Button 
+                            variant="contained" 
+                            fullWidth={false}
+                            sx={{ minWidth: 150, float: 'right' }}
+                            loading={isload} 
+                            onClick={handleSubmit}
+                        >
+                            Update Integration
+                        </Button>
+                    </Grid>
+                </Grid>
+            </CardContent>
+        </Card>
     );
 };
 
