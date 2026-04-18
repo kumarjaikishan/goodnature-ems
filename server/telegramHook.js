@@ -55,7 +55,7 @@ router.post('/hook', (req, res) => {
             // =========================
             // 🔹 2. INDIVIDUAL USER
             // =========================
-            if (text === "/userid") {
+            if (text === "/userid" || text?.startsWith("/start")) {
                 const userData = {
                     chatId,
                     firstName: from?.first_name || null,
