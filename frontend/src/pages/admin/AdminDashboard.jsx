@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import DashboardCard from '../../components/dashboardCard';
 import { toast } from 'react-toastify';
-import { FaBuilding, FaRegUser, FaTachometerAlt, FaUsers } from 'react-icons/fa'
+import { FaBuilding, FaRegUser, FaSearch, FaTachometerAlt, FaUsers } from 'react-icons/fa'
 import dayjs from 'dayjs';
 import { FirstFetch, updateAttendance } from '../../../store/userSlice';
 import { Avatar, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, Tooltip, Typography } from '@mui/material';
@@ -28,6 +28,7 @@ const Main = () => {
   const [branc, setbranc] = useState('all');
   const [depfilter, setdepfilter] = useState('all');
   const [employeelist, setemployeelist] = useState([])
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     !islogin && navigate('/login');
@@ -41,11 +42,13 @@ const Main = () => {
         branc === 'all' || dep.branchId === branc;
       const matchdepart =
         depfilter === 'all' || dep.department._id === depfilter;
-      return matchBranch && matchdepart;
+      const matchSearch = 
+        searchQuery === '' || dep?.userid?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchBranch && matchdepart && matchSearch;
     });
 
     setemployeelist(filtered);
-  }, [branc, depfilter, employee]);
+  }, [branc, depfilter, employee, searchQuery]);
 
   useEffect(() => {
     setdepfilter('all')
@@ -185,13 +188,24 @@ const Main = () => {
               onChange={(e) => setdepfilter(e.target.value)}
             >
               <MenuItem selected value={'all'}>All</MenuItem>
-              {department?.length > 1 ? department.filter(e => e.branchId._id == branc)?.map((val) => {
-                return <MenuItem key={val._id} value={val._id}>{val.department}</MenuItem>
-              })
-                : <MenuItem disabled value={''}>No Department Found</MenuItem>
-              }
-
+              {department?.length > 1 ? department.filter(e => e.branchId._id == branc)?.map((val) => (
+                <MenuItem key={val._id} value={val._id}>{val.department}</MenuItem>
+              )) : (
+                <MenuItem disabled value={''}>No Department Found</MenuItem>
+              )}
             </Select>
+          </FormControl>
+          <FormControl sx={{ flex: 1, maxWidth: '300px' }} size="small">
+            <OutlinedInput
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search employee..."
+              startAdornment={
+                <InputAdornment position="start">
+                  <FaSearch fontSize="small" color="#94a3b8" />
+                </InputAdornment>
+              }
+            />
           </FormControl>
         </div>
 
@@ -283,8 +297,14 @@ const Main = () => {
 
                   </div>
                 </Tooltip>
-              );
-            })}
+            );
+          })}
+          {(!employeelist || employeelist.filter(e => e.status !== false).length === 0) && (
+            <div className="col-span-full py-10 flex flex-col items-center justify-center text-gray-400">
+              <FaUsers size={40} className="mb-2 opacity-20" />
+              <Typography variant="body2">No employee found</Typography>
+            </div>
+          )}
         </div>
 
         <div className='flex gap-5 flex-wrap'>
