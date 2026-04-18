@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 5008;
 const errorHandle = require('./utils/error_util');
 const route = require('./router/route');
 const esslRoutes = require('./essl');
+const TelegramRoute = require('./telegramHook');
 const { eventsHandler } = require('./utils/sse');
 const { webhook } = require('./services/payment');
 require('./conn/conn');
@@ -69,6 +70,7 @@ app.use((req, res, next) => {
 app.use('/api', route);
 app.get('/events', eventsHandler);
 app.use('/', esslRoutes);
+app.use('/telegram', TelegramRoute);
 
 // ----------------------
 // 404 handler
