@@ -558,7 +558,7 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
     }
 });
 
-router.get('/getEsslEvents/:companyId', async (req, res) => {
+router.get('/api/getEsslEvents/:companyId', async (req, res) => {
     try {
         const events = await EsslEvent.find({ companyId: req.params.companyId })
             .sort({ createdAt: -1 })
