@@ -151,7 +151,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             const log = new Essl({
                 companyId: whichCompany._id,
                 pin: attendancee.PIN,
-                timestamp: attendancee.Timestamp, // ✅ UTC fix
+                timestamp: attendancee.Timestamp,
                 status: parseInt(attendancee.Status),
                 verifyMode: parseInt(attendancee.VerifyMode),
                 raw: raw
@@ -346,7 +346,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                     whichCompany?.telegramNotifcation &&
                     whichCompany?.telegram?.token
                 ) {
-                    const message = `${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
+                    const message = `🟢🚶‍♂️ ${updatedRecord?.employeeId?.userid?.name} has Punched In at ${dayjs(updatedRecord.punchIn)
                         .tz(ATTENDANCE_TIMEZONE)
                         .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchIn)
                             .tz(ATTENDANCE_TIMEZONE)
@@ -400,7 +400,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         });
                     } else {
                         // console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
-                        console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
+                        // console.log(`Extra punch-in ignored for ${employeeDoc.empId}`);
                         if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
 
                             const time = dayjs(punchDate)
@@ -439,7 +439,8 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
                 if (!attendance.punchIn) {
                     console.log(`Punch-out ignored (missing punch-in) for ${employeeDoc.empId}`);
                     if (whichCompany.telegram.individualNotification && employeeDoc.telegramId) {
-                        const message = `PUNCH IGNORED: ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found.`;
+                        const message = `⚠️ PUNCH IGNORED: 
+${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE_TIMEZONE).format("hh:mm A")} was ignored because no Punch-In record was found.`;
                         sendTelegramMessageseperate(whichCompany.telegram.token, employeeDoc.telegramId, message);
                     }
                     await logEsslEvent({
@@ -495,7 +496,7 @@ ${employeeDoc?.userid?.name}, your Punch-In at ${time} on ${date} was ignored be
                         whichCompany?.telegramNotifcation &&
                         whichCompany?.telegram?.token
                     ) {
-                        const message = `${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
+                        const message = `🔴🚶‍♂️ ${updatedRecord?.employeeId?.userid?.name} has Punched Out at ${dayjs(updatedRecord.punchOut)
                             .tz(ATTENDANCE_TIMEZONE)
                             .format("hh:mm A")}, Date-${dayjs(updatedRecord.punchOut)
                                 .tz(ATTENDANCE_TIMEZONE)
