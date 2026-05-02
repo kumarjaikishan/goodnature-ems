@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -34,6 +34,7 @@ const initialHell = {
 const AttenPerformance = () => {
     const { userid } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const customStyles = useCustomStyles();
     const { company, holidays } = useSelector((state) => state.user);
 
@@ -42,8 +43,11 @@ const AttenPerformance = () => {
     const [attandence, setattandence] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const [selectedYear, setSelectedYear] = useState(dayjs().year());
-    const [selectedMonth, setSelectedMonth] = useState(dayjs().month());
+    const queryMonth = searchParams.get('month');
+    const queryYear = searchParams.get('year');
+
+    const [selectedYear, setSelectedYear] = useState(queryYear ? parseInt(queryYear, 10) : dayjs().year());
+    const [selectedMonth, setSelectedMonth] = useState(queryMonth ? parseInt(queryMonth, 10) : dayjs().month());
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
     const [timeFilter, setTimeFilter] = useState('all');

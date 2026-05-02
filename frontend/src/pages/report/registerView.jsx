@@ -180,7 +180,7 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
 
   // Helper for counting totals per employee
   const getEmployeeTotals = (empId) => {
-    const totals = { P: 0, A: 0, L: 0, W: 0, H: 0, LA: 0, NW: 0 };
+    const totals = { P: 0, A: 0, L: 0, W: 0, H: 0, LA: 0, NW: 0, OT: 0, ST: 0 };
 
     days.forEach((d) => {
       let status = attendanceByEmp[empId]?.[d.date()] || "-";
@@ -206,15 +206,37 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
       .reduce((sum, e) => sum + (e.amount || 0), 0);
 
     totals.LA += totalAdjustedLeaves;
-    totals.NW = totals.P + totals.W + totals.H + totals.LA
+    totals.NW = totals.P + totals.W + totals.H + totals.LA;
+
+    // Calculate total overtime and shorttime minutes for this month
+    const empAttendanceMonth = attandence?.filter(
+      (a) => a.employeeId?._id === empId && dayjs(a.date).isSame(monthStart, "month")
+    ) || [];
+
+    empAttendanceMonth.forEach((entry) => {
+      if (entry.status !== "present") return;
+      if (!entry.punchIn || !entry.punchOut || typeof entry.workingMinutes !== "number") return;
+
+      if (entry.dayType === "holiday" || entry.dayType === "weekoff") {
+        if (entry.workingMinutes > 0) {
+          totals.OT += entry.workingMinutes;
+        }
+        return;
+      }
+
+      if ((entry.shortMinutes || 0) > 0) {
+        totals.ST += entry.shortMinutes || 0;
+      }
+
+      if ((entry.overtimeMinutes || 0) > 0) {
+        totals.OT += entry.overtimeMinutes || 0;
+      }
+    });
 
     return totals;
   };
 
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+
 
   const exportCSV2 = () => {
     // Month-Year title row (e.g. April-2025)
@@ -231,6 +253,9 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
       "Holiday",
       "Leave Adjusted",
       "Net Payable Days",
+      "Overtime (Minutes)",
+      "Shorttime (Minutes)",
+      "Net OT/ST (Minutes)",
     ];
 
     // Rows per employee
@@ -266,6 +291,9 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
         totals.H,
         totals.LA,
         totals.NW,
+        totals.OT,
+        totals.ST,
+        totals.OT - totals.ST,
       ];
     });
 
@@ -287,7 +315,7 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
 
   return (
     <div className="overflow-auto ">
-      {(filteredEmployees?.length < 1 || Object.keys(attendanceByEmp).length === 0) && <p className="text-center font-semibold text-xl" colSpan={days.length + 6}>No Record Found</p>}
+      {(filteredEmployees?.length < 1 || Object.keys(attendanceByEmp).length === 0) && <p className="text-center font-semibold text-xl" colSpan={days.length + 12}>No Record Found</p>}
       {filteredEmployees?.length > 0 && Object.keys(attendanceByEmp).length !== 0 &&
         <table className="border-collapse text-xs">
           <thead>
@@ -307,9 +335,12 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
               <th title="Leave" className="px-2 border-r border-gray-500 text-orange-600">L</th>
               <th title="Weekly Off" className="px-2 border-r border-gray-500 text-gray-800">W</th>
               <th title="Holiday" className="px-2 border-r border-gray-500 text-blue-800">H</th>
-              <th title="Holiday" className="px-2 border-r border-gray-500 text-blue-800">LA</th>
-              <th title="Holiday" className="px-2 border-r border-gray-500 text-blue-800">NP</th>
-              <th title="Holiday" className="px-2 border-r ">Actions</th>
+              <th title="Leave Availed/Adjusted" className="px-2 border-r border-gray-500 text-blue-800">LA</th>
+              <th title="Net Payable Days" className="px-2 border-r border-gray-500 text-blue-800">NP</th>
+              {/* <th title="Overtime (Minutes)" className="px-2 border-r border-gray-500 text-indigo-800">OT</th>
+              <th title="Shorttime (Minutes)" className="px-2 border-r border-gray-500 text-rose-800">ST</th> */}
+              <th title="Net Overtime/Shorttime (Minutes)" className="px-2 border-r border-gray-500 text-teal-800">OverTime/ ShortTime</th>
+              <th title="Actions" className="px-2 border-r ">Actions</th>
             </tr>
           </thead>
 
@@ -350,9 +381,14 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
                   <td className="text-center font-bold text-blue-800">{totals.H}</td>
                   <td className="text-center font-bold text-blue-800">{totals.LA}</td>
                   <td className="text-center font-bold text-blue-800">{totals.NW}</td>
+                  {/* <td className="text-center font-bold text-indigo-800">{totals.OT}</td>
+                  <td className="text-center font-bold text-rose-800">{totals.ST}</td> */}
+                  <td className={`text-center font-bold border-r border-gray-300 ${totals.OT - totals.ST >= 0 ? "text-teal-800" : "text-rose-800"}`}>
+                    {totals.OT - totals.ST} min
+                  </td>
                   <td className=" border-r border-gray-300">
                     <div className="action flex justify-center gap-2">
-                      <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}`)} ><HiOutlineDocumentReport /></span>
+                      <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><HiOutlineDocumentReport /></span>
                     </div>
                   </td>
                 </tr>
@@ -362,7 +398,7 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
 
           <tfoot>
             <tr>
-              <td colSpan={days.length + 6} className="py-4">
+              <td colSpan={days.length + 12} className="py-4">
                 <div className="flex flex-wrap gap-4 text-xs font-semibold">
                   <div className="flex items-center gap-1">
                     <span className="w-4 h-4 bg-green-200 border border-green-600 rounded"></span>
@@ -392,6 +428,14 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall }) => {
                   <div className="flex items-center gap-1">
                     <span className="w-4 h-4 bg-blue-200 border border-blue-600 rounded"></span>
                     <span>NP = Net Payable Days</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-4 h-4 bg-indigo-200 border border-indigo-600 rounded"></span>
+                    <span>OT = Overtime Minutes</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-4 h-4 bg-rose-200 border border-rose-600 rounded"></span>
+                    <span>ST = Shorttime Minutes</span>
                   </div>
                 </div>
               </td>

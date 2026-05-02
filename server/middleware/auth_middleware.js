@@ -17,7 +17,7 @@ const authmiddlewre = async (req, res, next) => {
         next();
     } catch (error) {
         // console.log(error.message);
-         if (error.name === 'JsonWebTokenError') {
+        if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ message: 'Invalid Token' });
         }
         res.status(401).json({ message: error.message })

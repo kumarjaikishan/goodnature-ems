@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import isBetween from 'dayjs/plugin/isBetween'
 import localeData from "dayjs/plugin/localeData";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { HiOutlineDocumentReport } from 'react-icons/hi';
 import { FiDownload } from 'react-icons/fi';
 import RegisterView from './registerView';
@@ -29,19 +29,18 @@ const AttendanceReport = () => {
     const [departmentlist, setdepartmentlist] = useState([]);
     const [theme, setTheme] = useState(true);
     const [csvcall, setcsvcall] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const queryMonth = searchParams.get('month');
+    const queryYear = searchParams.get('year');
+
     const [filters, setFilters] = useState({
         searchText: '',
         branch: 'all',
         department: 'all',
-        month: dayjs().month() + 1, // default current month
-        year: dayjs().year()        // default current year
+        month: queryMonth ? parseInt(queryMonth, 10) : dayjs().month() + 1,
+        year: queryYear ? parseInt(queryYear, 10) : dayjs().year()
     });
     let navigate = useNavigate();
-
-    const months = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ];
 
 
     const { department, branch, employee, attandence, holidays, company, profile } = useSelector(e => e.user);
@@ -156,7 +155,7 @@ const AttendanceReport = () => {
                 present,
                 action: (
                     <div className="action flex gap-2.5">
-                        <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}`)} ><HiOutlineDocumentReport /></span>
+                        <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><HiOutlineDocumentReport /></span>
                     </div>
                 )
             };
@@ -166,55 +165,21 @@ const AttendanceReport = () => {
     }, [employee, attandence, holidays, filters.month, filters.year, company.weeklyoff]);
 
 
+    useEffect(() => {
+        if (!searchParams.get('month') || !searchParams.get('year')) {
+            setSearchParams({ month: filters.month, year: filters.year });
+        }
+    }, []);
 
     // handle filters
     const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
-    };
-
-    // search & filter
-    const filteredEmployees = useMemo(() => {
-        // console.log(employeelist)
-        return employeelist.filter(emp => {
-            const name = emp.rawname?.toLowerCase() || '';
-            const deptId = emp.department || '';
-            const branchId = emp.branch || '';
-
-            const nameMatch = filters.searchText.trim() === '' || name.includes(filters.searchText.toLowerCase());
-            const deptMatch = filters.department === 'all' || deptId === filters.department;
-            const branchMatch = filters.branch === 'all' || branchId === filters.branch;
-
-            return nameMatch && deptMatch && branchMatch;
+        setFilters(prev => {
+            const next = { ...prev, [key]: value };
+            if (key === 'month' || key === 'year') {
+                setSearchParams({ month: next.month, year: next.year });
+            }
+            return next;
         });
-    }, [employeelist, filters]);
-
-    // datatable columns
-    const columns = [
-        { name: "S.No", selector: (row, ind) => ind + 1, width: "50px" },
-        { name: "Employee", selector: row => row.name },
-        { name: "Present", selector: row => row.present, width: '100px' },
-        { name: "Absent", selector: row => row.absent, width: '100px' },
-        { name: "Leave", selector: row => row.leave, width: '100px' },
-        { name: "Weekly Off", selector: row => row.weeklyOff, width: '100px' },
-        { name: "Holidays", selector: row => row.holidayCount, width: '100px' },
-        { name: "Total Days", selector: row => row.totalDays, width: '100px' },
-        { name: "Action", selector: row => row.action, width: '100px' },
-    ];
-
-    const exportCSV = () => {
-        // return console.log(attandencelist)
-        const headers = ["S.No", "Employee", "Total Days", "Weekly Off", "Holidays", "Present", "Absent", "Leave"];
-        const rows = filteredEmployees.map((e, idx) => [
-            e.sno, e.rawname, e.totalDays, e.weeklyOff, e.holidayCount, e.present, e.absent, e.leave
-        ]);
-        const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `All Employee Attendance Report ${months[filters.month - 1]}-${filters.year}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
     };
 
     const exportCSV2call = () => {
@@ -348,25 +313,10 @@ const AttendanceReport = () => {
 
                 </div>
                 <div className=" w-full md:w-fit">
-                    {/* <Button onClick={exportCSV} className="flex-1" variant='outlined' startIcon={<FiDownload />} >Export</Button> */}
                     <Button onClick={exportCSV2call} className="flex-1" variant='outlined' startIcon={<FiDownload />} >Export</Button>
                 </div>
             </div>
 
-            {/* <DataTable
-                columns={columns}
-                data={filteredEmployees}
-                pagination
-                customStyles={useCustomStyles()}
-                paginationPerPage={20} // default rows per page
-                paginationRowsPerPageOptions={[20, 50, 100]} // custom pager options
-                highlightOnHover
-                noDataComponent={
-                    <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                        <BiMessageRoundedError className="text-xl" /> No Employee records found.
-                    </div>
-                }
-            /> */}
             <div className="mt-4 bg-white rounded shadow p-1 md:p-3">
                 <div className="text-xl relative font-semibold flex justify-between mb-5">
                     <p className="text-gray-700">
