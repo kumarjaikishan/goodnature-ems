@@ -114,44 +114,44 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
 
             // manipulating status for correct
             // 🔥 Convert UTC → IST safely
-            const utcDate = new Date(attendancee.Timestamp.replace(' ', 'T') + 'Z');
+            // const utcDate = new Date(attendancee.Timestamp.replace(' ', 'T') + 'Z');
 
-            const istDate = new Date(
-                utcDate.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-            );
+            // const istDate = new Date(
+            //     utcDate.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+            // );
 
-            // extract IST time
-            const h = istDate.getHours();
-            const m = istDate.getMinutes();
+            // // extract IST time
+            // const h = istDate.getHours();
+            // const m = istDate.getMinutes();
 
-            const totalMinutes = h * 60 + m;
+            // const totalMinutes = h * 60 + m;
 
-            // ✅ define ranges (IST)
-            const morningStart = 9 * 60;   // 9:00 AM
-            const morningEnd = 12 * 60;    // 12:00 PM
+            // // ✅ define ranges (IST)
+            // const morningStart = 9 * 60;   // 9:00 AM
+            // const morningEnd = 12 * 60;    // 12:00 PM
 
-            const eveningStart = 15 * 60;  // 3:00 PM
-            const eveningEnd = 19 * 60;    // 7:00 PM
+            // const eveningStart = 15 * 60;  // 3:00 PM
+            // const eveningEnd = 19 * 60;    // 7:00 PM
 
-            // 🔥 corrected logic
-            if (
-                totalMinutes >= morningStart &&
-                totalMinutes <= morningEnd &&
-                status === 1
-            ) {
-                console.log("✅ status modified for punch-In");
-                status = 0;
+            // // 🔥 corrected logic
+            // if (
+            //     totalMinutes >= morningStart &&
+            //     totalMinutes <= morningEnd &&
+            //     status === 1
+            // ) {
+            //     console.log("✅ status modified for punch-In");
+            //     status = 0;
 
-            } else if (
-                totalMinutes >= eveningStart &&
-                totalMinutes <= eveningEnd &&
-                status === 0
-            ) {
-                console.log("✅ status modified for punch-Out");
-                status = 1;
-            }
+            // } else if (
+            //     totalMinutes >= eveningStart &&
+            //     totalMinutes <= eveningEnd &&
+            //     status === 0
+            // ) {
+            //     console.log("✅ status modified for punch-Out");
+            //     status = 1;
+            // }
 
-            console.log("👉 Final Status:", status);
+            // console.log("👉 Final Status:", status);
             // manipulating status for correct ends here
 
 
