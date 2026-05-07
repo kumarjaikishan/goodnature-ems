@@ -226,7 +226,7 @@ const AttenPerformance = () => {
         });
 
         const salary = Number(employee?.salary || 0);
-        const overtimeAfterMinutes = Number(setting?.workingMinutes?.overtimeAfterMinutes || 0);
+        const overtimeAfterMinutes = Number(setting?.workingMinutes?.fullDay || 0);
         const daysInMonth =
             selectedMonth === 'all'
                 ? 0
@@ -234,7 +234,7 @@ const AttenPerformance = () => {
 
         const overtimesalary =
             selectedMonth !== 'all' && salary > 0 && overtimeAfterMinutes > 0 && daysInMonth > 0
-                ? Math.floor((overtimemin - shorttimemin) * (salary / daysInMonth / overtimeAfterMinutes))
+                ? ((overtimemin - shorttimemin) * (salary / daysInMonth / overtimeAfterMinutes)).toFixed(2)
                 : null;
 
         return {

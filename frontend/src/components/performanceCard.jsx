@@ -17,9 +17,9 @@ import { Tooltip } from "@mui/material";
 const EmployeeProfileCard = ({ attandence, employee, hell }) => {
     const employepic = 'https://res.cloudinary.com/dusxlxlvm/image/upload/v1753113610/ems/assets/employee_fi3g5p.webp';
 
-    const total = useMemo(() => 
+    const total = useMemo(() =>
         (hell?.present?.length || 0) + (hell?.absent?.length || 0) + (hell?.leave?.length || 0),
-    [hell]);
+        [hell]);
 
     const perc = useMemo(() => ({
         present: total ? Math.floor((hell?.present?.length / total) * 100) : 0,
@@ -34,7 +34,7 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
             { id: 2, value: perc.absent, color: "#94a3b8", label: "Absent" },
         ]
         : [{ id: 0, value: 100, color: "#cbd5e1", label: "No record" }],
-    [total, perc]);
+        [total, perc]);
 
     const pieChartSize = typeof window !== 'undefined' && window.innerWidth < 640 ? 220 : 280;
     const pieRadius = typeof window !== 'undefined' && window.innerWidth < 640 ? { inner: 80, outer: 100 } : { inner: 105, outer: 125 };
@@ -91,35 +91,35 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
                 {/* Stats Grid Section */}
                 <div className="flex-grow w-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <StatCard 
-                            icon={FaCalendarAlt} 
-                            label="Total Days" 
-                            value={total} 
-                            colorClass="bg-indigo-500" 
+                        <StatCard
+                            icon={FaCalendarAlt}
+                            label="Total Days"
+                            value={total}
+                            colorClass="bg-indigo-500"
                         />
-                        <StatCard 
-                            icon={FaCheckCircle} 
-                            label="Present" 
-                            value={`${hell?.present?.length || 0} Days`} 
+                        <StatCard
+                            icon={FaCheckCircle}
+                            label="Present"
+                            value={`${hell?.present?.length || 0} Days`}
                             subValue={perc.present ? `${perc.present}% Attendance` : ""}
-                            colorClass="bg-teal-600" 
+                            colorClass="bg-teal-600"
                         />
-                        <StatCard 
-                            icon={FaSuitcase} 
-                            label="Leaves" 
-                            value={hell?.leave?.length || 0} 
-                            colorClass="bg-orange-500" 
+                        <StatCard
+                            icon={FaSuitcase}
+                            label="Leaves"
+                            value={hell?.leave?.length || 0}
+                            colorClass="bg-orange-500"
                         />
-                        <StatCard 
-                            icon={FaUserSlash} 
-                            label="Absent" 
-                            value={hell?.absent?.length || 0} 
-                            colorClass="bg-rose-500" 
+                        <StatCard
+                            icon={FaUserSlash}
+                            label="Absent"
+                            value={hell?.absent?.length || 0}
+                            colorClass="bg-rose-500"
                         />
-                        <StatCard 
-                            icon={FaClock} 
-                            label="Overtime" 
-                            value={`${hell?.overtime?.length || 0} Records`} 
+                        <StatCard
+                            icon={FaClock}
+                            label="Overtime"
+                            value={`${hell?.overtime?.length || 0} Records`}
                             subValue={hell?.overtimemin > 0 ? `${hell.overtimemin} min total` : ""}
                             colorClass="bg-green-600"
                             tooltip={hell?.overtimesalary > 0 ? (
@@ -130,36 +130,36 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
                                 </div>
                             ) : null}
                         />
-                        <StatCard 
-                            icon={FaCompressAlt} 
-                            label="Short Time" 
-                            value={`${hell?.short?.length || 0} Records`} 
+                        <StatCard
+                            icon={FaCompressAlt}
+                            label="Short Time"
+                            value={`${hell?.short?.length || 0} Records`}
                             subValue={hell?.shorttimemin > 0 ? `${hell.shorttimemin} min total` : ""}
-                            colorClass="bg-amber-500" 
+                            colorClass="bg-amber-500"
                         />
-                        <StatCard 
-                            icon={FaSignInAlt} 
-                            label="Late Arrival" 
-                            value={hell?.latearrival?.length || 0} 
-                            colorClass="bg-orange-400" 
+                        <StatCard
+                            icon={FaSignInAlt}
+                            label="Late Arrival"
+                            value={hell?.latearrival?.length || 0}
+                            colorClass="bg-orange-400"
                         />
-                        <StatCard 
-                            icon={FaSignOutAlt} 
-                            label="Early Exit" 
-                            value={hell?.earlyLeave?.length || 0} 
-                            colorClass="bg-amber-600" 
+                        <StatCard
+                            icon={FaSignOutAlt}
+                            label="Early Exit"
+                            value={hell?.earlyLeave?.length || 0}
+                            colorClass="bg-amber-600"
                         />
-                        <StatCard 
-                            icon={FaArrowCircleLeft} 
-                            label="Early Arrival" 
-                            value={hell?.earlyarrival?.length || 0} 
-                            colorClass="bg-sky-500" 
+                        <StatCard
+                            icon={FaArrowCircleLeft}
+                            label="Early Arrival"
+                            value={hell?.earlyarrival?.length || 0}
+                            colorClass="bg-sky-500"
                         />
-                        <StatCard 
-                            icon={FaArrowCircleRight} 
-                            label="Late Exit" 
-                            value={hell?.lateleave?.length || 0} 
-                            colorClass="bg-indigo-600" 
+                        <StatCard
+                            icon={FaArrowCircleRight}
+                            label="Late Exit"
+                            value={hell?.lateleave?.length || 0}
+                            colorClass="bg-indigo-600"
                         />
                     </div>
                 </div>
