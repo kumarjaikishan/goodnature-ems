@@ -70,7 +70,7 @@ const fetchleave = async (req, res, next) => {
     if (req.user.role == 'manager') {
       leave = await Leave.find({ companyId: req.user.companyId, branchId: { $in: req.user.branchIds } }).populate({
         path: 'employeeId',
-        select: 'userid profileimage',
+        select: 'userid profileimage employeeName empId',
         populate: {
           path: 'userid',
           select: 'name email'
@@ -79,7 +79,7 @@ const fetchleave = async (req, res, next) => {
     } else {
       leave = await Leave.find({ companyId: req.user.companyId }).populate({
         path: 'employeeId',
-        select: 'userid profileimage',
+        select: 'userid profileimage employeeName empId',
         populate: {
           path: 'userid',
           select: 'name email'

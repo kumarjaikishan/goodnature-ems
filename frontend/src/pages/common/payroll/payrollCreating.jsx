@@ -19,6 +19,7 @@ import {
   InputAdornment,
   Checkbox,
   FormControlLabel,
+  Box,
 } from "@mui/material";
 import { AiOutlinePlus } from "react-icons/ai";
 import { useSelector, useDispatch } from "react-redux";
@@ -264,21 +265,27 @@ export default function PayrollCreatePage() {
         if (atten.status === "present") acc.present++;
         if (atten.status === "absent") acc.absent++;
         if (atten.status === "leave") acc.leaves++;
+        if (atten.status === "half day") {
+          acc.present += 0.5;
+          acc.absent += 0.5;
+        }
 
-        const dateStr = dayjs(atten.date).format("DD/MM/YYYY");
-        const { workingMinutes } = atten;
-        const day = dayjs(atten.date).startOf("day").day();
+        const { workingMinutes, overtimeMinutes, shortMinutes, dayType } = atten;
 
-        const isHoliday = holidaydate.includes(dateStr);
-        const isWeeklyOff = company?.weeklyOffs.includes(day);
-
-        if (isHoliday || isWeeklyOff) {
-          acc.overtime += workingMinutes;
-        } else if (atten.status === "present") {
-          if (workingMinutes < company?.workingMinutes?.shortDayThreshold) {
-            acc.shortmin += company.workingMinutes.shortDayThreshold - workingMinutes;
-          } else if (workingMinutes > company?.workingMinutes?.overtimeAfterMinutes) {
-            acc.overtime += workingMinutes - company.workingMinutes.overtimeAfterMinutes;
+        // Correct calculation as per Attendance Report & Performance:
+        // Only 'present' status contributes to OT/ST. Half-day is excluded to avoid double deduction.
+        if (atten.status === "present") {
+          if (dayType === "holiday" || dayType === "weekoff") {
+            if (workingMinutes > 0) {
+              acc.overtime += workingMinutes;
+            }
+          } else {
+            if ((shortMinutes || 0) > 0) {
+              acc.shortmin += shortMinutes;
+            }
+            if ((overtimeMinutes || 0) > 0) {
+              acc.overtime += overtimeMinutes;
+            }
           }
         }
         return acc;
@@ -380,7 +387,7 @@ export default function PayrollCreatePage() {
   const netSalary = useMemo(() => {
     // return grossSalary - tax;
     // return Math.floor(grossSalary - tax);
-    return Math.floor(grossSalary - totalDeductions);
+    return Math.round(grossSalary - totalDeductions);
   }, [grossSalary, totalDeductions]);
 
   // const netSalary = useMemo(() => {
@@ -393,136 +400,108 @@ export default function PayrollCreatePage() {
     setForm((prev) => ({ ...prev, [field]: updated }));
   };
 
+  // ✅ Effect 1: Initialize policies when employee changes
   useEffect(() => {
     if (!selectedEmployeedetail) return;
 
-    // Use a temporary object to hold the new form state
-    let newFormState = { ...form };
+    let initialAllowances = [];
+    let initialBonuses = [];
+    let initialDeductions = [];
 
     if (selectedEmployeedetail?.defaultPolicies) {
-      // Use employee-specific policies
-      newFormState.allowances = selectedEmployeedetail.allowances?.map(e => ({
-        name: e.name,
-        amount: e.value,
-        extraInfo: '',
-        inputDisabled: false
+      initialAllowances = selectedEmployeedetail.allowances?.map(e => ({
+        name: e.name, amount: e.value, extraInfo: '', inputDisabled: false
       })) || [];
-      newFormState.bonuses = selectedEmployeedetail.bonuses?.map(e => ({
-        name: e.name,
-        amount: e.value,
-        extraInfo: '',
-        inputDisabled: false
+      initialBonuses = selectedEmployeedetail.bonuses?.map(e => ({
+        name: e.name, amount: e.value, extraInfo: '', inputDisabled: false
       })) || [];
-      newFormState.deductions = selectedEmployeedetail.deductions?.map(e => ({
-        name: e.name,
-        amount: e.value,
-        extraInfo: '',
-        inputDisabled: false
+      initialDeductions = selectedEmployeedetail.deductions?.map(e => ({
+        name: e.name, amount: e.value, extraInfo: '', inputDisabled: false
       })) || [];
-
     } else if (company?.payrollPolicies) {
-      // Fallback to company defaults
-      newFormState.allowances = company.payrollPolicies?.allowances?.map(e => ({
-        name: e.name,
-        amount: e.value,
-        extraInfo: '',
-        inputDisabled: false
+      initialAllowances = company.payrollPolicies?.allowances?.map(e => ({
+        name: e.name, amount: e.value, extraInfo: '', inputDisabled: false
       })) || [];
-      newFormState.bonuses = company.payrollPolicies?.bonuses?.map(e => ({
-        name: e.name,
-        amount: e.value,
-        extraInfo: '',
-        inputDisabled: false
+      initialBonuses = company.payrollPolicies?.bonuses?.map(e => ({
+        name: e.name, amount: e.value, extraInfo: '', inputDisabled: false
       })) || [];
-      newFormState.deductions = company.payrollPolicies?.deductions?.map(e => ({
-        name: e.name,
-        amount: e.value,
-        extraInfo: '',
-        inputDisabled: false
+      initialDeductions = company.payrollPolicies?.deductions?.map(e => ({
+        name: e.name, amount: e.value, extraInfo: '', inputDisabled: false
       })) || [];
     }
 
-    // Set the form state only once after all updates
-    // setForm(newFormState);
+    setForm(prev => ({
+      ...prev,
+      allowances: initialAllowances,
+      bonuses: initialBonuses,
+      deductions: initialDeductions,
+    }));
+  }, [selectedEmployeedetail, company]);
 
+  // ✅ Effect 2: Inject/Update Adjustment rows without overwriting manual entries
+  useEffect(() => {
+    if (!selectedEmployeedetail) return;
 
-    let updatedBonuses = [...newFormState.bonuses];
-    let updatedDeductions = [...newFormState.deductions];
+    setForm(prev => {
+      // 1. Keep manual entries, remove all auto-generated ones
+      let updatedBonuses = prev.bonuses.filter(b => !b.inputDisabled);
+      let updatedDeductions = prev.deductions.filter(d => !d.inputDisabled);
 
-    // OVERTIME
-    updatedBonuses = updatedBonuses.filter(b => b.name !== "Overtime");
-    if (options.addOvertime) {
-      const OvertTimeBonus = basic.overtime * perminuteRate;
-      updatedBonuses.push({
-        name: "Overtime", amount: OvertTimeBonus.toFixed(2),
-        extraInfo: `${basic.overtime} Min @ ₹${perminuteRate} per min.`,
-        inputDisabled: true
-      });
-    }
-
-    // SHORT TIME
-    updatedDeductions = updatedDeductions.filter(d => d.name !== "Short Time");
-    if (options.deductShortTime && basic.shortmin > 0) {
-      const shortTimeDeduction = basic.shortmin * perminuteRate;
-      updatedDeductions.push({
-        name: "Short Time", amount: shortTimeDeduction.toFixed(2),
-        extraInfo: `${basic.shortmin} min @ ₹${perminuteRate} per min.`,
-        inputDisabled: true
-      });
-    }
-
-    // ABSENT
-    updatedDeductions = updatedDeductions.filter(d => d.name !== "Absent");
-    if (options.deductAbsent && form.absentDays > 0) {
-      updatedDeductions.push({
-        name: "Absent", amount: (form.absentDays * perDayRate).toFixed(2),
-        extraInfo: `${form.absentDays} Absent @ ₹${perDayRate} per day`,
-        inputDisabled: true
-      });
-    }
-
-    // Advance
-    updatedDeductions = updatedDeductions.filter(d => d.name !== "Advance");
-    if (options.adjustAdvance && previousAdvance > 0) {
-      let remainigadvance = previousAdvance - options.adjustedAdvance;
-      updatedDeductions.push({
-        name: "Advance", amount: (options.adjustedAdvance).toFixed(2),
-        extraInfo: `Adjusted :${options.adjustedAdvance},  Remaining :${remainigadvance}`,
-        inputDisabled: true
-      });
-    }
-
-    // LEAVE ADJUSTMENT
-    updatedDeductions = updatedDeductions.filter(
-      d => d.name !== "Paid Leave Adjustment" && d.name !== "Unpaid Leave"
-    );
-    if (options.adjustLeave && form.leaveDays > 0) {
-      const adjusted = Math.min(options.adjustedLeaveCount, employeeleavebal, form.leaveDays);
-      const unadjusted = form.leaveDays - adjusted;
-
-      if (adjusted > 0) {
-        updatedDeductions.push({
-          name: "Paid Leave Adjustment", amount: 0,
-          extraInfo: `${adjusted} Leaves adjusted, Remaining Leaves: ${employeeleavebal - adjusted}`,
+      // 2. Inject current Adjustments
+      if (options.addOvertime && basic.overtime > 0) {
+        updatedBonuses.push({
+          name: "Overtime", amount: (basic.overtime * perminuteRate).toFixed(2),
+          extraInfo: `${basic.overtime} Min @ ₹${perminuteRate}/min`,
           inputDisabled: true
         });
       }
-      if (unadjusted > 0) {
+
+      if (options.deductShortTime && basic.shortmin > 0) {
         updatedDeductions.push({
-          name: "Unpaid Leave", amount: (unadjusted * perDayRate).toFixed(2),
-          extraInfo: `${unadjusted} leaves @ ${perDayRate}`,
+          name: "Short Time", amount: (basic.shortmin * perminuteRate).toFixed(2),
+          extraInfo: `${basic.shortmin} Min @ ₹${perminuteRate}/min`,
           inputDisabled: true
         });
       }
-    }
-    // console.log(updatedDeductions)
-    newFormState.bonuses = updatedBonuses
-    newFormState.deductions = updatedDeductions
 
-    setForm(newFormState);
-    // setForm(prev => ({ ...prev, bonuses: updatedBonuses, deductions: updatedDeductions }));
+      if (options.deductAbsent && prev.absentDays > 0) {
+        updatedDeductions.push({
+          name: "Absent", amount: (prev.absentDays * perDayRate).toFixed(2),
+          extraInfo: `${prev.absentDays} Day(s) @ ₹${perDayRate}/day`,
+          inputDisabled: true
+        });
+      }
 
-  }, [options, perDayRate, selectedEmployeedetail]);
+      if (options.adjustAdvance && previousAdvance > 0 && options.adjustedAdvance > 0) {
+        updatedDeductions.push({
+          name: "Advance", amount: (options.adjustedAdvance).toFixed(2),
+          extraInfo: `Adj: ${options.adjustedAdvance}, Rem: ${previousAdvance - options.adjustedAdvance}`,
+          inputDisabled: true
+        });
+      }
+
+      if (options.adjustLeave && prev.leaveDays > 0) {
+        const adjusted = Math.min(options.adjustedLeaveCount, employeeleavebal, prev.leaveDays);
+        const unadjusted = prev.leaveDays - adjusted;
+        if (adjusted > 0) {
+          updatedDeductions.push({
+            name: "Paid Leave Adjustment", amount: 0,
+            extraInfo: `${adjusted} Leaves adjusted`,
+            inputDisabled: true
+          });
+        }
+        if (unadjusted > 0) {
+          updatedDeductions.push({
+            name: "Unpaid Leave", amount: (unadjusted * perDayRate).toFixed(2),
+            extraInfo: `${unadjusted} Unpaid Leave(s)`,
+            inputDisabled: true
+          });
+        }
+      }
+
+      return { ...prev, bonuses: updatedBonuses, deductions: updatedDeductions };
+    });
+  }, [options, perDayRate, perminuteRate, basic.overtime, basic.shortmin, previousAdvance, employeeleavebal]);
 
 
   const addArrayItem = (field, item) =>
@@ -699,43 +678,71 @@ export default function PayrollCreatePage() {
                   className="m max-w-full md:max-w-[120px]"
                   size="small"
                   label="Leave Days"
-                  value={form.leaveDays || 0} //{perDayRate}
+                  value={form.leaveDays || 0}
                 />
                 <TextField
                   className="m max-w-full md:max-w-[120px]"
                   size="small"
                   label="Absent Days"
-                  value={form.absentDays || 0} //{perDayRate}
+                  InputProps={{ readOnly: true }}
+                  value={form.absentDays || 0}
                 />
               </div>
               <Divider />
-              <div className="grid grid-cols-2 gap-3 mt-4 text-sm md:flex md:flex-wrap">
-                <TextField
-                  size="small"
-                  label="OverTime Minutes"
-                  value={basic.overtime || 0}
-                />
-                <TextField
-                  size="small"
-                  label="ShortTime Minutes"
-                  value={basic.shortmin || 0}
-                />
-                <TextField
-                  size="small"
-                  label="Per day Salary"
-                  value={formatRupee(perDayRate)}
-                  helperText="For Leave/ Absent Calculations"
-                />
-                <TextField
-                  size="small"
-                  label="Per minute Salary"
-                  value={formatRupee(perminuteRate)}
-                  helperText="For OverTime/ ShortTime Calculations"
-                />
-
-                {/* <p>Overtime (minutes): {basic.overtime} min @{perminuteRate}</p>
-              <p>ShortTime (minutes): {basic.shortmin} min @{perminuteRate}</p> */}
-              </div>
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={6} md={3}>
+                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 h-full">
+                    <Typography variant="caption" color="textSecondary" className="uppercase font-bold block mb-1">
+                      Per Day Rate
+                    </Typography>
+                    <Typography variant="h6" className="text-blue-700 font-bold">
+                      {formatRupee(perDayRate)}
+                    </Typography>
+                    <Typography variant="caption" className="text-blue-500 italic">
+                      For Absent/Leave
+                    </Typography>
+                  </div>
+                </Grid>
+                <Grid item xs={6} md={3}>
+                  <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 h-full">
+                    <Typography variant="caption" color="textSecondary" className="uppercase font-bold block mb-1">
+                      Per Minute Rate
+                    </Typography>
+                    <Typography variant="h6" className="text-indigo-700 font-bold">
+                      {formatRupee(perminuteRate)}
+                    </Typography>
+                    <Typography variant="caption" className="text-indigo-500 italic">
+                      For OT/Short-time
+                    </Typography>
+                  </div>
+                </Grid>
+                <Grid item xs={6} md={3}>
+                  <div className="p-3 bg-green-50 rounded-xl border border-green-100 h-full">
+                    <Typography variant="caption" color="textSecondary" className="uppercase font-bold block mb-1">
+                      Overtime Minutes
+                    </Typography>
+                    <Typography variant="h6" className="text-green-700 font-bold">
+                      {basic.overtime || 0} min
+                    </Typography>
+                    <Typography variant="caption" className="text-green-600 font-medium">
+                      Est: {formatRupee(basic.overtime * perminuteRate)}
+                    </Typography>
+                  </div>
+                </Grid>
+                <Grid item xs={6} md={3}>
+                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 h-full">
+                    <Typography variant="caption" color="textSecondary" className="uppercase font-bold block mb-1">
+                      Short-time Minutes
+                    </Typography>
+                    <Typography variant="h6" className="text-red-700 font-bold">
+                      {basic.shortmin || 0} min
+                    </Typography>
+                    <Typography variant="caption" className="text-red-600 font-medium">
+                      Est: -{formatRupee(basic.shortmin * perminuteRate)}
+                    </Typography>
+                  </div>
+                </Grid>
+              </Grid>
             </div>
           </Card>}
 

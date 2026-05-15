@@ -43,8 +43,12 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
         const content = (
             <div className={`flex items-center justify-between p-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/40 shadow-sm hover:shadow-md transition-all duration-300 group`}>
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${colorClass} text-white group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon size={18} />
+                    <div className={`p-2 rounded-xl ${colorClass} text-white print:!bg-gray-700
+    print:!text-white group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon
+                            size={18}
+                            className="print:!text-black print:opacity-100"
+                        />
                     </div>
                     <span className="text-sm font-semibold text-gray-700">{label}</span>
                 </div>
@@ -62,7 +66,7 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
         <div className="w-full max-w-6xl mx-auto rounded-3xl overflow-hidden bg-gradient-to-br from-slate-50 to-slate-200 border border-white/50 shadow-2xl p-4 md:p-8">
             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
                 {/* Profile & Pie Chart Section */}
-                <div className="relative flex-shrink-0 flex items-center justify-center group">
+                <div className="print:hidden relative flex-shrink-0 flex items-center justify-center group">
                     <div className="absolute inset-0 bg-white/30 blur-3xl rounded-full group-hover:bg-teal-500/10 transition-colors duration-700"></div>
                     <PieChart
                         series={[{
@@ -122,13 +126,24 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
                             value={`${hell?.overtime?.length || 0} Records`}
                             subValue={hell?.overtimemin > 0 ? `${hell.overtimemin} min total` : ""}
                             colorClass="bg-green-600"
-                            tooltip={hell?.overtimesalary > 0 ? (
+
+                            // only for overtime
+                            // tooltip={hell?.overtimesalary > 0 ? (
+                            //     <div className="p-2 space-y-1">
+                            //         <div className="flex justify-between gap-4"><span>Salary:</span> <b>{employee?.salary} ₹</b></div>
+                            //         <div className="flex justify-between gap-4"><span>Net Time:</span> <b>{(hell?.overtimemin || 0) - (hell?.shorttimemin || 0)} min</b></div>
+                            //         <div className="flex justify-between gap-4"><span>Payout:</span> <b>{hell?.overtimesalary || 0} ₹</b></div>
+                            //     </div>
+                            // ) : null}
+
+                            // for also showing negative, if any
+                            tooltip={
                                 <div className="p-2 space-y-1">
                                     <div className="flex justify-between gap-4"><span>Salary:</span> <b>{employee?.salary} ₹</b></div>
                                     <div className="flex justify-between gap-4"><span>Net Time:</span> <b>{(hell?.overtimemin || 0) - (hell?.shorttimemin || 0)} min</b></div>
                                     <div className="flex justify-between gap-4"><span>Payout:</span> <b>{hell?.overtimesalary || 0} ₹</b></div>
                                 </div>
-                            ) : null}
+                            }
                         />
                         <StatCard
                             icon={FaCompressAlt}

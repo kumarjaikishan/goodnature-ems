@@ -18,12 +18,15 @@ const company = require('../models/company');
 const branch = require('../models/branch');
 const removePhotoBySecureUrl = require('../utils/cloudinaryremove')
 const redisClient = require('../utils/redis');
+const employeeService = require('../services/employeeService');
 
 cloudinary.config({
-    cloud_name: 'dusxlxlvm',
-    api_key: '214119961949842',
-    api_secret: "kAFLEVAA5twalyNYte001m_zFno"
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
+// generateNextEmpId moved to employeeService
 
 async function generateNextEmpId(companyId, prefix = "EMP", padding = 3) {
     try {
@@ -154,13 +157,10 @@ const departmentlist = async (req, res, next) => {
 
 
 const addemployee = async (req, res, next) => {
-
-    const { email, password = 'employee' } = req.body;
-
+    const { email } = req.body;
     if (!req.body.employeeName || !email || !req.body.department || !req.body.branchId) {
         return res.status(400).json({ message: "Please Fill required Fields" });
     }
-    const role = 'employee';
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -173,204 +173,54 @@ const addemployee = async (req, res, next) => {
             return res.status(409).json({ message: 'Email already in use.' });
         }
 
-        let createUser = new usermodal({ companyId: req.user.companyId, name: req.body.employeeName, email, role, password });
-        let resulten = await createUser.save({ session });
-
-        // Step 2: Upload profile image to Cloudinary
         let uploadResult = null;
         if (req.file) {
-            uploadResult = await cloudinary.uploader.upload(req.file.path, {
-                folder: 'ems/employee'
-            });
-
-            if (uploadResult) {
-                fs.unlink(req.file.path, (err) => {
-                    if (err) console.error('Failed to delete local file:', err);
-                });
-            }
-        }
-        const empId = await generateNextEmpId(req.user.companyId);
-
-        // Pre-allocate IDs to solve circular dependency
-        const employeeObjectId = new mongoose.Types.ObjectId();
-        const ledgerObjectId = new mongoose.Types.ObjectId();
-
-        const jsonFields = ["allowances", "bonuses", "deductions", "achievements", "education", "guardian"];
-
-        let employeeData = {
-            _id: employeeObjectId,
-            companyId: req.user.companyId,
-            userid: resulten._id,
-            empId,
-            profileimage: uploadResult?.secure_url,
-            ledgerId: ledgerObjectId,
-            telegramId: req.body.telegramId
-        };
-
-        for (const key in req.body) {
-            let value = req.body[key];
-
-            if (jsonFields.includes(key) && typeof value === "string") {
-                try {
-                    value = JSON.parse(value);
-                } catch (e) {
-                    value = (key === "guardian") ? { name: "", relation: "S/o" } : [];
-                }
-            }
-
-            // Type conversions
-            if (key === "salary") value = Number(value) || 0;
-            if (key === "status" || key === "overridedefaultPolicies" || key === "allowSeeLedger") value = (value === true || value === "true");
-
-            // Avoid overwriting pre-calculated fields or redundant ones
-            if (!["_id", "companyId", "userid", "empId", "ledgerId", "photo", "password"].includes(key)) {
-                employeeData[key] = value;
-            }
+            uploadResult = await cloudinary.uploader.upload(req.file.path, { folder: 'ems/employee' });
+            fs.unlink(req.file.path, (err) => { if (err) console.error('Failed to delete local file:', err); });
         }
 
-        const query = new employeeModal(employeeData);
-        const resulte = await query.save({ session });
+        await employeeService.createEmployee(req.body, req.user.companyId, uploadResult, session);
 
-        // creating ledger for employee
-        const ledger = new Ledger({
-            _id: ledgerObjectId,
-            companyId: req.user.companyId,
-            name: req.body.employeeName,
-            employeeId: employeeObjectId, // Link employee correctly
-            profileImage: uploadResult?.secure_url
-        });
-        await ledger.save({ session });
-
-        await usermodal.findByIdAndUpdate(resulten._id, { employeeId: resulte._id }).session(session)
-
-        // Step 4: Commit transaction
         await session.commitTransaction();
         session.endSession();
-
-        res.status(200).json({
-            message: 'employee Created Successfully'
-        })
+        res.status(200).json({ message: 'employee Created Successfully' });
 
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        console.log(error.message)
-        return res.status(500).json({
-            message: 'serer error'
-        })
+        console.error("Employee Creation Error:", error.message);
+        return res.status(500).json({ message: 'Server error during employee creation' });
     }
 }
 
 const updateemployee = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
-        const { employeeId, employeeName, branchId, department, email, empId } = req.body;
-
+        const { employeeId, department, branchId } = req.body;
         if (!employeeId || !department || !branchId) {
             return next({ status: 400, message: "Required fields (employeeId, department, branchId) are missing." });
         }
 
-        const existingEmployee = await employeeModal.findById(employeeId);
-        if (!existingEmployee) {
-            return next({ status: 404, message: "Employee not found." });
-        }
-
-        // Fields that may come as JSON strings from frontend
-        const jsonFields = ["allowances", "bonuses", "deductions", "achievements", "education", "guardian"];
-
-        let employeeUpdateData = {};
-        let userUpdateData = {};
-
-        for (const key in req.body) {
-            let value = req.body[key];
-
-            // Handle JSON fields
-            if (jsonFields.includes(key) && typeof value === "string") {
-                try {
-                    value = JSON.parse(value);
-                } catch (e) {
-                    value = (key === "guardian") ? { name: "", relation: "S/o" } : [];
-                }
-            }
-
-            // Handle type conversion
-            if (key === "salary") value = Number(value) || 0;
-            if (key === "status" || key === "overridedefaultPolicies" || key === "allowSeeLedger") value = (value === true || value === "true");
-
-            // Map fields correctly
-            if (key === "employeeName") {
-                userUpdateData.name = value;
-                employeeUpdateData.employeeName = value;
-            } else if (key === "email") {
-                userUpdateData.email = value;
-            } else if (["branchId", "department"].includes(key)) {
-                userUpdateData[key] = value;
-                employeeUpdateData[key] = value;
-            } else if (key !== "employeeId" && key !== "empId") {
-                employeeUpdateData[key] = value;
-            }
-        }
-
-        if (req.body.telegramId !== undefined) {
-            employeeUpdateData.telegramId = req.body.telegramId;
-        }
-
-        // Handle empId uniqueness
-        if (empId) {
-            const empcode = "EMP" + String(empId).padStart(3, "0");
-            const alreadyEmpId = await employeeModal.findOne({
-                empId: empcode,
-                companyId: req.user.companyId,
-                _id: { $ne: employeeId }
-            });
-            if (alreadyEmpId) {
-                return next({ status: 400, message: "This Employee ID already exists." });
-            }
-            employeeUpdateData.empId = empcode;
-        }
-
-        // Handle profile photo
+        let uploadResult = null;
         if (req.file) {
-            const cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
-                folder: "ems/employee"
-            });
+            uploadResult = await cloudinary.uploader.upload(req.file.path, { folder: "ems/employee" });
             fs.unlink(req.file.path, err => { if (err) console.log("File delete error:", err.message); });
-            employeeUpdateData.profileimage = cloudinaryResult.secure_url;
-
-            if (existingEmployee.profileimage) {
-                await removePhotoBySecureUrl([existingEmployee.profileimage]);
-            }
         }
 
-        // UPDATE EVERYTHING
-        if (Object.keys(userUpdateData).length > 0) {
-            await usermodal.findByIdAndUpdate(existingEmployee.userid, userUpdateData);
-        }
+        await employeeService.updateEmployee(employeeId, req.body, uploadResult, session);
 
-        const updatedEmployee = await employeeModal.findByIdAndUpdate(employeeId, employeeUpdateData, { new: true, runValidators: true });
-
-        // Update Ledger if name or photo changed
-        if (employeeName || req.file) {
-            let ledgerUpdate = {};
-            if (employeeName) ledgerUpdate.name = employeeName;
-            if (employeeUpdateData.profileimage) ledgerUpdate.profileImage = employeeUpdateData.profileimage;
-
-            if (Object.keys(ledgerUpdate).length > 0) {
-                await Ledger.findOneAndUpdate({ employeeId: employeeId }, ledgerUpdate);
-            }
-        }
-
-        if (!updatedEmployee) {
-            return next({ status: 400, message: "Failed to update employee." });
-        }
-
+        await session.commitTransaction();
+        session.endSession();
         return res.status(200).json({ message: "Employee updated successfully." });
 
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         console.error("Update employee error:", error.message);
         return next({ status: 500, message: error.message });
     }
 };
-
 
 
 const enrollFace = async (req, res, next) => {

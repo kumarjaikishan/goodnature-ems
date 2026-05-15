@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams,useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import {
     Box, Button, FormControl, InputLabel, Select, MenuItem,
@@ -46,6 +46,7 @@ const LedgerDetailPage = () => {
 
     const ledgerName = searchParams.get('name');
     const profile = decodeURIComponent(searchParams.get("profileimage"));
+    const empId = searchParams.get('empid');
 
     const [entries, setEntries] = useState([]);
     const [filtered, setFiltered] = useState([]);
@@ -83,7 +84,7 @@ const LedgerDetailPage = () => {
 
         const debit = filteredData.reduce((sum, e) => sum + (e.debit || 0), 0);
         const credit = filteredData.reduce((sum, e) => sum + (e.credit || 0), 0);
-        const balance = debit - credit;
+        const balance = credit - debit;
 
         setTotalDebit(debit);
         setTotalCredit(credit);
@@ -215,7 +216,7 @@ const LedgerDetailPage = () => {
         setEditIndex(entry._id);
         setOpen(true);
     };
-   const MotionAvatar = motion.create(Avatar);
+    const MotionAvatar = motion.create(Avatar);
 
     return (
         <div className="bg-white rounded shadow-md p-1 md:p-5 relative max-w-6xl mx-auto ">
@@ -241,14 +242,24 @@ const LedgerDetailPage = () => {
                             })}
                         />
 
-                        <h2 className="text-2xl font-semibold text-teal-700 capitalize">{ledgerName}</h2>
+                        <div className="flex flex-col">
+                            <h2 className="text-2xl font-bold text-teal-800 capitalize leading-tight">{ledgerName}</h2>
+                            <div className="flex items-center gap-2 mt-1">
+
+                                {empId && empId !== 'null' && (
+                                    <span className="text-[14px] text-gray-500 font-semibold bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                        ID: {empId}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                     <Button className=' w-full md:w-auto' onClick={() => navigate(-1)} variant="contained">Ledger Page</Button>
                 </div>
                 {loading ? <Loader /> :
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <SummaryBox label="Total Debit" value={totalDebit} />
                         <SummaryBox label="Total Credit" value={totalCredit} />
+                        <SummaryBox label="Total Debit" value={totalDebit} />
                         <SummaryBox label="Net Balance" value={totalBalance.toFixed(2)} />
                     </div>}
             </div>

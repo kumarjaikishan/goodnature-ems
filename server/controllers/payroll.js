@@ -73,7 +73,7 @@ exports.createPayroll = async (req, res, next) => {
 
     const grossSalary = Number(salary) + allowanceTotal + bonusTotal - deductionTotal;
     const taxAmount = (grossSalary * Number(taxRate || 0)) / 100;
-    const netSalary = grossSalary - taxAmount;
+    const netSalary = Math.round(grossSalary - taxAmount);
 
     if (isNaN(grossSalary) || isNaN(taxAmount) || isNaN(netSalary)) {
       throw new Error("Salary calculation resulted in NaN — check input data");
@@ -157,8 +157,8 @@ exports.createPayroll = async (req, res, next) => {
         remainingToAdjust -= deduction;
       }
 
-      // Record in Ledger (DEBIT - Reduces the liability to pay salary)
-      await LedgerController.recordLedgerEntry({
+      // Record in Ledger (CREDIT - Reduces the liability to pay salary)
+      await accountingService.recordLedgerEntry({
         employeeId,
         companyId,
         date: entryDate,
@@ -202,7 +202,7 @@ exports.createPayroll = async (req, res, next) => {
       });
       await newAdvance.save({ session });
 
-      await LedgerController.recordLedgerEntry({
+      await accountingService.recordLedgerEntry({
         employeeId,
         companyId,
         date: entryDate,
@@ -322,7 +322,7 @@ exports.editPayroll = async (req, res, next) => {
 
     const grossSalary = Number(salary) + allowanceTotal + bonusTotal - deductionTotal;
     const taxAmount = (grossSalary * Number(taxRate || 0)) / 100;
-    const netSalary = grossSalary - taxAmount;
+    const netSalary = Math.round(grossSalary - taxAmount);
 
     if (isNaN(grossSalary) || isNaN(taxAmount) || isNaN(netSalary)) {
       throw new Error("Salary calculation resulted in NaN — check input data");
@@ -455,7 +455,6 @@ exports.editPayroll = async (req, res, next) => {
     payroll.ledgerEntryId = undefined;
 
 
-    await LedgerController.recalculateBalances(whichEmployee.ledgerId, req.user.id);
 
     // 🔹 Sync Advance Balances
     await AdvanceController.syncEmployeeAdvanceBalance(payroll.employeeId, session);
@@ -539,70 +538,34 @@ exports.deletePayroll = async (req, res, next) => {
       return next({ status: 404, message: "Payroll not found" });
     }
 
-    // 🔹 Rollback Advance adjustments
-    // Find all advances that were potentially modified by this payroll
-    // (In our new system, we don't have a direct link from Advance to Payroll adjustment except for the 'repaid' records or finding what was deducted)
-    // Actually, finding the Ledger entry for adjustment is the best way to know the amount.
-    const ledgerEntry = await Entry.findOne({
-      referenceId: payroll._id,
-      source: 'adjustment'
-    }).session(session);
-
-    if (ledgerEntry) {
-      // 🔹 Record rollback in ledger for audit
-      await LedgerController.recordLedgerEntry({
-        employeeId: payroll.employeeId,
-        companyId: payroll.companyId,
-        type: 'CREDIT', // Reversing the deduction DEBIT
-        amount: ledgerEntry.amount,
-        source: 'adjustment',
-        referenceId: payroll._id,
-        remarks: `Rollback: Advance adjustment from deleted Payroll ${payroll.month}-${payroll.year}`
-      }, session);
-
-      // 🔹 Delete the 'adjusted' history record record
-      // Calling syncEmployeeAdvanceBalance later will auto-restore the 'remainingBalance' on 'given' records
-      await Advance.deleteMany({ payrollId: payroll._id, type: "adjusted" }).session(session);
+    // 1. Find all active ledger entries for this payroll and reverse them
+    const entries = await Entry.find({ referenceId: payroll._id, status: 'active' }).session(session);
+    for (const entry of entries) {
+      await accountingService.reverseEntry(entry._id, `Rollback: Deleted Payroll ${payroll.month}-${payroll.year}`, session);
     }
 
-    // 🔹 Delete linked advance if it was created from leave adjustment
+    // 2. Rollback Advance adjustments
+    await Advance.deleteMany({ payrollId: payroll._id, type: "adjusted" }).session(session);
+    
+    // 3. Delete linked advance if it was created from leave adjustment
     const leaveToAdvance = await Advance.findOne({ payrollId: payroll._id, type: "given" }).session(session);
     if (leaveToAdvance) {
-      // Reverse ledger entry
-      await LedgerController.recordLedgerEntry({
-        employeeId: payroll.employeeId,
-        companyId: payroll.companyId,
-        type: 'CREDIT',
-        amount: leaveToAdvance.amount,
-        source: 'adjustment',
-        remarks: `Rollback: Leave-to-Advance from deleted Payroll ${payroll.month}-${payroll.year}`
-      }, session);
       await leaveToAdvance.deleteOne({ session });
     }
 
-    // 🔹 Delete linked leave adjustment if exists
-    await LeaveBalance.deleteOne({ payrollId: payroll._id }).session(session);
+    // 4. Delete linked leave adjustment if exists
+    await LeaveBalance.deleteMany({ payrollId: payroll._id }).session(session);
 
-    // 🔹 Delete payroll entry from Ledger (Salary Entry)
-    await LedgerController.recordLedgerEntry({
-      employeeId: payroll.employeeId,
-      companyId: payroll.companyId,
-      type: 'CREDIT', // Reversing the salary payout DEBIT
-      amount: payroll.netSalary,
-      source: 'salary',
-      remarks: `Rollback: Net Salary from deleted Payroll ${payroll.month}-${payroll.year}`
-    }, session);
-
-    // 🔹 Delete payroll
+    // 5. Delete payroll
     await payroll.deleteOne({ session });
 
-    // 🔹 Sync Advance Balances
+    // 6. Sync Advance Balances
     await AdvanceController.syncEmployeeAdvanceBalance(payroll.employeeId, session);
 
     await session.commitTransaction();
     session.endSession();
 
-    return res.status(200).json({ success: true, message: "Payroll deleted and ledger adjusted" });
+    return res.status(200).json({ success: true, message: "Payroll deleted and ledger reversed successfully" });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

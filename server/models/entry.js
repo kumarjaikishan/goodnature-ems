@@ -8,7 +8,9 @@ const entrySchema = new mongoose.Schema({
   credit: { type: Number, default: 0 },
   balance: Number,
   source: { type: String, enum: ['ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll'], default: 'ledger' },
-  referenceId: { type: mongoose.Schema.Types.ObjectId } // Link to Advance, Payroll, etc.
+  referenceId: { type: mongoose.Schema.Types.ObjectId }, // Link to Advance, Payroll, etc.
+  status: { type: String, enum: ['active', 'reversed'], default: 'active' },
+  reversalReference: { type: mongoose.Schema.Types.ObjectId, ref: 'Entry' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Entry', entrySchema);

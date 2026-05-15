@@ -11,16 +11,44 @@ class LeaveService {
   async applyLeave(leaveData, session) {
     const { employeeId, policyId, fromDate, toDate, reason, companyId, branchId } = leaveData;
 
-    // Calculate duration
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
-    const duration = Math.floor((to - from) / (1000 * 60 * 60 * 24)) + 1;
+    const from = dayjs(fromDate);
+    const to = dayjs(toDate);
+    
+    // Fetch rules to calculate actual working days duration
+    const Company = mongoose.model('Company');
+    const Branch = mongoose.model('Branch');
+    const Holiday = mongoose.model('Holiday');
+    
+    const companyData = await Company.findById(companyId).session(session);
+    const branchData = await Branch.findById(branchId).session(session);
+    
+    const weeklyOffs = branchData?.defaultsetting ? (companyData?.weeklyOffs || []) : (branchData?.setting?.weeklyOffs || []);
+    
+    const holidays = await Holiday.find({
+      companyId,
+      fromDate: { $lte: to.format('YYYY-MM-DD') },
+      toDate: { $gte: from.format('YYYY-MM-DD') }
+    }).session(session);
 
-    // Check balance
-    const balance = await LeaveBalance.findOne({ employeeId, policyId }).session(session);
-    if (!balance || balance.remaining < duration) {
-      // If not enough balance, we still allow application but it might be unpaid (handled at approval or payroll)
-      // For now, let's just create the request.
+    const holidayDates = new Set();
+    holidays.forEach(h => {
+      let curr = dayjs(h.fromDate);
+      while (curr.isBefore(h.toDate) || curr.isSame(h.toDate, 'day')) {
+        holidayDates.add(curr.format('YYYY-MM-DD'));
+        curr = curr.add(1, 'day');
+      }
+    });
+
+    let duration = 0;
+    let current = from;
+    while (current.isBefore(to) || current.isSame(to, 'day')) {
+      const isWeeklyOff = weeklyOffs.includes(current.day());
+      const isHoliday = holidayDates.has(current.format('YYYY-MM-DD'));
+      
+      if (!isWeeklyOff && !isHoliday) {
+        duration++;
+      }
+      current = current.add(1, 'day');
     }
 
     const leaveRequest = new Leave({
@@ -45,6 +73,7 @@ class LeaveService {
       throw new Error('Invalid leave request');
     }
 
+    // 1. Manage Leave Balance
     let balance = await LeaveBalance.findOne({
       employeeId: leaveRequest.employeeId,
       policyId: leaveRequest.policyId
@@ -63,13 +92,11 @@ class LeaveService {
     }
 
     const balanceBefore = balance.remaining;
-
-    // Deduct balance
     balance.used += leaveRequest.duration;
     balance.remaining -= leaveRequest.duration;
     await balance.save({ session });
 
-    // Create Leave Transaction
+    // 2. Create Transaction
     const transaction = new LeaveTransaction({
       employeeId: leaveRequest.employeeId,
       policyId: leaveRequest.policyId,
@@ -79,58 +106,99 @@ class LeaveService {
       balanceAfter: balance.remaining,
       source: 'approval',
       referenceId: leaveRequest._id,
-      remarks: `Leave approved for ${leaveRequest.duration} days`
+      remarks: `Leave approved for ${leaveRequest.duration} working days`
     });
     await transaction.save({ session });
 
-    // Update Request
+    // 3. Update Request Status
     leaveRequest.status = 'approved';
     leaveRequest.approvedBy = approvedBy;
     await leaveRequest.save({ session });
 
-    // Record Attendance
-    const emp = await mongoose.model('employee').findById(leaveRequest.employeeId).session(session);
+    // 4. Update Attendance Records
+    const Employee = mongoose.model('employee');
+    const Company = mongoose.model('Company');
+    const Branch = mongoose.model('Branch');
+    const Holiday = mongoose.model('Holiday');
+
+    const emp = await Employee.findById(leaveRequest.employeeId).session(session);
+    const companyData = await Company.findById(leaveRequest.companyId).session(session);
+    const branchData = await Branch.findById(leaveRequest.branchId).session(session);
+    
+    const weeklyOffs = branchData?.defaultsetting ? (companyData?.weeklyOffs || []) : (branchData?.setting?.weeklyOffs || []);
 
     let current = dayjs(leaveRequest.fromDate);
     const end = dayjs(leaveRequest.toDate);
 
     while (current.isBefore(end) || current.isSame(end, 'day')) {
-      await Attendance.findOneAndUpdate(
-        {
-          employeeId: leaveRequest.employeeId,
-          date: current.startOf('day').toDate()
-        },
-        {
-          $setOnInsert: {
-            companyId: leaveRequest.companyId,
-            branchId: leaveRequest.branchId,
-            empId: emp?.empId || '',
+      const dateStr = current.format('YYYY-MM-DD');
+      const day = current.day();
+      
+      const isWeeklyOff = weeklyOffs.includes(day);
+      const isHoliday = await Holiday.findOne({
+        companyId: leaveRequest.companyId,
+        fromDate: { $lte: dateStr },
+        toDate: { $gte: dateStr }
+      }).session(session);
+
+      // Only mark as 'leave' if it's a working day
+      if (!isWeeklyOff && !isHoliday) {
+        await Attendance.findOneAndUpdate(
+          {
+            employeeId: leaveRequest.employeeId,
+            date: current.startOf('day').toDate()
           },
-          $set: {
-            status: 'leave',
-            leave: leaveRequest._id,
-            source: 'leaveApproval',
-            dayType: 'normal' // default to normal, will be updated by holiday logic if needed? 
-            // Actually, if it's already recorded as weekoff/holiday, we might want to keep it.
-            // But usually leaves are on working days.
-          }
-        },
-        { upsert: true, session }
-      );
+          {
+            $setOnInsert: {
+              companyId: leaveRequest.companyId,
+              branchId: leaveRequest.branchId,
+              empId: emp?.empId || '',
+            },
+            $set: {
+              status: 'leave',
+              leave: leaveRequest._id,
+              source: 'leaveApproval',
+              dayType: 'normal'
+            }
+          },
+          { upsert: true, session }
+        );
+      } else {
+        // Optionally ensure the dayType is correctly marked as weekoff/holiday if record exists
+        await Attendance.findOneAndUpdate(
+          {
+            employeeId: leaveRequest.employeeId,
+            date: current.startOf('day').toDate()
+          },
+          {
+            $setOnInsert: {
+              companyId: leaveRequest.companyId,
+              branchId: leaveRequest.branchId,
+              empId: emp?.empId || '',
+              status: isHoliday ? 'holiday' : 'weekly off',
+              dayType: isHoliday ? 'holiday' : 'weekoff'
+            },
+            $set: {
+              leave: leaveRequest._id // Link to leave but don't change status to 'leave'
+            }
+          },
+          { upsert: true, session }
+        );
+      }
       current = current.add(1, 'day');
     }
 
-    // Create Notification for the Employee
+    // 5. Notification
     try {
       const notification = new Notification({
-        userId: emp.userid._id || emp.userid, // Assuming userid is populated or matches user model
-        message: `Your leave request from ${dayjs(leaveRequest.fromDate).format('DD MMM')} to ${dayjs(leaveRequest.toDate).format('DD MMM')} has been approved.`,
+        userId: emp.userid._id || emp.userid,
+        message: `Your leave request from ${dayjs(leaveRequest.fromDate).format('DD MMM')} to ${dayjs(leaveRequest.toDate).format('DD MMM')} (${leaveRequest.duration} working days) has been approved.`,
         read: false,
         createdAt: new Date()
       });
       await notification.save({ session });
     } catch (notifError) {
-      console.error("Failed to create leave approval notification:", notifError);
+      console.error("Notification Error:", notifError);
     }
 
     return leaveRequest;

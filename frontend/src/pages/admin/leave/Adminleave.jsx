@@ -1,7 +1,7 @@
-import { Avatar, Box, Typography } from '@mui/material';
+import { Avatar, Box, Typography, FormControl, InputLabel, Select, MenuItem, TextField, OutlinedInput, InputAdornment, Button as MUIButton } from '@mui/material';
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import DataTable from 'react-data-table-component';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { MdOutlineModeEdit } from 'react-icons/md';
@@ -13,9 +13,16 @@ import { toast } from 'react-toastify';
 import { useSelector } from 'react-redux';
 import { BiMessageRoundedError } from 'react-icons/bi';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import { CiFilter } from 'react-icons/ci';
+import { VscDebugRestart } from 'react-icons/vsc';
 
 const Adminleave = () => {
-    const [leavelist, setleavelist] = useState([]);
+    const [rawLeaves, setRawLeaves] = useState([]);
+    const [filterYear, setFilterYear] = useState('all');
+    const [filterMonth, setFilterMonth] = useState('all');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
     const [openmodal, setopenmodal] = useState(false);
     const [isload, setisload] = useState(false);
     const { department, branch } = useSelector((state) => state.user);
@@ -36,59 +43,103 @@ const Adminleave = () => {
     const canDelete = CheckPermission('leave', 4);
 
     useEffect(() => {
-        // console.log(department, branch)
-
         firstfetch();
     }, [])
-
-    const handleChange = (e, field) => {
-        setInp({ ...inp, [field]: e.target.value })
-    }
 
     const firstfetch = async () => {
         try {
             const data = await apiClient({
                 url: "fetchleave"
             });
-            let sno = 1;
-            const formattedData = data.leave.map((leave) => {
-                return {
-                    id: leave._id,
-                    sno: sno++,
-                    name: (<div className="flex items-center gap-3 ">
-                        <Avatar
-                            src={cloudinaryUrl(leave?.employeeId?.profileimage, {
-                                format: "webp",
-                                width: 100,
-                                height: 100,
-                            })}
-                            alt={leave?.employeeId?.employeename}>
-                            {!leave.employeeId?.profileimage && <FaRegUser />}
-                        </Avatar>
-                        <Box>
-                            <Typography variant="body2">{leave.employeeId?.employeename}</Typography>
-                            <Typography variant="body2">{leave.employeeId?.userid?.email}</Typography>
-                        </Box>
-                    </div>),
-                    from: dayjs(leave.fromDate).format('DD MMM, YYYY'),
-                    to: dayjs(leave.toDate).format('DD MMM, YYYY'),
-                    reason: leave.reason,
-                    status: <span className={`${leave.status == 'approved' ? 'bg-green-100 text-green-800' :
-                        (leave.status == 'rejected' ? "bg-red-100 text-red-800" :
-                            "bg-amber-100 text-amber-800")} px-3 py-1 rounded capitalize`}>
-                        {leave.status}
-                    </span>,
-                    action: (<div className="flex gap-2">
-                        {canEdit && <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(leave)}><MdOutlineModeEdit /></span>}
-                        {canDelete && <span className="delete text-[18px] text-red-500 cursor-pointer" onClick={() => deletee(leave._id)}><AiOutlineDelete /></span>}
-                    </div>)
-                }
-            })
-            setleavelist(formattedData);
+            setRawLeaves(data.leave || []);
         } catch (err) {
             console.error('Error fetching leaves:', err);
         }
     }
+
+    const filteredData = useMemo(() => {
+        let sno = 1;
+        return rawLeaves
+            .filter(leave => {
+                const leaveDate = dayjs(leave.fromDate);
+                
+                // Year Filter
+                const yearMatch = filterYear === 'all' || leaveDate.year() === Number(filterYear);
+                
+                // Month Filter
+                const monthMatch = filterMonth === 'all' || (leaveDate.month() + 1) === Number(filterMonth);
+                
+                // Date Range Filter
+                let rangeMatch = true;
+                if (startDate) {
+                    rangeMatch = rangeMatch && (leaveDate.isSame(startDate, 'day') || leaveDate.isAfter(startDate, 'day'));
+                }
+                if (endDate) {
+                    rangeMatch = rangeMatch && (leaveDate.isSame(endDate, 'day') || leaveDate.isBefore(endDate, 'day'));
+                }
+
+                return yearMatch && monthMatch && rangeMatch;
+            })
+            .map((leave) => {
+                return {
+                    id: leave._id,
+                    sno: sno++,
+                    name: (
+                        <div className="flex items-center gap-3">
+                            <Avatar
+                                src={cloudinaryUrl(leave?.employeeId?.profileimage, {
+                                    format: "webp",
+                                    width: 100,
+                                    height: 100,
+                                })}
+                                alt={leave?.employeeId?.employeeName || leave?.employeeId?.employeename}
+                            >
+                                {!leave.employeeId?.profileimage && <FaRegUser />}
+                            </Avatar>
+                            <Box>
+                                <Typography variant="subtitle2" className="font-bold">
+                                    {leave.employeeId?.employeeName || leave.employeeId?.employeename}
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary" className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                    ID: {leave.employeeId?.empId}
+                                </Typography>
+                            </Box>
+                        </div>
+                    ),
+                    from: dayjs(leave.fromDate).format('DD MMM, YYYY'),
+                    to: dayjs(leave.toDate).format('DD MMM, YYYY'),
+                    reason: leave.reason,
+                    status: (
+                        <span className={`${leave.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            (leave.status === 'rejected' ? "bg-red-100 text-red-800" :
+                                "bg-amber-100 text-amber-800")} px-3 py-1 rounded capitalize font-medium text-[12px]`}>
+                            {leave.status}
+                        </span>
+                    ),
+                    action: (
+                        <div className="flex gap-2">
+                            {canEdit && (
+                                <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(leave)}>
+                                    <MdOutlineModeEdit />
+                                </span>
+                            )}
+                            {canDelete && (
+                                <span className="delete text-[18px] text-red-500 cursor-pointer" title="Delete" onClick={() => deletee(leave._id)}>
+                                    <AiOutlineDelete />
+                                </span>
+                            )}
+                        </div>
+                    )
+                };
+            });
+    }, [rawLeaves, filterYear, filterMonth, startDate, endDate, canEdit, canDelete]);
+
+    const resetFilters = () => {
+        setFilterYear('all');
+        setFilterMonth('all');
+        setStartDate('');
+        setEndDate('');
+    };
 
     const deletee = async (leaveid) => {
         swal({
@@ -113,11 +164,10 @@ const Adminleave = () => {
     }
 
     const edite = (data) => {
-        // console.log(data)
         setInp({
             leaveid: data._id,
-            branch: branch?.filter(e => e._id == data?.branchId)[0].name,
-            employeename: data?.employeeId?.userid?.name,
+            branch: branch?.filter(e => e._id === data?.branchId)[0]?.name || 'N/A',
+            employeename: data?.employeeId?.employeeName || data?.employeeId?.employeename,
             from: data.fromDate,
             to: data.toDate,
             showfrom: dayjs(data.fromDate).format('DD MMM, YYYY'),
@@ -128,17 +178,91 @@ const Adminleave = () => {
         setopenmodal(true);
     }
 
+    const handleChange = (e, field) => {
+        setInp({ ...inp, [field]: e.target.value })
+    }
+
     return (
-        <div className='max-w-6xl mx-auto '>
+        <div className='max-w-6xl mx-auto p-2'>
+            {/* Filter Bar */}
+            <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 mb-4 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap flex-1">
+                    <FormControl size="small" className="w-[120px]">
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                            value={filterYear}
+                            input={<OutlinedInput startAdornment={<InputAdornment position="start"><CiFilter /></InputAdornment>} label="Year" />}
+                            onChange={e => setFilterYear(e.target.value)}
+                        >
+                            <MenuItem value="all">All Years</MenuItem>
+                            {[...new Set(rawLeaves.map(l => dayjs(l.fromDate).year()))].sort().map(y => (
+                                <MenuItem key={y} value={y}>{y}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" className="w-[140px]">
+                        <InputLabel>Month</InputLabel>
+                        <Select
+                            value={filterMonth}
+                            input={<OutlinedInput startAdornment={<InputAdornment position="start"><CiFilter /></InputAdornment>} label="Month" />}
+                            onChange={e => setFilterMonth(e.target.value)}
+                        >
+                            <MenuItem value="all">All Months</MenuItem>
+                            {Array.from({ length: 12 }, (_, i) => (
+                                <MenuItem key={i + 1} value={i + 1}>{dayjs().month(i).format("MMMM")}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <TextField
+                        size="small"
+                        type="date"
+                        label="From Date"
+                        value={startDate}
+                        onChange={e => setStartDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        className="w-[150px]"
+                    />
+
+                    <TextField
+                        size="small"
+                        type="date"
+                        label="To Date"
+                        value={endDate}
+                        onChange={e => setEndDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        className="w-[150px]"
+                    />
+
+                    <MUIButton
+                        variant="outlined"
+                        color="secondary"
+                        size="small"
+                        startIcon={<VscDebugRestart />}
+                        onClick={resetFilters}
+                        className="h-[40px]"
+                    >
+                        Reset
+                    </MUIButton>
+                </div>
+                
+                <div className="text-sm font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-md border border-gray-100">
+                    Total Requests: <span className="text-teal-700 font-bold">{filteredData.length}</span>
+                </div>
+            </div>
+
             <DataTable
                 customStyles={useCustomStyles()}
                 columns={columns}
-                data={leavelist}
+                data={filteredData}
                 pagination
                 highlightOnHover
                 noDataComponent={
-                    <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                        <BiMessageRoundedError className="text-xl" /> No Leave Request found.
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-gray-500">
+                        <BiMessageRoundedError className="text-4xl mb-2 opacity-20" />
+                        <p className="text-lg font-medium">No Leave Requests found</p>
+                        <p className="text-sm">Try adjusting your filters or search criteria</p>
                     </div>
                 }
             />

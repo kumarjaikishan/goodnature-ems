@@ -153,6 +153,12 @@ const LedgerListPage = () => {
             if (ledger.profileImage) {
                 url += `&profileimage=${encodeURIComponent(ledger.profileImage)}`;
             }
+            if (ledger.empId) {
+                url += `&empid=${encodeURIComponent(ledger.empId)}`;
+            }
+            if (ledger.ledgerType) {
+                url += `&ledgertype=${encodeURIComponent(ledger.ledgerType)}`;
+            }
             return navigate(url);
         }
     };
@@ -211,8 +217,20 @@ const LedgerListPage = () => {
                                                 }}
                                             />
 
-                                            <div className="text-[14px] md:text-[16px] font-semibold text-gray-800 mb-2 capitalize">
-                                                {l.name}
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="text-[14px] md:text-[16px] font-bold text-gray-800 capitalize leading-tight">
+                                                    {l.name}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${l.ledgerType === 'employee' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
+                                                        {l.ledgerType || 'Custom'}
+                                                    </span>
+                                                    {l.empId && (
+                                                        <span className="text-[11px] text-gray-500 font-medium bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                                            ID: {l.empId}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 

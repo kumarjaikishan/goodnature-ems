@@ -348,7 +348,7 @@ const AttenPerformance = () => {
                         hell={hell}
                     />
 
-                    <div className="p-1 py-4 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 rounded shadow bg-white my-4">
+                    <div className="p-1 print:hidden py-4 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 rounded shadow bg-white my-4">
                         <FormControl size="small" sx={{ minWidth: 120 }}>
                             <InputLabel>Type</InputLabel>
                             <Select value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
@@ -415,19 +415,21 @@ const AttenPerformance = () => {
                         </Button>
                     </div>
 
-                    <DataTable
-                        columns={columns()}
-                        data={filteredData}
-                        pagination
-                        customStyles={customStyles}
-                        conditionalRowStyles={conditionalRowStyles}
-                        highlightOnHover
-                        noDataComponent={
-                            <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                                <BiMessageRoundedError className="text-xl" /> No records found matching your criteria.
-                            </div>
-                        }
-                    />
+                    <div className='print:hidden'>
+                        <DataTable
+                            columns={columns()}
+                            data={filteredData}
+                            pagination
+                            customStyles={customStyles}
+                            conditionalRowStyles={conditionalRowStyles}
+                            highlightOnHover
+                            noDataComponent={
+                                <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
+                                    <BiMessageRoundedError className="text-xl" /> No records found matching your criteria.
+                                </div>
+                            }
+                        />
+                    </div>
                 </>
             )}
         </div>

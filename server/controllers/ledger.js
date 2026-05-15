@@ -69,80 +69,117 @@ const { default: mongoose } = require("mongoose");
 const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
-  cloud_name: 'dusxlxlvm',
-  api_key: '214119961949842',
-  api_secret: "kAFLEVAA5twalyNYte001m_zFno"
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const createLedgerForEmployee = async () => {
+const createLedgerForEmployee = async (companyId) => {
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
 
-    // 1️⃣ Find employees without ledgerId
+    // 1️⃣ Find active employees without ledgerId (or verify their ledger exists)
     const employees = await employee.find(
-      { ledgerId: { $exists: false } },
+      { companyId, status: true },
       null,
       { session }
     ).populate({
       path: 'userid',
       select: 'name'
     });
-    console.log("employess without ledgers", employees)
 
-    if (!employees.length) {
-      await session.commitTransaction();
-      return res.status(200).json({
-        success: true,
-        message: "All employees already have ledgers",
-      });
-    }
-
-    // 2️⃣ Create ledger & update employee
     for (const emp of employees) {
-      const [ledger] = await Ledger.create(
-        [
-        {
-          companyId: emp.companyId,
-          name: emp?.userid?.name,
-          employeeId: emp._id,
-          profileImage: emp?.profileimage
-        },
-      ],
-        { session }
-      );
+      let ledger = await Ledger.findOne({ employeeId: emp._id }).session(session);
+      
+      if (!ledger) {
+        [ledger] = await Ledger.create(
+          [
+            {
+              companyId: emp.companyId,
+              name: emp?.employeeName || emp?.userid?.name || "Unknown",
+              employeeId: emp._id,
+              empId: emp.empId,
+              profileImage: emp?.profileimage,
+              ledgerType: 'employee'
+            },
+          ],
+          { session }
+        );
+      } else {
+        // Update existing ledger if needed (sync empId/name)
+        let updated = false;
+        if (ledger.empId !== emp.empId) { ledger.empId = emp.empId; updated = true; }
+        if (ledger.ledgerType !== 'employee') { ledger.ledgerType = 'employee'; updated = true; }
+        if (updated) await ledger.save({ session });
+      }
 
-      // 3️⃣ Save ledgerId to employee
-      emp.ledgerId = ledger._id;
-      await emp.save({ session });
+      // Ensure employee record is linked
+      if (!emp.ledgerId || emp.ledgerId.toString() !== ledger._id.toString()) {
+        emp.ledgerId = ledger._id;
+        await emp.save({ session });
+      }
     }
 
     await session.commitTransaction();
-    console.log("ledgerid attached to each employee")
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) await session.abortTransaction();
     console.error("Ledger creation error:", error);
   } finally {
     session.endSession();
   }
 };
 
-const deleteLedgerIdfield = async () => {
+const ledger = async (req, res) => {
   try {
-    const result = await employee.updateMany(
-      {},
-      { $unset: { ledgerId: "" } }
+    const companyId = req.user.companyId;
+    
+    // Auto-sync ledgers for active employees
+    await createLedgerForEmployee(companyId);
+
+    // Fetch all ledgers for this company/user
+    const ledgers = await Ledger.find({
+      companyId: companyId,
+      $or: [
+        { userId: req.userid }, // Ledgers created by this user
+        { userId: { $exists: false } }, // Common ledgers
+        { userId: null }
+      ]
+    }).populate({
+      path: 'employeeId',
+      select: 'status'
+    });
+
+    // Filter: Visible only if it's custom OR it's an active employee
+    const visibleLedgers = ledgers.filter(l => {
+      if (l.ledgerType === 'custom') return true;
+      if (l.ledgerType === 'employee') {
+        return l.employeeId && l.employeeId.status === true;
+      }
+      return true; // Fallback
+    });
+
+    const ledgersWithBalance = await Promise.all(
+      visibleLedgers.map(async (ledger) => {
+        const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
+          .sort({ date: -1, _id: -1 });
+
+        return {
+          ...ledger.toObject(),
+          netBalance: lastEntry ? lastEntry.balance : 0
+        };
+      })
     );
 
-    console.log(`ledgerId removed from ${result.modifiedCount} employees`);
-  } catch (error) {
-    console.error("Ledger creation error:", error);
+    res.json({ ledgers: ledgersWithBalance });
+  } catch (err) {
+    console.error("Error fetching ledgers:", err);
+    res.status(500).json({ error: "Failed to fetch ledgers" });
   }
 };
 
-// createLedgerForEmployee();
-// deleteLedgerIdfield()
+
 
 const createLedger = async (req, res) => {
   try {
@@ -154,7 +191,12 @@ const createLedger = async (req, res) => {
       return res.status(400).json({ message: "Ledger with this name already exists." });
     }
 
-    const ledger = new Ledger({ companyId: req.user.companyId, name, userId: req.userid });
+    const ledger = new Ledger({ 
+      companyId: req.user.companyId, 
+      name, 
+      userId: req.userid,
+      ledgerType: 'custom' // Explicitly custom
+    });
 
     if (req.file) {
       const uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -177,8 +219,6 @@ const createLedger = async (req, res) => {
   }
 };
 
-
-// Update a ledger name
 const updateLedger = async (req, res) => {
   try {
     const { name } = req.body;
@@ -205,7 +245,7 @@ const updateLedger = async (req, res) => {
 
       // Optionally delete old image from Cloudinary
       if (profileImage && profileImage !== "") {
-        await removePhotoBySecureUrl([profileImage]);  // assuming this helper exists and works as expected
+        await removePhotoBySecureUrl([profileImage]);
       }
     }
 
@@ -222,8 +262,6 @@ const updateLedger = async (req, res) => {
   }
 };
 
-
-// Get all ledgers and entries for user
 const ledgerEntries = async (req, res) => {
   try {
     const ledgers = await Ledger.find({ userId: req.userid });
@@ -233,46 +271,6 @@ const ledgerEntries = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch ledgers" });
   }
 };
-
-const ledger = async (req, res) => {
-  try {
-    // const ledgers = await Ledger.find({ userId: req.userid });
-
-    // finding personal & common ledgers
-    const ledgers = await Ledger.find({
-      $or: [
-        // case: userId field is present and matches
-        { userId: req.userid },
-
-        // case: userId is missing OR null, and companyId matches
-        {
-          $and: [
-            { $or: [{ userId: { $exists: false } }, { userId: null }] },
-            { companyId: req.user.companyId }
-          ]
-        }
-      ]
-    });
-
-    const ledgersWithBalance = await Promise.all(
-      ledgers.map(async (ledger) => {
-        const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
-          .sort({ date: -1, _id: -1 });
-
-        return {
-          ...ledger.toObject(),
-          netBalance: lastEntry ? lastEntry.balance : 0
-        };
-      })
-    );
-
-    res.json({ ledgers: ledgersWithBalance });
-  } catch (err) {
-    console.error("Error fetching ledgers:", err);
-    res.status(500).json({ error: "Failed to fetch ledgers" });
-  }
-};
-
 
 const Entries = async (req, res) => {
   try {
@@ -305,28 +303,9 @@ const deleteLedger = async (req, res) => {
   }
 };
 
-// Helper: Recalculate balances
+// Helper: Recalculate balances (DEPRECATED - Use AccountingService atomic updates)
 const recalculateBalances = async (ledgerId, userId) => {
-  const entries = await Entry.find({ ledgerId }).sort({ date: 1, _id: 1 });
-  let balance = 0;
-
-  for (let entry of entries) {
-    // Balance = Credits (+) - Debits (-)
-    // This matches the user's preference for Credit being disbursement and Debit being recovery
-    balance += (entry.credit || 0) - (entry.debit || 0);
-    entry.balance = balance;
-    await entry.save();
-  }
-
-  // Update Ledger summary
-  await Ledger.findByIdAndUpdate(ledgerId, { advance: balance });
-  
-  // Update Employee summary
-  const ledger = await Ledger.findById(ledgerId);
-  if (ledger && ledger.employeeId) {
-    const employee = mongoose.model('employee');
-    await employee.findByIdAndUpdate(ledger.employeeId, { advance: balance });
-  }
+  console.warn("recalculateBalances called - This is deprecated and logic should move to AccountingService");
 };
 
 // Create entry
@@ -334,69 +313,75 @@ const createEntry = async (req, res) => {
   try {
     const { ledgerId, date, particular, debit, credit } = req.body;
 
-    const entryDate = new Date(date);
-    if (isNaN(entryDate)) {
-      return res.status(400).json({ error: "Invalid date format" });
-    }
+    const ledger = await Ledger.findById(ledgerId);
+    if (!ledger) return res.status(404).json({ error: "Ledger not found" });
 
-    const newEntry = await Entry.create({
-      userId: req.userid,
-      ledgerId,
-      date: entryDate,
-      particular,
-      debit,
-      credit
+    const type = Number(credit) > 0 ? 'CREDIT' : 'DEBIT';
+    const amount = Number(credit) > 0 ? credit : debit;
+
+    await accountingService.recordLedgerEntry({
+      employeeId: ledger.employeeId,
+      companyId: req.user.companyId,
+      date: new Date(date),
+      type,
+      amount,
+      source: 'manual',
+      remarks: particular
     });
 
-    await recalculateBalances(ledgerId, req.userid);
-    res.status(201).json({ message: "Entry Created" });
+    res.status(201).json({ message: "Entry Created successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to create entry", details: err.message });
   }
 };
 
-// Update entry
+// Update entry (DISABLED for Audit Integrity)
 const updateEntry = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
+    session.startTransaction();
     const { id } = req.params;
-    const { date, ...rest } = req.body;
+    const { date, particular, debit, credit } = req.body;
 
-    const updatedFields = {
-      ...rest
-    };
+    const updatedEntry = await accountingService.updateLedgerEntry(id, {
+      date,
+      particular,
+      debit,
+      credit
+    }, session);
 
-    if (date) {
-      const parsedDate = new Date(date);
-      if (isNaN(parsedDate)) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
-      updatedFields.date = parsedDate;
-    }
-
-    const entry = await Entry.findByIdAndUpdate(id, updatedFields, { new: true });
-    if (!entry) return res.status(404).json({ message: "Entry not found" });
-
-    await recalculateBalances(entry.ledgerId, entry.userId);
-    res.status(200).json({ message: "Edited Successfully" });
+    await session.commitTransaction();
+    res.status(200).json({ 
+      message: "Entry updated successfully. Balances have been recalculated.",
+      entry: updatedEntry 
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update entry" });
+    await session.abortTransaction();
+    console.error("Entry update error:", err);
+    res.status(500).json({ error: "Failed to update entry", details: err.message });
+  } finally {
+    session.endSession();
   }
 };
 
-// Delete entry
+// Delete entry (Hard delete with balance propagation)
 const deleteEntry = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
+    session.startTransaction();
     const { id } = req.params;
-    const entry = await Entry.findByIdAndDelete(id);
-    if (entry) {
-      await recalculateBalances(entry.ledgerId, entry.userId);
-    }
-    res.status(200).json({ message: "Entry deleted" });
+    
+    await accountingService.deleteLedgerEntry(id, session);
+    
+    await session.commitTransaction();
+    res.status(200).json({ message: "Entry deleted and balances recalculated successfully" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to delete entry" });
+    await session.abortTransaction();
+    console.error("Entry deletion error:", err);
+    res.status(500).json({ error: "Failed to delete entry", details: err.message });
+  } finally {
+    session.endSession();
   }
 };
 
