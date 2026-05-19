@@ -292,6 +292,76 @@ const updateleavebalance = async (req, res) => {
   }
 };
 
+// 👥 Bulk add leave balance to all active employees
+const bulkAddLeaveBalance = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { policyId, type, amount: rawAmount, remarks } = req.body;
+    const amount = Number(rawAmount);
+
+    if (isNaN(amount)) {
+      throw new Error("Invalid amount provided");
+    }
+
+    if (!policyId) {
+      throw new Error("Policy ID is required");
+    }
+
+    const companyId = req.user.companyId;
+
+    // Find all active employees in this company
+    const Employee = require("../models/employee");
+    const activeEmployees = await Employee.find({ companyId, status: { $ne: false } }).session(session);
+
+    if (activeEmployees.length === 0) {
+      return res.status(400).json({ success: false, message: "No active employees found" });
+    }
+
+    for (const emp of activeEmployees) {
+      // Get current balance
+      const currentBalance = await LeaveBalance.findOne({ employeeId: emp._id, policyId }).session(session);
+      const balanceBefore = currentBalance ? currentBalance.remaining : 0;
+
+      // Create Transaction
+      await LeaveTransaction.create([{
+        employeeId: emp._id,
+        policyId,
+        type: type === "credit" ? "credit" : "debit",
+        days: amount,
+        balanceBefore,
+        balanceAfter: type === "credit" ? balanceBefore + amount : balanceBefore - amount,
+        source: 'manual',
+        remarks: remarks || "Bulk leave adjustment"
+      }], { session });
+    }
+
+    await session.commitTransaction();
+
+    // Recalculate summaries asynchronously
+    for (const emp of activeEmployees) {
+      recalculateLeaveBalances(emp._id, policyId).catch((err) =>
+        console.error(`Error recalculating leave for employee ${emp._id}:`, err.message)
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Leave balance added to ${activeEmployees.length} employees successfully`,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Error in bulk add leave balance:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: err.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
 module.exports = {
     recalculateLeaveBalances,
     addleavebalance,
@@ -300,5 +370,6 @@ module.exports = {
     deleteleavebalance,
     getMyLeaveBalance,
     getMyLeaveTransactions,
-    updateleavebalance
+    updateleavebalance,
+    bulkAddLeaveBalance
 };

@@ -56,6 +56,7 @@ const Leaveledger = () => {
     });
     const navigate = useNavigate();
     const [editingId, setEditingId] = useState(null);
+    const [isBulk, setIsBulk] = useState(false);
     const { company, employee, leaveBalance, branch, department, leavePolicies } = useSelector((state) => state.user);
 
     useEffect(() => {
@@ -80,6 +81,7 @@ const Leaveledger = () => {
     };
 
     const handleOpen = (row = null) => {
+        setIsBulk(false);
         if (row) {
             setForm({
                 employeeId: row.employeeId?._id || "",
@@ -106,6 +108,21 @@ const Leaveledger = () => {
         setOpen(true);
     };
 
+    const handleBulkOpen = () => {
+        setIsBulk(true);
+        setForm({
+            employeeId: "all",
+            companyId: "",
+            branchId: "",
+            type: "credit",
+            amount: 0,
+            policyId: "",
+            remarks: "",
+        });
+        setEditingId(null);
+        setOpen(true);
+    };
+
     const filteredEmployees = rows?.filter(emp => {
         const name = emp.employeeId?.userid?.name?.toLowerCase() || '';
         const branchId = emp.branchId || '';
@@ -122,10 +139,22 @@ const Leaveledger = () => {
 
     // ✅ Submit (Create or Update)
     const handleSubmit = async () => {
-        if (!form.employeeId) return toast.warning("Please select Employee")
+        if (!isBulk && !form.employeeId) return toast.warning("Please select Employee")
         if (form.amount < 1) return toast.warning("Please enter No. of Leaves")
         try {
-            if (editingId) {
+            if (isBulk) {
+                await apiClient({
+                    url: `leave-balances/bulk`,
+                    method: "POST",
+                    body: {
+                        policyId: form.policyId,
+                        type: form.type,
+                        amount: form.amount,
+                        remarks: form.remarks
+                    }
+                });
+                toast.success("Bulk leave balance added successfully");
+            } else if (editingId) {
                 await apiClient({
                     url: `leave-balances/${editingId}`,
                     method: "PUT",
@@ -183,7 +212,10 @@ const Leaveledger = () => {
         { name: "S.no", selector: (row, ind) => ind + 1, width: '60px' },
         {
             name: "Employee",
-            selector: (row) => (<div className="flex items-center capitalize gap-3 ">
+            selector: (row) => row?.employeeId?.userid?.name || "",
+            sortable: true,
+            minWidth: '160px',
+            cell: (row) => (<div className="flex items-center capitalize gap-2">
                 <Avatar
                     // src={row?.employeeId?.profileimage || employepic} 
                     src={cloudinaryUrl(row?.employeeId?.profileimage, {
@@ -191,32 +223,30 @@ const Leaveledger = () => {
                         width: 100,
                         height: 100,
                     }) || employepic}
-                    alt={row?.employeeId?.userid?.name}>
+                    alt={row?.employeeId?.userid?.name}
+                    sx={{ width: 32, height: 32 }}
+                >
                     {!row?.employeeId?.profileimage && employepic}
                 </Avatar>
                 <Box>
-                    <Typography variant="body2">{row?.employeeId?.userid?.name}</Typography>
-                    <p className="t text-[10px] text-gray-600">({row?.employeeId?.designation})</p>
+                    <Typography variant="body2" sx={{ fontSize: '0.825rem' }}>{row?.employeeId?.userid?.name}</Typography>
+                    <p className="text-[10px] text-gray-500">({row?.employeeId?.designation})</p>
                 </Box>
             </div>),
-            sortable: true,
-            minWidth: '220px',
         },
         // { name: "Type", selector: (row) => row.type, sortable: true, width: '90px' },
-        { name: "Total Allotted", selector: (row) => row.totalAllocated, sortable: true, width: '120px' },
-        { name: "Used", selector: (row) => row.used, sortable: true, width: '100px' },
+        { name: "Total Allotted", selector: (row) => row.totalAllocated, sortable: true },
+        { name: "Used", selector: (row) => row.used, sortable: true },
         { 
             name: "Remaining", 
             selector: (row) => row.remaining, 
             sortable: true, 
-            width: '120px',
             cell: (row) => (
                 <Typography sx={{ fontWeight: 'bold', color: row.remaining < 0 ? 'red' : 'green' }}>
                     {row.remaining}
                 </Typography>
             )
         },
-        { name: "Policy", selector: (row) => row.policyId?.name || "-", sortable: true, minWidth: '150px' },
         {
             name: "Actions",
             cell: (row) => (
@@ -352,20 +382,27 @@ const Leaveledger = () => {
                         </Select>
                     </FormControl> */}
                 </div>
-                <div className="w-full md:w-fit">
+                <div className="w-full md:w-fit flex flex-wrap gap-2">
+                    <Button
+                        className="w-full md:w-fit"
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => handleBulkOpen()}
+                    >
+                        Bulk Add Leave
+                    </Button>
                     <Button
                         className="w-full md:w-fit"
                         variant="contained"
                         color="primary"
                         onClick={() => handleOpen()}
-
                     >
                         Add Leave Balance
                     </Button>
                 </div>
             </div>
 
-            <div className="w-full overflow-x-auto rounded-lg shadow border border-gray-100 bg-white">
+            <div className="w-full rounded-lg shadow border border-gray-100 bg-white">
                 <DataTable
                     columns={columns}
                     data={filteredEmployees}
@@ -380,36 +417,54 @@ const Leaveledger = () => {
             <Modalbox open={open} outside={false} onClose={handleClose}>
                 <div className="membermodal w-[500px]">
                     <div className='whole'>
-                        <div className='modalhead'> {editingId ? "Edit Leave Balance" : "Add Leave Balance"}</div>
+                        <div className='modalhead'> {isBulk ? "Bulk Add Leave Balance" : editingId ? "Edit Leave Balance" : "Add Leave Balance"}</div>
                         <form onSubmit={handleSubmit}>
                             <span className="modalcontent ">
                                 <div className='flex flex-col gap-3 w-full'>
-                                    <FormControl className="w-full mt-4" >
-                                        <InputLabel>Select Employee</InputLabel>
-                                        <Select
+                                    {isBulk ? (
+                                        <TextField
+                                            disabled
+                                            size="small"
                                             label="Select Employee"
-                                            value={form.employeeId}
-                                            onChange={setEmployee}
-                                        >
-                                            <MenuItem value="">Select Employee</MenuItem>
-                                            {employee?.map((emp) => (
-                                                <MenuItem key={emp._id} value={emp._id}>
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar
-                                                            // src={emp?.profileimage}
-                                                            src={cloudinaryUrl(emp?.profileimage, {
-                                                                format: "webp",
-                                                                width: 100,
-                                                                height: 100,
-                                                            })}
-                                                            sx={{ width: 24, height: 24 }}
-                                                        />
-                                                        {emp.userid?.name}
-                                                    </div>
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+                                            value="All Active Employees"
+                                            fullWidth
+                                            className="mt-4"
+                                        />
+                                    ) : (
+                                        <FormControl className="w-full mt-4" >
+                                            <InputLabel>Select Employee</InputLabel>
+                                            <Select
+                                                label="Select Employee"
+                                                value={form.employeeId}
+                                                onChange={setEmployee}
+                                                MenuProps={{
+                                                    PaperProps: {
+                                                        style: {
+                                                            maxHeight: 250,
+                                                        },
+                                                    },
+                                                }}
+                                            >
+                                                <MenuItem value="">Select Employee</MenuItem>
+                                                {employee?.filter(emp => emp.status !== false).map((emp) => (
+                                                    <MenuItem key={emp._id} value={emp._id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <Avatar
+                                                                // src={emp?.profileimage}
+                                                                src={cloudinaryUrl(emp?.profileimage, {
+                                                                    format: "webp",
+                                                                    width: 100,
+                                                                    height: 100,
+                                                                })}
+                                                                sx={{ width: 24, height: 24 }}
+                                                            />
+                                                            {emp.userid?.name}
+                                                        </div>
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    )}
 
                                     <FormControl className="w-full" size="small">
                                         <InputLabel>Leave Policy</InputLabel>
