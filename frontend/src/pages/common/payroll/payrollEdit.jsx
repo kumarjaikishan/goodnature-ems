@@ -108,13 +108,13 @@ export default function PayrollEdit() {
   useEffect(() => {
     if (!selectedEmployeedetail || !leaveBalance) return;
 
-    const latest = leaveBalance
-      .filter(e => e.employeeId?._id?.toString() === selectedEmployeedetail._id?.toString())
-      .slice() // clone so sort doesn’t mutate original
-      .sort((a, b) => new Date(b.date) - new Date(a.date))?.[0];
+    const employeeBalances = leaveBalance.filter(
+      (e) => e.employeeId?._id?.toString() === selectedEmployeedetail._id?.toString()
+    );
+    const totalRemaining = employeeBalances.reduce((sum, item) => sum + (item.remaining || 0), 0);
 
-    setemployeeleavebal(latest?.balance + options?.adjustedLeaveCount)
-  }, [leaveBalance, selectedEmployeedetail]);
+    setemployeeleavebal(totalRemaining + (options?.adjustedLeaveCount || 0));
+  }, [leaveBalance, selectedEmployeedetail, options?.adjustedLeaveCount]);
 
   useEffect(() => {
     if (!selectedEmployeedetail) return;
@@ -124,13 +124,27 @@ export default function PayrollEdit() {
   useEffect(() => {
     if (!data) return;
     // console.log(data)
+
+    const autoBonusNames = ["Overtime"];
+    const autoDeductionNames = ["Short Time", "Absent", "Advance", "Paid Leave Adjustment", "Unpaid Leave"];
+
+    const loadedAllowances = (data.allowances || []).map(a => ({ ...a, inputDisabled: false }));
+    const loadedBonuses = (data.bonuses || []).map(b => ({
+      ...b,
+      inputDisabled: autoBonusNames.includes(b.name)
+    }));
+    const loadedDeductions = (data.deductions || []).map(d => ({
+      ...d,
+      inputDisabled: autoDeductionNames.includes(d.name)
+    }));
+
     setForm({
       month: data.month,
       year: data.year,
       calculationBasis: "monthDays", // ✅ new: monthDays | workingDays
-      allowances: data.allowances,
-      bonuses: data.bonuses,
-      deductions: data.deductions,
+      allowances: loadedAllowances,
+      bonuses: loadedBonuses,
+      deductions: loadedDeductions,
       leaveDays: data.leave,
       absentDays: data.absent,
       presentDays: data.present,
@@ -139,9 +153,10 @@ export default function PayrollEdit() {
     })
     setOptions(data?.options);
     // console.log(data?.options)
-    setSelectedEmployeedetail(employee?.filter(e => e._id == data.employeeId)[0]);
-    setSelectedEmployee(data.employeeId)
-  }, [data])
+    const empId = data.employeeId?._id || data.employeeId;
+    setSelectedEmployeedetail(employee?.find(e => e._id === empId) || null);
+    setSelectedEmployee(empId || '');
+  }, [data, employee])
 
   const [form, setForm] = useState({
     month: new Date().getMonth() + 1,

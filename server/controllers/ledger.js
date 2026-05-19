@@ -344,6 +344,16 @@ const updateEntry = async (req, res) => {
     const { id } = req.params;
     const { date, particular, debit, credit } = req.body;
 
+    const entry = await Entry.findById(id).session(session);
+    if (!entry) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: "Entry not found" });
+    }
+    if (entry.source === "payroll" || entry.source === "salary") {
+      await session.abortTransaction();
+      return res.status(400).json({ error: "This entry belongs to a payroll salary voucher and cannot be edited directly from the ledger." });
+    }
+
     const updatedEntry = await accountingService.updateLedgerEntry(id, {
       date,
       particular,
@@ -372,6 +382,16 @@ const deleteEntry = async (req, res) => {
     session.startTransaction();
     const { id } = req.params;
     
+    const entry = await Entry.findById(id).session(session);
+    if (!entry) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: "Entry not found" });
+    }
+    if (entry.source === "payroll" || entry.source === "salary") {
+      await session.abortTransaction();
+      return res.status(400).json({ error: "This entry belongs to a payroll salary voucher and cannot be deleted directly from the ledger." });
+    }
+
     await accountingService.deleteLedgerEntry(id, session);
     
     await session.commitTransaction();

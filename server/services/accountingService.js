@@ -58,30 +58,49 @@ class AccountingService {
    * @param {Number} grossSalary 
    * @param {mongoose.ClientSession} session 
    */
-  async syncSalaryVoucher(voucherId, grossSalary, session) {
+  async syncSalaryVoucher(voucherId, newEntries, remarks, session) {
     if (!voucherId) return;
 
-    const voucher = await Voucher.findById(voucherId).session(session);
+    // Support both (voucherId, newEntries, remarks, session) and (voucherId, newEntries, session)
+    let actualSession = session;
+    let actualRemarks = remarks;
+    if (remarks && typeof remarks === 'object' && remarks.constructor.name === 'ClientSession') {
+      actualSession = remarks;
+      actualRemarks = undefined;
+    }
+
+    const voucher = await Voucher.findById(voucherId).session(actualSession);
     if (!voucher) return;
 
-    // 1. Update Voucher Document
-    voucher.entries.forEach(entry => {
-      // Update both Debit (Expense) and Credit (Payable) to the new grossSalary
-      entry.amount = grossSalary;
-    });
-    await voucher.save({ session });
+    // 1. Update Voucher Document entries and remarks
+    voucher.entries = newEntries;
+    if (actualRemarks) {
+      voucher.remarks = actualRemarks;
+    }
+    await voucher.save({ session: actualSession });
 
     // 2. Update the corresponding Ledger Entry (Credit)
-    // We find the entry by voucherId and source: 'payroll' (or whatever referenceType was used)
     const entry = await Entry.findOne({ 
-      voucherId: voucher._id,
-      ledgerId: { $exists: true } // Ensure it's a ledger entry, not just any entry
-    }).session(session);
+      referenceId: voucher.referenceId,
+      source: 'payroll',
+      ledgerId: { $exists: true }
+    }).session(actualSession);
 
     if (entry) {
-      entry.credit = grossSalary;
-      entry.particular = voucher.remarks + " (Edited)";
-      await entry.save({ session });
+      // Find the employee payable entry in the new list to get the new netSalary
+      const payableEntry = newEntries.find(e => 
+        e.accountName.toLowerCase().includes('payable') || 
+        e.accountName.toLowerCase().includes('employee')
+      );
+      const newAmount = payableEntry ? payableEntry.amount : 0;
+      
+      // Update entry and propagate balance updates
+      await this.updateLedgerEntry(entry._id, {
+        credit: entry.debit > 0 ? 0 : newAmount,
+        debit: entry.debit > 0 ? newAmount : 0,
+        particular: voucher.remarks + " (Edited)",
+        date: entry.date
+      }, actualSession);
     }
   }
 

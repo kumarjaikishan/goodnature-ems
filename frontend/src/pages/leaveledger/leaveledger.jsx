@@ -31,6 +31,7 @@ import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import { FirstFetch } from "../../../store/userSlice";
 import LeaveHistoryModal from "./components/LeaveHistoryModal";
 import { MdHistory } from "react-icons/md";
+import { useCustomStyles } from "../admin/attandence/attandencehelper";
 
 const Leaveledger = () => {
     const [rows, setRows] = useState([]);
@@ -199,6 +200,7 @@ const Leaveledger = () => {
                 </Box>
             </div>),
             sortable: true,
+            minWidth: '220px',
         },
         // { name: "Type", selector: (row) => row.type, sortable: true, width: '90px' },
         { name: "Total Allotted", selector: (row) => row.totalAllocated, sortable: true, width: '120px' },
@@ -214,7 +216,7 @@ const Leaveledger = () => {
                 </Typography>
             )
         },
-        { name: "Policy", selector: (row) => row.policyId?.name || "-", sortable: true },
+        { name: "Policy", selector: (row) => row.policyId?.name || "-", sortable: true, minWidth: '150px' },
         {
             name: "Actions",
             cell: (row) => (
@@ -252,7 +254,7 @@ const Leaveledger = () => {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto  md:p-3 p-1">
+        <div className="max-w-6xl mx-auto w-full min-w-0 md:p-3 p-1">
             {/* <h2>Leave Balance Management</h2> */}
             <div className="flex my-3 items-center flex-wrap justify-between gap-2 mt-1 w-full">
                 {/* Search (full on small, shrink on md+) */}
@@ -363,14 +365,17 @@ const Leaveledger = () => {
                 </div>
             </div>
 
-            <DataTable
-                columns={columns}
-                data={filteredEmployees}
-                pagination
-                highlightOnHover
-                striped
-                responsive
-            />
+            <div className="w-full overflow-x-auto rounded-lg shadow border border-gray-100 bg-white">
+                <DataTable
+                    columns={columns}
+                    data={filteredEmployees}
+                    pagination
+                    highlightOnHover
+                    striped
+                    responsive
+                    customStyles={useCustomStyles()}
+                />
+            </div>
 
             <Modalbox open={open} outside={false} onClose={handleClose}>
                 <div className="membermodal w-[500px]">

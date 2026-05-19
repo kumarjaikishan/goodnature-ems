@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import {
   Card,
@@ -34,6 +34,10 @@ import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 
 export default function PayrollPage() {
   const { employeeId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlMonth = Number(searchParams.get("month"));
+  const urlYear = Number(searchParams.get("year"));
+
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [payroll, setPayroll] = useState([]);
@@ -45,8 +49,8 @@ export default function PayrollPage() {
   const [filters, setFilters] = useState({
     searchText: '',
     branch: 'all',
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
+    month: urlMonth || new Date().getMonth() + 1,
+    year: urlYear || new Date().getFullYear(),
   });
 
   const { employee, branch, profile } = useSelector((state) => state.user);
@@ -54,6 +58,29 @@ export default function PayrollPage() {
   useEffect(() => {
     fetchPayroll();
   }, []);
+
+  useEffect(() => {
+    if (!searchParams.get("month") || !searchParams.get("year")) {
+      setSearchParams(params => {
+        const newParams = new URLSearchParams(params);
+        if (!newParams.get("month")) newParams.set("month", filters.month);
+        if (!newParams.get("year")) newParams.set("year", filters.year);
+        return newParams;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const m = Number(searchParams.get("month"));
+    const y = Number(searchParams.get("year"));
+    if (m || y) {
+      setFilters(prev => ({
+        ...prev,
+        month: m || prev.month,
+        year: y || prev.year,
+      }));
+    }
+  }, [searchParams]);
 
   const fetchPayroll = async () => {
     try {
@@ -71,7 +98,17 @@ export default function PayrollPage() {
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      const newFilters = { ...prev, [key]: value };
+      if (key === 'month' || key === 'year') {
+        setSearchParams(params => {
+          const newParams = new URLSearchParams(params);
+          newParams.set(key, value);
+          return newParams;
+        });
+      }
+      return newFilters;
+    });
   };
 
   // Filter employees based on search and branch
@@ -92,7 +129,7 @@ export default function PayrollPage() {
 
   // Action handlers
   const handleGenerate = (emp) => {
-    navigate(`/dashboard/payroll/add`, {
+    navigate(`/dashboard/payroll/add?employeeId=${emp._id}&month=${filters.month}&year=${filters.year}`, {
       state: { employeee: emp, month: filters.month, year: filters.year }
     });
   };

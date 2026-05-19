@@ -140,6 +140,7 @@ router.route('/leave-balances')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), leaveBalance.getallleavebalnce)
   .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.addleavebalance)
 router.route('/leave-balances/:id')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.updateleavebalance)
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.deleteleavebalance)
 
 // Leave Transactions (Admin View)

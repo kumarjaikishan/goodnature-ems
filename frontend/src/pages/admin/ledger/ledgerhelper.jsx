@@ -59,9 +59,19 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate) =
                     </span>
                 )
             }
-            // 🔹 If salary → show text only
-            if (row.source === "salary") {
-                return `From salary`;
+            // 🔹 If salary/payroll → redirect to payroll edit page
+            if (row.source === "payroll" || row.source === "salary") {
+                return (
+                    <MdEdit
+                        className="edit text-[18px] text-teal-600 cursor-pointer"
+                        title="Edit Salary Payroll (Redirect)"
+                        onClick={() => {
+                            if (row.referenceId) {
+                                navigate(`/dashboard/payroll/edit/${row.referenceId}`);
+                            }
+                        }}
+                    />
+                );
             }
 
             // 🔹 Default edit/delete

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { useParams, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import {
   Card,
@@ -41,10 +41,23 @@ export default function PayrollCreatePage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { employeeId } = useParams();
   const [employees, setEmployees] = useState([]);
-  const [selectedEmployee, setSelectedEmployee] = useState(employeeId || "");
-  const [selectedEmployeedetail, setSelectedEmployeedetail] = useState(null);
+  
+  const stateEmployee = location.state?.employeee;
+  const stateMonth = location.state?.month;
+  const stateYear = location.state?.year;
+
+  const urlEmployeeId = searchParams.get("employeeId");
+  const urlMonth = Number(searchParams.get("month"));
+  const urlYear = Number(searchParams.get("year"));
+
+  const month = stateMonth || urlMonth || (new Date().getMonth() + 1);
+  const year = stateYear || urlYear || new Date().getFullYear();
+
+  const [selectedEmployee, setSelectedEmployee] = useState(stateEmployee?._id || employeeId || urlEmployeeId || "");
+  const [selectedEmployeedetail, setSelectedEmployeedetail] = useState(stateEmployee || null);
   const [perminuteRate, setminuteRate] = useState(0)
   const [perDayRate, setPerDayRate] = useState(0)
   const [holidaydate, setholidaydate] = useState([]);
@@ -52,18 +65,22 @@ export default function PayrollCreatePage() {
   const [employeeleavebal, setemployeeleavebal] = useState(0);
   const [previousAdvance, setpreviousAdvance] = useState(0);
 
-  // The employee, month, and year from the previous page
-  const { employeee, month, year } = location.state || {};
+  useEffect(() => {
+    if (!stateEmployee && urlEmployeeId && employees.length > 0) {
+      const found = employees.find(e => e._id === urlEmployeeId);
+      if (found) {
+        setSelectedEmployeedetail(found);
+      }
+    }
+  }, [selectedEmployee, employees, stateEmployee, urlEmployeeId]);
 
   useEffect(() => {
-    if (!employeee) {
-      // Optional: Redirect or show error if no employee data is passed
+    if (!stateEmployee && !urlEmployeeId) {
       console.error("No employee data provided");
     } else {
-      setSelectedEmployee(employeee?._id)
-      console.log(location.state)
+      console.log(location.state || { employeeId: urlEmployeeId, month, year });
     }
-  }, [employeee]);
+  }, [stateEmployee, urlEmployeeId]);
 
   const { holidays, company, employee, attandence, leaveBalance, advance, payroll } = useSelector(
     (state) => state.user
@@ -114,16 +131,14 @@ export default function PayrollCreatePage() {
   };
 
   useEffect(() => {
-
     if (!selectedEmployeedetail || !leaveBalance) return;
 
-    const latest = leaveBalance
-      .filter(e => e.employeeId?._id?.toString() === selectedEmployeedetail._id?.toString())
-      .slice() // clone so sort doesn’t mutate original
-      .sort((a, b) => new Date(b.date) - new Date(a.date))?.[0];
+    const employeeBalances = leaveBalance.filter(
+      (e) => e.employeeId?._id?.toString() === selectedEmployeedetail._id?.toString()
+    );
+    const totalRemaining = employeeBalances.reduce((sum, item) => sum + (item.remaining || 0), 0);
 
-    // console.log("Latest Leave Balance:", latest);
-    setemployeeleavebal(latest?.balance || 0)
+    setemployeeleavebal(totalRemaining);
   }, [leaveBalance, selectedEmployeedetail]);
 
   const alredyPayroll = useMemo(() => {

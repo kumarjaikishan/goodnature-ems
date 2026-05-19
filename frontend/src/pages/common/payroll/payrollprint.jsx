@@ -119,21 +119,25 @@ export default function PayslipPrintPage() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-center border-b-2 border-slate-800 pb-6 mb-8 relative z-10">
           <div className="flex items-center gap-4 mb-4 md:mb-0">
-            {company.logo && (
+            {(payroll?.companyId?.logo || company?.logo) && (
               <img
-                src={cloudinaryUrl(company.logo, { format: "webp", width: 120, height: 120 })}
+                src={cloudinaryUrl(payroll?.companyId?.logo || company?.logo, { format: "webp", width: 120, height: 120 })}
                 alt="Logo"
                 className="w-16 h-16 md:w-20 md:h-20 object-contain"
               />
             )}
             <div className="text-left">
               <h1 className="text-2xl md:text-3xl font-extra-bold text-slate-800 tracking-tight uppercase">
-                {company?.fullname || 'COMPANY NAME'}
+                {payroll?.companyId?.fullname || payroll?.companyId?.name || company?.fullname || company?.name || 'COMPANY NAME'}
               </h1>
               <p className="text-sm text-slate-600 font-medium max-w-md leading-relaxed">
-                {company?.address || 'Company Address Line 1, City, State'}
+                {payroll?.companyId?.address || company?.address || 'Company Address Line 1, City, State'}
               </p>
-              {company?.phone && <p className="text-xs text-slate-500 mt-1">Contact: {company.phone}</p>}
+              {(payroll?.companyId?.contact || company?.phone) && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Contact: {payroll?.companyId?.contact || company?.phone}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-center md:text-right">
@@ -151,38 +155,40 @@ export default function PayslipPrintPage() {
           <div className="space-y-2">
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Employee Name</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.name}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.name || 'N/A'}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Employee ID</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.empId || 'EMP-XXXX'}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.employeeId?.empId || payroll?.empId || 'N/A'}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Designation</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.designation}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.designation || 'N/A'}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Department</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.department}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.department || 'N/A'}</span>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Date of Joining</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.doj ? dayjs(payroll.doj).format("DD MMM YYYY") : 'N/A'}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.employeeId?.createdAt ? dayjs(payroll.employeeId.createdAt).format("DD MMM YYYY") : 'N/A'}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Bank Name</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.bankName || 'HDFC BANK'}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.employeeId?.bankName || 'N/A'}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 pb-1">
               <span className="text-slate-500 font-semibold text-xs uppercase">Account No</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.accountNo || 'XXXXXXXXXXXX'}</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.employeeId?.acnumber || 'N/A'}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 pb-1">
-              <span className="text-slate-500 font-semibold text-xs uppercase">PAN / UAN</span>
-              <span className="text-slate-800 font-bold text-sm uppercase">{payroll?.pan || 'XXXXXXXXXX'}</span>
+              <span className="text-slate-500 font-semibold text-xs uppercase">PAN / UAN / IFSC</span>
+              <span className="text-slate-800 font-bold text-sm uppercase">
+                {payroll?.employeeId?.pan || 'N/A'} / {payroll?.employeeId?.ifscCode || 'N/A'}
+              </span>
             </div>
           </div>
         </div>
@@ -210,32 +216,40 @@ export default function PayslipPrintPage() {
 
         {/* Earnings & Deductions Table */}
         <div className="grid grid-cols-1 md:grid-cols-2 border border-slate-800 rounded overflow-hidden mb-8 relative z-10">
-          <div className="border-r border-slate-800">
-            <div className="bg-slate-800 text-white px-4 py-2 flex justify-between uppercase font-bold text-xs tracking-wider">
-              <span>Earnings</span>
-              <span>Amount (₹)</span>
-            </div>
-            <div className="p-0 space-y-0 divide-y divide-slate-100">
-              <div className="flex justify-between px-4 py-2 hover:bg-slate-50">
-                <span className="text-slate-700 font-medium text-sm">Basic Salary</span>
-                <span className="text-slate-900 font-bold text-sm">{formatRupee(payroll?.baseSalary || 0)}</span>
+          <div className="border-r border-slate-800 flex flex-col justify-between">
+            <div>
+              <div className="bg-slate-800 text-white px-4 py-2 flex justify-between uppercase font-bold text-xs tracking-wider">
+                <span>Earnings</span>
+                <span>Amount (₹)</span>
               </div>
-              {payroll?.allowances?.map((e, i) => (
-                <div key={i} className="flex justify-between px-4 py-2 hover:bg-slate-50">
-                  <span className="text-slate-700 font-medium text-sm">{e.name}</span>
-                  <span className="text-slate-900 font-bold text-sm">{formatRupee(e.amount)}</span>
+              <div className="p-0 space-y-0 divide-y divide-slate-100">
+                <div className="flex justify-between px-4 py-2 hover:bg-slate-50">
+                  <span className="text-slate-700 font-medium text-sm">Basic Salary</span>
+                  <span className="text-slate-900 font-bold text-sm">{formatRupee(payroll?.baseSalary || 0)}</span>
                 </div>
-              ))}
-              {payroll?.bonuses?.map((e, i) => (
-                <div key={i} className="flex justify-between px-4 py-2 hover:bg-slate-50">
-                  <span className="text-slate-700 font-medium text-sm">{e.name}</span>
-                  <span className="text-slate-900 font-bold text-sm">{formatRupee(e.amount)}</span>
-                </div>
-              ))}
-              {/* Fillers to balance the table height */}
-              {[...Array(Math.max(0, 5 - (payroll?.allowances?.length || 0) - (payroll?.bonuses?.length || 0)))].map((_, i) => (
-                <div key={i} className="px-4 py-4">&nbsp;</div>
-              ))}
+                {payroll?.allowances?.map((e, i) => (
+                  <div key={i} className="flex justify-between px-4 py-2 hover:bg-slate-50">
+                    <div className="flex flex-col">
+                      <span className="text-slate-700 font-medium text-sm">{e.name}</span>
+                      {e.extraInfo && (
+                        <span className="text-[10px] text-gray-500 font-normal italic">{e.extraInfo}</span>
+                      )}
+                    </div>
+                    <span className="text-slate-900 font-bold text-sm">{formatRupee(e.amount)}</span>
+                  </div>
+                ))}
+                {payroll?.bonuses?.map((e, i) => (
+                  <div key={i} className="flex justify-between px-4 py-2 hover:bg-slate-50">
+                    <div className="flex flex-col">
+                      <span className="text-slate-700 font-medium text-sm">{e.name}</span>
+                      {e.extraInfo && (
+                        <span className="text-[10px] text-gray-500 font-normal italic">{e.extraInfo}</span>
+                      )}
+                    </div>
+                    <span className="text-slate-900 font-bold text-sm">{formatRupee(e.amount)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="bg-slate-100 border-t border-slate-300 px-4 py-3 flex justify-between uppercase font-bold text-sm text-slate-800">
               <span>Gross Earnings</span>
@@ -247,22 +261,25 @@ export default function PayslipPrintPage() {
             </div>
           </div>
 
-          <div>
-            <div className="bg-rose-900 text-white px-4 py-2 flex justify-between uppercase font-bold text-xs tracking-wider">
-              <span>Deductions</span>
-              <span>Amount (₹)</span>
-            </div>
-            <div className="p-0 space-y-0 divide-y divide-slate-100">
-              {payroll?.deductions?.map((d, i) => (
-                <div key={i} className="flex justify-between px-4 py-2 hover:bg-slate-50">
-                  <span className="text-slate-700 font-medium text-sm">{d.name}</span>
-                  <span className="text-slate-900 font-bold text-sm">{formatRupee(d.amount)}</span>
-                </div>
-              ))}
-                {/* Fallback space for deductions */}
-               {[...Array(Math.max(0, 6 - (payroll?.deductions?.length || 0)))].map((_, i) => (
-                <div key={i} className="px-4 py-4">&nbsp;</div>
-              ))}
+          <div className="flex flex-col justify-between">
+            <div>
+              <div className="bg-rose-900 text-white px-4 py-2 flex justify-between uppercase font-bold text-xs tracking-wider">
+                <span>Deductions</span>
+                <span>Amount (₹)</span>
+              </div>
+              <div className="p-0 space-y-0 divide-y divide-slate-100">
+                {payroll?.deductions?.map((d, i) => (
+                  <div key={i} className="flex justify-between px-4 py-2 hover:bg-slate-50">
+                    <div className="flex flex-col">
+                      <span className="text-slate-700 font-medium text-sm">{d.name}</span>
+                      {d.extraInfo && (
+                        <span className="text-[10px] text-gray-500 font-normal italic">{d.extraInfo}</span>
+                      )}
+                    </div>
+                    <span className="text-slate-900 font-bold text-sm">{formatRupee(d.amount)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="bg-slate-100 border-t border-slate-300 px-4 py-3 flex justify-between uppercase font-bold text-sm text-slate-800">
               <span>Total Deductions</span>
@@ -294,9 +311,13 @@ export default function PayslipPrintPage() {
           </div>
           <div className="text-center pt-8 border-t border-dashed border-slate-300 relative">
              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 opacity-20">
-                <img src={cloudinaryUrl(company.logo, { width: 100 })} className="h-20 grayscale" alt="stamp" />
+                {(payroll?.companyId?.logo || company?.logo) && (
+                  <img src={cloudinaryUrl(payroll?.companyId?.logo || company?.logo, { width: 100 })} className="h-20 grayscale" alt="stamp" />
+                )}
              </div>
-            <p className="text-xs font-bold uppercase text-slate-700 mb-1">{company.fullname}</p>
+            <p className="text-xs font-bold uppercase text-slate-700 mb-1">
+              {payroll?.companyId?.fullname || payroll?.companyId?.name || company?.fullname || company?.name || 'COMPANY NAME'}
+            </p>
             <p className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">Manager / Authorized Signatory</p>
           </div>
         </div>

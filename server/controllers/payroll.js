@@ -4,11 +4,15 @@ const Employee = require("../models/employee");
 const Entry = require("../models/entry");
 const Advance = require("../models/advance");
 const LeaveBalance = require("../models/leavebalance");
+const LeaveTransaction = require("../models/leaveTransaction");
+const Voucher = require("../models/voucher");
 const { recalculateLeaveBalances } = require("./leaveBalance");
 const LedgerController = require("./ledger");
+const AdvanceController = require("./advance");
 const leaveService = require("../services/leaveService");
 const accountingService = require("../services/accountingService");
-const AdvanceController = require("./advance");
+
+const getMonthName = (m) => ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] || m;
 
 exports.createPayroll = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -93,40 +97,41 @@ exports.createPayroll = async (req, res, next) => {
 
     // 🔹 Handle leave adjustment
     if (options.adjustLeave && options.adjustedLeaveCount > 0) {
-      const latestLeave = await LeaveBalance.findOne({
+      const balances = await LeaveBalance.find({
         employeeId,
         companyId,
-      })
-        .sort({ date: -1, createdAt: -1 })
-        .session(session);
+        remaining: { $gt: 0 }
+      }).session(session);
 
-      const availableLeaves = latestLeave?.balance || 0;
+      const totalAvailable = balances.reduce((sum, b) => sum + (b.remaining || 0), 0);
 
-      if (options.adjustedLeaveCount > availableLeaves) {
+      if (options.adjustedLeaveCount > totalAvailable) {
         throw new Error("Adjusted Leave can't be more than available leaves");
       }
 
-      const newBalance = availableLeaves - options.adjustedLeaveCount;
+      let remainingToDeduct = options.adjustedLeaveCount;
+      for (const bal of balances) {
+        if (remainingToDeduct <= 0) break;
+        const deductAmount = Math.min(bal.remaining, remainingToDeduct);
 
-      await LeaveBalance.create(
-        [
-          {
-            employeeId,
-            companyId,
-            branchId,
-            type: "debit",
-            period: `${month}-${year}`,
-            balance: newBalance,
-            amount: options.adjustedLeaveCount,
-            remarks: `Leave adjusted in Payroll ${month}-${year}`,
-            payrollId: payroll._id,
-            date: new Date().setHours(0, 0, 0, 0),
-          },
-        ],
-        { session }
-      );
+        const tx = new LeaveTransaction({
+          employeeId,
+          policyId: bal.policyId,
+          type: "debit",
+          days: deductAmount,
+          balanceBefore: bal.remaining,
+          balanceAfter: bal.remaining - deductAmount,
+          source: "manual",
+          referenceId: payroll._id,
+          remarks: `Leave adjusted in Payroll ${month}-${year}`
+        });
+        await tx.save({ session });
 
-      await recalculateLeaveBalances(employeeId, companyId);
+        remainingToDeduct -= deductAmount;
+
+        // Recalculate summary balance
+        await recalculateLeaveBalances(employeeId, bal.policyId, session);
+      }
     }
 
     const today = new Date();
@@ -166,7 +171,7 @@ exports.createPayroll = async (req, res, next) => {
         amount: amountToAdjust,
         source: 'adjustment',
         referenceId: payroll._id,
-        remarks: `Advance adjusted in Payroll ${month}-${year}`
+        remarks: `Advance adjusted in Payroll ${getMonthName(month)}-${year}`
       }, session);
 
       // 4. Create an 'adjusted' record in Advance collection for history visibility
@@ -176,7 +181,7 @@ exports.createPayroll = async (req, res, next) => {
         branchId,
         type: "adjusted",
         amount: amountToAdjust,
-        remarks: `Deducted in Payroll ${month}-${year}`,
+        remarks: `Deducted in Payroll ${getMonthName(month)}-${year}`,
         date: entryDate,
         payrollId: payroll._id,
         status: "closed" // History records are always closed
@@ -195,7 +200,7 @@ exports.createPayroll = async (req, res, next) => {
         amount: options.unpaidLeaveCost,
         initialAmount: options.unpaidLeaveCost,
         remainingBalance: options.unpaidLeaveCost,
-        remarks: `Leave adjustment (quota exhausted) in Payroll ${month}-${year}`,
+        remarks: `Leave adjustment (quota exhausted) in Payroll ${getMonthName(month)}-${year}`,
         date: entryDate,
         status: "open",
         payrollId: payroll._id
@@ -210,7 +215,7 @@ exports.createPayroll = async (req, res, next) => {
         amount: options.unpaidLeaveCost,
         source: 'advance',
         referenceId: newAdvance._id,
-        remarks: `Advance created for leave adjustment (Payroll ${month}-${year})`
+        remarks: `Advance created for leave adjustment (Payroll ${getMonthName(month)}-${year})`
       }, session);
     }
 
@@ -229,30 +234,12 @@ exports.createPayroll = async (req, res, next) => {
       ],
       referenceType: 'PAYROLL',
       referenceId: payroll._id,
-      remarks: `Salary Voucher for ${month}-${year}`
+      remarks: `Salary Voucher for ${getMonthName(month)}-${year}`
     };
 
     const salaryVoucher = await accountingService.createVoucher(salaryVoucherData, session);
 
-    // 🔹 Handle Leave Deduction Voucher if there are unpaid leaves
-    // (Assuming unpaid leaves are calculated and passed or detected here)
-    // For this demonstration, if deductions include something like "Unpaid Leave", we create a voucher
-    const leaveDeduction = deductions.find(d => d.name.toLowerCase().includes('leave') || d.name.toLowerCase().includes('absent'));
-    if (leaveDeduction && leaveDeduction.amount > 0) {
-      await accountingService.createVoucher({
-        companyId,
-        branchId,
-        type: 'LEAVE_DEDUCTION',
-        employeeId,
-        entries: [
-          { accountName: 'Employee Payable', type: 'DEBIT', amount: leaveDeduction.amount },
-          { accountName: 'Leave Deduction Account', type: 'CREDIT', amount: leaveDeduction.amount }
-        ],
-        referenceType: 'PAYROLL',
-        referenceId: payroll._id,
-        remarks: `Leave Deduction Voucher for ${month}-${year}`
-      }, session);
-    }
+
 
     // keeping record of salary voucher id in payroll entry
     payroll.voucherId = salaryVoucher._id;
@@ -337,45 +324,59 @@ exports.editPayroll = async (req, res, next) => {
     });
     await payroll.save({ session });
 
-    // 🔹 Handle leave adjustment
-    let leaveAdjustment = await LeaveBalance.findOne({ payrollId: payroll._id }).session(session);
+    // 🔹 Handle leave adjustment rollback/sync
+    const existingLeaveTx = await LeaveTransaction.find({ referenceId: payroll._id }).session(session);
+    const previouslyAffectedPolicies = [...new Set(existingLeaveTx.map(tx => tx.policyId.toString()))];
 
+    // Delete existing transactions
+    await LeaveTransaction.deleteMany({ referenceId: payroll._id }).session(session);
+
+    // Delete any old direct LeaveBalance records if they exist (backward compatibility)
+    await LeaveBalance.deleteMany({ payrollId: payroll._id }).session(session);
+
+    // Recalculate balances for previously affected policies to restore them first
+    for (const policyId of previouslyAffectedPolicies) {
+      await recalculateLeaveBalances(payroll.employeeId, policyId, session);
+    }
+
+    // Now apply new leave adjustments if requested
     if (options?.adjustLeave && options.adjustedLeaveCount > 0) {
-      const latestLeave = await LeaveBalance.findOne({
+      // Find all leave balances with remaining > 0 (reflecting the restored balances)
+      const balances = await LeaveBalance.find({
         employeeId: payroll.employeeId,
         companyId: payroll.companyId,
-        _id: { $ne: leaveAdjustment?._id }
-      }).sort({ date: -1, createdAt: -1 }).session(session);
+        remaining: { $gt: 0 }
+      }).session(session);
 
-      const availableLeaves = latestLeave?.balance || 0;
+      const totalAvailable = balances.reduce((sum, b) => sum + (b.remaining || 0), 0);
       const adjusted = options.adjustedLeaveCount;
-      if (adjusted > availableLeaves) throw new Error("Adjusted Leave can't be more than available leaves");
-      const newBalance = availableLeaves - adjusted;
-
-      if (leaveAdjustment) {
-        leaveAdjustment.amount = adjusted;
-        leaveAdjustment.balance = newBalance;
-        leaveAdjustment.remarks = `Leave adjusted in Payroll ${payroll.month}-${payroll.year}`;
-        leaveAdjustment.date = new Date().setHours(0, 0, 0, 0);
-        await leaveAdjustment.save({ session });
-      } else {
-        leaveAdjustment = new LeaveBalance({
-          employeeId: payroll.employeeId,
-          companyId: payroll.companyId,
-          branchId: payroll.branchId,
-          type: "debit",
-          amount: adjusted,
-          balance: newBalance,
-          remarks: `Leave adjusted in Payroll ${payroll.month}-${payroll.year}`,
-          payrollId: payroll._id,
-          date: new Date().setHours(0, 0, 0, 0),
-        });
-        await leaveAdjustment.save({ session });
+      if (adjusted > totalAvailable) {
+        throw new Error("Adjusted Leave can't be more than available leaves");
       }
-      await recalculateLeaveBalances(payroll.employeeId, payroll.companyId);
-    } else if (leaveAdjustment) {
-      await leaveAdjustment.deleteOne({ session });
-      await recalculateLeaveBalances(payroll.employeeId, payroll.companyId);
+
+      let remainingToDeduct = adjusted;
+      for (const bal of balances) {
+        if (remainingToDeduct <= 0) break;
+        const deductAmount = Math.min(bal.remaining, remainingToDeduct);
+
+        const tx = new LeaveTransaction({
+          employeeId: payroll.employeeId,
+          policyId: bal.policyId,
+          type: "debit",
+          days: deductAmount,
+          balanceBefore: bal.remaining,
+          balanceAfter: bal.remaining - deductAmount,
+          source: "manual",
+          referenceId: payroll._id,
+          remarks: `Leave adjusted in Payroll ${payroll.month}-${payroll.year}`
+        });
+        await tx.save({ session });
+
+        remainingToDeduct -= deductAmount;
+
+        // Recalculate summary balance
+        await recalculateLeaveBalances(payroll.employeeId, bal.policyId, session);
+      }
     }
 
     // 🔹 Handle advance adjustment
@@ -408,7 +409,7 @@ exports.editPayroll = async (req, res, next) => {
       if (mainAdjEntry) {
         mainAdjEntry.credit = newAdjustment;
         mainAdjEntry.debit = 0;
-        mainAdjEntry.particular = `Advance adjusted in Payroll ${payroll.month}-${payroll.year} (Edited)`;
+        mainAdjEntry.particular = `Advance adjusted in Payroll ${getMonthName(payroll.month)}-${payroll.year} (Edited)`;
         await mainAdjEntry.save({ session });
       }
 
@@ -421,7 +422,7 @@ exports.editPayroll = async (req, res, next) => {
       if (newAdjustment > 0) {
         if (adjustmentRecord) {
           adjustmentRecord.amount = newAdjustment;
-          adjustmentRecord.remarks = `Deducted in Payroll ${payroll.month}-${payroll.year} (Edited)`;
+          adjustmentRecord.remarks = `Deducted in Payroll ${getMonthName(payroll.month)}-${payroll.year} (Edited)`;
           await adjustmentRecord.save({ session });
         } else {
           adjustmentRecord = new Advance({
@@ -430,7 +431,7 @@ exports.editPayroll = async (req, res, next) => {
             branchId: payroll.branchId,
             type: "adjusted",
             amount: newAdjustment,
-            remarks: `Deducted in Payroll ${payroll.month}-${payroll.year} (Edited)`,
+            remarks: `Deducted in Payroll ${getMonthName(payroll.month)}-${payroll.year} (Edited)`,
             date: new Date(),
             payrollId: payroll._id,
             status: "closed"
@@ -443,8 +444,20 @@ exports.editPayroll = async (req, res, next) => {
     }
     
     // 🔹 Sync Salary Voucher (Accrual side)
-    if (payroll.voucherId) {
-      await accountingService.syncSalaryVoucher(payroll.voucherId, grossSalary, session);
+    const voucher = await Voucher.findOne({ referenceId: payroll._id, referenceType: 'PAYROLL' }).session(session);
+    if (voucher) {
+      const newEntries = [
+        { accountName: 'Salary Expense', type: 'DEBIT', amount: grossSalary },
+        { accountName: 'Employee Payable', type: 'CREDIT', amount: netSalary },
+        ...(taxAmount > 0 ? [{ accountName: 'Tax Payable', type: 'CREDIT', amount: taxAmount }] : []),
+        ...(deductionTotal > 0 ? [{ accountName: 'Deductions Recovery', type: 'CREDIT', amount: deductionTotal }] : [])
+      ];
+      await accountingService.syncSalaryVoucher(
+        voucher._id, 
+        newEntries, 
+        `Salary Voucher for ${getMonthName(payroll.month)}-${payroll.year}`, 
+        session
+      );
     }
 
     // Note: Net Salary Payout (Debit) is no longer automatically recorded during generation/edit.
@@ -506,7 +519,7 @@ exports.allPayroll = async (req, res, next) => {
 exports.getPayroll = async (req, res, next) => {
   const { id } = req.params;
   try {
-    const payroll = await Payroll.findById(id);
+    const payroll = await Payroll.findById(id).populate("employeeId").populate("companyId");
 
     if (!payroll) {
       return next({ status: 404, message: "Payroll not found" });
@@ -538,10 +551,10 @@ exports.deletePayroll = async (req, res, next) => {
       return next({ status: 404, message: "Payroll not found" });
     }
 
-    // 1. Find all active ledger entries for this payroll and reverse them
-    const entries = await Entry.find({ referenceId: payroll._id, status: 'active' }).session(session);
+    // 1. Find all ledger entries for this payroll and delete them with balance propagation
+    const entries = await Entry.find({ referenceId: payroll._id }).session(session);
     for (const entry of entries) {
-      await accountingService.reverseEntry(entry._id, `Rollback: Deleted Payroll ${payroll.month}-${payroll.year}`, session);
+      await accountingService.deleteLedgerEntry(entry._id, session);
     }
 
     // 2. Rollback Advance adjustments
@@ -553,10 +566,24 @@ exports.deletePayroll = async (req, res, next) => {
       await leaveToAdvance.deleteOne({ session });
     }
 
-    // 4. Delete linked leave adjustment if exists
+    // 4. Delete linked leave adjustment transactions if exists
+    const leaveTransactions = await LeaveTransaction.find({ referenceId: payroll._id }).session(session);
+    const affectedPolicies = [...new Set(leaveTransactions.map(tx => tx.policyId.toString()))];
+    
+    await LeaveTransaction.deleteMany({ referenceId: payroll._id }).session(session);
+    
+    // Also delete any direct LeaveBalance summary entries if they were wrongly created previously (backward compatibility)
     await LeaveBalance.deleteMany({ payrollId: payroll._id }).session(session);
 
-    // 5. Delete payroll
+    // Recalculate balances for all affected policies
+    for (const policyId of affectedPolicies) {
+      await recalculateLeaveBalances(payroll.employeeId, policyId, session);
+    }
+
+    // 5. Delete associated Salary Voucher
+    await Voucher.deleteOne({ referenceId: payroll._id, referenceType: 'PAYROLL' }).session(session);
+
+    // 6. Delete payroll
     await payroll.deleteOne({ session });
 
     // 6. Sync Advance Balances

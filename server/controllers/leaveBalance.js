@@ -5,9 +5,10 @@ const Company = require("../models/company");
 const mongoose = require('mongoose');
 
 // 🔄 Recalculate summary balance for one employee and policy
-const recalculateLeaveBalances = async (employeeId, policyId) => {
-  const transactions = await LeaveTransaction.find({ employeeId, policyId })
-    .sort({ createdAt: 1 });
+const recalculateLeaveBalances = async (employeeId, policyId, session = null) => {
+  const txQuery = LeaveTransaction.find({ employeeId, policyId }).sort({ createdAt: 1 });
+  if (session) txQuery.session(session);
+  const transactions = await txQuery;
 
   let totalAllocated = 0;
   let used = 0;
@@ -24,10 +25,12 @@ const recalculateLeaveBalances = async (employeeId, policyId) => {
 
   // Update or Create LeaveBalance summary
   // We fetch employee details to ensure companyId and branchId are present if it's a new record
-  const emp = await Employee.findById(employeeId).select("companyId branchId");
+  const empQuery = Employee.findById(employeeId).select("companyId branchId");
+  if (session) empQuery.session(session);
+  const emp = await empQuery;
   if (!emp) return;
 
-  await LeaveBalance.findOneAndUpdate(
+  const updateQuery = LeaveBalance.findOneAndUpdate(
     { employeeId, policyId },
     {
       totalAllocated,
@@ -38,6 +41,8 @@ const recalculateLeaveBalances = async (employeeId, policyId) => {
     },
     { upsert: true, new: true }
   );
+  if (session) updateQuery.session(session);
+  await updateQuery;
 };
 
 // ➕ Add new leave balance (Manual Adjustment/Credit)
@@ -231,6 +236,62 @@ const getMyLeaveTransactions = async (req, res) => {
     }
 };
 
+// 🔄 Update leave balance (by appending an adjustment transaction)
+const updateleavebalance = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { id } = req.params;
+    const { type, amount: rawAmount, remarks } = req.body;
+    const amount = Number(rawAmount);
+
+    if (isNaN(amount)) {
+      throw new Error("Invalid amount provided");
+    }
+
+    const summary = await LeaveBalance.findById(id).session(session);
+    if (!summary) {
+      return res.status(404).json({ success: false, message: "Leave balance record not found" });
+    }
+
+    const { employeeId, policyId } = summary;
+    const balanceBefore = summary.remaining;
+
+    // Create Transaction
+    const tx = await LeaveTransaction.create([{
+      employeeId,
+      policyId,
+      type: type === "credit" ? "credit" : "debit",
+      days: amount,
+      balanceBefore,
+      balanceAfter: type === "credit" ? balanceBefore + amount : balanceBefore - amount,
+      source: 'manual',
+      remarks: remarks || "Balance adjustment"
+    }], { session });
+
+    await session.commitTransaction();
+
+    // Recalculate summary (async)
+    await recalculateLeaveBalances(employeeId, policyId);
+
+    res.status(200).json({
+      success: true,
+      message: "Leave balance adjusted successfully",
+      data: tx[0],
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Error updating leave balance:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: err.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
 module.exports = {
     recalculateLeaveBalances,
     addleavebalance,
@@ -238,5 +299,6 @@ module.exports = {
     getLeaveTransactions,
     deleteleavebalance,
     getMyLeaveBalance,
-    getMyLeaveTransactions
+    getMyLeaveTransactions,
+    updateleavebalance
 };

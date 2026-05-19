@@ -7,6 +7,7 @@ const leavePolicySchema = new mongoose.Schema({
   totalLeaves: { type: Number, required: true },
   carryForward: {
     enabled: { type: Boolean, default: false },
+    carryForwardAll: { type: Boolean, default: false },
     maxLimit: { type: Number, default: 0 }
   },
   encashable: { type: Boolean, default: false },

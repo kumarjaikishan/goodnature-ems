@@ -58,7 +58,7 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
         <Sidebar />
       </div>
 
-      <div className="flex-1 bg-gray-100 overflow-auto overflow-x-hidden">
+      <div className="flex-1 min-w-0 bg-gray-100 overflow-auto overflow-x-hidden">
         <Navbar />
         <div className="p-1 md:p-2">
           <Suspense fallback={<ContentLoader />}>
