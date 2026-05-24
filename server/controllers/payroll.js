@@ -14,6 +14,12 @@ const accountingService = require("../services/accountingService");
 
 const getMonthName = (m) => ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] || m;
 
+const toUtcDateOnly = (input) => {
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+};
+
 exports.createPayroll = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -33,6 +39,7 @@ exports.createPayroll = async (req, res, next) => {
       bonuses = [],
       deductions = [],
       taxRate = 0,
+      issueDate,
     } = req.body;
 
     // 🔹 Check if payroll already exists for employee in given month & year
@@ -84,13 +91,16 @@ exports.createPayroll = async (req, res, next) => {
     }
 
     // 🔹 Create payroll
+    const entryDate = toUtcDateOnly(issueDate || new Date());
+
     const payroll = new Payroll({
       companyId, branchId, employeeId, month, year, name, profileimage, phone, email, address, guardian,
       department: department?.department || "", designation, present, leave, absent,
       overtime: basic?.overtime, shortTime: basic?.shortmin, monthDays: basic?.totalDays,
       holidays: basic?.holidaysCount, weekOffs: basic?.weeklyOff, workingDays: basic?.workingDays,
       options, baseSalary: salary, allowances, bonuses, deductions, taxRate,
-      status: "pending", grossSalary, taxAmount, netSalary
+      status: "pending", grossSalary, taxAmount, netSalary,
+      issueDate: entryDate
     });
 
     await payroll.save({ session });
@@ -133,10 +143,6 @@ exports.createPayroll = async (req, res, next) => {
         await recalculateLeaveBalances(employeeId, bal.policyId, session);
       }
     }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const entryDate = new Date(today);
 
     // 🔹 Handle advance adjustment
     if (options.adjustAdvance && options.adjustedAdvance > 0) {
@@ -225,6 +231,7 @@ exports.createPayroll = async (req, res, next) => {
       branchId,
       type: 'SALARY',
       employeeId,
+      date: entryDate,
       entries: [
         { accountName: 'Salary Expense', type: 'DEBIT', amount: grossSalary },
         { accountName: 'Employee Payable', type: 'CREDIT', amount: netSalary },
@@ -275,7 +282,8 @@ exports.editPayroll = async (req, res, next) => {
     const { id } = req.params;
     const {
       employeeId, month, year, name, present = 0, leave = 0, absent = 0,
-      options, basic, allowances = [], bonuses = [], deductions = [], taxRate = 0
+      options, basic, allowances = [], bonuses = [], deductions = [], taxRate = 0,
+      issueDate
     } = req.body;
 
     const whichEmployee = await Employee.findById(employeeId)
@@ -301,6 +309,8 @@ exports.editPayroll = async (req, res, next) => {
     const payroll = await Payroll.findById(id).session(session);
     if (!payroll) throw new Error("Payroll not found");
 
+    const postingDate = toUtcDateOnly(issueDate || payroll.issueDate || new Date());
+
     // 🔹 Calculate salary
     const salary = basic?.salary || payroll.baseSalary || 0;
     const allowanceTotal = allowances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
@@ -321,6 +331,7 @@ exports.editPayroll = async (req, res, next) => {
       grossSalary, taxAmount, netSalary, branchId,
       department: department?.department || "",
       designation, profileimage, phone, email, address, guardian,
+      issueDate: postingDate
     });
     await payroll.save({ session });
 
@@ -452,10 +463,13 @@ exports.editPayroll = async (req, res, next) => {
         ...(taxAmount > 0 ? [{ accountName: 'Tax Payable', type: 'CREDIT', amount: taxAmount }] : []),
         ...(deductionTotal > 0 ? [{ accountName: 'Deductions Recovery', type: 'CREDIT', amount: deductionTotal }] : [])
       ];
+      voucher.date = postingDate;
+      await voucher.save({ session });
       await accountingService.syncSalaryVoucher(
         voucher._id, 
         newEntries, 
         `Salary Voucher for ${getMonthName(payroll.month)}-${payroll.year}`, 
+        postingDate,
         session
       );
     }

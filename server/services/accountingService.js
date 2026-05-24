@@ -3,6 +3,12 @@ const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
 const mongoose = require('mongoose');
 
+function toUtcDateOnly(input) {
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 class AccountingService {
   /**
    * Create a voucher and corresponding ledger entries
@@ -10,7 +16,7 @@ class AccountingService {
    * @param {mongoose.ClientSession} session 
    */
   async createVoucher(voucherData, session) {
-    const { companyId, type, employeeId, entries, referenceType, referenceId, remarks, branchId } = voucherData;
+    const { companyId, type, employeeId, entries, referenceType, referenceId, remarks, branchId, date } = voucherData;
 
     // Generate Voucher Number
     const voucherNo = `VCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -21,6 +27,7 @@ class AccountingService {
       voucherNo,
       type,
       employeeId,
+      date: date || new Date(),
       entries,
       referenceType,
       referenceId,
@@ -38,6 +45,7 @@ class AccountingService {
              employeeId,
              companyId,
              branchId,
+             date: date || new Date(),
              type: entry.type, 
              amount: entry.amount,
              source: referenceType.toLowerCase(),
@@ -58,15 +66,25 @@ class AccountingService {
    * @param {Number} grossSalary 
    * @param {mongoose.ClientSession} session 
    */
-  async syncSalaryVoucher(voucherId, newEntries, remarks, session) {
+  async syncSalaryVoucher(voucherId, newEntries, remarks, postingDate, session) {
     if (!voucherId) return;
 
-    // Support both (voucherId, newEntries, remarks, session) and (voucherId, newEntries, session)
+    // Backward compatible args:
+    // - (voucherId, newEntries, remarks, session)
+    // - (voucherId, newEntries, session)
+    // - (voucherId, newEntries, remarks, postingDate, session)
     let actualSession = session;
     let actualRemarks = remarks;
-    if (remarks && typeof remarks === 'object' && remarks.constructor.name === 'ClientSession') {
+    let actualPostingDate = postingDate;
+
+    if (postingDate && typeof postingDate === 'object' && postingDate.constructor?.name === 'ClientSession') {
+      actualSession = postingDate;
+      actualPostingDate = undefined;
+    }
+    if (remarks && typeof remarks === 'object' && remarks.constructor?.name === 'ClientSession') {
       actualSession = remarks;
       actualRemarks = undefined;
+      actualPostingDate = undefined;
     }
 
     const voucher = await Voucher.findById(voucherId).session(actualSession);
@@ -74,6 +92,7 @@ class AccountingService {
 
     // 1. Update Voucher Document entries and remarks
     voucher.entries = newEntries;
+    if (actualPostingDate) voucher.date = actualPostingDate;
     if (actualRemarks) {
       voucher.remarks = actualRemarks;
     }
@@ -99,7 +118,7 @@ class AccountingService {
         credit: entry.debit > 0 ? 0 : newAmount,
         debit: entry.debit > 0 ? newAmount : 0,
         particular: voucher.remarks + " (Edited)",
-        date: entry.date
+        date: actualPostingDate || entry.date
       }, actualSession);
     }
   }
@@ -119,6 +138,7 @@ class AccountingService {
 
     const amountNum = Number(amount) || 0;
     const Employee = mongoose.model('employee');
+    const postingDate = toUtcDateOnly(date);
 
     // 1. Get or Create the Ledger account for this employee
     const emp = await Employee.findById(employeeId).populate('userid').session(session);
@@ -161,7 +181,7 @@ class AccountingService {
     // 3. Create the Entry (running balance is set after we know its position by date)
     const newEntry = new Entry({
       ledgerId: updatedLedger._id,
-      date,
+      date: postingDate,
       particular: remarks || `${type} for ${source}`,
       debit: type === 'DEBIT' ? amountNum : 0,
       credit: type === 'CREDIT' ? amountNum : 0,

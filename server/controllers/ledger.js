@@ -42,8 +42,8 @@ const getMyLedger = async (req, res, next) => {
       return res.status(200).json([]);
     }
 
-    // Fetch entries from the Entry model for this ledger account
-    const entries = await Entry.find({ ledgerId }).sort({ date: 1, _id: 1 });
+    // Fetch entries (latest-first; stable ordering for same-day entries)
+    const entries = await Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 });
     
     // Map entries to the format expected by the new UI
     // Note: Balance = Debit - Credit from admin view.
@@ -163,7 +163,7 @@ const ledger = async (req, res) => {
     const ledgersWithBalance = await Promise.all(
       visibleLedgers.map(async (ledger) => {
         const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
-          .sort({ date: -1, _id: -1 });
+          .sort({ date: -1, createdAt: -1, _id: -1 });
 
         return {
           ...ledger.toObject(),
@@ -265,7 +265,7 @@ const updateLedger = async (req, res) => {
 const ledgerEntries = async (req, res) => {
   try {
     const ledgers = await Ledger.find({ userId: req.userid });
-    const entries = await Entry.find({ userId: req.userid }).sort({ date: -1, _id: -1 });
+    const entries = await Entry.find({ userId: req.userid }).sort({ date: -1, createdAt: -1, _id: -1 });
     res.json({ ledgers, entries });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch ledgers" });
@@ -363,7 +363,7 @@ const updateEntry = async (req, res) => {
 
     await session.commitTransaction();
     res.status(200).json({ 
-      message: "Entry updated successfully. Balances have been recalculated.",
+      message: "Updated successfully.",
       entry: updatedEntry 
     });
   } catch (err) {

@@ -9,6 +9,7 @@ const payrollSchema = new mongoose.Schema({
 
   month: { type: Number, required: true }, // 1-12
   year: { type: Number, required: true },
+  issueDate: { type: Date }, // Posting/issue date for voucher & ledger
 
   name: { type: String, required: true },
   profileimage: { type: String, default: '' },
