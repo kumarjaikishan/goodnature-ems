@@ -89,6 +89,7 @@ export default function PayrollCreatePage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+  const [issueDate, setIssueDate] = useState(dayjs().format("YYYY-MM-DD"));
 
   const handleSubmit = async () => {
     const fields = {
@@ -98,6 +99,7 @@ export default function PayrollCreatePage() {
       basic,
       month: month,
       year: year,
+      issueDate: issueDate || undefined,
       present: form.presentDays,
       leave: form.leaveDays,
       absent: form.absentDays,
@@ -580,6 +582,15 @@ export default function PayrollCreatePage() {
                 ))}
               </Select>
             </FormControl>
+
+            <TextField
+              size="small"
+              type="date"
+              label="Issue Date"
+              value={issueDate}
+              onChange={(e) => setIssueDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
 
             <FormControl size="small">
               <InputLabel>Calc. Basis</InputLabel>

@@ -59,6 +59,7 @@ export default function PayrollEdit() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+  const [issueDate, setIssueDate] = useState(dayjs().format("YYYY-MM-DD"));
   const optionsinit = {
     addOvertime: false,
     deductShortTime: false,
@@ -151,6 +152,7 @@ export default function PayrollEdit() {
       paidDays: 0,
       adjustPaidLeave: false,
     })
+    setIssueDate(data.issueDate ? dayjs(data.issueDate).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"));
     setOptions(data?.options);
     // console.log(data?.options)
     const empId = data.employeeId?._id || data.employeeId;
@@ -476,6 +478,7 @@ export default function PayrollEdit() {
       basic,
       month: form.month,
       year: form.year,
+      issueDate: issueDate || undefined,
       present: form.presentDays,
       leave: form.leaveDays,
       absent: form.absentDays,
@@ -548,6 +551,15 @@ export default function PayrollEdit() {
               ))}
             </Select>
           </FormControl>
+
+          <TextField
+            size="small"
+            type="date"
+            label="Issue Date"
+            value={issueDate}
+            onChange={(e) => setIssueDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
 
           <FormControl size="small">
             <InputLabel>Calc. Basis</InputLabel>
