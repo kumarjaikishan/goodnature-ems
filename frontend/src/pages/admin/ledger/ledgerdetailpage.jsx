@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import {
     Box, Button, FormControl, InputLabel, Select, MenuItem,
-    TextField, Avatar, OutlinedInput, InputAdornment
+    TextField, Avatar, OutlinedInput, InputAdornment, CircularProgress
 } from '@mui/material';
 import { VscDebugRestart } from 'react-icons/vsc';
 import { IoMdCloudDownload } from 'react-icons/io';
@@ -64,6 +64,7 @@ const LedgerDetailPage = () => {
     const [open, setOpen] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
     const [entry, setEntry] = useState(init);
+    const [savingEntry, setSavingEntry] = useState(false);
 
     useEffect(() => {
         fetchEnteries();
@@ -159,6 +160,7 @@ const LedgerDetailPage = () => {
     };
 
     const saveEntry = async () => {
+        if (savingEntry) return;
         if (!entry.particular || entry.particular.trim() === '') {
             toast.warn("Particular field can't be blank");
             return;
@@ -181,6 +183,7 @@ const LedgerDetailPage = () => {
         }
 
         try {
+            setSavingEntry(true);
             const payload = {
                 ...entry,
                 date: new Date(entry.date),
@@ -202,6 +205,8 @@ const LedgerDetailPage = () => {
             fetchEnteries();
         } catch (error) {
             console.error('Error saving entry:', error);
+        } finally {
+            setSavingEntry(false);
         }
     };
 
@@ -366,6 +371,7 @@ const LedgerDetailPage = () => {
             </div>
 
             <Modalbox open={open} onClose={() => {
+                if (savingEntry) return;
                 setOpen(false); setEditIndex(null);
             }}>
                 <div className="membermodal w-[310px]">
@@ -388,8 +394,21 @@ const LedgerDetailPage = () => {
                             </div>
                         </span>
                         <div className="modalfooter">
-                            <Button variant='outlined' onClick={() => { setOpen(false); setEntry(init); setEditIndex(null) }}>Cancel</Button>
-                            <Button variant="contained" onClick={saveEntry}>{editIndex !== null ? "Update" : "Add"}</Button>
+                            <Button
+                                variant='outlined'
+                                disabled={savingEntry}
+                                onClick={() => { setOpen(false); setEntry(init); setEditIndex(null) }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="contained"
+                                disabled={savingEntry}
+                                onClick={saveEntry}
+                                startIcon={savingEntry ? <CircularProgress color="inherit" size={18} /> : null}
+                            >
+                                {editIndex !== null ? "Update" : "Add"}
+                            </Button>
 
                         </div>
                     </div>

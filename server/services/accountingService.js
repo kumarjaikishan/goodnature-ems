@@ -143,13 +143,13 @@ class AccountingService {
       await emp.save({ session });
     }
 
-    // 2. Atomic Update of Ledger and Employee Balances
-    // CREDIT increases balance (Liability/Advance provided), DEBIT decreases it.
-    const increment = type === 'CREDIT' ? amountNum : -amountNum;
+    // 2. Atomic Update of Ledger and Employee Balances (global summary)
+    // CREDIT increases balance, DEBIT decreases it.
+    const netEffect = type === 'CREDIT' ? amountNum : -amountNum;
     
     const updatedLedger = await Ledger.findByIdAndUpdate(
       empLedger._id,
-      { $inc: { advance: increment } },
+      { $inc: { advance: netEffect } },
       { session, new: true, runValidators: true }
     );
 
@@ -158,20 +158,67 @@ class AccountingService {
     // Sync back to employee summary
     await Employee.findByIdAndUpdate(employeeId, { advance: updatedLedger.advance }, { session });
 
-    // 3. Create the Entry with the resulting running balance
+    // 3. Create the Entry (running balance is set after we know its position by date)
     const newEntry = new Entry({
       ledgerId: updatedLedger._id,
       date,
       particular: remarks || `${type} for ${source}`,
       debit: type === 'DEBIT' ? amountNum : 0,
       credit: type === 'CREDIT' ? amountNum : 0,
-      balance: updatedLedger.advance,
+      balance: 0,
       source: source || 'ledger',
       referenceId: referenceId || voucherId,
       status: 'active'
     });
 
     await newEntry.save({ session });
+
+    // 4. Fix running balances when inserting back-dated entries.
+    // If the new entry is not the last by (date, createdAt, _id), we must:
+    // - set its balance based on the immediate previous entry
+    // - shift all subsequent entries by its netEffect
+    const nextEntry = await Entry.findOne({
+      ledgerId: updatedLedger._id,
+      $or: [
+        { date: { $gt: newEntry.date } },
+        { date: newEntry.date, createdAt: { $gt: newEntry.createdAt } },
+        { date: newEntry.date, createdAt: newEntry.createdAt, _id: { $gt: newEntry._id } }
+      ]
+    }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
+
+    if (!nextEntry) {
+      // Appended at the end → running balance equals ledger's latest advance.
+      newEntry.balance = updatedLedger.advance;
+      await newEntry.save({ session });
+      return newEntry;
+    }
+
+    const prevEntry = await Entry.findOne({
+      ledgerId: updatedLedger._id,
+      $or: [
+        { date: { $lt: newEntry.date } },
+        { date: newEntry.date, createdAt: { $lt: newEntry.createdAt } },
+        { date: newEntry.date, createdAt: newEntry.createdAt, _id: { $lt: newEntry._id } }
+      ]
+    }).sort({ date: -1, createdAt: -1, _id: -1 }).session(session);
+
+    const prevBalance = prevEntry?.balance || 0;
+    newEntry.balance = prevBalance + netEffect;
+    await newEntry.save({ session });
+
+    await Entry.updateMany(
+      {
+        ledgerId: updatedLedger._id,
+        $or: [
+          { date: { $gt: newEntry.date } },
+          { date: newEntry.date, createdAt: { $gt: newEntry.createdAt } },
+          { date: newEntry.date, createdAt: newEntry.createdAt, _id: { $gt: newEntry._id } }
+        ]
+      },
+      { $inc: { balance: netEffect } },
+      { session }
+    );
+
     return newEntry;
   }
 
@@ -214,7 +261,7 @@ class AccountingService {
     if (!empLedger) return { entries: [] };
     
     const entries = await Entry.find({ ledgerId: empLedger._id })
-      .sort({ date: -1, _id: -1 })
+      .sort({ date: -1, createdAt: -1, _id: -1 })
       .populate('referenceId');
       
     return { ...empLedger.toObject(), entries };
@@ -230,6 +277,8 @@ class AccountingService {
 
     const ledger = await Ledger.findById(originalEntry.ledgerId).session(session);
     if (!ledger) throw new Error("Ledger not found");
+
+    const oldDate = originalEntry.date;
 
     // 1. Calculate the delta
     const oldNet = (originalEntry.credit || 0) - (originalEntry.debit || 0);
@@ -247,14 +296,42 @@ class AccountingService {
     originalEntry.balance += delta;
     await originalEntry.save({ session });
 
+    // If date changes, the entry's position in the running-order can change.
+    // In that case, a simple delta-propagation can corrupt balances.
+    if (newData.date && new Date(newData.date).getTime() !== new Date(oldDate).getTime()) {
+      const allEntries = await Entry.find({ ledgerId: ledger._id })
+        .sort({ date: 1, createdAt: 1, _id: 1 })
+        .session(session);
+
+      let running = 0;
+      for (const e of allEntries) {
+        running += (e.credit || 0) - (e.debit || 0);
+        if (e.balance !== running) {
+          e.balance = running;
+          await e.save({ session });
+        }
+      }
+
+      ledger.advance = running;
+      await ledger.save({ session });
+
+      if (ledger.employeeId) {
+        const Employee = mongoose.model('employee');
+        await Employee.findByIdAndUpdate(ledger.employeeId, { advance: ledger.advance }, { session });
+      }
+
+      return originalEntry;
+    }
+
     // 3. Propagate to ALL subsequent entries
     const subsequentEntries = await Entry.find({
       ledgerId: ledger._id,
       $or: [
         { date: { $gt: originalEntry.date } },
-        { date: originalEntry.date, _id: { $gt: originalEntry._id } }
+        { date: originalEntry.date, createdAt: { $gt: originalEntry.createdAt } },
+        { date: originalEntry.date, createdAt: originalEntry.createdAt, _id: { $gt: originalEntry._id } }
       ]
-    }).sort({ date: 1, _id: 1 }).session(session);
+    }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
 
     for (const subEntry of subsequentEntries) {
       subEntry.balance += delta;
@@ -295,9 +372,10 @@ class AccountingService {
       ledgerId: ledger._id,
       $or: [
         { date: { $gt: entryToDelete.date } },
-        { date: entryToDelete.date, _id: { $gt: entryToDelete._id } }
+        { date: entryToDelete.date, createdAt: { $gt: entryToDelete.createdAt } },
+        { date: entryToDelete.date, createdAt: entryToDelete.createdAt, _id: { $gt: entryToDelete._id } }
       ]
-    }).sort({ date: 1, _id: 1 }).session(session);
+    }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
 
     for (const subEntry of subsequentEntries) {
       subEntry.balance += delta;

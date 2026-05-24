@@ -274,7 +274,7 @@ const ledgerEntries = async (req, res) => {
 
 const Entries = async (req, res) => {
   try {
-    const entries = await Entry.find({ ledgerId: req.params.id }).sort({ date: -1, _id: -1 });
+    const entries = await Entry.find({ ledgerId: req.params.id }).sort({ date: -1, createdAt: -1, _id: -1 });
 
     res.json({ entries });
   } catch (err) {
