@@ -69,7 +69,7 @@ const userLogin = async (req, res, next) => {
 
     const token = jwt.sign(tobe,
       process.env.JWT_Key,
-      { expiresIn: '10d' }
+      { expiresIn: '18d' }
     )
 
     isUser.password = undefined;
