@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { FormControl, InputLabel, Select, MenuItem, TextField, Button } from '@mui/material';
+import { FormControl, InputLabel, Select, MenuItem, TextField, Button, Avatar } from '@mui/material';
 import { BiMessageRoundedError } from 'react-icons/bi';
 import DataTable from 'react-data-table-component';
 import { useSelector } from 'react-redux';
@@ -12,6 +12,8 @@ import { IoMdTime } from 'react-icons/io';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from './attandencehelper';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import { FaRegUser } from 'react-icons/fa';
 
 dayjs.extend(isSameOrBefore);
 
@@ -333,9 +335,34 @@ const AttenPerformance = () => {
                     </FormControl>
                 </div>
 
-                <div className="text-end">
-                    <p className="font-semibold text-sm md:text-lg">{user?.name}</p>
-                    <p className="text-[12px] md:text-sm text-gray-600">({employee?.branchId?.name})</p>
+                <div className="flex items-center justify-end gap-2">
+                    {/* Avatar Image */}
+                    <Avatar
+                        src={
+                            employee?.profileimage
+                                ? cloudinaryUrl(employee?.profileimage, {
+                                    format: "webp",
+                                    width: 100,
+                                    height: 100,
+                                })
+                                : undefined
+                        }
+                        alt={employee?.name || employee?.userid?.name || "Employee"}
+                        className="w-10 h-10"
+                    >
+                        {!employee?.profileimage && <FaRegUser />}
+                    </Avatar>
+
+                    {/* Employee Info */}
+                    <div className="text-end">
+                        <p className="font-semibold text-sm md:text-lg">
+                            {user?.name}
+                        </p>
+
+                        <p className="text-[12px] md:text-sm text-gray-600">
+                            ({employee?.branchId?.name})
+                        </p>
+                    </div>
                 </div>
             </div>
 

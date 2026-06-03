@@ -124,7 +124,7 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
                             icon={FaClock}
                             label="Overtime"
                             value={`${hell?.overtime?.length || 0} Records`}
-                            subValue={hell?.overtimemin > 0 ? `${hell.overtimemin} min total` : ""}
+                            subValue={hell?.overtimemin > 0 ? `OT ${hell.overtimemin} min | Net ${(hell?.overtimemin || 0) - (hell?.shorttimemin || 0)} min | ₹${hell?.overtimesalary || 0}` : ""}
                             colorClass="bg-green-600"
 
                             // only for overtime
