@@ -86,6 +86,7 @@ const Sidebar = () => {
         { menu: "Payroll", link: "/dashboard/payroll", icon: <MdPayments />, roles: ["admin", "superadmin", "manager", "demo"] },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <FaCalendarDay />, roles: ["superadmin", "admin", "demo"] },
         { menu: "Ledger", link: "/dashboard/ledger", icon: <FaBook />, roles: ["admin", "superadmin", "manager"] },
+        { menu: "Vouchers", link: "/dashboard/vouchers", icon: <MdAccountBalanceWallet />, roles: ["admin", "superadmin", "manager", "demo"] },
       ],
     },
     {

@@ -234,9 +234,11 @@ const AttenPerformance = () => {
                 ? 0
                 : dayjs(new Date(selectedYear, Number(selectedMonth), 1)).daysInMonth();
 
+        const netMins = overtimemin - shorttimemin;
+        const preciseRate = salary / daysInMonth / overtimeAfterMinutes;
         const overtimesalary =
             selectedMonth !== 'all' && salary > 0 && overtimeAfterMinutes > 0 && daysInMonth > 0
-                ? ((overtimemin - shorttimemin) * (salary / daysInMonth / overtimeAfterMinutes)).toFixed(2)
+                ? (netMins >= 0 ? Math.ceil(netMins * preciseRate) : -Math.ceil(Math.abs(netMins) * preciseRate)).toFixed(2)
                 : null;
 
         return {

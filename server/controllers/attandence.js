@@ -1434,7 +1434,95 @@ const employeeAttandence = async (req, res, next) => {
     console.error(error);
     return res.status(500).json({ message: 'Server error', error });
   }
-}
+};
 
+const getBulkMarkData = async (req, res, next) => {
+  try {
+    const { date, branchId, departmentId } = req.query;
+    const companyId = req.user.companyId;
 
-module.exports = { checkout, deleteattandence, bulkMarkAttendance, bulkMarkAttendanceExcel, facecheckin, recordAttendanceFromLogs, facecheckout, editattandence, employeeAttandence, checkin, webattandence, allAttandence, leaveapply, leaveupdate, allleave };
+    if (!date) {
+      return res.status(400).json({ message: 'Date is required.' });
+    }
+
+    // 1. Normalize selected date to UTC midnight
+    const parsedDate = parseAttendanceDateTime(date);
+    const dateObj = getAttendanceDateUTC(parsedDate);
+    if (!dateObj) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+
+    // 2. Build filter query for active employees in the company
+    const employeeFilter = {
+      companyId,
+      status: { $ne: false } // only active employees
+    };
+
+    // If role is manager, restrict to their managed branches
+    if (req.user.role === 'manager') {
+      const allowedBranches = req.user.branchIds || [];
+      if (branchId && branchId !== 'all') {
+        if (allowedBranches.includes(branchId)) {
+          employeeFilter.branchId = branchId;
+        } else {
+          return res.status(403).json({ message: 'Forbidden: You do not manage this branch.' });
+        }
+      } else {
+        employeeFilter.branchId = { $in: allowedBranches };
+      }
+    } else {
+      if (branchId && branchId !== 'all') {
+        employeeFilter.branchId = branchId;
+      }
+    }
+
+    if (departmentId && departmentId !== 'all') {
+      employeeFilter.department = departmentId;
+    }
+
+    // Fetch matching employees with populated userid name
+    const employeesList = await employee.find(employeeFilter)
+      .select('_id empId profileimage branchId department userid')
+      .populate('userid', 'name');
+
+    // 3. Fetch attendance records for these employees on the selected date
+    const employeeIds = employeesList.map(emp => emp._id);
+    const attendanceRecords = await Attendance.find({
+      companyId,
+      date: dateObj,
+      employeeId: { $in: employeeIds }
+    }).select('employeeId punchIn punchOut status');
+
+    // 4. Map existing attendance to each employee
+    const attendanceMap = {};
+    attendanceRecords.forEach(att => {
+      attendanceMap[att.employeeId.toString()] = {
+        punchIn: att.punchIn ? att.punchIn : null,
+        punchOut: att.punchOut ? att.punchOut : null,
+        status: att.status || 'absent'
+      };
+    });
+
+    const data = employeesList.map(emp => {
+      return {
+        _id: emp._id,
+        empId: emp.empId,
+        profileimage: emp.profileimage,
+        branchId: emp.branchId,
+        department: emp.department,
+        userid: emp.userid,
+        existingAttendance: attendanceMap[emp._id.toString()] || null
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error("Error in getBulkMarkData:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { checkout, deleteattandence, bulkMarkAttendance, bulkMarkAttendanceExcel, facecheckin, recordAttendanceFromLogs, facecheckout, editattandence, employeeAttandence, checkin, webattandence, allAttandence, leaveapply, leaveupdate, allleave, getBulkMarkData };

@@ -2,6 +2,7 @@ const Voucher = require('../models/voucher');
 const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
 const mongoose = require('mongoose');
+const { generateVoucherNo } = require('../utils/voucherHelper');
 
 function toUtcDateOnly(input) {
   const d = input instanceof Date ? input : new Date(input);
@@ -19,7 +20,7 @@ class AccountingService {
     const { companyId, type, employeeId, entries, referenceType, referenceId, remarks, branchId, date } = voucherData;
 
     // Generate Voucher Number
-    const voucherNo = `VCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const voucherNo = await generateVoucherNo(companyId, date || new Date(), session);
 
     const voucher = new Voucher({
       companyId,
@@ -126,6 +127,7 @@ class AccountingService {
   async recordLedgerEntry(data, session = null) {
     const { 
       employeeId, 
+      ledgerId,
       companyId, 
       date = new Date(), 
       type, // 'DEBIT' or 'CREDIT'
@@ -140,30 +142,38 @@ class AccountingService {
     const Employee = mongoose.model('employee');
     const postingDate = toUtcDateOnly(date);
 
-    // 1. Get or Create the Ledger account for this employee
-    const emp = await Employee.findById(employeeId).populate('userid').session(session);
-    if (!emp) throw new Error("Employee not found for ledger recording");
-
-    let empLedger = await Ledger.findOne({ employeeId }).session(session);
-    
-    if (!empLedger) {
-      empLedger = new Ledger({
-        employeeId,
-        empId: emp.empId,
-        ledgerType: 'employee',
-        companyId: companyId || emp.companyId,
-        name: emp?.employeeName || emp?.userid?.name || 'Unknown',
-        profileImage: emp?.profileimage,
-        advance: 0
-      });
-      await empLedger.save({ session });
-      
-      // Link back to employee
-      emp.ledgerId = empLedger._id;
-      await emp.save({ session });
+    // 1. Find the Ledger
+    let empLedger;
+    if (ledgerId) {
+      empLedger = await Ledger.findById(ledgerId).session(session);
+    } else if (employeeId) {
+      empLedger = await Ledger.findOne({ employeeId }).session(session);
     }
 
-    // 2. Atomic Update of Ledger and Employee Balances (global summary)
+    // Create ledger for employee if it doesn't exist yet
+    if (!empLedger && employeeId) {
+      const emp = await Employee.findById(employeeId).populate('userid').session(session);
+      if (emp) {
+        empLedger = new Ledger({
+          employeeId,
+          empId: emp.empId,
+          ledgerType: 'employee',
+          companyId: companyId || emp.companyId,
+          name: emp?.employeeName || emp?.userid?.name || 'Unknown',
+          profileImage: emp?.profileimage,
+          advance: 0
+        });
+        await empLedger.save({ session });
+        
+        // Link back to employee
+        emp.ledgerId = empLedger._id;
+        await emp.save({ session });
+      }
+    }
+
+    if (!empLedger) throw new Error("Ledger account not found");
+
+    // 2. Atomic Update of Ledger Balance
     // CREDIT increases balance, DEBIT decreases it.
     const netEffect = type === 'CREDIT' ? amountNum : -amountNum;
     
@@ -175,8 +185,10 @@ class AccountingService {
 
     if (!updatedLedger) throw new Error("Failed to update ledger balance");
 
-    // Sync back to employee summary
-    await Employee.findByIdAndUpdate(employeeId, { advance: updatedLedger.advance }, { session });
+    // Sync back to employee summary if it is an employee ledger
+    if (updatedLedger.ledgerType === 'employee' && updatedLedger.employeeId) {
+      await Employee.findByIdAndUpdate(updatedLedger.employeeId, { advance: updatedLedger.advance }, { session });
+    }
 
     // 3. Create the Entry (running balance is set after we know its position by date)
     const newEntry = new Entry({

@@ -17,3 +17,27 @@ export const bulkMarkAttendanceApi = async (attendanceRecords) => {
 
   return response.json();
 };
+
+export const getBulkMarkDataApi = async (date, branchId, departmentId) => {
+  const query = new URLSearchParams({
+    date,
+    branchId: branchId || 'all',
+    departmentId: departmentId || 'all'
+  }).toString();
+
+  const response = await fetch(
+    `${import.meta.env.VITE_API_ADDRESS}bulkMarkAttendance/data?${query}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("emstoken")}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch bulk mark data");
+  }
+
+  return response.json();
+};

@@ -7,6 +7,7 @@ const ledgerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   profileImage: { type: String },
   ledgerType: { type: String, enum: ['employee', 'custom'], default: 'custom' },
+  isVoucherLedger: { type: Boolean, default: false },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Creator/Owner
   // Summary field for quick access
   advance: { type: Number, default: 0 }

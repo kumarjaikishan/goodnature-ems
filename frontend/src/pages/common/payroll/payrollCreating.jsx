@@ -465,18 +465,28 @@ export default function PayrollCreatePage() {
       let updatedDeductions = prev.deductions.filter(d => !d.inputDisabled);
 
       // 2. Inject current Adjustments
-      if (options.addOvertime && basic.overtime > 0) {
+      if (options.addOvertime && basic.overtime > basic.shortmin) {
+        const netOvertime = basic.overtime - basic.shortmin;
+        const divisor = form.calculationBasis === "monthDays"
+          ? basic.totalDays || 1
+          : basic.totalDays - (basic.holidaysCount + basic.weeklyOff) || 1;
+        const precisePerMinute = selectedEmployeedetail.salary / divisor / company.workingMinutes.fullDay;
         updatedBonuses.push({
-          name: "Overtime", amount: (basic.overtime * perminuteRate).toFixed(2),
-          extraInfo: `${basic.overtime} Min @ ₹${perminuteRate}/min`,
+          name: "Net Overtime", amount: Math.ceil(netOvertime * precisePerMinute).toFixed(2),
+          extraInfo: `${netOvertime} Min @ ₹${perminuteRate}/min (OT: ${basic.overtime}m, ST: ${basic.shortmin}m)`,
           inputDisabled: true
         });
       }
 
-      if (options.deductShortTime && basic.shortmin > 0) {
+      if (options.deductShortTime && basic.shortmin > basic.overtime) {
+        const netShortTime = basic.shortmin - basic.overtime;
+        const divisor = form.calculationBasis === "monthDays"
+          ? basic.totalDays || 1
+          : basic.totalDays - (basic.holidaysCount + basic.weeklyOff) || 1;
+        const precisePerMinute = selectedEmployeedetail.salary / divisor / company.workingMinutes.fullDay;
         updatedDeductions.push({
-          name: "Short Time", amount: (basic.shortmin * perminuteRate).toFixed(2),
-          extraInfo: `${basic.shortmin} Min @ ₹${perminuteRate}/min`,
+          name: "Net Short Time", amount: Math.ceil(netShortTime * precisePerMinute).toFixed(2),
+          extraInfo: `${netShortTime} Min @ ₹${perminuteRate}/min (OT: ${basic.overtime}m, ST: ${basic.shortmin}m)`,
           inputDisabled: true
         });
       }
@@ -518,7 +528,7 @@ export default function PayrollCreatePage() {
 
       return { ...prev, bonuses: updatedBonuses, deductions: updatedDeductions };
     });
-  }, [options, perDayRate, perminuteRate, basic.overtime, basic.shortmin, previousAdvance, employeeleavebal]);
+  }, [options, perDayRate, perminuteRate, basic.overtime, basic.shortmin, previousAdvance, employeeleavebal, form, company, selectedEmployeedetail]);
 
 
   const addArrayItem = (field, item) =>
@@ -778,18 +788,40 @@ export default function PayrollCreatePage() {
             <Typography variant="h6">Adjustments</Typography>
             <Divider />
             <div className="flex flex-col gap-2 mt-4">
-              {basic?.overtime ?
+              {basic?.overtime > basic?.shortmin ?
                 <FormControlLabel
                   // className="border"
-                  control={<Checkbox checked={options.addOvertime} onChange={(e) => setOptions(p => ({ ...p, addOvertime: e.target.checked }))} />}
-                  label="Add Overtime as Bonus"
+                  control={
+                    <Checkbox
+                      checked={options.addOvertime}
+                      onChange={(e) =>
+                        setOptions((p) => ({
+                          ...p,
+                          addOvertime: e.target.checked,
+                          deductShortTime: false,
+                        }))
+                      }
+                    />
+                  }
+                  label={`Add Net Overtime (${basic.overtime - basic.shortmin} min)`}
                 /> : ''
               }
 
-              {basic?.shortmin ?
+              {basic?.shortmin > basic?.overtime ?
                 <FormControlLabel
-                  control={<Checkbox checked={options.deductShortTime} onChange={(e) => setOptions(p => ({ ...p, deductShortTime: e.target.checked }))} />}
-                  label="Deduct Short Time"
+                  control={
+                    <Checkbox
+                      checked={options.deductShortTime}
+                      onChange={(e) =>
+                        setOptions((p) => ({
+                          ...p,
+                          deductShortTime: e.target.checked,
+                          addOvertime: false,
+                        }))
+                      }
+                    />
+                  }
+                  label={`Deduct Net Short Time (${basic.shortmin - basic.overtime} min)`}
                 /> : ''
               }
 

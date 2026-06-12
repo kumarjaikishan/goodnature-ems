@@ -124,8 +124,10 @@ const EmpAttenPerformance = () => {
         const overtimeAfterMinutes = Number(companysetting?.workingMinutes?.overtimeAfterMinutes || 0);
         const daysInMonth = selectedMonth === 'all' ? 30 : dayjs(new Date(selectedYear, Number(selectedMonth), 1)).daysInMonth();
 
+        const netMins = overtimemin - shorttimemin;
+        const preciseRate = salary / daysInMonth / overtimeAfterMinutes;
         const overtimesalary = (selectedMonth !== 'all' && salary > 0 && overtimeAfterMinutes > 0)
-            ? Math.floor((overtimemin - shorttimemin) * (salary / daysInMonth / overtimeAfterMinutes))
+            ? (netMins >= 0 ? Math.ceil(netMins * preciseRate) : -Math.ceil(Math.abs(netMins) * preciseRate))
             : 0;
 
         return { ...results, shorttimemin, overtimemin, overtimesalary };

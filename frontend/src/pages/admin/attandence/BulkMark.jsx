@@ -1,10 +1,10 @@
 import React, {
   useEffect, useMemo, useState, useCallback,
-  useDeferredValue, useReducer,
+  useReducer,
 } from 'react';
 import {
   Paper, Checkbox, Typography, FormControl, Select, MenuItem,
-  InputLabel, Button, Avatar,
+  InputLabel, Button, Avatar, CircularProgress,
 } from '@mui/material';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -18,12 +18,10 @@ import { toast } from 'react-toastify';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { bulkMarkAttendanceApi } from '../../../api/attendance.api';
+import { bulkMarkAttendanceApi, getBulkMarkDataApi } from '../../../api/attendance.api';
 import BulkEmployeeRow from './BulkEmployeeRow';
 
 // ─── Reducer for rowData ────────────────────────────────────────────────────
-// Using useReducer instead of useState so handlers can be stable useCallback
-// with only `dispatch` in their deps (dispatch is always stable).
 function rowDataReducer(state, action) {
   switch (action.type) {
     case 'INIT':
@@ -36,7 +34,6 @@ function rowDataReducer(state, action) {
         [empId]: {
           ...prev,
           [field]: value,
-          // If a time field is changed and status isn't a special one, set present
           status: field !== 'status' && !['weekly off', 'holiday', 'half day'].includes(prev.status)
             ? 'present'
             : prev.status,
@@ -74,8 +71,6 @@ const BulkMark = ({
   isUpdate, isload, setisload, setinp, setisUpdate, dispatch,
 }) => {
   const profile  = useSelector((state) => state.user.profile);
-  const attandence = useSelector((state) => state.user.attandence);
-  const employee   = useSelector((state) => state.user.employee);
   const branch     = useSelector((state) => state.user.branch);
   const department = useSelector((state) => state.user.department);
 
@@ -85,75 +80,67 @@ const BulkMark = ({
   const [selecteddepartment, setselecteddepartment] = useState('all');
   const [attandenceDate, setattandenceDate] = useState(dayjs());
 
+  // Local state for fetched employees and loader
+  const [employees, setemployees] = useState([]);
+  const [isLoadingData, setisLoadingData] = useState(false);
+
   // "Apply to all" fields — separate from rowData
   const [toall, settoall] = useState({ punchIn: '', punchOut: '', status: '' });
+
+  // ── Fetch employee and attendance data from backend ───────────────────────
+  useEffect(() => {
+    if (!openmodal) return;
+
+    const fetchData = async () => {
+      try {
+        setisLoadingData(true);
+        const formattedDate = attandenceDate.format('YYYY-MM-DD');
+        const res = await getBulkMarkDataApi(formattedDate, selectedBranch, selecteddepartment);
+        if (res.success) {
+          setemployees(res.data);
+
+          const newRowData = {};
+          const newChecked = [];
+
+          res.data.forEach(emp => {
+            const existing = emp.existingAttendance;
+            if (existing) {
+              newChecked.push(emp._id);
+              newRowData[emp._id] = {
+                punchIn:  existing.punchIn  ? dayjs(existing.punchIn).format('HH:mm')  : null,
+                punchOut: existing.punchOut ? dayjs(existing.punchOut).format('HH:mm') : null,
+                status: existing.status || 'absent',
+              };
+            } else {
+              newRowData[emp._id] = { punchIn: null, punchOut: null, status: 'absent' };
+            }
+          });
+
+          rowDispatch({ type: 'INIT', payload: newRowData });
+          setcheckedemployee(newChecked);
+        }
+      } catch (err) {
+        console.error("Failed to load bulk mark data:", err);
+        toast.error("Failed to load employee list");
+      } finally {
+        setisLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, [openmodal, attandenceDate, selectedBranch, selecteddepartment]);
 
   // ── Employee Map (O(1) lookup) ─────────────────────────────────────────────
   const employeeMap = useMemo(() => {
     const map = new Map();
-    employee?.forEach(e => map.set(e._id, e));
+    employees?.forEach(e => map.set(e._id, e));
     return map;
-  }, [employee]);
-
-  // ── Attendance Map for selected date (O(1) lookup) ─────────────────────────
-  const attendanceMap = useMemo(() => {
-    if (!attandenceDate || !attandence) return new Map();
-    const selectedDateStr = dayjs(attandenceDate).format('YYYY-MM-DD');
-    const map = new Map();
-    attandence.forEach(a => {
-      if (dayjs(a.date).format('YYYY-MM-DD') === selectedDateStr) {
-        map.set(a.employeeId._id, a);
-      }
-    });
-    return map;
-  }, [attandenceDate, attandence]);
-
-  // ── Filtered employees ─────────────────────────────────────────────────────
-  const filteredEmployee = useMemo(() => {
-    if (!employee) return [];
-    return employee.filter(e => {
-      const isActive = e.status !== false;
-      const matchBranch = selectedBranch !== 'all' ? e.branchId === selectedBranch : true;
-      const matchDept = selecteddepartment !== 'all'
-        ? e.department?._id === selecteddepartment
-        : true;
-      return isActive && matchBranch && matchDept;
-    });
-  }, [employee, selectedBranch, selecteddepartment]);
-
-  // useDeferredValue so filter changes feel instant in the inputs without
-  // blocking the render of the (possibly large) employee list.
-  const deferredEmployees = useDeferredValue(filteredEmployee);
-
-  // ── Initialise rowData when modal opens or date/employees change ───────────
-  useEffect(() => {
-    if (!openmodal || !employee) return;
-
-    const newRowData = {};
-    const newChecked = [];
-
-    employee.forEach(emp => {
-      const existing = attendanceMap.get(emp._id);
-      if (existing) {
-        newChecked.push(emp._id);
-        newRowData[emp._id] = {
-          punchIn:  existing.punchIn  ? dayjs(existing.punchIn).format('HH:mm')  : null,
-          punchOut: existing.punchOut ? dayjs(existing.punchOut).format('HH:mm') : null,
-          status: existing.status || 'absent',
-        };
-      } else {
-        newRowData[emp._id] = { punchIn: null, punchOut: null, status: 'absent' };
-      }
-    });
-
-    rowDispatch({ type: 'INIT', payload: newRowData });
-    setcheckedemployee(newChecked);
-  }, [openmodal, employee, attendanceMap]);
+  }, [employees]);
 
   // ── Apply-to-all: fires only when toall changes, uses useMemo empIds ───────
   const filteredEmpIds = useMemo(
-    () => filteredEmployee.map(e => e._id),
-    [filteredEmployee]
+    () => employees.map(e => e._id),
+    [employees]
   );
 
   const applyToAll = useCallback(() => {
@@ -239,7 +226,7 @@ const BulkMark = ({
     } finally {
       setisload(false);
     }
-  }, [checkedemployee, rowData, employeeMap, attandenceDate, dispatch, setisUpdate, setopenmodal]);
+  }, [checkedemployee, rowData, employeeMap, attandenceDate, dispatch, setopenmodal, setisload]);
 
   // ── Filtered departments for the selected branch ───────────────────────────
   const filteredDepartments = useMemo(() => {
@@ -261,7 +248,7 @@ const BulkMark = ({
 
               {/* ── Filters ─────────────────────────────────────────────── */}
               <div className='w-full flex justify-between gap-2'>
-                <FormControl size="small" fullWidth>
+                <FormControl size="small" fullWidth disabled={isLoadingData}>
                   <InputLabel>Select Branch</InputLabel>
                   <Select
                     label="Select Branch"
@@ -281,7 +268,7 @@ const BulkMark = ({
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" disabled={selectedBranch === 'all'} fullWidth>
+                <FormControl size="small" disabled={selectedBranch === 'all' || isLoadingData} fullWidth>
                   <InputLabel>Select Department</InputLabel>
                   <Select
                     label="Select Department"
@@ -304,6 +291,7 @@ const BulkMark = ({
                     sx={{ width: '100%' }}
                     label="Select date"
                     maxDate={dayjs()}
+                    disabled={isLoadingData}
                   />
                 </LocalizationProvider>
               </div>
@@ -318,6 +306,7 @@ const BulkMark = ({
                   <label className="text-sm font-medium text-gray-700 mb-1 text-left">Punch In</label>
                   <input
                     type="time"
+                    disabled={isLoadingData}
                     className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded"
                     value={toall.punchIn}
                     onChange={(e) => settoall(prev => ({ ...prev, punchIn: e.target.value }))}
@@ -328,6 +317,7 @@ const BulkMark = ({
                   <label className="text-sm font-medium text-gray-700 mb-1 text-left">Punch Out</label>
                   <input
                     type="time"
+                    disabled={isLoadingData}
                     className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded"
                     value={toall.punchOut}
                     onChange={(e) => settoall(prev => ({ ...prev, punchOut: e.target.value }))}
@@ -337,6 +327,7 @@ const BulkMark = ({
                 <div className="flex flex-col w-full">
                   <label className="text-sm font-medium text-gray-700 mb-1 text-left">Status</label>
                   <select
+                    disabled={isLoadingData}
                     className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded text-sm"
                     value={toall.status}
                     onChange={(e) => settoall(prev => ({ ...prev, status: e.target.value }))}
@@ -351,9 +342,8 @@ const BulkMark = ({
                   </select>
                 </div>
 
-                {/* Explicit apply button so toall changes don't trigger a mass re-render */}
                 <div className="col-span-full flex justify-end">
-                  <Button size="small" variant="outlined" onClick={applyToAll}>
+                  <Button size="small" variant="outlined" onClick={applyToAll} disabled={isLoadingData}>
                     Apply
                   </Button>
                 </div>
@@ -370,12 +360,13 @@ const BulkMark = ({
                             onChange={handleAllSelect}
                             checked={
                               checkedemployee.length > 0 &&
-                              checkedemployee.length === deferredEmployees.length
+                              checkedemployee.length === employees.length
                             }
                             indeterminate={
                               checkedemployee.length > 0 &&
-                              checkedemployee.length < deferredEmployees.length
+                              checkedemployee.length < employees.length
                             }
+                            disabled={isLoadingData || employees.length === 0}
                           />
                         </TableCell>
                         <TableCell>Employee Name</TableCell>
@@ -386,19 +377,40 @@ const BulkMark = ({
                     </TableHead>
 
                     <TableBody>
-                      {deferredEmployees.map((emp) => (
-                        <BulkEmployeeRow
-                          key={emp._id}
-                          emp={emp}
-                          isChecked={checkedSet.has(emp._id)}
-                          punchIn={rowData[emp._id]?.punchIn}
-                          punchOut={rowData[emp._id]?.punchOut}
-                          status={rowData[emp._id]?.status}
-                          onCheck={handleCheck}
-                          onTimeChange={handleTimeChange}
-                          onStatusChange={handleStatusChange}
-                        />
-                      ))}
+                      {isLoadingData ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center">
+                            <div className="flex flex-col items-center justify-center py-8 gap-2">
+                              <CircularProgress size={30} />
+                              <Typography variant="body2" color="textSecondary">
+                                Fetching employees and attendance...
+                              </Typography>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : employees.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center">
+                            <Typography variant="body2" color="textSecondary" className="py-4">
+                              No active employees found.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        employees.map((emp) => (
+                          <BulkEmployeeRow
+                            key={emp._id}
+                            emp={emp}
+                            isChecked={checkedSet.has(emp._id)}
+                            punchIn={rowData[emp._id]?.punchIn}
+                            punchOut={rowData[emp._id]?.punchOut}
+                            status={rowData[emp._id]?.status}
+                            onCheck={handleCheck}
+                            onTimeChange={handleTimeChange}
+                            onStatusChange={handleStatusChange}
+                          />
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -412,6 +424,7 @@ const BulkMark = ({
               size="small"
               onClick={() => { setopenmodal(false); setisUpdate(false); setinp(init); }}
               variant="outlined"
+              disabled={isLoadingData}
             >
               Cancel
             </Button>
@@ -421,6 +434,7 @@ const BulkMark = ({
               endIcon={<IoIosSend />}
               variant="contained"
               type="submit"
+              disabled={isLoadingData}
             >
               {isUpdate ? 'Update' : 'Add'}
             </Button>

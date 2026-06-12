@@ -71,7 +71,7 @@ const LedgerListPage = () => {
         setLoading(true);
         try {
             const data = await apiClient({
-                url: "ledger"
+                url: "ledger?view=ledger"
             });
             setLedgers(data.ledgers);
             setFilteredLedgers(data.ledgers);

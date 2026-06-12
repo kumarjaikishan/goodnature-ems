@@ -151,9 +151,21 @@ const ledger = async (req, res) => {
       select: 'status'
     });
 
+    const { view } = req.query;
+
     // Filter: Visible only if it's custom OR it's an active employee
     const visibleLedgers = ledgers.filter(l => {
-      if (l.ledgerType === 'custom') return true;
+      if (l.ledgerType === 'custom') {
+        if (view === 'ledger') {
+          // Exclude custom ledgers created in vouchers page
+          return l.isVoucherLedger !== true;
+        }
+        if (view === 'vouchers') {
+          // Only show custom ledgers created in vouchers page
+          return l.isVoucherLedger === true;
+        }
+        return true;
+      }
       if (l.ledgerType === 'employee') {
         return l.employeeId && l.employeeId.status === true;
       }
@@ -183,7 +195,7 @@ const ledger = async (req, res) => {
 
 const createLedger = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, isVoucherLedger } = req.body;
     if (!req.userid) return res.status(400).json({ message: "Creating User is required." });
 
     const existing = await Ledger.findOne({ companyId: req.user.companyId, name, userId: req.userid });
@@ -195,7 +207,8 @@ const createLedger = async (req, res) => {
       companyId: req.user.companyId, 
       name, 
       userId: req.userid,
-      ledgerType: 'custom' // Explicitly custom
+      ledgerType: 'custom', // Explicitly custom
+      isVoucherLedger: isVoucherLedger === 'true' || isVoucherLedger === true ? true : false
     });
 
     if (req.file) {
@@ -320,6 +333,7 @@ const createEntry = async (req, res) => {
     const amount = Number(credit) > 0 ? credit : debit;
 
     await accountingService.recordLedgerEntry({
+      ledgerId: ledger._id,
       employeeId: ledger.employeeId,
       companyId: req.user.companyId,
       date: new Date(date),

@@ -79,6 +79,7 @@ router.route("/subscription-status").get(authmiddlewre, getSubscriptionStatus);
 router.route("/getAllTransactions").get(authmiddlewre, getAllTransactions);
 
 router.route('/allAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), attendance.allAttandence);
+router.route('/bulkMarkAttendance/data').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getBulkMarkData);
 router.route('/editattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 3), attendance.editattandence);
 router.route('/webattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.webattandence);
 router.route('/bulkMarkAttendance').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.bulkMarkAttendance);
@@ -200,9 +201,12 @@ router.route("/ledgerentry/:id")
 
 // Voucher Routes
 router.route('/vouchers')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), voucher.getVouchers);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), voucher.getVouchers)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.createVoucher);
 router.route('/vouchers/:id')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), voucher.getVoucherDetails);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), voucher.getVoucherDetails)
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.editVoucher)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.deleteVoucher);
 
 // Employee Ledger Route
 router.route('/my-ledger').get(authmiddlewre, authorizeRoles('employee'), ledger.getMyLedger);
