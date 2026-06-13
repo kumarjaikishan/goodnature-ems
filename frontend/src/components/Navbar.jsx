@@ -49,6 +49,20 @@ const Navbar = () => {
     "attandence_Report": "Attendance Report",
     "profile": "Profile",
     "adminprofile": "Profile",
+    "company": "Company Info",
+    "branches": "Branch Manager",
+    "departments": "Departments",
+    "devices": "Device Management",
+    "telegram": "Telegram Integration",
+    "admin": "Admin/Manager",
+    "rules": "Attendance Rules",
+    "leave-policies": "Leave Policies",
+    "attandence-import": "Attendance Import",
+    "add": "Create Payroll",
+    "my-leave-ledger": "Leave Ledger",
+    "my-ledger": "Financial Ledger",
+    "membership": "Membership",
+    "vouchers": "Vouchers",
   };
 
   const notifications = [
@@ -106,6 +120,10 @@ const Navbar = () => {
   if (lastPart && !commonTitles[lastPart]) {
     if (pathParts.includes("ledger") && pathParts.length > 2) {
       pageTitle = "Ledger Detail";
+    } else if (pathParts.includes("vouchers") && pathParts.length > 2) {
+      pageTitle = "Voucher Detail";
+    } else if (pathParts.includes("payroll") && pathParts.includes("print")) {
+      pageTitle = "Payslip Print";
     } else if (pathParts.includes("performance")) {
       pageTitle = "Performance";
     } else {

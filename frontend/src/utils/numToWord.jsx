@@ -41,6 +41,6 @@ function numberToWords(num) {
     result += (result ? " and " : "") + convertNumber(paise) + " paise";
   }
 
-  return result.trim() + " only";
+  return result.trim();
 }
 export default numberToWords;

@@ -242,7 +242,7 @@ const VoucherList = () => {
 
     try {
       setSubmittingLedger(true);
-      const payload = { 
+      const payload = {
         name: ledgerNameInput.trim(),
         isVoucherLedger: true
       };
@@ -325,7 +325,7 @@ const VoucherList = () => {
     {
       name: "S.No",
       selector: (row, index) => index + 1,
-      width: "70px",
+      width: "50px",
     },
     {
       name: "Voucher No",
@@ -336,14 +336,14 @@ const VoucherList = () => {
         </span>
       ),
       sortable: true,
-      width: "160px"
+      width: "140px"
     },
     {
       name: "Date",
       selector: (row) => row.date,
       cell: (row) => dayjs(row.date).format("DD MMM YYYY"),
       sortable: true,
-      width: "130px"
+      width: "100px"
     },
     {
       name: "Ledger",
@@ -353,7 +353,7 @@ const VoucherList = () => {
       },
       sortable: true,
       wrap: true,
-      width: "200px",
+      width: "160px",
     },
     {
       name: "Amount",
@@ -365,7 +365,7 @@ const VoucherList = () => {
         return <span className="font-bold text-slate-900">₹ {amt.toLocaleString()}</span>;
       },
       sortable: true,
-      width: "120px"
+      width: "100px"
     },
     {
       name: "Narration",
@@ -374,7 +374,7 @@ const VoucherList = () => {
     },
     {
       name: "Actions",
-      width: "180px",
+      width: "120px",
       cell: (row) => {
         const isManual = row.referenceType === "MANUAL";
         return (
@@ -420,21 +420,21 @@ const VoucherList = () => {
       sortable: true,
       wrap: true
     },
-    {
-      name: "Net Balance",
-      selector: (row) => row.netBalance || 0,
-      cell: (row) => {
-        const bal = row.netBalance || 0;
-        const color = bal >= 0 ? "text-green-700" : "text-red-700";
-        return (
-          <span className={`font-bold ${color}`}>
-            ₹ {bal.toLocaleString()}
-          </span>
-        );
-      },
-      sortable: true,
-      width: "180px"
-    },
+    // {
+    //   name: "Net Balance",
+    //   selector: (row) => row.netBalance || 0,
+    //   cell: (row) => {
+    //     const bal = row.netBalance || 0;
+    //     const color = bal >= 0 ? "text-green-700" : "text-red-700";
+    //     return (
+    //       <span className={`font-bold ${color}`}>
+    //         ₹ {bal.toLocaleString()}
+    //       </span>
+    //     );
+    //   },
+    //   sortable: true,
+    //   width: "180px"
+    // },
     {
       name: "Actions",
       width: "120px",
@@ -458,7 +458,7 @@ const VoucherList = () => {
   return (
     <div className="w-full max-w-7xl mx-auto p-1 md:p-4">
       {/* Header section with Stats Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -480,20 +480,46 @@ const VoucherList = () => {
           <span className="text-sm font-semibold text-slate-500 uppercase">Total Transaction Volume</span>
           <span className="text-3xl font-black text-teal-700 mt-2">₹ {totalAmountSum.toLocaleString()}</span>
         </motion.div>
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col items-start md:items-end justify-center gap-2"
-        >
+      {/* Tabs System */}
+      <div className="flex flex-wrap items-center justify-between border-b border-slate-200 bg-white px-4 pt-2 rounded-t-lg border-t border-x border-slate-200 gap-2">
+        <div className="flex">
+          <button
+            className={`py-3 px-6 font-bold border-b-2 text-sm transition-all outline-none ${activeTab === "vouchers"
+              ? "border-teal-600 text-teal-700"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            onClick={() => {
+              setActiveTab("vouchers");
+              setSearchText("");
+            }}
+          >
+            Vouchers
+          </button>
+          <button
+            className={`py-3 px-6 font-bold border-b-2 text-sm transition-all outline-none ${activeTab === "ledgers"
+              ? "border-teal-600 text-teal-700"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            onClick={() => {
+              setActiveTab("ledgers");
+              setSearchText("");
+            }}
+          >
+            Manage Custom Ledgers
+          </button>
+        </div>
+
+        <div className="pb-2">
           {activeTab === "vouchers" ? (
             <Button
               variant="contained"
               color="primary"
+              size="small"
               startIcon={<BiPlus />}
               onClick={handleOpenCreate}
-              className="w-full md:w-auto py-2.5 px-6 font-bold shadow-md transform hover:scale-105 transition-transform"
+              className="font-bold py-1.5 px-4 shadow-sm"
             >
               Create Voucher
             </Button>
@@ -501,42 +527,15 @@ const VoucherList = () => {
             <Button
               variant="contained"
               color="secondary"
+              size="small"
               startIcon={<BiPlus />}
               onClick={handleOpenCreateLedger}
-              className="w-full md:w-auto py-2.5 px-6 font-bold shadow-md transform hover:scale-105 transition-transform"
+              className="font-bold py-1.5 px-4 shadow-sm"
             >
               Create Custom Ledger
             </Button>
           )}
-        </motion.div>
-      </div>
-
-      {/* Tabs System */}
-      <div className="flex border-b border-slate-200 bg-white px-4 pt-2 rounded-t-lg border-t border-x border-slate-200">
-        <button
-          className={`py-3 px-6 font-bold border-b-2 text-sm transition-all outline-none ${activeTab === "vouchers"
-            ? "border-teal-600 text-teal-700"
-            : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          onClick={() => {
-            setActiveTab("vouchers");
-            setSearchText("");
-          }}
-        >
-          Vouchers
-        </button>
-        <button
-          className={`py-3 px-6 font-bold border-b-2 text-sm transition-all outline-none ${activeTab === "ledgers"
-            ? "border-teal-600 text-teal-700"
-            : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          onClick={() => {
-            setActiveTab("ledgers");
-            setSearchText("");
-          }}
-        >
-          Manage Custom Ledgers
-        </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

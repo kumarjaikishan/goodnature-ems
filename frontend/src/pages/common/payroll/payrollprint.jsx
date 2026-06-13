@@ -293,7 +293,7 @@ export default function PayslipPrintPage() {
           <div className="mb-4 md:mb-0 text-center md:text-left">
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Net Salary Payable</p>
             <p className="text-sm font-medium italic opacity-90 capitalize">
-              In Words: {numberToWords(Math.floor(payroll?.netSalary || 0))} Only
+              In Words: {numberToWords(Math.floor(payroll?.netSalary || 0))} Rupees Only
             </p>
           </div>
           <div className="text-center md:text-right">

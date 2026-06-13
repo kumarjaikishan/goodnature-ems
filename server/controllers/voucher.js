@@ -13,7 +13,7 @@ exports.getVouchers = async (req, res, next) => {
     if (req.user.role === 'manager') {
       query.branchId = { $in: req.user.branchIds };
     }
-    const vouchers = await Voucher.find(query).sort({ date: -1 }).populate('employeeId');
+    const vouchers = await Voucher.find(query).sort({ voucherNo: -1 }).populate('employeeId');
     return res.status(200).json(vouchers);
   } catch (error) {
     return next({ status: 500, message: error.message });

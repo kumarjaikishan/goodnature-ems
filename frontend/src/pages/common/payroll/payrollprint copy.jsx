@@ -352,7 +352,7 @@ export default function PayslipPrintPage() {
             <p className="text-xl font-bold text-green-700 border-t border-b py-2">
               Net Salary: {formatRupee(Math.floor(payroll?.netSalary))}
             </p>
-            <p className="text-xs capitalize"> In Words: {numberToWords(Math.floor(payroll?.netSalary))}</p>
+            <p className="text-xs capitalize"> In Words: {numberToWords(Math.floor(payroll?.netSalary))} Rupees Only</p>
           </div>
 
         </div>

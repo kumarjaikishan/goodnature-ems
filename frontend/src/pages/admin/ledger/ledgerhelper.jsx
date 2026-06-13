@@ -19,6 +19,7 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate) =
     {
         name: 'Particular',
         selector: row => row.particular,
+        wrap: true,
     },
     {
         name: 'Debit',
