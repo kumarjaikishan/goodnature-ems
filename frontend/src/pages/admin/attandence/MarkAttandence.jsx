@@ -180,16 +180,14 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                         </Select>
                                     </FormControl>}
                             </div>
-                            {inp.status == 'leave' &&
-                                <TextField fullWidth required multiline
-                                    onChange={(e) => {
-                                        setinp({
-                                            ...inp,
-                                            reason: e.target.value
-                                        });
-                                    }}
-                                    minRows={2} value={inp.reason} label="Reason" size="small" />
-                            }
+                            <TextField fullWidth multiline
+                                onChange={(e) => {
+                                    setinp({
+                                        ...inp,
+                                        reason: e.target.value
+                                    });
+                                }}
+                                minRows={2} value={inp.reason || ''} label="Reason / Notes (Optional)" size="small" />
 
                             <div className='w-full flex gap-2'>
                                 <Button size="small"

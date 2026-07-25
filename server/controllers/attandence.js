@@ -266,6 +266,7 @@ const checkin = async (req, res) => {
       date: dateObj,
       status,
       source: 'manual',
+      remarks: reason || null,
 
       ...(punchInTime && { punchIn: punchInTime }),
       ...(punchInStatus && { punchInStatus }),
