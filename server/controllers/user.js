@@ -41,6 +41,14 @@ const userLogin = async (req, res, next) => {
       return next({ status: 400, message: "User not found" });
     }
 
+    if (isUser.role === 'customer') {
+      return next({ status: 403, message: "Customer accounts cannot log in to the portal." });
+    }
+
+    if (isUser.isBlocked) {
+      return next({ status: 403, message: "Your account is blocked. Please contact administrator." });
+    }
+
     const passwordMatch = await bcrypt.compare(password, isUser.password);
     if (!passwordMatch) {
       return next({ status: 400, success: false, message: "Passowrd is incorrect" });

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "cross-env TZ=UTC nodemon --env-file=.env index.js",
     "jai": "cross-env TZ=UTC nodemon --env-file=.env index.js",
     "start": "cross-env TZ=UTC node index.js"
   },

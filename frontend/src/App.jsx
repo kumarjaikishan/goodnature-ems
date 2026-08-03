@@ -72,6 +72,25 @@ const Permission = lazy(() => import('./pages/developer/Permission'));
 const EmployeeProfile = lazy(() => import('./pages/profile/profile'));
 const AdminManagerProfile = lazy(() => import('./pages/profile/adminManagerProfile'));
 
+// Plots
+const PlotDashboard = lazy(() => import('./pages/plots/PlotDashboard'));
+const PlotInventory = lazy(() => import('./pages/plots/PlotInventory'));
+const PlotSponsors = lazy(() => import('./pages/plots/PlotSponsors'));
+const PlotCustomers = lazy(() => import('./pages/plots/PlotCustomers'));
+const PlotCustomerFormPage = lazy(() => import('./pages/plots/PlotCustomerFormPage'));
+const PlotBooking = lazy(() => import('./pages/plots/PlotBooking'));
+const PlotBookingFormPage = lazy(() => import('./pages/plots/PlotBookingFormPage'));
+const PlotBookingDetails = lazy(() => import('./pages/plots/PlotBookingDetails'));
+const InstallmentCollection = lazy(() => import('./pages/plots/InstallmentCollection'));
+const PlotSeriesMaster = lazy(() => import('./pages/plots/PlotSeriesMaster'));
+const PlotReports = lazy(() => import('./pages/plots/PlotReports'));
+const SponsorCommissionsPage = lazy(() => import('./pages/plots/SponsorCommissionsPage'));
+const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/PlotPayoutLedgerPage'));
+const PlotAgreementViewer = lazy(() => import('./pages/plots/PlotAgreementViewer'));
+const BookingCertificateViewer = lazy(() => import('./pages/plots/BookingCertificateViewer'));
+const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
+const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
+
 // 🔹 Role-based route definitions
 const routesByRole = {
   admin: (
@@ -107,6 +126,24 @@ const routesByRole = {
       <Route path="vouchers" element={<VoucherList />} />
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
+      <Route path="plots/dashboard" element={<PlotDashboard />} />
+      <Route path="plots/inventory" element={<PlotInventory />} />
+      <Route path="plots/sponsors" element={<PlotSponsors />} />
+      <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
+      <Route path="plots/customers" element={<PlotCustomers />} />
+      <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
+      <Route path="plots/booking" element={<PlotBooking />} />
+      <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
+      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/installments" element={<InstallmentCollection />} />
+      <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+      <Route path="plots/reports" element={<PlotReports />} />
+      <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
+      <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
+      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
+      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
+      <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -143,6 +180,24 @@ const routesByRole = {
       <Route path="vouchers" element={<VoucherList />} />
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
+      <Route path="plots/dashboard" element={<PlotDashboard />} />
+      <Route path="plots/inventory" element={<PlotInventory />} />
+      <Route path="plots/sponsors" element={<PlotSponsors />} />
+      <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
+      <Route path="plots/customers" element={<PlotCustomers />} />
+      <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
+      <Route path="plots/booking" element={<PlotBooking />} />
+      <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
+      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/installments" element={<InstallmentCollection />} />
+      <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+      <Route path="plots/reports" element={<PlotReports />} />
+      <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
+      <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
+      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
+      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
+      <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -180,6 +235,24 @@ const routesByRole = {
       <Route path="vouchers" element={<VoucherList />} />
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
+      <Route path="plots/dashboard" element={<PlotDashboard />} />
+      <Route path="plots/inventory" element={<PlotInventory />} />
+      <Route path="plots/sponsors" element={<PlotSponsors />} />
+      <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
+      <Route path="plots/customers" element={<PlotCustomers />} />
+      <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
+      <Route path="plots/booking" element={<PlotBooking />} />
+      <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
+      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/installments" element={<InstallmentCollection />} />
+      <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+      <Route path="plots/reports" element={<PlotReports />} />
+      <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
+      <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
+      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
+      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
+      <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),

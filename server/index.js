@@ -63,10 +63,13 @@ app.use((req, res, next) => {
 });
 
 
+const plotRoutes = require('./router/plots.routes');
+
 // ----------------------
 // Routes
 // ----------------------
 
+app.use('/api/plots', plotRoutes);
 app.use('/api', route);
 app.get('/events', eventsHandler);
 app.use('/', esslRoutes);
