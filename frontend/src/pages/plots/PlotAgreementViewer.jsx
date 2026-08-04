@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { HiOutlinePrinter, HiOutlineArrowLeft, HiOutlineLanguage } from 'react-icons/hi2';
-import PlotAgreementHindi from './PlotAgreementHindi';
+import { HiOutlinePrinter, HiOutlineArrowLeft } from 'react-icons/hi2';
 import PlotAgreementEnglish from './PlotAgreementEnglish';
 
 const numberToWords = (num) => {
@@ -49,7 +48,6 @@ const PlotAgreementViewer = () => {
   const [booking, setBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState('hi'); // Default Hindi ('hi'), switcher for English ('en')
 
   useEffect(() => {
     if (!id) return;
@@ -69,21 +67,34 @@ const PlotAgreementViewer = () => {
       });
   }, [id]);
 
+  // Dynamic Document Title for PDF Download filename: "[Customer Name] Agreement"
+  useEffect(() => {
+    if (booking) {
+      const customer = booking.customerId || {};
+      const custName = customer.name || booking.customerName || 'Customer';
+      const originalTitle = document.title;
+      document.title = `${custName} Agreement`;
+      return () => {
+        document.title = originalTitle;
+      };
+    }
+  }, [booking]);
+
   const handlePrint = () => {
     window.print();
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-        <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-800 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 gap-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
         <p className="text-sm font-bold text-slate-500">Booking details not found or permission denied.</p>
         <button onClick={() => navigate('/plot-reports')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
       </div>
@@ -95,7 +106,7 @@ const PlotAgreementViewer = () => {
   const series = plot.seriesId || {};
 
   const bookingDate = new Date(booking.bookingDate || booking.createdAt);
-  const formattedDate = bookingDate.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
+  const formattedDate = bookingDate.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
@@ -103,6 +114,7 @@ const PlotAgreementViewer = () => {
 
   const netPlotValue = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
   const customerName = customer.name || booking.customerName || 'Allottee';
+  const companyName = booking.companyName || 'M/s Good Nature Projects Pvt. Ltd.';
 
   const downpaymentInst = (installments || []).find(i => i.installmentNumber === 0);
   const downpaymentAmount = booking.bookingAmount || downpaymentInst?.dueAmount || Math.max(0, netPlotValue - (booking.remainingAmount || 0));
@@ -139,36 +151,62 @@ const PlotAgreementViewer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white">
+    <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print:min-h-0 print:h-auto print:block">
 
-      {/* Strict A4 Print CSS */}
+      {/* Dynamic A4 Print Styles using W3C table header/footer repeating engine with page counter increment */}
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 0;
+            margin: 10mm 12mm 12mm 12mm;
           }
-          html, body, .agreement-page {
-            width: 210mm;
-            height: 297mm;
-            margin: 0 !important;
-            padding: 0 !important;
+
+          html, body, #root {
             background: white !important;
             color: black !important;
-            font-family: Arial, 'Segoe UI', Inter, -apple-system, BlinkMacSystemFont, sans-serif !important;
+            font-family: Arial, 'Segoe UI', Inter, sans-serif !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: static !important;
+            counter-reset: page 1;
           }
-          .agreement-page {
-            width: 210mm !important;
-            height: 297mm !important;
-            max-height: 297mm !important;
-            padding: 10mm 14mm 10mm 14mm !important;
-            box-sizing: border-box !important;
-            page-break-after: always !important;
+
+          div {
+            max-height: none !important;
+          }
+
+          .no-print, nav, header, aside, .navbar, .sidebar {
+            display: none !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
+          tfoot {
+            display: table-footer-group !important;
+          }
+
+          tr {
             page-break-inside: avoid !important;
-            overflow: hidden !important;
+            break-inside: avoid !important;
           }
-          .agreement-page:last-child {
-            page-break-after: avoid !important;
+
+          .agreement-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+
+          .avoid-break {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
@@ -177,52 +215,67 @@ const PlotAgreementViewer = () => {
       <div className="w-full max-w-[210mm] flex items-center justify-between gap-4 mb-6 print:hidden">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs text-slate-700 dark:text-slate-200 transition cursor-pointer shadow-sm"
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 transition cursor-pointer shadow-sm"
         >
           <HiOutlineArrowLeft className="w-4 h-4" /> Back
         </button>
 
-        <div className="flex items-center gap-3">
-          {/* Language Selector Switcher */}
-          <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1 rounded-xl shadow-sm">
-            <button
-              onClick={() => setLang('hi')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                lang === 'hi'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <HiOutlineLanguage className="w-3.5 h-3.5" /> हिंदी / Hinglish
-            </button>
-            <button
-              onClick={() => setLang('en')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                lang === 'en'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <HiOutlineLanguage className="w-3.5 h-3.5" /> English
-            </button>
-          </div>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition cursor-pointer border-none"
-          >
-            <HiOutlinePrinter className="w-4 h-4" /> Print ({lang === 'hi' ? 'हिंदी' : 'English'})
-          </button>
-        </div>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition cursor-pointer border-none"
+        >
+          <HiOutlinePrinter className="w-4 h-4" /> Print / Save PDF ({customerName} Agreement)
+        </button>
       </div>
 
       {/* Agreement Printable Container */}
-      <div className="w-full max-w-[210mm] bg-white text-slate-900 shadow-2xl rounded-none print:shadow-none print:w-full text-xs leading-relaxed font-sans">
-        {lang === 'hi' ? (
-          <PlotAgreementHindi {...sharedProps} />
-        ) : (
-          <PlotAgreementEnglish {...sharedProps} />
-        )}
+      <div className="w-full max-w-[210mm] bg-white text-slate-900 shadow-2xl rounded-none print:shadow-none print:w-full text-xs leading-relaxed font-sans p-6 sm:p-10 print:p-0">
+        <table className="w-full agreement-table border-collapse">
+          {/* Table Header: Auto-repeats on top of EVERY printed page without overlapping content */}
+          <thead className="hidden print:table-header-group">
+            <tr>
+              <th className="font-normal text-left pb-3">
+                <div className="font-sans  pb-2 flex justify-between items-center text-[10px] font-bold text-slate-800">
+                  <div>Name: <span className="uppercase">{customerName}</span></div>
+                  <div>Agreement No.: <span className="uppercase">{booking.agreementNumber || booking.bookingNumber}</span></div>
+                  <div>Plot: <span className="uppercase font-extrabold">{plot.plotNumber || 'N/A'}{(series.seriesCode || series.seriesName) ? ` (${series.seriesCode || series.seriesName})` : ''}</span></div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+
+          {/* Table Footer: Auto-repeats at bottom of EVERY printed page without overlapping content */}
+          <tfoot className="hidden print:table-footer-group">
+            <tr>
+              <td className="pt-3">
+                <div className="font-sans  pt-2 flex justify-between items-end text-[10px] text-slate-700">
+                  <div className="text-left w-48">
+                    <div className="h-4 border-b border-slate-400 border-dashed w-36 mb-0.5"></div>
+                    <p className="font-bold text-slate-900 m-0 text-[9px]">Applicant Signature</p>
+                    <p className="text-[8px] text-slate-500 m-0 truncate">({customerName})</p>
+                  </div>
+
+
+
+                  <div className="text-right w-48">
+                    <div className="h-4 border-b border-slate-400 border-dashed w-36 ml-auto mb-0.5"></div>
+                    <p className="font-bold text-slate-900 m-0 text-[9px]">Authorized Signature</p>
+                    <p className="text-[8px] text-slate-500 m-0">(For {companyName})</p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+
+          {/* Table Body: Holds the main document content */}
+          <tbody>
+            <tr>
+              <td>
+                <PlotAgreementEnglish {...sharedProps} />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* Bottom Action Bar (Hidden on Print) */}
@@ -231,7 +284,7 @@ const PlotAgreementViewer = () => {
           onClick={handlePrint}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition cursor-pointer border-none"
         >
-          <HiOutlinePrinter className="w-4 h-4" /> Print Agreement ({lang === 'hi' ? 'हिंदी' : 'English'})
+          <HiOutlinePrinter className="w-4 h-4" /> Print / Save PDF ({customerName} Agreement)
         </button>
       </div>
     </div>

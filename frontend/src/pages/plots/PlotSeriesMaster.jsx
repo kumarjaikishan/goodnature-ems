@@ -186,6 +186,17 @@ const PlotSeriesMaster = () => {
     }
   };
 
+  const getLiveEffectiveRate = () => {
+    const base = Number(configForm.baseRate || rateConfig.baseSqFtRate || 500);
+    const cornerExtra = configForm.plotType === 'CORNER' ? (rateConfig.cornerExtraPercent || 20) : 0;
+    return Math.round(base * (1 + cornerExtra / 100));
+  };
+
+  const getLiveTotalValue = () => {
+    const size = Number(configForm.plotSize || selectedPlot?.plotSize || 1200);
+    return size * getLiveEffectiveRate();
+  };
+
   if (loading) {
     return (
       <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen">
@@ -461,7 +472,7 @@ const PlotSeriesMaster = () => {
             <h3 className="text-base font-bold text-slate-800">Edit Plot Series: {selectedSeries?.name}</h3>
             <button className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition" onClick={() => setShowEditModal(false)}>✕</button>
           </div>
-          <form onSubmit={handleSaveSeriesEdit} className="flex flex-col gap-4">
+          <form onSubmit={handleUpdateSeries} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Series Name</label>
               <input className={inputCls} placeholder="e.g. Block A Elite" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required />
@@ -512,7 +523,7 @@ const PlotSeriesMaster = () => {
             <button className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition" onClick={() => setShowConfigModal(false)}>✕</button>
           </div>
 
-          <form onSubmit={handleSavePlotConfig} className="flex flex-col gap-4">
+          <form onSubmit={handleConfigSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Corner Type Configuration</label>
               <select

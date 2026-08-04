@@ -98,7 +98,6 @@ const Sidebar = () => {
             { menu: "Installments", link: "/dashboard/plots/installments", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Series Master", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Payout Ledger", link: "/dashboard/plots/payout-ledger", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <FaCalendarDay />, roles: ["superadmin", "admin", "demo"] },
