@@ -12,6 +12,7 @@ import {
   HiOutlineTrash
 } from 'react-icons/hi2';
 import Modalbox from '../../components/custommodal/Modalbox';
+import numberToWords from '../../utils/numToWord';
 
 const InstallmentCollection = () => {
   const navigate = useNavigate();
@@ -37,11 +38,14 @@ const InstallmentCollection = () => {
     const diffTime = d2 - d1;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+    let dynamicFine = 0;
     if (diffDays > graceDays) {
       const principal = inst.dueAmount - inst.paidAmount;
-      return Math.round((principal * 0.0005 * diffDays) * 100) / 100;
+      dynamicFine = Math.round(principal * 0.0005 * diffDays);
     }
-    return 0;
+
+    const storedUnpaidFine = Math.max(0, (inst.lateFine || 0) - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+    return Math.max(dynamicFine, storedUnpaidFine);
   };
 
   const getLateDays = (inst, graceDays) => {
@@ -624,6 +628,11 @@ const InstallmentCollection = () => {
                     placeholder="Enter collected cash"
                     required
                   />
+                  {form.amountPaid && Number(form.amountPaid) > 0 ? (
+                    <p className="text-[0.7rem] font-bold text-indigo-700 mt-1 capitalize bg-indigo-50/70 border border-indigo-100 rounded-lg px-2.5 py-1">
+                      {numberToWords(Math.floor(Number(form.amountPaid)))} Rupees Only
+                    </p>
+                  ) : null}
                 </div>
 
                 {selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && (
@@ -746,6 +755,11 @@ const InstallmentCollection = () => {
                   placeholder="Enter collected cash"
                   required
                 />
+                {editForm.amount && Number(editForm.amount) > 0 ? (
+                  <p className="text-[0.7rem] font-bold text-indigo-700 mt-1 capitalize bg-indigo-50/70 border border-indigo-100 rounded-lg px-2.5 py-1">
+                    {numberToWords(Math.floor(Number(editForm.amount)))} Rupees Only
+                  </p>
+                ) : null}
               </div>
 
               {editingReceipt?.bookingId?.scheme === 'MONTHLY_INSTALLMENT' && (

@@ -194,6 +194,19 @@ const PlotAgreementViewer = () => {
             display: table-footer-group !important;
           }
 
+          .page-break {
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
+          tfoot {
+            display: table-footer-group !important;
+          }
+
           tr {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -230,52 +243,7 @@ const PlotAgreementViewer = () => {
 
       {/* Agreement Printable Container */}
       <div className="w-full max-w-[210mm] bg-white text-slate-900 shadow-2xl rounded-none print:shadow-none print:w-full text-xs leading-relaxed font-sans p-6 sm:p-10 print:p-0">
-        <table className="w-full agreement-table border-collapse">
-          {/* Table Header: Auto-repeats on top of EVERY printed page without overlapping content */}
-          <thead className="hidden print:table-header-group">
-            <tr>
-              <th className="font-normal text-left pb-3">
-                <div className="font-sans  pb-2 flex justify-between items-center text-[10px] font-bold text-slate-800">
-                  <div>Name: <span className="uppercase">{customerName}</span></div>
-                  <div>Agreement No.: <span className="uppercase">{booking.agreementNumber || booking.bookingNumber}</span></div>
-                  <div>Plot: <span className="uppercase font-extrabold">{plot.plotNumber || 'N/A'}{(series.seriesCode || series.seriesName) ? ` (${series.seriesCode || series.seriesName})` : ''}</span></div>
-                </div>
-              </th>
-            </tr>
-          </thead>
-
-          {/* Table Footer: Auto-repeats at bottom of EVERY printed page without overlapping content */}
-          <tfoot className="hidden print:table-footer-group">
-            <tr>
-              <td className="pt-3">
-                <div className="font-sans  pt-2 flex justify-between items-end text-[10px] text-slate-700">
-                  <div className="text-left w-48">
-                    <div className="h-4 border-b border-slate-400 border-dashed w-36 mb-0.5"></div>
-                    <p className="font-bold text-slate-900 m-0 text-[9px]">Applicant Signature</p>
-                    <p className="text-[8px] text-slate-500 m-0 truncate">({customerName})</p>
-                  </div>
-
-
-
-                  <div className="text-right w-48">
-                    <div className="h-4 border-b border-slate-400 border-dashed w-36 ml-auto mb-0.5"></div>
-                    <p className="font-bold text-slate-900 m-0 text-[9px]">Authorized Signature</p>
-                    <p className="text-[8px] text-slate-500 m-0">(For {companyName})</p>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tfoot>
-
-          {/* Table Body: Holds the main document content */}
-          <tbody>
-            <tr>
-              <td>
-                <PlotAgreementEnglish {...sharedProps} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <PlotAgreementEnglish {...sharedProps} />
       </div>
 
       {/* Bottom Action Bar (Hidden on Print) */}

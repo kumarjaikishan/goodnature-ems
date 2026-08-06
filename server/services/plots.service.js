@@ -12,6 +12,7 @@ const PlotPayoutVoucher = require('../models/PlotPayoutVoucher');
 const PlotAuditLog = require('../models/PlotAuditLog');
 const Counter = require('../models/Counter');
 const User = require('../models/user');
+const PlotCustomer = require('../models/PlotCustomer');
 const ApiError = require('../utils/apiError');
 
 class PlotsService {
@@ -360,30 +361,29 @@ class PlotsService {
         throw ApiError.badRequest(`Plot ${plot.plotNumber} is not available (Status: ${plot.status})`);
       }
 
-      // 2. Resolve/Register Customer
+      // 2. Resolve/Register Customer in PlotCustomer
       let finalCustomerId = customerId;
       if (!finalCustomerId) {
         if (!customerName || !customerMobile) {
           throw ApiError.badRequest('Either Customer ID or Name & Mobile is required');
         }
-        // Check if customer already exists by mobile
-        let user = await User.findOne({ mobile: customerMobile }).session(session);
-        if (!user) {
-          // Register inline customer
-          const registered = await authService.register({
+        // Check if customer already exists in PlotCustomer by mobile
+        let customerDoc = await PlotCustomer.findOne({ mobile: customerMobile }).session(session);
+        if (!customerDoc) {
+          const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
+          const custSeq = await Counter.getNextSequence(`RO-CUST-${fyStr}`, session, 5);
+          customerDoc = new PlotCustomer({
+            customerId: custSeq,
             name: customerName,
-            email: customerEmail || `${customerName}@gn.com`,
             mobile: customerMobile,
-            password: 'customer@123',
-            role: 'customer',
-            sponsorId: sponsorId || undefined,
-          }, processedBy);
-          user = await User.findById(registered._id).session(session);
+            email: customerEmail || '',
+          });
+          await customerDoc.save({ session });
         }
-        finalCustomerId = user._id;
+        finalCustomerId = customerDoc._id;
       }
 
-      const customer = await User.findById(finalCustomerId).session(session);
+      const customer = await PlotCustomer.findById(finalCustomerId).session(session);
       if (!customer) throw ApiError.badRequest('Customer not found');
 
       // Resolve sponsor (null if direct / no sponsor)
@@ -589,8 +589,8 @@ class PlotsService {
         targetInstIds = unpaid.map(i => i._id);
       }
 
-      // Fetch grace period from SystemConfig
-      const gracePeriod = await SystemConfig.getValue('plotGracePeriodDays', 15);
+      // Default grace period in days
+      const gracePeriod = 15;
 
       // Loop through targetInstIds and apply payment amount
       const updatedInstallments = [];
@@ -612,30 +612,30 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round((installment.dueAmount * 0.0005 * diffDays) * 100) / 100;
+            calculatedFine = Math.round(installment.dueAmount * 0.0005 * diffDays);
           }
         }
-        installment.lateFine = calculatedFine;
+        const effectiveFine = Math.max(installment.lateFine || 0, calculatedFine);
+        installment.lateFine = effectiveFine;
 
         // 1. Distribute rebate first to the unpaid fine
-        const unpaidFineBeforeRebate = calculatedFine - installment.lateFinePaid - (installment.lateFineRebate || 0);
+        const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (installment.lateFinePaid || 0) - (installment.lateFineRebate || 0));
         const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
         installment.lateFineRebate = (installment.lateFineRebate || 0) + fineRebateThisTime;
         remainingRebate -= fineRebateThisTime;
 
-        // 2. Distribute payment: first to remaining fine, then to principal
-        const unpaidFineAfterRebate = calculatedFine - installment.lateFinePaid - (installment.lateFineRebate || 0);
+        // 2. Distribute payment: FIRST to principal, then to remaining late fine
+        const unpaidPrincipal = Math.max(0, installment.dueAmount - installment.paidAmount);
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        installment.paidAmount += principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+        totalPrincipalPaid += principalPaidThisTime;
+
+        const unpaidFineAfterRebate = Math.max(0, effectiveFine - (installment.lateFinePaid || 0) - (installment.lateFineRebate || 0));
         const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
         installment.lateFinePaid += finePaidThisTime;
         totalLateFinePaid += finePaidThisTime;
         remainingPaid -= finePaidThisTime;
-
-        const unpaidPrincipal = installment.dueAmount - installment.paidAmount;
-        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
-        installment.paidAmount += principalPaidThisTime;
-        remainingPaid -= principalPaidThisTime;
-
-        totalPrincipalPaid += principalPaidThisTime;
 
         installment.paidDate = paymentDate;
         installment.paymentMode = paymentMode;
@@ -661,12 +661,8 @@ class PlotsService {
         }
       }
 
-      // Update remaining balance on booking
-      booking.remainingAmount = Math.max(0, booking.remainingAmount - totalPrincipalPaid);
-      if (booking.remainingAmount === 0) {
-        booking.status = 'COMPLETED';
-      }
-      await booking.save({ session });
+      // Recalculate remaining balance on booking dynamically
+      await this.recalculateBookingBalance(booking._id, session);
 
       // Scheme 1: For FULL_PAYMENT, if we pay the principal and there is a reversed commission, set it to 'active'
       if (booking.scheme === 'FULL_PAYMENT' && totalPrincipalPaid > 0) {
@@ -692,6 +688,9 @@ class PlotsService {
         receipt.createdAt = paymentDate;
       }
       await receipt.save({ session });
+
+      // Rebuild entire ledger state for 100% accuracy
+      await this.rebuildBookingInstallmentsState(booking._id, session);
 
       // Log event
       await new PlotAuditLog({
@@ -780,7 +779,7 @@ class PlotsService {
         inst.paidDate = null;
       }
 
-      const gracePeriod = await SystemConfig.getValue('plotGracePeriodDays', 15);
+      const gracePeriod = 15;
       const paymentDate = updateData.createdAt ? new Date(updateData.createdAt) : new Date(receipt.createdAt);
 
       let remainingPaid = newAmount;
@@ -804,30 +803,30 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round((inst.dueAmount * 0.0005 * diffDays) * 100) / 100;
+            calculatedFine = Math.round(inst.dueAmount * 0.0005 * diffDays);
           }
         }
-        inst.lateFine = calculatedFine;
+        const effectiveFine = Math.max(inst.lateFine || 0, calculatedFine);
+        inst.lateFine = effectiveFine;
 
         // 1. Distribute rebate first to the unpaid fine
-        const unpaidFineBeforeRebate = calculatedFine - inst.lateFinePaid - (inst.lateFineRebate || 0);
+        const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
         const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
         inst.lateFineRebate = (inst.lateFineRebate || 0) + fineRebateThisTime;
         remainingRebate -= fineRebateThisTime;
 
-        // 2. Distribute payment: first to remaining fine, then to principal
-        const unpaidFineAfterRebate = calculatedFine - inst.lateFinePaid - (inst.lateFineRebate || 0);
+        // 2. Distribute payment: FIRST to principal, then to remaining late fine
+        const unpaidPrincipal = Math.max(0, inst.dueAmount - inst.paidAmount);
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        inst.paidAmount += principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+        totalPrincipalPaid += principalPaidThisTime;
+
+        const unpaidFineAfterRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
         const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
         inst.lateFinePaid += finePaidThisTime;
         totalLateFinePaid += finePaidThisTime;
         remainingPaid -= finePaidThisTime;
-
-        const unpaidPrincipal = inst.dueAmount - inst.paidAmount;
-        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
-        inst.paidAmount += principalPaidThisTime;
-        remainingPaid -= principalPaidThisTime;
-
-        totalPrincipalPaid += principalPaidThisTime;
 
         inst.paidDate = paymentDate;
         inst.paymentMode = receipt.paymentMode;
@@ -851,13 +850,8 @@ class PlotsService {
         }
       }
 
-      booking.remainingAmount = Math.max(0, booking.remainingAmount - totalPrincipalPaid);
-      if (booking.remainingAmount === 0) {
-        booking.status = 'COMPLETED';
-      } else {
-        booking.status = 'ACTIVE';
-      }
-      await booking.save({ session });
+      // Recalculate remaining balance on booking dynamically
+      await this.recalculateBookingBalance(booking._id, session);
 
       // For FULL_PAYMENT, if new payment amount > 0, ensure commission is 'active', otherwise 'reversed'
       if (booking.scheme === 'FULL_PAYMENT') {
@@ -871,6 +865,9 @@ class PlotsService {
       // Save lateFinePaid to receipt
       receipt.lateFinePaid = totalLateFinePaid;
       await receipt.save({ session });
+
+      // Rebuild entire ledger state for 100% accuracy
+      await this.rebuildBookingInstallmentsState(receipt.bookingId, session);
 
       // Log event
       await new PlotAuditLog({
@@ -902,46 +899,7 @@ class PlotsService {
       const booking = await PlotBooking.findById(receipt.bookingId).session(session);
       if (!booking) throw ApiError.notFound('Booking not found');
 
-      // 1. Find all installments tied to this receipt
-      const installments = await PlotInstallment.find({ receiptNumber: receipt.receiptNumber }).session(session);
-
-      let totalPrincipalReverted = 0;
-
-      // 2. Revert installments status, paidAmount, lateFinePaid, and delete sponsor commissions
-      for (const inst of installments) {
-        // Remove commissions associated with this installment
-        await PlotSponsorCommission.deleteMany({ bookingId: booking._id, installmentId: inst._id }).session(session);
-
-        totalPrincipalReverted += inst.paidAmount;
-
-        // Reset installment payment status & amount paid
-        inst.paidAmount = 0;
-        inst.lateFine = 0;
-        inst.lateFinePaid = 0;
-        inst.lateFineRebate = 0;
-        inst.paidDate = null;
-        inst.paymentMode = null;
-        inst.receiptNumber = null;
-        inst.status = 'PENDING';
-        await inst.save({ session });
-      }
-
-      // 3. Update outstanding balance on Booking contract
-      booking.remainingAmount += totalPrincipalReverted;
-      if (booking.status === 'COMPLETED') {
-        booking.status = 'ACTIVE';
-      }
-      await booking.save({ session });
-
-      // For FULL_PAYMENT, reverse any PlotSponsorCommission for this booking when receipt is deleted
-      if (booking.scheme === 'FULL_PAYMENT') {
-        await PlotSponsorCommission.updateMany(
-          { bookingId: booking._id },
-          { $set: { status: 'reversed' } }
-        ).session(session);
-      }
-
-      // 4. Delete corresponding PlotPayment record
+      // 1. Delete corresponding PlotPayment record
       await PlotPayment.deleteMany({
         bookingId: receipt.bookingId,
         amount: receipt.amount,
@@ -949,8 +907,22 @@ class PlotsService {
         transactionReference: receipt.transactionReference,
       }).session(session);
 
-      // 5. Delete the receipt document itself
+      // 2. Delete the receipt document itself
       await receipt.deleteOne({ session });
+
+      // 3. Rebuild the entire installment ledger and balance from remaining active receipts
+      await this.rebuildBookingInstallmentsState(booking._id, session);
+
+      // For FULL_PAYMENT, reverse any PlotSponsorCommission for this booking if no receipts left
+      if (booking.scheme === 'FULL_PAYMENT') {
+        const remainingCount = await PlotReceipt.countDocuments({ bookingId: booking._id }).session(session);
+        if (remainingCount === 0) {
+          await PlotSponsorCommission.updateMany(
+            { bookingId: booking._id },
+            { $set: { status: 'reversed' } }
+          ).session(session);
+        }
+      }
 
       // Log event
       await new PlotAuditLog({
@@ -1034,13 +1006,169 @@ class PlotsService {
       PlotBooking.countDocuments(query),
     ]);
 
+    // Recalculate balances for returned bookings to ensure 100% data consistency
+    await Promise.all(bookings.map(b => this.recalculateBookingBalance(b._id)));
+
     return {
       bookings,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
   }
 
+  async rebuildBookingInstallmentsState(bookingId, session = null) {
+    if (!bookingId) return;
+    const query = PlotBooking.findById(bookingId);
+    if (session) query.session(session);
+    const booking = await query;
+    if (!booking) return;
+
+    // 1. Reset all installments for this booking to zero state
+    const instQuery = PlotInstallment.find({ bookingId }).sort({ installmentNumber: 1 });
+    if (session) instQuery.session(session);
+    const installments = await instQuery;
+
+    for (const inst of installments) {
+      inst.paidAmount = 0;
+      inst.lateFine = 0;
+      inst.lateFinePaid = 0;
+      inst.lateFineRebate = 0;
+      inst.paidDate = null;
+      inst.paymentMode = null;
+      inst.receiptNumber = null;
+      inst.status = 'PENDING';
+      if (session) await inst.save({ session });
+      else await inst.save();
+    }
+
+    // 2. Remove all sponsor commissions for monthly installment scheme to re-generate accurately
+    if (booking.scheme === 'MONTHLY_INSTALLMENT') {
+      const commQuery = PlotSponsorCommission.deleteMany({ bookingId });
+      if (session) commQuery.session(session);
+      await commQuery;
+    }
+
+    // 3. Fetch all active receipts for this booking sorted by createdAt ascending
+    const receiptQuery = PlotReceipt.find({ bookingId }).sort({ createdAt: 1, _id: 1 });
+    if (session) receiptQuery.session(session);
+    const receipts = await receiptQuery;
+
+    const gracePeriod = 15;
+
+    // 4. Re-apply each receipt in chronological order
+    for (const receipt of receipts) {
+      let remainingPaid = Number(receipt.amount) || 0;
+      let remainingRebate = Number(receipt.lateFineRebate) || 0;
+      const paymentDate = new Date(receipt.createdAt);
+
+      let totalLateFinePaidForReceipt = 0;
+
+      for (const inst of installments) {
+        if (remainingPaid <= 0 && remainingRebate <= 0) break;
+        if (inst.status === 'PAID') continue;
+
+        // Calculate late fine
+        let calculatedFine = 0;
+        if (booking.scheme === 'MONTHLY_INSTALLMENT' && inst.installmentNumber > 0) {
+          const due = new Date(inst.dueDate);
+          const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+          const d2 = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
+          const diffTime = d2 - d1;
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+          if (diffDays > gracePeriod) {
+            calculatedFine = Math.round(inst.dueAmount * 0.0005 * diffDays);
+          }
+        }
+        const effectiveFine = Math.max(inst.lateFine || 0, calculatedFine);
+        inst.lateFine = effectiveFine;
+
+        // Rebate
+        const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+        const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
+        inst.lateFineRebate = (inst.lateFineRebate || 0) + fineRebateThisTime;
+        remainingRebate -= fineRebateThisTime;
+
+        // Principal First
+        const unpaidPrincipal = Math.max(0, inst.dueAmount - inst.paidAmount);
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        inst.paidAmount += principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+
+        // Late Fine
+        const unpaidFineAfterRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+        const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
+        inst.lateFinePaid += finePaidThisTime;
+        totalLateFinePaidForReceipt += finePaidThisTime;
+        remainingPaid -= finePaidThisTime;
+
+        inst.paidDate = paymentDate;
+        inst.paymentMode = receipt.paymentMode;
+        inst.receiptNumber = receipt.receiptNumber;
+        inst.status = (inst.paidAmount >= inst.dueAmount && (inst.lateFinePaid + (inst.lateFineRebate || 0)) >= inst.lateFine) ? 'PAID' : 'PARTIAL';
+
+        if (session) await inst.save({ session });
+        else await inst.save();
+
+        // Re-generate Sponsor Commission if Scheme 2 (MONTHLY_INSTALLMENT) and we paid principal
+        if (booking.scheme === 'MONTHLY_INSTALLMENT' && principalPaidThisTime > 0 && booking.sponsorId) {
+          const commPercent = 15;
+          const commissionAmount = Math.round((principalPaidThisTime * 0.15) * 100) / 100;
+          const commDoc = new PlotSponsorCommission({
+            bookingId: booking._id,
+            installmentId: inst._id,
+            sponsorId: booking.sponsorId,
+            customerId: booking.customerId,
+            amount: commissionAmount,
+            commissionPercent: commPercent,
+            status: 'active',
+          });
+          if (session) await commDoc.save({ session });
+          else await commDoc.save();
+        }
+      }
+
+      // Sync lateFinePaid back to receipt
+      receipt.lateFinePaid = totalLateFinePaidForReceipt;
+      if (session) await receipt.save({ session });
+      else await receipt.save();
+    }
+
+    // 5. Recalculate remainingAmount on Booking
+    await this.recalculateBookingBalance(bookingId, session);
+  }
+
+  async recalculateBookingBalance(bookingId, session = null) {
+    if (!bookingId) return null;
+    const query = PlotBooking.findById(bookingId);
+    if (session) query.session(session);
+    const booking = await query;
+    if (!booking) return null;
+
+    const instQuery = PlotInstallment.find({ bookingId });
+    if (session) instQuery.session(session);
+    const installments = await instQuery;
+
+    const totalPrincipalPaid = installments.reduce((sum, inst) => sum + (Number(inst.paidAmount) || 0), 0);
+    const netPlotValue = Math.max(0, (Number(booking.plotValue) || 0) - (Number(booking.discount) || 0));
+
+    booking.remainingAmount = Math.max(0, netPlotValue - totalPrincipalPaid);
+
+    if (booking.remainingAmount === 0 && netPlotValue > 0) {
+      booking.status = 'COMPLETED';
+    } else if (booking.status === 'COMPLETED' && booking.remainingAmount > 0) {
+      booking.status = 'ACTIVE';
+    }
+
+    if (session) {
+      await booking.save({ session });
+    } else {
+      await booking.save();
+    }
+    return booking;
+  }
+
   async getBookingById(id) {
+    await this.rebuildBookingInstallmentsState(id);
     const booking = await PlotBooking.findById(id)
       .populate('customerId', 'name mobile email customerId address fatherOrHusbandName relationType gender age nominee')
       .populate('sponsorId', 'name customerId mobile address')
@@ -1053,6 +1181,7 @@ class PlotsService {
   }
 
   async getInstallments(bookingId) {
+    await this.rebuildBookingInstallmentsState(bookingId);
     return PlotInstallment.find({ bookingId }).sort({ installmentNumber: 1 });
   }
 
@@ -1390,10 +1519,49 @@ class PlotsService {
       const booking = await PlotBooking.findById(id).session(session);
       if (!booking) throw ApiError.notFound('Booking not found');
 
-      const { notes, discount, bookingAmount, bookingDate, sponsorId, status, scheme, installmentCount, installmentAmount, oneTimeMonths, agreementNumber } = data;
+      const {
+        notes, discount, bookingAmount, bookingDate, sponsorId, status, scheme,
+        installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, agreementNumber,
+        bookingType, holdExpiryDays, customerId, plotId, paymentMode, transactionReference
+      } = data;
 
       if (notes !== undefined) booking.notes = notes;
       if (agreementNumber !== undefined) booking.agreementNumber = agreementNumber;
+      if (paymentMode !== undefined) booking.paymentMode = paymentMode;
+      if (transactionReference !== undefined) booking.transactionReference = transactionReference;
+      if (downpaymentMonths !== undefined) booking.downpaymentMonths = Number(downpaymentMonths) || 1;
+
+      if (bookingType !== undefined) {
+        booking.bookingType = bookingType;
+        if (bookingType === 'HOLD') {
+          const expDays = Number(holdExpiryDays) || 7;
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + expDays);
+          booking.holdExpiryDate = expiryDate;
+          booking.status = 'HOLD';
+        }
+      }
+
+      if (customerId !== undefined && customerId && String(customerId) !== String(booking.customerId)) {
+        booking.customerId = customerId;
+      }
+
+      if (plotId !== undefined && plotId && String(plotId) !== String(booking.plotId)) {
+        // Release old plot
+        const oldPlot = await Plot.findById(booking.plotId).session(session);
+        if (oldPlot) {
+          oldPlot.status = 'AVAILABLE';
+          await oldPlot.save({ session });
+        }
+        // Reserve new plot
+        booking.plotId = plotId;
+        const newPlot = await Plot.findById(plotId).session(session);
+        if (newPlot) {
+          newPlot.status = (booking.status === 'HOLD' || booking.bookingType === 'HOLD') ? 'HOLD' : 'BOOKED';
+          booking.plotValue = newPlot.totalValue || (newPlot.areaSqFt * newPlot.ratePerSqFt);
+          await newPlot.save({ session });
+        }
+      }
 
       let installmentParamsChanged = false;
 
@@ -1417,7 +1585,6 @@ class PlotsService {
 
       if (sponsorId !== undefined) {
         booking.sponsorId = sponsorId || null; // Null if direct / no sponsor
-        // Also update any sponsor commissions associated with this booking
         await PlotSponsorCommission.updateMany(
           { bookingId: id },
           { $set: { sponsorId: booking.sponsorId } }
@@ -1425,10 +1592,7 @@ class PlotsService {
       }
 
       if (status !== undefined && status !== booking.status) {
-        const oldStatus = booking.status;
         booking.status = status;
-
-        // Update Plot status accordingly
         const plot = await Plot.findById(booking.plotId).session(session);
         if (plot) {
           if (status === 'CANCELLED') {
@@ -2045,10 +2209,9 @@ class PlotsService {
     }
 
     // Default email to sponsorname@gn.com (lowercase without spaces) if not provided
-    const sanitizedName = (name || 'sponsor').toLowerCase().replace(/\s+/g, '');
-    const userEmail = email ? email.trim() : `${sanitizedName}@gn.com`;
+    const userEmail = email && typeof email === 'string' && email.trim() ? email.trim() : undefined;
     
-    if (email) {
+    if (userEmail) {
       const existing = await User.findOne({ email: userEmail });
       if (existing) {
         throw new Error('User with this email already exists');
@@ -2080,11 +2243,10 @@ class PlotsService {
     }
     const sponsorCode = `${prefix}${String(nextNum).padStart(3, '0')}`;
 
-    const sponsor = new User({
+    const sponsorData = {
       name,
       sponsorCode,
       sponsorId: sponsorId === 'company' || sponsorId === 'direct' ? null : sponsorId,
-      email: userEmail,
       password: password || '123456',
       mobile: mobile || '',
       role: 'sponsor',
@@ -2092,7 +2254,13 @@ class PlotsService {
       panCard,
       aadhaarCard,
       commissionRate: Number(commissionRate) || 0,
-    });
+    };
+
+    if (userEmail) {
+      sponsorData.email = userEmail;
+    }
+
+    const sponsor = new User(sponsorData);
     await sponsor.save();
     return sponsor;
   }
@@ -2135,109 +2303,107 @@ class PlotsService {
     return sponsor;
   }
 
+  async syncLegacyUserCustomers() {
+    try {
+      const legacyCustomers = await User.find({ role: 'customer' });
+      for (const legacy of legacyCustomers) {
+        const exists = await PlotCustomer.findById(legacy._id);
+        if (!exists) {
+          await PlotCustomer.create({
+            _id: legacy._id,
+            customerId: legacy.customerCode || legacy.customerId || `CUST-${legacy._id.toString().slice(-6)}`,
+            name: legacy.name,
+            mobile: legacy.mobile || '',
+            email: legacy.email || '',
+            address: legacy.address || '',
+            currentAddress: legacy.currentAddress || '',
+            permanentAddress: legacy.permanentAddress || '',
+            sameAsCurrentAddress: legacy.sameAsCurrentAddress || false,
+            fatherOrHusbandName: legacy.fatherOrHusbandName || '',
+            relationType: legacy.relationType || 'Son of',
+            gender: legacy.gender || 'Male',
+            age: legacy.age,
+            dob: legacy.dob || '',
+            occupation: legacy.occupation || '',
+            panCard: legacy.panCard || '',
+            aadhaarCard: legacy.aadhaarCard || '',
+            nomineeName: legacy.nomineeName || '',
+            nomineeRelation: legacy.nomineeRelation || '',
+            nomineeAge: legacy.nomineeAge,
+            accountHolderName: legacy.accountHolderName || '',
+            bankName: legacy.bankName || '',
+            bankBranch: legacy.bankBranch || '',
+            accountNumber: legacy.accountNumber || '',
+            ifscCode: legacy.ifscCode || '',
+            isBlocked: legacy.isBlocked || false,
+            createdAt: legacy.createdAt,
+            updatedAt: legacy.updatedAt,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Legacy customer sync notice:', err.message);
+    }
+  }
+
   async getCustomers(query = {}) {
-    const { search, page = 1, limit = 50, sponsorId } = query;
-    const filter = { role: 'customer' };
-    if (sponsorId) filter.sponsorId = sponsorId;
+    await this.syncLegacyUserCustomers();
+    const { search, page = 1, limit = 50 } = query;
+    const filter = {};
     if (search) {
       filter.$or = [
-        { customerCode: { $regex: search, $options: 'i' } },
+        { customerId: { $regex: search, $options: 'i' } },
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { mobile: { $regex: search, $options: 'i' } }
       ];
     }
     const skip = (Number(page) - 1) * Number(limit);
-    const total = await User.countDocuments(filter);
-    const customers = await User.find(filter).populate('sponsorId', 'name mobile email sponsorCode').sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
+    const total = await PlotCustomer.countDocuments(filter);
+    const customers = await PlotCustomer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
     return { customers, pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) } };
   }
 
   async createCustomer(data) {
     const {
-      name, email, mobile, password, sponsorId, gender, age, relationType, fatherOrHusbandName,
+      name, email, mobile, gender, age, relationType, fatherOrHusbandName,
       address, currentAddress, permanentAddress, sameAsCurrentAddress, aadhaarCard, panCard,
       nomineeName, nomineeRelation, nomineeAge, accountHolderName, bankName, bankBranch, accountNumber, ifscCode
     } = data;
 
-    if (!sponsorId) {
-      throw new Error('Sponsor selection is required for customer creation');
-    }
+    const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
+    const customerId = await Counter.getNextSequence(`RO-CUST-${fyStr}`, null, 5);
 
-    const customerEmail = email ? email.trim() : '';
-    if (customerEmail) {
-      const existing = await User.findOne({ email: customerEmail });
-      if (existing) {
-        throw new Error('Customer with this email already exists');
-      }
-    }
-
-    // Generate Customer Code GNC-26-27-001 (FY format)
-    const now = new Date();
-    const currentMonth = now.getMonth(); // 0-indexed (0 is Jan, 3 is April)
-    const currentYear = now.getFullYear();
-
-    let startYear, endYear;
-    if (currentMonth >= 3) {
-      startYear = currentYear;
-      endYear = currentYear + 1;
-    } else {
-      startYear = currentYear - 1;
-      endYear = currentYear;
-    }
-
-    const startYearStr = String(startYear).slice(-2);
-    const endYearStr = String(endYear).slice(-2);
-    const prefix = `GNC-${startYearStr}-${endYearStr}-`;
-
-    const latestCustomer = await User.findOne({
-      role: 'customer',
-      customerCode: { $regex: `^${prefix}` }
-    }).sort({ customerCode: -1 });
-
-    let nextNum = 1;
-    if (latestCustomer && latestCustomer.customerCode) {
-      const parts = latestCustomer.customerCode.split('-');
-      const lastSeq = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(lastSeq)) {
-        nextNum = lastSeq + 1;
-      }
-    }
-    const customerCode = `${prefix}${String(nextNum).padStart(3, '0')}`;
-
-    const customer = new User({
+    const customer = new PlotCustomer({
+      customerId,
       name,
-      customerCode,
-      email: customerEmail,
-      password: password || '123456',
+      email: email || '',
       mobile: mobile || '',
-      role: 'customer',
-      sponsorId: sponsorId === 'company' || sponsorId === 'direct' ? null : sponsorId,
-      gender,
+      gender: gender || 'Male',
       age,
-      relationType,
-      fatherOrHusbandName,
+      relationType: relationType || 'Son of',
+      fatherOrHusbandName: fatherOrHusbandName || '',
       address: currentAddress || address || '',
       currentAddress: currentAddress || address || '',
       permanentAddress: sameAsCurrentAddress ? (currentAddress || address || '') : (permanentAddress || ''),
       sameAsCurrentAddress: Boolean(sameAsCurrentAddress),
-      aadhaarCard,
-      panCard,
-      nomineeName,
-      nomineeRelation,
+      aadhaarCard: aadhaarCard || '',
+      panCard: panCard || '',
+      nomineeName: nomineeName || '',
+      nomineeRelation: nomineeRelation || '',
       nomineeAge,
-      accountHolderName,
-      bankName,
-      bankBranch,
-      accountNumber,
-      ifscCode
+      accountHolderName: accountHolderName || '',
+      bankName: bankName || '',
+      bankBranch: bankBranch || '',
+      accountNumber: accountNumber || '',
+      ifscCode: ifscCode || '',
     });
     await customer.save();
     return customer;
   }
 
   async updateCustomer(id, data) {
-    const customer = await User.findByIdAndUpdate(id, { $set: data }, { new: true });
+    const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true });
     return customer;
   }
 

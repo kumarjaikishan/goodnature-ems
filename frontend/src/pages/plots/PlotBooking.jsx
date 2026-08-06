@@ -318,7 +318,7 @@ const PlotBooking = () => {
       if (receipt && receipt._id) {
         navigate(`/dashboard/plots/receipts/${receipt._id}`);
       } else {
-        navigate('/dashboard/plots/reports');
+        navigate('/dashboard/plots/booking');
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Booking failed');

@@ -81,7 +81,7 @@ const BookingCertificateViewer = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
         <p className="text-sm font-bold text-slate-500">Booking details not found or permission denied.</p>
-        <button onClick={() => navigate('/dashboard/plots/reports')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
+        <button onClick={() => navigate('/dashboard/plots/booking')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
       </div>
     );
   }

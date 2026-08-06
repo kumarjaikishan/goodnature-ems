@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { HiOutlineChartBar, HiOutlineCheckCircle, HiOutlinePrinter, HiOutlineXCircle, HiOutlineTrash, HiOutlinePencilSquare, HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineClipboardDocumentCheck, HiXMark, HiOutlineEye } from 'react-icons/hi2';
 import Modalbox from '../../components/custommodal/Modalbox';
 import { CircularProgress } from '@mui/material';
 
 const PlotReports = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('bookings');
+  const location = useLocation();
+  const isReportsPage = location.pathname.includes('/reports');
+
+  const [activeTab, setActiveTab] = useState(isReportsPage ? 'dues' : 'bookings');
+
+  useEffect(() => {
+    if (isReportsPage) {
+      setActiveTab('dues');
+    } else {
+      setActiveTab('bookings');
+    }
+  }, [location.pathname]);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,6 +71,11 @@ const PlotReports = () => {
   const [sponsorSearchResults, setSponsorSearchResults] = useState([]);
   const [editEmiType, setEditEmiType] = useState('MONTH'); // 'MONTH' or 'AMOUNT'
 
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customerSearchResults, setCustomerSearchResults] = useState([]);
+  const [plotsList, setPlotsList] = useState([]);
+
   // Fetch sponsor search options dynamically inside Modal
   useEffect(() => {
     const q = sponsorSearch.trim();
@@ -69,10 +85,7 @@ const PlotReports = () => {
     }
     const delayDebounce = setTimeout(() => {
       api.get('/plots/sponsors', {
-        params: {
-          search: q,
-          limit: 20
-        }
+        params: { search: q, limit: 20 }
       }).then((res) => {
         const list = res.data.data?.sponsors || res.data.sponsors || res.data.data || [];
         setSponsorSearchResults(list);
@@ -82,10 +95,31 @@ const PlotReports = () => {
     return () => clearTimeout(delayDebounce);
   }, [sponsorSearch]);
 
+  // Fetch customer search options dynamically inside Modal
+  useEffect(() => {
+    const q = customerSearch.trim();
+    if (!q) {
+      setCustomerSearchResults([]);
+      return;
+    }
+    const delayDebounce = setTimeout(() => {
+      api.get('/plots/customers', {
+        params: { search: q, limit: 20 }
+      }).then((res) => {
+        const list = res.data.data?.customers || res.data.customers || res.data.data || [];
+        setCustomerSearchResults(list);
+      }).catch(() => { });
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [customerSearch]);
+
   // Calculate EMI or period dynamically in the edit form
   const calculatedEmi = (() => {
     if (!editingBooking || editForm.scheme !== 'MONTHLY_INSTALLMENT') return 0;
-    const net = Math.max(0, (editingBooking.plotValue || 0) - (Number(editForm.discount) || 0));
+    const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking.plotId || {};
+    const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking.plotValue || 0);
+    const net = Math.max(0, plotVal - (Number(editForm.discount) || 0));
     const dp = Number(editForm.bookingAmount) || 0;
     const principal = Math.max(0, net - dp);
     const count = Number(editForm.installmentCount) || 1;
@@ -94,7 +128,9 @@ const PlotReports = () => {
 
   const calculatedPeriod = (() => {
     if (!editingBooking || editForm.scheme !== 'MONTHLY_INSTALLMENT') return 0;
-    const net = Math.max(0, (editingBooking.plotValue || 0) - (Number(editForm.discount) || 0));
+    const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking.plotId || {};
+    const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking.plotValue || 0);
+    const net = Math.max(0, plotVal - (Number(editForm.discount) || 0));
     const dp = Number(editForm.bookingAmount) || 0;
     const principal = Math.max(0, net - dp);
     const amount = Number(editForm.installmentAmount) || 1;
@@ -119,21 +155,38 @@ const PlotReports = () => {
 
   const handleEditClick = async (booking) => {
     setEditingBooking(booking);
+
+    if (plotsList.length === 0) {
+      api.get('/plots?limit=5000').then((res) => setPlotsList(res.data.data || [])).catch(() => {});
+    }
+
+    const custObj = booking.customerId;
+    const custName = custObj?.name || booking.customerName || '';
+    const custCode = custObj?.customerCode || custObj?.mobile || '';
+    setCustomerSearch(custName ? `${custName} (${custCode})` : '');
+
     const initialForm = {
-      notes: booking.notes || '',
+      bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
+      holdExpiryDays: '7',
+      customerId: custObj?._id || booking.customerId || '',
+      plotId: booking.plotId?._id || booking.plotId || '',
+      status: booking.status || 'ACTIVE',
+      agreementNumber: booking.agreementNumber || '',
+      bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : new Date(booking.createdAt).toISOString().split('T')[0],
+      scheme: booking.scheme || 'FULL_PAYMENT',
       discount: booking.discount || 0,
       bookingAmount: booking.bookingAmount || 0,
-      bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : new Date(booking.createdAt).toISOString().split('T')[0],
-      sponsorId: booking.sponsorId?._id || booking.sponsorId || '',
-      status: booking.status || 'ACTIVE',
-      scheme: booking.scheme || 'FULL_PAYMENT',
+      downpaymentMonths: booking.downpaymentMonths || 1,
+      oneTimeMonths: booking.oneTimeMonths || 1,
       installmentCount: 100,
       installmentAmount: 0,
-      oneTimeMonths: booking.oneTimeMonths || 1,
-      agreementNumber: booking.agreementNumber || '',
+      paymentMode: booking.paymentMode || 'cash',
+      transactionReference: booking.transactionReference || '',
+      sponsorId: booking.sponsorId?._id || booking.sponsorId || '',
+      notes: booking.notes || '',
     };
     setEditForm(initialForm);
-    setSponsorSearch(booking.sponsorId?.name ? `${booking.sponsorId.name} (${booking.sponsorId.customerId || ''})` : 'Direct / Riseown (No Sponsor)');
+    setSponsorSearch(booking.sponsorId?.name ? `${booking.sponsorId.name} (${booking.sponsorId.sponsorCode || ''})` : 'Direct / Riseown (No Sponsor)');
     setEditEmiType('MONTH');
 
     if (booking.scheme === 'MONTHLY_INSTALLMENT') {
@@ -207,6 +260,13 @@ const PlotReports = () => {
         status: editForm.status,
         scheme: editForm.scheme,
         agreementNumber: editForm.agreementNumber,
+        bookingType: editForm.bookingType,
+        holdExpiryDays: Number(editForm.holdExpiryDays) || 7,
+        customerId: editForm.customerId,
+        plotId: editForm.plotId,
+        paymentMode: editForm.paymentMode,
+        transactionReference: editForm.transactionReference,
+        downpaymentMonths: Number(editForm.downpaymentMonths) || 1,
       };
 
       if (editForm.scheme === 'MONTHLY_INSTALLMENT') {
@@ -284,12 +344,18 @@ const PlotReports = () => {
     <div className="p-6 bg-slate-50 min-h-screen space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Plot Financial & Operational Audits</h1>
-          <p className="text-slate-500 text-sm">Browse, verify, and export booking schedules, collections, and liability records.</p>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isReportsPage ? 'Plot Reports & Audits' : 'Plot Bookings & Management'}
+          </h1>
+          <p className="text-slate-500 text-sm">
+            {isReportsPage
+              ? 'Comprehensive due reports, payment schedules, and active plot holds.'
+              : 'Browse, verify, and export booking schedules, collections, and liability records.'}
+          </p>
         </div>
         <div>
           <button
-            onClick={() => navigate('/dashboard/plots/booking')}
+            onClick={() => navigate('/dashboard/plots/addbooking')}
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm bg-primary"
             type="button"
           >
@@ -299,25 +365,26 @@ const PlotReports = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap border-b border-slate-200 shrink-0 gap-6">
-        {[
-          { id: 'bookings', label: 'Active Bookings' },
-          { id: 'holds', label: 'Active Holds' },
-          { id: 'dues', label: 'Due Report' }
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`pb-3 text-sm font-bold border-b-2 cursor-pointer transition ${
-              activeTab === t.id
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {isReportsPage && (
+        <div className="flex flex-wrap border-b border-slate-200 shrink-0 gap-6">
+          {[
+            { id: 'dues', label: 'Due Report' },
+            { id: 'holds', label: 'Active Holds' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`pb-3 text-sm font-bold border-b-2 cursor-pointer transition ${
+                activeTab === t.id
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filter Bar */}
       {activeTab === 'bookings' && !loading && (
@@ -729,11 +796,14 @@ const PlotReports = () => {
 
       {/* Edit Contract Modal */}
       <Modalbox open={Boolean(editingBooking)} onClose={() => setEditingBooking(null)}>
-        <div className="p-6 bg-white rounded-2xl w-[650px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-            <h3 className="text-base font-bold text-slate-800">
-              Edit Contract #{editingBooking?.bookingNumber} (Plot #{editingBooking?.plotId?.plotNumber})
-            </h3>
+        <div className="p-6 bg-white rounded-2xl w-[720px] max-w-[95vw] space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">
+                Edit Booking Contract #{editingBooking?.bookingNumber}
+              </h3>
+              <p className="text-[0.7rem] font-medium text-slate-500">Update all customer, plot, pricing, payment and schedule parameters.</p>
+            </div>
             <button
               type="button"
               className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
@@ -744,7 +814,129 @@ const PlotReports = () => {
           </div>
 
           <form onSubmit={handleUpdateBooking} className="flex flex-col gap-4 text-xs">
-            <div className="grid grid-cols-2 gap-4">
+            {/* 1. Customer & Plot Selection */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">1. Customer & Plot Assignment</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Customer Search */}
+                <div className="flex flex-col gap-1 relative">
+                  <label className="text-xs font-semibold text-slate-600">Customer</label>
+                  <input
+                    type="text"
+                    placeholder="Search customer by name, code or mobile..."
+                    value={customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none pr-8"
+                  />
+                  {customerSearch && (
+                    <button
+                      type="button"
+                      className="absolute right-3 top-8 text-slate-400 hover:text-slate-600"
+                      onClick={() => {
+                        setCustomerSearch('');
+                        setEditForm({ ...editForm, customerId: '' });
+                        setShowCustomerDropdown(false);
+                      }}
+                    >
+                      <HiXMark className="w-4 h-4" />
+                    </button>
+                  )}
+                  {showCustomerDropdown && customerSearchResults.length > 0 && (
+                    <div className="absolute top-[68px] left-0 right-0 max-h-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-y-auto">
+                      {customerSearchResults.map(c => (
+                        <div
+                          key={c._id}
+                          className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold flex items-center justify-between border-b border-slate-100 last:border-0"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setEditForm({ ...editForm, customerId: c._id });
+                            setCustomerSearch(`${c.name} (${c.customerCode || c.mobile || ''})`);
+                            setShowCustomerDropdown(false);
+                          }}
+                        >
+                          <div>
+                            <p className="font-bold text-slate-800">{c.name}</p>
+                            <p className="text-[0.65rem] text-slate-400">{c.mobile}</p>
+                          </div>
+                          <span className="text-[0.65rem] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{c.customerCode || 'CUSTOMER'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Plot Selection */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600">Select Plot</label>
+                  <select
+                    value={editForm.plotId}
+                    onChange={(e) => setEditForm({ ...editForm, plotId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    required
+                  >
+                    <option value={editingBooking?.plotId?._id || editingBooking?.plotId}>
+                      Plot #{editingBooking?.plotId?.plotNumber || 'Current Plot'} (Current)
+                    </option>
+                    {plotsList
+                      .filter(p => p._id !== (editingBooking?.plotId?._id || editingBooking?.plotId) && p.status === 'AVAILABLE')
+                      .map(p => (
+                        <option key={p._id} value={p._id}>
+                          Plot #{p.plotNumber} ({p.seriesId?.seriesName || 'Series'}) - {p.areaSqFt || 0} SQFT @ ₹{p.ratePerSqFt || 0}/SQFT
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Booking Type & Status Details */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-600">Booking Type</label>
+                <select
+                  value={editForm.bookingType}
+                  onChange={(e) => setEditForm({ ...editForm, bookingType: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="BOOKING">BOOKING (Confirmed)</option>
+                  <option value="HOLD">HOLD (Temporary Lock)</option>
+                </select>
+              </div>
+
+              {editForm.bookingType === 'HOLD' && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600">Hold Expiry Term</label>
+                  <select
+                    value={editForm.holdExpiryDays}
+                    onChange={(e) => setEditForm({ ...editForm, holdExpiryDays: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="7">7 Days Hold</option>
+                    <option value="15">15 Days Hold</option>
+                    <option value="30">30 Days Hold</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-600">Booking Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="HOLD">HOLD</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
+
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-slate-600">Contract Agreement No.</label>
                 <input
@@ -768,90 +960,75 @@ const PlotReports = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-600">Discount Offered (₹)</label>
-                <input
-                  type="number"
-                  value={editForm.discount}
-                  onChange={(e) => setEditForm({ ...editForm, discount: Number(e.target.value) || 0 })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="0"
-                />
-              </div>
+            {/* 3. Scheme, Pricing & Terms */}
+            <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
+              <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wide">2. Pricing, Payment Scheme & Terms</h4>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-600">Initial Down Payment (₹)</label>
-                <input
-                  type="number"
-                  value={editForm.bookingAmount}
-                  onChange={(e) => setEditForm({ ...editForm, bookingAmount: Number(e.target.value) || 0 })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="0"
-                />
+                <label className="text-xs font-semibold text-slate-600">Payment Scheme</label>
+                <div className="flex gap-6 mt-1">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editScheme"
+                      value="FULL_PAYMENT"
+                      checked={editForm.scheme === 'FULL_PAYMENT'}
+                      onChange={() => setEditForm({ ...editForm, scheme: 'FULL_PAYMENT' })}
+                      className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                    />
+                    One Time (Full Payment)
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editScheme"
+                      value="MONTHLY_INSTALLMENT"
+                      checked={editForm.scheme === 'MONTHLY_INSTALLMENT'}
+                      onChange={() => setEditForm({ ...editForm, scheme: 'MONTHLY_INSTALLMENT' })}
+                      className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                    />
+                    Monthly EMI (Installments)
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600">Discount Offered (₹)</label>
+                  <input
+                    type="number"
+                    value={editForm.discount}
+                    onChange={(e) => setEditForm({ ...editForm, discount: Number(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600">Initial Down Payment (₹)</label>
+                  <input
+                    type="number"
+                    value={editForm.bookingAmount}
+                    onChange={(e) => setEditForm({ ...editForm, bookingAmount: Number(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600">Downpayment Grace Term (Months)</label>
+                  <input
+                    type="number"
+                    value={editForm.downpaymentMonths}
+                    onChange={(e) => setEditForm({ ...editForm, downpaymentMonths: Number(e.target.value) || 1 })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    min="1"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600">Sponsor / Agent Assignment</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search sponsor by name or ID..."
-                  value={sponsorSearch}
-                  onChange={(e) => {
-                    setSponsorSearch(e.target.value);
-                    setShowSponsorDropdown(true);
-                  }}
-                  onFocus={() => setShowSponsorDropdown(true)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none pr-8"
-                />
-                {sponsorSearch && (
-                  <button
-                    type="button"
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-                    onClick={() => {
-                      setSponsorSearch('');
-                      setEditForm({ ...editForm, sponsorId: '' });
-                      setShowSponsorDropdown(false);
-                    }}
-                  >
-                    <HiXMark className="w-4 h-4" />
-                  </button>
-                )}
-                {showSponsorDropdown && (
-                  <div className="absolute top-[48px] left-0 right-0 max-h-40 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-y-auto">
-                    <div
-                      className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold border-b border-slate-100"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setEditForm({ ...editForm, sponsorId: '' });
-                        setSponsorSearch('Direct / Riseown (No Sponsor)');
-                        setShowSponsorDropdown(false);
-                      }}
-                    >
-                      Direct / Riseown (No Sponsor)
-                    </div>
-                    {sponsorSearchResults.map(c => (
-                      <div
-                        key={c._id}
-                        className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold flex items-center justify-between border-b border-slate-100 last:border-0"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setEditForm({ ...editForm, sponsorId: c._id });
-                          setSponsorSearch(`${c.name} (${c.customerId})`);
-                          setShowSponsorDropdown(false);
-                        }}
-                      >
-                        <span>{c.name}</span>
-                        <span className="text-[0.65rem] font-bold text-indigo-600">{c.customerId}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
+            {/* 4. EMI / One-Time Schedule Configuration */}
             {editForm.scheme === 'MONTHLY_INSTALLMENT' && (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <div className="flex flex-col gap-1">
@@ -865,7 +1042,7 @@ const PlotReports = () => {
                         onChange={() => setEditEmiType('MONTH')}
                         className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
                       />
-                      Month-based (specify period)
+                      Month-based (specify tenure)
                     </label>
                     <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
                       <input
@@ -929,7 +1106,9 @@ const PlotReports = () => {
                     </div>
                     
                     {(() => {
-                      const net = Math.max(0, (editingBooking?.plotValue || 0) - (Number(editForm.discount) || 0));
+                      const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking?.plotId || {};
+                      const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking?.plotValue || 0);
+                      const net = Math.max(0, plotVal - (Number(editForm.discount) || 0));
                       const dp = Number(editForm.bookingAmount) || 0;
                       const principal = Math.max(0, net - dp);
                       const sugs = getDivisorSuggestions(principal, Number(editForm.installmentAmount) || 0);
@@ -976,8 +1155,96 @@ const PlotReports = () => {
               </div>
             )}
 
+            {/* 5. Payment Mode & Sponsor Assignment */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-600">Payment Mode</label>
+                <select
+                  value={editForm.paymentMode}
+                  onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="online">Online / UPI</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-600">Transaction Ref / Cheque No.</label>
+                <input
+                  type="text"
+                  value={editForm.transactionReference}
+                  onChange={(e) => setEditForm({ ...editForm, transactionReference: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="e.g. TXN987654321 / CHQ-1002"
+                />
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600">Internal Notes</label>
+              <label className="text-xs font-semibold text-slate-600">Sponsor / Agent Assignment</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search sponsor by name or ID..."
+                  value={sponsorSearch}
+                  onChange={(e) => {
+                    setSponsorSearch(e.target.value);
+                    setShowSponsorDropdown(true);
+                  }}
+                  onFocus={() => setShowSponsorDropdown(true)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none pr-8"
+                />
+                {sponsorSearch && (
+                  <button
+                    type="button"
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                    onClick={() => {
+                      setSponsorSearch('');
+                      setEditForm({ ...editForm, sponsorId: '' });
+                      setShowSponsorDropdown(false);
+                    }}
+                  >
+                    <HiXMark className="w-4 h-4" />
+                  </button>
+                )}
+                {showSponsorDropdown && (
+                  <div className="absolute top-[48px] left-0 right-0 max-h-40 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-y-auto">
+                    <div
+                      className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold border-b border-slate-100"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setEditForm({ ...editForm, sponsorId: '' });
+                        setSponsorSearch('Direct / Riseown (No Sponsor)');
+                        setShowSponsorDropdown(false);
+                      }}
+                    >
+                      Direct / Riseown (No Sponsor)
+                    </div>
+                    {sponsorSearchResults.map(c => (
+                      <div
+                        key={c._id}
+                        className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold flex items-center justify-between border-b border-slate-100 last:border-0"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setEditForm({ ...editForm, sponsorId: c._id });
+                          setSponsorSearch(`${c.name} (${c.sponsorCode || c.customerId || ''})`);
+                          setShowSponsorDropdown(false);
+                        }}
+                      >
+                        <span>{c.name}</span>
+                        <span className="text-[0.65rem] font-bold text-indigo-600">{c.sponsorCode || c.customerId}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600">Internal Notes / Remarks</label>
               <textarea
                 value={editForm.notes}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
@@ -987,7 +1254,7 @@ const PlotReports = () => {
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 shrink-0 sticky bottom-0 bg-white z-10">
               <button
                 type="button"
                 onClick={() => setEditingBooking(null)}

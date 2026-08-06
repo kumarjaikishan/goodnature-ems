@@ -24,9 +24,8 @@ const userSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        default: '',
-        sparse: true,
-        index: true
+        unique: true,
+        sparse: true
     },
     password: {
         type: String,
@@ -142,4 +141,10 @@ const user = mongoose.models.User || mongoose.models.user || mongoose.model("use
 if (!mongoose.models.User) {
     mongoose.model("User", userSchema);
 }
+
+// Drop legacy non-sparse index if present and sync indexes
+user.collection.dropIndex('email_1')
+    .then(() => user.syncIndexes())
+    .catch(() => {});
+
 module.exports = user;
