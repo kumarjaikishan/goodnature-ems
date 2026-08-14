@@ -1,0 +1,1 @@
+import{j as e,a_ as o,a$ as a,b0 as s}from"./index-VsCTaTY-.js";import{e as l}from"./extendSxProp-CuOMaLqs.js";function u(t){return e.jsx(o,{...t,defaultTheme:s,themeId:a})}function x(t){return function(r){return e.jsx(u,{styles:typeof t=="function"?n=>t({theme:n,...r}):t})}}function m(){return l}export{x as g,m as i};

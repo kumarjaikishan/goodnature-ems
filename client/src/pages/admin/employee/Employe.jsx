@@ -31,7 +31,7 @@ import { useCustomStyles } from "../attandence/attandencehelper";
 import { BiMessageRoundedError } from "react-icons/bi";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 
-import { FaClock } from "react-icons/fa";
+import { FaRegClock } from "react-icons/fa6";
 import WeeklyOffLedgerModal from "./WeeklyOffLedgerModal";
 
 const Employe = () => {
@@ -177,7 +177,7 @@ const Employe = () => {
         action: (<div className="action flex gap-2.5">
           <span className="eye edit text-[18px] text-green-500 cursor-pointer" title="View Profile" onClick={() => { setviewEmployee(emp._id); setopenviewmodal(true) }} ><IoEyeOutline /></span>
           <span className="eye edit text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}`)} ><HiOutlineDocumentReport /></span>
-          <span className="eye edit text-[17px] text-purple-600 cursor-pointer" title="Weekly Off Ledger" onClick={() => { setSelectedWOEmployee(emp); setOpenWOLedger(true); }}><FaClock /></span>
+          <span className="eye edit text-[18px] text-teal-600 hover:text-teal-700 cursor-pointer" title="Weekly Off Ledger" onClick={() => { setSelectedWOEmployee(emp); setOpenWOLedger(true); }}><FaRegClock /></span>
           {canEdit && <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(emp)}><MdOutlineModeEdit /></span>}
           {canEdit && <span className="eye edit text-[18px] text-green-500 cursor-pointer" title="Reset Password" onClick={() => { setpass({ ...pass, userid: emp.userid._id }); setpassmodal(true) }} ><TbPasswordUser /> </span>}
           {canDelete && <span className="delete text-[18px] text-red-500 cursor-pointer" onClick={() => deletee(emp._id)}><AiOutlineDelete /></span>}

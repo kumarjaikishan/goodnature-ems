@@ -322,10 +322,10 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
                           {row.particulars}
                           {row.createdBy && <span className="text-[10px] text-slate-400 block italic">by {row.createdBy}</span>}
                         </TableCell>
-                        <TableCell className={`!text-xs !text-center !font-extrabold ${row.isAdd ? "text-emerald-700" : "text-rose-700"}`}>
+                        <TableCell className={`!text-xs !text-center !whitespace-nowrap !font-extrabold ${row.isAdd ? "text-emerald-700" : "text-rose-700"}`}>
                           {row.isAdd ? `+${row.minutes}` : `-${row.minutes}`} m
                         </TableCell>
-                        <TableCell className="!text-xs !text-right !font-bold text-purple-800">
+                        <TableCell className="!text-xs !text-right !whitespace-nowrap !font-bold text-purple-800">
                           {row.closingBalance} m
                         </TableCell>
                         <TableCell className="!text-xs !text-center">

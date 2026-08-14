@@ -586,7 +586,7 @@ ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE
                         employeeName: employeeDoc?.userid?.name,
                         event: `Extra Punch-Out Ignored: Already Punched Out for ${dayjs(punchDate)
                             .tz(ATTENDANCE_TIMEZONE)
-                            .format("DD MMM YYYY")}`,
+                            .format("DD/MM/YY")}`,
                         type: 'Ignored'
                     });
                 }
