@@ -19,6 +19,7 @@ const branch = require('../models/branch');
 const removePhotoBySecureUrl = require('../utils/cloudinaryremove')
 const redisClient = require('../utils/redis');
 const employeeService = require('../services/employeeService');
+const dayjs = require('dayjs');
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -28,24 +29,20 @@ cloudinary.config({
 
 // generateNextEmpId moved to employeeService
 
-async function generateNextEmpId(companyId, prefix = "EMP", padding = 3) {
+async function generateNextEmpId(prefix = "EMP", padding = 3) {
     try {
-        // Find the latest employee for the company, sorted by empId descending
-        const lastEmployee = await employeeModal.findOne({ companyId })
+        const lastEmployee = await employeeModal.findOne()
             .sort({ empId: -1 })
             .lean();
 
         let nextNumber = 1;
-
         if (lastEmployee && lastEmployee.empId) {
-            // Extract numeric part from empId
             const match = lastEmployee.empId.match(/\d+$/);
             if (match) {
                 nextNumber = parseInt(match[0], 10) + 1;
             }
         }
 
-        // Pad number with leading zeros
         const nextEmpId = prefix + String(nextNumber).padStart(padding, "0");
         return nextEmpId;
     } catch (err) {
@@ -65,7 +62,6 @@ const addDepartment = async (req, res, next) => {
         const normalizedDept = department.toLowerCase();
 
         const isExist = await departmentModal.findOne({
-            companyId: req.user.companyId,
             branchId,
             department: normalizedDept,
         });
@@ -78,7 +74,6 @@ const addDepartment = async (req, res, next) => {
         }
 
         const newDepartment = new departmentModal({
-            companyId: req.user.companyId,
             branchId,
             department: normalizedDept,
             description,
@@ -106,20 +101,24 @@ const updatedepartment = async (req, res, next) => {
             return next({ status: 400, message: "all fields are required" });
         }
 
-        const query = await departmentModal.findByIdAndUpdate(departmentId, { department, description });
-
-        if (!query) {
-            return next({ status: 400, message: "Something went wrong" });
+        const dept = await departmentModal.findById(departmentId);
+        if (!dept) {
+            return next({ status: 404, message: "Department not found" });
         }
+
+        dept.department = department;
+        if (description !== undefined) dept.description = description;
+        await dept.save();
 
         res.status(200).json({
             message: 'Department Updated Successfully'
-        })
+        });
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
+
 const deletedepartment = async (req, res, next) => {
     try {
         const { departmentId } = req.body;
@@ -130,31 +129,36 @@ const deletedepartment = async (req, res, next) => {
         const query = await departmentModal.findByIdAndDelete(departmentId);
 
         if (!query) {
-            return next({ status: 400, message: "Something went wrong" });
+            return next({ status: 404, message: "Department not found" });
         }
 
         res.status(200).json({
             message: 'Department Deleted Successfully'
-        })
+        });
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
+
 const departmentlist = async (req, res, next) => {
     try {
-        const query = await departmentModal.find().populate('branchId', 'name');
+        let filter = {};
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            filter.branchId = { $in: req.user.branchIds };
+        }
+
+        const query = await departmentModal.find(filter).populate('branchId', 'name');
 
         res.status(200).json({
             list: query
-        })
+        });
 
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
-
+};
 
 const addemployee = async (req, res, next) => {
     const { email } = req.body;
@@ -179,7 +183,7 @@ const addemployee = async (req, res, next) => {
             fs.unlink(req.file.path, (err) => { if (err) console.error('Failed to delete local file:', err); });
         }
 
-        await employeeService.createEmployee(req.body, req.user.companyId, uploadResult, session);
+        await employeeService.createEmployee(req.body, uploadResult, session);
 
         await session.commitTransaction();
         session.endSession();
@@ -191,7 +195,7 @@ const addemployee = async (req, res, next) => {
         console.error("Employee Creation Error:", error.message);
         return res.status(500).json({ message: 'Server error during employee creation' });
     }
-}
+};
 
 const updateemployee = async (req, res, next) => {
     const session = await mongoose.startSession();
@@ -222,7 +226,6 @@ const updateemployee = async (req, res, next) => {
     }
 };
 
-
 const enrollFace = async (req, res, next) => {
     try {
         const { employeeId, descriptor } = req.body;
@@ -230,20 +233,29 @@ const enrollFace = async (req, res, next) => {
             return next({ status: 400, message: "Invalid employeeId or descriptor" });
         }
 
-        const query = await employeeModal.findByIdAndUpdate(employeeId, { faceDescriptor: descriptor });
-
-        if (!query) {
-            return next({ status: 400, message: "Something went wrong" });
+        const emp = await employeeModal.findById(employeeId);
+        if (!emp) {
+            return next({ status: 404, message: "Employee not found" });
         }
+
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            if (!req.user.branchIds.includes(emp.branchId?.toString())) {
+                return res.status(403).json({ message: "Access denied: not your branch" });
+            }
+        }
+
+        emp.faceDescriptor = descriptor;
+        await emp.save();
 
         res.status(200).json({
             message: 'Face enrolled Successfully'
-        })
+        });
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
+
 const deletefaceenroll = async (req, res, next) => {
     try {
         const { employeeId } = req.body;
@@ -251,66 +263,117 @@ const deletefaceenroll = async (req, res, next) => {
             return next({ status: 400, message: "Invalid employeeId" });
         }
 
-        const query = await employeeModal.findByIdAndUpdate(employeeId, { faceDescriptor: null });
-
-        if (!query) {
-            return next({ status: 400, message: "Something went wrong" });
+        const emp = await employeeModal.findById(employeeId);
+        if (!emp) {
+            return next({ status: 404, message: "Employee not found" });
         }
+
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            if (!req.user.branchIds.includes(emp.branchId?.toString())) {
+                return res.status(403).json({ message: "Access denied: not your branch" });
+            }
+        }
+
+        emp.faceDescriptor = null;
+        await emp.save();
 
         res.status(200).json({
             message: 'Enrolled face deleted Successfully'
-        })
+        });
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
+
 const deleteemployee = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { employeeId } = req.body;
         if (!employeeId) {
+            await session.abortTransaction(); session.endSession();
             return next({ status: 400, message: "employeeId is required" });
         }
 
-        const employee = await employeeModal.findByIdAndDelete(employeeId);
-        await usermodal.deleteMany({ employeeId });
-        await leavemodal.deleteMany({ employeeId });
-        await attendanceModal.deleteMany({ employeeId });
-
-        if (employee?.profileimage) {
-            await removePhotoBySecureUrl([employee.profileimage]);
+        const employee = await employeeModal.findById(employeeId).session(session);
+        if (!employee) {
+            await session.abortTransaction(); session.endSession();
+            return next({ status: 404, message: "Employee not found" });
         }
 
-        if (!employee) {
-            return next({ status: 400, message: "Something went wrong" });
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            if (!req.user.branchIds.includes(employee.branchId?.toString())) {
+                await session.abortTransaction(); session.endSession();
+                return res.status(403).json({ message: "Access denied: not your branch" });
+            }
+        }
+
+        await employeeModal.deleteOne({ _id: employeeId }).session(session);
+        await usermodal.deleteMany({ employeeId }).session(session);
+        await leavemodal.deleteMany({ employeeId }).session(session);
+        await attendanceModal.deleteMany({ employeeId }).session(session);
+
+        await session.commitTransaction();
+        session.endSession();
+
+        if (employee.profileimage) {
+            await removePhotoBySecureUrl([employee.profileimage]);
         }
 
         res.status(200).json({
             message: 'employee Deleted Successfully'
-        })
+        });
     } catch (error) {
-        console.log(error.message)
+        await session.abortTransaction();
+        session.endSession();
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
 
 const employeelist = async (req, res, next) => {
     try {
-        const query = await employeeModal.find()
+        let queryFilter = {};
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            queryFilter.branchId = { $in: req.user.branchIds };
+        }
+
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 0; // 0 means return all for backward compatibility if unpaginated
+
+        let query = employeeModal.find(queryFilter)
+            .select('employeeName empId email department branchId profileimage status phone joiningDate salary ledgerId userid')
             .populate('department', 'department')
             .populate('userid', 'email');
-        const departmentlist = await departmentModal.find().select('department');
+
+        let total = 0;
+        let pages = 1;
+
+        if (limit > 0) {
+            total = await employeeModal.countDocuments(queryFilter);
+            pages = Math.ceil(total / limit);
+            query = query.skip((page - 1) * limit).limit(limit);
+        }
+
+        const list = await query;
+        let deptFilter = {};
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            deptFilter.branchId = { $in: req.user.branchIds };
+        }
+        const departmentlist = await departmentModal.find(deptFilter).select('department');
 
         res.status(200).json({
-            list: query,
-            departmentlist
-        })
+            list,
+            departmentlist,
+            ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
+        });
 
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
 
 const addAdmin = async (req, res, next) => {
 
@@ -574,11 +637,16 @@ const deleteAdmin = async (req, res, next) => {
 
 
 const firstfetch = async (req, res, next) => {
-    // console.log(req.user)
     try {
-        // 1️⃣ Find the company for this admin
-        // const companye = await company.findOne({ adminId: req.user.id });
-        const companye = await company.findOne({ _id: req.user.companyId });
+        const startOfMonth = dayjs().startOf('month').toDate();
+
+        // 1️⃣ Parallel initial queries (User, Company, Ledger, Notices)
+        const [user, companye, ledgerDocs, notices] = await Promise.all([
+            usermodal.findById(req.user.id).select('name email profileImage role permissions branchIds').lean(),
+            company.findOne().lean(),
+            Ledger.find({ userId: req.user.id }).lean(),
+            noticeModal.find().sort({ date: -1 }).lean()
+        ]);
 
         let branches = [];
         let departmentlist = [];
@@ -586,200 +654,190 @@ const firstfetch = async (req, res, next) => {
         let adminManager = [];
         let attendance = [];
         let holidays = [];
-        let ledger = [];
-        let user;
         let leaveBalance = [];
         let leavePolicies = [];
         let advance = [];
-        // let permissionName=[];
-        // let defaultRolePermission=[];
-        user = await usermodal.findById(req.user.id).select('name email profileImage role permissions branchIds');
 
         if (req.user.role == 'manager') {
+            const allowedBranches = req.user.branchIds || [];
 
-            branches = await branch.find({ companyId: req.user.companyId })
-                .populate({
-                    path: 'managerIds',
-                    select: 'name profileimage',
-                });
-            // const branchIds = branches.map(bran => bran._id);
+            const [branchesRes, departmentlistRes, employeesRes, holidaysRes, leavePoliciesRes] = await Promise.all([
+                branch.find()
+                    .populate({ path: 'managerIds', select: 'name profileimage' })
+                    .lean(),
+                departmentModal.find({ branchId: { $in: allowedBranches } })
+                    .populate('branchId', 'name')
+                    .select('department branchId')
+                    .sort({ department: 1 })
+                    .lean(),
+                employeeModal.find({ branchId: { $in: allowedBranches } })
+                    .populate('department', 'department')
+                    .populate('userid', 'email name')
+                    .sort({ empId: 1 })
+                    .lean(),
+                holidaymodal.find().lean(),
+                LeavePolicy.find().lean()
+            ]);
 
-            departmentlist = await departmentModal.find({
-                companyId: req.user.companyId,
-                branchId: { $in: req.user.branchIds }   // ✅ use $in, not $between
-            })
-                .populate('branchId', 'name')
-                .select('department branchId')
-                .sort({ department: 1 });
-
-            employees = await employeeModal.find({ companyId: req.user.companyId, branchId: { $in: req.user.branchIds } })
-                .populate('department', 'department')
-                .populate('userid', 'email name ')
-                .sort({ empId: 1 });
-
-            // console.log(employees)
+            branches = branchesRes;
+            departmentlist = departmentlistRes;
+            employees = employeesRes;
+            holidays = holidaysRes;
+            leavePolicies = leavePoliciesRes;
 
             const employeeIds = employees.map(emp => emp._id);
 
-            attendance = await attendanceModal.find({
-                companyId: req.user.companyId,
-                employeeId: {
-                    $in: employeeIds
-                }
-            })
-                .select(' -rulesSnapshot -dutyStart -dutyEnd')
-                .sort({ date: -1, empId: 1 })
-                .populate({
-                    path: 'employeeId',
-                    select: 'userid profileimage department',
-                    populate: { path: 'userid', select: 'name' }
+            const [attendanceRes, leaveBalanceRes, advanceRes] = await Promise.all([
+                attendanceModal.find({
+                    employeeId: { $in: employeeIds },
+                    date: { $gte: startOfMonth }
                 })
-                .populate({
-                    path: 'leave',
-                    select: 'reason',
-                });
-            holidays = await holidaymodal.find({ companyId: req.user.companyId });
-            leaveBalance = await LeaveBalance.find({
-                companyId: req.user.companyId,
-                branchId: { $in: req.user.branchIds }
-            }).populate({
-                path: "employeeId",
-                select: "userid profileimage empId designation",
-                populate: { path: "userid", select: "name", },
-            }).sort({ date: -1, createdAt: -1 });
+                    .select('-rulesSnapshot -dutyStart -dutyEnd')
+                    .sort({ date: -1, empId: 1 })
+                    .populate({
+                        path: 'employeeId',
+                        select: 'userid profileimage department',
+                        populate: { path: 'userid', select: 'name' }
+                    })
+                    .populate({ path: 'leave', select: 'reason' })
+                    .lean(),
+                LeaveBalance.find({
+                    branchId: { $in: allowedBranches }
+                })
+                    .populate({
+                        path: "employeeId",
+                        select: "userid profileimage empId designation",
+                        populate: { path: "userid", select: "name" },
+                    })
+                    .sort({ date: -1, createdAt: -1 })
+                    .lean(),
+                advancemodal.find({
+                    branchId: { $in: allowedBranches }
+                })
+                    .populate({
+                        path: "employeeId",
+                        select: "userid profileimage empId",
+                        populate: { path: "userid", select: "name" },
+                    })
+                    .sort({ date: -1, createdAt: -1 })
+                    .lean()
+            ]);
 
-            advance = await advancemodal.find({
-                companyId: req.user.companyId,
-                branchId: { $in: req.user.branchIds }
-            }).populate({
-                path: "employeeId",
-                select: "userid profileimage empId",
-                populate: { path: "userid", select: "name", },
-            }).sort({ date: -1, createdAt: -1 });
-
-            leavePolicies = await LeavePolicy.find({ companyId: req.user.companyId });
+            attendance = attendanceRes;
+            leaveBalance = leaveBalanceRes;
+            advance = advanceRes;
         }
 
-        if ((req.user.role == 'superadmin' || req.user.role == 'admin' || req.user.role == 'demo') && companye) {
-            const compId = companye._id;
+        if (req.user.role == 'superadmin' || req.user.role == 'admin' || req.user.role == 'demo') {
+            const [
+                branchesRes,
+                departmentlistRes,
+                adminManagerRes,
+                employeesRes,
+                attendanceRes,
+                holidaysRes,
+                leaveBalanceRes,
+                advanceRes,
+                leavePoliciesRes
+            ] = await Promise.all([
+                branch.find()
+                    .populate({ path: 'managerIds', select: 'name profileImage' })
+                    .lean(),
+                departmentModal.find()
+                    .populate('branchId', 'name')
+                    .select('department branchId')
+                    .sort({ department: 1 })
+                    .lean(),
+                usermodal.find({ role: { $in: ['admin', 'manager'] } })
+                    .select('-password')
+                    .lean(),
+                employeeModal.find()
+                    .populate('department', 'department')
+                    .populate('userid', 'email name role')
+                    .sort({ empId: 1 })
+                    .lean(),
+                attendanceModal.find({ date: { $gte: startOfMonth } })
+                    .select('-rulesSnapshot -dutyStart -dutyEnd')
+                    .sort({ date: -1, empId: 1 })
+                    .populate({
+                        path: 'employeeId',
+                        select: 'userid profileimage department',
+                        populate: { path: 'userid', select: 'name' }
+                    })
+                    .populate({ path: 'leave', select: 'reason' })
+                    .lean(),
+                holidaymodal.find().lean(),
+                LeaveBalance.find()
+                    .populate({
+                        path: "employeeId",
+                        select: "userid profileimage empId designation",
+                        populate: { path: "userid", select: "name" },
+                    })
+                    .sort({ date: -1, createdAt: -1 })
+                    .lean(),
+                advancemodal.find()
+                    .populate({
+                        path: "employeeId",
+                        select: "userid profileimage empId designation",
+                        populate: { path: "userid", select: "name" },
+                    })
+                    .sort({ date: -1, createdAt: -1 })
+                    .lean(),
+                LeavePolicy.find().lean()
+            ]);
 
-            branches = await branch.find({ companyId: compId })
-                .populate({
-                    path: 'managerIds',
-                    select: 'name profileImage',
-                });
-
-            departmentlist = await departmentModal.find({ companyId: compId })
-                .populate('branchId', 'name')
-                .select('department branchId')
-                .sort({ department: 1 });
-
-            adminManager = await usermodal.find({
-                companyId: compId,
-                role: { $in: ['admin', 'manager'] }
-            }).select('-password');
-
-            employees = await employeeModal.find({ companyId: compId })
-                .populate('department', 'department')
-                .populate('userid', 'email name role')
-                .sort({ empId: 1 });
-
-            attendance = await attendanceModal.find({ companyId: compId })
-                .select(' -rulesSnapshot -dutyStart -dutyEnd')
-                .sort({ date: -1, empId: 1 })
-                .populate({
-                    path: 'employeeId',
-                    select: 'userid profileimage department',
-                    populate: { path: 'userid', select: 'name' }
-                })
-                .populate({
-                    path: 'leave',
-                    select: 'reason',
-                });
-            holidays = await holidaymodal.find({ companyId: compId });
-            // await usermodal.find({})
-            leaveBalance = await LeaveBalance.find({ companyId: compId, }).populate({
-                path: "employeeId",
-                select: "userid profileimage empId designation",
-                populate: { path: "userid", select: "name", },
-            }).sort({ date: -1, createdAt: -1 });
-
-            advance = await advancemodal.find({ companyId: compId, }).populate({
-                path: "employeeId",
-                select: "userid profileimage empId designation",
-                populate: { path: "userid", select: "name", },
-            }).sort({ date: -1, createdAt: -1 });
-            // console.log(advance)
-            leavePolicies = await LeavePolicy.find({ companyId: compId });
+            branches = branchesRes;
+            departmentlist = departmentlistRes;
+            adminManager = adminManagerRes;
+            employees = employeesRes;
+            attendance = attendanceRes;
+            holidays = holidaysRes;
+            leaveBalance = leaveBalanceRes;
+            advance = advanceRes;
+            leavePolicies = leavePoliciesRes;
         }
 
-        ledger = await Ledger.find({ userId: req.user.id });
-
-        const ledgersWithBalance = await Promise.all(
-            ledger.map(async (ledger) => {
-                const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
-                    .sort({ date: -1 });
-
-                return {
-                    ...ledger.toObject(),
-                    netBalance: lastEntry ? lastEntry.balance : 0
-                };
-            })
-        );
-
-
-
-        async function fixEmployeeEmpIds() {
-            // find records where empId is missing or null
-            const records = await attendanceModal.find({
-                $or: [{ empId: { $exists: false } }, { empId: null }]
+        // Ledger balance processing
+        const ledgerIds = ledgerDocs.map((l) => l._id);
+        const latestBalanceByLedger = {};
+        if (ledgerIds.length) {
+            const latestEntries = await Entry.aggregate([
+                { $match: { ledgerId: { $in: ledgerIds } } },
+                { $sort: { ledgerId: 1, date: -1, createdAt: -1 } },
+                { $group: { _id: '$ledgerId', balance: { $first: '$balance' } } }
+            ]);
+            latestEntries.forEach((entry) => {
+                latestBalanceByLedger[entry._id.toString()] = entry.balance;
             });
-
-            for (const rec of records) {
-                if (!rec.employeeId) continue; // skip if employeeId itself is missing
-
-                // find employee doc
-                const employee = await employeeModal.findById(rec.employeeId).select("empId");
-                if (employee && employee.empId) {
-                    await attendanceModal.updateOne(
-                        { _id: rec._id },
-                        { $set: { empId: employee.empId } }
-                    );
-                }
-            }
-
-            console.log("✅ Employee empId fixed where missing!");
         }
 
-        // fixEmployeeEmpIds()
-
-
-        const notices = await noticeModal.find({ companyId: req.user.companyId }).sort({ date: -1 });
+        const ledgersWithBalance = ledgerDocs.map((ledgerDoc) => ({
+            ...ledgerDoc,
+            netBalance: latestBalanceByLedger[ledgerDoc._id.toString()] ?? 0
+        }));
 
         const response = {
             user: user,
             departmentlist,
             employee: employees,
-            attendance, advance,
+            attendance,
+            advance,
             holidays,
             notices,
             ledger: ledgersWithBalance,
             leaveBalance,
             leavePolicies
-        }
-        if (company?.length) response.company = companye;
+        };
+        if (companye) response.company = companye;
         if (branches?.length) response.branch = branches;
         if (adminManager?.length) response.adminManager = adminManager;
-        res.status(200).json(response);
 
+        return res.status(200).json(response);
     } catch (error) {
-        console.error(error);
+        console.error("Error in firstfetch:", error);
         return next({ status: 500, message: error.message });
     }
 };
-
-
-
 
 const addcompany = async (req, res, next) => {
     const { name, industry } = req.body;

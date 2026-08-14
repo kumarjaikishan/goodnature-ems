@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 
 const payrollSchema = new mongoose.Schema({
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee', required: true },
   ledgerEntryId: { type: mongoose.Schema.Types.ObjectId, ref: "Entry" },
@@ -32,6 +31,7 @@ const payrollSchema = new mongoose.Schema({
   absent: { type: Number, default: 0 },
   overtime: { type: Number, default: 0 },
   shortTime: { type: Number, default: 0 },
+  weeklyOffWork: { type: Number, default: 0 },
 
   baseSalary: { type: Number, required: true },
 

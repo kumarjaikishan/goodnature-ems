@@ -4,7 +4,6 @@ const router = express.Router();
 const users = require('../controllers/user');
 const admin = require('../controllers/admin');
 const payroll = require('../controllers/payroll');
-const salary = require('../controllers/salary');
 const ledger = require("../controllers/ledger");
 const attendance = require('../controllers/attandence');
 const leaveBalance = require('../controllers/leaveBalance');
@@ -12,6 +11,7 @@ const advance = require('../controllers/advance');
 const leave = require('../controllers/leave');
 const voucher = require('../controllers/voucher');
 const developer = require('../controllers/developer');
+const apiMonitorController = require('../controllers/apiMonitorController');
 const holiday = require('../controllers/holiday');
 const notice = require('../controllers/notice');
 const authmiddlewre = require('../middleware/auth_middleware');
@@ -62,15 +62,11 @@ router.route('/deleteBranch').post(authmiddlewre, authorizeRoles('superadmin', '
 router.route('/getemployee').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.getemployee);
 router.route('/updatepassword').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), admin.updatepassword);
 
-router.route('/employeelist').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.employeelist);
 router.route('/addemployee').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("employee", 2), upload.single('photo'), admin.addemployee);
 router.route('/updateemployee').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("employee", 3), upload.single('photo'), admin.updateemployee);
 router.route('/deleteemployee').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("employee", 4), admin.deleteemployee);
 router.route('/enrollFace').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), admin.enrollFace);
 router.route('/deletefaceenroll').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 4), admin.deletefaceenroll);
-
-router.route('/addsalary').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), salary.addsalary);
-router.route('/salaryfetch').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), salary.salaryfetch);
 
 router.route('/create-order').post(authmiddlewre, Create_Order);
 router.route('/verify-payment').post(authmiddlewre, verify_payment);
@@ -79,6 +75,7 @@ router.route("/subscription-status").get(authmiddlewre, getSubscriptionStatus);
 router.route("/getAllTransactions").get(authmiddlewre, getAllTransactions);
 
 router.route('/allAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), attendance.allAttandence);
+router.route('/attandence/list').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getAttendanceList);
 router.route('/bulkMarkAttendance/data').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getBulkMarkData);
 router.route('/editattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 3), attendance.editattandence);
 router.route('/webattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.webattandence);
@@ -89,6 +86,7 @@ router.route('/checkin').post(authmiddlewre, authorizeRoles('superadmin', 'admin
 router.route('/facecheckin').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.facecheckin);
 router.route('/facecheckout').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.facecheckout);
 router.route('/employeeAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.employeeAttandence);
+router.route('/attendanceReport').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getAttendanceReport);
 router.route('/deleteattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 4), attendance.deleteattandence);
 router.route('/recordAttendanceFromLogs').post(authmiddlewre, attendance.recordAttendanceFromLogs);
 
@@ -97,11 +95,6 @@ router.route('/addholiday').post(authmiddlewre, authorizeRoles('superadmin', 'ad
 router.route('/updateholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 3), holiday.updateholiday);
 router.route('/deleteholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 4), holiday.deleteholiday);
 router.route('/bulkImportHolidays').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 2), holiday.bulkImportHolidays);
-
-router.route('/notices').get(authmiddlewre, notice.getNotices);
-router.route('/notice').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), notice.createNotice);
-router.route('/notice/:id').put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), notice.updateNotice);
-router.route('/notice/:id').delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), notice.deleteNotice);
 
 router.route('/addleave').post(authmiddlewre, authorizeRoles('employee'), leave.addleave);
 router.route('/getleave').get(authmiddlewre, leave.getleave);
@@ -177,6 +170,28 @@ router.route('/demo').post(authmiddlewre, authorizeRoles('developer'), developer
 // router.route('/Userper').get(developer.getdefaultpermission)
 router.route('/saveModule').put(authmiddlewre, authorizeRoles('developer'), developer.saveModule)
 router.route('/permission').get(authmiddlewre, authorizeRoles('developer'), developer.getdefaultpermission)
+// Developer-only API performance monitor - deliberately NOT accessible to
+// admin/superadmin/manager, only the 'developer' role (same convention as
+// /permission, /demo above).
+router.route('/api-monitor/stats').get(authmiddlewre, authorizeRoles('developer'), apiMonitorController.getApiStats)
+router.route('/api-monitor/stats').delete(authmiddlewre, authorizeRoles('developer'), apiMonitorController.clearApiStats)
+router.route('/permission/:id')
+  .put(authmiddlewre, authorizeRoles('developer'), developer.updatedefaultpermission)
+
+
+router.route('/superfirstfetch').post(authmiddlewre, leave.addleave);
+
+router.route("/ledgerEntries").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), ledger.ledgerEntries);
+router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 1), ledger.ledger);
+router.route("/entries/:id").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger_entry", 1), ledger.Entries);
+
+router.route("/ledger").post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 2), upload.single('image'), ledger.createLedger)
+
+router.route("/ledger/:id")
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 3), upload.single('image'), ledger.updateLedger)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 4), ledger.deleteLedger);
+
+router.route('/api-monitor/stats').delete(authmiddlewre, authorizeRoles('developer'), apiMonitorController.clearApiStats)
 router.route('/permission/:id')
   .put(authmiddlewre, authorizeRoles('developer'), developer.updatedefaultpermission)
 
@@ -208,6 +223,21 @@ router.route('/vouchers/:id')
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.editVoucher)
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.deleteVoucher);
 
+// Weekly Off Work Ledger Routes
+const weeklyOffLedger = require('../controllers/weeklyOffLedger');
+
+router.route('/weekly-off-ledger/:employeeId')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), weeklyOffLedger.getEmployeeLedger);
+
+router.route('/weekly-off-ledger')
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), weeklyOffLedger.addManualEntry);
+
+router.route('/weekly-off-ledger-rebuild')
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), weeklyOffLedger.rebuildAll);
+
+router.route('/weekly-off-ledger/:id')
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), weeklyOffLedger.deleteEntry);
+
 // Employee Ledger Route
 router.route('/my-ledger').get(authmiddlewre, authorizeRoles('employee'), ledger.getMyLedger);
 router.route('/employee-ledger/:employeeId')
@@ -215,7 +245,6 @@ router.route('/employee-ledger/:employeeId')
 
 router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"), (req, res) => {
   const { project } = req.params;
-  // console.log(deploy_script[project])
   exec(`bash ${deploy_script[project]}`, (error, stdout, stderr) => {
     if (error) {
       console.error("Deployment error:", error.message);

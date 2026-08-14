@@ -74,15 +74,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const createLedgerForEmployee = async (companyId) => {
+const createLedgerForEmployee = async () => {
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
 
-    // 1️⃣ Find active employees without ledgerId (or verify their ledger exists)
     const employees = await employee.find(
-      { companyId, status: true },
+      { status: true },
       null,
       { session }
     ).populate({
@@ -97,7 +96,6 @@ const createLedgerForEmployee = async (companyId) => {
         [ledger] = await Ledger.create(
           [
             {
-              companyId: emp.companyId,
               name: emp?.employeeName || emp?.userid?.name || "Unknown",
               employeeId: emp._id,
               empId: emp.empId,
@@ -108,14 +106,12 @@ const createLedgerForEmployee = async (companyId) => {
           { session }
         );
       } else {
-        // Update existing ledger if needed (sync empId/name)
         let updated = false;
         if (ledger.empId !== emp.empId) { ledger.empId = emp.empId; updated = true; }
         if (ledger.ledgerType !== 'employee') { ledger.ledgerType = 'employee'; updated = true; }
         if (updated) await ledger.save({ session });
       }
 
-      // Ensure employee record is linked
       if (!emp.ledgerId || emp.ledgerId.toString() !== ledger._id.toString()) {
         emp.ledgerId = ledger._id;
         await emp.save({ session });
@@ -133,35 +129,34 @@ const createLedgerForEmployee = async (companyId) => {
 
 const ledger = async (req, res) => {
   try {
-    const companyId = req.user.companyId;
-    
-    // Auto-sync ledgers for active employees
-    await createLedgerForEmployee(companyId);
+    await createLedgerForEmployee();
 
-    // Fetch all ledgers for this company/user
-    const ledgers = await Ledger.find({
-      companyId: companyId,
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 0;
+
+    let filter = {
       $or: [
-        { userId: req.userid }, // Ledgers created by this user
-        { userId: { $exists: false } }, // Common ledgers
+        { userId: req.userid },
+        { userId: { $exists: false } },
         { userId: null }
       ]
-    }).populate({
+    };
+
+    let query = Ledger.find(filter).populate({
       path: 'employeeId',
       select: 'status'
     });
 
     const { view } = req.query;
 
-    // Filter: Visible only if it's custom OR it's an active employee
+    const ledgers = await query;
+
     const visibleLedgers = ledgers.filter(l => {
       if (l.ledgerType === 'custom') {
         if (view === 'ledger') {
-          // Exclude custom ledgers created in vouchers page
           return l.isVoucherLedger !== true;
         }
         if (view === 'vouchers') {
-          // Only show custom ledgers created in vouchers page
           return l.isVoucherLedger === true;
         }
         return true;
@@ -169,11 +164,18 @@ const ledger = async (req, res) => {
       if (l.ledgerType === 'employee') {
         return l.employeeId && l.employeeId.status === true;
       }
-      return true; // Fallback
+      return true;
     });
 
+    let total = visibleLedgers.length;
+    let pages = limit > 0 ? Math.ceil(total / limit) : 1;
+    let slicedLedgers = visibleLedgers;
+    if (limit > 0) {
+      slicedLedgers = visibleLedgers.slice((page - 1) * limit, page * limit);
+    }
+
     const ledgersWithBalance = await Promise.all(
-      visibleLedgers.map(async (ledger) => {
+      slicedLedgers.map(async (ledger) => {
         const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
           .sort({ date: -1, createdAt: -1, _id: -1 });
 
@@ -184,30 +186,30 @@ const ledger = async (req, res) => {
       })
     );
 
-    res.json({ ledgers: ledgersWithBalance });
+    res.json({ 
+      ledgers: ledgersWithBalance,
+      ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
+    });
   } catch (err) {
     console.error("Error fetching ledgers:", err);
     res.status(500).json({ error: "Failed to fetch ledgers" });
   }
 };
 
-
-
 const createLedger = async (req, res) => {
   try {
     const { name, isVoucherLedger } = req.body;
     if (!req.userid) return res.status(400).json({ message: "Creating User is required." });
 
-    const existing = await Ledger.findOne({ companyId: req.user.companyId, name, userId: req.userid });
+    const existing = await Ledger.findOne({ name, userId: req.userid });
     if (existing) {
       return res.status(400).json({ message: "Ledger with this name already exists." });
     }
 
     const ledger = new Ledger({ 
-      companyId: req.user.companyId, 
       name, 
       userId: req.userid,
-      ledgerType: 'custom', // Explicitly custom
+      ledgerType: 'custom',
       isVoucherLedger: isVoucherLedger === 'true' || isVoucherLedger === true ? true : false
     });
 
@@ -299,16 +301,16 @@ const Entries = async (req, res) => {
 const deleteLedger = async (req, res) => {
   try {
     const { id } = req.params;
-    // Delete the ledger
     const deletedLedger = await Ledger.findByIdAndDelete(id);
 
-    if (deletedLedger.profileImage && deletedLedger.profileImage !== "") {
-      let arraye = [];
-      arraye.push(deletedLedger.profileImage);
-      await removePhotoBySecureUrl(arraye);
+    if (!deletedLedger) {
+      return res.status(404).json({ message: "Ledger not found" });
     }
 
-    // Delete all related entries
+    if (deletedLedger.profileImage && deletedLedger.profileImage !== "") {
+      await removePhotoBySecureUrl([deletedLedger.profileImage]);
+    }
+
     await Entry.deleteMany({ ledgerId: id });
     res.json({ message: "Ledger deleted" });
   } catch (err) {
@@ -316,12 +318,10 @@ const deleteLedger = async (req, res) => {
   }
 };
 
-// Helper: Recalculate balances (DEPRECATED - Use AccountingService atomic updates)
 const recalculateBalances = async (ledgerId, userId) => {
-  console.warn("recalculateBalances called - This is deprecated and logic should move to AccountingService");
+  console.warn("recalculateBalances called - Deprecated");
 };
 
-// Create entry
 const createEntry = async (req, res) => {
   try {
     const { ledgerId, date, particular, debit, credit } = req.body;
@@ -335,7 +335,6 @@ const createEntry = async (req, res) => {
     await accountingService.recordLedgerEntry({
       ledgerId: ledger._id,
       employeeId: ledger.employeeId,
-      companyId: req.user.companyId,
       date: new Date(date),
       type,
       amount,

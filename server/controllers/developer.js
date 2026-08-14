@@ -5,18 +5,17 @@ const permission = require('../utils/permission');
 
 const allUser = async (req, res, next) => {
     try {
-
-        const query = await user.find({ role: 'superadmin' }).sort({ createdAt: -1 });
+        const query = await user.find({ role: 'superadmin' }).sort({ createdAt: -1 }).limit(1);
 
         res.status(200).json({
             users: query
-        })
+        });
 
     } catch (error) {
-        console.log(error.message)
+        console.log(error.message);
         return next({ status: 500, message: error.message });
     }
-}
+};
 
 
 

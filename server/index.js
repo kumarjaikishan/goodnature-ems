@@ -10,6 +10,7 @@ const esslRoutes = require('./essl');
 const TelegramRoute = require('./telegramHook');
 const { eventsHandler } = require('./utils/sse');
 const { webhook } = require('./services/payment');
+const { apiMonitorMiddleware } = require('./utils/apiMonitor');
 require('./conn/conn');
 
 // Enable CORS
@@ -63,10 +64,19 @@ app.use((req, res, next) => {
 });
 
 
+const plotRoutes = require('./router/plots.routes');
+
+// ----------------------
+// API performance monitor (records timing for every request; stats are
+// only exposed to the 'developer' role via /api/api-monitor/stats)
+// ----------------------
+app.use(apiMonitorMiddleware);
+
 // ----------------------
 // Routes
 // ----------------------
 
+app.use('/api/plots', plotRoutes);
 app.use('/api', route);
 app.get('/events', eventsHandler);
 app.use('/', esslRoutes);

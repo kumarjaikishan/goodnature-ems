@@ -48,7 +48,6 @@ const rulesSnapshotSchema = new mongoose.Schema({
 }, { _id: false });
 
 const attendanceSchema = new mongoose.Schema({
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee', required: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   attendanceById: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
@@ -75,6 +74,7 @@ const attendanceSchema = new mongoose.Schema({
   workingMinutes: Number,
   overtimeMinutes: Number,
   shortMinutes: Number,
+  weeklyOffMinutes: { type: Number, default: 0 },
 
   status: {
     type: String,
@@ -93,5 +93,8 @@ const attendanceSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
+// Support date-range and branch-wide list queries
+attendanceSchema.index({ date: -1 });
+attendanceSchema.index({ branchId: 1, date: -1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

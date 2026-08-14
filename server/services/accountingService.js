@@ -17,13 +17,12 @@ class AccountingService {
    * @param {mongoose.ClientSession} session 
    */
   async createVoucher(voucherData, session) {
-    const { companyId, type, employeeId, entries, referenceType, referenceId, remarks, branchId, date } = voucherData;
+    const { type, employeeId, entries, referenceType, referenceId, remarks, branchId, date } = voucherData;
 
     // Generate Voucher Number
-    const voucherNo = await generateVoucherNo(companyId, date || new Date(), session);
+    const voucherNo = await generateVoucherNo(date || new Date(), session);
 
     const voucher = new Voucher({
-      companyId,
       branchId,
       voucherNo,
       type,
@@ -44,7 +43,6 @@ class AccountingService {
         if (accountName.includes('payable') || accountName.includes('employee')) {
            await this.recordLedgerEntry({
              employeeId,
-             companyId,
              branchId,
              date: date || new Date(),
              type: entry.type, 
@@ -70,10 +68,6 @@ class AccountingService {
   async syncSalaryVoucher(voucherId, newEntries, remarks, postingDate, session) {
     if (!voucherId) return;
 
-    // Backward compatible args:
-    // - (voucherId, newEntries, remarks, session)
-    // - (voucherId, newEntries, session)
-    // - (voucherId, newEntries, remarks, postingDate, session)
     let actualSession = session;
     let actualRemarks = remarks;
     let actualPostingDate = postingDate;
@@ -107,14 +101,12 @@ class AccountingService {
     }).session(actualSession);
 
     if (entry) {
-      // Find the employee payable entry in the new list to get the new netSalary
       const payableEntry = newEntries.find(e => 
         e.accountName.toLowerCase().includes('payable') || 
         e.accountName.toLowerCase().includes('employee')
       );
       const newAmount = payableEntry ? payableEntry.amount : 0;
       
-      // Update entry and propagate balance updates
       await this.updateLedgerEntry(entry._id, {
         credit: entry.debit > 0 ? 0 : newAmount,
         debit: entry.debit > 0 ? newAmount : 0,
@@ -128,7 +120,6 @@ class AccountingService {
     const { 
       employeeId, 
       ledgerId,
-      companyId, 
       date = new Date(), 
       type, // 'DEBIT' or 'CREDIT'
       amount, 
@@ -158,7 +149,6 @@ class AccountingService {
           employeeId,
           empId: emp.empId,
           ledgerType: 'employee',
-          companyId: companyId || emp.companyId,
           name: emp?.employeeName || emp?.userid?.name || 'Unknown',
           profileImage: emp?.profileimage,
           advance: 0
@@ -174,7 +164,6 @@ class AccountingService {
     if (!empLedger) throw new Error("Ledger account not found");
 
     // 2. Atomic Update of Ledger Balance
-    // CREDIT increases balance, DEBIT decreases it.
     const netEffect = type === 'CREDIT' ? amountNum : -amountNum;
     
     const updatedLedger = await Ledger.findByIdAndUpdate(
@@ -190,7 +179,7 @@ class AccountingService {
       await Employee.findByIdAndUpdate(updatedLedger.employeeId, { advance: updatedLedger.advance }, { session });
     }
 
-    // 3. Create the Entry (running balance is set after we know its position by date)
+    // 3. Create the Entry
     const newEntry = new Entry({
       ledgerId: updatedLedger._id,
       date: postingDate,
@@ -205,10 +194,6 @@ class AccountingService {
 
     await newEntry.save({ session });
 
-    // 4. Fix running balances when inserting back-dated entries.
-    // If the new entry is not the last by (date, createdAt, _id), we must:
-    // - set its balance based on the immediate previous entry
-    // - shift all subsequent entries by its netEffect
     const nextEntry = await Entry.findOne({
       ledgerId: updatedLedger._id,
       $or: [
@@ -219,7 +204,6 @@ class AccountingService {
     }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
 
     if (!nextEntry) {
-      // Appended at the end → running balance equals ledger's latest advance.
       newEntry.balance = updatedLedger.advance;
       await newEntry.save({ session });
       return newEntry;
@@ -254,10 +238,6 @@ class AccountingService {
     return newEntry;
   }
 
-  /**
-   * Reverse an existing ledger entry by creating a compensating transaction.
-   * Part of the "Immutable Log" pattern.
-   */
   async reverseEntry(entryId, remarks, session) {
     const originalEntry = await Entry.findById(entryId).session(session);
     if (!originalEntry) throw new Error("Entry not found");
@@ -266,13 +246,11 @@ class AccountingService {
     const ledger = await Ledger.findById(originalEntry.ledgerId).session(session);
     if (!ledger) throw new Error("Ledger not found for entry");
 
-    // Create the reversal (compensating) entry
     const type = originalEntry.credit > 0 ? 'DEBIT' : 'CREDIT';
     const amount = originalEntry.credit > 0 ? originalEntry.credit : originalEntry.debit;
 
     const reversalEntry = await this.recordLedgerEntry({
       employeeId: ledger.employeeId,
-      companyId: ledger.companyId,
       type,
       amount,
       source: 'adjustment',
@@ -336,12 +314,15 @@ class AccountingService {
         .session(session);
 
       let running = 0;
+      const bulkOps = [];
       for (const e of allEntries) {
         running += (e.credit || 0) - (e.debit || 0);
         if (e.balance !== running) {
-          e.balance = running;
-          await e.save({ session });
+          bulkOps.push({ updateOne: { filter: { _id: e._id }, update: { $set: { balance: running } } } });
         }
+      }
+      if (bulkOps.length) {
+        await Entry.bulkWrite(bulkOps, { session });
       }
 
       ledger.advance = running;
@@ -356,18 +337,19 @@ class AccountingService {
     }
 
     // 3. Propagate to ALL subsequent entries
-    const subsequentEntries = await Entry.find({
+    // (mirrors the same shift used in recordLedgerEntry: a single bulk
+    // update instead of fetching every subsequent entry and saving each
+    // one individually - same result, one round trip instead of N)
+    const subsequentFilter = {
       ledgerId: ledger._id,
       $or: [
         { date: { $gt: originalEntry.date } },
         { date: originalEntry.date, createdAt: { $gt: originalEntry.createdAt } },
         { date: originalEntry.date, createdAt: originalEntry.createdAt, _id: { $gt: originalEntry._id } }
       ]
-    }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
-
-    for (const subEntry of subsequentEntries) {
-      subEntry.balance += delta;
-      await subEntry.save({ session });
+    };
+    if (delta !== 0) {
+      await Entry.updateMany(subsequentFilter, { $inc: { balance: delta } }, { session });
     }
 
     // 4. Update the Ledger and Employee global balance
@@ -399,19 +381,21 @@ class AccountingService {
     const netEffect = (entryToDelete.credit || 0) - (entryToDelete.debit || 0);
     const delta = -netEffect;
 
-    // 2. Propagate to ALL subsequent entries
-    const subsequentEntries = await Entry.find({
-      ledgerId: ledger._id,
-      $or: [
-        { date: { $gt: entryToDelete.date } },
-        { date: entryToDelete.date, createdAt: { $gt: entryToDelete.createdAt } },
-        { date: entryToDelete.date, createdAt: entryToDelete.createdAt, _id: { $gt: entryToDelete._id } }
-      ]
-    }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
-
-    for (const subEntry of subsequentEntries) {
-      subEntry.balance += delta;
-      await subEntry.save({ session });
+    // 2. Propagate to ALL subsequent entries (single bulk update instead
+    // of fetching + saving every subsequent entry one at a time)
+    if (delta !== 0) {
+      await Entry.updateMany(
+        {
+          ledgerId: ledger._id,
+          $or: [
+            { date: { $gt: entryToDelete.date } },
+            { date: entryToDelete.date, createdAt: { $gt: entryToDelete.createdAt } },
+            { date: entryToDelete.date, createdAt: entryToDelete.createdAt, _id: { $gt: entryToDelete._id } }
+          ]
+        },
+        { $inc: { balance: delta } },
+        { session }
+      );
     }
 
     // 3. Update the Ledger and Employee global balance

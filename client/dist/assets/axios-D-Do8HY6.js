@@ -1,0 +1,1 @@
+import{cg as r}from"./index-C-JEfG-8.js";const a=r.create({baseURL:"/api/",withCredentials:!0});a.interceptors.request.use(e=>{const t=localStorage.getItem("emstoken");return t&&(e.headers.Authorization=`Bearer ${t}`),e});export{a};

@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const leavePolicySchema = new mongoose.Schema({
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   name: { type: String, required: true },
   allocationType: { type: String, enum: ['monthly', 'yearly'], required: true },
   totalLeaves: { type: Number, required: true },

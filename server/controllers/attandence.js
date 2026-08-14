@@ -23,6 +23,8 @@ const {
   ATTENDANCE_TIMEZONE
 } = require('../utils/attendanceTime');
 const { getRulesSnapshot, calculateStats } = require('../services/attendanceService');
+const { syncMonthlyEarnedWeeklyOff } = require('../services/weeklyOffService');
+const ApiResponse = require('../utils/apiResponse');
 
 
 const webattandence = async (req, res, next) => {
@@ -61,7 +63,7 @@ const webattandence = async (req, res, next) => {
       attendance.punchOut = punchOutTime;
       attendance.status = status ?? attendance.status;
 
-      const companyData = await company.findById(req.user.companyId);
+      const companyData = await company.findOne();
       const branch = await BranchModal.findById(attendance.branchId);
 
       await calculateStats(attendance, companyData, branch);
@@ -189,7 +191,7 @@ const checkin = async (req, res) => {
     }
 
     // 🔹 Get company & branch
-    const companyData = await company.findById(req.user.companyId);
+    const companyData = await company.findOne();
     const branch = await BranchModal.findById(emp.branchId);
 
     // 🔹 Build snapshot
@@ -403,7 +405,7 @@ const checkout = async (req, res) => {
       return h * 60 + m;
     };
 
-    const companyData = await company.findById(req.user.companyId);
+    const companyData = await company.findOne();
     const branch = await BranchModal.findById(record.branchId);
 
     await calculateStats(record, companyData, branch);
@@ -548,7 +550,7 @@ const recordAttendanceFromLogs = async (req, res, next) => {
         attendance.punchOut = punchDate;
 
         // ✅ Get rules & calculate stats
-        const companyData = await company.findById(employeeDoc.companyId);
+        const companyData = await company.findOne();
         const branch = await BranchModal.findById(employeeDoc.branchId);
 
         // Ensure rulesSnapshot is available (if this was created via device, it might not be)
@@ -681,7 +683,7 @@ const bulkMarkAttendance = async (req, res) => {
     const companyId = req.user.companyId;
 
     // 🔹 preload company
-    const companyData = await company.findById(companyId);
+    const companyData = await company.findOne();
 
     // IST = UTC+5:30
     const parseTime = (t) => {
@@ -760,7 +762,6 @@ const bulkMarkAttendance = async (req, res) => {
       if (punchOutDate) {
         const earlyExitBefore = parseTime(snapshot.attendanceRules.considerEarlyExitBefore);
         const lateExitAfter = parseTime(snapshot.attendanceRules.considerLateExitAfter);
-
         const min = getMinutesInAttendanceTimezone(punchOutDate);
 
         if (min < earlyExitBefore) punchOutStatus = "early";
@@ -774,6 +775,7 @@ const bulkMarkAttendance = async (req, res) => {
       let workingMinutes = 0;
       let overtimeMinutes = 0;
       let shortMinutes = 0;
+      let weeklyOffMinutes = 0;
       let remarks = null;
 
       const day = new Date(dateObj).getUTCDay();
@@ -800,16 +802,17 @@ const bulkMarkAttendance = async (req, res) => {
         const wm = snapshot.workingMinutes;
         const overtimeRules = snapshot.overtimeRules || {};
 
-        // 🔥 SAME AS CHECKOUT (NO MISMATCH)
-
         // =========================
-        // 🔥 OVERTIME ENGINE
+        // 🔥 OVERTIME & WEEKLY OFF ENGINE
         // =========================
         if (isHoliday && overtimeRules?.holiday?.treatAllAsOvertime) {
           overtimeMinutes = workingMinutes;
+          shortMinutes = 0;
         }
-        else if (isWeeklyOff && overtimeRules?.weeklyOff?.treatAllAsOvertime) {
-          overtimeMinutes = workingMinutes;
+        else if (isWeeklyOff) {
+          weeklyOffMinutes = workingMinutes;
+          overtimeMinutes = 0;
+          shortMinutes = 0;
         }
         else {
           if (workingMinutes > wm.overtimeAfterMinutes) {
@@ -876,6 +879,7 @@ const bulkMarkAttendance = async (req, res) => {
               workingMinutes,
               overtimeMinutes,
               shortMinutes,
+              weeklyOffMinutes,
               remarks,
               dayType: isHoliday ? "holiday" : (isWeeklyOff ? "weekoff" : "normal"),
               status,
@@ -919,7 +923,7 @@ const bulkMarkAttendanceExcel = async (req, res) => {
     }
 
     const companyId = req.user.companyId;
-    const companyData = await company.findById(companyId);
+    const companyData = await company.findOne();
 
     // IST = UTC+5:30
     const parseTime = (t) => {
@@ -1002,6 +1006,7 @@ const bulkMarkAttendanceExcel = async (req, res) => {
       let workingMinutes = 0;
       let overtimeMinutes = 0;
       let shortMinutes = 0;
+      let weeklyOffMinutes = 0;
       let remarks = null;
 
       const day = new Date(dateObj).getUTCDay();
@@ -1028,8 +1033,11 @@ const bulkMarkAttendanceExcel = async (req, res) => {
 
         if (isHoliday && overtimeRules?.holiday?.treatAllAsOvertime) {
           overtimeMinutes = workingMinutes;
-        } else if (isWeeklyOff && overtimeRules?.weeklyOff?.treatAllAsOvertime) {
-          overtimeMinutes = workingMinutes;
+          shortMinutes = 0;
+        } else if (isWeeklyOff) {
+          weeklyOffMinutes = workingMinutes;
+          overtimeMinutes = 0;
+          shortMinutes = 0;
         } else {
           if (workingMinutes > wm.overtimeAfterMinutes) {
             // allowFullOvertime: count OT from fullDay instead of overtime threshold
@@ -1079,6 +1087,7 @@ const bulkMarkAttendanceExcel = async (req, res) => {
               workingMinutes,
               overtimeMinutes,
               shortMinutes,
+              weeklyOffMinutes,
               remarks,
               dayType: isHoliday ? "holiday" : (isWeeklyOff ? "weekoff" : "normal"),
               status,
@@ -1141,7 +1150,7 @@ const facecheckout = async (req, res, next) => {
 
     record.punchOut = now;
 
-    const companyData = await company.findById(req.user.companyId);
+    const companyData = await company.findOne();
     const branch = await BranchModal.findById(record.branchId);
 
     await calculateStats(record, companyData, branch);
@@ -1178,9 +1187,138 @@ const facecheckout = async (req, res, next) => {
 };
 
 // Get all attendance
+// NOTE: legacy, unscoped endpoint - kept for backward compatibility but capped
+// so a stray call can never pull an entire collection into memory.
+// New code should use getAttendanceList (paginated + filtered) instead.
 const allAttandence = async (req, res, next) => {
-  const data = await Attendance.find().populate('employeeId', 'name email');
+  const data = await Attendance.find().populate('employeeId', 'name email').limit(2000);
   res.json(data);
+};
+
+// Paginated, filtered attendance list.
+// Query params: page, limit, fromDate, toDate, month, year, branchId,
+// departmentId, employeeId, employee (name search), status, sortDir
+const getAttendanceList = async (req, res, next) => {
+  try {
+    const companyId = req.user.companyId;
+    const {
+      branchId,
+      departmentId,
+      employeeId,
+      employee: employeeNameSearch,
+      status,
+      fromDate,
+      toDate,
+      month,
+      year,
+      sortDir,
+    } = req.query;
+
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+    const skip = (page - 1) * limit;
+
+    const attendanceFilter = { companyId };
+
+    // --- Branch scoping (Attendance stores branchId directly, no join needed) ---
+    if (req.user.role === 'manager') {
+      const allowedBranches = (req.user.branchIds || []).map(String);
+      if (branchId && branchId !== 'all') {
+        if (!allowedBranches.includes(String(branchId))) {
+          return res.status(403).json({ message: 'Forbidden: You do not manage this branch.' });
+        }
+        attendanceFilter.branchId = branchId;
+      } else {
+        attendanceFilter.branchId = { $in: allowedBranches };
+      }
+    } else if (branchId && branchId !== 'all') {
+      attendanceFilter.branchId = branchId;
+    }
+
+    // --- Status filter ---
+    if (status && status !== 'all') {
+      attendanceFilter.status = status;
+    }
+
+    // --- Date range: explicit fromDate/toDate takes priority, else month/year ---
+    if (fromDate || toDate) {
+      const range = {};
+      if (fromDate) {
+        const from = getAttendanceDateUTC(parseAttendanceDateTime(fromDate));
+        if (from) range.$gte = from;
+      }
+      if (toDate) {
+        const to = getAttendanceDateUTC(parseAttendanceDateTime(toDate));
+        if (to) range.$lte = to;
+      }
+      if (Object.keys(range).length) attendanceFilter.date = range;
+    } else if ((month && month !== 'all') || (year && year !== 'all')) {
+      const y = year && year !== 'all' ? parseInt(year) : dayjs().tz(ATTENDANCE_TIMEZONE).year();
+      if (month && month !== 'all') {
+        const m = parseInt(month); // 0-11, matches frontend convention
+        const start = dayjs.tz(`${y}-${String(m + 1).padStart(2, '0')}-01`, ATTENDANCE_TIMEZONE).startOf('month');
+        attendanceFilter.date = {
+          $gte: getAttendanceDateUTC(start.toDate()),
+          $lte: getAttendanceDateUTC(start.endOf('month').toDate()),
+        };
+      } else {
+        const start = dayjs.tz(`${y}-01-01`, ATTENDANCE_TIMEZONE).startOf('year');
+        attendanceFilter.date = {
+          $gte: getAttendanceDateUTC(start.toDate()),
+          $lte: getAttendanceDateUTC(start.endOf('year').toDate()),
+        };
+      }
+    }
+
+    // --- Employee filter ---
+    // A specific employeeId always wins. Otherwise, department/name search
+    // requires resolving matching employee ids first (Attendance doesn't
+    // store department or name directly).
+    if (employeeId) {
+      attendanceFilter.employeeId = employeeId;
+    } else if ((departmentId && departmentId !== 'all') || employeeNameSearch) {
+      const employeeFilter = { companyId };
+      if (departmentId && departmentId !== 'all') employeeFilter.department = departmentId;
+      if (employeeNameSearch) employeeFilter.employeeName = { $regex: employeeNameSearch.trim(), $options: 'i' };
+      if (attendanceFilter.branchId) employeeFilter.branchId = attendanceFilter.branchId;
+
+      const matchingEmployees = await employee.find(employeeFilter).select('_id').lean();
+      const ids = matchingEmployees.map((e) => e._id);
+
+      if (!ids.length) {
+        return ApiResponse.paginated(res, [], { page, limit, total: 0, pages: 0 });
+      }
+      attendanceFilter.employeeId = { $in: ids };
+    }
+
+    const sort = { date: sortDir === 'asc' ? 1 : -1, empId: 1 };
+
+    const [records, total] = await Promise.all([
+      Attendance.find(attendanceFilter)
+        .select('-rulesSnapshot -dutyStart -dutyEnd')
+        .populate({
+          path: 'employeeId',
+          select: 'userid profileimage department empId',
+          populate: { path: 'userid', select: 'name' },
+        })
+        .populate({ path: 'leave', select: 'reason' })
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Attendance.countDocuments(attendanceFilter),
+    ]);
+
+    return ApiResponse.paginated(res, records, {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit) || 0,
+    });
+  } catch (error) {
+    console.error('Error in getAttendanceList:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
 const editattandence = async (req, res) => {
@@ -1270,8 +1408,8 @@ const editattandence = async (req, res) => {
     }
 
     if (data.punchIn && data.punchOut) {
-      // 🔥 FETCH LIVE CONFIG
-      const companyData = await company.findById(req.user.companyId);
+      // 🔥 FETCH LIVE CONFIG & RECALCULATE DAY STATS (dayType, overtime, workingMinutes)
+      const companyData = await company.findOne();
       const branch = await BranchModal.findById(data.branchId);
 
       await calculateStats(data, companyData, branch);
@@ -1302,22 +1440,20 @@ const editattandence = async (req, res) => {
       if (!existingLeave) {
         // Fetch default leave policy
         let policy = await LeavePolicy.findOne({
-          companyId: req.user.companyId,
           name: { $regex: /^casual$/i }
         });
 
         if (!policy) {
-          policy = await LeavePolicy.findOne({ companyId: req.user.companyId });
+          policy = await LeavePolicy.findOne();
         }
 
         if (!policy) {
           return res.status(400).json({
-            message: 'No leave policy found for this company. Please create a leave policy (e.g., "Casual") first.'
+            message: 'No leave policy found. Please create a leave policy (e.g., "Casual") first.'
           });
         }
 
         const leaveDoc = await Leave.create({
-          companyId: req.user.companyId,
           branchId: data.branchId,
           employeeId: data.employeeId,
           policyId: policy._id,
@@ -1346,7 +1482,6 @@ const editattandence = async (req, res) => {
       });
 
     // 🔹 Realtime update
-    // 🔹 Realtime update
     let action = 'edit';
     const normalizedStatus = status?.toLowerCase();
 
@@ -1365,7 +1500,6 @@ const editattandence = async (req, res) => {
         type: 'attendance_update',
         payload: { action, data: updatedRecord }
       },
-      req.user.companyId,
       data.branchId || null
     );
 
@@ -1402,7 +1536,7 @@ const allleave = async (req, res, next) => {
 };
 
 const employeeAttandence = async (req, res, next) => {
-  const userid = req.query.userid;
+  const { userid, month, year } = req.query;
   if (!userid) return res.status(400).json({ message: 'Employee Id is needed' });
 
   if (!mongoose.Types.ObjectId.isValid(userid)) {
@@ -1410,25 +1544,49 @@ const employeeAttandence = async (req, res, next) => {
   }
 
   try {
-    const user = await User.findOne({ _id: userid });
+    const user = await User.findOne({ _id: userid })
+      .select('_id name email role')
+      .lean();
 
     if (!user) {
-      return res.status(403).json({ message: 'Employee Not Found' })
+      return res.status(403).json({ message: 'Employee Not Found' });
     }
 
-    if (!user.companyId.equals(req.user.companyId)) {
-      return res.status(403).json({ owner: false, message: "Forbidden: You don’t have access to this employee’s data." });
+    const employeedetail = await employee.findOne({ userid })
+      .select('_id empId userid designation salary profileimage branchId department companyId')
+      .populate({
+        path: 'branchId',
+        select: 'name defaultsetting setting'
+      })
+      .lean();
+
+    if (!employeedetail) {
+      return res.status(404).json({ message: 'Employee details not found' });
     }
 
-    const employeedetail = await employee.findOne({ userid }).populate({
-      path: 'branchId',
-      select: 'name defaultsetting setting'
-    });
-    const attandence = await Attendance.find({ employeeId: employeedetail._id })
+    const queryFilter = { employeeId: employeedetail._id };
+
+    if (year && year !== 'all' && month !== undefined && month !== 'all') {
+      const m = parseInt(month, 10);
+      const y = parseInt(year, 10);
+      const startDate = new Date(Date.UTC(y, m, 1));
+      const endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+      queryFilter.date = { $gte: startDate, $lte: endDate };
+    } else if (year && year !== 'all') {
+      const y = parseInt(year, 10);
+      const startDate = new Date(Date.UTC(y, 0, 1));
+      const endDate = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+      queryFilter.date = { $gte: startDate, $lte: endDate };
+    }
+
+    const attandence = await Attendance.find(queryFilter)
+      .select('_id date punchIn punchOut punchInStatus punchOutStatus status dayType workingMinutes shortMinutes overtimeMinutes weeklyOffMinutes remarks leave')
       .populate({
         path: 'leave',
         select: 'reason'
-      }).sort({ date: -1 });
+      })
+      .sort({ date: -1 })
+      .lean();
 
     return res.status(200).json({ user, employee: employeedetail, attandence });
   } catch (error) {
@@ -1526,4 +1684,63 @@ const getBulkMarkData = async (req, res, next) => {
   }
 };
 
-module.exports = { checkout, deleteattandence, bulkMarkAttendance, bulkMarkAttendanceExcel, facecheckin, recordAttendanceFromLogs, facecheckout, editattandence, employeeAttandence, checkin, webattandence, allAttandence, leaveapply, leaveupdate, allleave, getBulkMarkData };
+const getAttendanceReport = async (req, res, next) => {
+  try {
+    const companyId = req.user.companyId;
+    const { month, year, branchId, departmentId } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({ message: 'Month and year are required.' });
+    }
+
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+
+    const startDate = new Date(Date.UTC(y, m - 1, 1));
+    const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+
+    const attendanceFilter = {
+      companyId,
+      date: { $gte: startDate, $lte: endDate }
+    };
+
+    if (req.user.role === 'manager') {
+      const allowedBranches = (req.user.branchIds || []).map(String);
+      if (branchId && branchId !== 'all') {
+        if (!allowedBranches.includes(String(branchId))) {
+          return res.status(403).json({ message: 'Forbidden: You do not manage this branch.' });
+        }
+        attendanceFilter.branchId = branchId;
+      } else {
+        attendanceFilter.branchId = { $in: allowedBranches };
+      }
+    } else if (branchId && branchId !== 'all') {
+      attendanceFilter.branchId = branchId;
+    }
+
+    if (departmentId && departmentId !== 'all') {
+      const matchingEmployees = await employee.find({ companyId, department: departmentId }).select('_id').lean();
+      const ids = matchingEmployees.map(e => e._id);
+      attendanceFilter.employeeId = { $in: ids };
+    }
+
+    const attendance = await Attendance.find(attendanceFilter)
+      .select('_id date employeeId status dayType workingMinutes shortMinutes overtimeMinutes weeklyOffMinutes remarks leave')
+      .populate({
+        path: 'leave',
+        select: 'reason'
+      })
+      .sort({ date: 1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      attendance
+    });
+  } catch (error) {
+    console.error('Error in getAttendanceReport:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { checkout, deleteattandence, bulkMarkAttendance, bulkMarkAttendanceExcel, facecheckin, recordAttendanceFromLogs, facecheckout, editattandence, employeeAttandence, checkin, webattandence, allAttandence, getAttendanceList, leaveapply, leaveupdate, allleave, getBulkMarkData, getAttendanceReport };

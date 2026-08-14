@@ -12,4 +12,9 @@ const leaveTransactionSchema = new mongoose.Schema({
   remarks: { type: String }
 }, { timestamps: true });
 
+// Payroll edit/delete looks these up by referenceId (the Payroll doc);
+// leave-balance recalculation looks them up by employeeId+policyId.
+leaveTransactionSchema.index({ referenceId: 1 });
+leaveTransactionSchema.index({ employeeId: 1, policyId: 1 });
+
 module.exports = mongoose.model('LeaveTransaction', leaveTransactionSchema);

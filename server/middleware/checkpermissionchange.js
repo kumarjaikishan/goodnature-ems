@@ -23,7 +23,7 @@ const checkpermissionchange = (permissionName, key) => {
                 // 2. Fallback to Mongo
                 // console.log("approcing to database")
                 const userapply = await usermodel.findById(userId);
-                userPermissions = Object.fromEntries(userapply?.permissions);
+                userPermissions = userapply?.permissions ? Object.fromEntries(userapply.permissions) : {};
 
                 await redisClient.setEx(`permissions:${userId}`, 60 * 60 * 24 * 15, JSON.stringify(userPermissions));
                 // console.log("⚡ Permissions cached in Redis");

@@ -13,4 +13,7 @@ const entrySchema = new mongoose.Schema({
   reversalReference: { type: mongoose.Schema.Types.ObjectId, ref: 'Entry' }
 }, { timestamps: true });
 
+// Support "latest entry per ledger" lookups (ledger balance) without a full scan
+entrySchema.index({ ledgerId: 1, date: -1, createdAt: -1 });
+
 module.exports = mongoose.model('Entry', entrySchema);

@@ -9,23 +9,20 @@ const Notification = require('../models/notification');
 
 class LeaveService {
   async applyLeave(leaveData, session) {
-    const { employeeId, policyId, fromDate, toDate, reason, companyId, branchId } = leaveData;
+    const { employeeId, policyId, fromDate, toDate, reason, branchId } = leaveData;
 
     const from = dayjs(fromDate);
     const to = dayjs(toDate);
     
     // Fetch rules to calculate actual working days duration
-    const Company = mongoose.model('Company');
     const Branch = mongoose.model('Branch');
     const Holiday = mongoose.model('Holiday');
     
-    const companyData = await Company.findById(companyId).session(session);
     const branchData = await Branch.findById(branchId).session(session);
     
-    const weeklyOffs = branchData?.defaultsetting ? (companyData?.weeklyOffs || []) : (branchData?.setting?.weeklyOffs || []);
+    const weeklyOffs = branchData?.setting?.weeklyOffs || [];
     
     const holidays = await Holiday.find({
-      companyId,
       fromDate: { $lte: to.format('YYYY-MM-DD') },
       toDate: { $gte: from.format('YYYY-MM-DD') }
     }).session(session);
@@ -54,7 +51,6 @@ class LeaveService {
     const leaveRequest = new Leave({
       employeeId,
       policyId,
-      companyId,
       branchId,
       fromDate,
       toDate,
@@ -83,7 +79,6 @@ class LeaveService {
       balance = new LeaveBalance({
         employeeId: leaveRequest.employeeId,
         policyId: leaveRequest.policyId,
-        companyId: leaveRequest.companyId,
         branchId: leaveRequest.branchId,
         totalAllocated: 0,
         used: 0,
@@ -117,15 +112,13 @@ class LeaveService {
 
     // 4. Update Attendance Records
     const Employee = mongoose.model('employee');
-    const Company = mongoose.model('Company');
     const Branch = mongoose.model('Branch');
     const Holiday = mongoose.model('Holiday');
 
     const emp = await Employee.findById(leaveRequest.employeeId).session(session);
-    const companyData = await Company.findById(leaveRequest.companyId).session(session);
     const branchData = await Branch.findById(leaveRequest.branchId).session(session);
     
-    const weeklyOffs = branchData?.defaultsetting ? (companyData?.weeklyOffs || []) : (branchData?.setting?.weeklyOffs || []);
+    const weeklyOffs = branchData?.setting?.weeklyOffs || [];
 
     let current = dayjs(leaveRequest.fromDate);
     const end = dayjs(leaveRequest.toDate);
@@ -136,7 +129,6 @@ class LeaveService {
       
       const isWeeklyOff = weeklyOffs.includes(day);
       const isHoliday = await Holiday.findOne({
-        companyId: leaveRequest.companyId,
         fromDate: { $lte: dateStr },
         toDate: { $gte: dateStr }
       }).session(session);
@@ -150,7 +142,6 @@ class LeaveService {
           },
           {
             $setOnInsert: {
-              companyId: leaveRequest.companyId,
               branchId: leaveRequest.branchId,
               empId: emp?.empId || '',
             },
@@ -164,7 +155,6 @@ class LeaveService {
           { upsert: true, session }
         );
       } else {
-        // Optionally ensure the dayType is correctly marked as weekoff/holiday if record exists
         await Attendance.findOneAndUpdate(
           {
             employeeId: leaveRequest.employeeId,
@@ -172,14 +162,13 @@ class LeaveService {
           },
           {
             $setOnInsert: {
-              companyId: leaveRequest.companyId,
               branchId: leaveRequest.branchId,
               empId: emp?.empId || '',
               status: isHoliday ? 'holiday' : 'weekly off',
               dayType: isHoliday ? 'holiday' : 'weekoff'
             },
             $set: {
-              leave: leaveRequest._id // Link to leave but don't change status to 'leave'
+              leave: leaveRequest._id
             }
           },
           { upsert: true, session }
@@ -214,7 +203,6 @@ class LeaveService {
       balance = new LeaveBalance({
         employeeId,
         policyId,
-        companyId: emp.companyId,
         branchId: emp.branchId,
         totalAllocated: 0,
         used: 0,

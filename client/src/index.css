@@ -1,0 +1,208 @@
+@import "tailwindcss";
+
+
+* {
+    box-sizing: border-box;
+}
+
+
+:root {
+    --color-primary: #115e59;
+    --sidebarwidth: 160px;
+    --navbarheight: 60px;
+    --sidenav: rgb(255, 255, 255);
+    --maincolor: teal;
+    --fontcolor: grey;
+    --shortsidebar: 60px;
+}
+
+.bg-primary {
+    background-color: var(--color-primary);
+}
+
+.text-primary {
+    color: var(--color-primary);
+}
+
+.border-primary {
+    border-color: var(--color-primary);
+}
+
+input[type="checkbox"] {
+    accent-color: var(--color-primary);
+}
+
+*::-webkit-scrollbar {
+    width: 3px;
+    height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 6px;
+}
+
+*::-webkit-scrollbar-button {
+    display: none;
+}
+
+.neu {
+    background: #e0e4e7;
+    box-shadow: 5px 5px 13px #b8c7dd,
+        -5px -5px 5px #ffffff;
+}
+
+body {
+    width: 100%;
+    min-height: 100vh;
+}
+
+.attandencecard {
+    @apply w-full flex justify-center items-center gap-5 relative before:absolute before:top-1/2 before:-left-[50px] before:w-[50px] before:h-0.5 before:bg-gray-400 before:content-[''];
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: -50px;
+        width: 20px;
+        height: 20px;
+        /* background: red; */
+        border-radius: 50%;
+        transform: translateY(-50%);
+    }
+}
+
+.attandencecarde {
+    @apply w-full flex justify-center items-center gap-5 relative;
+
+}
+
+.MuiChartsLegend-root.MuiChartsLegend-vertical.css-1yf54bd-MuiChartsLegend-root {
+    display: none !important;
+}
+
+.material {
+    width: calc(100% - var(--sidebarwidth));
+    width: 100%;
+    padding-left: var(--sidebarwidth);
+    min-height: calc(100vh - var(--navbarheight));
+    height: 100vh;
+    padding-top: var(--navbarheight);
+    background: rgb(240, 242, 246);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.membermodal {
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 12px;
+    background: var(--color-primary);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    form,
+    .whole {
+        width: 100%;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--color-primary);
+
+        /* Header */
+        h2,
+        .modalhead {
+            height: 48px;
+            min-height: 48px;
+            line-height: 48px;
+            text-align: center;
+            letter-spacing: 0.5px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            width: 100%;
+            padding: 0 16px;
+        }
+
+        /* Body */
+        .modalcontent {
+            max-height: calc(90vh - 48px - 55px);
+            overflow-y: auto;
+            background: white;
+            border-radius: 16px 16px 0 0;
+            width: 100%;
+            display: block;
+            padding: 16px 16px 10px;
+            flex: 1 1 auto;
+        }
+
+        /* Footer */
+        .btn,
+        .modalfooter {
+            height: 55px;
+            min-height: 55px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            background: white;
+            width: 100%;
+            flex-shrink: 0;
+        }
+    }
+}
+
+
+.MuiChartsLegend-root.MuiChartsLegend-vertical {
+    display: none;
+}
+
+/* global.css or index.css */
+@media print {
+
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .material {
+        width: 100%;
+        padding-left: 0 !important;
+        min-height: 100vh !important;
+        height: 100vh !important;
+        padding-top: 0 !important;
+        background: transparent !important;
+        /* background: red !important; */
+    }
+}
+
+
+@media (max-width: 600px) {
+    .membermodal {
+        max-height: 90vh;
+
+        form,
+        .whole {
+            max-height: 90vh;
+
+            .modalcontent {
+                max-height: calc(90vh - 48px - 55px);
+                gap: 12px;
+                padding: 16px 12px 10px;
+            }
+        }
+    }
+}

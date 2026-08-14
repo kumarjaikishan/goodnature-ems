@@ -23,9 +23,7 @@ const recalculateLeaveBalances = async (employeeId, policyId, session = null) =>
     }
   }
 
-  // Update or Create LeaveBalance summary
-  // We fetch employee details to ensure companyId and branchId are present if it's a new record
-  const empQuery = Employee.findById(employeeId).select("companyId branchId");
+  const empQuery = Employee.findById(employeeId).select("branchId");
   if (session) empQuery.session(session);
   const emp = await empQuery;
   if (!emp) return;
@@ -36,7 +34,6 @@ const recalculateLeaveBalances = async (employeeId, policyId, session = null) =>
       totalAllocated,
       used,
       remaining: totalAllocated - used,
-      companyId: emp.companyId,
       branchId: emp.branchId
     },
     { upsert: true, new: true }
@@ -45,12 +42,11 @@ const recalculateLeaveBalances = async (employeeId, policyId, session = null) =>
   await updateQuery;
 };
 
-// ➕ Add new leave balance (Manual Adjustment/Credit)
 const addleavebalance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { employeeId, companyId, branchId, policyId, type, amount: rawAmount, remarks } = req.body;
+    const { employeeId, branchId, policyId, type, amount: rawAmount, remarks } = req.body;
     const amount = Number(rawAmount);
 
     if (isNaN(amount)) {
@@ -61,11 +57,9 @@ const addleavebalance = async (req, res) => {
       throw new Error("Policy ID is required");
     }
 
-    // Get current balance
     const currentBalance = await LeaveBalance.findOne({ employeeId, policyId }).session(session);
     const balanceBefore = currentBalance ? currentBalance.remaining : 0;
 
-    // Create Transaction
     const tx = await LeaveTransaction.create([{
       employeeId,
       policyId,
@@ -79,7 +73,6 @@ const addleavebalance = async (req, res) => {
 
     await session.commitTransaction();
 
-    // Recalculate summary (async)
     await recalculateLeaveBalances(employeeId, policyId);
 
     res.status(201).json({
@@ -100,15 +93,17 @@ const addleavebalance = async (req, res) => {
   }
 };
 
-// 📑 Get all leave balance summaries
 const getallleavebalnce = async (req, res) => {
   try {
-    const query = { companyId: req.user.companyId };
-    if (req.user.role === "manager") {
+    let query = {};
+    if (req.user.role === "manager" && Array.isArray(req.user.branchIds)) {
       query.branchId = { $in: req.user.branchIds };
     }
 
-    const leaveBalances = await LeaveBalance.find(query)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 0;
+
+    let balanceQuery = LeaveBalance.find(query)
       .populate({
         path: "employeeId",
         select: "userid",
@@ -117,9 +112,21 @@ const getallleavebalnce = async (req, res) => {
       .populate("policyId", "name")
       .sort({ createdAt: -1 });
 
+    let total = 0;
+    let pages = 1;
+
+    if (limit > 0) {
+      total = await LeaveBalance.countDocuments(query);
+      pages = Math.ceil(total / limit);
+      balanceQuery = balanceQuery.skip((page - 1) * limit).limit(limit);
+    }
+
+    const leaveBalances = await balanceQuery;
+
     res.status(200).json({
       count: leaveBalances.length,
       data: leaveBalances,
+      ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
     });
   } catch (err) {
     console.error("Error fetching leave balances:", err.message);
@@ -131,7 +138,6 @@ const getallleavebalnce = async (req, res) => {
   }
 };
 
-// 📑 Get leave transactions (audit log) for an employee
 const getLeaveTransactions = async (req, res) => {
     try {
         const { employeeId } = req.params;
@@ -145,22 +151,15 @@ const getLeaveTransactions = async (req, res) => {
     }
 };
 
-// ❌ Delete leave summary (Cleanup) or specific Transaction
 const deleteleavebalance = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Try finding it as a Summary (LeaveBalance) first (Since that's what the main table uses)
     const summary = await LeaveBalance.findById(id);
     if (summary) {
       const { employeeId, policyId } = summary;
       
-      // Delete the summary record
       await summary.deleteOne();
-      
-      // Also delete all manual/allocation transactions for this employee/policy 
-      // (Leave transactions from LeaveRequests are usually kept unless the request is deleted)
-      // To keep it clean, we delete transactions associated with this summary
       await LeaveTransaction.deleteMany({ employeeId, policyId });
 
       return res.status(200).json({ 
@@ -169,7 +168,6 @@ const deleteleavebalance = async (req, res) => {
       });
     }
 
-    // 2. If not found in Summary, try finding it as a specific Transaction (LeaveTransaction)
     const tx = await LeaveTransaction.findById(id);
     if (!tx) {
       return res.status(404).json({ success: false, message: "Record not found (Checked Balance and Transactions)" });
@@ -178,7 +176,6 @@ const deleteleavebalance = async (req, res) => {
     const { employeeId, policyId } = tx;
     await tx.deleteOne();
 
-    // Recalculate summary after deleting a single transaction
     await recalculateLeaveBalances(employeeId, policyId);
 
     res.status(200).json({ success: true, message: "Transaction deleted and balance recalculated" });
@@ -188,18 +185,11 @@ const deleteleavebalance = async (req, res) => {
   }
 };
 
-// 📑 Get MY leave balance (For Employee)
 const getMyLeaveBalance = async (req, res) => {
     try {
         const employeeId = req.user.employeeId;
         if (!employeeId) {
             return res.status(400).json({ success: false, message: "Employee profile not found" });
-        }
-
-        // Check if allowed by admin
-        const company = await Company.findById(req.user.companyId);
-        if (!company?.leaveSettings?.allowEmployeeToSeeLedger) {
-            return res.status(403).json({ success: false, message: "Leave ledger visibility is disabled by administrator" });
         }
 
         const leaveBalances = await LeaveBalance.find({ employeeId })
@@ -212,18 +202,11 @@ const getMyLeaveBalance = async (req, res) => {
     }
 };
 
-// 📑 Get MY leave transactions (For Employee)
 const getMyLeaveTransactions = async (req, res) => {
     try {
         const employeeId = req.user.employeeId;
         if (!employeeId) {
             return res.status(400).json({ success: false, message: "Employee profile not found" });
-        }
-
-        // Check if allowed by admin
-        const company = await Company.findById(req.user.companyId);
-        if (!company?.leaveSettings?.allowEmployeeToSeeLedger) {
-            return res.status(403).json({ success: false, message: "Leave ledger history visibility is disabled by administrator" });
         }
 
         const transactions = await LeaveTransaction.find({ employeeId })
@@ -236,7 +219,6 @@ const getMyLeaveTransactions = async (req, res) => {
     }
 };
 
-// 🔄 Update leave balance (by appending an adjustment transaction)
 const updateleavebalance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -257,7 +239,6 @@ const updateleavebalance = async (req, res) => {
     const { employeeId, policyId } = summary;
     const balanceBefore = summary.remaining;
 
-    // Create Transaction
     const tx = await LeaveTransaction.create([{
       employeeId,
       policyId,
@@ -271,7 +252,6 @@ const updateleavebalance = async (req, res) => {
 
     await session.commitTransaction();
 
-    // Recalculate summary (async)
     await recalculateLeaveBalances(employeeId, policyId);
 
     res.status(200).json({
@@ -292,7 +272,6 @@ const updateleavebalance = async (req, res) => {
   }
 };
 
-// 👥 Bulk add leave balance to all active employees
 const bulkAddLeaveBalance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -308,11 +287,8 @@ const bulkAddLeaveBalance = async (req, res) => {
       throw new Error("Policy ID is required");
     }
 
-    const companyId = req.user.companyId;
-
-    // Find all active employees in this company
     const Employee = require("../models/employee");
-    const activeEmployees = await Employee.find({ companyId, status: { $ne: false } }).session(session);
+    const activeEmployees = await Employee.find({ status: { $ne: false } }).session(session);
 
     if (activeEmployees.length === 0) {
       return res.status(400).json({ success: false, message: "No active employees found" });

@@ -8,7 +8,6 @@ const noticeSchema = new mongoose.Schema({
   targetEmployeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee' }, // For individual notices
   date: { type: Date, default: Date.now },
   CreatedById: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
   createdAt: { type: Date, default: Date.now }
 });
 

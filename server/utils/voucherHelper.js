@@ -17,11 +17,15 @@ const getFinancialYearString = (dateInput = new Date()) => {
   return `${yy1}${yy2}`;
 };
 
-const generateVoucherNo = async (companyId, date, session = null) => {
+const generateVoucherNo = async (date, session = null) => {
+  if (date && typeof date === 'object' && date.constructor?.name === 'ClientSession') {
+    session = date;
+    date = new Date();
+  }
   const finYear = getFinancialYearString(date);
   const prefix = `GN-INV-${finYear}`;
   
-  let query = { companyId, voucherNo: new RegExp('^' + prefix) };
+  let query = { voucherNo: new RegExp('^' + prefix) };
   let latestVoucherQuery = Voucher.findOne(query).sort({ voucherNo: -1 });
   if (session) {
     latestVoucherQuery = latestVoucherQuery.session(session);

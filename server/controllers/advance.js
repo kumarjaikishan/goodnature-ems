@@ -2,6 +2,7 @@ const Advance = require("../models/advance");
 const Employee = require("../models/employee");
 const Entry = require("../models/entry");
 const LedgerController = require("./ledger");
+const accountingService = require("../services/accountingService");
 const mongoose = require("mongoose");
 
 const syncEmployeeAdvanceBalance = async (employeeId, session = null) => {
@@ -33,8 +34,11 @@ const syncEmployeeAdvanceBalance = async (employeeId, session = null) => {
     }
   }
 
-  // 4. Update Running Balances and Save All
+  // 4. Update Running Balances and Save All (single bulk write instead of
+  // one round trip per advance record - same fix applied to the ledger
+  // balance-propagation loops elsewhere in this pass)
   let runningTotal = 0;
+  const bulkOps = [];
   for (let adv of allAdvances) {
     if (adv.type === 'given') {
       runningTotal += adv.amount;
@@ -42,7 +46,21 @@ const syncEmployeeAdvanceBalance = async (employeeId, session = null) => {
       runningTotal -= adv.amount;
     }
     adv.balance = runningTotal;
-    await adv.save({ session });
+    bulkOps.push({
+      updateOne: {
+        filter: { _id: adv._id },
+        update: {
+          $set: {
+            balance: adv.balance,
+            remainingBalance: adv.remainingBalance,
+            status: adv.status,
+          },
+        },
+      },
+    });
+  }
+  if (bulkOps.length) {
+    await Advance.bulkWrite(bulkOps, { session });
   }
 
   // 5. Update Employee Summary
@@ -58,7 +76,7 @@ exports.addAdvance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { employeeId, companyId, branchId, amount, type = "given", remarks, reason, date } = req.body;
+    const { employeeId, branchId, amount, type = "given", remarks, reason, date } = req.body;
     const amountNum = Number(amount) || 0;
 
     const advanceDate = date ? new Date(date) : new Date();
@@ -67,7 +85,6 @@ exports.addAdvance = async (req, res) => {
     // 1. Create the Advance Record
     const newAdvance = new Advance({
       employeeId,
-      companyId,
       branchId,
       type,
       amount: amountNum,
@@ -217,30 +234,27 @@ exports.editAdvance = async (req, res) => {
       throw new Error("Payroll-adjusted advances cannot be edited from here. Please edit the corresponding Payroll instead.");
     }
 
-    // 🔹 Synchronize with Ledger: Update existing entry Date & Particulars unconditionally
+    // 🔹 Synchronize with Ledger via accountingService, which properly
+    // shifts the running balance of this entry AND every entry after it.
+    // (This used to manually patch debit/credit on the Entry directly and
+    // then call LedgerController.recalculateBalances() to fix up running
+    // balances afterward - but that function is a no-op stub (it just
+    // logs a warning), so every edited advance was silently leaving stale
+    // running balances on itself and every later ledger entry.)
     const ledgerEntry = await Entry.findOne({ referenceId: advance._id }).session(session);
-    let ledgerIdToRecalculate = null;
-    
-    if (ledgerEntry) {
-      ledgerIdToRecalculate = ledgerEntry.ledgerId;
-      
-      // Update Amount if changed
-      if (amount !== undefined && amount !== advance.amount) {
-        const type = (advance.type === 'given' ? 'DEBIT' : 'CREDIT');
-        if (type === 'DEBIT') {
-          ledgerEntry.debit = amount;
-          ledgerEntry.credit = 0;
-        } else {
-          ledgerEntry.credit = amount;
-          ledgerEntry.debit = 0;
-        }
-      }
 
-      // Update Date and Remarks unconditionally if provided
-      if (date) ledgerEntry.date = new Date(date);
-      if (remarks) ledgerEntry.particular = remarks;
-      
-      await ledgerEntry.save({ session });
+    if (ledgerEntry) {
+      const amountChanged = amount !== undefined && amount !== advance.amount;
+      if (amountChanged || date || remarks) {
+        const type = (advance.type === 'given' ? 'DEBIT' : 'CREDIT');
+        const effectiveAmount = amountChanged ? amount : (ledgerEntry.debit || ledgerEntry.credit);
+        await accountingService.updateLedgerEntry(ledgerEntry._id, {
+          debit: type === 'DEBIT' ? effectiveAmount : 0,
+          credit: type === 'CREDIT' ? effectiveAmount : 0,
+          particular: remarks || ledgerEntry.particular,
+          date: date ? new Date(date) : ledgerEntry.date,
+        }, session);
+      }
     } else if (amount !== undefined && amount !== advance.amount) {
       // Fallback: create if missing
       await LedgerController.recordLedgerEntry({
@@ -274,11 +288,6 @@ exports.editAdvance = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // 🔹 Recalculate Ledger balances outside the session so changes reflect properly
-    if (ledgerIdToRecalculate) {
-       await LedgerController.recalculateBalances(ledgerIdToRecalculate, advance.employeeId);
-    }
-
     res.status(200).json({ success: true, message: "Advance updated successfully", data: advance });
   } catch (err) {
     await session.abortTransaction();
@@ -290,12 +299,15 @@ exports.editAdvance = async (req, res) => {
 // Get all advances
 exports.getAllAdvances = async (req, res) => {
   try {
-    let query = { companyId: req.user.companyId };
-    if (req.user.role === "manager") {
+    let query = {};
+    if (req.user.role === "manager" && Array.isArray(req.user.branchIds)) {
       query.branchId = { $in: req.user.branchIds };
     }
 
-    const advances = await Advance.find(query)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 0;
+
+    let advanceQuery = Advance.find(query)
       .populate({
         path: "employeeId",
         select: "userid profileimage empId",
@@ -303,10 +315,22 @@ exports.getAllAdvances = async (req, res) => {
       })
       .sort({ date: -1, createdAt: -1 });
 
+    let total = 0;
+    let pages = 1;
+
+    if (limit > 0) {
+      total = await Advance.countDocuments(query);
+      pages = Math.ceil(total / limit);
+      advanceQuery = advanceQuery.skip((page - 1) * limit).limit(limit);
+    }
+
+    const advances = await advanceQuery;
+
     res.status(200).json({
       success: true,
       count: advances.length,
       data: advances,
+      ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
     });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server Error", error: err.message });
@@ -325,8 +349,18 @@ exports.deleteAdvance = async (req, res) => {
       throw new Error("Advance not found");
     }
 
-    // 🔹 Delete linked Ledger Entry directly for a clean history
-    await Entry.deleteMany({ referenceId: id, source: 'advance' }).session(session);
+    // 🔹 Delete linked Ledger Entry via accountingService, which shifts the
+    // running balance of every later entry to compensate. (The previous
+    // version did a raw Entry.deleteMany() here, which removes the entry
+    // but leaves every later entry's running balance wrong - the same
+    // class of bug as the editAdvance one above. It also only matched
+    // source:'advance', but a 'repaid' advance's entry is recorded with
+    // source:'manual' (see repayAdvanceManual below), so deleting a repaid
+    // record never cleaned up its ledger entry at all.)
+    const linkedEntry = await Entry.findOne({ referenceId: id }).session(session);
+    if (linkedEntry) {
+      await accountingService.deleteLedgerEntry(linkedEntry._id, session);
+    }
 
     await advance.deleteOne({ session });
 

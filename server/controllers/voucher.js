@@ -9,12 +9,30 @@ const { generateVoucherNo } = require('../utils/voucherHelper');
 
 exports.getVouchers = async (req, res, next) => {
   try {
-    const query = { companyId: req.user.companyId, type: 'MANUAL' };
-    if (req.user.role === 'manager') {
+    const query = { type: 'MANUAL' };
+    if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
       query.branchId = { $in: req.user.branchIds };
     }
-    const vouchers = await Voucher.find(query).sort({ voucherNo: -1 }).populate('employeeId');
-    return res.status(200).json(vouchers);
+
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 0;
+
+    let voucherQuery = Voucher.find(query).sort({ voucherNo: -1 }).populate('employeeId');
+
+    let total = 0;
+    let pages = 1;
+
+    if (limit > 0) {
+      total = await Voucher.countDocuments(query);
+      pages = Math.ceil(total / limit);
+      voucherQuery = voucherQuery.skip((page - 1) * limit).limit(limit);
+    }
+
+    const vouchers = await voucherQuery;
+    return res.status(200).json({
+      list: vouchers,
+      ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
+    });
   } catch (error) {
     return next({ status: 500, message: error.message });
   }
@@ -46,14 +64,12 @@ exports.createVoucher = async (req, res, next) => {
       if (!cleanName) return res.status(400).json({ message: "Ledger name cannot be empty" });
 
       targetLedger = await Ledger.findOne({
-        companyId: req.user.companyId,
         name: cleanName,
         ledgerType: 'custom'
       }).session(session);
 
       if (!targetLedger) {
         targetLedger = new Ledger({
-          companyId: req.user.companyId,
           name: cleanName,
           ledgerType: 'custom',
           userId: req.userid,
@@ -70,7 +86,6 @@ exports.createVoucher = async (req, res, next) => {
       return res.status(404).json({ message: "Ledger not found" });
     }
 
-    // Determine branchId
     let branchId;
     if (targetLedger.ledgerType === 'employee' && targetLedger.employeeId) {
       const emp = await employee.findById(targetLedger.employeeId).session(session);
@@ -82,7 +97,7 @@ exports.createVoucher = async (req, res, next) => {
       if (req.user.branchIds && req.user.branchIds.length > 0) {
         branchId = req.user.branchIds[0];
       } else {
-        const defaultBranch = await Branch.findOne({ companyId: req.user.companyId }).session(session);
+        const defaultBranch = await Branch.findOne().session(session);
         if (defaultBranch) {
           branchId = defaultBranch._id;
         }
@@ -92,10 +107,9 @@ exports.createVoucher = async (req, res, next) => {
       return res.status(400).json({ message: "No branch found. Please create a branch first." });
     }
 
-    const voucherNo = await generateVoucherNo(req.user.companyId, date || new Date(), session);
+    const voucherNo = await generateVoucherNo(date ? new Date(date) : new Date(), session);
 
     const voucher = new Voucher({
-      companyId: req.user.companyId,
       branchId,
       voucherNo,
       type: 'MANUAL',
@@ -119,11 +133,9 @@ exports.createVoucher = async (req, res, next) => {
 
     await voucher.save({ session });
 
-    // Record Debit Entry in the target Ledger
     await accountingService.recordLedgerEntry({
       ledgerId: targetLedger._id,
       employeeId: targetLedger.employeeId,
-      companyId: req.user.companyId,
       branchId,
       date: date ? new Date(date) : new Date(),
       type: 'DEBIT',
@@ -203,7 +215,6 @@ exports.editVoucher = async (req, res, next) => {
         await accountingService.recordLedgerEntry({
           ledgerId: targetLedger._id,
           employeeId: targetLedger.employeeId,
-          companyId: req.user.companyId,
           branchId: voucher.branchId,
           date: date ? new Date(date) : new Date(),
           type: 'DEBIT',
@@ -214,7 +225,6 @@ exports.editVoucher = async (req, res, next) => {
           remarks: narration || `Voucher ${voucher.voucherNo}`
         }, session);
       } else {
-        // Same ledger, update amount, date, particular
         await accountingService.updateLedgerEntry(entry._id, {
           debit: amountNum,
           credit: 0,
@@ -223,11 +233,9 @@ exports.editVoucher = async (req, res, next) => {
         }, session);
       }
     } else {
-      // Create new entry if missing
       await accountingService.recordLedgerEntry({
         ledgerId: targetLedger._id,
         employeeId: targetLedger.employeeId,
-        companyId: req.user.companyId,
         branchId: voucher.branchId,
         date: date ? new Date(date) : new Date(),
         type: 'DEBIT',

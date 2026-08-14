@@ -79,13 +79,15 @@ async function run() {
 
           let overtimeMinutes = 0;
           let shortMinutes = 0;
+          let weeklyOffMinutes = 0;
 
           // Recalculation logic based on "Full Day" baseline as requested
           if (isHoliday && overtimeRules?.holiday?.treatAllAsOvertime) {
             overtimeMinutes = workingMinutes;
             shortMinutes = 0;
-          } else if (isWeeklyOff && overtimeRules?.weeklyOff?.treatAllAsOvertime) {
-            overtimeMinutes = workingMinutes;
+          } else if (isWeeklyOff) {
+            weeklyOffMinutes = workingMinutes;
+            overtimeMinutes = 0;
             shortMinutes = 0;
           } else {
             // NORMAL DAY RECALCULATION
@@ -103,6 +105,7 @@ async function run() {
 
           record.overtimeMinutes = parseFloat(overtimeMinutes.toFixed(2));
           record.shortMinutes = parseFloat(shortMinutes.toFixed(2));
+          record.weeklyOffMinutes = parseFloat(weeklyOffMinutes.toFixed(2));
 
           // 3. Update Status
           if (workingMinutes < halfDay) {

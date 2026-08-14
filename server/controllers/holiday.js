@@ -11,7 +11,7 @@ const addholiday = async (req, res) => {
     try {
         fromDate = dayjs(fromDate).format('YYYY-MM-DD');
         toDate = dayjs(toDate).format('YYYY-MM-DD');
-        const holiday = new holidaymodal({ companyId:req.user.companyId , userid: req.user.id, name, description, fromDate, toDate, type });
+        const holiday = new holidaymodal({ userid: req.user.id, name, description, fromDate, toDate, type });
         await holiday.save();
         res.json({ message: 'Holiday added successfully' });
     } catch (err) {
@@ -26,7 +26,10 @@ const deleteholiday = async (req, res) => {
         return res.status(400).json({ message: 'Id is required' });
     }
     try {
-        await holidaymodal.findByIdAndDelete(id);
+        const deleted = await holidaymodal.findByIdAndDelete(id);
+        if (!deleted) {
+            return res.status(404).json({ message: 'Holiday not found' });
+        }
         res.status(200).json({ message: 'Holiday Deleted successfully' });
     } catch (err) {
         console.error(err);
@@ -42,7 +45,10 @@ const updateholiday = async (req, res) => {
     try {
         fromDate = dayjs(fromDate).format('YYYY-MM-DD');
         toDate = dayjs(toDate).format('YYYY-MM-DD');
-        const companyid = await holidaymodal.findByIdAndUpdate(holidayId, { name, fromDate, toDate, type, description })
+        const updated = await holidaymodal.findByIdAndUpdate(holidayId, { name, fromDate, toDate, type, description }, { new: true });
+        if (!updated) {
+            return res.status(404).json({ message: 'Holiday not found' });
+        }
         res.json({ message: 'Holiday Updated successfully' });
     } catch (err) {
         console.error(err);
@@ -52,7 +58,7 @@ const updateholiday = async (req, res) => {
 
 const getholidays = async (req, res) => {
     try {
-        const holidays = await holidaymodal.find({ companyId: req.user.companyId }).sort({fromDate:-1});
+        const holidays = await holidaymodal.find().sort({fromDate:-1});
         res.json({ holidays });
     } catch (err) {
         console.error(err);
@@ -68,7 +74,6 @@ const bulkImportHolidays = async (req, res) => {
 
     try {
         const docs = holidays.map(h => ({
-            companyId: req.user.companyId,
             userid: req.user.id,
             name: h.name,
             fromDate: dayjs(h.fromDate).format('YYYY-MM-DD'),

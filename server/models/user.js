@@ -10,10 +10,6 @@ const userSchema = new mongoose.Schema({
     registeredName: {
         type: String,
     },
-    companyId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Company'
-    },
     branchIds: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Branch'
@@ -24,9 +20,8 @@ const userSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: [true, "Email is required"],
         unique: true,
-        index: true
+        sparse: true
     },
     password: {
         type: String,
@@ -34,7 +29,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['developer', 'superadmin', 'admin', 'manager', 'employee', 'grant', 'demo'],
+        enum: ['developer', 'superadmin', 'admin', 'manager', 'employee', 'grant', 'demo', 'customer', 'sponsor', 'agent'],
         required: true,
     },
     profileImage: {
@@ -64,7 +59,35 @@ const userSchema = new mongoose.Schema({
         },
 
         expiresAt: Date
-    }
+    },
+    // Plot Customer & Sponsor fields
+    sponsorCode: { type: String, unique: true, sparse: true, index: true },
+    customerCode: { type: String, unique: true, sparse: true, index: true },
+    isBlocked: { type: Boolean, default: false },
+    mobile: { type: String, default: '' },
+    sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    address: { type: String, default: '' },
+    currentAddress: { type: String, default: '' },
+    permanentAddress: { type: String, default: '' },
+    sameAsCurrentAddress: { type: Boolean, default: false },
+    dob: { type: String, default: '' },
+    occupation: { type: String, default: '' },
+    panCard: { type: String, default: '' },
+    aadhaarCard: { type: String, default: '' },
+    gender: { type: String, default: 'Male' },
+    age: { type: Number },
+    relationType: { type: String, default: 'Son of' },
+    fatherOrHusbandName: { type: String, default: '' },
+    nomineeName: { type: String, default: '' },
+    nomineeRelation: { type: String, default: '' },
+    nomineeAge: { type: Number },
+    commissionRate: { type: Number, default: 0 },
+    // Bank Details
+    accountHolderName: { type: String, default: '' },
+    bankName: { type: String, default: '' },
+    bankBranch: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    ifscCode: { type: String, default: '' }
 }, { timestamps: true })
 
 
@@ -110,5 +133,14 @@ userSchema.methods.checkpassword = async function (pass) {
     }
 };
 
-const user = mongoose.model("user", userSchema);
+const user = mongoose.models.User || mongoose.models.user || mongoose.model("user", userSchema);
+if (!mongoose.models.User) {
+    mongoose.model("User", userSchema);
+}
+
+// Drop legacy non-sparse index if present and sync indexes
+user.collection.dropIndex('email_1')
+    .then(() => user.syncIndexes())
+    .catch(() => {});
+
 module.exports = user;

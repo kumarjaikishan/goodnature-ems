@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const leaveBalanceSchema = new mongoose.Schema({
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: "employee", required: true },
   policyId: { type: mongoose.Schema.Types.ObjectId, ref: "LeavePolicy", required: true },
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true },
   totalAllocated: { type: Number, default: 0 },
   used: { type: Number, default: 0 },

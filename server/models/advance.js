@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 
 const advanceSchema = new mongoose.Schema({
     employeeId: { type: mongoose.Schema.Types.ObjectId, ref: "employee", required: true },
-    companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true },
     ledgerEntryId: { type: mongoose.Schema.Types.ObjectId, ref: "Entry" }, // Deprecated but keeping for compatibility
 
@@ -36,5 +35,11 @@ advanceSchema.path("remainingBalance").validate(function (value) {
     return value >= 0;
 }, "Remaining balance cannot be negative.");
 
+
+// getAllAdvances filters by companyId(+branchId) and sorts by date;
+// syncEmployeeAdvanceBalance and the FIFO lookups filter by employeeId.
+advanceSchema.index({ date: -1 });
+advanceSchema.index({ branchId: 1, date: -1 });
+advanceSchema.index({ employeeId: 1, date: 1 });
 
 module.exports = mongoose.model("Advance", advanceSchema);

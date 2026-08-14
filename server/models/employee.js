@@ -12,11 +12,6 @@ const employeeSchema = new mongoose.Schema({
         ref: 'user',
         required: true
     },
-    companyId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Company',
-        required: true
-    },
     branchId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Branch',
@@ -182,6 +177,10 @@ const employeeSchema = new mongoose.Schema({
     },
 }, { timestamps: true })
 
+// Support filtering employees by company/branch/department (attendance list, bulk mark, firstfetch)
+employeeSchema.index({ companyId: 1, branchId: 1 });
+employeeSchema.index({ companyId: 1, department: 1 });
+employeeSchema.index({ companyId: 1, employeeName: 1 });
 
 const employee = mongoose.model("employee", employeeSchema);
 module.exports = employee;

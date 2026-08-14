@@ -10,8 +10,7 @@ const createNotice = async (req, res, next) => {
       employeeType,
       targetEmployeeId: employeeType === 'Individual' ? targetEmployeeId : undefined,
       date,
-      CreatedById: req.user.id,
-      companyId: req.user.companyId
+      CreatedById: req.user.id
     });
     await notice.save();
     res.status(201).json(notice);
@@ -22,10 +21,9 @@ const createNotice = async (req, res, next) => {
 
 const getNotices = async (req, res, next) => {
   try {
-    const { role, companyId, employeeId } = req.user;
-    let filter = { companyId };
+    const { role, employeeId } = req.user;
+    let filter = {};
 
-    // If not admin, filter notices based on audience
     if (role !== 'admin' && role !== 'superadmin') {
       const orConditions = [
         { employeeType: 'All' }
@@ -40,7 +38,6 @@ const getNotices = async (req, res, next) => {
       } else if (role === 'employee') {
         orConditions.push({ employeeType: 'Staff' });
       }
-      // Add HR if needed, but for now we follow the UI's simple list
 
       filter.$or = orConditions;
     }
@@ -55,7 +52,13 @@ const getNotices = async (req, res, next) => {
 const updateNotice = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updatedNotice = await Notice.findByIdAndUpdate(id, req.body, { new: true });
+    const { title, message, noticeType, employeeType, targetEmployeeId, date } = req.body;
+    const updatedNotice = await Notice.findByIdAndUpdate(
+      id, 
+      { title, message, noticeType, employeeType, targetEmployeeId, date }, 
+      { new: true }
+    );
+    if (!updatedNotice) return res.status(404).json({ message: 'Notice not found' });
     res.status(200).json(updatedNotice);
   } catch (error) {
     next({ status: 500, message: error.message });
@@ -65,7 +68,8 @@ const updateNotice = async (req, res, next) => {
 const deleteNotice = async (req, res, next) => {
   try {
     const { id } = req.params;
-    await Notice.findByIdAndDelete(id);
+    const deleted = await Notice.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: 'Notice not found' });
     res.status(200).json({ message: 'Notice deleted' });
   } catch (error) {
     next({ status: 500, message: error.message });

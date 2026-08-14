@@ -4,8 +4,8 @@ const Ledger = require('../models/ledger');
 const mongoose = require('mongoose');
 
 class EmployeeService {
-    async generateNextEmpId(companyId, prefix = "EMP", padding = 3) {
-        const lastEmployee = await employeeModal.findOne({ companyId })
+    async generateNextEmpId(prefix = "EMP", padding = 3) {
+        const lastEmployee = await employeeModal.findOne()
             .sort({ empId: -1 })
             .lean();
 
@@ -19,12 +19,11 @@ class EmployeeService {
         return `${prefix}${nextNumber.toString().padStart(padding, '0')}`;
     }
 
-    async createEmployee(data, companyId, file = null, session) {
+    async createEmployee(data, file = null, session) {
         const { email, password = 'employee', employeeName } = data;
 
         // 1. Create User
         const createUser = new usermodal({ 
-            companyId, 
             name: employeeName, 
             email, 
             role: 'employee', 
@@ -33,7 +32,7 @@ class EmployeeService {
         const savedUser = await createUser.save({ session });
 
         // 2. Generate Emp ID
-        const empId = await this.generateNextEmpId(companyId);
+        const empId = await this.generateNextEmpId();
 
         // 3. Prepare Employee Data
         const employeeObjectId = new mongoose.Types.ObjectId();
@@ -42,7 +41,6 @@ class EmployeeService {
         const jsonFields = ["allowances", "bonuses", "deductions", "achievements", "education", "guardian"];
         let employeeData = {
             _id: employeeObjectId,
-            companyId,
             userid: savedUser._id,
             empId,
             profileimage: file?.secure_url,
@@ -75,7 +73,6 @@ class EmployeeService {
         // 4. Create Ledger
         const ledger = new Ledger({
             _id: ledgerObjectId,
-            companyId,
             name: employeeName,
             employeeId: employeeObjectId,
             profileImage: file?.secure_url

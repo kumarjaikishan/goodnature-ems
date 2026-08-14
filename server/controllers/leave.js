@@ -10,6 +10,7 @@ const LeaveBalance = require('../models/leavebalance');
 const noticeModal = require('../models/notice');
 const leaveService = require('../services/leaveService');
 const mongoose = require('mongoose');
+const dayjs = require('dayjs');
 
 
 const addleave = async (req, res, next) => {
@@ -19,22 +20,22 @@ const addleave = async (req, res, next) => {
     return res.status(400).json({ message: 'Fields are required' });
   }
 
-  // If toDate is not provided, treat it as a single-day leave
   if (!toDate) {
     toDate = fromDate;
   }
 
   try {
     const whichemployee = await employee.findOne({ userid: req.user.id });
+    if (!whichemployee) {
+      return res.status(404).json({ message: 'Employee profile not found' });
+    }
 
-    // Calculate duration in days (inclusive)
     const from = new Date(fromDate);
     const to = new Date(toDate);
     const timeDiff = to.getTime() - from.getTime();
     const duration = Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1;
 
     const leave = new Leave({
-      companyId: whichemployee.companyId,
       branchId: whichemployee.branchId,
       employeeId: whichemployee._id,
       policyId,
@@ -55,8 +56,9 @@ const addleave = async (req, res, next) => {
 
 const getleave = async (req, res, next) => {
   try {
-    const whichemployee = await employee.findOne({ userid: req.user.id })
-    const leaves = await Leave.find({ employeeId: whichemployee._id }).populate('policyId').sort({ createdAt: -1 })
+    const whichemployee = await employee.findOne({ userid: req.user.id });
+    if (!whichemployee) return res.status(404).json({ message: "Employee profile not found" });
+    const leaves = await Leave.find({ employeeId: whichemployee._id }).populate('policyId').sort({ createdAt: -1 });
 
     return res.status(200).json(leaves);
   } catch (error) {
@@ -64,49 +66,87 @@ const getleave = async (req, res, next) => {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 const fetchleave = async (req, res, next) => {
   try {
-    let leave;
-    if (req.user.role == 'manager') {
-      leave = await Leave.find({ companyId: req.user.companyId, branchId: { $in: req.user.branchIds } }).populate({
-        path: 'employeeId',
-        select: 'userid profileimage employeeName empId',
-        populate: {
-          path: 'userid',
-          select: 'name email'
-        }
-      });
-    } else {
-      leave = await Leave.find({ companyId: req.user.companyId }).populate({
-        path: 'employeeId',
-        select: 'userid profileimage employeeName empId',
-        populate: {
-          path: 'userid',
-          select: 'name email'
-        }
-      });
+    let filter = {};
+    if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+      filter.branchId = { $in: req.user.branchIds };
     }
-    return res.json({ leave });
+
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+    if (req.query.employeeId) {
+      filter.employeeId = req.query.employeeId;
+    }
+    if (req.query.startDate && req.query.endDate) {
+      filter.fromDate = { $gte: new Date(req.query.startDate) };
+      filter.toDate = { $lte: new Date(req.query.endDate) };
+    }
+
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 0; // 0 for full list backward compatibility
+
+    let query = Leave.find(filter)
+      .populate({
+        path: 'employeeId',
+        select: 'userid profileimage employeeName empId',
+        populate: {
+          path: 'userid',
+          select: 'name email'
+        }
+      })
+      .populate('policyId')
+      .sort({ createdAt: -1 });
+
+    let total = 0;
+    let pages = 1;
+
+    if (limit > 0) {
+      total = await Leave.countDocuments(filter);
+      pages = Math.ceil(total / limit);
+      query = query.skip((page - 1) * limit).limit(limit);
+    }
+
+    const leaves = await query;
+    return res.json({ 
+      leave: leaves,
+      ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
+    });
 
   } catch (error) {
     console.error("Attendance error:", error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 const employeefetch = async (req, res, next) => {
   try {
-    const notification = await notificationmodal.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    const attendance = await attendanceModal.find({ employeeId: req.user.employeeId }).sort({ date: -1 });
-    const leave = await Leave.find({ employeeId: req.user.employeeId }).populate('policyId');
+    const startOfMonth = dayjs().startOf('month').toDate();
+    const notification = await notificationmodal.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean();
+    const attendance = await attendanceModal.find({
+      employeeId: req.user.employeeId,
+      date: { $gte: startOfMonth }
+    })
+      .select('-rulesSnapshot -dutyStart -dutyEnd')
+      .sort({ date: -1 })
+      .lean();
+
+    const leave = await Leave.find({ employeeId: req.user.employeeId }).populate('policyId').lean();
     const employeeee = await employee.findById(req.user.employeeId)
       .populate('branchId')
       .populate('department')
-      .populate('userid');
+      .populate('userid')
+      .lean();
 
-    const holiday = await holidayschema.find({ companyId: employeeee.branchId.companyId });
-    const companySetting = await companySchema.findById(employeeee.branchId.companyId);
+    if (!employeeee || !employeeee.branchId) {
+      return res.status(404).json({ message: 'Employee or branch profile not found' });
+    }
 
-    // Fetch targeted notices
+    const holiday = await holidayschema.find().lean();
+    const companySetting = await companySchema.findOne().lean();
+
     const { role, employeeId } = req.user;
     const orConditions = [{ employeeType: 'All' }];
     if (employeeId) orConditions.push({ targetEmployeeId: employeeId });
@@ -114,9 +154,8 @@ const employeefetch = async (req, res, next) => {
     else orConditions.push({ employeeType: 'Staff' });
 
     const notices = await noticeModal.find({ 
-      companyId: employeeee.branchId.companyId, 
       $or: orConditions 
-    }).sort({ date: -1 });
+    }).sort({ date: -1 }).lean();
 
     return res.status(200).json({ 
       profile: employeeee, 
@@ -133,39 +172,11 @@ const employeefetch = async (req, res, next) => {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-const updatenotification = async (req, res, next) => {
-
-  try {
-    await notificationmodal.updateMany(
-      { userId: req.user.id }, // condition
-      { $set: { read: true } } // update
-    );
-
-
-    return res.status(200).json({ message: "Marked Read" });
-
-  } catch (error) {
-    console.error("Attendance error:", error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-const deletenotification = async (req, res, next) => {
-  try {
-    await notificationmodal.deleteMany({ userId: req.user.id });
-    return res.status(200).json({ message: "Notifications cleared" });
-  } catch (error) {
-    console.error("Delete notification error:", error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
 
 const createLeavePolicy = async (req, res, next) => {
   try {
     const { name, allocationType, totalLeaves, carryForward, encashable, probationRule } = req.body;
     const policy = new LeavePolicy({
-      companyId: req.user.companyId,
       name,
       allocationType,
       totalLeaves,
@@ -182,7 +193,7 @@ const createLeavePolicy = async (req, res, next) => {
 
 const getPolicies = async (req, res, next) => {
   try {
-    const policies = await LeavePolicy.find({ companyId: req.user.companyId });
+    const policies = await LeavePolicy.find();
     return res.status(200).json(policies);
   } catch (error) {
     return next({ status: 500, message: error.message });
@@ -208,8 +219,13 @@ const approveLeave = async (req, res, next) => {
 const updateLeavePolicy = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
-    const policy = await LeavePolicy.findByIdAndUpdate(id, updateData, { new: true });
+    const { name, allocationType, totalLeaves, carryForward, encashable, probationRule } = req.body;
+    
+    const policy = await LeavePolicy.findByIdAndUpdate(
+      id, 
+      { name, allocationType, totalLeaves, carryForward, encashable, probationRule }, 
+      { new: true }
+    );
     if (!policy) return res.status(404).json({ message: 'Policy not found' });
     return res.status(200).json({ message: 'Policy Updated', policy });
   } catch (error) {
@@ -225,6 +241,28 @@ const deleteLeavePolicy = async (req, res, next) => {
     return res.status(200).json({ message: 'Policy Deleted' });
   } catch (error) {
     return next({ status: 500, message: error.message });
+  }
+};
+const updatenotification = async (req, res, next) => {
+  try {
+    await notificationmodal.updateMany(
+      { userId: req.user.id },
+      { $set: { read: true } }
+    );
+    return res.status(200).json({ message: "Marked Read" });
+  } catch (error) {
+    console.error("Attendance error:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const deletenotification = async (req, res, next) => {
+  try {
+    await notificationmodal.deleteMany({ userId: req.user.id });
+    return res.status(200).json({ message: "Notifications cleared" });
+  } catch (error) {
+    console.error("Delete notification error:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

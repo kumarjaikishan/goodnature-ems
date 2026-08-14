@@ -79,6 +79,7 @@ async function calculateStats(record, companyData, branch) {
 
   let overtimeMinutes = 0;
   let shortMinutes = 0;
+  let weeklyOffMinutes = 0;
   let remarks = record.remarks || "";
 
   // =========================
@@ -97,13 +98,14 @@ async function calculateStats(record, companyData, branch) {
   }
 
   // =========================
-  // 🔹 Overtime Calculation
+  // 🔹 Overtime & Weekly Off Calculation
   // =========================
   if (isHoliday && overtimeRules?.holiday?.treatAllAsOvertime) {
     overtimeMinutes = workingMinutes;
     shortMinutes = 0;
-  } else if (isWeeklyOff && overtimeRules?.weeklyOff?.treatAllAsOvertime) {
-    overtimeMinutes = workingMinutes;
+  } else if (isWeeklyOff) {
+    weeklyOffMinutes = workingMinutes;
+    overtimeMinutes = 0;
     shortMinutes = 0;
   } else {
     if (workingMinutes > (wm.overtimeAfterMinutes || 0)) {
@@ -176,12 +178,23 @@ async function calculateStats(record, companyData, branch) {
 
   record.overtimeMinutes = parseFloat(overtimeMinutes.toFixed(2));
   record.shortMinutes = parseFloat(shortMinutes.toFixed(2));
+  record.weeklyOffMinutes = parseFloat(weeklyOffMinutes.toFixed(2));
   record.remarks = remarks;
 
   if (workingMinutes < (wm.halfDay || 0)) {
     record.status = "half day";
   } else {
     record.status = "present";
+  }
+
+  // Real-time Weekly Off Ledger sync (per-day entry)
+  if (record.dayType === "weekoff" || record.weeklyOffMinutes > 0) {
+    try {
+      const { syncAttendanceDayWeeklyOff } = require("./weeklyOffService");
+      syncAttendanceDayWeeklyOff(record).catch(console.error);
+    } catch (e) {
+      console.error("Weekly off ledger realtime sync error:", e);
+    }
   }
 }
 

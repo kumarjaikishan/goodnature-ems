@@ -6,6 +6,7 @@ const Advance = require("../models/advance");
 const LeaveBalance = require("../models/leavebalance");
 const LeaveTransaction = require("../models/leaveTransaction");
 const Voucher = require("../models/voucher");
+const WeeklyOffLedger = require("../models/weeklyOffLedger");
 const { recalculateLeaveBalances } = require("./leaveBalance");
 const LedgerController = require("./ledger");
 const AdvanceController = require("./advance");
@@ -96,7 +97,7 @@ exports.createPayroll = async (req, res, next) => {
     const payroll = new Payroll({
       companyId, branchId, employeeId, month, year, name, profileimage, phone, email, address, guardian,
       department: department?.department || "", designation, present, leave, absent,
-      overtime: basic?.overtime, shortTime: basic?.shortmin, monthDays: basic?.totalDays,
+      overtime: basic?.overtime, shortTime: basic?.shortmin, weeklyOffWork: basic?.weeklyOffWork, monthDays: basic?.totalDays,
       holidays: basic?.holidaysCount, weekOffs: basic?.weeklyOff, workingDays: basic?.workingDays,
       options, baseSalary: salary, allowances, bonuses, deductions, taxRate,
       status: "pending", grossSalary, taxAmount, netSalary,
@@ -246,8 +247,6 @@ exports.createPayroll = async (req, res, next) => {
 
     const salaryVoucher = await accountingService.createVoucher(salaryVoucherData, session);
 
-
-
     // keeping record of salary voucher id in payroll entry
     payroll.voucherId = salaryVoucher._id;
     await payroll.save({ session });
@@ -256,6 +255,28 @@ exports.createPayroll = async (req, res, next) => {
     
     // 🔹 Sync Advance Balances
     await AdvanceController.syncEmployeeAdvanceBalance(employeeId, session);
+
+    // 🔹 Record Weekly Off Paid in WeeklyOffLedger
+    if (options?.addWeeklyOffWork) {
+      const paidWO = options?.adjustedWeeklyOffMin !== undefined 
+        ? Number(options.adjustedWeeklyOffMin) || 0 
+        : (basic?.weeklyOffWork || 0);
+
+      if (paidWO > 0) {
+        const woLedgerEntry = new WeeklyOffLedger({
+          employeeId,
+          branchId,
+          type: "PAYROLL_PAID",
+          minutes: paidWO,
+          particulars: `Weekly Off Paid in Payroll - ${getMonthName(month)} ${year} (${paidWO} min)`,
+          month,
+          year,
+          payrollId: payroll._id,
+          createdBy: req.user?.name || "Payroll System",
+        });
+        await woLedgerEntry.save({ session });
+      }
+    }
 
     // 🔹 Commit transaction
     await session.commitTransaction();
@@ -328,6 +349,7 @@ exports.editPayroll = async (req, res, next) => {
     // 🔹 Update payroll fields
     Object.assign(payroll, {
       employeeId, month, year, name, present, leave, absent, options, basic, allowances, bonuses, deductions, taxRate,
+      overtime: basic?.overtime, shortTime: basic?.shortmin, weeklyOffWork: basic?.weeklyOffWork,
       grossSalary, taxAmount, netSalary, branchId,
       department: department?.department || "",
       designation, profileimage, phone, email, address, guardian,
@@ -474,17 +496,42 @@ exports.editPayroll = async (req, res, next) => {
       );
     }
 
-    // Note: Net Salary Payout (Debit) is no longer automatically recorded during generation/edit.
-    // This allows for separate payment tracking and avoids "duplicate" entries in history.
-    
-    // Ensure existing payout entries are removed if they exist to clean up history after the refactor
-    await Entry.deleteMany({ referenceId: payroll._id, source: 'salary' }).session(session);
-    payroll.ledgerEntryId = undefined;
-
-
-
     // 🔹 Sync Advance Balances
     await AdvanceController.syncEmployeeAdvanceBalance(payroll.employeeId, session);
+
+    // 🔹 Sync Weekly Off Paid in WeeklyOffLedger
+    const isWOPaid = options?.addWeeklyOffWork;
+    const paidWO = isWOPaid
+      ? (options?.adjustedWeeklyOffMin !== undefined ? Number(options.adjustedWeeklyOffMin) || 0 : (basic?.weeklyOffWork || 0))
+      : 0;
+
+    let existingWOLedger = await WeeklyOffLedger.findOne({ payrollId: payroll._id, type: "PAYROLL_PAID" }).session(session);
+
+    if (paidWO > 0) {
+      const particulars = `Weekly Off Paid in Payroll - ${getMonthName(payroll.month)} ${payroll.year} (${paidWO} min)`;
+      if (existingWOLedger) {
+        existingWOLedger.minutes = paidWO;
+        existingWOLedger.particulars = particulars;
+        existingWOLedger.month = payroll.month;
+        existingWOLedger.year = payroll.year;
+        await existingWOLedger.save({ session });
+      } else {
+        existingWOLedger = new WeeklyOffLedger({
+          employeeId: payroll.employeeId,
+          branchId: payroll.branchId,
+          type: "PAYROLL_PAID",
+          minutes: paidWO,
+          particulars,
+          month: payroll.month,
+          year: payroll.year,
+          payrollId: payroll._id,
+          createdBy: req.user?.name || "Payroll System (Edit)",
+        });
+        await existingWOLedger.save({ session });
+      }
+    } else if (existingWOLedger) {
+      await WeeklyOffLedger.findByIdAndDelete(existingWOLedger._id).session(session);
+    }
 
     // 🔹 Commit transaction
     await session.commitTransaction();
@@ -499,33 +546,33 @@ exports.editPayroll = async (req, res, next) => {
   }
 };
 
-
 exports.allPayroll = async (req, res, next) => {
   try {
-    // 🔹 Find employee
-    let payrolls;
+    const { month, year } = req.query;
+    const query = {};
 
-    if (req.user.role == 'manager') {
-      payrolls = await Payroll.find({ companyId: req.user.companyId, branchId: { $in: req.user.branchIds } })
-        .select('branchId companyId department employeeId month year name status')
-        .populate({
-          path: "employeeId",
-          select: "userid profileimage empId designation",
-          populate: { path: "userid", select: "name", },
-        })
-    } else {
-      payrolls = await Payroll.find({ companyId: req.user.companyId })
-        .select('branchId companyId department employeeId month year name status')
-        .populate({
-          path: "employeeId",
-          select: "userid profileimage empId designation",
-          populate: { path: "userid", select: "name", },
-        })
+    if (req.user.role === "manager" && Array.isArray(req.user.branchIds)) {
+      query.branchId = { $in: req.user.branchIds };
+    }
+    if (month) {
+      query.month = parseInt(month, 10);
+    }
+    if (year) {
+      query.year = parseInt(year, 10);
     }
 
-    return res.status(201).json({ payrolls });
+    const payrolls = await Payroll.find(query)
+      .select('branchId department employeeId month year name status')
+      .populate({
+        path: "employeeId",
+        select: "userid profileimage empId designation",
+        populate: { path: "userid", select: "name" },
+      })
+      .lean();
+
+    return res.status(200).json({ payrolls });
   } catch (error) {
-    console.error(error);
+    console.error("Error in allPayroll:", error);
     return next({ status: 500, message: error.message });
   }
 };
@@ -533,14 +580,14 @@ exports.allPayroll = async (req, res, next) => {
 exports.getPayroll = async (req, res, next) => {
   const { id } = req.params;
   try {
-    const payroll = await Payroll.findById(id).populate("employeeId").populate("companyId");
+    const payroll = await Payroll.findById(id).populate("employeeId");
 
     if (!payroll) {
       return next({ status: 404, message: "Payroll not found" });
     }
 
     // Manager role restriction
-    if (req.user.role === "manager") {
+    if (req.user.role === "manager" && Array.isArray(req.user.branchIds)) {
       if (!req.user.branchIds.includes(payroll?.branchId?.toString())) {
         return next({ status: 403, message: "You are not authorized" });
       }
@@ -597,10 +644,13 @@ exports.deletePayroll = async (req, res, next) => {
     // 5. Delete associated Salary Voucher
     await Voucher.deleteOne({ referenceId: payroll._id, referenceType: 'PAYROLL' }).session(session);
 
-    // 6. Delete payroll
+    // 6. Delete WeeklyOffLedger entry associated with this payroll
+    await WeeklyOffLedger.deleteMany({ payrollId: payroll._id }).session(session);
+
+    // 7. Delete payroll
     await payroll.deleteOne({ session });
 
-    // 6. Sync Advance Balances
+    // 8. Sync Advance Balances
     await AdvanceController.syncEmployeeAdvanceBalance(payroll.employeeId, session);
 
     await session.commitTransaction();
@@ -613,5 +663,3 @@ exports.deletePayroll = async (req, res, next) => {
     return next({ status: 500, message: error.message });
   }
 };
-
-
