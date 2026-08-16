@@ -590,9 +590,9 @@ const Employe = () => {
                         label="Department"
                         onChange={(e) => handleChange(e, 'department')}
                       >
-                        {department?.filter(e => e.branchId?._id === inp.branchId).length > 0 ? (
+                        {department?.filter(e => (e.branchId?._id || e.branchId) === inp.branchId).length > 0 ? (
                           department
-                            .filter(e => e.branchId._id === inp.branchId)
+                            .filter(e => (e.branchId?._id || e.branchId) === inp.branchId)
                             .map((list) => (
                               <MenuItem key={list._id} value={list._id}>
                                 {list.department}

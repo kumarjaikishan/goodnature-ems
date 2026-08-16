@@ -48,15 +48,15 @@ function eventsHandler(req, res) {
 }
 
 //checkOut , checkin
-function sendToClients(data, companyId, branchId = '') {
+function sendToClients(data, companyId = null, branchId = '') {
   // console.log("send to call reacieved:", data, companyId, branchId)
   // console.log("clients", clients)
   clients 
-    .filter((c) => c.companyId === companyId)
+    .filter((c) => !companyId || !c.companyId || c.companyId === companyId || c.companyId?.toString() === companyId?.toString())
     .forEach((client) => {
       // console.log(client.role, client.branchId, branchId)
-      if (client.role == "manager") {
-        if (client.branchId.includes(branchId.toString())) {
+      if (client.role == "manager" && branchId) {
+        if (client.branchId && (client.branchId.includes(branchId.toString()) || client.branchId === branchId.toString())) {
           client.res.write(`data: ${JSON.stringify(data)}\n\n`);
         }
       } else {

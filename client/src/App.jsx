@@ -390,6 +390,7 @@ function App() {
               </div>,
               { autoClose: 20000 }
             );
+            window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
             dispatch(FirstFetch());
           }
 
@@ -411,6 +412,7 @@ function App() {
               </div>,
               { autoClose: 20000 }
             );
+            window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
             dispatch(FirstFetch());
           }
         }

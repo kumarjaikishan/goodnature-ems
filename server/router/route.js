@@ -243,6 +243,15 @@ router.route('/my-ledger').get(authmiddlewre, authorizeRoles('employee'), ledger
 router.route('/employee-ledger/:employeeId')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), ledger.getEmployeeLedger);
 
+// Developer ESSL Monitoring & Deletion Routes
+router.route('/developer/essl-logs')
+  .get(authmiddlewre, authorizeRoles('developer'), admin.getEsslLogsDeveloper)
+  .delete(authmiddlewre, authorizeRoles('developer'), admin.bulkDeleteEsslLogs);
+
+router.route('/developer/essl-events')
+  .get(authmiddlewre, authorizeRoles('developer'), admin.getEsslEventsDeveloper)
+  .delete(authmiddlewre, authorizeRoles('developer'), admin.bulkDeleteEsslEvents);
+
 router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"), (req, res) => {
   const { project } = req.params;
   exec(`bash ${deploy_script[project]}`, (error, stdout, stderr) => {

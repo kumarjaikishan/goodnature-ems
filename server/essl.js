@@ -177,18 +177,22 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             // =========================
             // FIND COMPANY
             // =========================
-            const whichCompany = await company.findOne({ "devices.SN": deviceSN }).select('_id telegram telegramNotifcation');
+            const whichCompany = await company.findOne().select('_id telegram telegramNotifcation');
 
 
             if (!whichCompany) {
                 console.warn(`No company for SN ${deviceSN}`);
                 return res.send('OK');
             }
+            // console.log(whichCompany)
 
-            // manual telegram notoifcation off
+            // manual telegram notification off
             if (process.env.NODE_ENV === "development") {
                 // 🔴 Always OFF in development
                 whichCompany.telegramNotifcation = false;
+                if (whichCompany.telegram) {
+                    whichCompany.telegram.individualNotification = false;
+                }
             }
 
             const log = new Essl({
@@ -200,16 +204,18 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 raw: raw
             });
 
+
             await log.save();
 
             // =========================
             // FIND EMPLOYEE
             // =========================
             const employeeDoc = await employee.findOne({
-                companyId: whichCompany._id,
                 deviceUserId
-            }).select('_id branchId empId companyId telegramId userid')
+            }).select('_id branchId empId telegramId userid')
                 .populate('userid', 'name');
+
+            // console.log("employeeDoc", employeeDoc);
 
             if (!employeeDoc) {
                 console.warn(`No employee for deviceUserId ${deviceUserId}`);
@@ -219,7 +225,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
             // =========================
             // FETCH SNAPSHOT
             // =========================
-            const companyData = await company.findById(employeeDoc.companyId);
+            const companyData = await company.findOne();
             const branch = await BranchModal.findById(employeeDoc.branchId);
 
             let snapshot = {};
@@ -247,6 +253,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 employeeId: employeeDoc._id,
                 date: dateObj
             });
+            // console.log("previous attendance", attendance);
 
             // =========================
             // COMMON TIME HELPERS
@@ -333,7 +340,6 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                 }
 
                 attendance = new Attendance({
-                    companyId: employeeDoc.companyId,
                     branchId: employeeDoc.branchId,
                     empId: employeeDoc.empId,
                     employeeId: employeeDoc._id,
@@ -381,7 +387,7 @@ router.post(['/essl/iclock/cdata', '/essl/iclock/cdata.aspx'], async (req, res) 
                         type: 'attendance_update',
                         payload: { action: 'checkin', data: updatedRecord }
                     },
-                    employeeDoc.companyId.toString(),
+                    whichCompany?._id?.toString() || null,
                     employeeDoc.branchId?.toString() || null
                 );
 
@@ -530,7 +536,7 @@ ${employeeDoc?.userid?.name}, your Punch-Out at ${dayjs(punchDate).tz(ATTENDANCE
                             type: 'attendance_update',
                             payload: { action: 'checkOut', data: updatedRecord }
                         },
-                        employeeDoc.companyId.toString(),
+                        whichCompany?._id?.toString() || null,
                         employeeDoc.branchId?.toString() || null
                     );
 

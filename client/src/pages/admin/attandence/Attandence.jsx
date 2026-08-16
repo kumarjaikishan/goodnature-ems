@@ -67,10 +67,6 @@ const Attandence = () => {
   const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   // ── Server-side paginated attendance data ────────────────────────────────
-  // Replaces the old pattern of reading the ENTIRE company's all-time
-  // attendance out of redux (`state.user.attandence`) and filtering it
-  // client-side. That pattern is what made this page (and every modal that
-  // refreshed it) get slower as attendance history grew.
   const [rows, setRows] = useState([]);
   const [totalRows, setTotalRows] = useState(0);
   const [pageLoading, setPageLoading] = useState(false);
@@ -78,9 +74,21 @@ const Attandence = () => {
   const [perPage, setPerPage] = useState(20);
   const [refreshTick, setRefreshTick] = useState(0);
 
-  // Bump this after any mutation (mark/edit/delete) to refetch just the
+  // Bump this after any mutation (mark/edit/delete) or SSE live event to refetch just the
   // current page - instead of reloading the whole app's redux state.
   const refreshList = useCallback(() => setRefreshTick((t) => t + 1), []);
+
+  // Real-time auto-reload: when any punch in/out happens via SSE, refresh the current page
+  useEffect(() => {
+    const handleAttendanceUpdated = () => {
+      refreshList();
+    };
+
+    window.addEventListener('attendance_updated', handleAttendanceUpdated);
+    return () => {
+      window.removeEventListener('attendance_updated', handleAttendanceUpdated);
+    };
+  }, [refreshList]);
 
   useEffect(() => {
     const initLibs = async () => {
@@ -93,7 +101,6 @@ const Attandence = () => {
     };
     initLibs();
   }, []);
-
 
   const init = {
     employeeId: "",
@@ -113,14 +120,10 @@ const Attandence = () => {
     status: '',
     leaveid: '',
     leaveReason: ''
-  }
-
-  useEffect(() => {
-    // console.log(selectedRows)
-  }, [selectedRows])
+  };
 
   const [inp, setinp] = useState(init);
-  const [editinp, seteditinp] = useState(init2)
+  const [editinp, seteditinp] = useState(init2);
 
   const months = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",

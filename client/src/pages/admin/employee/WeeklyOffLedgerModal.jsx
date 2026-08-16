@@ -191,7 +191,7 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
           </div>
         </div>
 
-        <Button
+        {/* <Button
           size="small"
           variant="outlined"
           startIcon={<FaSync className={rebuilding ? "animate-spin" : ""} />}
@@ -200,7 +200,7 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
           className="!text-purple-700 !border-purple-300 hover:!bg-purple-50 text-xs"
         >
           {rebuilding ? "Syncing..." : "Sync Past Attendance"}
-        </Button>
+        </Button> */}
       </DialogTitle>
 
       <DialogContent className="!pt-4 !space-y-4">

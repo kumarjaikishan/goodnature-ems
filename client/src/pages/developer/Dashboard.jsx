@@ -12,6 +12,7 @@ import Modalbox from '../../components/custommodal/Modalbox'
 import { toast } from 'react-toastify'
 import { IoInformation } from 'react-icons/io5'
 import swal from 'sweetalert';
+import DeveloperEsslMonitor from './DeveloperEsslMonitor';
 
 const DeveloperDashboard = () => {
 
@@ -442,37 +443,8 @@ const DeveloperDashboard = () => {
                 </div>
             </Modalbox>
 
-            {/* 🧾 Show Demo IDs Modal */}
-            <Modalbox open={demoListModal} onClose={() => setDemoListModal(false)}>
-                <div className="membermodal w-[400px]">
-                    <form>
-                        <h2>Demo Accounts</h2>
-                        <span className="modalcontent ">
-                            {demoList.length < 1 && <div className='text-center'>No Demo Id found</div>}
-                            <ul className="mt-3 space-y-2">
-                                {demoList?.map((demo, i) => (
-                                    <li
-                                        key={i}
-                                        className="flex justify-between bg-gray-50 p-2 rounded-md text-sm"
-                                    >
-                                        <span className="text-gray-500">{i + 1}. {demo.name}</span>
-                                        <span>{demo.email}</span>
-                                        <span onClick={() => demodelete(demo._id)} className=' text-red-600 text-2xl cursor-pointer'><AiOutlineDelete /> </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </span>
-                        <span className='modalbody'>
-                            <Button
-                                variant="outlined"
-                                onClick={() => setDemoListModal(false)}
-                            >
-                                Close
-                            </Button>
-                        </span>
-                    </form>
-                </div>
-            </Modalbox>
+            {/* 📟 Developer ESSL Biometric Monitoring & Bulk Delete Component */}
+            <DeveloperEsslMonitor />
         </div>
     )
 }

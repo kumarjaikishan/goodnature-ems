@@ -147,15 +147,15 @@ async function rebuildAllWeeklyOffLedgers() {
 }
 
 // Auto-run one-time background build on server start
-setTimeout(async () => {
-  try {
-    console.log("⚡ Auto-rebuilding Weekly Off Ledgers into individual daily entries...");
-    await rebuildAllWeeklyOffLedgers();
-    console.log("✅ Weekly Off Ledgers rebuilt with individual daily entries successfully!");
-  } catch (err) {
-    console.error("Failed to auto-rebuild weekly off ledgers:", err);
-  }
-}, 3000);
+// setTimeout(async () => {
+//   try {
+//     console.log("⚡ Auto-rebuilding Weekly Off Ledgers into individual daily entries...");
+//     await rebuildAllWeeklyOffLedgers();
+//     console.log("✅ Weekly Off Ledgers rebuilt with individual daily entries successfully!");
+//   } catch (err) {
+//     console.error("Failed to auto-rebuild weekly off ledgers:", err);
+//   }
+// }, 3000);
 
 module.exports = {
   syncAttendanceDayWeeklyOff,

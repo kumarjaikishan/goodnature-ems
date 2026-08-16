@@ -1,1 +1,0 @@
-import{ch as r}from"./index-VsCTaTY-.js";const a=r.create({baseURL:"/api/",withCredentials:!0});a.interceptors.request.use(e=>{const t=localStorage.getItem("emstoken");return t&&(e.headers.Authorization=`Bearer ${t}`),e});export{a};

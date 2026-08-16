@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const esslSchema = new mongoose.Schema({
     companyId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Company',
-        required: true
+        ref: 'Company'
     },
     pin: {
         type: String,
