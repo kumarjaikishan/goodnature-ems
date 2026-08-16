@@ -1,103 +1,134 @@
 import { FaPhone, FaEnvelope, FaBirthdayCake, FaMapMarkerAlt, FaUser, FaIdCardAlt, FaUniversity, FaUserCircle, FaRegCreditCard } from 'react-icons/fa';
 import { MdAccountBalance, MdBadge, MdContactEmergency } from 'react-icons/md';
-import { BsDroplet } from "react-icons/bs";
+import { BsDropletFill } from "react-icons/bs";
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from 'react-toastify';
 import { PiOfficeChairFill } from "react-icons/pi";
-import { FaBuilding } from "react-icons/fa";
+import { FaBuilding, FaCalendarAlt, FaIdCard } from "react-icons/fa";
 import dayjs from 'dayjs';
-import { FaCalendarAlt } from "react-icons/fa";
-import { BsDropletFill } from "react-icons/bs";
 import { LiaMedalSolid } from "react-icons/lia";
-import { FaIdCard } from "react-icons/fa";
-import { MdCurrencyRupee } from "react-icons/md";
+import { MdCurrencyRupee, MdClose } from "react-icons/md";
 import { GoGear } from "react-icons/go";
-import { useSelector } from 'react-redux';
-import { HiIdentification } from 'react-icons/hi';
 import { BiKey } from 'react-icons/bi';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 
-const EmployeeProfile = ({ viewEmployee }) => {
+const EmployeeProfile = ({ viewEmployee, onClose }) => {
   const [isload, setisload] = useState(false);
   const [employee, setemployee] = useState(null);
   const [submenu, setsubmenu] = useState(1);
 
   useEffect(() => {
-    // console.log(viewEmployee);
-    if (!viewEmployee) {
-      // console.log(profile)
-    }
     const first = async () => {
       setisload(true);
       try {
         const data = await apiClient({
           url: `getemployee?empid=${viewEmployee}`
         });
-        setemployee(data)
+        setemployee(data);
       } catch (error) {
         console.error('Error fetching employee profile:', error);
       } finally {
         setisload(false);
       }
+    };
+    if (viewEmployee) {
+      first();
     }
-    first();
-  }, [])
-  // if (isload) return;
+  }, [viewEmployee]);
 
-  return <>
-    {isload ?
-      <div className="w-full h-[300px] flex gap-5 flex-col justify-center items-center bg-white">
-        <div className='relative'>
-          <GoGear className='animate-spin' style={{ animationDuration: '2.5s' }} size={50} color='teal' />
-          <GoGear className='absolute -bottom-4 left-0 animate-spin' style={{ animationDuration: '3s' }} size={20} color='teal' />
-        </div>
-        <p className='text-teal-600'>loading...</p>
-      </div> :
-      <div className="max-w-3xl mx-auto bg-white flex flex-col shadow rounded-lg p-2 md:p-4 ">
-        <h2 className="text-xl mx-auto font-semibold text-gray-700 mb-4">Employee Details</h2>
-        <div className="flex gap-4  pb-2 md:items-start">
-          <div className="w-20 h-20 bg-gray-200 rounded-full border-2 border-teal-500 border-dashed p-[2px] flex items-center justify-center overflow-hidden">
-            {employee?.profileimage ? (
-              <img
-                // src={employee.profileimage}
-                src={cloudinaryUrl(employee.profileimage, {
-                  format: "webp",
-                  width: 200,
-                  height: 200,
-                })}
-                alt="Profile"
-                className="w-full h-full object-cover rounded-full"
-              />
-            ) : (
-              <FaUser className="text-3xl text-gray-500" />
-            )}
+  return (
+    <div className="w-full bg-white rounded-xl flex flex-col overflow-hidden shadow-2xl">
+      {/* Modal Header */}
+      <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <h2 className="text-lg font-bold tracking-wide text-white flex items-center gap-2">
+          <FaUser className="text-teal-400 text-base" /> Employee Profile
+        </h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition-colors"
+            title="Close"
+          >
+            <MdClose size={20} />
+          </button>
+        )}
+      </div>
+
+      {isload ? (
+        <div className="w-full h-[320px] flex gap-4 flex-col justify-center items-center bg-white">
+          <div className="relative">
+            <GoGear className="animate-spin" style={{ animationDuration: '2.5s' }} size={48} color="teal" />
+            <GoGear className="absolute -bottom-3 left-0 animate-spin" style={{ animationDuration: '3s' }} size={20} color="teal" />
           </div>
-
-          <div className="md:flex-1 w-auto">
-            <h3 className="text-l md:text-xl capitalize font-bold text-gray-800">{employee?.userid?.name}</h3>
-            <p className="text-sm capitalize text-gray-600">{employee?.userid?.role}</p>
-
-            <div className="flex gap-2 mt-2">
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">{employee?.department?.department}</span>
-              <span className={`px-2 py-0.5 ${employee?.status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}  text-xs rounded`}>{employee?.status ? 'Active' : 'In Active'}</span>
+          <p className="text-teal-700 text-sm font-medium">Loading employee details...</p>
+        </div>
+      ) : (
+        <div className="p-5 md:p-6 flex flex-col gap-4">
+          {/* Top Hero Section */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-slate-100">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-slate-100 rounded-full border-2 border-teal-500 p-1 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
+              {employee?.profileimage ? (
+                <img
+                  src={cloudinaryUrl(employee.profileimage, {
+                    format: "webp",
+                    width: 200,
+                    height: 200,
+                  })}
+                  alt="Profile"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <FaUser className="text-3xl text-slate-400" />
+              )}
             </div>
 
-            <div className="hidden md:flex mt-3 justify-start flex-wrap text-sm text-gray-600 space-y-1">
-              <div className="flex w-1/2 items-center gap-2"><FaEnvelope className="text-gray-500 lowercase" /> {employee?.userid?.email}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaPhone className="text-gray-500" /> {employee?.phone || 'N/A'}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaCalendarAlt className="text-gray-500" /> {dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY')}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: emp0002</div>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xl capitalize font-bold text-slate-900 leading-tight">
+                    {employee?.userid?.name || employee?.name}
+                  </h3>
+                  <p className="text-sm font-medium text-slate-500 capitalize">
+                    {employee?.designation || employee?.userid?.role || 'Employee'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center sm:justify-end gap-2">
+                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200">
+                    {employee?.department?.department || 'General'}
+                  </span>
+                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${
+                    employee?.status
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  }`}>
+                    {employee?.status ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <FaEnvelope className="text-slate-400 text-sm" />
+                  <span className="truncate">{employee?.userid?.email || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FaPhone className="text-slate-400 text-sm" />
+                  <span>{employee?.phone || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FaCalendarAlt className="text-slate-400 text-sm" />
+                  <span>Joined: {employee?.userid?.createdAt ? dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY') : 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FaIdCard className="text-slate-400 text-sm" />
+                  <span className="font-mono font-semibold text-slate-800">
+                    ID: {employee?.empId || employee?.deviceUserId || 'N/A'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="md:hidden mt-3 justify-start flex flex-wrap text-[12px] md:text-sm text-gray-600 space-y-1">
-          <div className="flex w-1/2 items-center gap-2"><FaEnvelope className="text-gray-500 lowercase" /> {employee?.userid?.email}</div>
-          <div className="flex w-1/2 items-center gap-2"><FaPhone className="text-gray-500" /> {employee?.phone || 'N/A'}</div>
-          <div className="flex w-1/2 items-center gap-2"><FaCalendarAlt className="text-gray-500" /> {dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY')}</div>
-          <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: emp0002</div>
-        </div>
 
         <div className="pt-1 capitalize">
           <div className="flex gap-2 md:gap-6 bg-slate-200 p-1 mt-2 text-[12px] md:text-sm font-medium text-gray-700">
@@ -238,8 +269,22 @@ const EmployeeProfile = ({ viewEmployee }) => {
               </div>
             </div>}
         </div>
-      </div>}
-  </>;
+
+        {/* Modal Footer */}
+        {onClose && (
+          <div className="pt-3 mt-1 border-t border-slate-100 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+  );
 };
 
 export default EmployeeProfile;

@@ -83,7 +83,7 @@ const EmployeeProfile = ({ viewEmployee }) => {
               <div className="flex w-1/2 items-center gap-2"><FaEnvelope className="text-gray-500 lowercase" /> {employee?.userid?.email}</div>
               <div className="flex w-1/2 items-center gap-2"><FaPhone className="text-gray-500" /> {employee?.phone || 'N/A'}</div>
               <div className="flex w-1/2 items-center gap-2"><FaCalendarAlt className="text-gray-500" /> {dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY')}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: emp0002</div>
+              <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: {employee?.empId || employee?.deviceUserId || 'N/A'}</div>
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ const EmployeeProfile = ({ viewEmployee }) => {
           <div className="flex w-1/2 items-center gap-2"><FaEnvelope className="text-gray-500 lowercase" /> {employee?.userid?.email}</div>
           <div className="flex w-1/2 items-center gap-2"><FaPhone className="text-gray-500" /> {employee?.phone || 'N/A'}</div>
           <div className="flex w-1/2 items-center gap-2"><FaCalendarAlt className="text-gray-500" /> {dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY')}</div>
-          <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: emp0002</div>
+          <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: {employee?.empId || employee?.deviceUserId || 'N/A'}</div>
         </div>
 
         <div className="pt-1 capitalize">

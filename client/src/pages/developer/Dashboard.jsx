@@ -168,7 +168,7 @@ const DeveloperDashboard = () => {
         setDemoInp({ companyId: user?.companyId, email: "", password: "" });
         setDemoModal(true);
     };
-    
+
     const handleShowDemos = async (user) => {
         // Dummy IDs for now
         try {
@@ -250,13 +250,13 @@ const DeveloperDashboard = () => {
                     >
                         <MdOutlineModeEdit />
                     </span>
-                    <span
+                    {/* <span
                         className="text-[18px] text-red-500 cursor-pointer"
                         title="Delete"
                         onClick={() => deletee(row._id)}
                     >
                         <AiOutlineDelete />
-                    </span>
+                    </span> */}
                 </div>
             ),
         },
