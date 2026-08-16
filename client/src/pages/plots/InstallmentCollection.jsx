@@ -24,13 +24,14 @@ const InstallmentCollection = () => {
   const [gracePeriod, setGracePeriod] = useState(15);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getLateFine = (inst, graceDays) => {
+  const getLateFine = (inst, graceDays, customDate = null) => {
     if (selectedBooking?.scheme !== 'MONTHLY_INSTALLMENT') return 0;
     if (inst.status === 'PAID') return inst.lateFine || 0;
     if (inst.installmentNumber === 0) return 0;
 
     const due = new Date(inst.dueDate);
-    const payDate = new Date();
+    const dateStr = customDate || form?.createdAt;
+    const payDate = dateStr ? new Date(dateStr) : new Date();
 
     const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     const d2 = new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate());
@@ -48,13 +49,14 @@ const InstallmentCollection = () => {
     return Math.max(dynamicFine, storedUnpaidFine);
   };
 
-  const getLateDays = (inst, graceDays) => {
+  const getLateDays = (inst, graceDays, customDate = null) => {
     if (selectedBooking?.scheme !== 'MONTHLY_INSTALLMENT') return 0;
     if (inst.status === 'PAID') return inst.lateDays || 0;
     if (inst.installmentNumber === 0) return 0;
 
     const due = new Date(inst.dueDate);
-    const payDate = new Date();
+    const dateStr = customDate || form?.createdAt;
+    const payDate = dateStr ? new Date(dateStr) : new Date();
 
     const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     const d2 = new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate());
@@ -170,6 +172,25 @@ const InstallmentCollection = () => {
     }
   };
 
+  const handleCollectionDateChange = (newDate) => {
+    setForm(f => {
+      const updatedForm = { ...f, createdAt: newDate };
+      if (selectedBooking?.scheme === 'MONTHLY_INSTALLMENT') {
+        const totalCalculated = installments
+          .filter(i => selectedInstIds.includes(i._id))
+          .reduce((sum, i) => {
+            const p = i.dueAmount - i.paidAmount;
+            const f = getLateFine(i, gracePeriod, newDate);
+            return sum + p + f;
+          }, 0);
+        if (totalCalculated > 0) {
+          updatedForm.amountPaid = String(totalCalculated);
+        }
+      }
+      return updatedForm;
+    });
+  };
+
   const handleCheckboxToggle = (inst) => {
     const isSelected = selectedInstIds.includes(inst._id);
     let updated = [];
@@ -184,7 +205,7 @@ const InstallmentCollection = () => {
       .filter(i => updated.includes(i._id))
       .reduce((sum, i) => {
         const p = i.dueAmount - i.paidAmount;
-        const f = getLateFine(i, gracePeriod);
+        const f = getLateFine(i, gracePeriod, form.createdAt);
         return sum + p + f;
       }, 0);
 
@@ -194,7 +215,7 @@ const InstallmentCollection = () => {
   const getSelectedLateFineTotal = () => {
     return installments
       .filter(i => selectedInstIds.includes(i._id))
-      .reduce((sum, i) => sum + getLateFine(i, gracePeriod), 0);
+      .reduce((sum, i) => sum + getLateFine(i, gracePeriod, form.createdAt), 0);
   };
 
   const handleSubmit = async (e) => {
@@ -415,8 +436,14 @@ const InstallmentCollection = () => {
                         </td>
                         <td className="p-3.5 font-bold text-emerald-700">₹{(r.amount || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3.5">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
-                            {r.receiptType}
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
+                            r.receiptType === 'DOWNPAYMENT'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : r.receiptType === 'FULL_PAYMENT'
+                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            {r.receiptType === 'DOWNPAYMENT' ? 'Down Payment' : r.receiptType === 'FULL_PAYMENT' ? 'Full Payment' : 'Installment'}
                           </span>
                         </td>
                         <td className="p-3.5 font-bold uppercase text-xs text-slate-600">{r.paymentMode}</td>
@@ -523,14 +550,14 @@ const InstallmentCollection = () => {
                           {installments.map(inst => {
                             const isPaid = inst.status === 'PAID';
                             const principalDue = inst.dueAmount - inst.paidAmount;
-                            const fine = getLateFine(inst, gracePeriod);
-                            const lateDays = getLateDays(inst, gracePeriod);
+                            const fine = getLateFine(inst, gracePeriod, form.createdAt);
+                            const lateDays = getLateDays(inst, gracePeriod, form.createdAt);
                             const totalDue = principalDue + fine;
                             const isSelected = selectedInstIds.includes(inst._id);
 
-                            const now = new Date();
-                            const currentYear = now.getFullYear();
-                            const currentMonth = now.getMonth();
+                            const collectionDateObj = form.createdAt ? new Date(form.createdAt) : new Date();
+                            const currentYear = collectionDateObj.getFullYear();
+                            const currentMonth = collectionDateObj.getMonth();
                             const dueDate = new Date(inst.dueDate);
                             const dueYear = dueDate.getFullYear();
                             const dueMonth = dueDate.getMonth();
@@ -679,7 +706,7 @@ const InstallmentCollection = () => {
                     type="date"
                     className={inputCls}
                     value={form.createdAt}
-                    onChange={e => setForm({ ...form, createdAt: e.target.value })}
+                    onChange={e => handleCollectionDateChange(e.target.value)}
                     required
                   />
                 </div>

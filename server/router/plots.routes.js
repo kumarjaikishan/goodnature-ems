@@ -31,6 +31,7 @@ router.patch('/sponsors/:id/toggle-block', checkPermission('plot_sponsor', 3), c
 
 // ── Customers ──
 router.get('/customers', checkPermission('plot_customer', 1), ctrl.getCustomers);
+router.get('/customers/:id', checkPermission('plot_customer', 1), ctrl.getCustomerById);
 router.post('/customers', checkPermission('plot_customer', 2), ctrl.createCustomer);
 router.put('/customers/:id', checkPermission('plot_customer', 3), ctrl.updateCustomer);
 router.delete('/customers/:id', checkPermission('plot_customer', 4), ctrl.deleteCustomer);
@@ -67,6 +68,7 @@ router.put('/payout-vouchers/:id', checkPermission('plot_payout', 3), ctrl.updat
 
 // ── Plots Inventory (Wildcard /:id placed AFTER specific routes) ──
 router.get('/', checkPermission('plot_inventory', 1), ctrl.getPlots);
+router.post('/', checkPermission('plot_inventory', 2), ctrl.createPlot);
 router.get('/:id', checkPermission('plot_inventory', 1), ctrl.getPlotById);
 router.put('/:id', checkPermission('plot_inventory', 3), ctrl.updatePlot);
 

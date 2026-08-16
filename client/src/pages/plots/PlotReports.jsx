@@ -247,7 +247,9 @@ const PlotReports = () => {
     } finally {
       setSetupPayoutSaving(false);
     }
-  };  const handleUpdateBooking = async (e) => {
+  };
+
+  const handleUpdateBooking = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
@@ -292,14 +294,29 @@ const PlotReports = () => {
     }
   };
 
-  const handleDeleteBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to delete this booking? This will restore the plot status to AVAILABLE and permanently delete all payments, receipts, and installments associated with it.')) {
+  // Delete Booking Modal State
+  const [bookingToDelete, setBookingToDelete] = useState(null);
+
+  const openDeleteBookingModal = (booking) => {
+    setBookingToDelete(booking);
+  };
+
+  const handleConfirmDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+    const bookingId = bookingToDelete._id;
+    const paidAmt = (bookingToDelete.plotValue || 0) - (bookingToDelete.discount || 0) - (bookingToDelete.remainingAmount || 0);
+
+    if (paidAmt > 0) {
+      toast.error(`Cannot delete Booking #${bookingToDelete.bookingNumber || ''} because ₹${paidAmt.toLocaleString('en-IN')} has already been collected. Please reverse or delete all collections from the Collections tab first.`);
+      setBookingToDelete(null);
       return;
     }
+
     setDeletingId(bookingId);
     try {
       await api.delete(`/plots/bookings/${bookingId}`);
-      toast.success('Booking deleted successfully');
+      toast.success('Booking deleted successfully and plot restored to Available');
+      setBookingToDelete(null);
       fetchReport(activeTab);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete booking');
@@ -507,7 +524,7 @@ const PlotReports = () => {
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 select-none">
-                  {['Date', 'Booking #', 'Plot #', 'Customer', 'Total Price', 'Paid Amount', 'Outstanding', 'Status', 'Action'].map(h => (
+                  {['Date', 'Booking & Plot #', 'Customer', 'Plot Value', 'Discount', 'Paid Amount', 'Outstanding', 'Status', 'Action'].map(h => (
                     <th key={h} className="p-3.5 text-xs font-semibold uppercase text-slate-600 tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -523,8 +540,12 @@ const PlotReports = () => {
                   filteredBookings.map(b => (
                     <tr key={b._id} className="hover:bg-slate-50 transition">
                       <td className="p-3.5 text-slate-600 font-medium whitespace-nowrap">{new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                      <td className="p-3.5 font-bold text-indigo-600 tracking-wider">{b.bookingNumber}</td>
-                      <td className="p-3.5 font-bold text-slate-800">{b.plotId?.plotNumber}</td>
+                      <td className="p-3.5">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-indigo-600 tracking-wider">{b.bookingNumber}</span>
+                          <span className="text-xs font-semibold text-slate-700">Plot: {b.plotId?.plotNumber || 'N/A'}</span>
+                        </div>
+                      </td>
                       <td className="p-3.5">
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-800">{b.customerId?.name || b.customerName}</span>
@@ -532,6 +553,9 @@ const PlotReports = () => {
                         </div>
                       </td>
                       <td className="p-3.5 font-bold text-slate-800">₹{(b.plotValue || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3.5 font-bold text-amber-600">
+                        {b.discount > 0 ? `₹${(b.discount || 0).toLocaleString('en-IN')}` : '-'}
+                      </td>
                       <td className="p-3.5 font-bold text-emerald-700">₹{Math.max(0, (b.plotValue || 0) - (b.discount || 0) - (b.remainingAmount || 0)).toLocaleString('en-IN')}</td>
                       <td className="p-3.5 font-bold text-indigo-600">₹{(b.remainingAmount || 0).toLocaleString('en-IN')}</td>
                       <td className="p-3.5">
@@ -603,7 +627,7 @@ const PlotReports = () => {
                             <HiOutlinePencilSquare className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDeleteBooking(b._id)}
+                            onClick={() => openDeleteBookingModal(b)}
                             disabled={deletingId === b._id}
                             title="Delete Booking"
                             className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer border border-rose-200 disabled:opacity-50"
@@ -1419,6 +1443,86 @@ const PlotReports = () => {
             </button>
           </div>
         </div>
+      </Modalbox>
+
+      {/* ── DELETE BOOKING CONFIRMATION MODAL ── */}
+      <Modalbox open={Boolean(bookingToDelete)} onClose={() => setBookingToDelete(null)}>
+        {bookingToDelete && (() => {
+          const paidAmt = (bookingToDelete.plotValue || 0) - (bookingToDelete.discount || 0) - (bookingToDelete.remainingAmount || 0);
+          const hasCollections = paidAmt > 0;
+
+          return (
+            <div className="bg-white rounded-2xl w-[92vw] max-w-md p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
+                  hasCollections ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
+                }`}>
+                  {hasCollections ? '⚠️' : '🗑️'}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">
+                    {hasCollections ? 'Cannot Delete Booking' : 'Delete Plot Booking?'}
+                  </h3>
+                  <p className="text-xs text-slate-500">Booking #{bookingToDelete.bookingNumber}</p>
+                </div>
+              </div>
+
+              {/* Booking Info Card */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5 text-slate-700">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Customer:</span>
+                  <span className="font-bold text-slate-800">{bookingToDelete.customerId?.name || bookingToDelete.customerName || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Plot #:</span>
+                  <span className="font-bold text-slate-800">{bookingToDelete.plotId?.plotNumber || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Plot Value:</span>
+                  <span className="font-bold text-slate-800">₹{(bookingToDelete.plotValue || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Total Collected:</span>
+                  <span className={`font-bold ${hasCollections ? 'text-amber-700' : 'text-slate-600'}`}>
+                    ₹{paidAmt.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Message based on collection existence */}
+              {hasCollections ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed font-medium">
+                  <strong>Notice:</strong> ₹{paidAmt.toLocaleString('en-IN')} has already been collected for this booking. You cannot delete a booking with existing collections. Please reverse or delete all receipts from the <strong>Collections</strong> page first.
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Are you sure you want to delete this booking? This will restore plot <strong>{bookingToDelete.plotId?.plotNumber}</strong> status back to <strong>AVAILABLE</strong> and remove the contract schedule.
+                </p>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setBookingToDelete(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-medium text-slate-600 transition"
+                >
+                  {hasCollections ? 'Close' : 'Cancel'}
+                </button>
+                {!hasCollections && (
+                  <button
+                    type="button"
+                    onClick={handleConfirmDeleteBooking}
+                    disabled={deletingId === bookingToDelete._id}
+                    className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-medium transition shadow-sm flex items-center justify-center min-w-[110px]"
+                  >
+                    {deletingId === bookingToDelete._id ? 'Deleting...' : 'Yes, Delete Booking'}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Modalbox>
     </div>
   );

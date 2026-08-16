@@ -64,11 +64,10 @@ const PlotCustomerFormPage = () => {
     setLoading(true);
     try {
       const res = await apiClient({
-        url: 'plots/customers',
+        url: `plots/customers/${id}`,
       });
-      const list = res.data || res.customers || res || [];
-      const customer = list.find((c) => c._id === id);
-      if (customer) {
+      const customer = res.data || res.customer || res;
+      if (customer && customer._id) {
         setFormState({
           sponsorId: customer.sponsorId?._id || customer.sponsorId || '',
           name: customer.name || '',
@@ -153,14 +152,14 @@ const PlotCustomerFormPage = () => {
           method: 'PUT',
           body: formState,
         });
-        toast.success('Plot customer updated successfully');
+        toast.success('customer updated successfully');
       } else {
         await request({
           url: 'plots/customers',
           method: 'POST',
           body: formState,
         });
-        toast.success('Plot customer created successfully');
+        toast.success('customer created successfully');
       }
       navigate('/dashboard/plots/customers');
     } catch (err) {
@@ -191,10 +190,10 @@ const PlotCustomerFormPage = () => {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {isEdit ? 'Edit Plot Customer' : 'Add New Plot Customer'}
+            {isEdit ? 'Edit Customer' : 'Add New Customer'}
           </h1>
           <p className="text-slate-500 text-sm">
-            {isEdit ? 'Update existing plot customer information' : 'Step 1: Select a sponsor first, then complete customer registration.'}
+            {isEdit ? 'Update existing customer information' : 'Step 1: Select a sponsor first, then complete customer registration.'}
           </p>
         </div>
       </div>

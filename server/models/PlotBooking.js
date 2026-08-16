@@ -22,7 +22,7 @@ const plotBookingSchema = new mongoose.Schema(
     sponsorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
     },
     plotId: {
       type: mongoose.Schema.Types.ObjectId,

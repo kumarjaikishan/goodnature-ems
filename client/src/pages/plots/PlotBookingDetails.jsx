@@ -462,7 +462,17 @@ const PlotBookingDetails = () => {
                     <td className="p-2.5 text-slate-600">
                       {new Date(rec.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="p-2.5 font-medium text-slate-700">{rec.receiptType}</td>
+                    <td className="p-2.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[0.68rem] font-semibold uppercase tracking-wider ${
+                        rec.receiptType === 'DOWNPAYMENT'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : rec.receiptType === 'FULL_PAYMENT'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {rec.receiptType === 'DOWNPAYMENT' ? 'Down Payment' : rec.receiptType === 'FULL_PAYMENT' ? 'Full Payment' : 'Installment'}
+                      </span>
+                    </td>
                     <td className="p-2.5 text-right font-semibold text-slate-800">
                       ₹{(rec.amount || 0).toLocaleString('en-IN')}
                     </td>

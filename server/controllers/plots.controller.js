@@ -64,6 +64,15 @@ const deleteSeries = async (req, res, next) => {
   }
 };
 
+const createPlot = async (req, res, next) => {
+  try {
+    const plot = await plotsService.createPlot(req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.created(res, plot, 'Plot created successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getPlots = async (req, res, next) => {
   try {
     const result = await plotsService.getPlots(req.query);
@@ -339,6 +348,15 @@ const getCustomers = async (req, res, next) => {
   }
 };
 
+const getCustomerById = async (req, res, next) => {
+  try {
+    const customer = await plotsService.getCustomerById(req.params.id);
+    ApiResponse.success(res, customer);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createCustomer = async (req, res, next) => {
   try {
     const customer = await plotsService.createCustomer(req.body);
@@ -374,6 +392,7 @@ module.exports = {
   getSeriesById,
   updateSeries,
   deleteSeries,
+  createPlot,
   getPlots,
   getPlotById,
   updatePlot,
@@ -403,6 +422,7 @@ module.exports = {
   deleteSponsor,
   toggleSponsorBlock,
   getCustomers,
+  getCustomerById,
   createCustomer,
   updateCustomer,
   deleteCustomer,

@@ -59,10 +59,20 @@ const Navbar = () => {
     "leave-policies": "Leave Policies",
     "attandence-import": "Attendance Import",
     "add": "Create Payroll",
-    "my-leave-ledger": "Leave Ledger",
-    "my-ledger": "Financial Ledger",
     "membership": "Membership",
     "vouchers": "Vouchers",
+    // Plot Management Titles
+    "plots": "Plot Management",
+    "inventory": "Plots Inventory",
+    "sponsors": "Plot Sponsors",
+    "sponsor-commissions": "Sponsor Commissions",
+    "customers": "Customers",
+    "booking": "Bookings",
+    "addbooking": "Create Booking",
+    "installments": "Collections",
+    "series-master": "Plot Series Master",
+    "reports": "Plot Reports",
+    "payout-ledger": "Payout Ledger",
   };
 
   const notifications = [
@@ -115,9 +125,29 @@ const Navbar = () => {
 
   const lastPart = pathParts[pathParts.length - 1] || "";
 
-  // special handling for dynamic routes like ledger/:id
+  // special handling for dynamic routes like ledger/:id, plots/customers/new, plots/booking/:id
   let pageTitle;
-  if (lastPart && !commonTitles[lastPart]) {
+  if (pathParts.includes("plots")) {
+    if (pathParts.includes("customers")) {
+      if (pathParts.includes("new")) pageTitle = "Add New Customer";
+      else if (pathParts.includes("edit")) pageTitle = "Edit Customer";
+      else pageTitle = "Plot Customers";
+    } else if (pathParts.includes("booking")) {
+      if (pathParts.includes("new")) pageTitle = "New Booking";
+      else if (pathParts.length > 3) pageTitle = "Booking Details";
+      else pageTitle = "Plot Bookings";
+    } else if (pathParts.includes("receipts")) {
+      pageTitle = "Print Receipt";
+    } else if (pathParts.includes("certificates")) {
+      pageTitle = "Booking Certificate";
+    } else if (pathParts.includes("agreements")) {
+      pageTitle = "Buyer Agreement";
+    } else if (pathParts.includes("vouchers")) {
+      pageTitle = "Payout Voucher";
+    } else {
+      pageTitle = commonTitles[lastPart] || "Plot Management";
+    }
+  } else if (lastPart && !commonTitles[lastPart]) {
     if (pathParts.includes("ledger") && pathParts.length > 2) {
       pageTitle = "Ledger Detail";
     } else if (pathParts.includes("vouchers") && pathParts.length > 2) {

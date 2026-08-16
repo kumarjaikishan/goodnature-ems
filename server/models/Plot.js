@@ -12,11 +12,11 @@ const plotSchema = new mongoose.Schema(
     seriesId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotSeriesMaster',
-      required: true,
+      required: false,
     },
     sequenceNumber: {
       type: Number,
-      required: true,
+      required: false,
     },
     plotSize: {
       type: Number,

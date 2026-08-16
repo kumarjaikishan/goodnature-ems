@@ -287,6 +287,80 @@ class PlotsService {
     };
   }
 
+  async createPlot(data, userId) {
+    const { seriesId, plotNumber, plotSize, plotType, baseRate, sequenceNumber, remarks } = data;
+    if (!plotNumber || !plotSize) {
+      throw ApiError.badRequest('Plot Number and Plot Size are required');
+    }
+
+    const cleanPlotNumber = String(plotNumber).trim().toUpperCase();
+    const existing = await Plot.findOne({ plotNumber: cleanPlotNumber });
+    if (existing) {
+      throw ApiError.badRequest(`Plot Number "${cleanPlotNumber}" already exists.`);
+    }
+
+    let series = null;
+    if (seriesId) {
+      series = await PlotSeriesMaster.findById(seriesId);
+    }
+
+    // Determine sequence number if not explicitly passed
+    let seq = Number(sequenceNumber);
+    if (!seq || isNaN(seq)) {
+      if (series) {
+        const highestPlot = await Plot.findOne({ seriesId: series._id }).sort({ sequenceNumber: -1 });
+        seq = highestPlot ? (highestPlot.sequenceNumber || 0) + 1 : (series.endNumber || 0) + 1;
+      } else {
+        const count = await Plot.countDocuments();
+        seq = count + 1;
+      }
+    }
+
+    const rateConfig = await this.getRateConfig();
+    const resolvedBaseRate = baseRate !== undefined && baseRate !== '' ? Number(baseRate) : rateConfig.baseSqFtRate;
+    const resolvedPlotType = plotType === 'CORNER' ? 'CORNER' : 'NORMAL';
+
+    let multiplier = 1;
+    if (resolvedPlotType === 'CORNER') {
+      multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
+    }
+
+    const effectiveRate = resolvedBaseRate * multiplier;
+    const totalPlotValue = Number(plotSize) * effectiveRate;
+
+    const newPlot = new Plot({
+      plotNumber: cleanPlotNumber,
+      seriesId: series ? series._id : undefined,
+      sequenceNumber: seq,
+      plotSize: Number(plotSize),
+      plotType: resolvedPlotType,
+      baseRate: resolvedBaseRate,
+      effectiveRate,
+      totalPlotValue,
+      status: 'AVAILABLE',
+      remarks: remarks || '',
+    });
+
+    await newPlot.save();
+
+    // Update series endNumber if the new plot exceeds current endNumber
+    if (series && seq > (series.endNumber || 0)) {
+      series.endNumber = seq;
+      await series.save();
+    }
+
+    // Log action
+    await new PlotAuditLog({
+      action: 'CREATE_PLOT',
+      modelName: 'Plot',
+      documentId: newPlot._id,
+      userId,
+      details: { plotNumber: cleanPlotNumber, seriesId, plotSize, plotType: resolvedPlotType, totalPlotValue },
+    }).save();
+
+    return newPlot;
+  }
+
   async getPlotById(id) {
     const plot = await Plot.findById(id).populate('seriesId');
     if (!plot) throw ApiError.notFound('Plot not found');
@@ -658,10 +732,18 @@ class PlotsService {
         ).session(session);
       }
 
+      // Determine receipt type: DOWNPAYMENT, FULL_PAYMENT, or INSTALLMENT
+      let resolvedReceiptType = 'INSTALLMENT';
+      if (booking.scheme === 'FULL_PAYMENT') {
+        resolvedReceiptType = 'FULL_PAYMENT';
+      } else if (updatedInstallments.length > 0 && updatedInstallments.every(i => i.installmentNumber === 0)) {
+        resolvedReceiptType = 'DOWNPAYMENT';
+      }
+
       // Create Receipt
       const receipt = new PlotReceipt({
         receiptNumber,
-        receiptType: 'INSTALLMENT',
+        receiptType: resolvedReceiptType,
         bookingId: booking._id,
         amount: Number(amountPaid),
         lateFinePaid: totalLateFinePaid,
@@ -1753,12 +1835,20 @@ class PlotsService {
       const booking = await PlotBooking.findById(id).session(session);
       if (!booking) throw ApiError.notFound('Booking not found');
 
+      // Check if there are any collections / receipts recorded for this booking
+      const receiptsCount = await PlotReceipt.countDocuments({ bookingId: id }).session(session);
+      const paymentsCount = await PlotPayment.countDocuments({ bookingId: id }).session(session);
+
+      if (receiptsCount > 0 || paymentsCount > 0) {
+        throw ApiError.badRequest(
+          `Cannot delete booking #${booking.bookingNumber}. There are ${receiptsCount || paymentsCount} collection receipt(s) recorded against this booking. Please delete or reverse all collections first before deleting the booking.`
+        );
+      }
+
       // Revert plot status to AVAILABLE
       await Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' }).session(session);
 
-      // Delete payments, receipts, and installments
-      await PlotPayment.deleteMany({ bookingId: id }).session(session);
-      await PlotReceipt.deleteMany({ bookingId: id }).session(session);
+      // Clean up empty installments and commissions if any
       await PlotInstallment.deleteMany({ bookingId: id }).session(session);
       await PlotSponsorCommission.deleteMany({ bookingId: id }).session(session);
 
@@ -2348,6 +2438,7 @@ class PlotsService {
             bankBranch: legacy.bankBranch || '',
             accountNumber: legacy.accountNumber || '',
             ifscCode: legacy.ifscCode || '',
+            sponsorId: legacy.sponsorId || null,
             isBlocked: legacy.isBlocked || false,
             createdAt: legacy.createdAt,
             updatedAt: legacy.updatedAt,
@@ -2373,13 +2464,17 @@ class PlotsService {
     }
     const skip = (Number(page) - 1) * Number(limit);
     const total = await PlotCustomer.countDocuments(filter);
-    const customers = await PlotCustomer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
+    const customers = await PlotCustomer.find(filter)
+      .populate('sponsorId', 'name sponsorCode mobile email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
     return { customers, pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) } };
   }
 
   async createCustomer(data) {
     const {
-      name, email, mobile, gender, age, relationType, fatherOrHusbandName,
+      sponsorId, name, email, mobile, gender, age, relationType, fatherOrHusbandName,
       address, currentAddress, permanentAddress, sameAsCurrentAddress, aadhaarCard, panCard,
       nomineeName, nomineeRelation, nomineeAge, accountHolderName, bankName, bankBranch, accountNumber, ifscCode
     } = data;
@@ -2389,6 +2484,7 @@ class PlotsService {
 
     const customer = new PlotCustomer({
       customerId,
+      sponsorId: sponsorId === 'company' || sponsorId === 'direct' || !sponsorId ? null : sponsorId,
       name,
       email: email || '',
       mobile: mobile || '',
@@ -2415,8 +2511,22 @@ class PlotsService {
     return customer;
   }
 
+  async getCustomerById(id) {
+    const customer = await PlotCustomer.findById(id).populate('sponsorId', 'name sponsorCode mobile email');
+    if (!customer) {
+      // Fallback check in User model if legacy
+      const user = await User.findById(id).populate('sponsorId', 'name sponsorCode mobile email');
+      if (user && user.role === 'customer') return user;
+      throw new Error('Customer not found');
+    }
+    return customer;
+  }
+
   async updateCustomer(id, data) {
-    const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true });
+    if (data.sponsorId === 'company' || data.sponsorId === 'direct') {
+      data.sponsorId = null;
+    }
+    const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true }).populate('sponsorId', 'name sponsorCode mobile email');
     return customer;
   }
 

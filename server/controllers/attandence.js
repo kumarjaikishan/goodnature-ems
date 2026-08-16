@@ -1595,6 +1595,37 @@ const employeeAttandence = async (req, res, next) => {
   }
 };
 
+const getSingleEmployeeAttendance = async (req, res, next) => {
+  try {
+    const { employeeId, date } = req.query;
+    const companyId = req.user.companyId;
+
+    if (!employeeId || !date) {
+      return res.status(400).json({ message: 'employeeId and date are required.' });
+    }
+
+    const parsedDate = parseAttendanceDateTime(date);
+    const dateObj = getAttendanceDateUTC(parsedDate);
+    if (!dateObj) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+
+    const attendanceRecord = await Attendance.findOne({
+      companyId,
+      date: dateObj,
+      employeeId
+    }).select('employeeId punchIn punchOut status remarks dayType');
+
+    return res.status(200).json({
+      success: true,
+      data: attendanceRecord || null
+    });
+  } catch (error) {
+    console.error("Error in getSingleEmployeeAttendance:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 const getBulkMarkData = async (req, res, next) => {
   try {
     const { date, branchId, departmentId } = req.query;
@@ -1743,4 +1774,4 @@ const getAttendanceReport = async (req, res, next) => {
   }
 };
 
-module.exports = { checkout, deleteattandence, bulkMarkAttendance, bulkMarkAttendanceExcel, facecheckin, recordAttendanceFromLogs, facecheckout, editattandence, employeeAttandence, checkin, webattandence, allAttandence, getAttendanceList, leaveapply, leaveupdate, allleave, getBulkMarkData, getAttendanceReport };
+module.exports = { checkout, deleteattandence, bulkMarkAttendance, bulkMarkAttendanceExcel, facecheckin, recordAttendanceFromLogs, facecheckout, editattandence, employeeAttandence, checkin, webattandence, allAttandence, getAttendanceList, leaveapply, leaveupdate, allleave, getBulkMarkData, getAttendanceReport, getSingleEmployeeAttendance };

@@ -133,6 +133,7 @@ const routesByRole = {
       <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
       <Route path="plots/booking" element={<PlotReports />} />
       <Route path="plots/addbooking" element={<PlotBooking />} />
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
@@ -187,6 +188,7 @@ const routesByRole = {
       <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
       <Route path="plots/booking" element={<PlotReports />} />
       <Route path="plots/addbooking" element={<PlotBooking />} />
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
@@ -242,6 +244,7 @@ const routesByRole = {
       <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
       <Route path="plots/booking" element={<PlotReports />} />
       <Route path="plots/addbooking" element={<PlotBooking />} />
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />

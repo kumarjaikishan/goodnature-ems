@@ -19,6 +19,17 @@ const PlotSeriesMaster = () => {
   // Modals visibility
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreatePlotModal, setShowCreatePlotModal] = useState(false);
+
+  // New individual plot form
+  const [plotForm, setPlotForm] = useState({
+    seriesId: '',
+    plotNumber: '',
+    plotSize: '',
+    plotType: 'NORMAL',
+    baseRate: '',
+    remarks: '',
+  });
 
   // New series form
   const [form, setForm] = useState({
@@ -98,6 +109,86 @@ const PlotSeriesMaster = () => {
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create series');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const openCreatePlot = (preselectedSeriesId = '') => {
+    const selectedS = seriesList.find(s => s._id === preselectedSeriesId);
+
+    // Auto-compute next suggested plot number if a series was selected
+    let suggestedPlotNo = '';
+    if (selectedS) {
+      const existingInSeries = plots.filter(p => (p.seriesId?._id || p.seriesId) === selectedS._id);
+      const nextSeq = existingInSeries.length > 0
+        ? Math.max(...existingInSeries.map(p => p.sequenceNumber || 0)) + 1
+        : selectedS.endNumber + 1;
+
+      const match = selectedS.numberFormat?.match(/0+/);
+      if (match) {
+        const paddedNum = String(nextSeq).padStart(match[0].length, '0');
+        suggestedPlotNo = `${selectedS.prefix}${paddedNum}`;
+      } else {
+        suggestedPlotNo = `${selectedS.prefix}${nextSeq}`;
+      }
+    }
+
+    setPlotForm({
+      seriesId: preselectedSeriesId || '',
+      plotNumber: suggestedPlotNo,
+      plotSize: selectedS?.plotArea || 1200,
+      plotType: selectedS?.defaultPlotType || 'NORMAL',
+      baseRate: rateConfig?.baseSqFtRate || 500,
+      remarks: '',
+    });
+    setShowCreatePlotModal(true);
+  };
+
+  const handleSeriesChangeInPlotForm = (seriesId) => {
+    const selectedS = seriesList.find(s => s._id === seriesId);
+    let suggestedPlotNo = '';
+    if (selectedS) {
+      const existingInSeries = plots.filter(p => (p.seriesId?._id || p.seriesId) === selectedS._id);
+      const nextSeq = existingInSeries.length > 0
+        ? Math.max(...existingInSeries.map(p => p.sequenceNumber || 0)) + 1
+        : selectedS.endNumber + 1;
+
+      const match = selectedS.numberFormat?.match(/0+/);
+      if (match) {
+        const paddedNum = String(nextSeq).padStart(match[0].length, '0');
+        suggestedPlotNo = `${selectedS.prefix}${paddedNum}`;
+      } else {
+        suggestedPlotNo = `${selectedS.prefix}${nextSeq}`;
+      }
+    }
+
+    setPlotForm({
+      ...plotForm,
+      seriesId,
+      plotNumber: suggestedPlotNo || plotForm.plotNumber,
+      plotSize: selectedS?.plotArea || plotForm.plotSize,
+      plotType: selectedS?.defaultPlotType || plotForm.plotType,
+    });
+  };
+
+  const handleCreatePlot = async (e) => {
+    e.preventDefault();
+    if (!plotForm.plotNumber || !plotForm.plotSize) {
+      toast.warn('Please enter Plot Number and Plot Size');
+      return;
+    }
+    setSubmitLoading(true);
+    try {
+      await api.post('/plots', {
+        ...plotForm,
+        seriesId: plotForm.seriesId || undefined,
+      });
+      toast.success(`Plot "${plotForm.plotNumber.toUpperCase()}" created successfully!`);
+      setShowCreatePlotModal(false);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create plot');
     } finally {
       setSubmitLoading(false);
     }
@@ -218,12 +309,20 @@ const PlotSeriesMaster = () => {
         </div>
         <div className="flex items-center gap-3">
           {activeTab === 'series' && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm bg-primary"
-            >
-              <HiPlus className="w-4 h-4" /> Create Series Block
-            </button>
+            <>
+              <button
+                onClick={() => openCreatePlot()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm"
+              >
+                <HiPlus className="w-4 h-4" /> Create Plot
+              </button>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm bg-primary"
+              >
+                <HiPlus className="w-4 h-4" /> Create Series Block
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -319,7 +418,16 @@ const PlotSeriesMaster = () => {
                   {/* Series Header */}
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-bold text-slate-800 uppercase">{s.prefix}-Plot Series ({s.name})</span>
-                    <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1 rounded-full font-bold">Plots: {seriesPlots.length}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openCreatePlot(s._id)}
+                        className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg font-semibold transition flex items-center gap-1 cursor-pointer"
+                        title="Add plot to this series"
+                      >
+                        <HiPlus className="w-3.5 h-3.5" /> Add Plot
+                      </button>
+                      <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1 rounded-full font-bold">Plots: {seriesPlots.length}</span>
+                    </div>
                   </div>
 
                   {/* Grid of plots */}
@@ -365,6 +473,53 @@ const PlotSeriesMaster = () => {
                 </div>
               );
             })}
+
+            {/* Standalone Plots (if any) */}
+            {plots.some(p => !p.seriesId) && (
+              <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <span className="text-sm font-bold text-slate-800 uppercase">Standalone / Custom Plots</span>
+                  <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-full font-bold">
+                    Plots: {plots.filter(p => !p.seriesId).length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2">
+                  {plots.filter(p => !p.seriesId).map(p => {
+                    const isAvailable = p.status === 'AVAILABLE';
+                    const isCorner = p.plotType === 'CORNER';
+                    const isHold = p.status === 'HOLD';
+                    const isBooked = p.status === 'BOOKED' || p.status === 'REGISTERED';
+
+                    let colorCls = "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100";
+                    if (isHold) {
+                      colorCls = "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100";
+                    } else if (isBooked) {
+                      colorCls = "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60";
+                    }
+
+                    return (
+                      <div
+                        key={p._id}
+                        onClick={() => openPlotConfig(p)}
+                        className={`p-2 border rounded-xl flex flex-col justify-between transition cursor-pointer select-none relative group h-14 ${colorCls}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold tracking-wider">{p.plotNumber}</span>
+                          {isCorner && (
+                            <span className="text-[0.6rem] bg-indigo-600 text-white font-bold px-1 rounded">
+                              CORNER
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[0.6rem] opacity-80 font-semibold uppercase">{isAvailable ? 'Available' : p.status}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -585,6 +740,142 @@ const PlotSeriesMaster = () => {
               <button type="button" className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium text-xs text-slate-600 transition" onClick={() => setShowConfigModal(false)}>Cancel</button>
               <button type="submit" disabled={submitLoading} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-medium text-xs text-white rounded-xl shadow-sm transition min-w-[120px] flex items-center justify-center">
                 {submitLoading ? 'Saving...' : 'Save Configuration'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modalbox>
+
+      {/* ── CREATE INDIVIDUAL PLOT MODAL ── */}
+      <Modalbox open={showCreatePlotModal} onClose={() => setShowCreatePlotModal(false)}>
+        <div className="bg-white rounded-2xl w-[92vw] max-w-lg p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+                +
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Create Plot</h3>
+                <p className="text-xs text-slate-500">Add an individual plot to any existing series block</p>
+              </div>
+            </div>
+            <button
+              className="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer transition p-1"
+              onClick={() => setShowCreatePlotModal(false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <form onSubmit={handleCreatePlot} className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Series Block (Optional)</label>
+              <select
+                className={inputCls}
+                value={plotForm.seriesId}
+                onChange={e => handleSeriesChangeInPlotForm(e.target.value)}
+              >
+                <option value="">None / Standalone Plot</option>
+                {seriesList.map(s => (
+                  <option key={s._id} value={s._id}>
+                    {s.name} (Prefix: {s.prefix})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Plot Number *</label>
+                <input
+                  className={inputCls}
+                  type="text"
+                  placeholder="e.g. A025 or B101"
+                  value={plotForm.plotNumber}
+                  onChange={e => setPlotForm({ ...plotForm, plotNumber: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Corner Type</label>
+                <select
+                  className={inputCls}
+                  value={plotForm.plotType}
+                  onChange={e => setPlotForm({ ...plotForm, plotType: e.target.value })}
+                >
+                  <option value="NORMAL">Normal Plot</option>
+                  <option value="CORNER">Corner Plot (+{rateConfig.cornerExtraPercent || 20}%)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Plot Size (Sq Ft) *</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  placeholder="1200"
+                  value={plotForm.plotSize}
+                  onChange={e => setPlotForm({ ...plotForm, plotSize: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Base Rate (₹ / Sq Ft)</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={plotForm.baseRate}
+                  onChange={e => setPlotForm({ ...plotForm, baseRate: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Calculated dynamic value preview card */}
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-100 rounded-xl text-xs flex flex-col gap-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-600 font-medium">Effective Rate:</span>
+                <span className="font-bold text-slate-800">
+                  ₹{Math.round(Number(plotForm.baseRate || 500) * (plotForm.plotType === 'CORNER' ? (1 + (rateConfig.cornerExtraPercent || 20) / 100) : 1))} / Sq Ft
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-emerald-200/60 pt-1.5 font-bold text-sm">
+                <span className="text-slate-700">Estimated Value:</span>
+                <span className="text-emerald-700 text-base font-bold">
+                  ₹{Math.round(
+                    Number(plotForm.plotSize || 0) *
+                    (Number(plotForm.baseRate || 500) * (plotForm.plotType === 'CORNER' ? (1 + (rateConfig.cornerExtraPercent || 20) / 100) : 1))
+                  ).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Remarks / Notes (Optional)</label>
+              <textarea
+                className="w-full min-h-[55px] bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none p-2.5 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
+                placeholder="Optional notes for this plot..."
+                value={plotForm.remarks}
+                onChange={e => setPlotForm({ ...plotForm, remarks: e.target.value })}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 mt-2 pt-3 border-t border-slate-100 shrink-0">
+              <button
+                type="button"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium text-xs text-slate-600 transition"
+                onClick={() => setShowCreatePlotModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitLoading}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 font-medium text-xs text-white rounded-xl shadow-sm transition min-w-[110px] flex items-center justify-center"
+              >
+                {submitLoading ? 'Creating...' : 'Create Plot'}
               </button>
             </div>
           </form>

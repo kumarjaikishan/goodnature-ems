@@ -11,7 +11,7 @@ const plotReceiptSchema = new mongoose.Schema(
     },
     receiptType: {
       type: String,
-      enum: ['BOOKING', 'INSTALLMENT'],
+      enum: ['BOOKING', 'INSTALLMENT', 'DOWNPAYMENT', 'FULL_PAYMENT'],
       required: true,
     },
     bookingId: {

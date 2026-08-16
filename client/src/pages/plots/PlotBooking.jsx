@@ -123,7 +123,8 @@ const PlotBooking = () => {
     setSelectedCustomer(cust);
     setSearchQuery(cust.name);
     setSearchResults([]);
-    setForm(f => ({ ...f, customerId: cust._id }));
+    const sId = cust.sponsorId?._id || cust.sponsorId || '';
+    setForm(f => ({ ...f, customerId: cust._id, sponsorId: sId }));
   };
 
   const handlePlotSelect = (plotId) => {
@@ -459,7 +460,28 @@ const PlotBooking = () => {
                 )}
               </div>
 
-              {!selectedCustomer && (
+              {selectedCustomer ? (
+                <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2 text-xs text-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-800">{selectedCustomer.name}</span>
+                    <span className="font-mono font-bold text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded">
+                      {selectedCustomer.customerCode || selectedCustomer.customerId || 'ID N/A'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-indigo-100/60">
+                    <div><span className="text-slate-500">Mobile:</span> {selectedCustomer.mobile || 'N/A'}</div>
+                    <div><span className="text-slate-500">Email:</span> {selectedCustomer.email || 'N/A'}</div>
+                    <div className="col-span-2">
+                      <span className="text-slate-500">Assigned Sponsor:</span>{' '}
+                      <span className="font-semibold text-slate-800">
+                        {selectedCustomer.sponsorId?.name 
+                          ? `${selectedCustomer.sponsorId.name} (${selectedCustomer.sponsorId.sponsorCode || 'Sponsor'})`
+                          : 'Direct / Company'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
                 <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-2">
                   <p className="text-sm font-semibold text-slate-700">No customer selected.</p>
                   <p className="text-xs text-slate-500">If the customer is not registered yet, onboard them first on the customers page.</p>

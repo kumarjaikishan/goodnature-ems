@@ -29,7 +29,7 @@ const PlotCustomers = () => {
       });
       setCustomers(res.data || res.customers || res || []);
     } catch (err) {
-      console.error('Failed to load plot customers:', err);
+      console.error('Failed to load customers:', err);
     } finally {
       setLoading(false);
     }
@@ -127,7 +127,7 @@ const PlotCustomers = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Plot Customers</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Customers</h1>
           <p className="text-slate-500 text-sm">Manage customers registered under plot projects</p>
         </div>
         <button

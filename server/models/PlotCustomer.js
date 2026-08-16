@@ -23,6 +23,11 @@ const plotCustomerSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  sponsorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
   address: {
     type: String,
     default: '',

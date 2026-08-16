@@ -68,3 +68,26 @@ export const getAttendanceListApi = async (params = {}) => {
 
   return response.json();
 };
+
+export const getSingleEmployeeAttendanceApi = async (employeeId, date) => {
+  const query = new URLSearchParams({
+    employeeId,
+    date,
+  }).toString();
+
+  const response = await fetch(
+    `${import.meta.env.VITE_API_ADDRESS}singleEmployeeAttendance?${query}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("emstoken")}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch employee attendance");
+  }
+
+  return response.json();
+};

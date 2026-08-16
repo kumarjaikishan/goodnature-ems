@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { Autocomplete, Avatar, Box, Typography } from '@mui/material';
+import { Autocomplete, Avatar, Box, Typography, CircularProgress, Chip } from '@mui/material';
 import { Button, OutlinedInput } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import InputLabel from '@mui/material/InputLabel';
@@ -16,21 +16,86 @@ import { FaRegUser } from "react-icons/fa";
 import Modalbox from '../../../components/custommodal/Modalbox';
 import dayjs from 'dayjs';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import { getSingleEmployeeAttendanceApi } from '../../../api/attendance.api';
 
 const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle, setopenmodal, isUpdate, isload, inp, setinp, setisUpdate }) => {
 
     const { department, employee } = useSelector((state) => state.user);
+    const [fetchingAttendance, setFetchingAttendance] = useState(false);
+    const [existingRecord, setExistingRecord] = useState(null);
 
+    // Fetch existing attendance record when modal is open, employeeId is selected, and date is present
     useEffect(() => {
-        // console.log("employee:", employee)
-    }, [department]);
+        let isCancelled = false;
 
+        const checkExistingAttendance = async () => {
+            if (!openmodal || !inp?.employeeId || !inp?.date) {
+                setExistingRecord(null);
+                return;
+            }
+
+            try {
+                setFetchingAttendance(true);
+                const formattedDate = dayjs(inp.date).format('YYYY-MM-DD');
+                const res = await getSingleEmployeeAttendanceApi(inp.employeeId, formattedDate);
+                
+                if (isCancelled) return;
+
+                if (res?.success && res?.data) {
+                    const rec = res.data;
+                    setExistingRecord(rec);
+
+                    // Auto-fill form state based on existing record and action
+                    setinp(prev => ({
+                        ...prev,
+                        punchIn: rec.punchIn ? dayjs(rec.punchIn) : (prev.punchIn || null),
+                        punchOut: rec.punchOut ? dayjs(rec.punchOut) : (prev.punchOut || null),
+                        status: rec.status || prev.status || 'present',
+                        reason: rec.remarks || prev.reason || '',
+                    }));
+                } else {
+                    setExistingRecord(null);
+                }
+            } catch (err) {
+                if (!isCancelled) {
+                    console.error("Error fetching single employee attendance:", err);
+                    setExistingRecord(null);
+                }
+            } finally {
+                if (!isCancelled) {
+                    setFetchingAttendance(false);
+                }
+            }
+        };
+
+        checkExistingAttendance();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [openmodal, inp?.employeeId, inp?.date]);
+
+    // Reset existing record when modal closes
+    useEffect(() => {
+        if (!openmodal) {
+            setExistingRecord(null);
+        }
+    }, [openmodal]);
 
     return (
         <Modalbox open={openmodal} onClose={() => setopenmodal(false)}>
             <div className="membermodal w-[500px]">
                 <form onSubmit={submitHandle}>
-                    <h2>Mark Attendance</h2>
+                    <div className="flex items-center justify-between">
+                        <h2>Mark Attendance</h2>
+                        {fetchingAttendance && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
+                                <CircularProgress size={14} />
+                                <span>Checking attendance...</span>
+                            </div>
+                        )}
+                    </div>
+
                     <span className="modalcontent">
                         <div className='flex flex-col gap-3'>
                             <FormControl sx={{ width: '100%' }} size="small">
@@ -49,6 +114,7 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                     <MenuItem value={false}>Punch Out</MenuItem>
                                 </Select>
                             </FormControl>
+
                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                 <DatePicker
                                     slotProps={{
@@ -76,10 +142,9 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                 options={employee?.filter(e => e.status !== false) || []}
                                 getOptionLabel={(option) => option.userid.name} // still needed for filtering
                                 onChange={(event, newValue) => {
-                                    // console.log(newValue)
                                     setinp({
                                         ...inp,
-                                        employeeId: newValue._id,
+                                        employeeId: newValue ? newValue._id : '',
                                     })
                                 }}
                                 renderOption={(props, option) => {
@@ -92,7 +157,6 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                             {...rest} // spread the rest
                                         >
                                             <Avatar
-                                                // src={option.profileimage} 
                                                 src={cloudinaryUrl(option.profileimage, {
                                                     format: "webp",
                                                     width: 100,
@@ -115,6 +179,22 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                     <TextField {...params} label="Select Employee" required />
                                 )}
                             />
+
+                            {/* Existing Record Info Card */}
+                            {existingRecord && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-md p-2.5 text-xs text-gray-700 flex flex-col gap-1">
+                                    <div className="font-semibold text-blue-800 flex items-center justify-between">
+                                        <span>Existing Attendance Found</span>
+                                        <span className="capitalize px-1.5 py-0.5 rounded bg-blue-200 text-blue-900 font-medium">
+                                            {existingRecord.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-4 mt-0.5">
+                                        <span>Punch In: <strong>{existingRecord.punchIn ? dayjs(existingRecord.punchIn).format('hh:mm A') : 'Not marked'}</strong></span>
+                                        <span>Punch Out: <strong>{existingRecord.punchOut ? dayjs(existingRecord.punchOut).format('hh:mm A') : 'Not marked'}</strong></span>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className='flex gap-2 justify-between'>
                                 {isPunchIn ?
@@ -215,3 +295,4 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
 }
 
 export default MarkAttandence
+
