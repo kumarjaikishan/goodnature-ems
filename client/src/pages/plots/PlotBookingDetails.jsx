@@ -13,6 +13,7 @@ import {
   HiOutlineClipboardDocumentCheck,
   HiOutlinePrinter,
   HiOutlineCalendar,
+  HiOutlineSparkles,
 } from 'react-icons/hi2';
 
 const PlotBookingDetails = () => {
@@ -106,6 +107,12 @@ const PlotBookingDetails = () => {
             className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
           >
             <HiOutlineClipboardDocumentCheck className="w-4 h-4 text-slate-500" /> Agreement
+          </button>
+          <button
+            onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${booking._id}&bookingNumber=${booking.bookingNumber}`)}
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
+          >
+            <HiOutlineSparkles className="w-4 h-4 text-teal-700" /> Growth & Interest
           </button>
           {booking.scheme === 'FULL_PAYMENT' && booking.payoutStatus === 'ACTIVE' && (
             <button

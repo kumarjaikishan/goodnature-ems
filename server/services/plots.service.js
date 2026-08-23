@@ -23,7 +23,11 @@ class PlotsService {
       config = new PlotRateConfiguration({
         baseSqFtRate: 500,
         cornerExtraPercent: 20,
+        interestRatePercent: 10.88,
       });
+      await config.save();
+    } else if (config.interestRatePercent === undefined || config.interestRatePercent === null) {
+      config.interestRatePercent = 10.88;
       await config.save();
     }
     return config;
@@ -36,6 +40,7 @@ class PlotsService {
     } else {
       config.baseSqFtRate = data.baseSqFtRate ?? config.baseSqFtRate;
       config.cornerExtraPercent = data.cornerExtraPercent ?? config.cornerExtraPercent;
+      config.interestRatePercent = data.interestRatePercent !== undefined ? Number(data.interestRatePercent) : (config.interestRatePercent ?? 10.88);
     }
     await config.save();
     return config;
@@ -370,8 +375,28 @@ class PlotsService {
   async updatePlot(id, data, userId) {
     const plot = await Plot.findById(id);
     if (!plot) throw ApiError.notFound('Plot not found');
-    if (plot.status !== 'AVAILABLE' && plot.status !== 'HOLD') {
-      throw ApiError.badRequest('Can only edit properties of Available or Hold plots');
+    
+    const isBookedOrRegistered = plot.status === 'BOOKED' || plot.status === 'REGISTERED';
+
+    // If plot is booked or registered, size/corner/rate cannot be altered without cancelling or adjusting the booking contract
+    if (isBookedOrRegistered) {
+      const isAttemptingFinancialChange =
+        (data.plotSize !== undefined && Number(data.plotSize) !== plot.plotSize) ||
+        (data.plotType !== undefined && data.plotType !== plot.plotType) ||
+        (data.baseRate !== undefined && Number(data.baseRate) !== plot.baseRate);
+
+      if (isAttemptingFinancialChange) {
+        throw ApiError.badRequest(
+          `Cannot modify size, rate, or corner status for Plot ${plot.plotNumber} because it is currently ${plot.status}. Adjustments must be made through the Booking / Agreement module.`
+        );
+      }
+
+      // Allow remarks/notes updates on booked plots
+      if (data.remarks !== undefined) {
+        plot.remarks = data.remarks;
+        await plot.save();
+      }
+      return plot;
     }
 
     plot.plotType = data.plotType ?? plot.plotType;

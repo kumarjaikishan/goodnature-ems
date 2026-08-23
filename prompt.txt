@@ -1,0 +1,17 @@
+Analyze this repository and create a small persistent AI knowledge system for future sessions.
+
+Create:
+
+* `AGENTS.md` — main instructions and how AI should work on this project
+* `docs/PROJECT_CONTEXT.md` — project purpose, modules, tech stack
+* `docs/ARCHITECTURE.md` — actual architecture and important data flows
+* `docs/RULES.md` — coding, security, and project-specific rules
+* `docs/DECISIONS.md` — important decisions that should not be changed casually
+* `docs/TODO.md` — current pending work
+* `memory/SESSION_MEMORY.md` — important discoveries/fixes future sessions should remember
+
+First inspect the repository and populate these files using only information actually found in the codebase. Do not invent anything.
+
+Keep the documentation concise and practical. `AGENTS.md` should tell future AI sessions to read the relevant files before making changes, respect existing decisions, avoid unnecessary refactoring, and update the documentation when important project knowledge changes.
+
+Do not modify application code. At the end, briefly summarize what you created and any important unknowns or conflicts you found.

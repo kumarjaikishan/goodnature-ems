@@ -73,8 +73,16 @@ const plotRoutes = require('./router/plots.routes');
 app.use(apiMonitorMiddleware);
 
 // ----------------------
-// Routes
+// Health Check Routes (for Root / Render / Uptime monitors)
 // ----------------------
+app.get(['/', '/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    message: 'Good Nature EMS Server is healthy and running'
+  });
+});
 
 app.use('/api/plots', plotRoutes);
 app.use('/api', route);

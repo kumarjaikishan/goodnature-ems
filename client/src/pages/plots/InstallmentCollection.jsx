@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import DataTable from 'react-data-table-component';
+import { useCustomStyles } from '../admin/attandence/attandencehelper';
+import { CircularProgress } from '@mui/material';
 import {
   HiOutlineBanknotes,
   HiOutlineCheckCircle,
@@ -330,6 +333,135 @@ const InstallmentCollection = () => {
       txRef.includes(query);
   });
 
+  const customStyles = useCustomStyles();
+
+  const receiptColumns = [
+    {
+      name: 'Date',
+      selector: (row) => row.createdAt,
+      cell: (row) => (
+        <span className="text-slate-600 font-medium whitespace-nowrap">
+          {new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Booking No.',
+      selector: (row) => row.bookingId?.bookingNumber || '-',
+      cell: (row) => (
+        <span className="font-bold text-slate-900 tracking-wide font-mono">
+          {row.bookingId?.bookingNumber || '-'}
+        </span>
+      ),
+      sortable: true,
+      width: '150px',
+    },
+    {
+      name: 'Plot #',
+      selector: (row) => row.bookingId?.plotId?.plotNumber || '-',
+      cell: (row) => (
+        <span className="font-bold text-slate-800">
+          {row.bookingId?.plotId?.plotNumber || '-'}
+        </span>
+      ),
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Customer',
+      selector: (row) => row.bookingId?.customerId?.name || '-',
+      cell: (row) => (
+        <span className="font-bold text-slate-900">
+          {row.bookingId?.customerId?.name || '-'}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      name: 'Amount Paid',
+      selector: (row) => row.amount || 0,
+      cell: (row) => (
+        <span className="font-bold text-emerald-700 font-mono">
+          ₹{(row.amount || 0).toLocaleString('en-IN')}
+        </span>
+      ),
+      sortable: true,
+      width: '130px',
+    },
+    {
+      name: 'Type',
+      selector: (row) => row.receiptType,
+      cell: (row) => (
+        <span
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
+            row.receiptType === 'DOWNPAYMENT'
+              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+              : row.receiptType === 'FULL_PAYMENT'
+              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+              : 'bg-slate-100 text-slate-600 border border-slate-200'
+          }`}
+        >
+          {row.receiptType === 'DOWNPAYMENT' ? 'Down Payment' : row.receiptType === 'FULL_PAYMENT' ? 'Full Payment' : 'Installment'}
+        </span>
+      ),
+      sortable: true,
+      width: '140px',
+    },
+    {
+      name: 'Mode',
+      selector: (row) => row.paymentMode,
+      cell: (row) => (
+        <span className="font-bold uppercase text-xs text-slate-600">
+          {row.paymentMode}
+        </span>
+      ),
+      sortable: true,
+      width: '100px',
+    },
+    {
+      name: 'Ref No.',
+      selector: (row) => row.transactionReference || '-',
+      cell: (row) => (
+        <span className="font-mono text-xs text-slate-500">
+          {row.transactionReference || '-'}
+        </span>
+      ),
+      sortable: true,
+      width: '130px',
+    },
+    {
+      name: 'Actions',
+      width: '140px',
+      cell: (r) => (
+        <div className="flex items-center gap-1.5 py-1">
+          <button
+            onClick={() => navigate(`/dashboard/plots/receipts/${r._id}`)}
+            className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-semibold border border-slate-200 transition cursor-pointer flex items-center justify-center"
+            title="Print Receipt"
+          >
+            <HiOutlinePrinter className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleEditClick(r)}
+            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold border border-indigo-200 transition cursor-pointer flex items-center justify-center"
+            title="Edit Collection"
+          >
+            <HiOutlinePencilSquare className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setDeletingReceipt(r)}
+            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center"
+            title="Delete / Reverse"
+          >
+            <HiOutlineTrash className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 bg-slate-50 min-h-screen space-y-6">
       {/* Top Header Section */}
@@ -372,115 +504,60 @@ const InstallmentCollection = () => {
       </div>
 
       {view === 'list' ? (
-        /* Receipts Table View */
-        receiptsLoading ? (
-          <div className="p-8 text-center text-slate-500 font-medium bg-white rounded-2xl border border-slate-200">
-            Loading receipts list...
-          </div>
-        ) : (
-          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-            {/* Search and Filters Bar */}
-            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
-              <div className="relative w-full max-w-md">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="Search by Booking No, Plot #, Customer, Mode, Ref..."
-                  className="w-full h-10 pl-9 pr-9 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
-                    title="Clear Search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <div className="text-xs font-semibold text-slate-500">
-                Showing {filteredReceipts.length} of {receipts.length} collections
-              </div>
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between gap-4 border border-slate-200">
+            <div className="relative w-full max-w-md">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                placeholder="Search by Booking No, Plot #, Customer, Mode, Ref..."
+                className="w-full h-10 pl-9 pr-9 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                  title="Clear Search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
+            <div className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+              Showing {filteredReceipts.length} of {receipts.length} collections
+            </div>
+          </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 select-none">
-                    {['Date', 'Booking No.', 'Plot #', 'Customer', 'Amount Paid', 'Type', 'Mode', 'Ref No.', 'Actions'].map(h => (
-                      <th key={h} className="p-3.5 text-xs font-semibold uppercase text-slate-600 tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {!Array.isArray(receipts) || filteredReceipts.length === 0 ? (
-                    <tr>
-                      <td colSpan="9" className="p-8 text-center text-slate-400 italic font-medium">
-                        {receipts.length === 0 ? 'No receipt records found.' : 'No matching records found.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredReceipts.map(r => (
-                      <tr key={r._id} className="hover:bg-slate-50 transition">
-                        <td className="p-3.5 text-slate-600 font-medium">{new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                        <td className="p-3.5 font-bold text-indigo-600 tracking-wider">{r.bookingId?.bookingNumber || '-'}</td>
-                        <td className="p-3.5 font-bold text-slate-800">{r.bookingId?.plotId?.plotNumber || '-'}</td>
-                        <td className="p-3.5">
-                          <span className="font-bold text-slate-800">{r.bookingId?.customerId?.name || '-'}</span>
-                        </td>
-                        <td className="p-3.5 font-bold text-emerald-700">₹{(r.amount || 0).toLocaleString('en-IN')}</td>
-                        <td className="p-3.5">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
-                            r.receiptType === 'DOWNPAYMENT'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : r.receiptType === 'FULL_PAYMENT'
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
-                          }`}>
-                            {r.receiptType === 'DOWNPAYMENT' ? 'Down Payment' : r.receiptType === 'FULL_PAYMENT' ? 'Full Payment' : 'Installment'}
-                          </span>
-                        </td>
-                        <td className="p-3.5 font-bold uppercase text-xs text-slate-600">{r.paymentMode}</td>
-                        <td className="p-3.5 font-mono text-xs text-slate-500">{r.transactionReference || '-'}</td>
-                        <td className="p-3.5">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => navigate(`/dashboard/plots/receipts/${r._id}`)}
-                              className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 font-semibold border border-slate-200 transition cursor-pointer flex items-center justify-center"
-                              title="Print Receipt"
-                            >
-                              <HiOutlinePrinter className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleEditClick(r)}
-                              className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-semibold border border-indigo-200 transition cursor-pointer flex items-center justify-center"
-                              title="Edit Collection"
-                            >
-                              <HiOutlinePencilSquare className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingReceipt(r)}
-                              className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center"
-                              title="Delete / Reverse"
-                            >
-                              <HiOutlineTrash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+          {/* DataTable */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <DataTable
+              columns={receiptColumns}
+              data={filteredReceipts}
+              progressPending={receiptsLoading}
+              progressComponent={
+                <div className="p-8 flex justify-center">
+                  <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+                </div>
+              }
+              customStyles={customStyles}
+              pagination
+              responsive
+              highlightOnHover
+              noDataComponent={
+                <div className="p-8 text-center text-slate-400 italic font-medium">
+                  {receipts.length === 0 ? 'No receipt records found.' : 'No matching records found.'}
+                </div>
+              }
+            />
           </div>
-        )
+        </div>
       ) : (
         /* Form View (Record Collection) */
         <div className="max-w-5xl mx-auto w-full">

@@ -43,7 +43,7 @@ const PlotAgreementEnglish = ({
 
       {/* ── PAGE 1: STAMP PAPER & BY AND BETWEEN ── */}
       <div 
-        className="flex flex-col justify-between h-auto print:h-[260mm] pb-2 mb-6 print:mb-0 border-b print:border-b-0 border-slate-200" 
+        className="flex flex-col justify-between h-auto print:h-[260mm] pb-2 mb-6 print:mb-0" 
         style={{ pageBreakAfter: 'always', breakAfter: 'page' }}
       >
         <div className="space-y-2">
@@ -55,7 +55,7 @@ const PlotAgreementEnglish = ({
           </div>
 
           {/* Metadata Line */}
-          <div className="flex justify-between items-center text-[0.76rem] font-bold text-slate-900 border-b border-slate-200 pb-1.5 mb-2">
+          <div className="flex justify-between items-center text-[0.76rem] font-bold text-slate-900 pb-1.5 mb-2">
             <div>Name : <span className="uppercase font-extrabold">{customerName}</span></div>
             <div>Agreement No. : <span className="uppercase font-mono font-extrabold">{booking.agreementNumber || booking.bookingNumber}</span></div>
             <div>Plan : <span className="uppercase font-extrabold">{planCode}</span></div>
@@ -107,7 +107,7 @@ const PlotAgreementEnglish = ({
               <span>Authorized Signature</span>
             </div>
           </div>
-          <div className="text-center text-[0.72rem] font-bold text-slate-900 border-t border-slate-200 pt-1">
+          <div className="text-center text-[0.72rem] font-bold text-slate-900 pt-1">
             Page 1
           </div>
         </div>
@@ -118,7 +118,7 @@ const PlotAgreementEnglish = ({
         <thead className="hidden print:table-header-group">
           <tr>
             <th className="font-normal text-left pb-2">
-              <div className="font-sans pb-1.5 flex justify-between items-center text-[10px] font-bold text-slate-800 border-b border-slate-300">
+              <div className="font-sans pb-1.5 flex justify-between items-center text-[10px] font-bold text-slate-800">
                 <div>Name: <span className="uppercase">{customerName}</span></div>
                 <div>Agreement No.: <span className="uppercase">{booking.agreementNumber || booking.bookingNumber}</span></div>
                 <div>Plot: <span className="uppercase font-extrabold">{plot.plotNumber || 'N/A'}{(series.seriesCode || series.seriesName) ? ` (${series.seriesCode || series.seriesName})` : ''}</span></div>
@@ -130,7 +130,7 @@ const PlotAgreementEnglish = ({
         <tfoot className="hidden print:table-footer-group">
           <tr>
             <td className="pt-2">
-              <div className="font-sans pt-1 flex justify-between items-end text-[10px] text-slate-700 border-t border-slate-200">
+              <div className="font-sans pt-1 flex justify-between items-end text-[10px] text-slate-700">
                 <div className="text-left w-48">
                   <div className="h-4 border-b border-slate-400 border-dashed w-36 mb-0.5"></div>
                   <p className="font-bold text-slate-900 m-0 text-[9px]">Applicant Signature</p>

@@ -31,5 +31,19 @@ export default defineConfig({
       threshold: 1024
     })
   ],
-
+  server: {
+    allowedHosts: ['local.battlefiesta.in'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5008',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/events': {
+        target: 'http://localhost:5008',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })

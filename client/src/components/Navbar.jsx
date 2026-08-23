@@ -73,6 +73,7 @@ const Navbar = () => {
     "series-master": "Plot Series Master",
     "reports": "Plot Reports",
     "payout-ledger": "Payout Ledger",
+    "interest-calculator": "Plot Refund & Settlement Calculator",
   };
 
   const notifications = [

@@ -1,7 +1,8 @@
 import { useDispatch, useSelector } from "react-redux";
 import { setPrimaryColor, toogleextendedonMobile, toogleliveAttandence } from "../../store/userSlice";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
+import api from "../api/axios";
+import { toast } from "react-toastify";
 
 const Settings = () => {
     const dispatch = useDispatch();
@@ -28,8 +29,8 @@ const Settings = () => {
     ];
 
     return (
-        <div className="p-1 py-2 md:p-4 flex flex-col gap-2 max-w-6xl mx-auto ">
-            <h2 className="text-xl font-semibold mb-4">Settings</h2>
+        <div className="p-1 py-2 md:p-4 flex flex-col gap-4 max-w-6xl mx-auto ">
+            <h2 className="text-xl font-semibold mb-2">Settings</h2>
 
             <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow">
                 <span className="text-gray-700">Extended Sidebar on Mobile</span>
@@ -69,7 +70,8 @@ const Settings = () => {
                     </label>
                 </div>
             }
-            <div className="p-1 relative mt-6 md:p-4 rounded border border-dashed border-teal-800">
+
+            <div className="p-1 relative mt-2 md:p-4 rounded border border-dashed border-teal-800">
                 {/* Floating Label */}
                 <span className="absolute translate-y-[-50%] top-0 left-3 px-1 text-sm font-medium text-teal-800 bg-gray-100">
                     Choose Primary Color

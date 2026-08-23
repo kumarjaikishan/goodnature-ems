@@ -91,6 +91,7 @@ const PlotAgreementViewer = lazy(() => import('./pages/plots/PlotAgreementViewer
 const BookingCertificateViewer = lazy(() => import('./pages/plots/BookingCertificateViewer'));
 const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
 const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
+const PlotInterestCalculator = lazy(() => import('./pages/plots/PlotInterestCalculator'));
 
 // 🔹 Role-based route definitions
 const routesByRole = {
@@ -128,7 +129,7 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/inventory" element={<PlotInventory />} />
+      <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
@@ -146,6 +147,7 @@ const routesByRole = {
       <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
+      <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -183,7 +185,7 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/inventory" element={<PlotInventory />} />
+      <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
@@ -201,6 +203,7 @@ const routesByRole = {
       <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
+      <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -239,7 +242,7 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/inventory" element={<PlotInventory />} />
+      <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
@@ -257,6 +260,7 @@ const routesByRole = {
       <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
+      <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),

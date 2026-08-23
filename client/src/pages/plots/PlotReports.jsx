@@ -2,7 +2,22 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { HiOutlineChartBar, HiOutlineCheckCircle, HiOutlinePrinter, HiOutlineXCircle, HiOutlineTrash, HiOutlinePencilSquare, HiOutlineBanknotes, HiOutlineDocumentText, HiOutlineClipboardDocumentCheck, HiXMark, HiOutlineEye } from 'react-icons/hi2';
+import DataTable from 'react-data-table-component';
+import { useCustomStyles } from '../admin/attandence/attandencehelper';
+import {
+  HiOutlineChartBar,
+  HiOutlineCheckCircle,
+  HiOutlinePrinter,
+  HiOutlineXCircle,
+  HiOutlineTrash,
+  HiOutlinePencilSquare,
+  HiOutlineBanknotes,
+  HiOutlineDocumentText,
+  HiOutlineClipboardDocumentCheck,
+  HiXMark,
+  HiOutlineEye,
+  HiOutlineSparkles,
+} from 'react-icons/hi2';
 import Modalbox from '../../components/custommodal/Modalbox';
 import { CircularProgress } from '@mui/material';
 
@@ -157,7 +172,7 @@ const PlotReports = () => {
     setEditingBooking(booking);
 
     if (plotsList.length === 0) {
-      api.get('/plots?limit=5000').then((res) => setPlotsList(res.data.data || [])).catch(() => {});
+      api.get('/plots?limit=5000').then((res) => setPlotsList(res.data.data || [])).catch(() => { });
     }
 
     const custObj = booking.customerId;
@@ -329,33 +344,451 @@ const PlotReports = () => {
 
   const filteredBookings = Array.isArray(data) && activeTab === 'bookings'
     ? data.filter(b => {
-        const matchesSearch = 
-          b.bookingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (b.customerId?.name || b.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (b.customerId?.mobile || b.customerMobile || '').includes(searchTerm);
-          
-        const matchesScheme = !schemeFilter || b.scheme === schemeFilter;
-        const matchesStatus = !statusFilter || b.status === statusFilter;
-        
-        return matchesSearch && matchesScheme && matchesStatus;
-      })
+      const matchesSearch =
+        b.bookingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.customerId?.name || b.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.customerId?.mobile || b.customerMobile || '').includes(searchTerm);
+
+      const matchesScheme = !schemeFilter || b.scheme === schemeFilter;
+      const matchesStatus = !statusFilter || b.status === statusFilter;
+
+      return matchesSearch && matchesScheme && matchesStatus;
+    })
     : [];
 
   const filteredDues = Array.isArray(data) && activeTab === 'dues'
     ? data.filter(b => {
-        const matchesSearch =
-          b.bookingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (b.customerId?.name || b.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (b.customerId?.mobile || b.customerMobile || '').includes(searchTerm);
-          
-        const matchesScheme = !schemeFilter || b.scheme === schemeFilter;
-        const matchesDueStatus = !statusFilter || b.dueStatus === statusFilter;
-        
-        return matchesSearch && matchesScheme && matchesDueStatus;
-      })
+      const matchesSearch =
+        b.bookingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.customerId?.name || b.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.customerId?.mobile || b.customerMobile || '').includes(searchTerm);
+
+      const matchesScheme = !schemeFilter || b.scheme === schemeFilter;
+      const matchesDueStatus = !statusFilter || b.dueStatus === statusFilter;
+
+      return matchesSearch && matchesScheme && matchesDueStatus;
+    })
     : [];
 
+  const customStyles = useCustomStyles();
 
+  // Columns for Bookings Tab
+  const bookingColumns = [
+    {
+      name: 'Booking Date',
+      selector: (row) => row.bookingDate || row.createdAt,
+      cell: (row) => (
+        <span className="text-slate-600 font-medium whitespace-nowrap">
+          {new Date(row.bookingDate || row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Booking & Plot #',
+      selector: (row) => row.bookingNumber,
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-900 tracking-wide font-mono">{row.bookingNumber}</span>
+          <span className="text-[11px] font-semibold text-slate-600">Plot: {row.plotId?.plotNumber || 'N/A'}</span>
+        </div>
+      ),
+      sortable: true,
+      width: '160px',
+    },
+    {
+      name: 'Customer',
+      selector: (row) => row.customerId?.name || row.customerName,
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-900">{row.customerId?.name || row.customerName}</span>
+          <span className="text-[11px] text-slate-500 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      name: 'Plot Value',
+      selector: (row) => row.plotValue || 0,
+      cell: (row) => <span className="font-bold text-slate-900 font-mono">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
+      sortable: true,
+      width: '130px',
+    },
+    {
+      name: 'Discount',
+      selector: (row) => row.discount || 0,
+      cell: (row) => (
+        <span className="font-semibold text-slate-700 font-mono">
+          {row.discount > 0 ? `₹${(row.discount || 0).toLocaleString('en-IN')}` : '-'}
+        </span>
+      ),
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Paid Amount',
+      selector: (row) => Math.max(0, (row.plotValue || 0) - (row.discount || 0) - (row.remainingAmount || 0)),
+      cell: (row) => (
+        <span className="font-bold text-slate-900 font-mono">
+          ₹{Math.max(0, (row.plotValue || 0) - (row.discount || 0) - (row.remainingAmount || 0)).toLocaleString('en-IN')}
+        </span>
+      ),
+      sortable: true,
+      width: '130px',
+    },
+    {
+      name: 'Outstanding',
+      selector: (row) => row.remainingAmount || 0,
+      cell: (row) => <span className="font-bold text-slate-900 font-mono">₹{(row.remainingAmount || 0).toLocaleString('en-IN')}</span>,
+      sortable: true,
+      width: '130px',
+    },
+    {
+      name: 'Status',
+      selector: (row) => row.status,
+      cell: (row) => (
+        <span
+          className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+            row.status === 'ACTIVE'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-slate-100 text-slate-700 border border-slate-200'
+          }`}
+        >
+          {row.status}
+        </span>
+      ),
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Actions',
+      width: '260px',
+      cell: (b) => (
+        <div className="flex items-center gap-1.5 py-1">
+          <button
+            onClick={() => navigate(`/dashboard/plots/booking/${b._id}`)}
+            title="View Full Plot & Booking Details"
+            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer border border-slate-200"
+          >
+            <HiOutlineEye className="w-4 h-4" />
+          </button>
+          {b.receiptId && (
+            <button
+              onClick={() => navigate(`/dashboard/plots/receipts/${b.receiptId}`)}
+              title="Print Booking Receipt"
+              className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition cursor-pointer border border-sky-200"
+            >
+              <HiOutlinePrinter className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
+            title="Print Booking Certificate"
+            className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200"
+          >
+            <HiOutlineDocumentText className="w-4 h-4" />
+          </button>
+          <button
+            onClick={async () => {
+              if (b.agreementNumber && b.agreementNumber.trim() !== '') {
+                navigate(`/dashboard/plots/agreements/${b._id}`);
+              } else {
+                const input = window.prompt(
+                  `Enter Agreement Number for Booking #${b.bookingNumber} (Plot #${b.plotId?.plotNumber || ''}):`,
+                  ''
+                );
+                if (input === null) return;
+                const finalAgreementNo = input.trim();
+                if (finalAgreementNo) {
+                  try {
+                    await api.put(`/plots/bookings/${b._id}`, { agreementNumber: finalAgreementNo });
+                    toast.success('Agreement number saved successfully');
+                    b.agreementNumber = finalAgreementNo;
+                  } catch (err) {
+                    console.error('Failed to update agreement number:', err);
+                  }
+                }
+                navigate(`/dashboard/plots/agreements/${b._id}`);
+              }
+            }}
+            title="Print Agreement"
+            className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition cursor-pointer border border-amber-200"
+          >
+            <HiOutlineClipboardDocumentCheck className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleEditClick(b)}
+            title="Edit Booking"
+            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200"
+          >
+            <HiOutlinePencilSquare className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => openDeleteBookingModal(b)}
+            disabled={deletingId === b._id}
+            title="Delete Booking"
+            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50"
+          >
+            {deletingId === b._id ? (
+              <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <HiOutlineTrash className="w-4 h-4" />
+            )}
+          </button>
+
+          {b.scheme === 'FULL_PAYMENT' && b.remainingAmount === 0 && (
+            <>
+              {(!b.payoutStatus || b.payoutStatus === 'INACTIVE') ? (
+                <button
+                  onClick={() => {
+                    setSetupPayoutBooking(b);
+                    setSetupPayoutForm({
+                      startDate: new Date().toISOString().split('T')[0],
+                      weeklyAmount: Math.round((b.plotValue / 500) * 100) / 100
+                    });
+                  }}
+                  title="Setup Money-Back Payouts"
+                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200"
+                >
+                  <HiOutlineBanknotes className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate(`/dashboard/plots/payout-ledger?bookingId=${b._id}`)}
+                  title="View Weekly Payout Ledger"
+                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition cursor-pointer border border-emerald-300"
+                >
+                  <HiOutlineBanknotes className="w-4 h-4" />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  // Columns for Dues Tab
+  const dueColumns = [
+    {
+      name: 'Booking Date',
+      selector: (row) => row.bookingDate || row.createdAt,
+      cell: (row) => (
+        <span className="text-slate-600 font-medium whitespace-nowrap">
+          {new Date(row.bookingDate || row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Booking & Plot #',
+      selector: (row) => row.bookingNumber,
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="font-extrabold text-slate-900 font-mono tracking-wide">{row.bookingNumber}</span>
+          <span className="text-[11px] font-bold text-slate-700">Plot #{row.plotId?.plotNumber}</span>
+        </div>
+      ),
+      sortable: true,
+      width: '150px',
+    },
+    {
+      name: 'Customer Name',
+      selector: (row) => row.customerId?.name || row.customerName,
+      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap">{row.customerId?.name || row.customerName}</span>,
+      sortable: true,
+    },
+    {
+      name: 'Scheme',
+      selector: (row) => row.scheme,
+      cell: (row) => (
+        <span className="font-semibold text-slate-700 uppercase whitespace-nowrap">
+          {row.scheme === 'FULL_PAYMENT' ? 'One Time' : 'EMI'}
+        </span>
+      ),
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Plot Value',
+      selector: (row) => row.plotValue || 0,
+      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Net Payable',
+      selector: (row) => row.netPlotValue || (row.plotValue || 0) - (row.discount || 0),
+      cell: (row) => (
+        <span className="font-bold text-slate-900 whitespace-nowrap font-mono">
+          ₹{(row.netPlotValue || (row.plotValue || 0) - (row.discount || 0)).toLocaleString('en-IN')}
+        </span>
+      ),
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Paid Amount',
+      selector: (row) => row.totalPaid || 0,
+      cell: (row) => <span className="font-bold text-emerald-800 whitespace-nowrap font-mono">₹{(row.totalPaid || 0).toLocaleString('en-IN')}</span>,
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Due Amount',
+      selector: (row) => row.totalDue || row.remainingAmount || 0,
+      cell: (row) => (
+        <span className="font-bold text-rose-700 whitespace-nowrap font-mono">
+          ₹{(row.totalDue || row.remainingAmount || 0).toLocaleString('en-IN')}
+        </span>
+      ),
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'EMIs Paid',
+      selector: (row) => row.paidInstallmentsCount || 0,
+      cell: (row) => (
+        <span className="font-semibold text-slate-800 whitespace-nowrap">
+          {row.totalInstallmentsCount > 0 ? `${row.paidInstallmentsCount} / ${row.totalInstallmentsCount}` : '1 / 1'}
+        </span>
+      ),
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Status',
+      selector: (row) => row.dueStatus,
+      cell: (row) => (
+        <span
+          className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+            row.dueStatus === 'COMPLETED'
+              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+              : 'bg-rose-50 text-rose-700 border border-rose-200'
+          }`}
+        >
+          {row.dueStatus}
+        </span>
+      ),
+      sortable: true,
+      width: '120px',
+    },
+    {
+      name: 'Action',
+      width: '100px',
+      cell: (b) => (
+        <button
+          onClick={() => navigate(`/dashboard/plots/installments?bookingId=${b._id}`)}
+          className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer"
+        >
+          Collect
+        </button>
+      ),
+    },
+  ];
+
+  // Columns for Holds Tab
+  const holdColumns = [
+    {
+      name: 'Plot #',
+      selector: (row) => row.plotId?.plotNumber || '',
+      cell: (row) => <span className="font-bold text-slate-900 font-mono">{row.plotId?.plotNumber}</span>,
+      sortable: true,
+      width: '100px',
+    },
+    {
+      name: 'Customer',
+      selector: (row) => row.customerId?.name || row.customerName,
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-900">{row.customerId?.name || row.customerName}</span>
+          <span className="text-[11px] text-slate-600 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      name: 'Hold Deposit',
+      selector: (row) => row.bookingAmount || 0,
+      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono">₹{(row.bookingAmount || 0).toLocaleString('en-IN')}</span>,
+      sortable: true,
+      width: '130px',
+    },
+    {
+      name: 'Hours Remaining',
+      selector: (row) => getHoldHoursLeft(row.holdExpiryDate),
+      cell: (row) => <span className="font-bold text-amber-800 whitespace-nowrap">{getHoldHoursLeft(row.holdExpiryDate)}</span>,
+      sortable: true,
+      width: '140px',
+    },
+    {
+      name: 'Status',
+      selector: (row) => row.status,
+      cell: (row) => (
+        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+          {row.status}
+        </span>
+      ),
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Expiry Date',
+      selector: (row) => row.holdExpiryDate,
+      cell: (row) => (
+        <span className="text-slate-800 font-medium whitespace-nowrap">
+          {new Date(row.holdExpiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </span>
+      ),
+      sortable: true,
+      width: '160px',
+    },
+    {
+      name: 'Action',
+      width: '160px',
+      cell: (h) => (
+        <div className="flex items-center gap-1.5 py-1">
+          <button
+            onClick={() => navigate(`/dashboard/plots/booking/${h._id}`)}
+            title="View Full Plot & Hold Details"
+            className="p-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-lg transition cursor-pointer border border-slate-300"
+          >
+            <HiOutlineEye className="w-4 h-4" />
+          </button>
+          {h.receiptId && (
+            <button
+              onClick={() => navigate(`/dashboard/plots/receipts/${h.receiptId}`)}
+              title="Print Booking Receipt"
+              className="p-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-lg transition cursor-pointer border border-slate-300"
+            >
+              <HiOutlinePrinter className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => handleEditClick(h)}
+            title="Edit Hold"
+            className="p-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-lg transition cursor-pointer border border-slate-300"
+          >
+            <HiOutlinePencilSquare className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleDeleteBooking(h._id)}
+            disabled={deletingId === h._id}
+            title="Delete Hold Reservation"
+            className="p-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50"
+          >
+            {deletingId === h._id ? (
+              <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <HiOutlineTrash className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen space-y-6">
@@ -376,7 +809,7 @@ const PlotReports = () => {
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm bg-primary"
             type="button"
           >
-            Add Booking
+            New Booking
           </button>
         </div>
       </div>
@@ -391,11 +824,10 @@ const PlotReports = () => {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`pb-3 text-sm font-bold border-b-2 cursor-pointer transition ${
-                activeTab === t.id
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
+              className={`pb-3 text-sm font-bold border-b-2 cursor-pointer transition ${activeTab === t.id
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
             >
               {t.label}
             </button>
@@ -513,310 +945,74 @@ const PlotReports = () => {
           </div>
         </div>
       )}
-            {/* Content */}
-      {loading ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 flex justify-center items-center">
-          <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-        </div>
-      ) : activeTab === 'bookings' ? (
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 select-none">
-                  {['Date', 'Booking & Plot #', 'Customer', 'Plot Value', 'Discount', 'Paid Amount', 'Outstanding', 'Status', 'Action'].map(h => (
-                    <th key={h} className="p-3.5 text-xs font-semibold uppercase text-slate-600 tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {!Array.isArray(filteredBookings) || filteredBookings.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="p-8 text-center text-slate-400 italic font-medium">
-                      {data.length === 0 ? 'No bookings recorded yet.' : 'No bookings match the selected filters.'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredBookings.map(b => (
-                    <tr key={b._id} className="hover:bg-slate-50 transition">
-                      <td className="p-3.5 text-slate-600 font-medium whitespace-nowrap">{new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                      <td className="p-3.5">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-indigo-600 tracking-wider">{b.bookingNumber}</span>
-                          <span className="text-xs font-semibold text-slate-700">Plot: {b.plotId?.plotNumber || 'N/A'}</span>
-                        </div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">{b.customerId?.name || b.customerName}</span>
-                          <span className="text-xs text-slate-500 font-medium">{b.customerId?.mobile || b.customerMobile}</span>
-                        </div>
-                      </td>
-                      <td className="p-3.5 font-bold text-slate-800">₹{(b.plotValue || 0).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-bold text-amber-600">
-                        {b.discount > 0 ? `₹${(b.discount || 0).toLocaleString('en-IN')}` : '-'}
-                      </td>
-                      <td className="p-3.5 font-bold text-emerald-700">₹{Math.max(0, (b.plotValue || 0) - (b.discount || 0) - (b.remainingAmount || 0)).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-bold text-indigo-600">₹{(b.remainingAmount || 0).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
-                          b.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                          'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}>
-                          {b.status}
-                        </span>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => navigate(`/dashboard/plots/booking/${b._id}`)}
-                            title="View Full Plot & Booking Details"
-                            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer border border-slate-200"
-                          >
-                            <HiOutlineEye className="w-4 h-4" />
-                          </button>
-                          {b.receiptId && (
-                            <button
-                              onClick={() => navigate(`/dashboard/plots/receipts/${b.receiptId}`)}
-                              title="Print Booking Receipt"
-                              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer border border-slate-200"
-                            >
-                              <HiOutlinePrinter className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
-                            title="Print Booking Certificate"
-                            className="p-2 bg-slate-100 hover:bg-slate-200 text-emerald-700 rounded-xl transition cursor-pointer border border-slate-200"
-                          >
-                            <HiOutlineDocumentText className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (b.agreementNumber && b.agreementNumber.trim() !== '') {
-                                navigate(`/dashboard/plots/agreements/${b._id}`);
-                              } else {
-                                const input = window.prompt(
-                                  `Enter Agreement Number for Booking #${b.bookingNumber} (Plot #${b.plotId?.plotNumber || ''}):`,
-                                  ''
-                                );
-                                if (input === null) return;
-                                const finalAgreementNo = input.trim();
-                                if (finalAgreementNo) {
-                                  try {
-                                    await api.put(`/plots/bookings/${b._id}`, { agreementNumber: finalAgreementNo });
-                                    toast.success('Agreement number saved successfully');
-                                    b.agreementNumber = finalAgreementNo;
-                                  } catch (err) {
-                                    console.error('Failed to update agreement number:', err);
-                                  }
-                                }
-                                navigate(`/dashboard/plots/agreements/${b._id}`);
-                              }
-                            }}
-                            title="Print Buyer Agreement (Bond Paper)"
-                            className="p-2 bg-slate-100 hover:bg-slate-200 text-amber-700 rounded-xl transition cursor-pointer border border-slate-200"
-                          >
-                            <HiOutlineClipboardDocumentCheck className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEditClick(b)}
-                            title="Edit Booking"
-                            className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer border border-indigo-200"
-                          >
-                            <HiOutlinePencilSquare className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => openDeleteBookingModal(b)}
-                            disabled={deletingId === b._id}
-                            title="Delete Booking"
-                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer border border-rose-200 disabled:opacity-50"
-                          >
-                            {deletingId === b._id ? (
-                              <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <HiOutlineTrash className="w-4 h-4" />
-                            )}
-                          </button>
+      {/* Table Content */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {activeTab === 'bookings' && (
+          <DataTable
+            columns={bookingColumns}
+            data={filteredBookings}
+            progressPending={loading}
+            progressComponent={
+              <div className="p-8 flex justify-center">
+                <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+              </div>
+            }
+            customStyles={customStyles}
+            pagination
+            responsive
+            highlightOnHover
+            noDataComponent={
+              <div className="p-8 text-center text-slate-400 italic font-medium">
+                {data.length === 0 ? 'No bookings recorded yet.' : 'No bookings match the selected filters.'}
+              </div>
+            }
+          />
+        )}
 
-                          {b.scheme === 'FULL_PAYMENT' && b.remainingAmount === 0 && (
-                            <>
-                              {(!b.payoutStatus || b.payoutStatus === 'INACTIVE') ? (
-                                <button
-                                  onClick={() => {
-                                    setSetupPayoutBooking(b);
-                                    setSetupPayoutForm({
-                                      startDate: new Date().toISOString().split('T')[0],
-                                      weeklyAmount: Math.round((b.plotValue / 500) * 100) / 100
-                                    });
-                                  }}
-                                  title="Setup Money-Back Payouts"
-                                  className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition cursor-pointer border border-emerald-200"
-                                >
-                                  <HiOutlineBanknotes className="w-4 h-4" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => navigate(`/dashboard/plots/payout-ledger?bookingId=${b._id}`)}
-                                  title="View Weekly Payout Ledger"
-                                  className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer border border-indigo-200"
-                                >
-                                  <HiOutlineBanknotes className="w-4 h-4 animate-pulse" />
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : activeTab === 'holds' ? (
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 select-none">
-                  {['Plot #', 'Customer', 'Hold Deposit', 'Hours Remaining', 'Status', 'Expiry Date', 'Action'].map(h => (
-                    <th key={h} className="p-3.5 text-xs font-semibold uppercase text-slate-600 tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {!Array.isArray(data) || data.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="p-8 text-center text-slate-400 italic font-medium">No plots currently on hold.</td>
-                  </tr>
-                ) : (
-                  data.map(h => (
-                    <tr key={h._id} className="hover:bg-slate-50 transition">
-                      <td className="p-3.5 font-bold text-slate-800">{h.plotId?.plotNumber}</td>
-                      <td className="p-3.5">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">{h.customerId?.name || h.customerName}</span>
-                          <span className="text-xs text-slate-500 font-medium">{h.customerId?.mobile || h.customerMobile}</span>
-                        </div>
-                      </td>
-                      <td className="p-3.5 font-bold text-slate-800">₹{(h.bookingAmount || 0).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-bold text-amber-700">{getHoldHoursLeft(h.holdExpiryDate)}</td>
-                      <td className="p-3.5">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                          {h.status}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-slate-600 font-medium">{new Date(h.holdExpiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => navigate(`/dashboard/plots/booking/${h._id}`)}
-                            title="View Full Plot & Hold Details"
-                            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer border border-slate-200"
-                          >
-                            <HiOutlineEye className="w-4 h-4" />
-                          </button>
-                          {h.receiptId && (
-                            <button
-                              onClick={() => navigate(`/dashboard/plots/receipts/${h.receiptId}`)}
-                              title="Print Booking Receipt"
-                              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer border border-slate-200"
-                            >
-                              <HiOutlinePrinter className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleEditClick(h)}
-                            title="Edit Hold"
-                            className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer border border-indigo-200"
-                          >
-                            <HiOutlinePencilSquare className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(h._id)}
-                            disabled={deletingId === h._id}
-                            title="Delete Hold Reservation"
-                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer border border-rose-200 disabled:opacity-50"
-                          >
-                            {deletingId === h._id ? (
-                              <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <HiOutlineTrash className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : activeTab === 'dues' ? (
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 select-none">
-                  {['Booking Date', 'Booking & Plot #', 'Customer Name', 'Scheme', 'Plot Value', 'Net Payable', 'Paid Amount', 'Due Amount', 'EMIs Paid', 'Status', 'Action'].map(h => (
-                    <th key={h} className="p-3.5 text-xs font-semibold uppercase text-slate-600 tracking-wider whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {!Array.isArray(filteredDues) || filteredDues.length === 0 ? (
-                  <tr>
-                    <td colSpan="11" className="p-8 text-center text-slate-400 italic font-medium">
-                      No due records match the selected filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredDues.map(b => (
-                    <tr key={b._id} className="hover:bg-slate-50 transition">
-                      <td className="p-3.5 text-slate-600 font-medium whitespace-nowrap">{new Date(b.bookingDate || b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                      <td className="p-3.5 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-indigo-600 font-mono">{b.bookingNumber}</span>
-                          <span className="text-xs text-slate-500 font-medium">Plot #{b.plotId?.plotNumber}</span>
-                        </div>
-                      </td>
-                      <td className="p-3.5 font-bold text-slate-800 whitespace-nowrap">{b.customerId?.name || b.customerName}</td>
-                      <td className="p-3.5 font-semibold text-slate-600 uppercase whitespace-nowrap">{b.scheme === 'FULL_PAYMENT' ? 'One Time' : 'EMI'}</td>
-                      <td className="p-3.5 font-bold text-slate-800 whitespace-nowrap">₹{(b.plotValue || 0).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-bold text-slate-800 whitespace-nowrap">₹{(b.netPlotValue || (b.plotValue || 0) - (b.discount || 0)).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-bold text-emerald-700 whitespace-nowrap">₹{(b.totalPaid || 0).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-bold text-rose-600 whitespace-nowrap">₹{(b.totalDue || b.remainingAmount || 0).toLocaleString('en-IN')}</td>
-                      <td className="p-3.5 font-medium text-slate-600 whitespace-nowrap">
-                        {b.totalInstallmentsCount > 0 ? `${b.paidInstallmentsCount} / ${b.totalInstallmentsCount}` : '1 / 1'}
-                      </td>
-                      <td className="p-3.5 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
-                          b.dueStatus === 'COMPLETED'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}>
-                          {b.dueStatus}
-                        </span>
-                      </td>
-                      <td className="p-3.5 whitespace-nowrap">
-                        <button
-                          onClick={() => navigate(`/dashboard/plots/installments?bookingId=${b._id}`)}
-                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-xl shadow-sm transition"
-                        >
-                          Collect
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
+        {activeTab === 'dues' && (
+          <DataTable
+            columns={dueColumns}
+            data={filteredDues}
+            progressPending={loading}
+            progressComponent={
+              <div className="p-8 flex justify-center">
+                <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+              </div>
+            }
+            customStyles={customStyles}
+            pagination
+            responsive
+            highlightOnHover
+            noDataComponent={
+              <div className="p-8 text-center text-slate-500 italic font-medium">
+                No due records match the selected filters.
+              </div>
+            }
+          />
+        )}
+
+        {activeTab === 'holds' && (
+          <DataTable
+            columns={holdColumns}
+            data={data}
+            progressPending={loading}
+            progressComponent={
+              <div className="p-8 flex justify-center">
+                <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+              </div>
+            }
+            customStyles={customStyles}
+            pagination
+            responsive
+            highlightOnHover
+            noDataComponent={
+              <div className="p-8 text-center text-slate-500 italic font-medium">
+                No plots currently on hold.
+              </div>
+            }
+          />
+        )}
+      </div>
 
       {/* Edit Contract Modal */}
       <Modalbox open={Boolean(editingBooking)} onClose={() => setEditingBooking(null)}>
@@ -841,7 +1037,7 @@ const PlotReports = () => {
             {/* 1. Customer & Plot Selection */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">1. Customer & Plot Assignment</h4>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Customer Search */}
                 <div className="flex flex-col gap-1 relative">
@@ -1128,7 +1324,7 @@ const PlotReports = () => {
                         />
                       </div>
                     </div>
-                    
+
                     {(() => {
                       const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking?.plotId || {};
                       const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking?.plotValue || 0);
@@ -1454,9 +1650,8 @@ const PlotReports = () => {
           return (
             <div className="bg-white rounded-2xl w-[92vw] max-w-md p-6 flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
-                  hasCollections ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
-                }`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${hasCollections ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
+                  }`}>
                   {hasCollections ? '⚠️' : '🗑️'}
                 </div>
                 <div>

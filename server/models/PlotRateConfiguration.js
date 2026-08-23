@@ -14,6 +14,11 @@ const plotRateConfigurationSchema = new mongoose.Schema(
       default: 20,
       min: 0,
     },
+    interestRatePercent: {
+      type: Number,
+      default: 10.88,
+      min: 0,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive'],
