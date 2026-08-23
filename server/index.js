@@ -14,8 +14,19 @@ const { apiMonitorMiddleware } = require('./utils/apiMonitor');
 require('./conn/conn');
 
 // Enable CORS
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or server-to-server) or matching allowed origins / vercel previews
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Alternatively allow all in production if needed
+  },
   credentials: true
 }));
 
