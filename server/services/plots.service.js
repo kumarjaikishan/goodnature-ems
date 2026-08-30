@@ -1377,10 +1377,12 @@ class PlotsService {
         },
       ]),
       PlotBooking.aggregate([
+        { $match: { status: { $ne: 'CANCELLED' } } },
         {
           $group: {
             _id: null,
             totalValue: { $sum: '$plotValue' },
+            totalDiscount: { $sum: { $ifNull: ['$discount', 0] } },
             bookingAmount: { $sum: '$bookingAmount' },
             remainingAmount: { $sum: '$remainingAmount' },
             count: { $sum: 1 },
@@ -1403,7 +1405,7 @@ class PlotsService {
       if (plots[stat._id] !== undefined) plots[stat._id] = stat.count;
     });
 
-    const bookings = bookingStats[0] || { totalValue: 0, bookingAmount: 0, remainingAmount: 0, count: 0 };
+    const bookings = bookingStats[0] || { totalValue: 0, totalDiscount: 0, bookingAmount: 0, remainingAmount: 0, count: 0 };
     const collections = collectionStats[0] || { totalCollection: 0 };
 
     return {

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
-import { HiOutlineArrowLeft, HiCheckCircle } from 'react-icons/hi2';
+import { HiOutlineArrowLeft, HiCheckCircle, HiOutlineUserPlus } from 'react-icons/hi2';
+import { CircularProgress } from '@mui/material';
 import { toast } from 'react-toastify';
 
 const PlotCustomerFormPage = () => {
@@ -171,8 +172,9 @@ const PlotCustomerFormPage = () => {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen">
-        Loading customer data...
+      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen flex flex-col items-center justify-center gap-3">
+        <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+        <p className="text-xs font-bold text-slate-500 animate-pulse">Loading customer data...</p>
       </div>
     );
   }
@@ -203,9 +205,20 @@ const PlotCustomerFormPage = () => {
 
         {/* Step 1: Sponsor Selection */}
         <div className="p-5 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-2">
-          <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">
-            1. Select Sponsor *
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">
+              1. Select Sponsor *
+            </label>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/plots/sponsors')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-200 shadow-sm transition hover:border-indigo-300 active:scale-95 cursor-pointer"
+              title="Add a new sponsor in Plot Sponsors master"
+            >
+              <HiOutlineUserPlus className="w-4 h-4 text-indigo-600" />
+              + Add Sponsor
+            </button>
+          </div>
           <select
             required
             value={formState.sponsorId}

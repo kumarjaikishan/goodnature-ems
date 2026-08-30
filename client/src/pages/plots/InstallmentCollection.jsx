@@ -19,6 +19,7 @@ import numberToWords from '../../utils/numToWord';
 
 const InstallmentCollection = () => {
   const navigate = useNavigate();
+  const customStyles = useCustomStyles();
   const [view, setView] = useState('list');
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -305,8 +306,9 @@ const InstallmentCollection = () => {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen">
-        Loading collections ledger...
+      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen flex flex-col items-center justify-center gap-3">
+        <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+        <p className="text-xs font-bold text-slate-500 animate-pulse">Loading collections ledger...</p>
       </div>
     );
   }
@@ -332,8 +334,6 @@ const InstallmentCollection = () => {
       paymentMode.includes(query) ||
       txRef.includes(query);
   });
-
-  const customStyles = useCustomStyles();
 
   const receiptColumns = [
     {
