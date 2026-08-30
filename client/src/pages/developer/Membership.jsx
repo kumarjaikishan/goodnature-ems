@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../../utils/apiClient";
-import DataTable from "react-data-table-component";
+import DataTable from '@/components/common/DataTable';
 import dayjs from "dayjs";
 import { Avatar } from "@mui/material";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";

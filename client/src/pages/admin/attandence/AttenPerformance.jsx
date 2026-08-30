@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { FormControl, InputLabel, Select, MenuItem, TextField, Button, Avatar } from '@mui/material';
 import { BiMessageRoundedError } from 'react-icons/bi';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { useSelector } from 'react-redux';
 import { RxReset } from 'react-icons/rx';
 import { IoMdTime } from 'react-icons/io';

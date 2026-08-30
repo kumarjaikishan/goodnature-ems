@@ -1,0 +1,1 @@
+import{n as e}from"./react-CS1XD-7T.js";var t=e(((e,t)=>{(function(n,r){typeof e==`object`&&t!==void 0?t.exports=r():typeof define==`function`&&define.amd?define(r):(n=typeof globalThis<`u`?globalThis:n||self).dayjs_plugin_isSameOrBefore=r()})(e,(function(){return function(e,t){t.prototype.isSameOrBefore=function(e,t){return this.isSame(e,t)||this.isBefore(e,t)}}}))}));export{t};

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
 import Modalbox from '../../components/custommodal/Modalbox';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import {
   HiOutlinePlus,
   HiOutlinePencilSquare,

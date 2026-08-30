@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { VscDebugRestart } from 'react-icons/vsc';
 import { IoMdCloudDownload } from 'react-icons/io';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { useSelector } from 'react-redux';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import dayjs from 'dayjs';

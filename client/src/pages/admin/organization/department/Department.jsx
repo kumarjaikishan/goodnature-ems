@@ -4,7 +4,7 @@ import './department.css'
 import { useEffect, useState } from 'react';
 import { IoIosSend } from "react-icons/io";
 import swal from 'sweetalert';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { adddepartment, columns, delette, update } from './departmenthelper';
 import { useCustomStyles } from '../../attandence/attandencehelper';
 import { CiFilter } from 'react-icons/ci';

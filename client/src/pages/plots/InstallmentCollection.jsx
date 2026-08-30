@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import PageLoader from '../../components/common/PageLoader';
 import { CircularProgress } from '@mui/material';

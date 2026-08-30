@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { VscDebugRestart } from 'react-icons/vsc';
 import { IoMdCloudDownload } from 'react-icons/io';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { getLedgerColumns } from './ledgerhelper';

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IoIosSend } from "react-icons/io";
 import Modalbox from '../../../components/custommodal/Modalbox';
 import swal from 'sweetalert';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';

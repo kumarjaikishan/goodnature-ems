@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { useSelector } from 'react-redux';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { RiFileExcel2Line, RiUpload2Line, RiFilePdf2Line } from 'react-icons/ri';
 import { MdAddCircleOutline, MdCalendarToday, MdOutlineModeEdit, MdRefresh, MdArrowDropDown } from 'react-icons/md';
 import { AiOutlineDelete } from 'react-icons/ai';

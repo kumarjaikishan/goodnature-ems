@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Avatar } from '@mui/material';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { FaRegUser } from 'react-icons/fa';
 import { MdOutlineModeEdit } from "react-icons/md";
 import { AiOutlineDelete } from "react-icons/ai";

@@ -6,7 +6,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
-import DataTable from "react-data-table-component";
+import DataTable from '@/components/common/DataTable';
 import { columns, deleteAttandence, submitAttandence, useCustomStyles } from "./attandencehelper";
 import { getAttendanceListApi } from "../../../api/attendance.api";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';

@@ -20,7 +20,7 @@ import {
     DialogActions,
     InputAdornment
 } from '@mui/material';
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { IoSearch, IoRefresh } from 'react-icons/io5';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { BiMessageRoundedError } from 'react-icons/bi';

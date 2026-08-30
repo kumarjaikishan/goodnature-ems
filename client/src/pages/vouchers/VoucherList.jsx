@@ -24,7 +24,7 @@ import {
 } from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
-import DataTable from "react-data-table-component";
+import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import { BiEdit, BiShow, BiTrash, BiPlus } from "react-icons/bi";
 import { IoSearch } from "react-icons/io5";
@@ -78,7 +78,7 @@ const VoucherList = () => {
     try {
       setLoading(true);
       const data = await apiClient({ url: "vouchers" });
-      setVouchers(data || []);
+      setVouchers(Array.isArray(data) ? data : (data?.list || []));
     } catch (err) {
       console.error("Error fetching vouchers:", err);
       toast.error("Failed to load vouchers");
@@ -274,7 +274,7 @@ const VoucherList = () => {
   };
 
   // Filter vouchers based on search text
-  const filteredVouchers = vouchers.filter((v) => {
+  const filteredVouchers = (Array.isArray(vouchers) ? vouchers : []).filter((v) => {
     const debitEntry = v.entries?.find(e => e.type === 'DEBIT');
     const ledgerName = debitEntry ? debitEntry.accountName : (v.employeeId?.userid?.name || "N/A");
 

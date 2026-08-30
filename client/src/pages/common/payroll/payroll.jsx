@@ -21,7 +21,7 @@ import {
   Box,
 } from "@mui/material";
 import { toast } from "react-toastify";
-import DataTable from "react-data-table-component";
+import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../../admin/attandence/attandencehelper";
 import { BiEdit, BiMessageRoundedError, BiShow, BiTrash } from "react-icons/bi";
 import dayjs from "dayjs";

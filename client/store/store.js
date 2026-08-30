@@ -2,9 +2,11 @@ import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
 import userReducer from "./userSlice";
 import empReducer from "./employee";
-import storage from 'redux-persist/lib/storage';
+import storageEngine from 'redux-persist/lib/storage';
 import { persistReducer } from 'redux-persist';
 import { combineReducers } from "@reduxjs/toolkit";
+
+const storage = storageEngine?.default || storageEngine;
 
 const persistConfig = {
     key: "EMS",

@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { IoSearch } from "react-icons/io5";
 import { CiFilter } from "react-icons/ci";
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { BiMessageRoundedError } from "react-icons/bi";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";

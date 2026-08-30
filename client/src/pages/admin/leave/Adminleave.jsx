@@ -2,7 +2,7 @@ import { Avatar, Box, Typography, FormControl, InputLabel, Select, MenuItem, Tex
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
 import React, { useEffect, useState, useMemo } from 'react'
-import DataTable from 'react-data-table-component';
+import DataTable from '@/components/common/DataTable';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { MdOutlineModeEdit } from 'react-icons/md';
 import Adminleavemodal from './adminleavemodal';
