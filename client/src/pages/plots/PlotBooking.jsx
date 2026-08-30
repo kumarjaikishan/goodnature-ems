@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  HiOutlineMagnifyingGlass,
-  HiOutlineUserPlus,
-  HiOutlineCheck,
-  HiChevronLeft,
-  HiChevronRight,
-  HiOutlineSparkles,
-  HiOutlineCurrencyRupee,
-  HiOutlineBuildingOffice2,
-  HiOutlineUserGroup,
-  HiOutlineTag,
-  HiOutlineAdjustmentsHorizontal
-} from 'react-icons/hi2';
+  Search,
+  UserPlus,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  IndianRupee,
+  Building2,
+  Users,
+  Tag,
+  SlidersHorizontal
+} from 'lucide-react';
 import PageLoader from '../../components/common/PageLoader';
 import { CircularProgress } from '@mui/material';
 
@@ -313,7 +313,7 @@ const PlotBooking = () => {
                   : 'bg-slate-100 text-slate-400 border border-slate-200'
               }`}
             >
-              {step > 1 ? <HiOutlineCheck className="w-5 h-5 stroke-2" /> : '1'}
+              {step > 1 ? <Check className="w-5 h-5 stroke-2" /> : '1'}
             </button>
             <div className="flex flex-col items-center text-center">
               <span className={`text-xs font-bold transition-colors ${step === 1 ? 'text-slate-900' : step > 1 ? 'text-emerald-700' : 'text-slate-400'}`}>
@@ -339,7 +339,7 @@ const PlotBooking = () => {
                   : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
               }`}
             >
-              {step > 2 ? <HiOutlineCheck className="w-5 h-5 stroke-2" /> : '2'}
+              {step > 2 ? <Check className="w-5 h-5 stroke-2" /> : '2'}
             </button>
             <div className="flex flex-col items-center text-center">
               <span className={`text-xs font-bold transition-colors ${step === 2 ? 'text-slate-900' : step > 2 ? 'text-emerald-700' : 'text-slate-400'}`}>
@@ -388,14 +388,14 @@ const PlotBooking = () => {
                     to="/dashboard/plots/customers/new"
                     className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5"
                   >
-                    <HiOutlineUserPlus className="w-4 h-4" /> + Register Customer
+                    <UserPlus size={14} /> + Register Customer
                   </Link>
                   <button
                     type="button"
                     onClick={nextStep}
                     className="px-4 py-1.5 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1 bg-primary hover:opacity-90"
                   >
-                    Next: Choose Plot <HiChevronRight />
+                    Next: Choose Plot <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
@@ -410,7 +410,7 @@ const PlotBooking = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                  <HiOutlineMagnifyingGlass className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+                  <Search size={18} className="text-slate-400 absolute left-3.5 top-3" />
                 </div>
 
                 {/* Search Dropdown Results */}
@@ -478,7 +478,7 @@ const PlotBooking = () => {
                   onClick={nextStep}
                   className="px-6 py-2.5 text-white font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 bg-primary"
                 >
-                  Next: Choose Plot <HiChevronRight />
+                  Next: Choose Plot <ChevronRight size={16} />
                 </button>
               </div>
             </div>
@@ -502,14 +502,14 @@ const PlotBooking = () => {
                     onClick={prevStep}
                     className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1"
                   >
-                    <HiChevronLeft /> Back
+                    <ChevronLeft size={14} /> Back
                   </button>
                   <button
                     type="button"
                     onClick={nextStep}
                     className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 font-bold text-xs text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1"
                   >
-                    Next: Payment Details <HiChevronRight />
+                    Next: Payment Details <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
@@ -598,14 +598,14 @@ const PlotBooking = () => {
                   onClick={prevStep}
                   className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 font-medium text-xs text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1.5"
                 >
-                  <HiChevronLeft /> Back
+                  <ChevronLeft size={14} /> Back
                 </button>
                 <button
                   type="button"
                   onClick={nextStep}
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-medium text-xs text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
                 >
-                  Next: Payment Details <HiChevronRight />
+                  Next: Payment Details <ChevronRight size={14} />
                 </button>
               </div>
             </div>
@@ -616,7 +616,7 @@ const PlotBooking = () => {
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
                 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <HiOutlineSparkles className="w-5 h-5 text-indigo-600" />
+                  <Sparkles size={18} className="text-indigo-600" />
                   3. Contract Terms, Tenure Rates & Sponsor Allocation
                 </h3>
                 <div className="flex items-center gap-2">
@@ -626,7 +626,7 @@ const PlotBooking = () => {
                     disabled={submitLoading}
                     className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1"
                   >
-                    <HiChevronLeft /> Back
+                    <ChevronLeft size={14} /> Back
                   </button>
                   <button
                     type="submit"
@@ -755,7 +755,7 @@ const PlotBooking = () => {
                     <div className="md:col-span-2 bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <HiOutlineAdjustmentsHorizontal className="w-4 h-4 text-indigo-600" />
+                          <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
                           40% Downpayment Calculation Base
                         </span>
                         <span className="text-[11px] text-slate-500">
@@ -859,7 +859,7 @@ const PlotBooking = () => {
                   disabled={submitLoading}
                   className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 font-medium text-xs text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1.5"
                 >
-                  <HiChevronLeft /> Back
+                  <ChevronLeft size={14} /> Back
                 </button>
                 <button
                   type="submit"

@@ -4,9 +4,7 @@ import {
     CardContent, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, Paper, Tooltip, Chip, Divider
 } from '@mui/material';
-import { FaWifi, FaTrash, FaDesktop } from 'react-icons/fa';
-import { MdOutlineWifiOff, MdAddCircle } from "react-icons/md";
-import { FiRefreshCw } from 'react-icons/fi';
+import { Wifi, WifiOff, Trash2, Monitor, PlusCircle, RotateCcw } from 'lucide-react';
 import dayjs from 'dayjs';
 import EsslEventLog from './EsslEventLog';
 
@@ -28,12 +26,12 @@ const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refres
                 <CardContent sx={{ p: 3 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <FaDesktop size={24} color="#1976d2" style={{ marginRight: '12px' }} />
+                            <Monitor size={24} color="#1976d2" style={{ marginRight: '12px' }} />
                             <Typography variant="h6" fontWeight="600">Registered Devices</Typography>
                         </Box>
                         <Button
                             variant="outlined"
-                            startIcon={<MdAddCircle />}
+                            startIcon={<PlusCircle size={16} />}
                             onClick={addDevice}
                             size="small"
                         >
@@ -89,7 +87,7 @@ const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refres
                                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                                             {online ? (
                                                                 <Chip
-                                                                    icon={<FaWifi size={14} />}
+                                                                    icon={<Wifi size={14} />}
                                                                     label="Online"
                                                                     size="small"
                                                                     color="success"
@@ -97,7 +95,7 @@ const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refres
                                                                 />
                                                             ) : (
                                                                 <Chip
-                                                                    icon={<MdOutlineWifiOff size={14} />}
+                                                                    icon={<WifiOff size={14} />}
                                                                     label="Offline"
                                                                     size="small"
                                                                     color="error"
@@ -120,7 +118,7 @@ const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refres
                                                                 color="primary"
                                                                 onClick={() => deviceRefresh(device?.SN)}
                                                             >
-                                                                <FiRefreshCw className={refreshload ? "animate-spin" : ""} />
+                                                                <RotateCcw size={16} className={refreshload ? "animate-spin" : ""} />
                                                             </IconButton>
                                                         </Tooltip>
                                                         <Tooltip title="Delete Device">
@@ -129,7 +127,7 @@ const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refres
                                                                 color="error"
                                                                 onClick={() => removeDevice(index)}
                                                             >
-                                                                <FaTrash size={14} />
+                                                                <Trash2 size={16} />
                                                             </IconButton>
                                                         </Tooltip>
                                                     </Box>

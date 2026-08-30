@@ -1,6 +1,4 @@
-import { FaBuilding } from "react-icons/fa"
-import { FiClock, FiUsers } from "react-icons/fi"
-import { SlBag } from "react-icons/sl"
+import { Building2, Clock, Users, Briefcase } from "lucide-react";
 
 const DashboardCard = ({ employee, todaypresent, currentpresent, todayleave }) => {
     return (
@@ -11,7 +9,7 @@ const DashboardCard = ({ employee, todaypresent, currentpresent, todayleave }) =
 
                 <div className="flex items-center gap-3 pl-2">
                     <span className={`p-2 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center`}>
-                        <FiUsers />
+                        <Users size={18} />
                     </span>
                     <div className="text-gray-600 font-bold text-[12px] md:text-[16px]">Total Employee</div>
                 </div>
@@ -26,7 +24,7 @@ const DashboardCard = ({ employee, todaypresent, currentpresent, todayleave }) =
 
                 <div className="flex items-center gap-3 pl-2">
                     <span className={`p-2 bg-green-100 text-green-700 rounded-full flex items-center justify-center`}>
-                        <FiClock />
+                        <Clock size={18} />
                     </span>
                     <div className="text-gray-600 font-bold text-[12px] md:text-[16px]">Today Present</div>
                 </div>
@@ -41,7 +39,7 @@ const DashboardCard = ({ employee, todaypresent, currentpresent, todayleave }) =
 
                 <div className="flex items-center gap-3 pl-2">
                     <span className={`p-2 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center`}>
-                        <SlBag />
+                        <Briefcase size={18} />
                     </span>
                     <div className="text-gray-600 font-bold text-[12px] md:text-[16px]">On leave</div>
                 </div>
@@ -56,7 +54,7 @@ const DashboardCard = ({ employee, todaypresent, currentpresent, todayleave }) =
 
                 <div className="flex items-center gap-3 pl-2">
                     <span className={`p-2 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center`}>
-                        <FaBuilding />
+                        <Building2 size={18} />
                     </span>
                     <div className="text-gray-600 font-bold text-[12px] md:text-[16px]">In office</div>
                 </div>

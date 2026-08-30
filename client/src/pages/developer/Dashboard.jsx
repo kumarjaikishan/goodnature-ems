@@ -2,15 +2,11 @@ import { apiClient } from '../../utils/apiClient'
 import React, { useEffect, useState } from 'react'
 import DataTable from '@/components/common/DataTable'
 import { useCustomStyles } from '../admin/attandence/attandencehelper'
-import { BiMessageRoundedError } from 'react-icons/bi'
 import dayjs from 'dayjs'
 import { Button, TextField } from '@mui/material'
-import { GoPlus } from 'react-icons/go'
-import { MdEmojiFlags, MdOutlineModeEdit } from "react-icons/md";
-import { AiOutlineDelete } from "react-icons/ai";
+import { Plus, Flag, Edit2, Trash2, Info, MessageSquareWarning } from "lucide-react";
 import Modalbox from '../../components/custommodal/Modalbox'
-import { toast } from 'react-toastify'
-import { IoInformation } from 'react-icons/io5'
+import { toast } from '../../utils/toast'
 import swal from 'sweetalert';
 import DeveloperEsslMonitor from './DeveloperEsslMonitor';
 
@@ -231,32 +227,25 @@ const DeveloperDashboard = () => {
                 <div className="flex gap-2">
                     <span
                         className="text-[18px] text-blue-500 cursor-pointer"
-                        title="Edit"
+                        title="Info"
                         onClick={() => handleShowDemos(row)}
                     >
-                        <IoInformation />
+                        <Info size={18} />
                     </span>
                     <span
                         className="text-[18px] text-blue-500 cursor-pointer"
-                        title="Edit"
+                        title="Create Demo"
                         onClick={() => handleCreateDemo(row)}
                     >
-                        <MdEmojiFlags />
+                        <Flag size={18} />
                     </span>
                     <span
                         className="text-[18px] text-blue-500 cursor-pointer"
                         title="Edit"
                         onClick={() => edite(row)}
                     >
-                        <MdOutlineModeEdit />
+                        <Edit2 size={18} />
                     </span>
-                    {/* <span
-                        className="text-[18px] text-red-500 cursor-pointer"
-                        title="Delete"
-                        onClick={() => deletee(row._id)}
-                    >
-                        <AiOutlineDelete />
-                    </span> */}
                 </div>
             ),
         },
@@ -268,7 +257,6 @@ const DeveloperDashboard = () => {
                 <Button
                     variant="contained"
                     className="flex-[2] md:w-fit md:flex-none"
-                    // startIcon={<GoPlus />}
                     loading={isloading}
                     onClick={() => deploy('accusoft')}
                 >
@@ -277,7 +265,6 @@ const DeveloperDashboard = () => {
                 <Button
                     variant="contained"
                     className="flex-[2] md:w-fit md:flex-none"
-                    // startIcon={<GoPlus />}
                     loading={isloading}
                     onClick={() => deploy('battlefiesta')}
                 >
@@ -286,7 +273,6 @@ const DeveloperDashboard = () => {
                 <Button
                     variant="contained"
                     className="flex-[2] md:w-fit md:flex-none"
-                    // startIcon={<GoPlus />}
                     loading={isloading}
                     onClick={() => deploy('office')}
                 >
@@ -295,7 +281,6 @@ const DeveloperDashboard = () => {
                 <Button
                     variant="contained"
                     className="flex-[2] md:w-fit md:flex-none"
-                    // startIcon={<GoPlus />}
                     loading={isloading}
                     onClick={() => deploy('portfolio')}
                 >
@@ -304,7 +289,7 @@ const DeveloperDashboard = () => {
                 <Button
                     variant="contained"
                     className="flex-[2] md:w-fit md:flex-none"
-                    startIcon={<GoPlus />}
+                    startIcon={<Plus size={16} />}
                     onClick={() => setpassmodal(true)}
                 >
                     Add User
@@ -318,7 +303,7 @@ const DeveloperDashboard = () => {
                 highlightOnHover
                 noDataComponent={
                     <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                        <BiMessageRoundedError className="text-xl" /> No records found matching your criteria.
+                        <MessageSquareWarning size={20} /> No records found matching your criteria.
                     </div>
                 }
             />

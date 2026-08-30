@@ -1,16 +1,11 @@
-import { FaPhone, FaEnvelope, FaBirthdayCake, FaMapMarkerAlt, FaUser, FaIdCardAlt, FaUniversity, FaUserCircle, FaRegCreditCard } from 'react-icons/fa';
-import { MdAccountBalance, MdBadge, MdContactEmergency } from 'react-icons/md';
-import { BsDropletFill } from "react-icons/bs";
+import {
+  Phone, Mail, Cake, MapPin, User, Building, Building2,
+  Calendar, Droplets, Award, IndianRupee, Key, Settings, Briefcase, PhoneCall, ShieldCheck, CreditCard, X
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../../utils/apiClient';
-import { toast } from 'react-toastify';
-import { PiOfficeChairFill } from "react-icons/pi";
-import { FaBuilding, FaCalendarAlt, FaIdCard } from "react-icons/fa";
+import { toast } from '../../../utils/toast';
 import dayjs from 'dayjs';
-import { LiaMedalSolid } from "react-icons/lia";
-import { MdCurrencyRupee, MdClose } from "react-icons/md";
-import { GoGear } from "react-icons/go";
-import { BiKey } from 'react-icons/bi';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 
 const EmployeeProfile = ({ viewEmployee, onClose }) => {
@@ -42,7 +37,7 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
       {/* Modal Header */}
       <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
         <h2 className="text-lg font-bold tracking-wide text-white flex items-center gap-2">
-          <FaUser className="text-teal-400 text-base" /> Employee Profile
+          <User className="text-teal-400 text-base" size={18} /> Employee Profile
         </h2>
         {onClose && (
           <button
@@ -50,7 +45,7 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
             className="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition-colors"
             title="Close"
           >
-            <MdClose size={20} />
+            <X size={20} />
           </button>
         )}
       </div>
@@ -58,8 +53,8 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
       {isload ? (
         <div className="w-full h-[320px] flex gap-4 flex-col justify-center items-center bg-white">
           <div className="relative">
-            <GoGear className="animate-spin" style={{ animationDuration: '2.5s' }} size={48} color="teal" />
-            <GoGear className="absolute -bottom-3 left-0 animate-spin" style={{ animationDuration: '3s' }} size={20} color="teal" />
+            <Settings className="animate-spin" style={{ animationDuration: '2.5s' }} size={48} color="teal" />
+            <Settings className="absolute -bottom-3 left-0 animate-spin" style={{ animationDuration: '3s' }} size={20} color="teal" />
           </div>
           <p className="text-teal-700 text-sm font-medium">Loading employee details...</p>
         </div>
@@ -79,7 +74,7 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
                   className="w-full h-full object-cover rounded-full"
                 />
               ) : (
-                <FaUser className="text-3xl text-slate-400" />
+                <User className="text-3xl text-slate-400" size={32} />
               )}
             </div>
 
@@ -109,19 +104,19 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
 
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
                 <div className="flex items-center gap-2">
-                  <FaEnvelope className="text-slate-400 text-sm" />
+                  <Mail size={16} className="text-slate-400" />
                   <span className="truncate">{employee?.userid?.email || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <FaPhone className="text-slate-400 text-sm" />
+                  <Phone size={16} className="text-slate-400" />
                   <span>{employee?.phone || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <FaCalendarAlt className="text-slate-400 text-sm" />
+                  <Calendar size={16} className="text-slate-400" />
                   <span>Joined: {employee?.userid?.createdAt ? dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY') : 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <FaIdCard className="text-slate-400 text-sm" />
+                  <CreditCard size={16} className="text-slate-400" />
                   <span className="font-mono font-semibold text-slate-800">
                     ID: {employee?.empId || employee?.deviceUserId || 'N/A'}
                   </span>
@@ -139,42 +134,42 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
           {submenu == 1 &&
             <div className="mt-2 grid grid-cols-2 max-h-[300px] overflow-y-auto md:grid-cols-2 gap-4 text-[12px] md:text-sm text-gray-700">
               <div className="flex items-start gap-2">
-                <FaBirthdayCake className="mt-1 text-gray-500" />
+                <Cake size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Date of Birth</div>
                   <div>{employee?.dob ? dayjs(employee?.dob).format('DD MMM,YYYY') : 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaMapMarkerAlt className="mt-1 text-gray-500" />
+                <MapPin size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Address</div>
                   <div>{employee?.address || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <MdContactEmergency className="mt-1 text-gray-500" />
+                <PhoneCall size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Emergency Contact</div>
                   <div>{employee?.Emergencyphone || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <BsDropletFill className="mt-1 text-gray-500" />
+                <Droplets size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Blood Group</div>
                   <div>{employee?.bloodGroup || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <MdBadge className="mt-1 text-gray-500" />
+                <ShieldCheck size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Adhaar No.</div>
                   <div>{employee?.adhaar || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaIdCardAlt className="mt-1 text-gray-500" />
+                <CreditCard size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Pan No.</div>
                   <div>{employee?.pan || 'N/A'}</div>
@@ -184,56 +179,56 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
           {submenu == 2 &&
             <div className="mt-2 grid grid-cols-2 max-h-[300px] overflow-y-auto md:grid-cols-2 gap-4 text-[12px] md:text-sm text-gray-700">
               <div className="flex items-start gap-2">
-                <PiOfficeChairFill className="mt-1 text-gray-500" />
+                <Briefcase size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Position</div>
                   <div>{employee?.designation || 'Accounts'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaBuilding className="mt-1 text-gray-500" />
+                <Building2 size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Department</div>
                   <div>{employee?.department?.department || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <MdCurrencyRupee className="mt-1 text-gray-500" />
+                <IndianRupee size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Salary</div>
                   <div>{employee?.salary || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaUniversity className="mt-1 text-gray-500" />
+                <Building size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Bank Name</div>
                   <div>{employee?.bankName || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaUserCircle className="mt-1 text-gray-500" />
+                <User size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Account Holder</div>
                   <div>{employee?.acHolderName || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <MdAccountBalance className="mt-1 text-gray-500" />
+                <Building2 size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Branch</div>
                   <div>{employee?.bankbranch || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaRegCreditCard className="mt-1 text-gray-500" />
+                <CreditCard size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">A/C No.</div>
                   <div>{employee?.acnumber || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <BiKey className="mt-1 text-gray-500" />
+                <Key size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Ifsc Code</div>
                   <div>{employee?.ifscCode || 'N/A'}</div>
@@ -261,7 +256,7 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
                     <p className='text-gray-700 font-semibold'>{ach.title}</p>
                     <p className='text-gray-700'>{ach.description}</p>
                     <p className='text-gray-500 text-[10px]'>{ach.date}</p>
-                    <span className='absolute top-1 -left-0' > <LiaMedalSolid size={18} color='orange' /> </span>
+                    <span className='absolute top-1 -left-0' > <Award size={18} color='orange' /> </span>
                     <span className='absolute w-0.5 h-full bg-blue-500 top-0 right-0' ></span>
                   </div>
                 }) : <div>No Achievement found</div>}

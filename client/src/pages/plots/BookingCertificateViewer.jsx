@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
-import { HiOutlinePrinter, HiOutlineArrowLeft } from 'react-icons/hi2';
+import { toast } from '../../utils/toast';
+import { Printer, ArrowLeft } from 'lucide-react';
 
 const numberToWords = (num) => {
   if (num === 0) return 'Zero Rupees Only';
@@ -98,13 +98,13 @@ const BookingCertificateViewer = () => {
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 transition cursor-pointer shadow-xs"
         >
-          <HiOutlineArrowLeft /> Back
+          <ArrowLeft size={14} /> Back
         </button>
         <button
           onClick={handlePrint}
           className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition shadow-xs cursor-pointer"
         >
-          <HiOutlinePrinter /> Print Certificate
+          <Printer size={14} /> Print Certificate
         </button>
       </div>
 

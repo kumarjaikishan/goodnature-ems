@@ -4,14 +4,11 @@ import {
     Box, Button, FormControl, InputLabel, Select, MenuItem,
     TextField, Avatar, OutlinedInput, InputAdornment, Paper, Divider, Typography
 } from '@mui/material';
-import { VscDebugRestart } from 'react-icons/vsc';
-import { IoMdCloudDownload } from 'react-icons/io';
+import { RotateCcw, Download, Wallet, Filter } from 'lucide-react';
 import DataTable from '@/components/common/DataTable';
 import { useSelector } from 'react-redux';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import dayjs from 'dayjs';
-import { MdHistory, MdAccountBalanceWallet } from 'react-icons/md';
-import { CiFilter } from 'react-icons/ci';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import Loader from '../../../utils/loader';
 
@@ -173,7 +170,7 @@ const EmployeeFinancialLedger = () => {
                               height: 100,
                           })}
                         >
-                            <MdAccountBalanceWallet size={32} />
+                            <Wallet size={32} />
                         </Avatar>
                         <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#008080', textTransform: 'capitalize' }}>
                             {empProfile?.employeeName || 'Account Ledger'}
@@ -198,7 +195,7 @@ const EmployeeFinancialLedger = () => {
                         value={filterYear}
                         label="Year"
                         onChange={e => setFilterYear(e.target.value)}
-                        startAdornment={<CiFilter style={{ marginRight: 8 }} />}
+                        startAdornment={<Filter size={16} style={{ marginRight: 8 }} />}
                     >
                         <MenuItem value="all">All</MenuItem>
                         {[...new Set(entries.map(e => dayjs(e.date).year()))].map(y => (
@@ -213,7 +210,7 @@ const EmployeeFinancialLedger = () => {
                         value={filterMonth}
                         label="Month"
                         onChange={e => setFilterMonth(e.target.value)}
-                        startAdornment={<CiFilter style={{ marginRight: 8 }} />}
+                        startAdornment={<Filter size={16} style={{ marginRight: 8 }} />}
                     >
                         <MenuItem value="all">All</MenuItem>
                         {Array.from({ length: 12 }, (_, i) => (
@@ -235,7 +232,7 @@ const EmployeeFinancialLedger = () => {
                 <Button
                     variant="outlined"
                     color="secondary"
-                    startIcon={<VscDebugRestart />}
+                    startIcon={<RotateCcw size={16} />}
                     onClick={resetFilters}
                     size="small"
                 >
@@ -245,7 +242,7 @@ const EmployeeFinancialLedger = () => {
                 <Box sx={{ ml: 'auto' }}>
                     <Button 
                         variant="outlined" 
-                        startIcon={<IoMdCloudDownload />} 
+                        startIcon={<Download size={16} />} 
                         onClick={exportCSV}
                         sx={{ borderColor: '#008080', color: '#008080', '&:hover': { borderColor: '#006666', bgcolor: '#f0fdfa' } }}
                     >

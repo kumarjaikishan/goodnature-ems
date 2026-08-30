@@ -1,9 +1,9 @@
-import React from 'react'
+import React from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
-import { IoIosSend } from 'react-icons/io';
+import { Send } from 'lucide-react';
 import { apiClient } from '../../../utils/apiClient';
-import { toast } from 'react-toastify';
+import { toast } from '../../../utils/toast';
 
 const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, setopenmodal, setInp, init }) => {
 
@@ -78,7 +78,7 @@ const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, set
                             setopenmodal(false); setInp(init);
                         }} variant="outlined">Cancel</Button>
 
-                        <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<IoIosSend />} variant="contained" type="submit">
+                        <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit">
                             Update
                         </Button>
                     </div>

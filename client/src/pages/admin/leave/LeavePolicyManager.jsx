@@ -5,7 +5,7 @@ import {
   FormControl, InputLabel, Select, MenuItem
 } from "@mui/material";
 import { apiClient } from "../../../utils/apiClient";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 
 const LeavePolicyManager = () => {
   const [policies, setPolicies] = useState([]);

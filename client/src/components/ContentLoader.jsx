@@ -1,5 +1,5 @@
 import React from 'react';
-import { GoGear } from 'react-icons/go';
+import { Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const ContentLoader = () => {
@@ -18,7 +18,7 @@ const ContentLoader = () => {
                     }}
                     className="relative z-10"
                 >
-                    <GoGear
+                    <Settings
                         className="text-teal-600 drop-shadow-lg"
                         size={60}
                     />
@@ -33,7 +33,7 @@ const ContentLoader = () => {
                     }}
                     className="absolute -bottom-2 -right-2 z-20"
                 >
-                    <GoGear
+                    <Settings
                         className="text-teal-400 drop-shadow-md"
                         size={25}
                     />

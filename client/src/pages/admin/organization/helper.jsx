@@ -1,5 +1,5 @@
 import { apiClient } from "../../../utils/apiClient";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 
 export const addCompany = async ({ companyinp, setisload }) => {
     setisload(true);

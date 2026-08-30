@@ -1,19 +1,25 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { apiClient } from "../../utils/apiClient";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import {
-    MdRefresh,
-    MdSpeed,
-    MdErrorOutline,
-    MdOutlineTimer,
-    MdDeleteSweep,
-    MdOutlineExpandMore,
-    MdOutlineExpandLess,
-    MdSearch,
-    MdClear,
-    MdTrendingUp,
-} from "react-icons/md";
-import { FiActivity, FiZap, FiAlertTriangle, FiCheckCircle, FiClock, FiFilter, FiBarChart2 } from "react-icons/fi";
+    RotateCcw,
+    Gauge,
+    AlertCircle,
+    Timer,
+    Trash2,
+    ChevronDown,
+    ChevronUp,
+    Search,
+    X,
+    TrendingUp,
+    Activity,
+    Zap,
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    Filter,
+    BarChart2
+} from "lucide-react";
 
 const METHOD_COLORS = {
     GET: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:text-emerald-400",
@@ -145,7 +151,7 @@ const EndpointDetail = ({ endpoint }) => {
             <div className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-3 mb-4">
                 <div className="flex items-center justify-between mb-1.5 text-xs text-slate-400">
                     <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-                        <FiBarChart2 className="text-indigo-400" /> Latency Histogram (Last {endpoint.records.length} Calls)
+                        <BarChart2 size={14} className="text-indigo-400" /> Latency Histogram (Last {endpoint.records.length} Calls)
                     </span>
                     <span className="text-[11px]">Hover bar for call details</span>
                 </div>
@@ -354,7 +360,7 @@ const ApiMonitor = () => {
                     <div>
                         <div className="flex items-center gap-3">
                             <span className="p-2 bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-xl text-2xl">
-                                <FiActivity />
+                                <Activity size={24} />
                             </span>
                             <div>
                                 <h1 className="text-xl md:text-2xl font-black tracking-tight">API Performance Monitor</h1>
@@ -383,14 +389,14 @@ const ApiMonitor = () => {
                             onClick={() => fetchStats()}
                             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
                         >
-                            <MdRefresh className={loading ? "animate-spin text-teal-400" : ""} /> Refresh
+                            <RotateCcw size={14} className={loading ? "animate-spin text-teal-400" : ""} /> Refresh
                         </button>
                         <button
                             onClick={handleClear}
                             disabled={clearing}
                             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 disabled:opacity-50 transition"
                         >
-                            <MdDeleteSweep /> Clear Stats
+                            <Trash2 size={14} /> Clear Stats
                         </button>
                     </div>
                 </div>
@@ -399,23 +405,23 @@ const ApiMonitor = () => {
             {/* Metric Summary Cards */}
             {summary && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
-                    <StatCard icon={<FiZap />} label="Tracked Endpoints" value={data.endpointCount} />
-                    <StatCard icon={<MdOutlineTimer />} label="Total Requests" value={summary.totalCalls} />
+                    <StatCard icon={<Zap size={20} />} label="Tracked Endpoints" value={data.endpointCount} />
+                    <StatCard icon={<Timer size={20} />} label="Total Requests" value={summary.totalCalls} />
                     <StatCard
-                        icon={<FiActivity />}
+                        icon={<Activity size={20} />}
                         label="Overall Avg Latency"
                         value={fmtMs(summary.overallAvg)}
                         tone={speedColor(summary.overallAvg)}
                     />
                     <StatCard
-                        icon={<FiAlertTriangle />}
+                        icon={<AlertTriangle size={20} />}
                         label="Total Errors"
                         value={summary.totalErrors}
                         tone={summary.totalErrors > 0 ? "text-rose-600" : "text-slate-800"}
                     />
                     {summary.slowest && (
                         <StatCard
-                            icon={<MdSpeed />}
+                            icon={<Gauge size={20} />}
                             label="Slowest Route (Avg)"
                             value={fmtMs(summary.slowest.avgMs)}
                             sub={`${summary.slowest.method} ${summary.slowest.path}`}
@@ -428,7 +434,7 @@ const ApiMonitor = () => {
             {/* Filter & Search Bar */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3.5 mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex-1 min-w-[220px]">
-                    <MdSearch className="text-slate-400 text-lg" />
+                    <Search size={16} className="text-slate-400" />
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -437,7 +443,7 @@ const ApiMonitor = () => {
                     />
                     {search && (
                         <button onClick={() => setSearch("")} className="text-slate-400 hover:text-slate-600">
-                            <MdClear />
+                            <X size={16} />
                         </button>
                     )}
                 </div>
@@ -493,12 +499,12 @@ const ApiMonitor = () => {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 {loading && !data ? (
                     <div className="p-12 text-center text-slate-400 text-sm">
-                        <FiActivity className="animate-spin text-3xl mx-auto mb-2 text-teal-600" />
+                        <Activity className="animate-spin text-3xl mx-auto mb-2 text-teal-600" />
                         Collecting API metrics...
                     </div>
                 ) : !filteredSorted.length ? (
                     <div className="p-12 text-center text-slate-400 text-sm">
-                        <FiAlertTriangle className="text-3xl mx-auto mb-2 text-amber-500" />
+                        <AlertTriangle className="text-3xl mx-auto mb-2 text-amber-500" />
                         {data?.endpointCount ? "No API endpoints match your search/filters." : "No API calls recorded yet. Interact with the application to start monitoring."}
                     </div>
                 ) : (
@@ -565,7 +571,7 @@ const ApiMonitor = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-slate-500 text-[11px]">{timeAgo(e.lastCallAt)}</td>
                                                 <td className="px-2 py-3 text-slate-400 text-base">
-                                                    {isOpen ? <MdOutlineExpandLess /> : <MdOutlineExpandMore />}
+                                                    {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                 </td>
                                             </tr>
                                             {isOpen && (

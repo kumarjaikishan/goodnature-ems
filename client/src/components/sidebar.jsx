@@ -3,19 +3,23 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import swal from "sweetalert";
 import {
-  FaBook,
-  FaCalendarDay,
-  FaUserCircle,
-  FaUserTie,
-  FaSitemap,
-} from "react-icons/fa";
-import { VscDashboard } from "react-icons/vsc";
-import { TbReportAnalytics } from "react-icons/tb";
-import { SiAudiotechnica } from "react-icons/si";
-import { CgLogOut } from "react-icons/cg";
-import { FiSettings } from "react-icons/fi";
-import { MdOutlineEventNote, MdPayments, MdHistory, MdAccountBalanceWallet, MdSpeed } from "react-icons/md";
-import { IoChevronDown, IoChevronForward } from "react-icons/io5";
+  LayoutDashboard,
+  Network,
+  Users,
+  CalendarCheck2,
+  Banknote,
+  Building2,
+  CalendarDays,
+  BookOpen,
+  Receipt,
+  UserCircle2,
+  Settings,
+  LogOut,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  History,
+} from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 import Popover from "@mui/material/Popover";
 
@@ -39,13 +43,12 @@ const Sidebar = () => {
     {
       title: "Menu",
       items: [
-        { menu: "Dashboard", link: "/dashboard", icon: <VscDashboard />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo"] },
-        { menu: "Membership", link: "/dashboard/membership", icon: <VscDashboard />, roles: ["developer"] },
-        { menu: "Permissions", link: "/dashboard/permission", icon: <VscDashboard />, roles: ["developer"] },
-        { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <VscDashboard />, roles: ["developer"] },
+        { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo"] },
+        { menu: "Permissions", link: "/dashboard/permission", icon: <LayoutDashboard size={20} />, roles: ["developer"] },
+        { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <LayoutDashboard size={20} />, roles: ["developer"] },
         {
           menu: "Organization",
-          icon: <FaSitemap />,
+          icon: <Network size={20} />,
           roles: ["admin", "superadmin"],
           children: [
             { menu: "Company Info", link: "/dashboard/organization/company", roles: ["admin", "superadmin"] },
@@ -61,33 +64,30 @@ const Sidebar = () => {
         },
         {
           menu: "Employees",
-          icon: <FaUserTie />,
+          icon: <Users size={20} />,
           roles: ["admin", "superadmin", "manager", "employee", "demo"],
           children: [
             { menu: "Employee", link: "/dashboard/employe", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Leave Request", link: "/dashboard/leave-request", roles: ["employee", "admin", "superadmin", "manager", "demo"], icon: <MdOutlineEventNote size={18} /> },
-            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: ["admin", "superadmin", "manager", "demo"], icon: <MdHistory size={18} /> },
-            { menu: "Leave Policies", link: "/dashboard/leave-policies", roles: ["admin", "superadmin", "demo"], icon: <FiSettings size={18} /> },
-            { menu: "Leave Ledger", link: "/dashboard/my-leave-ledger", roles: ["employee"], icon: <MdHistory size={18} />, hidden: !company?.leaveSettings?.allowEmployeeToSeeLedger },
-            // { menu: "Account Ledger", link: "/dashboard/my-ledger", roles: ["employee"], icon: <MdAccountBalanceWallet size={18} /> },
-            // { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "demo"] },
+            { menu: "Leave Request", link: "/dashboard/leave-request", roles: ["employee", "admin", "superadmin", "manager", "demo"], icon: <FileText size={18} /> },
+            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: ["admin", "superadmin", "manager", "demo"], icon: <History size={18} /> },
+            { menu: "Leave Policies", link: "/dashboard/leave-policies", roles: ["admin", "superadmin", "demo"], icon: <Settings size={18} /> },
+            { menu: "Leave Ledger", link: "/dashboard/my-leave-ledger", roles: ["employee"], icon: <History size={18} />, hidden: !company?.leaveSettings?.allowEmployeeToSeeLedger },
           ].filter(c => !c.hidden),
         },
         {
           menu: "Attendance",
-          icon: <TbReportAnalytics />,
+          icon: <CalendarCheck2 size={20} />,
           roles: ["admin", "superadmin", "manager", "employee", "demo"],
           children: [
             { menu: "Attendance", link: "/dashboard/attandence", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Emp Attendance", link: "/dashboard/empattandence", roles: ["employee"] },
             { menu: "Report", link: "/dashboard/attandence_Report", roles: ["admin", "superadmin", "manager", "demo"] },
-            // { menu: "Excel Import", link: "/dashboard/attandence-import", roles: ["admin", "superadmin", "demo"] },
           ],
         },
-        { menu: "Payroll", link: "/dashboard/payroll", icon: <MdPayments />, roles: ["admin", "superadmin", "manager", "demo"] },
+        { menu: "Payroll", link: "/dashboard/payroll", icon: <Banknote size={20} />, roles: ["admin", "superadmin", "manager", "demo"] },
         {
           menu: "Plot Management",
-          icon: <FaBook />,
+          icon: <Building2 size={20} />,
           roles: ["admin", "superadmin", "manager", "demo"],
           children: [
             { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
@@ -100,17 +100,17 @@ const Sidebar = () => {
             { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
-        { menu: "Holiday", link: "/dashboard/holiday", icon: <FaCalendarDay />, roles: ["superadmin", "admin", "demo"] },
-        { menu: "Ledger", link: "/dashboard/ledger", icon: <FaBook />, roles: ["admin", "superadmin", "manager"] },
-        { menu: "Vouchers", link: "/dashboard/vouchers", icon: <MdAccountBalanceWallet />, roles: ["admin", "superadmin", "manager", "demo"] },
+        { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
+        { menu: "Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["admin", "superadmin", "manager"] },
+        { menu: "Vouchers", link: "/dashboard/vouchers", icon: <Receipt size={20} />, roles: ["admin", "superadmin", "manager", "demo"] },
       ],
     },
     {
       title: "Others",
       items: [
-        { menu: "Profile", link: "/dashboard/profile", icon: <FaUserCircle />, roles: ["admin", "superadmin", "manager", "employee", "grant", "demo"] },
-        { menu: "Setting", link: "/dashboard/setting", icon: <FiSettings />, roles: ["admin", "superadmin", "manager", "employee", "demo"] },
-        { menu: "Logout", isLogout: true, icon: <CgLogOut />, roles: ["admin", "employee", "superadmin", "developer", "manager", "grant", "demo"] },
+        { menu: "Profile", link: "/dashboard/profile", icon: <UserCircle2 size={20} />, roles: ["admin", "superadmin", "manager", "employee", "grant", "demo"] },
+        { menu: "Setting", link: "/dashboard/setting", icon: <Settings size={20} />, roles: ["admin", "superadmin", "manager", "employee", "demo"] },
+        { menu: "Logout", isLogout: true, icon: <LogOut size={20} />, roles: ["admin", "employee", "superadmin", "developer", "manager", "grant", "demo"] },
       ],
     },
   ];
@@ -148,7 +148,7 @@ const Sidebar = () => {
               />
             </div>
           ) : (
-            <SiAudiotechnica />
+            <Building2 className="text-teal-700" size={32} />
           )}
         </span>
         {showText && (
@@ -203,7 +203,7 @@ const Sidebar = () => {
                       {showText && <span className="text-[14px] md:text-[16px]">{item.menu}</span>}
                       {showText && (
                         <span className="absolute right-2 text-gray-600">
-                          {isOpen ? <IoChevronDown /> : <IoChevronForward />}
+                          {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </span>
                       )}
                     </button>

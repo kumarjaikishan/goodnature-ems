@@ -16,16 +16,14 @@ import {
     Autocomplete,
 } from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
-import { MdClear, MdDelete, MdEdit } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import Modalbox from "../../components/custommodal/Modalbox";
-import { IoSearch } from "react-icons/io5";
-import { CiFilter } from "react-icons/ci";
 import { FirstFetch } from "../../../store/userSlice";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import { useParams } from "react-router-dom";
 import dayjs from "dayjs";
+import { Edit2, Trash2, Search, Filter } from "lucide-react";
 
 const EmployeeAdvancePage = () => {
     const paramEmployeeId = new URLSearchParams(window.location.search).get("employeeId");
@@ -263,14 +261,14 @@ const EmployeeAdvancePage = () => {
             name: "Actions",
             cell: (row) =>
                 !row.payrollId && (
-                    <>
-                        <IconButton onClick={() => handleOpen(row)}>
-                            <MdEdit />
+                    <div className="flex items-center gap-1">
+                        <IconButton size="small" onClick={() => handleOpen(row)} className="text-teal-600 hover:text-teal-700">
+                            <Edit2 size={16} />
                         </IconButton>
-                        <IconButton color="error" onClick={() => handleDelete(row._id)}>
-                            <MdDelete />
+                        <IconButton size="small" color="error" onClick={() => handleDelete(row._id)}>
+                            <Trash2 size={16} />
                         </IconButton>
-                    </>
+                    </div>
                 ),
                 width: "140px"
         },

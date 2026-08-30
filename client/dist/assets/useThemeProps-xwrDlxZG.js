@@ -1,1 +1,0 @@
-import{m as e}from"./DefaultPropsProvider-C-RJN3nN.js";import{t}from"./useTheme-Div--orn.js";function n(t){let{theme:n,name:r,props:i}=t;return!n||!n.components||!n.components[r]||!n.components[r].defaultProps?i:e(n.components[r].defaultProps,i)}function r({props:e,name:r,defaultTheme:i,themeId:a}){let o=t(i);return a&&(o=o[a]||o),n({theme:o,name:r,props:e})}export{n,r as t};

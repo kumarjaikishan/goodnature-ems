@@ -2,7 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setPrimaryColor, toogleextendedonMobile, toogleliveAttandence } from "../../store/userSlice";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
-import { toast } from "react-toastify";
+import { toast } from "../utils/toast";
 
 const Settings = () => {
     const dispatch = useDispatch();

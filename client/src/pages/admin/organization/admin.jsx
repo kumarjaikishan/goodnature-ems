@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { MdEdit, MdDelete, MdOutlineModeEdit, MdExpandLess, MdExpandMore } from "react-icons/md";
+import { Edit2, Trash2, ChevronUp, ChevronDown, KeyRound } from "lucide-react";
 import useImageUpload from "../../../utils/imageresizer";
 import { apiClient } from "../../../utils/apiClient";
-import { toast } from "react-toastify";
-import { IoIosArrowDown } from "react-icons/io";
+import { toast } from "../../../utils/toast";
 import { Avatar, Button, TextField } from "@mui/material";
 import Modalbox from "../../../components/custommodal/Modalbox";
 import { useDispatch } from "react-redux";
 import { FirstFetch } from "../../../../store/userSlice";
-import { TbPasswordUser } from "react-icons/tb";
 
 // Permission labels
 const PERMISSION_LABELS = {
@@ -344,7 +342,7 @@ export default function SuperAdminDashboard() {
                                             className="p-2 border rounded hover:bg-gray-100"
                                             onClick={() => handleEdit(index)}
                                         >
-                                            <MdEdit className="h-4 w-4" />
+                                            <Edit2 size={16} />
                                         </button>
 
                                         <button
@@ -352,7 +350,7 @@ export default function SuperAdminDashboard() {
                                             className="p-2 border rounded hover:bg-gray-100 text-green-500"
                                             onClick={() => { setpass({ ...pass, userid: admin._id }); setpassmodal(true) }}
                                         >
-                                            <TbPasswordUser className="h-4 w-4 " />
+                                            <KeyRound size={16} />
                                         </button>
 
                                         <button
@@ -360,7 +358,7 @@ export default function SuperAdminDashboard() {
                                             className="p-2 border rounded text-red-600 hover:bg-red-50"
                                             onClick={() => handleDelete(admin._id)}
                                         >
-                                            <MdDelete className="h-4 w-4" />
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
                                 </div>
@@ -372,9 +370,9 @@ export default function SuperAdminDashboard() {
                                     >
                                         <span className="font-semibold text-[16px] md:text-lg text-left"> {expandedIndex === index ? "Hide Permissions" : `View Permissions `}</span>
                                         {expandedIndex === index ? (
-                                            <MdExpandLess className="text-xl" />
+                                            <ChevronUp size={20} />
                                         ) : (
-                                            <MdExpandMore className="text-xl" />
+                                            <ChevronDown size={20} />
                                         )}
                                     </div>
 
@@ -434,9 +432,9 @@ export default function SuperAdminDashboard() {
                                         alt={form.name} src={form.profilePreview} />
 
                                     <span onClick={() => inputref.current.click()}
-                                        className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1"
+                                        className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
                                     >
-                                        <MdOutlineModeEdit size={18} />
+                                        <Edit2 size={18} />
                                     </span>
                                 </div>
 

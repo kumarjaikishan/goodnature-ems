@@ -1,1 +1,0 @@
-import{s as e,t}from"./react-CS1XD-7T.js";import{b as n,k as r}from"./DefaultPropsProvider-C-RJN3nN.js";var i=e(t());function a(e){return Object.keys(e).length===0}function o(e=null){let t=i.useContext(r);return!t||a(t)?e:t}var s=n();function c(e=s){return o(e)}export{o as n,c as t};

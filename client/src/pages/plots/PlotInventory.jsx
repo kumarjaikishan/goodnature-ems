@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
-import { HiOutlineMagnifyingGlass, HiPencilSquare } from 'react-icons/hi2';
+import { toast } from '../../utils/toast';
+import { Search, Edit2 } from 'lucide-react';
 import Modalbox from '../../components/custommodal/Modalbox';
 import { CircularProgress } from '@mui/material';
 
@@ -154,7 +154,7 @@ const PlotInventory = () => {
             onChange={e => { setFilters({ ...filters, search: e.target.value }); setPage(1); }}
             className={`${inputCls} w-full pl-9`}
           />
-          <HiOutlineMagnifyingGlass className="absolute left-3 top-3 text-slate-400 text-base" />
+          <Search size={16} className="absolute left-3 top-3 text-slate-400" />
         </div>
       </div>
 
@@ -188,7 +188,7 @@ const PlotInventory = () => {
               {/* Adjust hover indicator */}
               {(p.status === 'AVAILABLE' || p.status === 'HOLD') && (
                 <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                  <HiPencilSquare className="text-xs text-slate-600" />
+                  <Edit2 size={12} className="text-slate-600" />
                 </div>
               )}
             </div>

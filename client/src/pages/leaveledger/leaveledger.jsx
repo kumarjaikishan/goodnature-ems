@@ -20,17 +20,14 @@ import {
     Tooltip
 } from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
-import { MdClear, MdDelete, MdEdit, MdOpenInNew } from "react-icons/md";
+import { X, Trash2, Edit2, ExternalLink, History, Search, Filter } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import Modalbox from "../../components/custommodal/Modalbox";
-import { CiFilter } from "react-icons/ci";
-import { IoSearch } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import { FirstFetch } from "../../../store/userSlice";
 import LeaveHistoryModal from "./components/LeaveHistoryModal";
-import { MdHistory } from "react-icons/md";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 
 const Leaveledger = () => {
@@ -257,24 +254,24 @@ const Leaveledger = () => {
                                 setHistoryEmployee(row.employeeId);
                                 setHistoryOpen(true);
                             }}>
-                                <MdHistory />
+                                <History size={18} />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Adjustment">
                             <IconButton color="primary" onClick={() => handleOpen(row)}>
-                                <MdEdit />
+                                <Edit2 size={18} />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete Summary">
                             <IconButton color="error" onClick={() => handleDelete(row._id)}>
-                                <MdDelete />
+                                <Trash2 size={18} />
                             </IconButton>
                         </Tooltip>
                     </>
                     }
                     {row.payrollId && <>
                         <IconButton title="Open Payroll" color="primary" onClick={() => navigate(`/dashboard/payroll/print/${row.payrollId}`)}>
-                            <MdOpenInNew />
+                            <ExternalLink size={18} />
                         </IconButton>
                     </>}
                 </>
@@ -297,7 +294,7 @@ const Leaveledger = () => {
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
-                                    <IoSearch />
+                                    <Search size={16} />
                                 </InputAdornment>
                             ),
                             endAdornment: filters.searchText && (
@@ -307,7 +304,7 @@ const Leaveledger = () => {
                                         edge="end"
                                         size="small"
                                     >
-                                        <MdClear />
+                                        <X size={16} />
                                     </IconButton>
                                 </InputAdornment>
                             ),
@@ -328,7 +325,7 @@ const Leaveledger = () => {
                                 <OutlinedInput
                                     startAdornment={
                                         <InputAdornment position="start">
-                                            <CiFilter fontSize="small" />
+                                            <Filter size={16} />
                                         </InputAdornment>
                                     }
                                     label="Branch"
@@ -359,7 +356,7 @@ const Leaveledger = () => {
                                 <OutlinedInput
                                     startAdornment={
                                         <InputAdornment position="start">
-                                            <CiFilter fontSize="small" />
+                                            <Filter size={18} />
                                         </InputAdornment>
                                     }
                                     label="Department"

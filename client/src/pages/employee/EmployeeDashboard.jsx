@@ -6,13 +6,13 @@ import OfficialNoticeBoard from '../../components/notice';
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { motion } from 'framer-motion';
 import {
-  MdWavingHand,
-  MdLogin,
-  MdLogout,
-  MdEventAvailable,
-  MdCalendarMonth,
-  MdInfo
-} from 'react-icons/md';
+  Hand,
+  LogIn,
+  LogOut,
+  CalendarCheck,
+  Calendar as CalendarIcon,
+  Info,
+} from 'lucide-react';
 import { Avatar, Tooltip } from '@mui/material';
 
 dayjs.extend(isSameOrBefore);
@@ -117,7 +117,7 @@ const EmployeeDashboard = () => {
           />
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-              {greeting()}, {profile?.userid?.name?.split(' ')[0]} <MdWavingHand className="text-amber-400 animate-bounce" />
+              {greeting()}, {profile?.userid?.name?.split(' ')[0]} <Hand size={28} className="text-amber-400 animate-bounce" />
             </h1>
             <p className="text-gray-500 font-medium">{profile?.designation || 'Team Member'} • {profile?.empId}</p>
           </div>
@@ -140,7 +140,7 @@ const EmployeeDashboard = () => {
         <motion.div variants={itemVariants} className="bg-white p-5 rounded-3xl shadow-lg border border-white hover:shadow-xl transition-shadow group">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-teal-50 rounded-2xl text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-colors">
-              <MdLogin size={24} />
+              <LogIn size={24} />
             </div>
             <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Today's Presence</span>
           </div>
@@ -160,7 +160,7 @@ const EmployeeDashboard = () => {
         <motion.div variants={itemVariants} className="bg-white p-5 rounded-3xl shadow-lg border border-white hover:shadow-xl transition-shadow group">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-              <MdCalendarMonth size={24} />
+              <CalendarIcon size={24} />
             </div>
             <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{dayjs().format('MMMM')} Overview</span>
           </div>
@@ -186,7 +186,7 @@ const EmployeeDashboard = () => {
         <motion.div variants={itemVariants} className="bg-white p-5 hidden rounded-3xl shadow-lg border border-white hover:shadow-xl transition-shadow group">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-              <MdEventAvailable size={24} />
+              <CalendarCheck size={24} />
             </div>
             <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Leave Quota</span>
           </div>
@@ -204,7 +204,7 @@ const EmployeeDashboard = () => {
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-4">
               <div className="p-3 bg-white/20 rounded-2xl text-white">
-                <MdEventAvailable size={24} />
+                <CalendarCheck size={24} />
               </div>
               <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Next Break</span>
             </div>
@@ -215,7 +215,7 @@ const EmployeeDashboard = () => {
               </p>
             </div>
           </div>
-          <MdEventAvailable className="absolute -right-4 -bottom-4 text-white/10 text-8xl rotate-12" />
+          <CalendarCheck className="absolute -right-4 -bottom-4 text-white/10 text-8xl rotate-12" />
         </motion.div>
       </motion.div>
 
@@ -229,7 +229,7 @@ const EmployeeDashboard = () => {
         {/* Left: Calendar Component */}
         <motion.div variants={itemVariants} className=" border-2 border-gray-200 bg-white  rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
           <div className="p-6 pb-0 flex items-center gap-2 border-b border-gray-50 mb-2">
-            <MdCalendarMonth className="text-2xl text-teal-600" />
+            <CalendarIcon className="text-2xl text-teal-600" />
             <h2 className="text-lg font-bold text-gray-800 underline decoration-teal-200 underline-offset-8">Holiday & Calendar</h2>
           </div>
           <div className="flex justify-center p-2">
@@ -251,7 +251,7 @@ const EmployeeDashboard = () => {
         className="bg-amber-50 hidden rounded-2xl p-4 border border-amber-100 flex items-center gap-3"
       >
         <div className="bg-amber-200/50 p-2 rounded-xl text-amber-700">
-          <MdInfo size={20} />
+          <Info size={20} />
         </div>
         <p className="text-sm font-medium text-amber-900">
           <span className="font-bold">Pro Tip:</span> Always check the notice board for urgent updates regarding company policies and upcoming events!

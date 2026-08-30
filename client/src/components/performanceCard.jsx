@@ -1,18 +1,18 @@
 import { useMemo } from "react";
 import { PieChart } from "@mui/x-charts/PieChart";
 import {
-    FaCalendarAlt,
-    FaCheckCircle,
-    FaSuitcase,
-    FaUserSlash,
-    FaClock,
-    FaCompressAlt,
-    FaSignInAlt,
-    FaSignOutAlt,
-    FaArrowCircleLeft,
-    FaArrowCircleRight,
-    FaCalendarWeek,
-} from "react-icons/fa";
+    Calendar,
+    CheckCircle,
+    Briefcase,
+    UserX,
+    Clock,
+    Minimize2,
+    LogIn,
+    LogOut,
+    ArrowLeftCircle,
+    ArrowRightCircle,
+    CalendarDays,
+} from "lucide-react";
 import { Tooltip } from "@mui/material";
 
 const EmployeeProfileCard = ({ attandence, employee, hell }) => {
@@ -106,32 +106,32 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
                 <div className="flex-grow w-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <StatCard
-                            icon={FaCalendarAlt}
+                            icon={Calendar}
                             label="Total Days"
                             value={total}
                             colorClass="bg-indigo-500"
                         />
                         <StatCard
-                            icon={FaCheckCircle}
+                            icon={CheckCircle}
                             label="Present"
                             value={`${hell?.present?.length || 0} Days`}
                             subValue={perc.present ? `${perc.present}% Attendance` : ""}
                             colorClass="bg-teal-600"
                         />
                         <StatCard
-                            icon={FaSuitcase}
+                            icon={Briefcase}
                             label="Leaves"
                             value={hell?.leave?.length || 0}
                             colorClass="bg-orange-500"
                         />
                         <StatCard
-                            icon={FaUserSlash}
+                            icon={UserX}
                             label="Absent"
                             value={hell?.absent?.length || 0}
                             colorClass="bg-rose-500"
                         />
                         <StatCard
-                            icon={FaClock}
+                            icon={Clock}
                             label="Overtime"
                             value={`${hell?.overtime?.length || 0} Records`}
                             subValue={hell?.overtimemin > 0 ? `OT ${hell.overtimemin} min | Net ${(hell?.overtimemin || 0) - (hell?.shorttimemin || 0)} min | ₹${hell?.overtimesalary || 0}` : ""}
@@ -145,39 +145,39 @@ const EmployeeProfileCard = ({ attandence, employee, hell }) => {
                             }
                         />
                         <StatCard
-                            icon={FaCompressAlt}
+                            icon={Minimize2}
                             label="Short Time"
                             value={`${hell?.short?.length || 0} Records`}
                             subValue={hell?.shorttimemin > 0 ? `${hell.shorttimemin} Min Total` : ""}
                             colorClass="bg-amber-500"
                         />
                         <StatCard
-                            icon={FaCalendarWeek}
+                            icon={CalendarDays}
                             label="Work On Weekly Off"
                             value={`${hell?.weeklyoffwork?.length || 0} Days`}
                             subValue={hell?.weeklyoffworkmin > 0 ? formatMinToHours(hell.weeklyoffworkmin) : ""}
                             colorClass="bg-purple-600"
                         />
                         <StatCard
-                            icon={FaSignInAlt}
+                            icon={LogIn}
                             label="Late Arrival"
                             value={hell?.latearrival?.length || 0}
                             colorClass="bg-orange-400"
                         />
                         <StatCard
-                            icon={FaSignOutAlt}
+                            icon={LogOut}
                             label="Early Exit"
                             value={hell?.earlyLeave?.length || 0}
                             colorClass="bg-amber-600"
                         />
                         <StatCard
-                            icon={FaArrowCircleLeft}
+                            icon={ArrowLeftCircle}
                             label="Early Arrival"
                             value={hell?.earlyarrival?.length || 0}
                             colorClass="bg-sky-500"
                         />
                         <StatCard
-                            icon={FaArrowCircleRight}
+                            icon={ArrowRightCircle}
                             label="Late Exit"
                             value={hell?.lateleave?.length || 0}
                             colorClass="bg-indigo-600"

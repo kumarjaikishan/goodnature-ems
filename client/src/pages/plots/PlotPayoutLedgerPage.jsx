@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import PageLoader from '../../components/common/PageLoader';
 import { 
-  HiOutlineBanknotes, 
-  HiOutlinePrinter, 
-  HiOutlineArrowLeft, 
-  HiOutlineCheckCircle,
-  HiOutlineTrash,
-  HiOutlinePencilSquare
-} from 'react-icons/hi2';
+  Banknote, 
+  Printer, 
+  ArrowLeft, 
+  CheckCircle,
+  Trash2,
+  Edit2
+} from 'lucide-react';
 
 const PlotPayoutLedgerPage = () => {
   const { bookingId } = useParams();
@@ -230,7 +230,7 @@ const PlotPayoutLedgerPage = () => {
             className="p-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer text-slate-600 dark:text-slate-300"
             title="Back to Reports"
           >
-            <HiOutlineArrowLeft className="w-4 h-4" />
+            <ArrowLeft size={16} />
           </button>
           <div>
             <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
@@ -291,7 +291,7 @@ const PlotPayoutLedgerPage = () => {
       {showPayoutForm && (
         <div className="p-5 border border-indigo-200 dark:border-indigo-900 bg-indigo-500/5 dark:bg-indigo-950/20 rounded-sm animate-[fadeIn_200ms_ease] shadow-sm">
           <h4 className="text-xs font-black uppercase text-indigo-650 dark:text-indigo-400 mb-4 tracking-wider flex items-center gap-1.5">
-            <HiOutlineBanknotes className="w-4 h-4 animate-pulse" /> {editingVoucherId ? 'Edit Payout Payment' : 'Record Payout Payment'}
+            <Banknote className="w-4 h-4 animate-pulse" /> {editingVoucherId ? 'Edit Payout Payment' : 'Record Payout Payment'}
           </h4>
           <form onSubmit={handleRecordPayoutSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div className="flex flex-col gap-1.5">
@@ -357,7 +357,7 @@ const PlotPayoutLedgerPage = () => {
                 disabled={payoutFormSaving}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-sm cursor-pointer disabled:opacity-50 transition flex items-center gap-1.5"
               >
-                <HiOutlineCheckCircle /> {payoutFormSaving ? 'Saving...' : editingVoucherId ? 'Save Changes' : 'Record Payment'}
+                <CheckCircle size={14} /> {payoutFormSaving ? 'Saving...' : editingVoucherId ? 'Save Changes' : 'Record Payment'}
               </button>
             </div>
           </form>
@@ -424,21 +424,21 @@ const PlotPayoutLedgerPage = () => {
                             className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-600 dark:text-amber-450 hover:text-amber-700 rounded border border-slate-200 dark:border-slate-700/60 cursor-pointer transition inline-flex items-center"
                             title="Edit Voucher"
                           >
-                            <HiOutlinePencilSquare className="w-3.5 h-3.5" />
+                            <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => navigate(`/plot/payout-voucher/print/${tx.voucherId}`)}
                             className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-605 dark:text-slate-350 hover:text-indigo-650 dark:hover:text-indigo-400 rounded border border-slate-200 dark:border-slate-700/60 cursor-pointer transition inline-flex items-center"
                             title="Print Voucher"
                           >
-                            <HiOutlinePrinter className="w-3.5 h-3.5" />
+                            <Printer size={14} />
                           </button>
                           <button
                             onClick={() => handleDeletePayout(tx.voucherId, tx.reference)}
                             className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-450 hover:text-red-700 rounded border border-slate-200 dark:border-slate-700/60 cursor-pointer transition inline-flex items-center"
                             title="Delete Voucher"
                           >
-                            <HiOutlineTrash className="w-3.5 h-3.5" />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ) : (

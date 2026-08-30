@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import PageLoader from '../../components/common/PageLoader';
 import { CircularProgress } from '@mui/material';
 import {
-  HiOutlineBanknotes,
-  HiOutlineCheckCircle,
-  HiOutlinePrinter,
-  HiOutlineArrowLeft,
-  HiOutlinePlus,
-  HiOutlinePencilSquare,
-  HiOutlineTrash
-} from 'react-icons/hi2';
+  Banknote,
+  CheckCircle,
+  Printer,
+  ArrowLeft,
+  Plus,
+  Edit2,
+  Trash2,
+} from 'lucide-react';
 import Modalbox from '../../components/custommodal/Modalbox';
 import numberToWords from '../../utils/numToWord';
 
@@ -346,7 +346,7 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '120px',
+      minWidth: '120px',
     },
     {
       name: 'Booking No.',
@@ -357,7 +357,7 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '150px',
+      minWidth: '140px',
     },
     {
       name: 'Plot #',
@@ -368,7 +368,7 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '110px',
+      minWidth: '100px',
     },
     {
       name: 'Customer',
@@ -379,6 +379,8 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
+      minWidth: '160px',
+      grow: 2,
     },
     {
       name: 'Amount Paid',
@@ -389,7 +391,7 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '130px',
+      minWidth: '130px',
     },
     {
       name: 'Type',
@@ -408,7 +410,7 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '140px',
+      minWidth: '140px',
     },
     {
       name: 'Mode',
@@ -419,7 +421,7 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '100px',
+      minWidth: '100px',
     },
     {
       name: 'Ref No.',
@@ -430,11 +432,11 @@ const InstallmentCollection = () => {
         </span>
       ),
       sortable: true,
-      width: '130px',
+      minWidth: '120px',
     },
     {
       name: 'Actions',
-      width: '140px',
+      minWidth: '140px',
       cell: (r) => (
         <div className="flex items-center gap-1.5 py-1">
           <button
@@ -442,21 +444,21 @@ const InstallmentCollection = () => {
             className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-semibold border border-slate-200 transition cursor-pointer flex items-center justify-center"
             title="Print Receipt"
           >
-            <HiOutlinePrinter className="w-4 h-4" />
+            <Printer size={16} />
           </button>
           <button
             onClick={() => handleEditClick(r)}
             className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold border border-indigo-200 transition cursor-pointer flex items-center justify-center"
             title="Edit Collection"
           >
-            <HiOutlinePencilSquare className="w-4 h-4" />
+            <Edit2 size={16} />
           </button>
           <button
             onClick={() => setDeletingReceipt(r)}
             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center"
             title="Delete / Reverse"
           >
-            <HiOutlineTrash className="w-4 h-4" />
+            <Trash2 size={16} />
           </button>
         </div>
       ),
@@ -484,7 +486,7 @@ const InstallmentCollection = () => {
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm"
               type="button"
             >
-              <HiOutlinePlus className="w-4 h-4" /> Add Collection
+              <Plus size={16} /> Add Collection
             </button>
           ) : (
             <button
@@ -498,7 +500,7 @@ const InstallmentCollection = () => {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-medium text-sm transition cursor-pointer"
               type="button"
             >
-              <HiOutlineArrowLeft className="w-4 h-4" /> Back to Collections
+              <ArrowLeft size={16} /> Back to Collections
             </button>
           )}
         </div>
@@ -568,7 +570,7 @@ const InstallmentCollection = () => {
           {/* Booking Selection & Payment Form */}
           <div className="flex flex-col gap-5 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
             <h3 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <HiOutlineBanknotes className="w-5 h-5 text-indigo-600" /> Receive Payment
+              <Banknote size={20} className="text-indigo-600" /> Receive Payment
             </h3>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -823,7 +825,7 @@ const InstallmentCollection = () => {
                 disabled={submitLoading || !selectedBooking || !form.amountPaid || Number(form.amountPaid) <= 0}
                 className="mt-2 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm cursor-pointer transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
-                <HiOutlineCheckCircle className="w-5 h-5" /> {submitLoading ? 'Saving...' : 'Collect Payment'}
+                <CheckCircle size={18} /> {submitLoading ? 'Saving...' : 'Collect Payment'}
               </button>
             </form>
           </div>

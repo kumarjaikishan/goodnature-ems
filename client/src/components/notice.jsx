@@ -1,6 +1,6 @@
 // src/components/OfficialNoticeBoard.jsx
 import React, { useState } from 'react';
-import { MdEdit, MdDelete, MdOutlinePushPin, MdNotificationsActive, MdEvent, MdDescription, MdInfoOutline } from 'react-icons/md';
+import { Edit2, Trash2, Pin, Bell, Calendar, FileText, Info } from 'lucide-react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, MenuItem, IconButton, Tooltip
@@ -64,10 +64,10 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
 
   const getNoticeIcon = (type) => {
     switch (type) {
-      case 'Urgent': return <MdNotificationsActive className="text-rose-500" />;
-      case 'Holiday': return <MdEvent className="text-sky-500" />;
-      case 'Policy': return <MdDescription className="text-indigo-500" />;
-      default: return <MdInfoOutline className="text-emerald-500" />;
+      case 'Urgent': return <Bell size={18} className="text-rose-500" />;
+      case 'Holiday': return <Calendar size={18} className="text-sky-500" />;
+      case 'Policy': return <FileText size={18} className="text-indigo-500" />;
+      default: return <Info size={18} className="text-emerald-500" />;
     }
   };
 
@@ -85,7 +85,7 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
       <div className="flex items-center justify-between mb-5 border-b border-gray-100 pb-3">
         <div className="flex items-center gap-2">
           <div className="bg-amber-100 p-2 rounded-xl text-amber-600 shadow-sm">
-            <MdOutlinePushPin className="text-xl" />
+            <Pin size={18} />
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-800">Official Notices</h3>
@@ -143,12 +143,12 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
                 <div className="absolute right-2 bottom-2 hidden group-hover:flex gap-1 bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-gray-100 shadow-sm transition-all animate-in fade-in zoom-in duration-200">
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => handleOpen(notice)}>
-                      <MdEdit className="text-[16px] text-blue-500" />
+                      <Edit2 size={16} className="text-blue-500" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Delete">
                     <IconButton size="small" onClick={() => onDelete && onDelete(notice._id)}>
-                      <MdDelete className="text-[16px] text-red-500" />
+                      <Trash2 size={16} className="text-red-500" />
                     </IconButton>
                   </Tooltip>
                 </div>
@@ -157,7 +157,7 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
           ))
         ) : (
           <div className="flex flex-col items-center justify-center py-10 text-center opacity-40">
-             <MdNotificationsActive className="text-5xl mb-2" />
+             <Bell size={40} className="mb-2" />
              <p className="text-sm font-medium italic">No active notices</p>
           </div>
         )}

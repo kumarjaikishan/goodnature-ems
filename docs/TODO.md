@@ -14,6 +14,13 @@ This document tracks known tasks, technical debt, and pending improvements ident
   - `server/controllers/attandence.js` (~1778 lines) and `server/controllers/admin.js` (~1500+ lines) contain significant business logic that can gradually be delegated into services (`services/attendanceService.js`, `services/employeeService.js`).
 - [ ] **Attendance Excel Import**:
   - Verify edge cases for bulk import date formatting when users upload CSV/Excel files with non-standard local date strings.
+- [ ] **Client Bundle Optimization & Migration Plan**:
+  - Phase 1: Removed unused `date-fns` & `pagedjs` (Saved ~300KB+ bundle weight) [COMPLETED].
+  - Phase 2: Standardized icon usage 100% onto `lucide-react`, fully uninstalled `react-icons` [COMPLETED].
+  - Phase 3: Setup `sonner` universal toast adapter (`@/utils/toast`) and uninstalled `react-toastify` [COMPLETED].
+  - Phase 4: Drop-in CJS ESM Interop verified and centralized via `DataTable.jsx` [COMPLETED].
+  - Phase 5: Dynamic lazy-loading Excel parser & exporter (`excelHelper.js`) reducing initial bundle weight by over ~400KB on `AttendanceExcelImport.jsx` and `Holiday.jsx` [COMPLETED].
+  - Phase 6: Completely purged deprecated membership module from frontend [COMPLETED].
 - [ ] **Automated Test Coverage**:
   - Backend currently contains skeleton test directories (`server/test/`, `server/tests/`) with no active automated test suites. Set up unit/integration tests for payroll calculation and plot installment ledgers.
 

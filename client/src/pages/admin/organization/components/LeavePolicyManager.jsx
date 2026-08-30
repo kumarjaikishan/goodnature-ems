@@ -5,9 +5,9 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Card, CardContent, Divider, Tooltip
 } from '@mui/material';
-import { MdEdit, MdDelete, MdAddCircle, MdCheckCircle, MdCancel } from 'react-icons/md';
+import { Edit2, Trash2, PlusCircle, CheckCircle, X } from 'lucide-react';
 import { apiClient } from '../../../../utils/apiClient';
-import { toast } from 'react-toastify';
+import { toast } from '../../../../utils/toast';
 import swal from 'sweetalert';
 
 const LeavePolicyManager = () => {
@@ -125,53 +125,56 @@ const LeavePolicyManager = () => {
                 <Typography variant="h6">Leave Policies</Typography>
                 {!showForm && (
                     <Button 
-                        variant="contained" 
-                        startIcon={<MdAddCircle />} 
-                        onClick={() => setShowForm(true)}
+                        variant="outlined" 
+                        startIcon={<PlusCircle size={16} />} 
+                        onClick={() => setShowForm(!showForm)}
                     >
-                        Add New Policy
+                        {showForm ? 'Close Form' : 'Add Policy'}
                     </Button>
                 )}
             </Box>
 
             {showForm && (
-                <Card sx={{ mb: 4, border: '1px dashed #ccc' }}>
-                    <CardContent>
-                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
+                <Card variant="outlined" sx={{ mb: 4, borderRadius: 2 }}>
+                    <CardContent sx={{ p: 3 }}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                             {editingPolicy ? 'Edit Leave Policy' : 'Create New Leave Policy'}
                         </Typography>
                         <form onSubmit={handleSubmit}>
                             <Grid container spacing={3}>
                                 <Grid item xs={12} md={6}>
-                                    <TextField
-                                        fullWidth
-                                        label="Policy Name (e.g. Earned Leave, Sick Leave)"
+                                    <TextField 
+                                        fullWidth 
+                                        label="Policy Name" 
+                                        required 
                                         size="small"
-                                        required
                                         value={form.name}
                                         onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                        placeholder="e.g. Casual Leave, Sick Leave"
                                     />
                                 </Grid>
                                 <Grid item xs={12} md={3}>
                                     <FormControl fullWidth size="small">
-                                        <InputLabel>Allocation Type</InputLabel>
+                                        <InputLabel>Allocation Cycle</InputLabel>
                                         <Select
                                             value={form.allocationType}
-                                            label="Allocation Type"
+                                            label="Allocation Cycle"
                                             onChange={(e) => setForm({ ...form, allocationType: e.target.value })}
                                         >
                                             <MenuItem value="monthly">Monthly</MenuItem>
-                                            <MenuItem value="yearly">Yearly</MenuItem>
+                                            <MenuItem value="quarterly">Quarterly</MenuItem>
+                                            <MenuItem value="annually">Annually</MenuItem>
+                                            <MenuItem value="biannually">Bi-Annually</MenuItem>
                                         </Select>
                                     </FormControl>
                                 </Grid>
                                 <Grid item xs={12} md={3}>
-                                    <TextField
-                                        fullWidth
+                                    <TextField 
+                                        fullWidth 
                                         type="number"
-                                        label="Total Leaves"
+                                        label="Total Leaves / Allocation" 
+                                        required 
                                         size="small"
-                                        required
                                         value={form.totalLeaves}
                                         onChange={(e) => setForm({ ...form, totalLeaves: Number(e.target.value) })}
                                     />
@@ -255,7 +258,7 @@ const LeavePolicyManager = () => {
                                     <Button 
                                         variant="outlined" 
                                         color="error" 
-                                        startIcon={<MdCancel />} 
+                                        startIcon={<X size={16} />} 
                                         onClick={handleReset}
                                     >
                                         Cancel
@@ -265,7 +268,7 @@ const LeavePolicyManager = () => {
                                         variant="contained" 
                                         color="primary" 
                                         disabled={loading}
-                                        startIcon={<MdCheckCircle />}
+                                        startIcon={<CheckCircle size={16} />}
                                     >
                                         {editingPolicy ? 'Update Policy' : 'Create Policy'}
                                     </Button>
@@ -313,12 +316,12 @@ const LeavePolicyManager = () => {
                                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                             <Tooltip title="Edit">
                                                 <IconButton size="small" onClick={() => handleEdit(policy)} color="primary">
-                                                    <MdEdit />
+                                                    <Edit2 size={16} />
                                                 </IconButton>
                                             </Tooltip>
                                             <Tooltip title="Delete">
                                                 <IconButton size="small" onClick={() => handleDelete(policy._id)} color="error">
-                                                    <MdDelete />
+                                                    <Trash2 size={16} />
                                                 </IconButton>
                                             </Tooltip>
                                         </Box>

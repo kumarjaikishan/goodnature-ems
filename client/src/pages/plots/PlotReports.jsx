@@ -1,23 +1,24 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import {
-  HiOutlineChartBar,
-  HiOutlineCheckCircle,
-  HiOutlinePrinter,
-  HiOutlineXCircle,
-  HiOutlineTrash,
-  HiOutlinePencilSquare,
-  HiOutlineBanknotes,
-  HiOutlineDocumentText,
-  HiOutlineClipboardDocumentCheck,
-  HiXMark,
-  HiOutlineEye,
-  HiOutlineSparkles,
-} from 'react-icons/hi2';
+  BarChart3,
+  CheckCircle,
+  Printer,
+  XCircle,
+  Trash2,
+  Edit2,
+  Banknote,
+  FileText,
+  ClipboardCheck,
+  X,
+  Eye,
+  Sparkles,
+  Search
+} from 'lucide-react';
 import Modalbox from '../../components/custommodal/Modalbox';
 import PageLoader from '../../components/common/PageLoader';
 
@@ -383,7 +384,7 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '110px',
+      minWidth: '120px',
     },
     {
       name: 'Booking & Plot #',
@@ -395,7 +396,7 @@ const PlotReports = () => {
         </div>
       ),
       sortable: true,
-      width: '135px',
+      minWidth: '140px',
     },
     {
       name: 'Customer',
@@ -407,14 +408,15 @@ const PlotReports = () => {
         </div>
       ),
       sortable: true,
-      width: '140px',
+      minWidth: '160px',
+      grow: 2,
     },
     {
       name: 'Plot Value',
       selector: (row) => row.plotValue || 0,
       cell: (row) => <span className="font-bold text-slate-900 font-mono text-xs">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '110px',
+      minWidth: '120px',
     },
     {
       name: 'Discount',
@@ -425,7 +427,7 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '95px',
+      minWidth: '100px',
     },
     {
       name: 'Paid Amount',
@@ -436,14 +438,14 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '110px',
+      minWidth: '130px',
     },
     {
       name: 'Outstanding',
       selector: (row) => row.remainingAmount || 0,
       cell: (row) => <span className="font-bold text-slate-900 font-mono text-xs">₹{(row.remainingAmount || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '115px',
+      minWidth: '130px',
     },
     {
       name: 'Status',
@@ -460,11 +462,11 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '95px',
+      minWidth: '110px',
     },
     {
       name: 'Actions',
-      width: '190px',
+      minWidth: '190px',
       cell: (b) => (
         <div className="flex items-center gap-1.5 py-1">
           <button
@@ -472,7 +474,7 @@ const PlotReports = () => {
             title="View Full Plot & Booking Details"
             className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer border border-slate-200"
           >
-            <HiOutlineEye className="w-4 h-4" />
+            <Eye size={16} />
           </button>
           {b.receiptId && (
             <button
@@ -480,15 +482,15 @@ const PlotReports = () => {
               title="Print Booking Receipt"
               className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition cursor-pointer border border-sky-200"
             >
-              <HiOutlinePrinter className="w-4 h-4" />
+              <Printer size={16} />
             </button>
           )}
           <button
-            onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
-            title="Print Booking Certificate"
-            className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200"
+            onClick={() => navigate(`/dashboard/plots/bookings/${b._id}`)}
+            title="View Contract Ledger"
+            className="p-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition cursor-pointer border border-teal-200"
           >
-            <HiOutlineDocumentText className="w-4 h-4" />
+            <Eye size={16} />
           </button>
           <button
             onClick={async () => {
@@ -516,14 +518,14 @@ const PlotReports = () => {
             title="Print Agreement"
             className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition cursor-pointer border border-amber-200"
           >
-            <HiOutlineClipboardDocumentCheck className="w-4 h-4" />
+            <ClipboardCheck size={16} />
           </button>
           <button
             onClick={() => handleEditClick(b)}
             title="Edit Booking"
             className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200"
           >
-            <HiOutlinePencilSquare className="w-4 h-4" />
+            <Edit2 size={16} />
           </button>
           <button
             onClick={() => openDeleteBookingModal(b)}
@@ -534,7 +536,7 @@ const PlotReports = () => {
             {deletingId === b._id ? (
               <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <HiOutlineTrash className="w-4 h-4" />
+              <Trash2 size={16} />
             )}
           </button>
 
@@ -552,7 +554,7 @@ const PlotReports = () => {
                   title="Setup Money-Back Payouts"
                   className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200"
                 >
-                  <HiOutlineBanknotes className="w-4 h-4" />
+                  <Banknote size={16} />
                 </button>
               ) : (
                 <button
@@ -560,7 +562,7 @@ const PlotReports = () => {
                   title="View Weekly Payout Ledger"
                   className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition cursor-pointer border border-emerald-300"
                 >
-                  <HiOutlineBanknotes className="w-4 h-4" />
+                  <Banknote size={16} />
                 </button>
               )}
             </>
@@ -581,10 +583,10 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '110px',
+      minWidth: '100px',
     },
     {
-      name: 'Booking & Plot #',
+      name: 'Booking & Plot',
       selector: (row) => row.bookingNumber,
       cell: (row) => (
         <div className="flex flex-col text-xs">
@@ -593,14 +595,20 @@ const PlotReports = () => {
         </div>
       ),
       sortable: true,
-      width: '135px',
+      minWidth: '120px',
     },
     {
-      name: 'Customer Name',
+      name: 'Customer',
       selector: (row) => row.customerId?.name || row.customerName,
-      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap text-xs">{row.customerId?.name || row.customerName}</span>,
+      cell: (row) => (
+        <div className="flex flex-col text-xs">
+          <span className="font-bold text-slate-900 truncate">{row.customerId?.name || row.customerName}</span>
+          <span className="text-[10px] text-slate-500">{row.customerId?.mobile || row.customerMobile || ''}</span>
+        </div>
+      ),
       sortable: true,
-      width: '140px',
+      minWidth: '140px',
+      grow: 2,
     },
     {
       name: 'Scheme',
@@ -611,32 +619,32 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '95px',
-    },
-    {
-      name: 'Plot Value',
-      selector: (row) => row.plotValue || 0,
-      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
-      sortable: true,
-      width: '110px',
+      minWidth: '85px',
     },
     {
       name: 'Net Payable',
       selector: (row) => row.netPlotValue || (row.plotValue || 0) - (row.discount || 0),
       cell: (row) => (
-        <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">
-          ₹{(row.netPlotValue || (row.plotValue || 0) - (row.discount || 0)).toLocaleString('en-IN')}
-        </span>
+        <div className="flex flex-col text-xs">
+          <span className="font-bold text-slate-900 font-mono">
+            ₹{(row.netPlotValue || (row.plotValue || 0) - (row.discount || 0)).toLocaleString('en-IN')}
+          </span>
+          {(row.discount || 0) > 0 && (
+            <span className="text-[10px] text-emerald-700 font-medium">
+              -₹{(row.discount || 0).toLocaleString('en-IN')} disc.
+            </span>
+          )}
+        </div>
       ),
       sortable: true,
-      width: '110px',
+      minWidth: '105px',
     },
     {
       name: 'Paid Amount',
       selector: (row) => row.totalPaid || 0,
       cell: (row) => <span className="font-bold text-emerald-800 whitespace-nowrap font-mono text-xs">₹{(row.totalPaid || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '110px',
+      minWidth: '100px',
     },
     {
       name: 'Due Amount',
@@ -647,7 +655,7 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '110px',
+      minWidth: '100px',
     },
     {
       name: 'EMIs Paid',
@@ -658,7 +666,7 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '95px',
+      minWidth: '85px',
     },
     {
       name: 'Status',
@@ -675,11 +683,11 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '95px',
+      minWidth: '95px',
     },
     {
       name: 'Action',
-      width: '100px',
+      minWidth: '85px',
       cell: (b) => (
         <button
           onClick={() => navigate(`/dashboard/plots/installments?bookingId=${b._id}`)}
@@ -698,7 +706,7 @@ const PlotReports = () => {
       selector: (row) => row.plotId?.plotNumber || '',
       cell: (row) => <span className="font-bold text-slate-900 font-mono text-xs">{row.plotId?.plotNumber}</span>,
       sortable: true,
-      width: '95px',
+      minWidth: '100px',
     },
     {
       name: 'Customer',
@@ -710,21 +718,22 @@ const PlotReports = () => {
         </div>
       ),
       sortable: true,
-      width: '140px',
+      minWidth: '160px',
+      grow: 2,
     },
     {
       name: 'Hold Deposit',
       selector: (row) => row.bookingAmount || 0,
       cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">₹{(row.bookingAmount || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '115px',
+      minWidth: '130px',
     },
     {
       name: 'Hours Remaining',
       selector: (row) => getHoldHoursLeft(row.holdExpiryDate),
       cell: (row) => <span className="font-bold text-amber-800 whitespace-nowrap text-xs">{getHoldHoursLeft(row.holdExpiryDate)}</span>,
       sortable: true,
-      width: '120px',
+      minWidth: '130px',
     },
     {
       name: 'Status',
@@ -735,7 +744,7 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '90px',
+      minWidth: '100px',
     },
     {
       name: 'Expiry Date',
@@ -746,11 +755,11 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '140px',
+      minWidth: '160px',
     },
     {
       name: 'Action',
-      width: '140px',
+      minWidth: '140px',
       cell: (h) => (
         <div className="flex items-center gap-1.5 py-1">
           <button
@@ -758,7 +767,7 @@ const PlotReports = () => {
             title="View Full Plot & Hold Details"
             className="p-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-lg transition cursor-pointer border border-slate-300"
           >
-            <HiOutlineEye className="w-4 h-4" />
+            <Eye size={16} />
           </button>
           {h.receiptId && (
             <button
@@ -766,7 +775,7 @@ const PlotReports = () => {
               title="Print Booking Receipt"
               className="p-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-lg transition cursor-pointer border border-slate-300"
             >
-              <HiOutlinePrinter className="w-4 h-4" />
+              <Printer size={16} />
             </button>
           )}
           <button
@@ -774,7 +783,7 @@ const PlotReports = () => {
             title="Edit Hold"
             className="p-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-lg transition cursor-pointer border border-slate-300"
           >
-            <HiOutlinePencilSquare className="w-4 h-4" />
+            <Edit2 size={16} />
           </button>
           <button
             onClick={() => handleDeleteBooking(h._id)}
@@ -785,7 +794,7 @@ const PlotReports = () => {
             {deletingId === h._id ? (
               <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <HiOutlineTrash className="w-4 h-4" />
+              <Trash2 size={16} />
             )}
           </button>
         </div>
@@ -850,9 +859,7 @@ const PlotReports = () => {
               className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
             />
             <div className="absolute left-3.5 top-3 text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <Search size={16} />
             </div>
           </div>
           <div className="flex gap-4">
@@ -890,9 +897,7 @@ const PlotReports = () => {
               className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
             />
             <div className="absolute left-3.5 top-3 text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <Search size={16} />
             </div>
           </div>
           <div className="flex gap-4">
@@ -1067,15 +1072,14 @@ const PlotReports = () => {
                   />
                   {customerSearch && (
                     <button
-                      type="button"
-                      className="absolute right-3 top-8 text-slate-400 hover:text-slate-600"
                       onClick={() => {
-                        setCustomerSearch('');
                         setEditForm({ ...editForm, customerId: '' });
-                        setShowCustomerDropdown(false);
+                        setCustomerSearch('');
                       }}
+                      className="absolute right-3 top-8 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      type="button"
                     >
-                      <HiXMark className="w-4 h-4" />
+                      <X className="w-4 h-4" />
                     </button>
                   )}
                   {showCustomerDropdown && customerSearchResults.length > 0 && (
@@ -1432,14 +1436,14 @@ const PlotReports = () => {
                 {sponsorSearch && (
                   <button
                     type="button"
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
                     onClick={() => {
                       setSponsorSearch('');
                       setEditForm({ ...editForm, sponsorId: '' });
                       setShowSponsorDropdown(false);
                     }}
                   >
-                    <HiXMark className="w-4 h-4" />
+                    <X className="w-4 h-4" />
                   </button>
                 )}
                 {showSponsorDropdown && (

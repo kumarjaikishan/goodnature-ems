@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
-import { MdArrowBack, MdPrint } from "react-icons/md";
+import { ArrowLeft, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import numberToWords from "../../utils/numToWord";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
@@ -85,7 +85,7 @@ const VoucherDetails = () => {
     <Box className="p-1 md:p-4 max-w-4xl mx-auto flex flex-col items-center">
       {/* Top action bar */}
       <Box className="flex justify-between items-center w-full max-w-[794px] mb-6 print:hidden">
-        <Button startIcon={<MdArrowBack />} onClick={() => navigate(-1)} variant="outlined" color="inherit">
+        <Button startIcon={<ArrowLeft size={16} />} onClick={() => navigate(-1)} variant="outlined" color="inherit">
           Back
         </Button>
         <Box className="flex gap-2">
@@ -107,7 +107,7 @@ const VoucherDetails = () => {
           </Button>
         </Box>
         <Button
-          startIcon={<MdPrint />}
+          startIcon={<Printer size={16} />}
           onClick={handlePrint}
           variant="contained"
           color="primary"

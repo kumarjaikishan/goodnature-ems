@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
-import { HiOutlinePrinter, HiOutlineArrowLeft } from 'react-icons/hi2';
+import { toast } from '../../utils/toast';
+import { Printer, ArrowLeft } from 'lucide-react';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const numberToWords = (num) => {
@@ -103,13 +103,13 @@ const PlotPayoutVoucherPrint = () => {
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-sm font-bold text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
         >
-          <HiOutlineArrowLeft /> Back
+          <ArrowLeft size={14} /> Back
         </button>
         <button
           onClick={handlePrint}
           className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-sm font-bold text-xs transition shadow-lg shadow-indigo-500/10"
         >
-          <HiOutlinePrinter /> Print Voucher
+          <Printer size={14} /> Print Voucher
         </button>
       </div>
 

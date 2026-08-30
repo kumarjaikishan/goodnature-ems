@@ -5,21 +5,17 @@ import {
     Box, Button, FormControl, InputLabel, Select, MenuItem,
     TextField, Avatar, OutlinedInput, InputAdornment, CircularProgress
 } from '@mui/material';
-import { VscDebugRestart } from 'react-icons/vsc';
-import { IoMdCloudDownload } from 'react-icons/io';
 import DataTable from '@/components/common/DataTable';
-import { toast } from 'react-toastify';
+import { toast } from '../../../utils/toast';
 import dayjs from 'dayjs';
 import { getLedgerColumns } from './ledgerhelper';
-import { MdDelete, MdEdit } from 'react-icons/md';
-import { CiFilter } from 'react-icons/ci';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { useCustomStyles } from '../attandence/attandencehelper';
-import { GoGear } from 'react-icons/go';
 import Loader from '../../../utils/loader';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
+import { Filter, RotateCcw, Download, ArrowLeft } from 'lucide-react';
 
 const SummaryBox = ({ label, value }) => {
     const isNegative = parseFloat(value) < 0;
@@ -280,7 +276,7 @@ const LedgerDetailPage = () => {
                                 <OutlinedInput
                                     startAdornment={
                                         <InputAdornment position="start">
-                                            <CiFilter fontSize="small" />
+                                            <Filter size={16} className="text-gray-400" />
                                         </InputAdornment>
                                     }
                                     label="Year"
@@ -303,7 +299,7 @@ const LedgerDetailPage = () => {
                                 <OutlinedInput
                                     startAdornment={
                                         <InputAdornment position="start">
-                                            <CiFilter fontSize="small" />
+                                            <Filter size={16} className="text-gray-400" />
                                         </InputAdornment>
                                     }
                                     label="Month"
@@ -332,7 +328,7 @@ const LedgerDetailPage = () => {
                         color="secondary"
                         title='Reset'
 
-                        startIcon={<VscDebugRestart />}
+                        startIcon={<RotateCcw size={16} />}
                         onClick={resetFilters}
                     >
                         Reset
@@ -343,7 +339,7 @@ const LedgerDetailPage = () => {
                     <Button variant="contained" onClick={() => { setOpen(true); setEditIndex(null); }}>
                         Add Entry
                     </Button>
-                    <Button variant="outlined" onClick={exportCSV} startIcon={<IoMdCloudDownload />}>
+                    <Button variant="outlined" onClick={exportCSV} startIcon={<Download size={16} />}>
                         Export CSV
                     </Button>
                 </div>

@@ -1,7 +1,7 @@
 import { Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import { HiOutlineDocumentReport } from "react-icons/hi";
+import { FileText } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
@@ -403,7 +403,7 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall, reportAttendance, r
                   </td>
                   <td className=" border-r border-gray-300">
                     <div className="action flex justify-center gap-2">
-                      <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><HiOutlineDocumentReport /></span>
+                      <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><FileText size={18} /></span>
                     </div>
                   </td>
                 </tr>

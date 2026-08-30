@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { TextField, Button, Avatar, InputAdornment, Menu, } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { MdEdit, MdDelete, MdOutlineModeEdit, MdSearch } from "react-icons/md";
 import { apiClient } from "../../../utils/apiClient";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import useImageUpload from "../../../utils/imageresizer";
-import { MdVisibility } from "react-icons/md";
-import { HiOutlineDotsVertical } from "react-icons/hi";
 import { useSelector } from "react-redux";
 import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
@@ -14,7 +11,7 @@ import Modalbox from "../../../components/custommodal/Modalbox";
 import Loader from "../../../utils/loader";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { motion } from "framer-motion";
-import { LayoutGrid, Table, Coins, Wallet, Scale } from "lucide-react";
+import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2 } from "lucide-react";
 
 const LedgerListPage = () => {
     const [ledgers, setLedgers] = useState([]);
@@ -272,7 +269,7 @@ const LedgerListPage = () => {
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <MdSearch className="text-gray-400" size={20} />
+                                        <Search className="text-gray-400" size={18} />
                                     </InputAdornment>
                                 ),
                             }}
@@ -388,7 +385,7 @@ const LedgerListPage = () => {
                                             </div>
 
                                             <IconButton onClick={(e) => handleMenuOpen(e, l)} size="small" className="-mt-1 -mr-2 hover:bg-gray-50">
-                                                <HiOutlineDotsVertical className="text-gray-500" />
+                                                <MoreVertical size={16} className="text-gray-500" />
                                             </IconButton>
                                         </div>
 
@@ -461,20 +458,20 @@ const LedgerListPage = () => {
                                                             }}
                                                             className="border-2 border-white shadow-sm"
                                                         />
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span className="text-sm font-semibold text-gray-900 capitalize">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-bold text-gray-800 capitalize leading-tight">
                                                                 {l.name}
                                                             </span>
                                                             {l.empId && (
-                                                                <span className="text-[11px] text-gray-400 font-medium">
-                                                                    ID: {l.empId}
+                                                                <span className="text-xs text-gray-400 font-medium mt-0.5">
+                                                                    EMP ID: {l.empId}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`text-[10px] px-2.5 py-1 rounded font-bold uppercase tracking-wider ${
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
                                                         l.ledgerType === 'employee' 
                                                             ? 'bg-blue-50 text-blue-700 border border-blue-100' 
                                                             : 'bg-amber-50 text-amber-700 border border-amber-100'
@@ -483,10 +480,8 @@ const LedgerListPage = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-                                                        l.netBalance >= 0 
-                                                            ? 'text-emerald-700 bg-emerald-50' 
-                                                            : 'text-rose-700 bg-rose-50'
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                                        l.netBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
                                                     }`}>
                                                         {l.netBalance >= 0 ? 'Payable' : 'Receivable'}
                                                     </span>
@@ -500,7 +495,7 @@ const LedgerListPage = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                     <IconButton onClick={(e) => handleMenuOpen(e, l)} size="small" className="hover:bg-gray-50">
-                                                        <HiOutlineDotsVertical className="text-gray-500" />
+                                                        <MoreVertical size={16} className="text-gray-500" />
                                                     </IconButton>
                                                 </td>
                                             </tr>
@@ -534,7 +529,7 @@ const LedgerListPage = () => {
                             handleNavigate(selectedLedger);
                         }}
                     >
-                        <MdVisibility className=" mr-2" /> See
+                        <Eye size={16} className="mr-2" /> See
                     </MenuItem>
                     <MenuItem
                         onClick={(e) => {
@@ -543,7 +538,7 @@ const LedgerListPage = () => {
                             handleOpenLedgerDialog(selectedLedger);
                         }}
                     >
-                        <MdEdit className=" mr-2" /> Edit
+                        <Edit2 size={16} className="mr-2" /> Edit
                     </MenuItem>
                     <MenuItem
                         onClick={(e) => {
@@ -552,7 +547,7 @@ const LedgerListPage = () => {
                             deleteLedger(selectedLedger);
                         }}
                     >
-                        <MdDelete className="text-red-600 mr-2" /> Delete
+                        <Trash2 size={16} className="text-red-600 mr-2" /> Delete
                     </MenuItem>
                 </Menu>
             </div>
@@ -598,9 +593,9 @@ const LedgerListPage = () => {
 
                                 <span
                                     onClick={() => inputref.current.click()}
-                                    className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
+                                    className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1.5 cursor-pointer"
                                 >
-                                    <MdOutlineModeEdit size={18} />
+                                    <Edit2 size={14} />
                                 </span>
                             </div>
                         </span>

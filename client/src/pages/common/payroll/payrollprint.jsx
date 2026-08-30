@@ -5,10 +5,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import numberToWords from "../../../utils/numToWord";
-import { FaCalendarAlt, FaCalendarWeek, FaUmbrellaBeach, FaBriefcase, FaUserCheck, FaUserTimes, FaUserClock } from "react-icons/fa";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
+import { ArrowLeft, Printer } from "lucide-react";
 
 
 export default function PayslipPrintPage() {
@@ -145,16 +145,16 @@ export default function PayslipPrintPage() {
       <div className="flex flex-wrap sm:flex-nowrap justify-between items-center w-full max-w-[794px] mb-4 sm:mb-6 gap-2 print:hidden px-2">
         <button 
           onClick={() => window.history.back()}
-          className="bg-white text-slate-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-sm border border-slate-200 hover:bg-slate-50 transition-all font-semibold text-xs sm:text-sm flex items-center gap-1.5"
+          className="text-slate-600 hover:text-slate-900 font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition-colors"
         >
-          ← Back
+          <ArrowLeft size={16} /> Back
         </button>
         <h1 className="text-sm sm:text-lg font-bold text-slate-800">Salary Slip Preview</h1>
         <button 
           onClick={handlePrint}
           className="bg-slate-900 text-white px-4 py-1.5 sm:px-5 sm:py-2 rounded-lg shadow-md font-semibold text-xs sm:text-sm hover:bg-slate-800 transition-all flex items-center gap-1.5"
         >
-          Print Salary Slip
+          <Printer size={16} /> Print Salary Slip
         </button>
       </div>
 

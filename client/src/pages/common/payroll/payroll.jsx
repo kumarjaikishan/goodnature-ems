@@ -20,17 +20,16 @@ import {
   Avatar,
   Box,
 } from "@mui/material";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../../admin/attandence/attandencehelper";
-import { BiEdit, BiMessageRoundedError, BiShow, BiTrash } from "react-icons/bi";
+import { Eye, Edit2, Trash2, MessageSquareWarning, Search, Filter } from "lucide-react";
 import dayjs from "dayjs";
-import { IoSearch } from "react-icons/io5";
-import { CiFilter } from "react-icons/ci";
 import { useDispatch, useSelector } from "react-redux";
 import CheckPermission from "../../../utils/CheckPermission";
 import { setpayroll, FirstFetch } from "../../../../store/userSlice";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
+import swal from "sweetalert";
 
 export default function PayrollPage() {
   const { employeeId } = useParams();
@@ -245,7 +244,7 @@ export default function PayrollPage() {
               <Button
                 size="small"
                 variant="contained"
-                startIcon={<BiShow />}
+                startIcon={<Eye size={16} />}
                 disabled={exists}
                 title={exists ? 'Already Generated' : 'Generate Payroll'}
                 onClick={() => handleGenerate(row)}
@@ -254,13 +253,13 @@ export default function PayrollPage() {
               </Button>
             )}
             {/* {canView && ( */}
-            <Button size="small" disabled={!exists} variant="outlined" startIcon={<BiShow />} onClick={() => handleView(row)}>View</Button>
+            <Button size="small" disabled={!exists} variant="outlined" startIcon={<Eye size={16} />} onClick={() => handleView(row)}>View</Button>
             {/* )} */}
             {canEdit && (
-              <Button size="small" disabled={!exists} variant="outlined" startIcon={<BiEdit />} onClick={() => handleEdit(row)}>Edit</Button>
+              <Button size="small" disabled={!exists} variant="outlined" startIcon={<Edit2 size={16} />} onClick={() => handleEdit(row)}>Edit</Button>
             )}
             {canDelete && (
-              <Button size="small" loading={deletingId == row._id} disabled={!exists} color="error" variant="outlined" startIcon={<BiTrash />} onClick={() => handleDelete(row._id)}>Delete</Button>
+              <Button size="small" loading={deletingId == row._id} disabled={!exists} color="error" variant="outlined" startIcon={<Trash2 size={16} />} onClick={() => handleDelete(row._id)}>Delete</Button>
             )}
           </div>
         );
@@ -280,7 +279,7 @@ export default function PayrollPage() {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <IoSearch />
+                  <Search size={16} />
                 </InputAdornment>
               ),
             }}
@@ -296,7 +295,7 @@ export default function PayrollPage() {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} />
                     </InputAdornment>
                   }
                   label="Branch"
@@ -355,7 +354,7 @@ export default function PayrollPage() {
         paginationRowsPerPageOptions={[20, 50, 100, 300]}
         noDataComponent={
           <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-            <BiMessageRoundedError className="text-xl" /> No Employee records found.
+            <MessageSquareWarning size={20} /> No Employee records found.
           </div>
         }
       />

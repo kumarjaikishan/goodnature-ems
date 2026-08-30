@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, TextField, Select, MenuItem, Button } from '@mui/material';
-import { AiOutlineDelete } from 'react-icons/ai';
+import { Trash2 } from 'lucide-react';
 
 const PayrollPolicies = ({ companyinp, setcompany, handleSubmit }) => {
     return (
@@ -72,8 +72,8 @@ const PayrollPolicies = ({ companyinp, setcompany, handleSubmit }) => {
                                             });
                                         }}
                                     />
-                                    <AiOutlineDelete
-                                        className="text-red-500 w-8 h-8 p-1 cursor-pointer text-lg"
+                                    <Trash2
+                                        className="text-red-500 w-6 h-6 p-1 cursor-pointer"
                                         onClick={() => {
                                             const updated = policies.filter((_, i) => i !== idx);
                                             setcompany({

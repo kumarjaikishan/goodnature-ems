@@ -1,1 +1,0 @@
-import{t as e}from"./axios-D9W0_Pfj.js";var t=e.create({baseURL:`/api/`,withCredentials:!0});t.interceptors.request.use(e=>{let t=localStorage.getItem(`emstoken`);return t&&(e.headers.Authorization=`Bearer ${t}`),e});export{t};

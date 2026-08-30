@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { HiOutlineSparkles } from 'react-icons/hi2';
+import { Sparkles } from 'lucide-react';
 
 /**
  * Standardized Symmetrical Page & Component Loader
@@ -46,7 +46,7 @@ const PageLoader = ({
           transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
           className="relative z-10 w-11 h-11 bg-gradient-to-tr from-teal-800 to-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-md ring-4 ring-white"
         >
-          <HiOutlineSparkles className="w-5 h-5 animate-pulse" />
+          <Sparkles className="w-5 h-5 animate-pulse" />
         </motion.div>
       </div>
 

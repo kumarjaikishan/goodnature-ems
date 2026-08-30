@@ -2,7 +2,22 @@ import { columns, addemployee, employeedelette, employeeupdate } from "./employe
 import TextField from '@mui/material/TextField';
 import { Avatar, Box, Button, FormControlLabel, IconButton, OutlinedInput, Switch, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { IoIosSend } from "react-icons/io";
+import {
+  Send,
+  Eye,
+  Search,
+  Plus,
+  FileSpreadsheet,
+  KeyRound,
+  Filter,
+  X,
+  ChevronUp,
+  ChevronDown,
+  Edit2,
+  Trash2,
+  Clock,
+  AlertCircle
+} from "lucide-react";
 import Modalbox from '../../../components/custommodal/Modalbox';
 import swal from 'sweetalert';
 import DataTable from '@/components/common/DataTable';
@@ -10,28 +25,15 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import { IoEyeOutline, IoSearch } from "react-icons/io5";
 import InputAdornment from '@mui/material/InputAdornment';
-import { GoPlus } from "react-icons/go";
-import { HiOutlineDocumentReport } from "react-icons/hi";
-import { FiDownload } from "react-icons/fi";
-import { TbPasswordUser } from "react-icons/tb";
-import { CiFilter } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
 import EmployeeProfile from "./profile";
 import { useDispatch, useSelector } from "react-redux";
-import { MdClear, MdExpandLess, MdOutlineModeEdit } from "react-icons/md";
-import { MdDeleteOutline } from "react-icons/md";
-import { MdExpandMore } from "react-icons/md";
-import { AiOutlineDelete } from "react-icons/ai";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import useImageUpload from "../../../utils/imageresizer";
 import CheckPermission from "../../../utils/CheckPermission";
 import { useCustomStyles } from "../attandence/attandencehelper";
-import { BiMessageRoundedError } from "react-icons/bi";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-
-import { FaRegClock } from "react-icons/fa6";
 import WeeklyOffLedgerModal from "./WeeklyOffLedgerModal";
 
 const Employe = () => {
@@ -174,13 +176,13 @@ const Employe = () => {
         branch: emp?.branchId,
         department: emp?.department?.department,
         departmentid: emp?.department?._id,
-        action: (<div className="action flex gap-2.5">
-          <span className="eye edit text-[18px] text-green-500 cursor-pointer" title="View Profile" onClick={() => { setviewEmployee(emp._id); setopenviewmodal(true) }} ><IoEyeOutline /></span>
-          <span className="eye edit text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}`)} ><HiOutlineDocumentReport /></span>
-          <span className="eye edit text-[18px] text-teal-600 hover:text-teal-700 cursor-pointer" title="Weekly Off Ledger" onClick={() => { setSelectedWOEmployee(emp); setOpenWOLedger(true); }}><FaRegClock /></span>
-          {canEdit && <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(emp)}><MdOutlineModeEdit /></span>}
-          {canEdit && <span className="eye edit text-[18px] text-green-500 cursor-pointer" title="Reset Password" onClick={() => { setpass({ ...pass, userid: emp.userid._id }); setpassmodal(true) }} ><TbPasswordUser /> </span>}
-          {canDelete && <span className="delete text-[18px] text-red-500 cursor-pointer" onClick={() => deletee(emp._id)}><AiOutlineDelete /></span>}
+        action: (<div className="action flex gap-2.5 items-center">
+          <span className="eye edit text-green-600 hover:text-green-700 cursor-pointer p-1" title="View Profile" onClick={() => { setviewEmployee(emp._id); setopenviewmodal(true) }} ><Eye size={16} /></span>
+          <span className="eye edit text-amber-600 hover:text-amber-700 cursor-pointer p-1" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}`)} ><FileSpreadsheet size={16} /></span>
+          <span className="eye edit text-teal-600 hover:text-teal-700 cursor-pointer p-1" title="Weekly Off Ledger" onClick={() => { setSelectedWOEmployee(emp); setOpenWOLedger(true); }}><Clock size={16} /></span>
+          {canEdit && <span className="edit text-teal-700 hover:text-teal-800 cursor-pointer p-1" title="Edit" onClick={() => edite(emp)}><Edit2 size={16} /></span>}
+          {canEdit && <span className="eye edit text-emerald-600 hover:text-emerald-700 cursor-pointer p-1" title="Reset Password" onClick={() => { setpass({ ...pass, userid: emp.userid._id }); setpassmodal(true) }} ><KeyRound size={16} /> </span>}
+          {canDelete && <span className="delete text-red-500 hover:text-red-600 cursor-pointer p-1" title="Delete" onClick={() => deletee(emp._id)}><Trash2 size={16} /></span>}
         </div>)
       }
     })
@@ -409,12 +411,15 @@ const Employe = () => {
           {/* Search (full on small, shrink on md+) */}
           <TextField
             size="small"
-            className="md:col-span-1 md:max-w-[160px] col-span-2"
+            className="md:col-span-1 md:max-w-[200px] col-span-2"
             value={filters.searchText}
+            placeholder="Search by Employee / ID"
             onChange={(e) => handleFilterChange("searchText", e.target.value)}
             InputProps={{
               startAdornment: (
-                <InputAdornment position="start">  <IoSearch /> </InputAdornment>
+                <InputAdornment position="start">
+                  <Search size={16} className="text-gray-400" />
+                </InputAdornment>
               ),
               endAdornment: filters.searchText && (
                 <InputAdornment position="end">
@@ -423,12 +428,12 @@ const Employe = () => {
                     edge="end"
                     size="small"
                   >
-                    <MdClear />
+                    <X size={16} />
                   </IconButton>
                 </InputAdornment>
-              ),
+              )
             }}
-            label="Search Employee"
+            variant="outlined"
           />
 
           {/* Branch (50% on small, shrink on md+) */}
@@ -444,7 +449,7 @@ const Employe = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Branch"
@@ -484,7 +489,7 @@ const Employe = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Department"
@@ -510,20 +515,12 @@ const Employe = () => {
 
         {/* Buttons */}
         <div className="flex gap-1 w-full md:w-fit">
-          {/* <Button
-            variant="outlined"
-            className="flex-1 md:w-fit md:flex-none"
-            onClick={exportCSV}
-            startIcon={<FiDownload />}
-          >
-            Export
-          </Button> */}
 
           {canCreate && (
             <Button
               variant="contained"
               className="flex-[2] md:w-fit md:flex-none"
-              startIcon={<GoPlus />}
+              startIcon={<Plus size={16} />}
               onClick={() => setopenmodal(true)}
             >
               Add Employee
@@ -544,7 +541,7 @@ const Employe = () => {
           paginationRowsPerPageOptions={[20, 50, 100, 300]}
           noDataComponent={
             <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-              <BiMessageRoundedError className="text-xl" /> No Employee records found.
+              <AlertCircle size={18} className="text-amber-500" /> No Employee records found.
             </div>
           }
         />
@@ -711,9 +708,9 @@ const Employe = () => {
                           alt={inp.employeeName} src="/static/images/avatar/1.jpg" />
                       }
                       <span onClick={() => inputref.current.click()}
-                        className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1"
+                        className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
                       >
-                        <MdOutlineModeEdit size={18} />
+                        <Edit2 size={16} />
                       </span>
 
                     </div>
@@ -728,9 +725,9 @@ const Employe = () => {
                       >
                         <span className="md:font-semibold text-[12px] md:text-sm text-left">Personal Deatils (Optional)</span>
                         {openSection === 'personal' ? (
-                          <MdExpandLess className="text-xl" />
+                          <ChevronUp size={20} />
                         ) : (
-                          <MdExpandMore className="text-xl" />
+                          <ChevronDown size={20} />
                         )}
                       </div>
 
@@ -789,9 +786,9 @@ const Employe = () => {
                       >
                         <span className="md:font-semibold text-[12px] md:text-sm text-left">Banking Details (optional)</span>
                         {openSection === 'banking' ? (
-                          <MdExpandLess className="text-xl" />
+                          <ChevronUp size={20} />
                         ) : (
-                          <MdExpandMore className="text-xl" />
+                          <ChevronDown size={20} />
                         )}
                       </div>
 
@@ -827,9 +824,9 @@ const Employe = () => {
                       >
                         <span className="md:font-semibold text-[12px] md:text-sm text-left">Document & Skills (optional)</span>
                         {openSection === 'document' ? (
-                          <MdExpandLess className="text-xl" />
+                          <ChevronUp size={20} />
                         ) : (
-                          <MdExpandMore className="text-xl" />
+                          <ChevronDown size={20} />
                         )}
                       </div>
 
@@ -863,8 +860,7 @@ const Employe = () => {
                                 value={ach.date || ''}
                                 onChange={(e) => handleNestedChange(e, 'achievements', idx, 'date')}
                               />
-                              {/* <Button color="error" onClick={() => removeItem('achievements', idx)}>Remove</Button> */}
-                              <MdDeleteOutline size={24} title="Delete this" onClick={() => removeItem('achievements', idx)} />
+                              <Trash2 size={20} className="text-red-500 hover:text-red-600 cursor-pointer" title="Delete this" onClick={() => removeItem('achievements', idx)} />
                             </Box>
                           ))}
                           <Button onClick={() => addItem('achievements')} variant="outlined">Add Achievement</Button>
@@ -894,8 +890,7 @@ const Employe = () => {
                                 value={edu.date || ''}
                                 onChange={(e) => handleNestedChange(e, 'education', idx, 'date')}
                               />
-                              {/* <Button color="error" onClick={() => removeItem('education', idx)}>Remove</Button> */}
-                              <MdDeleteOutline size={24} title="Delete this" onClick={() => removeItem('education', idx)} />
+                              <Trash2 size={20} className="text-red-500 hover:text-red-600 cursor-pointer" title="Delete this" onClick={() => removeItem('education', idx)} />
                             </Box>
                           ))}
                           <Button onClick={() => addItem('education')} variant="outlined">Add Education</Button>
@@ -944,9 +939,9 @@ const Employe = () => {
                       >
                         <span className="md:font-semibold text-[12px] md:text-sm text-left">Payroll Policies</span>
                         {openSection === 'policy' ? (
-                          <MdExpandLess className="text-xl" />
+                          <ChevronUp size={20} />
                         ) : (
-                          <MdExpandMore className="text-xl" />
+                          <ChevronDown size={20} />
                         )}
                       </div>
 
@@ -1023,8 +1018,9 @@ const Employe = () => {
                                           });
                                         }}
                                       />
-                                      <AiOutlineDelete
-                                        className="text-red-500 w-8 h-8 p-1  cursor-pointer text-lg"
+                                      <Trash2
+                                        size={18}
+                                        className="text-red-500 hover:text-red-600 cursor-pointer"
                                         onClick={() => {
                                           const updated = policies.filter((_, i) => i !== idx);
                                           setInp({
@@ -1067,11 +1063,11 @@ const Employe = () => {
                   setopenmodal(false); setisupdate(false); setInp(init); resetPhoto();
                 }} variant="outlined">Cancel</Button>
                 {!isupdate ? (
-                  <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<IoIosSend />} variant="contained" type="submit" >
+                  <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit" >
                     Add
                   </Button>
                 ) : (
-                  <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<IoIosSend />} variant="contained" type="submit">
+                  <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit">
                     Update
                   </Button>
                 )}

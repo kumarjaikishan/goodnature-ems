@@ -2,12 +2,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import DashboardCard from '../../components/dashboardCard';
-import { toast } from 'react-toastify';
-import { FaBuilding, FaRegUser, FaSearch, FaTachometerAlt, FaUsers } from 'react-icons/fa'
+import { toast } from '../../utils/toast';
 import dayjs from 'dayjs';
 import { FirstFetch, updateAttendance } from '../../../store/userSlice';
 import { Avatar, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, Tooltip, Typography } from '@mui/material';
-import { CiFilter } from 'react-icons/ci';
+import { Search, Filter, User, Users } from 'lucide-react';
 import OfficialNoticeBoard from '../../components/notice';
 
 
@@ -108,7 +107,7 @@ const ManagerDashboard = () => {
               toast(
                 <div className='flex items-center gap-2 pr-1'>
                   <Avatar src={datae.employeeId.profileimage} alt={datae.employeeId.employeename}>
-                    {!datae.employeeId.profileimage && <FaRegUser />}
+                    {!datae.employeeId.profileimage && <User size={18} />}
                   </Avatar>
                   <span className='text-[14px] '>
                     <span className='text-green-700 capitalize font-semibold'> {datae.employeeId.userid.name}</span> has Punched In at{' '}
@@ -134,7 +133,7 @@ const ManagerDashboard = () => {
               toast(
                 <div className='flex items-center gap-2 pr-1'>
                   <Avatar src={datae.employeeId.profileimage} alt={datae.employeeId.employeename}>
-                    {!datae.employeeId.profileimage && <FaRegUser />}
+                    {!datae.employeeId.profileimage && <User size={18} />}
                   </Avatar>
                   <span className='text-[14px] '>
                     <span className='text-amber-700 capitalize font-semibold '> {datae.employeeId.userid.name}</span> has Punched Out at{' '}
@@ -203,7 +202,7 @@ const ManagerDashboard = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="branch"
@@ -226,7 +225,7 @@ const ManagerDashboard = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Department"
@@ -247,7 +246,7 @@ const ManagerDashboard = () => {
               placeholder="Search employee..."
               startAdornment={
                 <InputAdornment position="start">
-                  <FaSearch fontSize="small" color="#94a3b8" />
+                  <Search size={16} className="text-slate-400" />
                 </InputAdornment>
               }
             />
@@ -268,7 +267,7 @@ const ManagerDashboard = () => {
                 <div key={emp._id} className='flex flex-col items-center'>
                   <span className={`${todaypresente ? (isPresent ? 'border-green-500' : 'border-amber-400') : 'border-gray-300'} p-[2px] border-3 rounded-full`}>
                     <Avatar src={emp.profileimage} alt={emp.employeename}>
-                      {!emp.profileimage && <FaRegUser />}
+                      {!emp.profileimage && <User size={16} />}
                     </Avatar>
                   </span>
                   <p className={`${todaypresente ? (isPresent ? 'text-green-600 text-[14px]' : 'text-amber-700') : 'text-gray-500'} text-[12px] text-center transition-all duration-300 capitalize `}>
@@ -280,7 +279,7 @@ const ManagerDashboard = () => {
           })}
           {(!employeelist || employeelist.filter(e => e.status !== false).length === 0) && (
             <div className="col-span-full py-10 flex flex-col items-center justify-center text-gray-400">
-              <FaUsers size={40} className="mb-2 opacity-20" />
+              <Users size={40} className="mb-2 opacity-20" />
               <Typography variant="body2">No employee found</Typography>
             </div>
           )}

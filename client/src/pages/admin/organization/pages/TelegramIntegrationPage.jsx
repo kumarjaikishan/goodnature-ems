@@ -2,7 +2,7 @@ import React from 'react';
 import OrganizationLayout from '../OrganizationLayout';
 import TelegramSettings from '../components/TelegramSettings';
 import { useOrganization } from '../useOrganization';
-import { toast } from 'react-toastify';
+import { toast } from '../../../../utils/toast';
 import swal from 'sweetalert';
 
 const TelegramIntegrationPage = () => {

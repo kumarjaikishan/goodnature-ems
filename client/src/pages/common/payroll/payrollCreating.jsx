@@ -32,15 +32,13 @@ import {
   TableCell,
   TableBody,
 } from "@mui/material";
-import { AiOutlinePlus } from "react-icons/ai";
+import { Plus, Trash2, ArrowLeft, Calendar, User, Building2, Briefcase, Banknote, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
-import { MdDelete } from "react-icons/md";
-import { FaArrowLeft, FaCalendarAlt, FaUserAlt, FaBuilding, FaBriefcase, FaMoneyBillWave, FaClock, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import isBetween from "dayjs/plugin/isBetween";
 import localeData from "dayjs/plugin/localeData";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import numberToWords from "../../../utils/numToWord";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { FirstFetch } from "../../../../store/userSlice";
@@ -785,7 +783,7 @@ export default function PayrollCreatePage() {
             onClick={() => navigate(-1)}
             variant="outlined"
             size="small"
-            startIcon={<FaArrowLeft />}
+            startIcon={<ArrowLeft size={16} />}
             className="!border-slate-300 !text-slate-700 hover:!bg-slate-50 text-xs"
           >
             Back
@@ -1202,14 +1200,14 @@ export default function PayrollCreatePage() {
                       onChange={(e) => handleArrayChange("allowances", index, "amount", e.target.value)}
                     />
                     <IconButton size="small" onClick={() => removeArrayItem("allowances", index)}>
-                      <MdDelete />
+                      <Trash2 size={16} className="text-rose-600" />
                     </IconButton>
                   </div>
                 ))}
               </div>
             </div>
             <Button
-              startIcon={<AiOutlinePlus />}
+              startIcon={<Plus size={16} />}
               variant="outlined"
               size="small"
               onClick={() => addArrayItem("allowances", { name: "", amount: 0, extraInfo: '', inputDisabled: false })}
@@ -1248,7 +1246,7 @@ export default function PayrollCreatePage() {
                         onChange={(e) => handleArrayChange("bonuses", index, "amount", e.target.value)}
                       />
                       <IconButton size="small" onClick={() => removeArrayItem("bonuses", index)}>
-                        <MdDelete />
+                        <Trash2 size={16} className="text-rose-600" />
                       </IconButton>
                     </div>
                     {bonus.extraInfo && (
@@ -1259,7 +1257,7 @@ export default function PayrollCreatePage() {
               </div>
             </div>
             <Button
-              startIcon={<AiOutlinePlus />}
+              startIcon={<Plus size={16} />}
               variant="outlined"
               size="small"
               onClick={() => addArrayItem("bonuses", { name: "", amount: 0, extraInfo: '', inputDisabled: false })}
@@ -1298,7 +1296,7 @@ export default function PayrollCreatePage() {
                         onChange={(e) => handleArrayChange("deductions", index, "amount", e.target.value)}
                       />
                       <IconButton size="small" onClick={() => removeArrayItem("deductions", index)}>
-                        <MdDelete />
+                        <Trash2 size={16} className="text-rose-600" />
                       </IconButton>
                     </div>
                     {deduction.extraInfo && (
@@ -1309,7 +1307,7 @@ export default function PayrollCreatePage() {
               </div>
             </div>
             <Button
-              startIcon={<AiOutlinePlus />}
+              startIcon={<Plus size={16} />}
               variant="outlined"
               size="small"
               onClick={() => addArrayItem("deductions", { name: "", amount: 0, extraInfo: '', inputDisabled: false })}

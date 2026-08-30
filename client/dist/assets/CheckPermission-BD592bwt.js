@@ -1,1 +1,0 @@
-import{s as e,t}from"./react-CS1XD-7T.js";import{jn as n}from"./index-Np9gAR9Z.js";var r=e(t(),1),i=(e,t)=>{let{profile:i}=n(e=>e.user);return(0,r.useEffect)(()=>{},[]),i.role==`superadmin`?!0:i?.permissions[e]?i.permissions[e].includes(t):!1};export{i as t};

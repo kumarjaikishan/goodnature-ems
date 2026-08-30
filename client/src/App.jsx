@@ -1,18 +1,16 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { Toaster } from 'sonner';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, Suspense, lazy } from 'react';
 import { FirstFetch } from '../store/userSlice';
 import { empFirstFetch } from '../store/employee';
 import ProtectedRoutes from './utils/protectedRoute';
-import { GoGear } from 'react-icons/go';
+import { Settings, User } from 'lucide-react';
 import { connectSSE, closeSSE } from "./utils/sse";
 import { Avatar } from '@mui/material';
 import dayjs from 'dayjs';
-import { FaRegUser } from 'react-icons/fa';
 
 import ScrollToTop from './components/ScrollToTop';
-import Transactions from './pages/developer/Membership';
 // import  Errorpage  from './pages/error/Errorpage';
 
 
@@ -21,7 +19,6 @@ const Login = lazy(() => import('./pages/Login'));
 const Logout = lazy(() => import('./pages/logout'));
 const Errorpage = lazy(() => import('./pages/error/Errorpage'));
 
-const Membership = lazy(() => import('./pages/membership/membership'));
 const LeaveBalancePage = lazy(() => import('./pages/leaveledger/leaveledger'));
 
 // Admin/Manager
@@ -303,7 +300,6 @@ const routesByRole = {
   developer: (
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['developer']} />}>
       <Route index element={<DeveloperDashboard />} />
-      <Route path="membership" element={<Transactions />} />
       <Route path="permission" element={<Permission />} />
       <Route path="api-monitor" element={<ApiMonitor />} />
     </Route>
@@ -386,7 +382,7 @@ function App() {
             toast.info(
               <div className="flex items-center gap-2 pr-1">
                 <Avatar src={emp.profileimage} alt={emp.employeename}>
-                  {!emp.profileimage && <FaRegUser />}
+                  {!emp.profileimage && <User size={16} />}
                 </Avatar>
                 <span className="text-[14px] ">
                   <span className="text-green-700 capitalize font-semibold">
@@ -398,7 +394,7 @@ function App() {
                   </span>
                 </span>
               </div>,
-              { autoClose: 20000 }
+              { duration: 20000 }
             );
             window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
             dispatch(FirstFetch());
@@ -408,7 +404,7 @@ function App() {
             toast.info(
               <div className="flex items-center gap-2 pr-1">
                 <Avatar src={emp.profileimage} alt={emp.employeename}>
-                  {!emp.profileimage && <FaRegUser />}
+                  {!emp.profileimage && <User size={16} />}
                 </Avatar>
                 <span className="text-[14px] ">
                   <span className="text-amber-700 capitalize font-semibold">
@@ -420,7 +416,7 @@ function App() {
                   </span>
                 </span>
               </div>,
-              { autoClose: 20000 }
+              { duration: 20000 }
             );
             window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
             dispatch(FirstFetch());
@@ -436,18 +432,18 @@ function App() {
 
   return (
     <>
-      <ToastContainer closeOnClick />
+      <Toaster position="top-right" richColors closeButton />
       <ScrollToTop />
       <Suspense
         fallback={<div className="flex items-center justify-center h-screen w-screen bg-white">
           <div className="relative">
-            <GoGear
+            <Settings
               className="animate-spin"
               style={{ animationDuration: "2.5s" }}
               size={60}
               color="teal"
             />
-            <GoGear
+            <Settings
               className="absolute -bottom-4 left-0 animate-spin"
               style={{ animationDuration: "3s" }}
               size={25}

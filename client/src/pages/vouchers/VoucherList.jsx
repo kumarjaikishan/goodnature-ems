@@ -26,10 +26,8 @@ import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
-import { BiEdit, BiShow, BiTrash, BiPlus } from "react-icons/bi";
-import { IoSearch } from "react-icons/io5";
-import { CiFilter } from "react-icons/ci";
-import { toast } from "react-toastify";
+import { Edit2, Eye, Trash2, Plus, Search, Filter } from "lucide-react";
+import { toast } from "../../utils/toast";
 import swal from "sweetalert";
 import dayjs from "dayjs";
 import { motion } from "framer-motion";
@@ -378,10 +376,10 @@ const VoucherList = () => {
       cell: (row) => {
         const isManual = row.referenceType === "MANUAL";
         return (
-          <div className="flex gap-1">
+          <div className="flex gap-1 items-center">
             <Tooltip title="View Details">
               <IconButton size="small" onClick={() => navigate(`/dashboard/vouchers/${row._id}`)}>
-                <BiShow className="text-teal-600" />
+                <Eye size={16} className="text-teal-600" />
               </IconButton>
             </Tooltip>
 
@@ -389,12 +387,12 @@ const VoucherList = () => {
               <>
                 <Tooltip title="Edit Voucher">
                   <IconButton size="small" onClick={() => handleOpenEdit(row)}>
-                    <BiEdit className="text-blue-600" />
+                    <Edit2 size={16} className="text-teal-700" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Delete Voucher">
                   <IconButton size="small" onClick={() => handleDeleteVoucher(row._id)}>
-                    <BiTrash className="text-red-600" />
+                    <Trash2 size={16} className="text-red-600" />
                   </IconButton>
                 </Tooltip>
               </>
@@ -420,34 +418,19 @@ const VoucherList = () => {
       sortable: true,
       wrap: true
     },
-    // {
-    //   name: "Net Balance",
-    //   selector: (row) => row.netBalance || 0,
-    //   cell: (row) => {
-    //     const bal = row.netBalance || 0;
-    //     const color = bal >= 0 ? "text-green-700" : "text-red-700";
-    //     return (
-    //       <span className={`font-bold ${color}`}>
-    //         ₹ {bal.toLocaleString()}
-    //       </span>
-    //     );
-    //   },
-    //   sortable: true,
-    //   width: "180px"
-    // },
     {
       name: "Actions",
       width: "120px",
       cell: (row) => (
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           <Tooltip title="Edit Ledger Name">
             <IconButton size="small" onClick={() => handleOpenEditLedger(row)}>
-              <BiEdit className="text-blue-600" />
+              <Edit2 size={16} className="text-teal-700" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete Ledger">
             <IconButton size="small" onClick={() => handleDeleteLedger(row._id)}>
-              <BiTrash className="text-red-600" />
+              <Trash2 size={16} className="text-red-600" />
             </IconButton>
           </Tooltip>
         </div>
@@ -517,7 +500,7 @@ const VoucherList = () => {
               variant="contained"
               color="primary"
               size="small"
-              startIcon={<BiPlus />}
+              startIcon={<Plus size={16} />}
               onClick={handleOpenCreate}
               className="font-bold py-1.5 px-4 shadow-sm"
             >
@@ -528,7 +511,7 @@ const VoucherList = () => {
               variant="contained"
               color="secondary"
               size="small"
-              startIcon={<BiPlus />}
+              startIcon={<Plus size={16} />}
               onClick={handleOpenCreateLedger}
               className="font-bold py-1.5 px-4 shadow-sm"
             >
@@ -555,7 +538,7 @@ const VoucherList = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <IoSearch />
+                  <Search size={16} className="text-gray-400" />
                 </InputAdornment>
               ),
             }}

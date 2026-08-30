@@ -1,7 +1,7 @@
 import React from 'react';
 import { TextField, Button } from '@mui/material';
-import { AiFillAmazonCircle } from "react-icons/ai";
-import { toast } from 'react-toastify';
+import { Building2 } from 'lucide-react';
+import { toast } from '../../../../utils/toast';
 import { apiClient } from '../../../../utils/apiClient';
 import { cloudinaryUrl } from '../../../../utils/imageurlsetter';
 
@@ -39,7 +39,9 @@ const CompanyInfo = ({ companyinp, setcompany, isload, setisload, handleImage, a
                             className="w-full h-full object-fill rounded-full border-2 border-dashed border-blue-300"
                         />
                     ) : (
-                        <AiFillAmazonCircle className="w-full h-full text-blue-400 rounded-full border-2 border-dashed border-blue-300" />
+                        <div className="w-full h-full flex items-center justify-center rounded-full border-2 border-dashed border-teal-300 bg-teal-50 text-teal-600">
+                            <Building2 className="w-12 h-12" />
+                        </div>
                     )}
                     <input
                         type="file"

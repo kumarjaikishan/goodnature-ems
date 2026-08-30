@@ -1,14 +1,13 @@
-import { FaEnvelope } from "react-icons/fa";
-import { GoGear } from "react-icons/go";
-import { MdExpandLess, MdExpandMore, MdOutlineModeEdit } from "react-icons/md";
+import { Mail, Settings, ChevronUp, ChevronDown, Edit2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Avatar, Button, TextField } from "@mui/material";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import swal from "sweetalert";
 import useImageUpload from "../../utils/imageresizer";
 import { FirstFetch } from "../../../store/userSlice";
 import Modalbox from "../../components/custommodal/Modalbox";
+import { apiClient } from "../../utils/apiClient";
 
 const PERMISSION_LABELS = {
   1: "Read",
@@ -110,13 +109,13 @@ const AdminManagerProfile = () => {
       {isload ? (
         <div className="w-full h-[300px] flex gap-5 flex-col justify-center items-center overflow-auto bg-white">
           <div className="relative">
-            <GoGear
+            <Settings
               className="animate-spin"
               style={{ animationDuration: "2.5s" }}
               size={50}
               color="teal"
             />
-            <GoGear
+            <Settings
               className="absolute -bottom-4 left-0 animate-spin"
               style={{ animationDuration: "3s" }}
               size={20}
@@ -145,7 +144,7 @@ const AdminManagerProfile = () => {
               <p className="text-sm text-gray-600">{profilee?.role}</p>
               <div className="mt-3 space-y-1 text-sm text-gray-600">
                 <div className="flex items-center gap-2 break-words">
-                  <FaEnvelope className="text-gray-500" />
+                  <Mail size={16} className="text-gray-500" />
                   {profilee?.email || "N/A"}
                 </div>
               </div>
@@ -163,9 +162,9 @@ const AdminManagerProfile = () => {
                   {expanded ? "Hide Permissions" : "View Permissions"}
                 </span>
                 {expanded ? (
-                  <MdExpandLess className="text-xl" />
+                  <ChevronUp className="text-xl" />
                 ) : (
-                  <MdExpandMore className="text-xl" />
+                  <ChevronDown className="text-xl" />
                 )}
               </div>
               {expanded && (
@@ -276,7 +275,7 @@ const AdminManagerProfile = () => {
                     onClick={() => inputRef.current.click()}
                     className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
                   >
-                    <MdOutlineModeEdit size={18} />
+                    <Edit2 size={18} />
                   </span>
                 </div>
               </div>

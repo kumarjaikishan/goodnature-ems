@@ -24,9 +24,9 @@
 - **Routing**: `react-router-dom` v7.6.2
 - **State Management**: Redux Toolkit (`@reduxjs/toolkit` v2.8.2) + `redux-persist`
 - **UI Components & Styling**: Material UI (MUI v7), Tailwind CSS v4, Emotion, Styled Components, Lucide React, React Icons
-- **Data & Charts**: `@mui/x-charts`, `@mui/x-date-pickers`, `react-data-table-component`, `xlsx`
+- **Data & Charts**: `@mui/x-charts`, `@mui/x-date-pickers` (with `dayjs`), `react-data-table-component`, `xlsx`
 - **Real-Time & Notifications**: Server-Sent Events (SSE), `react-toastify`, `sweetalert`
-- **Printing & Documents**: `react-to-print`, `pagedjs`
+- **Printing & Documents**: `react-to-print`
 
 ---
 

@@ -1,20 +1,15 @@
 import { Avatar, Box, Typography, FormControl, InputLabel, Select, MenuItem, TextField, OutlinedInput, InputAdornment, Button as MUIButton } from '@mui/material';
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react';
 import DataTable from '@/components/common/DataTable';
-import { AiOutlineDelete } from 'react-icons/ai';
-import { MdOutlineModeEdit } from 'react-icons/md';
+import { Trash2, Edit2, User, AlertCircle, Filter, RotateCcw } from 'lucide-react';
 import Adminleavemodal from './adminleavemodal';
 import { useCustomStyles } from '../attandence/attandencehelper';
-import { FaRegUser } from 'react-icons/fa';
 import CheckPermission from '../../../utils/CheckPermission';
-import { toast } from 'react-toastify';
+import { toast } from '../../../utils/toast';
 import { useSelector } from 'react-redux';
-import { BiMessageRoundedError } from 'react-icons/bi';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
-import { CiFilter } from 'react-icons/ci';
-import { VscDebugRestart } from 'react-icons/vsc';
 
 const Adminleave = () => {
     const [rawLeaves, setRawLeaves] = useState([]);
@@ -94,7 +89,7 @@ const Adminleave = () => {
                                 })}
                                 alt={leave?.employeeId?.employeeName || leave?.employeeId?.employeename}
                             >
-                                {!leave.employeeId?.profileimage && <FaRegUser />}
+                                {!leave.employeeId?.profileimage && <User size={16} />}
                             </Avatar>
                             <Box>
                                 <Typography variant="subtitle2" className="font-bold">
@@ -117,17 +112,9 @@ const Adminleave = () => {
                         </span>
                     ),
                     action: (
-                        <div className="flex gap-2">
-                            {canEdit && (
-                                <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(leave)}>
-                                    <MdOutlineModeEdit />
-                                </span>
-                            )}
-                            {canDelete && (
-                                <span className="delete text-[18px] text-red-500 cursor-pointer" title="Delete" onClick={() => deletee(leave._id)}>
-                                    <AiOutlineDelete />
-                                </span>
-                            )}
+                        <div className="action flex gap-2.5 items-center">
+                            {canEdit && <span className="edit text-teal-600 hover:text-teal-700 cursor-pointer p-1" title="Edit" onClick={() => edite(leave)}><Edit2 size={16} /></span>}
+                            {canDelete && <span className="delete text-red-500 hover:text-red-600 cursor-pointer p-1" title="Delete" onClick={() => deletee(leave._id)}><Trash2 size={16} /></span>}
                         </div>
                     )
                 };
@@ -191,7 +178,7 @@ const Adminleave = () => {
                         <InputLabel>Year</InputLabel>
                         <Select
                             value={filterYear}
-                            input={<OutlinedInput startAdornment={<InputAdornment position="start"><CiFilter /></InputAdornment>} label="Year" />}
+                            input={<OutlinedInput startAdornment={<InputAdornment position="start"><Filter size={16} className="text-gray-400" /></InputAdornment>} label="Year" />}
                             onChange={e => setFilterYear(e.target.value)}
                         >
                             <MenuItem value="all">All Years</MenuItem>
@@ -205,7 +192,7 @@ const Adminleave = () => {
                         <InputLabel>Month</InputLabel>
                         <Select
                             value={filterMonth}
-                            input={<OutlinedInput startAdornment={<InputAdornment position="start"><CiFilter /></InputAdornment>} label="Month" />}
+                            input={<OutlinedInput startAdornment={<InputAdornment position="start"><Filter size={16} className="text-gray-400" /></InputAdornment>} label="Month" />}
                             onChange={e => setFilterMonth(e.target.value)}
                         >
                             <MenuItem value="all">All Months</MenuItem>
@@ -239,7 +226,7 @@ const Adminleave = () => {
                         variant="outlined"
                         color="secondary"
                         size="small"
-                        startIcon={<VscDebugRestart />}
+                        startIcon={<RotateCcw size={16} />}
                         onClick={resetFilters}
                         className="h-[40px]"
                     >
@@ -260,7 +247,7 @@ const Adminleave = () => {
                 highlightOnHover
                 noDataComponent={
                     <div className="flex flex-col items-center justify-center py-12 text-center text-gray-500">
-                        <BiMessageRoundedError className="text-4xl mb-2 opacity-20" />
+                        <AlertCircle size={36} className="mb-2 opacity-30 text-amber-500" />
                         <p className="text-lg font-medium">No Leave Requests found</p>
                         <p className="text-sm">Try adjusting your filters or search criteria</p>
                     </div>

@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import PageLoader from '../../components/common/PageLoader';
 import {
-  HiOutlineArrowLeft,
-  HiOutlinePrinter,
-  HiOutlineCurrencyRupee,
-  HiOutlineBuildingOffice2,
-  HiOutlineDocumentText,
-  HiOutlineUser,
-  HiOutlineBanknotes,
-  HiOutlineCheckCircle,
-  HiOutlineMagnifyingGlass,
-  HiOutlineArrowTrendingUp,
-  HiOutlineArrowTrendingDown
-} from 'react-icons/hi2';
+  ArrowLeft,
+  Printer,
+  IndianRupee,
+  Building2,
+  FileText,
+  User,
+  Banknote,
+  CheckCircle,
+  Search,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react';
 
 const SponsorLedgerPage = () => {
   const { id } = useParams();
@@ -61,7 +61,7 @@ const SponsorLedgerPage = () => {
           onClick={() => navigate('/dashboard/plots/sponsors')}
           className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-2"
         >
-          <HiOutlineArrowLeft className="w-4 h-4" /> Back to Sponsors
+          <ArrowLeft size={16} /> Back to Sponsors
         </button>
       </div>
     );
@@ -103,11 +103,11 @@ const SponsorLedgerPage = () => {
             className="p-2.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl text-slate-600 transition shadow-2xs cursor-pointer"
             title="Back to Sponsors"
           >
-            <HiOutlineArrowLeft className="w-5 h-5" />
+            <ArrowLeft size={18} />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <HiOutlineBanknotes className="w-7 h-7 text-teal-700" />
+              <Banknote className="w-7 h-7 text-teal-700" />
               Sponsor Commission Ledger
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">
@@ -122,7 +122,7 @@ const SponsorLedgerPage = () => {
             onClick={handlePrint}
             className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
           >
-            <HiOutlinePrinter className="w-4 h-4 text-slate-600" />
+            <Printer size={16} className="text-slate-600" />
             Print Ledger
           </button>
         </div>
@@ -183,7 +183,7 @@ const SponsorLedgerPage = () => {
         {/* Metric 1: Total Earned */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center gap-4">
           <div className="p-3.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-            <HiOutlineArrowTrendingUp className="w-6 h-6" />
+            <TrendingUp size={24} />
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Earned (Credits)</p>
@@ -199,7 +199,7 @@ const SponsorLedgerPage = () => {
         {/* Metric 2: Total Paid Out */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center gap-4">
           <div className="p-3.5 bg-rose-50 text-rose-700 rounded-2xl border border-rose-100">
-            <HiOutlineArrowTrendingDown className="w-6 h-6" />
+            <TrendingDown size={24} />
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Paid Out (Debits)</p>
@@ -213,7 +213,7 @@ const SponsorLedgerPage = () => {
         {/* Metric 3: Available Balance */}
         <div className="bg-gradient-to-br from-teal-900 to-teal-800 text-white rounded-2xl p-5 shadow-sm flex items-center gap-4 border border-teal-700">
           <div className="p-3.5 bg-white/10 text-teal-100 rounded-2xl">
-            <HiOutlineCurrencyRupee className="w-6 h-6" />
+            <IndianRupee size={24} />
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-teal-200">Available Balance</p>
@@ -227,7 +227,7 @@ const SponsorLedgerPage = () => {
         {/* Metric 4: Total Transactions */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center gap-4">
           <div className="p-3.5 bg-slate-50 text-slate-700 rounded-2xl border border-slate-100">
-            <HiOutlineDocumentText className="w-6 h-6" />
+            <FileText size={24} />
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Entries</p>
@@ -241,7 +241,7 @@ const SponsorLedgerPage = () => {
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
         <div className="relative w-full sm:w-80">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-            <HiOutlineMagnifyingGlass className="w-4 h-4" />
+            <Search size={16} />
           </span>
           <input
             type="text"

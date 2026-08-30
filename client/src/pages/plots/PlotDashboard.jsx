@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import {
-  HiOutlineCurrencyRupee,
-  HiOutlineShoppingCart,
-  HiOutlineClock,
-  HiOutlineTag,
-  HiOutlineBuildingOffice2
-} from 'react-icons/hi2';
+  IndianRupee,
+  ShoppingCart,
+  Clock,
+  Tag,
+  Building2
+} from 'lucide-react';
 
 const PlotDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -44,7 +44,7 @@ const PlotDashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-            <HiOutlineBuildingOffice2 className="w-7 h-7 text-teal-700" />
+            <Building2 className="w-7 h-7 text-teal-700" />
             Plot Dashboard
           </h1>
           <p className="text-sm text-slate-500 font-medium">Real-time overview of plots inventory, bookings, and financial metrics.</p>
@@ -56,7 +56,7 @@ const PlotDashboard = () => {
         {/* Gross Sales Value */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-teal-50 text-teal-700 rounded-xl">
-            <HiOutlineCurrencyRupee className="w-6 h-6" />
+            <IndianRupee className="w-6 h-6" />
           </div>
           <div className="min-w-0">
             <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-wider block truncate">Gross Sales Value</span>
@@ -67,7 +67,7 @@ const PlotDashboard = () => {
         {/* Total Discounts */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-            <HiOutlineTag className="w-6 h-6" />
+            <Tag className="w-6 h-6" />
           </div>
           <div className="min-w-0">
             <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-wider block truncate">Total Discounts</span>
@@ -78,7 +78,7 @@ const PlotDashboard = () => {
         {/* Collected Funds */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <HiOutlineCurrencyRupee className="w-6 h-6" />
+            <IndianRupee className="w-6 h-6" />
           </div>
           <div className="min-w-0">
             <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-wider block truncate">Collected Funds</span>
@@ -89,7 +89,7 @@ const PlotDashboard = () => {
         {/* Outstanding Receivables */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-            <HiOutlineClock className="w-6 h-6" />
+            <Clock className="w-6 h-6" />
           </div>
           <div className="min-w-0">
             <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-wider block truncate">Outstanding Balance</span>
@@ -100,7 +100,7 @@ const PlotDashboard = () => {
         {/* Total Active Bookings */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-teal-50 text-teal-800 rounded-xl">
-            <HiOutlineShoppingCart className="w-6 h-6" />
+            <ShoppingCart className="w-6 h-6" />
           </div>
           <div className="min-w-0">
             <span className="text-[0.7rem] font-bold text-slate-400 uppercase tracking-wider block truncate">Booked Plots Count</span>

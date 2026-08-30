@@ -7,19 +7,27 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { useSelector } from 'react-redux';
 import DataTable from '@/components/common/DataTable';
-import { RiFileExcel2Line, RiUpload2Line, RiFilePdf2Line } from 'react-icons/ri';
-import { MdAddCircleOutline, MdCalendarToday, MdOutlineModeEdit, MdRefresh, MdArrowDropDown } from 'react-icons/md';
-import { AiOutlineDelete } from 'react-icons/ai';
+import {
+  FileSpreadsheet,
+  Upload,
+  FileText,
+  PlusCircle,
+  Calendar,
+  Edit2,
+  RefreshCw,
+  ChevronDown,
+  Trash2,
+  AlertCircle
+} from 'lucide-react';
 import { Select, MenuItem, FormControl, InputLabel, Menu } from '@mui/material';
 import { useReactToPrint } from 'react-to-print';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import swal from 'sweetalert';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import HolidayCalander from './holidayCalander';
-import { BiMessageRoundedError } from 'react-icons/bi';
 import Modalbox from '../../components/custommodal/Modalbox';
 import HolidayPrintable from './HolidayPrintable';
-import * as XLSX from 'xlsx';
+import { exportJsonToExcel, parseExcelFile } from '../../utils/excelHelper';
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(customParseFormat);
@@ -128,9 +136,9 @@ const HolidayForm = () => {
         type: holi.type,
         description: holi?.description,
         action: (
-          <div className="action flex gap-2.5">
-            <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => handleEdit(holi)}><MdOutlineModeEdit /></span>
-            <span className="delete text-[18px] text-red-500 cursor-pointer" onClick={() => handleDelete(holi._id)}><AiOutlineDelete /></span>
+          <div className="action flex gap-2.5 items-center">
+            <span className="edit text-teal-600 hover:text-teal-700 cursor-pointer p-1" title="Edit" onClick={() => handleEdit(holi)}><Edit2 size={16} /></span>
+            <span className="delete text-red-500 hover:text-red-600 cursor-pointer p-1" title="Delete" onClick={() => handleDelete(holi._id)}><Trash2 size={16} /></span>
           </div>
         )
       }));
@@ -185,7 +193,7 @@ const HolidayForm = () => {
   };
 
   // ── Export: download current filtered list as Excel ──────────────────────
-  const handleExport = () => {
+  const handleExport = async () => {
     if (filteredHolidays.length === 0) {
       toast.info('No holidays to export.');
       return;
@@ -198,47 +206,42 @@ const HolidayForm = () => {
       'Type': h.type || '',
       'Description': h.description || '',
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Holidays');
-    XLSX.writeFile(wb, `holidays_${dayjs().format('YYYY-MM-DD')}.xlsx`);
+    try {
+      await exportJsonToExcel(rows, 'Holidays', `holidays_${dayjs().format('YYYY-MM-DD')}.xlsx`);
+    } catch {
+      toast.error('Failed to export Excel file');
+    }
   };
 
   // ── Import: parse Excel, preview, then submit ──────────────────────────
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const wb = XLSX.read(ev.target.result, { type: 'binary', cellDates: true });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        const parsed = rows.map(r => {
-          const rawFrom = r['From Date'] ?? r['fromDate'] ?? r['from_date'] ?? '';
-          const rawTo = r['To Date'] ?? r['toDate'] ?? r['to_date'] ?? rawFrom;
-          const fromParsed = parseFlexibleDate(rawFrom);
-          const toParsed = parseFlexibleDate(rawTo) || fromParsed;
-          return {
-            name: r['Name'] || r['name'] || '',
-            fromDate: fromParsed ? fromParsed.format('YYYY-MM-DD') : '',
-            toDate: toParsed ? toParsed.format('YYYY-MM-DD') : '',
-            type: r['Type'] || r['type'] || 'Other',
-            description: r['Description'] || r['description'] || '',
-          };
-        }).filter(r => r.name && r.fromDate);
+    try {
+      const rows = await parseExcelFile(file, { cellDates: true });
+      const parsed = rows.map(r => {
+        const rawFrom = r['From Date'] ?? r['fromDate'] ?? r['from_date'] ?? '';
+        const rawTo = r['To Date'] ?? r['toDate'] ?? r['to_date'] ?? rawFrom;
+        const fromParsed = parseFlexibleDate(rawFrom);
+        const toParsed = parseFlexibleDate(rawTo) || fromParsed;
+        return {
+          name: r['Name'] || r['name'] || '',
+          fromDate: fromParsed ? fromParsed.format('YYYY-MM-DD') : '',
+          toDate: toParsed ? toParsed.format('YYYY-MM-DD') : '',
+          type: r['Type'] || r['type'] || 'Other',
+          description: r['Description'] || r['description'] || '',
+        };
+      }).filter(r => r.name && r.fromDate);
 
-        if (parsed.length === 0) {
-          toast.error('No valid rows found. Make sure the file has Name, From Date, To Date, Type columns.');
-          return;
-        }
-        setImportPreview(parsed);
-        setImportModal(true);
-      } catch {
-        toast.error('Failed to read the file. Please use a valid xlsx/csv format.');
+      if (parsed.length === 0) {
+        toast.error('No valid rows found. Make sure the file has Name, From Date, To Date, Type columns.');
+        return;
       }
-    };
-    reader.readAsBinaryString(file);
+      setImportPreview(parsed);
+      setImportModal(true);
+    } catch {
+      toast.error('Failed to read the file. Please use a valid xlsx/csv format.');
+    }
     // Reset input so same file can be re-selected
     e.target.value = '';
   };
@@ -425,7 +428,7 @@ const HolidayForm = () => {
               variant="outlined"
               color="secondary"
               className='w-[47%] md:w-fit'
-              startIcon={<MdRefresh />}
+              startIcon={<RefreshCw size={16} />}
               onClick={() => {
                 setFilterYear("All");
                 setFilterMonth("All");
@@ -439,15 +442,15 @@ const HolidayForm = () => {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-fit">
             <Button
-              startIcon={<MdCalendarToday />}
+              startIcon={<Calendar size={16} />}
               variant="outlined"
               onClick={() => setholidaymodal(true)}
             >
               Calendar
             </Button>
             <Button
-              startIcon={<RiFileExcel2Line />}
-              endIcon={<MdArrowDropDown />}
+              startIcon={<FileSpreadsheet size={16} />}
+              endIcon={<ChevronDown size={16} />}
               variant="outlined"
               color="primary"
               onClick={handleExportClick}
@@ -460,15 +463,15 @@ const HolidayForm = () => {
               onClose={handleExportClose}
             >
               <MenuItem onClick={() => { handleExport(); handleExportClose(); }}>
-                <RiFileExcel2Line style={{ marginRight: '8px', color: '#16a34a' }} /> Excel File
+                <FileSpreadsheet size={16} style={{ marginRight: '8px', color: '#16a34a' }} /> Excel File
               </MenuItem>
               <MenuItem onClick={() => { handlePrint(); handleExportClose(); }}>
-                <RiFilePdf2Line style={{ marginRight: '8px', color: '#dc2626' }} /> PDF List (Official)
+                <FileText size={16} style={{ marginRight: '8px', color: '#dc2626' }} /> PDF List (Official)
               </MenuItem>
             </Menu>
             <Button
-              startIcon={<RiUpload2Line />}
-              endIcon={<MdArrowDropDown />}
+              startIcon={<Upload size={16} />}
+              endIcon={<ChevronDown size={16} />}
               variant="outlined"
               color="inherit"
               onClick={handleImportClick}
@@ -481,10 +484,10 @@ const HolidayForm = () => {
               onClose={handleImportClose}
             >
               <MenuItem onClick={() => { fileInputRef.current?.click(); handleImportClose(); }}>
-                <RiUpload2Line style={{ marginRight: '8px' }} /> Upload Excel/CSV
+                <Upload size={16} style={{ marginRight: '8px' }} /> Upload Excel/CSV
               </MenuItem>
               <MenuItem onClick={() => { handleDownloadSample(); handleImportClose(); }}>
-                <RiFileExcel2Line style={{ marginRight: '8px', color: '#0ea5e9' }} /> Download Sample
+                <FileSpreadsheet size={16} style={{ marginRight: '8px', color: '#0ea5e9' }} /> Download Sample
               </MenuItem>
             </Menu>
             {/* Hidden file input */}
@@ -496,7 +499,8 @@ const HolidayForm = () => {
               onChange={handleFileSelect}
             />
             <Button
-              startIcon={<MdAddCircleOutline />}
+              startIcon={<PlusCircle size={16} />}
+              className='w-full md:w-fit'
               variant="contained"
               onClick={() => setopen(true)}
             >
@@ -515,7 +519,7 @@ const HolidayForm = () => {
             customStyles={useCustomStyles()}
             noDataComponent={
               <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                <BiMessageRoundedError className="text-xl" /> No records found.
+                <AlertCircle size={18} className="text-amber-500" /> No records found.
               </div>
             }
             highlightOnHover

@@ -4,7 +4,7 @@ import {
     TableCell, TableContainer, TableHead, TableRow, Paper,
     Typography, Box, Chip, IconButton, CircularProgress
 } from '@mui/material';
-import { MdClose } from 'react-icons/md';
+import { X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { apiClient } from '../../../utils/apiClient';
 
@@ -53,7 +53,7 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
                     </Typography>
                 </Box>
                 <IconButton onClick={onClose} size="small">
-                    <MdClose />
+                    <X size={18} />
                 </IconButton>
             </DialogTitle>
             <DialogContent dividers sx={{ p: 0 }}>

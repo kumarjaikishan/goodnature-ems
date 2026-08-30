@@ -1,12 +1,8 @@
 import { Avatar, Button } from '@mui/material'
-// import './navbar.css'
 import { useSelector, useDispatch } from 'react-redux';
-import { CiBullhorn } from "react-icons/ci";
-import { FaRegUser, FaUser } from "react-icons/fa";
+import { Menu, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NotificationIcon } from './popover';
-import { FaBarsStaggered } from "react-icons/fa6";
-import { NotificationIcon1 } from './muipopover';
 import { useLocation } from 'react-router-dom';
 import { toogleextendedonMobile, tooglesidebar } from '../../store/userSlice';
 
@@ -59,7 +55,6 @@ const Navbar = () => {
     "leave-policies": "Leave Policies",
     "attandence-import": "Attendance Import",
     "add": "Create Payroll",
-    "membership": "Membership",
     "vouchers": "Vouchers",
     // Plot Management Titles
     "plots": "Plot Management",
@@ -171,22 +166,12 @@ const Navbar = () => {
   return (
     <div className='navbar no-print h-[50px] w-full bg-white flex items-center justify-between px-1 md:px-4 py-2'>
       <div className='flex ml-1 md:ml-0 items-center gap-2'>
-        <FaBarsStaggered onClick={() => dispatch(tooglesidebar())} className='cur cursor-pointer' size={25} />
+        <Menu onClick={() => dispatch(tooglesidebar())} className='cursor-pointer text-slate-700' size={24} />
         <p className='font-semibold text-[14px] md:text-xl'>{pageTitle}</p>
       </div>
 
       <div className={` ${(sidebarOpen && isMobile) ? "hidden" : "flex"} gap-2 md:gap-4 items-center px-2 text-grey`}>
-        {/* <span className='bg-amber-200 w-7 h-7 rounded-full flex items-center justify-center relative cursor-pointer'>
-          <CiBullhorn />
-          <span className='absolute -top-2 -right-2 bg-purple-800 text-white
-              rounded-full w-4 h-4 flex items-center justify-center text-[10px]  font-bold'
-          >
-            1
-          </span>
-        </span> */}
-        {/* <NotificationIcon notifications={notifications} /> */}
         <NotificationIcon notifications={notificatione} />
-        {/* <NotificationIcon1 notifications={notification} /> */}
 
         <div className='flex flex-col items-end px-1'>
           <span className='text-[10px] md:text-xs font-medium leading-4 capitalize'>{user?.profile?.name}</span>

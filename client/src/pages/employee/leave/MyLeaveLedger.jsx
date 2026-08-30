@@ -16,7 +16,7 @@ import {
     Chip
 } from "@mui/material";
 import { apiClient } from "../../../utils/apiClient";
-import { MdEventAvailable, MdHistory, MdPendingActions, MdShowChart } from "react-icons/md";
+import { History } from "lucide-react";
 import dayjs from "dayjs";
 import Loader from "../../../utils/loader";
 import LeaveBalanceCards from "./components/LeaveBalanceCards";
@@ -76,7 +76,7 @@ const MyLeaveLedger = () => {
             {/* Transaction History */}
             <Paper sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #edf2f7', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
                 <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#fcfcfd' }}>
-                    <MdHistory size={24} color="#1a3353" />
+                    <History size={24} color="#1a3353" />
                     <Typography variant="h6" sx={{ fontWeight: 700, color: '#1a3353' }}>
                         Leave Transaction History
                     </Typography>

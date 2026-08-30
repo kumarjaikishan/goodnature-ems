@@ -4,11 +4,8 @@ import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { FormControl, InputLabel, Select, MenuItem, TextField, Button } from '@mui/material';
-import { BiMessageRoundedError } from 'react-icons/bi';
+import { MessageSquareWarning, RotateCcw, Clock, Info } from 'lucide-react';
 import DataTable from '@/components/common/DataTable';
-import { RxReset } from 'react-icons/rx';
-import { IoMdTime } from 'react-icons/io';
-import { IoInformationCircleOutline } from 'react-icons/io5';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 
@@ -252,7 +249,7 @@ const EmpAttenPerformance = () => {
                     <TextField label="To Date" type="date" size="small" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} />
                 </FormControl>
 
-                <Button variant="outlined" color="secondary" onClick={resetFilters} sx={{ alignSelf: 'flex-end', minWidth: 100 }} startIcon={<RxReset />}>Reset</Button>
+                <Button variant="outlined" color="secondary" onClick={resetFilters} sx={{ alignSelf: 'flex-end', minWidth: 100 }} startIcon={<RotateCcw size={16} />}>Reset</Button>
             </div>
 
             <DataTable
@@ -264,7 +261,7 @@ const EmpAttenPerformance = () => {
                 highlightOnHover
                 noDataComponent={
                     <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                        <BiMessageRoundedError className="text-xl" /> No records found matching your criteria.
+                        <MessageSquareWarning size={20} /> No records found matching your criteria.
                     </div>
                 }
             />
@@ -310,7 +307,7 @@ const columns = () => [
             if (!emp.punchIn) return '-';
             return (
                 <span className="flex items-center gap-1">
-                    <IoMdTime className="text-[16px] text-blue-700" />
+                    <Clock size={16} className="text-blue-700" />
                     {dayjs(emp.punchIn).format('hh:mm A')}
                     {emp.punchInStatus === 'early' && <span className="px-2 py-0.5 ml-2 rounded bg-sky-100 text-sky-800 text-xs">Early</span>}
                     {emp.punchInStatus === 'late' && <span className="px-2 py-0.5 ml-2 rounded bg-amber-100 text-amber-800 text-xs">Late</span>}
@@ -326,7 +323,7 @@ const columns = () => [
             if (!emp.punchOut) return '-';
             return (
                 <span className="flex items-center gap-1">
-                    <IoMdTime className="text-[16px] text-blue-700" />
+                    <Clock size={16} className="text-blue-700" />
                     {dayjs(emp.punchOut).format('hh:mm A')}
                     {emp.punchOutStatus === 'early' && <span className="px-2 py-0.5 ml-2 rounded bg-amber-100 text-amber-800 text-xs">Early</span>}
                     {emp.punchOutStatus === 'late' && <span className="px-2 py-0.5 ml-2 rounded bg-sky-100 text-sky-800 text-xs">Late</span>}
@@ -346,7 +343,7 @@ const columns = () => [
                     <span className={`${classes} px-2 py-1 rounded text-xs`}>{status}</span>
                     {leave?.reason && (
                         <span title={leave.reason} className="ml-1 text-blue-600 text-lg font-bold">
-                            <IoInformationCircleOutline />
+                            <Info size={16} />
                         </span>
                     )}
                 </>

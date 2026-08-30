@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import {
-  HiPlus,
-  HiOutlineWrenchScrewdriver,
-  HiOutlineAdjustmentsHorizontal,
-  HiOutlinePencilSquare,
-  HiOutlineTrash,
-  HiOutlineMagnifyingGlass,
-  HiOutlineSquares2X2,
-  HiOutlineTableCells,
-  HiOutlineSparkles,
-} from 'react-icons/hi2';
+  Plus,
+  Wrench,
+  SlidersHorizontal,
+  Edit2,
+  Trash2,
+  Search,
+  LayoutGrid,
+  Table,
+  Sparkles,
+} from 'lucide-react';
 import Modalbox from '../../components/custommodal/Modalbox';
 import PageLoader from '../../components/common/PageLoader';
 
@@ -438,7 +438,7 @@ const PlotSeriesMaster = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-              <HiOutlineSquares2X2 className="w-6 h-6" />
+              <LayoutGrid size={22} />
             </span>
             Plot Series & Inventory Master
           </h1>
@@ -451,13 +451,13 @@ const PlotSeriesMaster = () => {
             onClick={() => openCreatePlot()}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
           >
-            <HiPlus className="w-4 h-4" /> Create Plot
+            <Plus size={16} /> Create Plot
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
           >
-            <HiPlus className="w-4 h-4" /> Create Series Block
+            <Plus size={16} /> Create Series Block
           </button>
         </div>
       </div>
@@ -558,7 +558,7 @@ const PlotSeriesMaster = () => {
                 }}
                 className={`${inputCls} w-full pl-9`}
               />
-              <HiOutlineMagnifyingGlass className="absolute left-3 top-3 text-slate-400 text-base" />
+              <Search size={16} className="absolute left-3 top-3 text-slate-400" />
             </div>
           </div>
         </div>
@@ -619,14 +619,14 @@ const PlotSeriesMaster = () => {
                               className="p-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl transition cursor-pointer"
                               title="Edit Series"
                             >
-                              <HiOutlinePencilSquare className="w-4 h-4" />
+                              <Edit2 size={16} />
                             </button>
                             <button
                               onClick={() => handleDeleteSeries(s._id)}
                               className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer"
                               title="Delete Series"
                             >
-                              <HiOutlineTrash className="w-4 h-4" />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </td>
@@ -683,7 +683,7 @@ const PlotSeriesMaster = () => {
                         className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
                         title="Add plot to this series"
                       >
-                        <HiPlus className="w-3.5 h-3.5" /> Add Plot
+                        <Plus size={14} /> Add Plot
                       </button>
                       <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold">
                         Plots: {seriesPlots.length}
@@ -732,7 +732,7 @@ const PlotSeriesMaster = () => {
                               <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90">
                                 {isAvailable ? 'Available' : p.status}
                               </span>
-                              <HiOutlinePencilSquare className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                              <Edit2 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
                             </div>
                           </div>
                         );
@@ -796,7 +796,7 @@ const PlotSeriesMaster = () => {
                             <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90">
                               {isAvailable ? 'Available' : p.status}
                             </span>
-                            <HiOutlinePencilSquare className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                            <Edit2 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
                           </div>
                         </div>
                       );
@@ -816,7 +816,7 @@ const PlotSeriesMaster = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-                  <HiOutlineWrenchScrewdriver className="w-5 h-5 text-teal-700" />
+                  <Wrench size={18} className="text-teal-700" />
                   <span>Base Sq Ft Rate</span>
                 </div>
                 <div>
@@ -841,7 +841,7 @@ const PlotSeriesMaster = () => {
 
               <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-                  <HiOutlineAdjustmentsHorizontal className="w-5 h-5 text-teal-700" />
+                  <SlidersHorizontal size={18} className="text-teal-700" />
                   <span>Corner Plot Premium</span>
                 </div>
                 <div>
@@ -865,7 +865,7 @@ const PlotSeriesMaster = () => {
 
               <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-                  <HiOutlineSparkles className="w-5 h-5 text-amber-600" />
+                  <Sparkles size={18} className="text-amber-600" />
                   <span>Refund / Settlement Rate</span>
                 </div>
                 <div>
@@ -893,7 +893,7 @@ const PlotSeriesMaster = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
                   <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <HiOutlineTableCells className="w-5 h-5 text-teal-700" />
+                    <Table size={18} className="text-teal-700" />
                     Tenure, Plot Rate & Sponsor Commission Matrix
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -907,7 +907,7 @@ const PlotSeriesMaster = () => {
                     onClick={handleAddSlab}
                     className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5"
                   >
-                    <HiPlus className="w-4 h-4" /> Add Tenure Slab
+                    <Plus size={16} /> Add Tenure Slab
                   </button>
                   <button
                     type="submit"
@@ -1025,7 +1025,7 @@ const PlotSeriesMaster = () => {
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                               title="Delete slab row"
                             >
-                              <HiOutlineTrash className="w-4 h-4" />
+                              <Trash2 size={16} />
                             </button>
                           </td>
                         </tr>
@@ -1277,7 +1277,7 @@ const PlotSeriesMaster = () => {
         <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4">
           <div className="flex justify-between items-center pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2 text-slate-800">
-              <HiOutlineAdjustmentsHorizontal className="text-teal-800 text-xl" />
+              <SlidersHorizontal className="text-teal-800" size={20} />
               <h3 className="text-base font-bold">Configure Plot {selectedPlot?.plotNumber}</h3>
             </div>
             <button

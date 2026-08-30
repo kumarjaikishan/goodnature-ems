@@ -16,7 +16,7 @@ import {
     Card,
     CardContent
 } from '@mui/material';
-import { FiRefreshCw } from 'react-icons/fi';
+import { RotateCcw } from 'lucide-react';
 import { apiClient } from '../../../../utils/apiClient';
 import dayjs from 'dayjs';
 
@@ -64,8 +64,8 @@ const EsslEventLog = ({ companyId }) => {
                         Live Machine Events (Last 20)
                     </Typography>
                     <Tooltip title="Refresh Logs">
-                        <IconButton size="small" onClick={fetchEvents} disabled={loading} color="primary">
-                            <FiRefreshCw className={loading ? "animate-spin" : ""} />
+                        <IconButton size="small" onClick={fetchEvents} disabled={loading}>
+                            <RotateCcw size={16} className={loading ? "animate-spin" : ""} />
                         </IconButton>
                     </Tooltip>
                 </Box>

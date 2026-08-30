@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
-import { HiOutlinePrinter, HiOutlineArrowLeft } from 'react-icons/hi2';
+import { toast } from '../../utils/toast';
+import { Printer, ArrowLeft } from 'lucide-react';
 import PlotAgreementEnglish from './PlotAgreementEnglish';
 
 const numberToWords = (num) => {
@@ -230,14 +230,14 @@ const PlotAgreementViewer = () => {
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 transition cursor-pointer shadow-sm"
         >
-          <HiOutlineArrowLeft className="w-4 h-4" /> Back
+          <ArrowLeft size={16} /> Back
         </button>
 
         <button
           onClick={handlePrint}
           className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition cursor-pointer border-none"
         >
-          <HiOutlinePrinter className="w-4 h-4" /> Print / Save PDF ({customerName} Agreement)
+          <Printer size={16} /> Print / Save PDF ({customerName} Agreement)
         </button>
       </div>
 
@@ -252,7 +252,7 @@ const PlotAgreementViewer = () => {
           onClick={handlePrint}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition cursor-pointer border-none"
         >
-          <HiOutlinePrinter className="w-4 h-4" /> Print / Save PDF ({customerName} Agreement)
+          <Printer size={16} /> Print / Save PDF ({customerName} Agreement)
         </button>
       </div>
     </div>

@@ -1,16 +1,12 @@
 import dayjs from "dayjs";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import { FirstFetch } from "../../../../store/userSlice";
 import { useSelector } from "react-redux";
 
-import { IoMdTime } from "react-icons/io";
-import { MdOutlineModeEdit } from "react-icons/md";
-import { AiOutlineDelete } from "react-icons/ai";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
-import { FaRegUser } from "react-icons/fa";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-import { IoInformationCircleOutline } from "react-icons/io5";
+import { Clock, Edit2, Trash2, User, Info } from "lucide-react";
 
 import { apiClient } from "../../../utils/apiClient";
 
@@ -96,21 +92,20 @@ export const columns = ({
       sortable: true,
       style: { minWidth: "180px" },
       cell: (row) => (
-        <div className="flex items-center gap-3 ">
+        <div className="flex items-center gap-2.5">
           <Avatar
+            alt={row?.employeeId?.employeeName}
             src={cloudinaryUrl(row?.employeeId?.profileimage, {
               format: "webp",
               width: 100,
               height: 100,
             })}
-            alt={row?.employeeId?.employeename}
           >
-            {!row?.employeeId?.profileimage && <FaRegUser />}
+            {!row?.employeeId?.profileimage && <User size={16} />}
           </Avatar>
           <Box>
-            <p className="text-[12px] md:text-[14px] text-gray-700 font-semibold">
-              {row?.employeeId?.userid?.name}
-            </p>
+            <p className="font-semibold text-slate-800">{row?.employeeId?.employeeName}</p>
+            <p className="text-gray-500 text-[10px] tracking-wide">ID: {row?.employeeId?.empId}</p>
           </Box>
         </div>
       ),
@@ -132,16 +127,16 @@ export const columns = ({
         const isSpecialDay = row.dayType === 'holiday' || row.dayType === 'weekoff';
 
         return (
-          <div className="flex w-full items-center gap-1">
-            <IoMdTime className="text-[16px] text-blue-700" />
+          <div className="flex items-center gap-1">
+            <Clock size={15} className="text-blue-700" />
             {dayjs(row.punchIn).format("hh:mm A")}
             {!isSpecialDay && (
               <>
-                {row.punchInStatus == 'early' && (
-                  <span className="px-2 py-1 rounded bg-sky-100 text-sky-800">Early</span>
-                )}
                 {row.punchInStatus == 'late' && (
                   <span className="px-2 py-1 rounded bg-amber-100 text-amber-800">Late</span>
+                )}
+                {row.punchInStatus == 'early' && (
+                  <span className="px-2 py-1 rounded bg-sky-100 text-sky-800">Early</span>
                 )}
               </>
             )}
@@ -159,7 +154,7 @@ export const columns = ({
 
         return (
           <div className="flex  items-center gap-1">
-            <IoMdTime className="text-[16px] text-blue-700" />
+            <Clock size={15} className="text-blue-700" />
             {dayjs(row.punchOut).format("hh:mm A")}
             {!isSpecialDay && (
               <>
@@ -198,7 +193,7 @@ export const columns = ({
               {row.status}
             </span>
             {leave && row?.leave?.reason &&
-              <span title={row?.leave?.reason} className="ml-1 text-blue-600 text-lg font-bold"> <IoInformationCircleOutline /> </span>
+              <span title={row?.leave?.reason} className="ml-1 text-blue-600 inline-flex items-center"> <Info size={16} /> </span>
             }
           </>
         );
@@ -248,38 +243,31 @@ export const columns = ({
             </p>
           </div>
         ) : (
-          <div>
-            <p className="text-[12px] mt-1 font-medium italic">
-              {row.dayType === 'holiday' ? (
-                <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">Holiday</span>
-              ) : row.dayType === 'weekoff' ? (
-                <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">Weekly Off</span>
-              ) : "-"}
-            </p>
-          </div>
+          "- : -"
         );
       },
     },
     {
       name: "Action",
-      width: "80px",
+      width: "110px",
       cell: (row) => (
-        <div className="flex gap-2.5">
+        <div className="action flex gap-2.5 items-center">
           {canEdit && (
             <span
-              className="text-[18px] text-blue-500 cursor-pointer"
+              className="edit text-teal-600 hover:text-teal-700 cursor-pointer p-1"
               title="Edit"
               onClick={() => edite(row)}
             >
-              <MdOutlineModeEdit />
+              <Edit2 size={16} />
             </span>
           )}
           {canDelete && (
             <span
-              className="text-[18px] text-red-500 cursor-pointer"
+              className="delete text-red-500 hover:text-red-600 cursor-pointer p-1"
+              title="Delete"
               onClick={() => deletee(row._id)}
             >
-              <AiOutlineDelete />
+              <Trash2 size={16} />
             </span>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import * as XLSX from 'xlsx';
+import { parseExcelFile } from '../../../utils/excelHelper';
 import {
   Button,
   Table,
@@ -14,8 +14,8 @@ import {
   CircularProgress
 } from '@mui/material';
 import { apiClient } from '../../../utils/apiClient';
-import { toast } from 'react-toastify';
-import { FaCloudUploadAlt } from 'react-icons/fa';
+import { toast } from '../../../utils/toast';
+import { CloudUpload } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const AttendanceExcelImport = () => {
@@ -39,46 +39,37 @@ const AttendanceExcelImport = () => {
     return d.isValid() ? d.toDate() : null;
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setLoading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const bstr = event.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rawData = XLSX.utils.sheet_to_json(ws);
-        
-        console.log("Raw Excel Data:", rawData);
+    try {
+      const rawData = await parseExcelFile(file, { cellDates: true });
+      console.log("Raw Excel Data:", rawData);
 
-        // Map data to expected format with smart column matching
-        const formattedData = rawData.map(row => {
-          const empId = row['Employee ID'] || row['empid'] || row['Emp ID'] || row['EmployeeID'] || row['ID'];
-          const date = formatExcelDate(row['Date'] || row['date'] || row['Attendance Date']);
-          const punchIn = formatExcelDate(row['Punch In'] || row['timein'] || row['PunchIn'] || row['In Time']);
-          const punchOut = formatExcelDate(row['Punch Out'] || row['timeout'] || row['PunchOut'] || row['Out Time']);
-          const status = row['Status'] || row['status'] || row['Attendance Status'];
+      // Map data to expected format with smart column matching
+      const formattedData = rawData.map(row => {
+        const empId = row['Employee ID'] || row['empid'] || row['Emp ID'] || row['EmployeeID'] || row['ID'];
+        const date = formatExcelDate(row['Date'] || row['date'] || row['Attendance Date']);
+        const punchIn = formatExcelDate(row['Punch In'] || row['timein'] || row['PunchIn'] || row['In Time']);
+        const punchOut = formatExcelDate(row['Punch Out'] || row['timeout'] || row['PunchOut'] || row['Out Time']);
+        const status = row['Status'] || row['status'] || row['Attendance Status'];
 
-          return { empId, date, punchIn, punchOut, status };
-        }).filter(item => item.empId && item.date);
+        return { empId, date, punchIn, punchOut, status };
+      }).filter(item => item.empId && item.date);
 
-        if (formattedData.length === 0) {
-          toast.warn("No valid records found in Excel. Please check columns: Employee ID, Date");
-        }
-
-        setData(formattedData);
-      } catch (error) {
-        console.error("Excel Parsing Error:", error);
-        toast.error("Failed to parse Excel file");
-      } finally {
-        setLoading(false);
+      if (formattedData.length === 0) {
+        toast.warn("No valid records found in Excel. Please check columns: Employee ID, Date");
       }
-    };
-    reader.readAsBinaryString(file);
+
+      setData(formattedData);
+    } catch (error) {
+      console.error("Excel Parsing Error:", error);
+      toast.error("Failed to parse Excel file");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImport = async () => {
@@ -121,7 +112,7 @@ const AttendanceExcelImport = () => {
             variant="contained"
             component="span"
             size="large"
-            startIcon={<FaCloudUploadAlt />}
+            startIcon={<CloudUpload size={20} />}
             sx={{ mb: 2, px: 4, py: 1.5, borderRadius: 2, bgcolor: '#115e59', '&:hover': { bgcolor: '#0d4a46' } }}
           >
             Choose Excel File

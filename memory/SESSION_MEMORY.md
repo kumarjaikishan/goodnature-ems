@@ -60,4 +60,9 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Credit, Debit & Running Balance Columns**: Calculates exact collection-based credits (e.g. `Downpayment Commission` or `EMI Collection Commission` with % and receipt number), payout debits, and running wallet balances chronologically.
 - **Printable**: Fully formatted for printing with Good Nature header and accounts/sponsor signature blocks.
 
+### K. 100% Frontend Modernization: Lucide-React & Sonner Toast
+- **Icons**: `react-icons` has been completely eliminated and uninstalled from `client/`. All components across the application use `lucide-react`.
+- **Toasts**: `react-toastify` has been completely removed and uninstalled from `client/`. All components import `{ toast }` from `@/utils/toast` (or relative path to `client/src/utils/toast.jsx`), backed by `sonner`'s `<Toaster position="top-right" richColors closeButton />`.
+- **Membership Module**: Completely deleted and purged from frontend routes, sidebar navigation, and navbar headers.
+
 

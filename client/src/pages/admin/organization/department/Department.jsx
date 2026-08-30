@@ -2,16 +2,13 @@ import TextField from '@mui/material/TextField';
 import { Button, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select } from '@mui/material';
 import './department.css'
 import { useEffect, useState } from 'react';
-import { IoIosSend } from "react-icons/io";
+import { Send, Filter, Edit2, Trash2 } from 'lucide-react';
 import swal from 'sweetalert';
 import DataTable from '@/components/common/DataTable';
 import { adddepartment, columns, delette, update } from './departmenthelper';
 import { useCustomStyles } from '../../attandence/attandencehelper';
-import { CiFilter } from 'react-icons/ci';
 import { useDispatch, useSelector } from 'react-redux';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { MdOutlineModeEdit } from 'react-icons/md';
-import { AiOutlineDelete } from 'react-icons/ai';
 
 const Department = () => {
   const [openmodal, setopenmodal] = useState(false);
@@ -67,9 +64,9 @@ const Department = () => {
           branchid: dep?.branchId?._id,
           branch: dep?.branchId?.name,
           dep_name: dep?.department,
-          action: (<div className="action">
-            <span className="edit" title="Edit" onClick={() => edite(dep)}><MdOutlineModeEdit /></span>
-            <span className="delete" onClick={() => deletee(dep._id)}><AiOutlineDelete /></span>
+          action: (<div className="action flex gap-2 items-center">
+            <span className="edit text-teal-600 hover:text-teal-700 cursor-pointer" title="Edit" onClick={() => edite(dep)}><Edit2 size={16} /></span>
+            <span className="delete text-red-500 hover:text-red-600 cursor-pointer" title="Delete" onClick={() => deletee(dep._id)}><Trash2 size={16} /></span>
           </div>)
         }
       })
@@ -134,7 +131,7 @@ const Department = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="branch"
@@ -199,7 +196,7 @@ const Department = () => {
                 sx={{ mr: 2 }}
                 loading={isload}
                 loadingPosition="end"
-                endIcon={<IoIosSend />}
+                endIcon={<Send size={16} />}
                 onClick={adddepartcall}
                 variant="contained"
                 type="submit"
@@ -211,7 +208,7 @@ const Department = () => {
                 sx={{ mr: 2 }}
                 loading={isload}
                 loadingPosition="end"
-                endIcon={<IoIosSend />}
+                endIcon={<Send size={16} />}
                 variant="contained"
                 onClick={updatee}
               >

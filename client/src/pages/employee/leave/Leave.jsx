@@ -4,11 +4,9 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import dayjs from 'dayjs'
 import React, { useEffect, useState } from 'react'
 import DataTable from '@/components/common/DataTable'
-import { CiFilter } from 'react-icons/ci'
-import { toast } from 'react-toastify'
+import { toast } from '../../../utils/toast'
 import Modalbox from '../../../components/custommodal/Modalbox'
-import { GoPlus } from 'react-icons/go'
-import { MdHistory } from 'react-icons/md'
+import { Plus, History, Filter } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { useCustomStyles } from '../../admin/attandence/attandencehelper'
@@ -95,7 +93,7 @@ const EmpLeave = () => {
             {/* <h2 className="text-2xl mb-4 font-bold text-slate-800">Manage Leaves</h2> */}
             <div className='flex justify-end mb-2'>
                 <div className="flex gap-2">
-                    <Button variant='contained' startIcon={<GoPlus />} onClick={() => setopenmodal(true)}>Add Leave Request</Button>
+                    <Button variant='contained' startIcon={<Plus size={16} />} onClick={() => setopenmodal(true)}>Add Leave Request</Button>
                 </div>
             </div>
             <DataTable

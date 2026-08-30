@@ -5,17 +5,17 @@ import { useApi } from '../../utils/useApi';
 import Modalbox from '../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
 import {
-  HiOutlinePlus,
-  HiOutlinePencilSquare,
-  HiMagnifyingGlass,
-  HiOutlineEye,
-  HiOutlineTrash,
-  HiOutlineLockClosed,
-  HiOutlineLockOpen,
-  HiOutlineCurrencyRupee,
-  HiOutlineBanknotes
-} from 'react-icons/hi2';
-import { toast } from 'react-toastify';
+  Plus,
+  Edit2,
+  Search,
+  Eye,
+  Trash2,
+  Lock,
+  Unlock,
+  IndianRupee,
+  Banknote
+} from 'lucide-react';
+import { toast } from '../../utils/toast';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import PageLoader from '../../components/common/PageLoader';
 
@@ -261,21 +261,21 @@ const PlotSponsors = () => {
             className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition"
             title="View Details"
           >
-            <HiOutlineEye className="w-5 h-5" />
+            <Eye size={18} />
           </button>
           <button
             onClick={() => navigate(`/dashboard/plots/sponsors/${row._id}/ledger`)}
             className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
             title="View Full Sponsor Commission & Payout Ledger"
           >
-            <HiOutlineBanknotes className="w-5 h-5 text-teal-700" />
+            <Banknote size={18} className="text-teal-700" />
           </button>
           <button
             onClick={() => handleOpenModal(row)}
-            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition"
             title="Edit Sponsor"
           >
-            <HiOutlinePencilSquare className="w-5 h-5" />
+            <Edit2 size={18} />
           </button>
           <button
             onClick={() => handleToggleBlock(row)}
@@ -286,9 +286,9 @@ const PlotSponsors = () => {
             title={row.isBlocked ? 'Unblock Sponsor Login' : 'Block Sponsor Login'}
           >
             {row.isBlocked ? (
-              <HiOutlineLockOpen className="w-5 h-5" />
+              <Unlock size={18} />
             ) : (
-              <HiOutlineLockClosed className="w-5 h-5" />
+              <Lock size={18} />
             )}
           </button>
           <button
@@ -296,7 +296,7 @@ const PlotSponsors = () => {
             className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
             title="Delete Sponsor"
           >
-            <HiOutlineTrash className="w-5 h-5" />
+            <Trash2 size={18} />
           </button>
         </div>
       ),
@@ -316,7 +316,7 @@ const PlotSponsors = () => {
             onClick={() => handleOpenModal()}
             className="inline-flex items-center justify-center gap-2 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer bg-primary text-sm"
           >
-            <HiOutlinePlus className="w-5 h-5" />
+            <Plus size={18} />
             Add New Sponsor
           </button>
         </div>
@@ -324,7 +324,7 @@ const PlotSponsors = () => {
 
       {/* Search Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 flex items-center gap-3 border border-slate-200">
-        <HiMagnifyingGlass className="w-5 h-5 text-slate-400" />
+        <Search size={18} className="text-slate-400" />
         <input
           type="text"
           placeholder="Search sponsor by ID (e.g. GNE-26-27-001), name, mobile, email..."

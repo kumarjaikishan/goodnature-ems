@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { toast } from 'react-toastify';
+import { toast } from '../../../utils/toast';
 import { apiClient } from '../../../utils/apiClient';
 import { FirstFetch } from '../../../../store/userSlice';
 import useImageUpload from "../../../utils/imageresizer";

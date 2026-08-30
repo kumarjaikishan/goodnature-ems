@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
-import { HiOutlineArrowLeft, HiCheckCircle, HiOutlineUserPlus } from 'react-icons/hi2';
+import { ArrowLeft, CheckCircle, UserPlus } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 
 const PlotCustomerFormPage = () => {
   const navigate = useNavigate();
@@ -188,7 +188,7 @@ const PlotCustomerFormPage = () => {
           onClick={() => navigate('/dashboard/plots/customers')}
           className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 transition shadow-sm"
         >
-          <HiOutlineArrowLeft className="w-5 h-5" />
+          <ArrowLeft size={20} />
         </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
@@ -215,7 +215,7 @@ const PlotCustomerFormPage = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-200 shadow-sm transition hover:border-indigo-300 active:scale-95 cursor-pointer"
               title="Add a new sponsor in Plot Sponsors master"
             >
-              <HiOutlineUserPlus className="w-4 h-4 text-indigo-600" />
+              <UserPlus size={14} className="text-indigo-600" />
               + Add Sponsor
             </button>
           </div>
@@ -234,7 +234,7 @@ const PlotCustomerFormPage = () => {
           </select>
           {selectedSponsor && (
             <div className="mt-2 flex items-center gap-2 text-xs text-emerald-700 font-semibold">
-              <HiCheckCircle className="w-4 h-4" />
+              <CheckCircle size={16} />
               Selected Sponsor: {selectedSponsor.name} {selectedSponsor.sponsorCode ? `(${selectedSponsor.sponsorCode})` : selectedSponsor.mobile ? `(${selectedSponsor.mobile})` : ''}
             </div>
           )}

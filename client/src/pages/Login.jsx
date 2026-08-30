@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { TextField, Button, Typography, IconButton, InputAdornment } from "@mui/material";
 import { useApi } from "../utils/useApi";
-import { toast } from "react-toastify";
+import { toast } from "../utils/toast";
 import { useDispatch } from "react-redux";
 import { setlogin } from "../../store/authSlice";
 import { useNavigate } from "react-router-dom";

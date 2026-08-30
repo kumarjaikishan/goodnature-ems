@@ -4,16 +4,12 @@ import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { FormControl, InputLabel, Select, MenuItem, TextField, Button, Avatar } from '@mui/material';
-import { BiMessageRoundedError } from 'react-icons/bi';
 import DataTable from '@/components/common/DataTable';
 import { useSelector } from 'react-redux';
-import { RxReset } from 'react-icons/rx';
-import { IoMdTime } from 'react-icons/io';
+import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from './attandencehelper';
-import { IoInformationCircleOutline } from 'react-icons/io5';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
-import { FaRegUser } from 'react-icons/fa';
 
 dayjs.extend(isSameOrBefore);
 
@@ -368,7 +364,7 @@ const AttenPerformance = () => {
                         alt={employee?.name || employee?.userid?.name || "Employee"}
                         className="w-10 h-10"
                     >
-                        {!employee?.profileimage && <FaRegUser />}
+                        {!employee?.profileimage && <User size={18} />}
                     </Avatar>
 
                     {/* Employee Info */}
@@ -454,7 +450,7 @@ const AttenPerformance = () => {
                             color="secondary"
                             onClick={resetFilters}
                             sx={{ alignSelf: 'flex-end', minWidth: 100 }}
-                            startIcon={<RxReset />}
+                            startIcon={<RotateCcw size={16} />}
                         >
                             Reset
                         </Button>
@@ -470,7 +466,7 @@ const AttenPerformance = () => {
                             highlightOnHover
                             noDataComponent={
                                 <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                                    <BiMessageRoundedError className="text-xl" /> No records found matching your criteria.
+                                    <MessageSquareWarning size={18} /> No records found matching your criteria.
                                 </div>
                             }
                         />
@@ -527,7 +523,7 @@ const columns = () => [
 
             return (
                 <span className="flex items-center gap-1">
-                    <IoMdTime className="text-[16px] text-blue-700" />
+                    <Clock size={16} className="text-blue-700" />
                     {dayjs(emp.punchIn).format('hh:mm A')}
 
                     {emp.punchInStatus === 'early' && (
@@ -550,7 +546,7 @@ const columns = () => [
             if (!emp.punchOut) return '-';
             return (
                 <span className="flex items-center gap-1">
-                    <IoMdTime className="text-[16px] text-blue-700" />
+                    <Clock size={16} className="text-blue-700" />
                     {dayjs(emp.punchOut).format('hh:mm A')}
                     {emp.punchOutStatus === 'early' && (
                         <span className="px-2 py-0.5 ml-2 rounded bg-amber-100 text-amber-800 text-xs">Early</span>
@@ -581,7 +577,7 @@ const columns = () => [
                     <span className={`${classes} px-2 py-1 rounded text-xs`}>{status}</span>
                     {leave && leave?.reason && (
                         <span title={leave?.reason} className="ml-1 text-blue-600 text-lg font-bold">
-                            <IoInformationCircleOutline />
+                            <Info size={16} />
                         </span>
                     )}
                 </>

@@ -1,20 +1,18 @@
-import { GoGear } from "react-icons/go";
+import { Settings } from "lucide-react";
 
 const Loader = () => {
   return (
     <div className="relative w-full p-4 flex justify-center items-center">
       <div className="relative">
-        <GoGear
-          className="animate-spin"
+        <Settings
+          className="animate-spin text-teal-700"
           style={{ animationDuration: "2.5s" }}
-          size={60}
-          color="teal"
+          size={50}
         />
-        <GoGear
-          className="absolute -bottom-4 left-0 animate-spin"
+        <Settings
+          className="absolute -bottom-3 left-0 animate-spin text-teal-600"
           style={{ animationDuration: "3s" }}
-          size={25}
-          color="teal"
+          size={22}
         />
       </div>
     </div>

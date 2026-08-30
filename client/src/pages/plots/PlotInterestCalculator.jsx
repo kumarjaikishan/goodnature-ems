@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { CircularProgress } from '@mui/material';
 import {
-  HiOutlineMagnifyingGlass,
-  HiOutlineCalendar,
-  HiOutlinePrinter,
-  HiOutlineArrowPath,
-  HiOutlineBanknotes,
-  HiOutlineDocumentText,
-  HiOutlineUser,
-  HiOutlineMapPin,
-  HiOutlineShieldCheck,
-  HiOutlineArrowLeft,
-  HiOutlineCurrencyRupee,
-  HiOutlineClock,
-  HiOutlineSparkles,
-} from 'react-icons/hi2';
+  Search,
+  Calendar,
+  Printer,
+  RotateCcw,
+  Banknote,
+  FileText,
+  User,
+  MapPin,
+  ShieldCheck,
+  ArrowLeft,
+  IndianRupee,
+  Clock,
+  Sparkles,
+} from 'lucide-react';
 
 const PlotInterestCalculator = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -261,7 +261,7 @@ const PlotInterestCalculator = () => {
           <div>
             <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
               <span className="p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-200">
-                <HiOutlineSparkles className="w-5 h-5" />
+                <Sparkles size={20} />
               </span>
               Plot Refund & Settlement Calculator
             </h1>
@@ -275,14 +275,14 @@ const PlotInterestCalculator = () => {
               onClick={() => navigate('/dashboard/plots/booking')}
               className="px-3.5 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             >
-              <HiOutlineArrowLeft className="w-4 h-4" /> Bookings
+              <ArrowLeft size={16} /> Bookings
             </button>
             {selectedBooking && (
               <button
                 onClick={handlePrint}
                 className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
               >
-                <HiOutlinePrinter className="w-4 h-4" /> Print Statement
+                <Printer size={16} /> Print Statement
               </button>
             )}
           </div>
@@ -305,7 +305,7 @@ const PlotInterestCalculator = () => {
                   }}
                   className="w-full h-11 bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-4 rounded-xl font-semibold text-sm text-slate-800 transition"
                 />
-                <HiOutlineMagnifyingGlass className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+                <Search size={18} className="text-slate-400 absolute left-3 top-3" />
               </div>
               <button
                 type="submit"
@@ -369,7 +369,7 @@ const PlotInterestCalculator = () => {
           {/* As on Date picker */}
           <div className="md:col-span-3">
             <div className="flex items-center bg-slate-50 border border-slate-300 rounded-xl px-3 h-11">
-              <HiOutlineCalendar className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+              <Calendar size={16} className="text-slate-400 mr-2 shrink-0" />
               <span className="text-xs font-semibold text-slate-500 mr-2 whitespace-nowrap">As on Date:</span>
               <input
                 type="date"
@@ -394,7 +394,7 @@ const PlotInterestCalculator = () => {
       {!loading && !selectedBooking && (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 max-w-xl mx-auto shadow-xs">
           <div className="w-16 h-16 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center mx-auto border border-teal-100">
-            <HiOutlineMagnifyingGlass className="w-8 h-8" />
+            <Search size={32} />
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-800">No Booking Selected</h3>
@@ -504,7 +504,7 @@ const PlotInterestCalculator = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Principal Deposited</span>
                 <span className="p-2 rounded-xl bg-slate-100 text-slate-700 print:hidden">
-                  <HiOutlineBanknotes className="w-5 h-5" />
+                  <Banknote className="w-5 h-5" />
                 </span>
               </div>
               <h3 className="text-xl md:text-2xl font-black text-slate-900 mt-2 font-mono">
@@ -522,7 +522,7 @@ const PlotInterestCalculator = () => {
                   Accrued Interest / Growth ({annualRate}%)
                 </span>
                 <span className="p-2 rounded-xl bg-teal-100 text-teal-800 print:hidden">
-                  <HiOutlineCurrencyRupee className="w-5 h-5" />
+                  <IndianRupee className="w-5 h-5" />
                 </span>
               </div>
               <h3 className="text-xl md:text-2xl font-black text-teal-700 mt-2 font-mono">
@@ -540,7 +540,7 @@ const PlotInterestCalculator = () => {
                   Total Payable Settlement Amount
                 </span>
                 <span className="p-2 rounded-xl bg-teal-700/60 text-white print:hidden">
-                  <HiOutlineSparkles className="w-5 h-5" />
+                  <Sparkles className="w-5 h-5" />
                 </span>
               </div>
               <h3 className="text-xl md:text-2xl font-black mt-2 font-mono print:text-slate-900">

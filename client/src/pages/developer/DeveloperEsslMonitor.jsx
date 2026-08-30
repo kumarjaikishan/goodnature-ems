@@ -21,13 +21,10 @@ import {
     InputAdornment
 } from '@mui/material';
 import DataTable from '@/components/common/DataTable';
-import { IoSearch, IoRefresh } from 'react-icons/io5';
-import { AiOutlineDelete } from 'react-icons/ai';
-import { BiMessageRoundedError } from 'react-icons/bi';
-import { MdClear, MdVisibility } from 'react-icons/md';
+import { Search, RotateCcw, Trash2, MessageSquareWarning, X, Eye } from 'lucide-react';
 import dayjs from 'dayjs';
 import swal from 'sweetalert';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { apiClient } from '../../utils/apiClient';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 
@@ -267,7 +264,7 @@ const DeveloperEsslMonitor = () => {
             width: '70px',
             cell: (row) => (
                 <IconButton size="small" onClick={() => setDetailItem({ type: 'log', data: row })}>
-                    <MdVisibility className="text-blue-600" />
+                    <Eye size={18} className="text-blue-600" />
                 </IconButton>
             )
         }
@@ -326,7 +323,7 @@ const DeveloperEsslMonitor = () => {
             width: '70px',
             cell: (row) => (
                 <IconButton size="small" onClick={() => setDetailItem({ type: 'event', data: row })}>
-                    <MdVisibility className="text-blue-600" />
+                    <Eye size={18} className="text-blue-600" />
                 </IconButton>
             )
         }
@@ -348,7 +345,7 @@ const DeveloperEsslMonitor = () => {
                     <Button
                         size="small"
                         variant="outlined"
-                        startIcon={<IoRefresh />}
+                        startIcon={<RotateCcw size={16} />}
                         onClick={() => {
                             if (currentTab === 0) fetchLogs(logsPage, logsLimit, logsSearch);
                             else fetchEvents(eventsPage, eventsLimit, eventsSearch, eventsType);
@@ -390,7 +387,7 @@ const DeveloperEsslMonitor = () => {
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
-                                            <IoSearch />
+                                            <Search size={16} />
                                         </InputAdornment>
                                     ),
                                     endAdornment: logsSearch && (
@@ -403,7 +400,7 @@ const DeveloperEsslMonitor = () => {
                                                     fetchLogs(1, logsLimit, '');
                                                 }}
                                             >
-                                                <MdClear />
+                                                <X size={16} />
                                             </IconButton>
                                         </InputAdornment>
                                     )
@@ -427,7 +424,7 @@ const DeveloperEsslMonitor = () => {
                                     variant="outlined"
                                     color="error"
                                     size="small"
-                                    startIcon={<AiOutlineDelete />}
+                                    startIcon={<Trash2 size={16} />}
                                     onClick={() => handleDeleteLogs(false)}
                                 >
                                     Delete Selected ({selectedLogs.length})
@@ -438,7 +435,7 @@ const DeveloperEsslMonitor = () => {
                                 variant="contained"
                                 color="error"
                                 size="small"
-                                startIcon={<AiOutlineDelete />}
+                                startIcon={<Trash2 size={16} />}
                                 onClick={() => handleDeleteLogs(true)}
                                 disabled={logsTotal === 0}
                             >
@@ -471,7 +468,7 @@ const DeveloperEsslMonitor = () => {
                         highlightOnHover
                         noDataComponent={
                             <div className="flex items-center gap-2 py-8 text-center text-slate-500 text-sm">
-                                <BiMessageRoundedError className="text-xl" /> No ESSL logs found.
+                                <MessageSquareWarning size={20} /> No ESSL logs found.
                             </div>
                         }
                     />
@@ -515,7 +512,7 @@ const DeveloperEsslMonitor = () => {
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
-                                            <IoSearch />
+                                            <Search size={16} />
                                         </InputAdornment>
                                     ),
                                     endAdornment: eventsSearch && (
@@ -528,7 +525,7 @@ const DeveloperEsslMonitor = () => {
                                                     fetchEvents(1, eventsLimit, '', eventsType);
                                                 }}
                                             >
-                                                <MdClear />
+                                                <X size={16} />
                                             </IconButton>
                                         </InputAdornment>
                                     )
@@ -553,7 +550,7 @@ const DeveloperEsslMonitor = () => {
                                     variant="outlined"
                                     color="error"
                                     size="small"
-                                    startIcon={<AiOutlineDelete />}
+                                    startIcon={<Trash2 size={16} />}
                                     onClick={() => handleDeleteEvents(false)}
                                 >
                                     Delete Selected ({selectedEvents.length})
@@ -564,7 +561,7 @@ const DeveloperEsslMonitor = () => {
                                 variant="contained"
                                 color="error"
                                 size="small"
-                                startIcon={<AiOutlineDelete />}
+                                startIcon={<Trash2 size={16} />}
                                 onClick={() => handleDeleteEvents(true)}
                                 disabled={eventsTotal === 0}
                             >
@@ -597,7 +594,7 @@ const DeveloperEsslMonitor = () => {
                         highlightOnHover
                         noDataComponent={
                             <div className="flex items-center gap-2 py-8 text-center text-slate-500 text-sm">
-                                <BiMessageRoundedError className="text-xl" /> No ESSL events found.
+                                <MessageSquareWarning size={20} /> No ESSL events found.
                             </div>
                         }
                     />

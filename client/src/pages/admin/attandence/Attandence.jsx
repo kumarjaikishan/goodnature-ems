@@ -1,4 +1,3 @@
-import { CiFilter } from "react-icons/ci";
 import { Avatar, Box, Button, ButtonGroup, CircularProgress, IconButton, OutlinedInput, TextField, Typography } from '@mui/material';
 import InputLabel from '@mui/material/InputLabel';
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -10,27 +9,18 @@ import DataTable from '@/components/common/DataTable';
 import { columns, deleteAttandence, submitAttandence, useCustomStyles } from "./attandencehelper";
 import { getAttendanceListApi } from "../../../api/attendance.api";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { MdClear, MdOutlineModeEdit } from "react-icons/md";
-import { AiOutlineDelete } from "react-icons/ai";
-import { IoSearch, IoSearchCircle } from "react-icons/io5";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { FiDownload } from "react-icons/fi";
-import { BiGroup } from "react-icons/bi";
-import { GoPlus } from "react-icons/go";
-import { BiMessageRoundedError } from "react-icons/bi";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import { useSelector, useDispatch } from "react-redux";
-import { IoMdTime } from "react-icons/io";
 import BulkMark from "./BulkMark";
-import { FaRegUser, FaFileCsv, FaFilePdf } from "react-icons/fa";
 import MarkAttandence from "./MarkAttandence";
 import MarkAttandenceedit from "./MarkAttandenceedit";
 import CheckPermission from "../../../utils/CheckPermission";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-import { SearchIcon } from "lucide-react";
+import { Search, Filter, FileSpreadsheet, FileText, X, Trash2, Edit2, Clock, User } from "lucide-react";
 import { TableRowSkeleton } from "../../../components/skeletons";
 
 dayjs.extend(isSameOrBefore);
@@ -590,7 +580,7 @@ const AttendanceControls = React.memo(({
           <ButtonGroup className="flex-1" variant="outlined" size="small">
             <Button
               onClick={exportCSV}
-              startIcon={<FaFileCsv />}
+              startIcon={<FileSpreadsheet size={16} />}
               fullWidth
               loading={isExportingCsv}
             >
@@ -598,7 +588,7 @@ const AttendanceControls = React.memo(({
             </Button>
             <Button
               onClick={exportPDF}
-              startIcon={<FaFilePdf />}
+              startIcon={<FileText size={16} />}
               fullWidth
               loading={isGeneratingPdf}
             >
@@ -651,7 +641,7 @@ grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Branch"
@@ -684,7 +674,7 @@ grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Department"
@@ -711,7 +701,7 @@ grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Status"
@@ -737,7 +727,7 @@ grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Month"
@@ -760,7 +750,7 @@ grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} className="text-gray-400" />
                     </InputAdornment>
                   }
                   label="Year"
@@ -785,7 +775,7 @@ grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <IoSearch />
+                    <Search size={16} className="text-gray-400" />
                   </InputAdornment>
                 ),
               },

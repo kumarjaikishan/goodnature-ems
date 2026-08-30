@@ -1,6 +1,6 @@
 import { Avatar, Box, Button, Stack, Typography } from "@mui/material";
 import dayjs from "dayjs";
-import { BiEdit, BiTrash, BiShow } from "react-icons/bi"; // react-icons
+import { Edit2, Trash2, Eye } from "lucide-react";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 
 export const payrollColumns = (
@@ -76,7 +76,7 @@ export const payrollColumns = (
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={<BiShow />}
+                startIcon={<Eye size={16} />}
                 onClick={() => handleView(row)}
               >
                 View
@@ -87,7 +87,7 @@ export const payrollColumns = (
                 size="small"
                 variant="outlined"
                 color="primary"
-                startIcon={<BiEdit />}
+                startIcon={<Edit2 size={16} />}
                 onClick={() => handleEdit(row)}
               >
                 Edit
@@ -98,7 +98,7 @@ export const payrollColumns = (
                 size="small"
                 variant="outlined"
                 color="error"
-                startIcon={<BiTrash />}
+                startIcon={<Trash2 size={16} />}
                 onClick={() => handleDelete(row._id)}
               >
                 Delete

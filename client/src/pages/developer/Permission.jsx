@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../../utils/apiClient";
 import { Button, IconButton, TextField, MenuItem } from "@mui/material";
-import { MdExpandLess, MdExpandMore, MdDelete, MdEdit } from "react-icons/md";
+import { ChevronUp, ChevronDown, Trash2, Edit2 } from "lucide-react";
 import Modalbox from "../../components/custommodal/Modalbox";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 
 const Permission = () => {
     const [permission, setPermission] = useState([]);
@@ -200,9 +200,9 @@ const Permission = () => {
                         Permission Modules
                     </span>
                     {openSection === `module` ? (
-                        <MdExpandLess className="text-xl" />
+                        <ChevronUp size={20} />
                     ) : (
-                        <MdExpandMore className="text-xl" />
+                        <ChevronDown size={20} />
                     )}
                 </div>
                 {openSection === `module` && <>
@@ -253,10 +253,10 @@ const Permission = () => {
                                         ) : (
                                             <>
                                                 <IconButton color="primary" onClick={() => { setEditingIndex(i); setEditValue(mod); }}>
-                                                    <MdEdit />
+                                                    <Edit2 size={16} />
                                                 </IconButton>
                                                 <IconButton color="error" onClick={() => deleteModule(i)}>
-                                                    <MdDelete />
+                                                    <Trash2 size={16} />
                                                 </IconButton>
                                             </>
                                         )}
@@ -279,9 +279,9 @@ const Permission = () => {
                                 {per.role}
                             </span>
                             {openSection === `${per.role}` ? (
-                                <MdExpandLess className="text-xl" />
+                                <ChevronUp size={20} />
                             ) : (
-                                <MdExpandMore className="text-xl" />
+                                <ChevronDown size={20} />
                             )}
                         </div>
 
@@ -346,7 +346,7 @@ const Permission = () => {
                                         </MenuItem>
                                     ) : (
                                         availableModules?.map((m) => (
-                                            <MenuItem key={m} value={m} className="capitalize">
+                                             <MenuItem key={m} value={m} className="capitalize">
                                                 {m}
                                             </MenuItem>
                                         ))
@@ -393,7 +393,7 @@ const Permission = () => {
                                                         ))}
                                                         <td className="border text-center">
                                                             <IconButton color="error" size="small" onClick={() => removeModule(module)}>
-                                                                <MdDelete />
+                                                                <Trash2 size={16} />
                                                             </IconButton>
                                                         </td>
                                                     </tr>

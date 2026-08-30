@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaSave } from "react-icons/fa";
+import { Save } from "lucide-react";
 import LoadingButton from '@mui/lab/LoadingButton';
 import TextField from '@mui/material/TextField';
 import { useState } from 'react';
-import { toast } from "react-toastify";
+import { toast } from "./toast";
 
 const PasswordReset = () => {
     const { token } = useParams();
@@ -74,7 +74,7 @@ const PasswordReset = () => {
                         disabled={inp.pass !== inp.cpass || !inp.pass.length}
                         loadingPosition="start"
                         sx={{ width: '98%', mt: 2, mb: 2 }}
-                        startIcon={<FaSave />}
+                        startIcon={<Save size={16} />}
                         variant="outlined"
                         type="submit"
                     >

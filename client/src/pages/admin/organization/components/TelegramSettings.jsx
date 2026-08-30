@@ -4,15 +4,14 @@ import {
     Card, CardContent, Grid, Typography, Switch,
     FormControlLabel, Box, Divider
 } from '@mui/material';
-import { FaTrash, FaTelegramPlane } from 'react-icons/fa';
-import { FiRefreshCw } from 'react-icons/fi';
+import { Trash2, Send, RefreshCw } from 'lucide-react';
 
 const TelegramSettings = ({ companyinp, setcompany, handleChange, fetchgroup, teleloading, isload, handleSubmit }) => {
     return (
         <Card variant="outlined" sx={{ borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
             <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                    <FaTelegramPlane size={24} color="#0088cc" style={{ marginRight: '12px' }} />
+                    <Send size={24} color="#0088cc" style={{ marginRight: '12px' }} />
                     <Typography variant="h6" fontWeight="600">Telegram Bot Configuration</Typography>
                 </Box>
 

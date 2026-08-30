@@ -1,18 +1,10 @@
-import { FaPhone, FaEnvelope, FaBirthdayCake, FaMapMarkerAlt, FaUser } from 'react-icons/fa';
-import { MdContactEmergency } from 'react-icons/md';
-import { BsDroplet } from "react-icons/bs";
+import {
+  Phone, Mail, Cake, MapPin, User, Building2, Calendar, Droplets,
+  Award, IndianRupee, Settings, Briefcase, PhoneCall, ShieldCheck, CreditCard
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
-
-import { toast } from 'react-toastify';
-import { PiOfficeChairFill } from "react-icons/pi";
-import { FaBuilding } from "react-icons/fa";
+import { toast } from '../../utils/toast';
 import dayjs from 'dayjs';
-import { FaCalendarAlt } from "react-icons/fa";
-import { BsDropletFill } from "react-icons/bs";
-import { LiaMedalSolid } from "react-icons/lia";
-import { FaIdCard } from "react-icons/fa";
-import { MdCurrencyRupee } from "react-icons/md";
-import { GoGear } from "react-icons/go";
 import { useSelector } from 'react-redux';
 
 const EmployeeProfile = () => {
@@ -34,8 +26,8 @@ const EmployeeProfile = () => {
   return <div className='p-4'>
     {isload ? <div className="w-full h-[300px] flex gap-5 flex-col justify-center items-center bg-white">
       <div className='relative'>
-        <GoGear className='animate-spin' style={{ animationDuration: '2.5s' }} size={50} color='teal' />
-        <GoGear className='absolute -bottom-4 left-0 animate-spin' style={{ animationDuration: '3s' }} size={20} color='teal' />
+        <Settings className='animate-spin' style={{ animationDuration: '2.5s' }} size={50} color='teal' />
+        <Settings className='absolute -bottom-4 left-0 animate-spin' style={{ animationDuration: '3s' }} size={20} color='teal' />
       </div>
       <p className='text-teal-600'>loading...</p>
     </div> :
@@ -50,7 +42,7 @@ const EmployeeProfile = () => {
                 className="w-full h-full object-cover rounded-full"
               />
             ) : (
-              <FaUser className="text-3xl text-gray-500" />
+              <User className="text-3xl text-gray-500" />
             )}
           </div>
 
@@ -64,10 +56,10 @@ const EmployeeProfile = () => {
             </div>
 
             <div className="mt-3 justify-start flex flex-wrap text-sm text-gray-600 space-y-1">
-              <div className="flex w-1/2 items-center gap-2"><FaEnvelope className="text-gray-500 lowercase" /> {profile?.userid?.email || 'N/A'}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaPhone className="text-gray-500" /> {profile?.phone || 'N/A'}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaCalendarAlt className="text-gray-500" /> {dayjs(profile?.userid?.createdAt).format('DD MMM, YYYY')}</div>
-              <div className="flex w-1/2 items-center gap-2"><FaIdCard className="text-gray-500" /> ID: emp0002</div>
+              <div className="flex w-1/2 items-center gap-2"><Mail size={16} className="text-gray-500 lowercase" /> {profile?.userid?.email || 'N/A'}</div>
+              <div className="flex w-1/2 items-center gap-2"><Phone size={16} className="text-gray-500" /> {profile?.phone || 'N/A'}</div>
+              <div className="flex w-1/2 items-center gap-2"><Calendar size={16} className="text-gray-500" /> {dayjs(profile?.userid?.createdAt).format('DD MMM, YYYY')}</div>
+              <div className="flex w-1/2 items-center gap-2"><CreditCard size={16} className="text-gray-500" /> ID: emp0002</div>
             </div>
           </div>
         </div>
@@ -81,28 +73,28 @@ const EmployeeProfile = () => {
           {submenu == 1 &&
             <div className="mt-2 grid grid-cols-1 max-h-[300px] overflow-y-auto sm:grid-cols-2 gap-4 text-sm text-gray-700">
               <div className="flex items-start gap-2">
-                <FaBirthdayCake className="mt-1 text-gray-500" />
+                <Cake size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Date of Birth</div>
                   <div>{profile?.dob ? dayjs(profile?.dob).format('DD MMM,YYYY') : 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaMapMarkerAlt className="mt-1 text-gray-500" />
+                <MapPin size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Address</div>
                   <div>{profile?.address || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <MdContactEmergency className="mt-1 text-gray-500" />
+                <PhoneCall size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Emergency Contact</div>
                   <div>{profile?.Emergencyphone || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <BsDropletFill className="mt-1 text-gray-500" />
+                <Droplets size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Blood Group</div>
                   <div>{profile?.bloodGroup || 'N/A'}</div>
@@ -112,21 +104,21 @@ const EmployeeProfile = () => {
           {submenu == 2 &&
             <div className="mt-2 grid grid-cols-1 max-h-[300px] overflow-y-auto sm:grid-cols-2 gap-4 text-sm text-gray-700">
               <div className="flex items-start gap-2">
-                <PiOfficeChairFill className="mt-1 text-gray-500" />
+                <Briefcase size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Position</div>
                   <div>{profile?.designation || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <FaBuilding className="mt-1 text-gray-500" />
+                <Building2 size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Department</div>
                   <div>{profile?.department?.department || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <MdCurrencyRupee className="mt-1 text-gray-500" />
+                <IndianRupee size={16} className="mt-1 text-gray-500" />
                 <div>
                   <div className="font-semibold">Salary</div>
                   <div>{profile?.salary || 'N/A'}</div>
@@ -154,7 +146,7 @@ const EmployeeProfile = () => {
                     <p className='text-gray-800 font-semibold'>{ach.title}</p>
                     <p className='text-gray-700'>{ach.description}</p>
                     <p className='text-gray-500 text-[10px]'>{dayjs(ach.date).format('MMM YYYY')}</p>
-                    <span className='absolute top-1 left-[1.5px]' > <LiaMedalSolid size={18} color='orange' /> </span>
+                    <span className='absolute top-1 left-[1.5px]' > <Award size={18} color='orange' /> </span>
                     <span className='absolute w-0.5 h-full bg-blue-500 top-0 left-0' ></span>
                   </div>
                 }) : <div>No Achievement found</div>}

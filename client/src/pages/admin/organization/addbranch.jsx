@@ -4,8 +4,8 @@ import {
   FormControl, InputLabel, Select, OutlinedInput, Checkbox,
   ListItemText, Grid, Avatar, FormControlLabel
 } from '@mui/material';
-import { toast } from 'react-toastify';
-import { FaRegUser } from 'react-icons/fa';
+import { toast } from '../../../utils/toast';
+import { User } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FirstFetch } from '../../../../store/userSlice';
 import { apiClient } from '../../../utils/apiClient';
@@ -183,7 +183,7 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
                   <MenuItem key={user._id} value={user._id}>
                     <Checkbox checked={branch?.managerIds?.includes(user._id)} />
                     <Avatar src={user?.profileImage} alt={user?.name}>
-                      {!user?.profileImage && <FaRegUser />}
+                      {!user?.profileImage && <User size={16} />}
                     </Avatar>
                     <ListItemText className="ml-2 capitalize" primary={user?.name} />
                   </MenuItem>

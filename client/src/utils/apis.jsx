@@ -1,6 +1,4 @@
-import { IoEyeOutline } from "react-icons/io5";
-import { MdOutlineModeEdit } from "react-icons/md";
-import { AiOutlineDelete } from "react-icons/ai";
+import { Eye, Edit2, Trash2 } from "lucide-react";
 import { apiClient } from "./apiClient";
 
 export const employeefetche = async ({ deletee, edite }) => {
@@ -20,9 +18,9 @@ export const employeefetche = async ({ deletee, edite }) => {
                 dob: emp.dob,
                 department: emp.department,
                 action: (<div className="action flex gap-2.5">
-                    <span className="eye edit text-[18px] text-green-500 cursor-pointer" ><IoEyeOutline /></span>
-                    <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(emp)}><MdOutlineModeEdit /></span>
-                    <span className="delete text-[18px] text-red-500 cursor-pointer" onClick={() => deletee(emp._id)}><AiOutlineDelete /></span>
+                    <span className="eye edit text-[18px] text-green-500 cursor-pointer" ><Eye size={18} /></span>
+                    <span className="edit text-[18px] text-blue-500 cursor-pointer" title="Edit" onClick={() => edite(emp)}><Edit2 size={18} /></span>
+                    <span className="delete text-[18px] text-red-500 cursor-pointer" onClick={() => deletee(emp._id)}><Trash2 size={18} /></span>
                 </div>)
             }
         })

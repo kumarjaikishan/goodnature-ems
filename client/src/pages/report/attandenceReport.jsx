@@ -6,20 +6,15 @@ import {
     Button,
     IconButton
 } from '@mui/material';
-import { IoSearch } from "react-icons/io5";
-import { CiFilter } from "react-icons/ci";
 import DataTable from '@/components/common/DataTable';
-import { BiMessageRoundedError } from "react-icons/bi";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
 import isBetween from 'dayjs/plugin/isBetween'
 import localeData from "dayjs/plugin/localeData";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { HiOutlineDocumentReport } from 'react-icons/hi';
-import { FiDownload } from 'react-icons/fi';
+import { Search, Filter, Download, X, FileText, MessageSquareWarning } from 'lucide-react';
 import RegisterView from './registerView';
-import { MdClear } from 'react-icons/md';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 import { apiClient } from '../../utils/apiClient';
 dayjs.extend(localeData);
@@ -181,7 +176,7 @@ const AttendanceReport = () => {
                 present,
                 action: (
                     <div className="action flex gap-2.5">
-                        <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><HiOutlineDocumentReport /></span>
+                        <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><FileText size={18} /></span>
                     </div>
                 )
             };
@@ -225,7 +220,7 @@ const AttendanceReport = () => {
                         onChange={(e) => handleFilterChange("searchText", e.target.value)}
                         InputProps={{
                             startAdornment: (
-                                <InputAdornment position="start"><IoSearch /></InputAdornment>
+                                <InputAdornment position="start"><Search size={16} /></InputAdornment>
                             ),
                             endAdornment: filters.searchText && (
                                 <InputAdornment position="end">
@@ -234,7 +229,7 @@ const AttendanceReport = () => {
                                         edge="end"
                                         size="small"
                                     >
-                                        <MdClear />
+                                        <X size={16} />
                                     </IconButton>
                                 </InputAdornment>
                             ),
@@ -252,7 +247,7 @@ const AttendanceReport = () => {
                                 <OutlinedInput
                                     startAdornment={
                                         <InputAdornment position="start">
-                                            <CiFilter fontSize="small" />
+                                            <Filter size={16} />
                                         </InputAdornment>
                                     }
                                     label="Branch"
@@ -290,7 +285,7 @@ const AttendanceReport = () => {
                                 <OutlinedInput
                                     startAdornment={
                                         <InputAdornment position="start">
-                                            <CiFilter fontSize="small" />
+                                            <Filter size={16} />
                                         </InputAdornment>
                                     }
                                     label="Department"
@@ -339,7 +334,7 @@ const AttendanceReport = () => {
 
                 </div>
                 <div className=" w-full md:w-fit">
-                    <Button onClick={exportCSV2call} className="flex-1" variant='outlined' startIcon={<FiDownload />} >Export</Button>
+                    <Button onClick={exportCSV2call} className="flex-1" variant='outlined' startIcon={<Download size={16} />} >Export</Button>
                 </div>
             </div>
 

@@ -22,10 +22,9 @@ import {
   Box,
   Typography,
 } from "@mui/material";
-import { MdDelete } from "react-icons/md";
-import { FaClock, FaPlus, FaMinus, FaSync } from "react-icons/fa";
+import { Trash2, Clock, Plus, Minus, RotateCcw } from "lucide-react";
 import { apiClient } from "../../../utils/apiClient";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 import dayjs from "dayjs";
 
 const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
@@ -179,7 +178,7 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
       <DialogTitle className="!font-bold !text-slate-800 !text-base border-b border-slate-200 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Avatar className="!bg-purple-600">
-            <FaClock />
+            <Clock size={20} />
           </Avatar>
           <div>
             <Typography variant="subtitle1" className="!font-bold !text-slate-900 leading-tight">
@@ -194,7 +193,7 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
         {/* <Button
           size="small"
           variant="outlined"
-          startIcon={<FaSync className={rebuilding ? "animate-spin" : ""} />}
+          startIcon={<RotateCcw size={16} className={rebuilding ? "animate-spin" : ""} />}
           onClick={handleRebuildSync}
           disabled={rebuilding}
           className="!text-purple-700 !border-purple-300 hover:!bg-purple-50 text-xs"
@@ -267,7 +266,7 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
               color={entryType === "MANUAL_DEDUCT" ? "error" : "primary"}
               size="small"
               disabled={submitting}
-              startIcon={entryType === "MANUAL_DEDUCT" ? <FaMinus /> : <FaPlus />}
+              startIcon={entryType === "MANUAL_DEDUCT" ? <Minus size={16} /> : <Plus size={16} />}
             >
               {submitting ? "Saving..." : entryType === "MANUAL_DEDUCT" ? "Deduct Minutes" : "Add Minutes"}
             </Button>
@@ -331,7 +330,7 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
                         <TableCell className="!text-xs !text-center">
                           {row.type.startsWith("MANUAL") ? (
                             <IconButton size="small" color="error" onClick={() => handleDelete(row._id)}>
-                              <MdDelete className="text-base" />
+                              <Trash2 size={16} />
                             </IconButton>
                           ) : (
                             <span className="text-[10px] text-slate-400">-</span>

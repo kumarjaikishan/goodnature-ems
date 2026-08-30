@@ -2,12 +2,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import DashboardCard from '../../components/dashboardCard';
-import { toast } from 'react-toastify';
-import { FaBuilding, FaRegUser, FaSearch, FaTachometerAlt, FaUsers } from 'react-icons/fa'
+import { toast } from '../../utils/toast';
+import { Building2, User, Search, Gauge, Users, Filter } from 'lucide-react';
 import dayjs from 'dayjs';
 import { FirstFetch, updateAttendance } from '../../../store/userSlice';
 import { Avatar, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, Tooltip, Typography } from '@mui/material';
-import { CiFilter } from 'react-icons/ci';
 import OfficialNoticeBoard from '../../components/notice';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 import { apiClient } from '../../utils/apiClient';
@@ -154,7 +153,7 @@ const Main = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} />
                     </InputAdornment>
                   }
                   label="branch"
@@ -179,7 +178,7 @@ const Main = () => {
                 <OutlinedInput
                   startAdornment={
                     <InputAdornment position="start">
-                      <CiFilter fontSize="small" />
+                      <Filter size={16} />
                     </InputAdornment>
                   }
                   label="Department"
@@ -202,7 +201,7 @@ const Main = () => {
               placeholder="Search employee..."
               startAdornment={
                 <InputAdornment position="start">
-                  <FaSearch fontSize="small" color="#94a3b8" />
+                  <Search size={16} className="text-slate-400" />
                 </InputAdornment>
               }
             />
@@ -279,7 +278,7 @@ const Main = () => {
                           })}
                           alt={emp.employeename}
                         >
-                          {!emp.profileimage && <FaRegUser />}
+                          {!emp.profileimage && <User size={16} />}
                         </Avatar>
                       </span>
 
@@ -303,7 +302,7 @@ const Main = () => {
               })}
             {(!employeelist || employeelist.filter(e => e.status !== false).length === 0) && (
               <div className="col-span-full py-10 flex flex-col items-center justify-center text-gray-400">
-                <FaUsers size={40} className="mb-2 opacity-20" />
+                <Users size={40} className="mb-2 opacity-20" />
                 <Typography variant="body2">No employee found</Typography>
               </div>
             )}

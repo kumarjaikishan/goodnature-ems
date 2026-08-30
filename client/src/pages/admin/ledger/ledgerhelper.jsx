@@ -1,7 +1,6 @@
 import { IconButton } from "@mui/material";
 import dayjs from "dayjs";
-import { useEffect } from "react";
-import { MdDelete, MdEdit } from "react-icons/md";
+import { Edit2, Trash2 } from "lucide-react";
 
 
 export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate) => [
@@ -63,8 +62,9 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate) =
             // 🔹 If salary/payroll → redirect to payroll edit page
             if (row.source === "payroll" || row.source === "salary") {
                 return (
-                    <MdEdit
-                        className="edit text-[18px] text-teal-600 cursor-pointer"
+                    <Edit2
+                        size={16}
+                        className="edit text-teal-600 hover:text-teal-700 cursor-pointer"
                         title="Edit Salary Payroll (Redirect)"
                         onClick={() => {
                             if (row.referenceId) {
@@ -77,18 +77,20 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate) =
 
             // 🔹 Default edit/delete
             return (
-                <>
-                    <MdEdit
-                        className="edit text-[18px] text-blue-500 cursor-pointer mr-2"
+                <div className="flex items-center gap-2">
+                    <Edit2
+                        size={16}
+                        className="edit text-blue-500 hover:text-blue-600 cursor-pointer"
                         title="Edit Entry"
                         onClick={() => handleEdit(row)}
                     />
-                    <MdDelete
-                        className="delete text-[18px] text-red-500 cursor-pointer"
+                    <Trash2
+                        size={16}
+                        className="delete text-red-500 hover:text-red-600 cursor-pointer"
                         title="Delete Entry"
                         onClick={() => handleDelete(row._id)}
                     />
-                </>
+                </div>
             );
         },
         width: '120px',

@@ -1,6 +1,6 @@
 import { apiClient } from "../../../utils/apiClient";
 import { FirstFetch } from "../../../../store/userSlice";
-import { toast } from "react-toastify";
+import { toast } from "../../../utils/toast";
 
 export const columns = [
     {

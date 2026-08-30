@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -7,12 +7,11 @@ import { Button, OutlinedInput } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
-import { IoIosSend } from "react-icons/io";
+import { Send, User } from "lucide-react";
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import TextField from '@mui/material/TextField';
 import { useSelector } from 'react-redux';
-import { FaRegUser } from "react-icons/fa";
 import Modalbox from '../../../components/custommodal/Modalbox';
 import dayjs from 'dayjs';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
@@ -163,7 +162,7 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                                     height: 100,
                                                 })}
                                                 alt={option.userid.name}>
-                                                {!option.profileimage && <FaRegUser />}
+                                                {!option.profileimage && <User size={16} />}
                                             </Avatar>
                                             <Box className=' capitalize'>
                                                 <Typography variant="body2">{option.userid.name}</Typography>
@@ -279,7 +278,7 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
 
                                     loading={isload}
                                     loadingPosition="end"
-                                    endIcon={<IoIosSend />}
+                                    endIcon={<Send size={16} />}
                                     variant="contained"
                                     type="submit"
                                 >

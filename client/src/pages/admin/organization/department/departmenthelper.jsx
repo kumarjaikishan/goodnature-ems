@@ -1,5 +1,5 @@
 
-import { toast } from "react-toastify";
+import { toast } from "../../../../utils/toast";
 import { FirstFetch } from "../../../../../store/userSlice";
 import { apiClient } from "../../../../utils/apiClient";
 

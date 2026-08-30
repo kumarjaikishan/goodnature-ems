@@ -1,7 +1,7 @@
 // utils/useApi.js
 
 import { useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from "./toast";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "./apiClient";
 
@@ -13,7 +13,7 @@ export const useApi = () => {
     const navigate = useNavigate();
 
     const request = async (config) => {
-        let { url, method } = config
+        let { url, method } = config;
 
         try {
             setLoading(true);
@@ -29,18 +29,15 @@ export const useApi = () => {
                 time: (end - start).toFixed(2) + ' ms',
                 date: new Date(),
                 date1: Date.now()
-            }
-            logger(logDetail)
-            // console.log("result useapi",result)
+            };
+            logger(logDetail);
 
             setData(result);
             return result;
 
         } catch (err) {
             setError(err.message);
-            console.log(err)
-            // console.log("apiUse error:", err.message);
-            // console.log("apiUse error status:", err.status);
+            console.log(err);
 
             const currentPath = window.location.pathname;
             const isAuthPage = currentPath === "/logout" || currentPath === "/login";
@@ -95,7 +92,6 @@ const logger = (detail) => {
     localStorage.setItem("apiLogs", JSON.stringify(finalLogs));
 };
 
-
 const logger2 = (detail) => {
     const prev = JSON.parse(localStorage.getItem("apiLogs")) || [];
 
@@ -103,6 +99,3 @@ const logger2 = (detail) => {
 
     localStorage.setItem("apiLogs", JSON.stringify(updated));
 };
-
-
-

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Popover, Typography, List, ListItem, ListItemText, Badge } from '@mui/material';
-import { CiBullhorn } from "react-icons/ci";
+import { Bell } from "lucide-react";
 
 export const NotificationIcon1 = ({ notifications }) => {
     const [anchorEl, setAnchorEl] = useState(null);
@@ -18,7 +18,7 @@ export const NotificationIcon1 = ({ notifications }) => {
     return (
         <>
             <Badge badgeContent={notifications.length} color="secondary" onClick={handleClick} className='cursor-pointer'>
-                <CiBullhorn size={24} />
+                <Bell size={24} />
             </Badge>
             <Popover
                 open={open}

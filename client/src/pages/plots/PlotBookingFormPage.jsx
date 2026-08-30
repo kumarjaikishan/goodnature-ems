@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { HiOutlinePrinter, HiOutlineDocumentText } from 'react-icons/hi2';
-import { toast } from 'react-toastify';
+import { Printer, FileText } from 'lucide-react';
+import { toast } from '../../utils/toast';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const PlotBookingFormPage = () => {
@@ -26,7 +26,7 @@ const PlotBookingFormPage = () => {
           type="button"
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm cursor-pointer border-none"
         >
-          <HiOutlinePrinter className="w-5 h-5" />
+          <Printer size={18} />
           Print Form
         </button>
       </div>
@@ -593,7 +593,7 @@ const PlotBookingFormPage = () => {
           type="button"
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors shadow-md cursor-pointer border-none"
         >
-          <HiOutlinePrinter className="w-5 h-5" />
+          <Printer size={18} />
           Print Form
         </button>
       </div>

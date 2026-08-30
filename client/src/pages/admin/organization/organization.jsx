@@ -8,8 +8,8 @@ import {
     InputAdornment,
     FormControlLabel
 } from '@mui/material';
-import { MdExpandLess, MdExpandMore, MdSettingsSuggest } from "react-icons/md";
-import { toast } from 'react-toastify';
+import { ChevronUp, ChevronDown, Sliders } from "lucide-react";
+import { toast } from '../../../utils/toast';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import Addbranch from './addbranch';
 import { useCustomStyles } from '../attandence/attandencehelper';
@@ -87,11 +87,11 @@ export default function OrganizationSettings() {
             <div className="flex-1 space-y-6 overflow-y-auto pb-10 scrollbar-hide">
 
                 {/* 1. Company Information */}
-                <div className='border hidden shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
+                <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('company')}>
                         <span className="font-semibold text-lg">Company Information</span>
-                        {openSection === 'company' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'company' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'company' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <CompanyInfo
@@ -111,7 +111,7 @@ export default function OrganizationSettings() {
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('branches')}>
                         <span className="font-semibold text-lg">Branches & Managers</span>
-                        {openSection === 'branches' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'branches' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'branches' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <BranchManager
@@ -128,7 +128,7 @@ export default function OrganizationSettings() {
                     <div className="flex justify-between items-center cursor-pointer bg-teal-200 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('department')}>
                         <span className="font-semibold text-lg">Department</span>
-                        {openSection === 'department' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'department' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'department' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <Department />
@@ -139,8 +139,8 @@ export default function OrganizationSettings() {
                 <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('devices')}>
-                        <span className="font-semibold text-lg">Device Managemen</span>
-                        {openSection === 'devices' ? <MdExpandLess /> : <MdExpandMore />}
+                        <span className="font-semibold text-lg">Device Management</span>
+                        {openSection === 'devices' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'devices' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <DeviceManager
@@ -162,7 +162,7 @@ export default function OrganizationSettings() {
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('telegram')}>
                         <span className="font-semibold text-lg">Telegram Integration</span>
-                        {openSection === 'telegram' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'telegram' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'telegram' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <TelegramSettings
@@ -183,7 +183,7 @@ export default function OrganizationSettings() {
                         <div className="flex justify-between items-center cursor-pointer bg-slate-200 px-4 py-2 rounded-md"
                             onClick={() => toggleSection('admin')}>
                             <span className="font-semibold text-lg">Admin/Manager</span>
-                            {openSection === 'admin' ? <MdExpandLess /> : <MdExpandMore />}
+                            {openSection === 'admin' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </div>
                         <div className={`overflow-hidden transition-all duration-300 ${openSection === 'admin' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                             <SuperAdminDashboard />
@@ -196,7 +196,7 @@ export default function OrganizationSettings() {
                     <div className="flex justify-between items-center cursor-pointer bg-gray-100 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('rules')}>
                         <span className="font-semibold text-lg">Attendance & Overtime Rules</span>
-                        {openSection === 'rules' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'rules' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'rules' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <AttendanceRules
@@ -211,11 +211,11 @@ export default function OrganizationSettings() {
                 </div>
 
                 {/* 8. Payroll Policies */}
-                <div className='border hidden shadow-lg bg-purple-50 border-dashed border-purple-400 rounded-md'>
+                <div className='border shadow-lg bg-purple-50 border-dashed border-purple-400 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-purple-200 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('policies')}>
                         <span className="font-semibold text-lg text-primary">Default Payroll Policies</span>
-                        {openSection === 'policies' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'policies' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'policies' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <PayrollPolicies
@@ -227,11 +227,11 @@ export default function OrganizationSettings() {
                 </div>
 
                 {/* 9. Leave Policies */}
-                <div className='border hidden shadow-lg bg-white border-dashed border-blue-300 rounded-md'>
+                <div className='border shadow-lg bg-white border-dashed border-blue-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-blue-50 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('leavePolicies')}>
                         <span className="font-semibold text-lg text-blue-700">Leave Policies</span>
-                        {openSection === 'leavePolicies' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'leavePolicies' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'leavePolicies' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <LeavePolicyManager />
@@ -239,16 +239,16 @@ export default function OrganizationSettings() {
                 </div>
 
                 {/* 10. Leave Visibility Settings */}
-                <div className='border hidden shadow-lg bg-white border-dashed border-orange-300 rounded-md'>
+                <div className='border shadow-lg bg-white border-dashed border-orange-300 rounded-md'>
                     <div className="flex justify-between items-center cursor-pointer bg-orange-50 px-4 py-2 rounded-md"
                         onClick={() => toggleSection('leaveSettings')}>
                         <div className="flex gap-2 font-semibold text-lg text-orange-700">
-                            <MdSettingsSuggest size={24} color="#1a3353" />
+                            <Sliders size={24} color="#1a3353" />
                             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a3353' }}>
                                 Ledger Visibility Settings
                             </Typography>
                         </div>
-                        {openSection === 'leaveSettings' ? <MdExpandLess /> : <MdExpandMore />}
+                        {openSection === 'leaveSettings' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                     <div className={`overflow-hidden transition-all duration-300 ${openSection === 'leaveSettings' ? 'max-h-fit p-4' : 'max-h-0'}`}>
                         <LeaveSettings

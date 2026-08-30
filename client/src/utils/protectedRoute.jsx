@@ -1,6 +1,6 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { toast } from 'react-toastify';
+import { toast } from './toast';
 import Navbar from '../components/Navbar';
 import { useEffect, useState, Suspense } from 'react';
 import Sidebar from '../components/sidebar';

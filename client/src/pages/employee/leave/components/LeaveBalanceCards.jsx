@@ -8,7 +8,7 @@ import {
     Divider,
     Paper
 } from "@mui/material";
-import { MdEventAvailable } from "react-icons/md";
+import { CalendarCheck } from "lucide-react";
 
 const LeaveBalanceCards = ({ balances = [] }) => {
     if (!balances || balances.length === 0) {
@@ -44,7 +44,7 @@ const LeaveBalanceCards = ({ balances = [] }) => {
                                 <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4a5568', textTransform: 'uppercase' }}>
                                     {bal.policyId?.name}
                                 </Typography>
-                                <MdEventAvailable size={20} color="#3182ce" />
+                                <CalendarCheck size={20} color="#3182ce" />
                             </Box>
                             <Typography variant="h4" sx={{ fontWeight: 800, color: '#2d3748' }}>
                                 {bal.remaining} <small style={{ fontSize: '0.5em', color: '#718096' }}>Days</small>
