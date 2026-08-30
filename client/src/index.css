@@ -7,17 +7,24 @@
 
 
 :root {
-    --color-primary: #115e59;
+    --color-primary: #0f766e;
+    --color-primary-dark: #134e4a;
+    --color-primary-hover: #115e59;
+    --color-primary-light: #f0fdfa;
     --sidebarwidth: 160px;
     --navbarheight: 60px;
     --sidenav: rgb(255, 255, 255);
-    --maincolor: teal;
-    --fontcolor: grey;
+    --maincolor: #0f766e;
+    --fontcolor: #64748b;
     --shortsidebar: 60px;
 }
 
 .bg-primary {
     background-color: var(--color-primary);
+}
+
+.bg-primary-dark {
+    background-color: var(--color-primary-dark);
 }
 
 .text-primary {
@@ -28,7 +35,20 @@
     border-color: var(--color-primary);
 }
 
-input[type="checkbox"] {
+.btn-theme-primary {
+    background-color: #0f766e;
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 0.75rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-theme-primary:hover {
+    background-color: #115e59;
+}
+
+input[type="checkbox"], input[type="radio"] {
     accent-color: var(--color-primary);
 }
 

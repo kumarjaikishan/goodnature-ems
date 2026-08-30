@@ -65,7 +65,7 @@ const Navbar = () => {
     "plots": "Plot Management",
     "inventory": "Plots Inventory",
     "sponsors": "Plot Sponsors",
-    "sponsor-commissions": "Sponsor Commissions",
+    "sponsor-ledger": "Sponsor Ledger",
     "customers": "Customers",
     "booking": "Bookings",
     "addbooking": "Create Booking",

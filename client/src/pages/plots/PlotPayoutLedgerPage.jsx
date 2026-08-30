@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
+import PageLoader from '../../components/common/PageLoader';
 import { 
   HiOutlineBanknotes, 
   HiOutlinePrinter, 
@@ -188,9 +189,10 @@ const PlotPayoutLedgerPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-800 border-t-emerald-500 rounded-full animate-spin" />
-      </div>
+      <PageLoader
+        title="Loading Customer Payout Ledger..."
+        subtitle="Calculating returns, vouchers, and credit ledger"
+      />
     );
   }
 
@@ -200,8 +202,8 @@ const PlotPayoutLedgerPage = () => {
         Ledger details not found.
         <div className="mt-4">
           <button 
-            onClick={() => navigate('/plot-reports')}
-            className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white rounded-sm text-xs font-bold"
+            onClick={() => navigate('/dashboard/plots/booking')}
+            className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-xs"
           >
             Go Back
           </button>

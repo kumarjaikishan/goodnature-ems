@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import DataTable from 'react-data-table-component';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
+import PageLoader from '../../components/common/PageLoader';
 import { CircularProgress } from '@mui/material';
 import {
   HiOutlineBanknotes,
@@ -306,15 +307,15 @@ const InstallmentCollection = () => {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen flex flex-col items-center justify-center gap-3">
-        <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-        <p className="text-xs font-bold text-slate-500 animate-pulse">Loading collections ledger...</p>
-      </div>
+      <PageLoader
+        title="Loading Collections Ledger..."
+        subtitle="Fetching payment receipts, installment schedules & transactions"
+      />
     );
   }
 
   const labelCls = "block text-xs font-semibold text-slate-600 mb-1";
-  const inputCls = "w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none";
+  const inputCls = "w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none";
 
   const filteredReceipts = receipts.filter(r => {
     const query = searchQuery.toLowerCase().trim();
@@ -516,7 +517,7 @@ const InstallmentCollection = () => {
               <input
                 type="text"
                 placeholder="Search by Booking No, Plot #, Customer, Mode, Ref..."
-                className="w-full h-10 pl-9 pr-9 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
+                className="w-full h-10 pl-9 pr-9 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -542,9 +543,12 @@ const InstallmentCollection = () => {
               data={filteredReceipts}
               progressPending={receiptsLoading}
               progressComponent={
-                <div className="p-8 flex justify-center">
-                  <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-                </div>
+                <PageLoader
+                  fullScreen={false}
+                  minHeight="min-h-[220px]"
+                  title="Loading Collections Ledger..."
+                  subtitle="Fetching payment receipts & transactions"
+                />
               }
               customStyles={customStyles}
               pagination

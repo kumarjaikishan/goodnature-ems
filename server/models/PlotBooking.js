@@ -92,6 +92,52 @@ const plotBookingSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    // Tiered Rate & Commission Snapshots locked at booking time
+    tenureMonths: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    basePlotRate: {
+      type: Number,
+      default: 1000,
+      min: 0,
+    },
+    promoterCommissionPercent: {
+      type: Number,
+      default: 10.0,
+      min: 0,
+    },
+    developerCommissionPercent: {
+      type: Number,
+      default: 2.0,
+      min: 0,
+    },
+    downpaymentMonths: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    downpaymentAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    emiPrincipalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    emiMonthlyAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    downpaymentCalculationBase: {
+      type: String,
+      enum: ['AFTER_DISCOUNT', 'BEFORE_DISCOUNT'],
+      default: 'BEFORE_DISCOUNT',
+    },
   },
   {
     timestamps: true,

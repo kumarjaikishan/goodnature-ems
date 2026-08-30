@@ -19,7 +19,7 @@ import {
   HiOutlineSparkles,
 } from 'react-icons/hi2';
 import Modalbox from '../../components/custommodal/Modalbox';
-import { CircularProgress } from '@mui/material';
+import PageLoader from '../../components/common/PageLoader';
 
 const PlotReports = () => {
   const navigate = useNavigate();
@@ -94,7 +94,7 @@ const PlotReports = () => {
   // Fetch sponsor search options dynamically inside Modal
   useEffect(() => {
     const q = sponsorSearch.trim();
-    if (!q || q === 'Direct / Riseown (No Sponsor)') {
+    if (!q || q === 'Direct / Company (No Sponsor)') {
       setSponsorSearchResults([]);
       return;
     }
@@ -201,7 +201,7 @@ const PlotReports = () => {
       notes: booking.notes || '',
     };
     setEditForm(initialForm);
-    setSponsorSearch(booking.sponsorId?.name ? `${booking.sponsorId.name} (${booking.sponsorId.sponsorCode || ''})` : 'Direct / Riseown (No Sponsor)');
+    setSponsorSearch(booking.sponsorId?.name ? `${booking.sponsorId.name} (${booking.sponsorId.sponsorCode || ''})` : 'Direct / Company (No Sponsor)');
     setEditEmiType('MONTH');
 
     if (booking.scheme === 'MONTHLY_INSTALLMENT') {
@@ -378,71 +378,72 @@ const PlotReports = () => {
       name: 'Booking Date',
       selector: (row) => row.bookingDate || row.createdAt,
       cell: (row) => (
-        <span className="text-slate-600 font-medium whitespace-nowrap">
+        <span className="text-slate-600 font-medium whitespace-nowrap text-xs">
           {new Date(row.bookingDate || row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </span>
-      ),
-      sortable: true,
-      width: '120px',
-    },
-    {
-      name: 'Booking & Plot #',
-      selector: (row) => row.bookingNumber,
-      cell: (row) => (
-        <div className="flex flex-col">
-          <span className="font-bold text-slate-900 tracking-wide font-mono">{row.bookingNumber}</span>
-          <span className="text-[11px] font-semibold text-slate-600">Plot: {row.plotId?.plotNumber || 'N/A'}</span>
-        </div>
-      ),
-      sortable: true,
-      width: '160px',
-    },
-    {
-      name: 'Customer',
-      selector: (row) => row.customerId?.name || row.customerName,
-      cell: (row) => (
-        <div className="flex flex-col">
-          <span className="font-bold text-slate-900">{row.customerId?.name || row.customerName}</span>
-          <span className="text-[11px] text-slate-500 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      name: 'Plot Value',
-      selector: (row) => row.plotValue || 0,
-      cell: (row) => <span className="font-bold text-slate-900 font-mono">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
-      sortable: true,
-      width: '130px',
-    },
-    {
-      name: 'Discount',
-      selector: (row) => row.discount || 0,
-      cell: (row) => (
-        <span className="font-semibold text-slate-700 font-mono">
-          {row.discount > 0 ? `₹${(row.discount || 0).toLocaleString('en-IN')}` : '-'}
         </span>
       ),
       sortable: true,
       width: '110px',
     },
     {
+      name: 'Booking & Plot #',
+      selector: (row) => row.bookingNumber,
+      cell: (row) => (
+        <div className="flex flex-col text-xs">
+          <span className="font-bold text-slate-900 tracking-wide font-mono">{row.bookingNumber}</span>
+          <span className="text-[11px] font-semibold text-slate-600">Plot: {row.plotId?.plotNumber || 'N/A'}</span>
+        </div>
+      ),
+      sortable: true,
+      width: '135px',
+    },
+    {
+      name: 'Customer',
+      selector: (row) => row.customerId?.name || row.customerName,
+      cell: (row) => (
+        <div className="flex flex-col text-xs">
+          <span className="font-bold text-slate-900 truncate">{row.customerId?.name || row.customerName}</span>
+          <span className="text-[11px] text-slate-500 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
+        </div>
+      ),
+      sortable: true,
+      width: '140px',
+    },
+    {
+      name: 'Plot Value',
+      selector: (row) => row.plotValue || 0,
+      cell: (row) => <span className="font-bold text-slate-900 font-mono text-xs">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
+      sortable: true,
+      width: '110px',
+    },
+    {
+      name: 'Discount',
+      selector: (row) => row.discount || 0,
+      cell: (row) => (
+        <span className="font-semibold text-slate-700 font-mono text-xs">
+          {row.discount > 0 ? `₹${(row.discount || 0).toLocaleString('en-IN')}` : '-'}
+        </span>
+      ),
+      sortable: true,
+      width: '95px',
+    },
+    {
       name: 'Paid Amount',
       selector: (row) => Math.max(0, (row.plotValue || 0) - (row.discount || 0) - (row.remainingAmount || 0)),
       cell: (row) => (
-        <span className="font-bold text-slate-900 font-mono">
+        <span className="font-bold text-slate-900 font-mono text-xs">
           ₹{Math.max(0, (row.plotValue || 0) - (row.discount || 0) - (row.remainingAmount || 0)).toLocaleString('en-IN')}
         </span>
       ),
       sortable: true,
-      width: '130px',
+      width: '110px',
     },
     {
       name: 'Outstanding',
       selector: (row) => row.remainingAmount || 0,
-      cell: (row) => <span className="font-bold text-slate-900 font-mono">₹{(row.remainingAmount || 0).toLocaleString('en-IN')}</span>,
+      cell: (row) => <span className="font-bold text-slate-900 font-mono text-xs">₹{(row.remainingAmount || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '130px',
+      width: '115px',
     },
     {
       name: 'Status',
@@ -459,11 +460,11 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '110px',
+      width: '95px',
     },
     {
       name: 'Actions',
-      width: '260px',
+      width: '190px',
       cell: (b) => (
         <div className="flex items-center gap-1.5 py-1">
           <button
@@ -575,95 +576,96 @@ const PlotReports = () => {
       name: 'Booking Date',
       selector: (row) => row.bookingDate || row.createdAt,
       cell: (row) => (
-        <span className="text-slate-600 font-medium whitespace-nowrap">
+        <span className="text-slate-600 font-medium whitespace-nowrap text-xs">
           {new Date(row.bookingDate || row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
       ),
       sortable: true,
-      width: '120px',
+      width: '110px',
     },
     {
       name: 'Booking & Plot #',
       selector: (row) => row.bookingNumber,
       cell: (row) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col text-xs">
           <span className="font-extrabold text-slate-900 font-mono tracking-wide">{row.bookingNumber}</span>
           <span className="text-[11px] font-bold text-slate-700">Plot #{row.plotId?.plotNumber}</span>
         </div>
       ),
       sortable: true,
-      width: '150px',
+      width: '135px',
     },
     {
       name: 'Customer Name',
       selector: (row) => row.customerId?.name || row.customerName,
-      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap">{row.customerId?.name || row.customerName}</span>,
+      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap text-xs">{row.customerId?.name || row.customerName}</span>,
       sortable: true,
+      width: '140px',
     },
     {
       name: 'Scheme',
       selector: (row) => row.scheme,
       cell: (row) => (
-        <span className="font-semibold text-slate-700 uppercase whitespace-nowrap">
+        <span className="font-semibold text-slate-700 uppercase whitespace-nowrap text-xs">
           {row.scheme === 'FULL_PAYMENT' ? 'One Time' : 'EMI'}
         </span>
       ),
       sortable: true,
-      width: '110px',
+      width: '95px',
     },
     {
       name: 'Plot Value',
       selector: (row) => row.plotValue || 0,
-      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
+      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">₹{(row.plotValue || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '120px',
+      width: '110px',
     },
     {
       name: 'Net Payable',
       selector: (row) => row.netPlotValue || (row.plotValue || 0) - (row.discount || 0),
       cell: (row) => (
-        <span className="font-bold text-slate-900 whitespace-nowrap font-mono">
+        <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">
           ₹{(row.netPlotValue || (row.plotValue || 0) - (row.discount || 0)).toLocaleString('en-IN')}
         </span>
       ),
       sortable: true,
-      width: '120px',
+      width: '110px',
     },
     {
       name: 'Paid Amount',
       selector: (row) => row.totalPaid || 0,
-      cell: (row) => <span className="font-bold text-emerald-800 whitespace-nowrap font-mono">₹{(row.totalPaid || 0).toLocaleString('en-IN')}</span>,
+      cell: (row) => <span className="font-bold text-emerald-800 whitespace-nowrap font-mono text-xs">₹{(row.totalPaid || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '120px',
+      width: '110px',
     },
     {
       name: 'Due Amount',
       selector: (row) => row.totalDue || row.remainingAmount || 0,
       cell: (row) => (
-        <span className="font-bold text-rose-700 whitespace-nowrap font-mono">
+        <span className="font-bold text-rose-700 whitespace-nowrap font-mono text-xs">
           ₹{(row.totalDue || row.remainingAmount || 0).toLocaleString('en-IN')}
         </span>
       ),
       sortable: true,
-      width: '120px',
+      width: '110px',
     },
     {
       name: 'EMIs Paid',
       selector: (row) => row.paidInstallmentsCount || 0,
       cell: (row) => (
-        <span className="font-semibold text-slate-800 whitespace-nowrap">
+        <span className="font-semibold text-slate-800 whitespace-nowrap text-xs">
           {row.totalInstallmentsCount > 0 ? `${row.paidInstallmentsCount} / ${row.totalInstallmentsCount}` : '1 / 1'}
         </span>
       ),
       sortable: true,
-      width: '110px',
+      width: '95px',
     },
     {
       name: 'Status',
       selector: (row) => row.dueStatus,
       cell: (row) => (
         <span
-          className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+          className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
             row.dueStatus === 'COMPLETED'
               ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
               : 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -673,7 +675,7 @@ const PlotReports = () => {
         </span>
       ),
       sortable: true,
-      width: '120px',
+      width: '95px',
     },
     {
       name: 'Action',
@@ -694,60 +696,61 @@ const PlotReports = () => {
     {
       name: 'Plot #',
       selector: (row) => row.plotId?.plotNumber || '',
-      cell: (row) => <span className="font-bold text-slate-900 font-mono">{row.plotId?.plotNumber}</span>,
+      cell: (row) => <span className="font-bold text-slate-900 font-mono text-xs">{row.plotId?.plotNumber}</span>,
       sortable: true,
-      width: '100px',
+      width: '95px',
     },
     {
       name: 'Customer',
       selector: (row) => row.customerId?.name || row.customerName,
       cell: (row) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col text-xs">
           <span className="font-bold text-slate-900">{row.customerId?.name || row.customerName}</span>
           <span className="text-[11px] text-slate-600 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
         </div>
       ),
       sortable: true,
+      width: '140px',
     },
     {
       name: 'Hold Deposit',
       selector: (row) => row.bookingAmount || 0,
-      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono">₹{(row.bookingAmount || 0).toLocaleString('en-IN')}</span>,
+      cell: (row) => <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">₹{(row.bookingAmount || 0).toLocaleString('en-IN')}</span>,
       sortable: true,
-      width: '130px',
+      width: '115px',
     },
     {
       name: 'Hours Remaining',
       selector: (row) => getHoldHoursLeft(row.holdExpiryDate),
-      cell: (row) => <span className="font-bold text-amber-800 whitespace-nowrap">{getHoldHoursLeft(row.holdExpiryDate)}</span>,
+      cell: (row) => <span className="font-bold text-amber-800 whitespace-nowrap text-xs">{getHoldHoursLeft(row.holdExpiryDate)}</span>,
       sortable: true,
-      width: '140px',
+      width: '120px',
     },
     {
       name: 'Status',
       selector: (row) => row.status,
       cell: (row) => (
-        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
           {row.status}
         </span>
       ),
       sortable: true,
-      width: '110px',
+      width: '90px',
     },
     {
       name: 'Expiry Date',
       selector: (row) => row.holdExpiryDate,
       cell: (row) => (
-        <span className="text-slate-800 font-medium whitespace-nowrap">
+        <span className="text-slate-800 font-medium whitespace-nowrap text-xs">
           {new Date(row.holdExpiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </span>
       ),
       sortable: true,
-      width: '160px',
+      width: '140px',
     },
     {
       name: 'Action',
-      width: '160px',
+      width: '140px',
       cell: (h) => (
         <div className="flex items-center gap-1.5 py-1">
           <button
@@ -825,7 +828,7 @@ const PlotReports = () => {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`pb-3 text-sm font-bold border-b-2 cursor-pointer transition ${activeTab === t.id
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-teal-700 text-teal-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
             >
@@ -844,7 +847,7 @@ const PlotReports = () => {
               placeholder="Search by booking #, customer name or phone..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
+              className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
             />
             <div className="absolute left-3.5 top-3 text-slate-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -856,7 +859,7 @@ const PlotReports = () => {
             <select
               value={schemeFilter}
               onChange={e => setSchemeFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[150px]"
+              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[150px]"
             >
               <option value="">All Schemes</option>
               <option value="FULL_PAYMENT">One Time</option>
@@ -865,7 +868,7 @@ const PlotReports = () => {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[130px]"
+              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[130px]"
             >
               <option value="">All Statuses</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -884,7 +887,7 @@ const PlotReports = () => {
               placeholder="Search by booking #, customer name or phone..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
+              className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
             />
             <div className="absolute left-3.5 top-3 text-slate-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -896,7 +899,7 @@ const PlotReports = () => {
             <select
               value={schemeFilter}
               onChange={e => setSchemeFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[150px]"
+              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[150px]"
             >
               <option value="">All Schemes</option>
               <option value="FULL_PAYMENT">One Time</option>
@@ -905,7 +908,7 @@ const PlotReports = () => {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[130px]"
+              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[130px]"
             >
               <option value="">All Due Status</option>
               <option value="DUE">DUE</option>
@@ -924,7 +927,7 @@ const PlotReports = () => {
               placeholder="Search sponsor by name, ID, email or phone..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
+              className="w-full h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-3.5 rounded-xl font-medium text-sm text-slate-800 transition"
             />
             <div className="absolute left-3.5 top-3 text-slate-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -936,7 +939,7 @@ const PlotReports = () => {
             <select
               value={balanceFilter}
               onChange={e => setBalanceFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[160px]"
+              className="h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition min-w-[160px]"
             >
               <option value="">All Wallet Balances</option>
               <option value="with_balance">Available Balance &gt; ₹0</option>
@@ -953,9 +956,12 @@ const PlotReports = () => {
             data={filteredBookings}
             progressPending={loading}
             progressComponent={
-              <div className="p-8 flex justify-center">
-                <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-              </div>
+              <PageLoader
+                fullScreen={false}
+                minHeight="min-h-[220px]"
+                title="Loading Plot Bookings..."
+                subtitle="Fetching real-time customer and plot contracts"
+              />
             }
             customStyles={customStyles}
             pagination
@@ -975,9 +981,12 @@ const PlotReports = () => {
             data={filteredDues}
             progressPending={loading}
             progressComponent={
-              <div className="p-8 flex justify-center">
-                <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-              </div>
+              <PageLoader
+                fullScreen={false}
+                minHeight="min-h-[220px]"
+                title="Loading Due Reports..."
+                subtitle="Calculating outstanding installments and due schedules"
+              />
             }
             customStyles={customStyles}
             pagination
@@ -997,9 +1006,12 @@ const PlotReports = () => {
             data={data}
             progressPending={loading}
             progressComponent={
-              <div className="p-8 flex justify-center">
-                <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-              </div>
+              <PageLoader
+                fullScreen={false}
+                minHeight="min-h-[220px]"
+                title="Loading Active Holds..."
+                subtitle="Synchronizing temporary plot holds and expiry countdowns"
+              />
             }
             customStyles={customStyles}
             pagination
@@ -1051,7 +1063,7 @@ const PlotReports = () => {
                       setShowCustomerDropdown(true);
                     }}
                     onFocus={() => setShowCustomerDropdown(true)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none pr-8"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none pr-8"
                   />
                   {customerSearch && (
                     <button
@@ -1096,7 +1108,7 @@ const PlotReports = () => {
                   <select
                     value={editForm.plotId}
                     onChange={(e) => setEditForm({ ...editForm, plotId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                     required
                   >
                     <option value={editingBooking?.plotId?._id || editingBooking?.plotId}>
@@ -1121,7 +1133,7 @@ const PlotReports = () => {
                 <select
                   value={editForm.bookingType}
                   onChange={(e) => setEditForm({ ...editForm, bookingType: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                 >
                   <option value="BOOKING">BOOKING (Confirmed)</option>
                   <option value="HOLD">HOLD (Temporary Lock)</option>
@@ -1134,7 +1146,7 @@ const PlotReports = () => {
                   <select
                     value={editForm.holdExpiryDays}
                     onChange={(e) => setEditForm({ ...editForm, holdExpiryDays: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                   >
                     <option value="7">7 Days Hold</option>
                     <option value="15">15 Days Hold</option>
@@ -1148,7 +1160,7 @@ const PlotReports = () => {
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                 >
                   <option value="ACTIVE">ACTIVE</option>
                   <option value="HOLD">HOLD</option>
@@ -1163,7 +1175,7 @@ const PlotReports = () => {
                   type="text"
                   value={editForm.agreementNumber || ''}
                   onChange={(e) => setEditForm({ ...editForm, agreementNumber: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-mono text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-mono text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                   placeholder="e.g. AG-2026/089"
                 />
               </div>
@@ -1174,7 +1186,7 @@ const PlotReports = () => {
                   type="date"
                   value={editForm.bookingDate || ''}
                   onChange={(e) => setEditForm({ ...editForm, bookingDate: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                   required
                 />
               </div>
@@ -1194,7 +1206,7 @@ const PlotReports = () => {
                       value="FULL_PAYMENT"
                       checked={editForm.scheme === 'FULL_PAYMENT'}
                       onChange={() => setEditForm({ ...editForm, scheme: 'FULL_PAYMENT' })}
-                      className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
                     />
                     One Time (Full Payment)
                   </label>
@@ -1205,7 +1217,7 @@ const PlotReports = () => {
                       value="MONTHLY_INSTALLMENT"
                       checked={editForm.scheme === 'MONTHLY_INSTALLMENT'}
                       onChange={() => setEditForm({ ...editForm, scheme: 'MONTHLY_INSTALLMENT' })}
-                      className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
                     />
                     Monthly EMI (Installments)
                   </label>
@@ -1219,7 +1231,7 @@ const PlotReports = () => {
                     type="number"
                     value={editForm.discount}
                     onChange={(e) => setEditForm({ ...editForm, discount: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                     placeholder="0"
                   />
                 </div>
@@ -1230,7 +1242,7 @@ const PlotReports = () => {
                     type="number"
                     value={editForm.bookingAmount}
                     onChange={(e) => setEditForm({ ...editForm, bookingAmount: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                     placeholder="0"
                   />
                 </div>
@@ -1241,7 +1253,7 @@ const PlotReports = () => {
                     type="number"
                     value={editForm.downpaymentMonths}
                     onChange={(e) => setEditForm({ ...editForm, downpaymentMonths: Number(e.target.value) || 1 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                     min="1"
                   />
                 </div>
@@ -1260,7 +1272,7 @@ const PlotReports = () => {
                         name="editEmiType"
                         checked={editEmiType === 'MONTH'}
                         onChange={() => setEditEmiType('MONTH')}
-                        className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
                       />
                       Month-based (specify tenure)
                     </label>
@@ -1270,7 +1282,7 @@ const PlotReports = () => {
                         name="editEmiType"
                         checked={editEmiType === 'AMOUNT'}
                         onChange={() => setEditEmiType('AMOUNT')}
-                        className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
                       />
                       Amount-based (specify EMI amount)
                     </label>
@@ -1285,7 +1297,7 @@ const PlotReports = () => {
                         type="number"
                         value={editForm.installmentCount}
                         onChange={(e) => setEditForm({ ...editForm, installmentCount: Number(e.target.value) || 0 })}
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                         placeholder="e.g. 100"
                         required
                       />
@@ -1309,7 +1321,7 @@ const PlotReports = () => {
                           type="number"
                           value={editForm.installmentAmount}
                           onChange={(e) => setEditForm({ ...editForm, installmentAmount: Number(e.target.value) || 0 })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                           placeholder="Enter EMI amount"
                           required
                         />
@@ -1366,7 +1378,7 @@ const PlotReports = () => {
                     type="number"
                     value={editForm.oneTimeMonths || 1}
                     onChange={(e) => setEditForm({ ...editForm, oneTimeMonths: Number(e.target.value) || 1 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                     placeholder="Enter months (e.g. 1, 2, 6, 12)"
                     min="1"
                     required
@@ -1382,7 +1394,7 @@ const PlotReports = () => {
                 <select
                   value={editForm.paymentMode}
                   onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                 >
                   <option value="cash">Cash</option>
                   <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
@@ -1397,7 +1409,7 @@ const PlotReports = () => {
                   type="text"
                   value={editForm.transactionReference}
                   onChange={(e) => setEditForm({ ...editForm, transactionReference: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                   placeholder="e.g. TXN987654321 / CHQ-1002"
                 />
               </div>
@@ -1415,7 +1427,7 @@ const PlotReports = () => {
                     setShowSponsorDropdown(true);
                   }}
                   onFocus={() => setShowSponsorDropdown(true)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none pr-8"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none pr-8"
                 />
                 {sponsorSearch && (
                   <button
@@ -1437,11 +1449,11 @@ const PlotReports = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         setEditForm({ ...editForm, sponsorId: '' });
-                        setSponsorSearch('Direct / Riseown (No Sponsor)');
+                        setSponsorSearch('Direct / Company (No Sponsor)');
                         setShowSponsorDropdown(false);
                       }}
                     >
-                      Direct / Riseown (No Sponsor)
+                      Direct / Company (No Sponsor)
                     </div>
                     {sponsorSearchResults.map(c => (
                       <div
@@ -1469,7 +1481,7 @@ const PlotReports = () => {
                 value={editForm.notes}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                 rows="2"
-                className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
+                className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
                 placeholder="Enter contract update remarks..."
               />
             </div>
@@ -1519,7 +1531,7 @@ const PlotReports = () => {
                 type="date"
                 value={setupPayoutForm.startDate}
                 onChange={(e) => setSetupPayoutForm({ ...setupPayoutForm, startDate: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                 required
               />
             </div>

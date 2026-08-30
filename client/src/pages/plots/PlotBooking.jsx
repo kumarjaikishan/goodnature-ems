@@ -2,7 +2,20 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { useNavigate, Link } from 'react-router-dom';
-import { HiOutlineMagnifyingGlass, HiOutlineUserPlus, HiOutlineCheck, HiChevronLeft, HiChevronRight } from 'react-icons/hi2';
+import {
+  HiOutlineMagnifyingGlass,
+  HiOutlineUserPlus,
+  HiOutlineCheck,
+  HiChevronLeft,
+  HiChevronRight,
+  HiOutlineSparkles,
+  HiOutlineCurrencyRupee,
+  HiOutlineBuildingOffice2,
+  HiOutlineUserGroup,
+  HiOutlineTag,
+  HiOutlineAdjustmentsHorizontal
+} from 'react-icons/hi2';
+import PageLoader from '../../components/common/PageLoader';
 import { CircularProgress } from '@mui/material';
 
 const getTodayDateString = () => {
@@ -17,6 +30,7 @@ const PlotBooking = () => {
   const navigate = useNavigate();
   const [plots, setPlots] = useState([]);
   const [selectedPlot, setSelectedPlot] = useState(null);
+  const [rateConfig, setRateConfig] = useState(null);
 
   // Wizard Steps: 1 = Customer, 2 = Plot, 3 = Terms & Payment
   const [step, setStep] = useState(1);
@@ -30,10 +44,10 @@ const PlotBooking = () => {
   const [form, setForm] = useState({
     plotId: '',
     customerId: '',
+    sponsorId: '',
+    tenureMonths: 0, // 0 for one-time, 3, 6, 9, 12... for EMIs
     scheme: 'FULL_PAYMENT',
     bookingAmount: '',
-    emiAmount: '',
-    installmentCount: '100',
     paymentMode: 'cash',
     transactionReference: '',
     notes: '',
@@ -45,33 +59,36 @@ const PlotBooking = () => {
     downpaymentMonths: 1,
   });
 
-  const [emiType, setEmiType] = useState('MONTH'); // 'MONTH' or 'AMOUNT'
+  const [discountType, setDiscountType] = useState('RUPEE'); // 'RUPEE', 'PERCENT', or 'SQFT_RATE'
+  const [discountVal, setDiscountVal] = useState('');
+  const [downpaymentBase, setDownpaymentBase] = useState('BEFORE_DISCOUNT'); // 'BEFORE_DISCOUNT' (default) or 'AFTER_DISCOUNT'
+  const [govtRate, setGovtRate] = useState('100'); // default 100 / sqft
 
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
-
   const [seriesList, setSeriesList] = useState([]);
 
   useEffect(() => {
-    // Fetch ALL plots and series to show visual layout
     const loadInitData = async () => {
       try {
-        const [plotsRes, seriesRes] = await Promise.all([
+        const [plotsRes, seriesRes, rateRes] = await Promise.all([
           api.get('/plots?limit=5000'),
-          api.get('/plots/series')
+          api.get('/plots/series'),
+          api.get('/plots/rate-config'),
         ]);
         setPlots(plotsRes.data.data || []);
         setSeriesList(seriesRes.data.data || []);
+        setRateConfig(rateRes.data.data || null);
         setLoading(false);
       } catch {
-        toast.error('Failed to load plot inventory data');
+        toast.error('Failed to load plot inventory & rate data');
         setLoading(false);
       }
     };
     loadInitData();
   }, []);
 
-  // Search onboarded plot customers only
+  // Search onboarded plot customers
   useEffect(() => {
     if (searchQuery.trim().length < 2) {
       setSearchResults([]);
@@ -85,10 +102,10 @@ const PlotBooking = () => {
       api.get('/plots/customers', {
         params: {
           search: searchQuery,
-          limit: 10
-        }
+          limit: 10,
+        },
       })
-        .then(res => {
+        .then((res) => {
           const list = res.data.data?.customers || res.data.customers || res.data.data || [];
           setSearchResults(list);
         })
@@ -98,37 +115,16 @@ const PlotBooking = () => {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery, selectedCustomer]);
 
-  const [discountType, setDiscountType] = useState('RUPEE'); // 'RUPEE', 'PERCENT', or 'SQFT_RATE'
-  const [discountVal, setDiscountVal] = useState('');
-  const [govtRate, setGovtRate] = useState('100'); // default 100 / sqft
-
-  // Helper to calculate total discount in Rupees
-  const calculateDiscountAmount = (type, val, targetPlot) => {
-    const num = Number(val) || 0;
-    if (num <= 0 || !targetPlot) return 0;
-
-    const plotVal = targetPlot.totalPlotValue || 0;
-    const plotArea = targetPlot.plotSize || targetPlot.area || targetPlot.sizeSqFt || (targetPlot.sizeSqYd ? targetPlot.sizeSqYd * 9 : 0); // Plot size in Sq.Ft.
-
-    if (type === 'PERCENT') {
-      return Math.round((plotVal * num) / 100);
-    } else if (type === 'SQFT_RATE') {
-      // If user enters discount per sq.ft. (e.g., 50 rs discount per sq.ft. on a 2400 sq.ft. plot = 2400 * 50 = 1,20,000 rs discount)
-      return Math.round(plotArea * num);
-    }
-    return num;
-  };
-
   const selectCustomer = (cust) => {
     setSelectedCustomer(cust);
     setSearchQuery(cust.name);
     setSearchResults([]);
     const sId = cust.sponsorId?._id || cust.sponsorId || '';
-    setForm(f => ({ ...f, customerId: cust._id, sponsorId: sId }));
+    setForm((f) => ({ ...f, customerId: cust._id, sponsorId: sId }));
   };
 
   const handlePlotSelect = (plotId) => {
-    const p = plots.find(item => item._id === plotId);
+    const p = plots.find((item) => item._id === plotId);
     if (!p) return;
 
     if (p.status === 'BOOKED' || p.status === 'REGISTERED') {
@@ -137,152 +133,83 @@ const PlotBooking = () => {
     }
 
     setSelectedPlot(p);
-    const discAmt = calculateDiscountAmount(discountType, discountVal, p);
-    const net = Math.max(0, p.totalPlotValue - discAmt);
-    setForm(f => ({
-      ...f,
-      plotId: p._id,
-      discount: String(discAmt),
-      bookingAmount: f.scheme === 'FULL_PAYMENT' ? String(net) : '0',
-      emiAmount: f.scheme === 'MONTHLY_INSTALLMENT' ? String(Math.floor(net / 100)) : ''
-    }));
+    setForm((f) => ({ ...f, plotId: p._id }));
   };
 
-  const handleDiscountChange = (type, val) => {
-    setDiscountType(type);
-    setDiscountVal(val);
-    const discAmt = calculateDiscountAmount(type, val, selectedPlot);
-    const plotVal = selectedPlot?.totalPlotValue || 0;
-    const net = Math.max(0, plotVal - discAmt);
+  // Slabs from rate config or default fallback
+  const slabs = rateConfig?.rateSlabs?.length > 0
+    ? rateConfig.rateSlabs
+    : [
+        { tenureMonths: 0, plotRate: 1000, promoterCommissionPercent: 10.0, developerCommissionPercent: 2.0, downpaymentPercent: 100, emiPercent: 0 },
+        { tenureMonths: 3, plotRate: 1050, promoterCommissionPercent: 10.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 6, plotRate: 1100, promoterCommissionPercent: 11.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 9, plotRate: 1150, promoterCommissionPercent: 11.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 12, plotRate: 1200, promoterCommissionPercent: 12.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 15, plotRate: 1250, promoterCommissionPercent: 12.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 18, plotRate: 1300, promoterCommissionPercent: 13.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 21, plotRate: 1350, promoterCommissionPercent: 13.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 24, plotRate: 1400, promoterCommissionPercent: 14.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 27, plotRate: 1450, promoterCommissionPercent: 14.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 30, plotRate: 1500, promoterCommissionPercent: 15.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+      ];
 
-    setForm(f => {
-      const updated = { ...f, discount: String(discAmt) };
-      if (f.scheme === 'FULL_PAYMENT') {
-        updated.bookingAmount = String(net);
-      } else {
-        const dp = Number(f.bookingAmount) || 0;
-        if (emiType === 'MONTH') {
-          const m = Number(f.installmentCount) || 100;
-          updated.emiAmount = m > 0 ? String(Math.floor((net - dp) / m)) : '0';
-        } else {
-          const emi = Number(f.emiAmount) || 1000;
-          updated.installmentCount = emi > 0 ? String(Math.ceil((net - dp) / emi)) : '100';
-        }
-      }
-      return updated;
-    });
-  };
+  const currentSlab = slabs.find((s) => Number(s.tenureMonths) === Number(form.tenureMonths)) || slabs[0];
 
-  const handleDownpaymentChange = (val) => {
-    setForm(f => {
-      const dp = Number(val) || 0;
-      const net = Math.max(0, (selectedPlot?.totalPlotValue || 0) - (Number(f.discount) || 0));
-      const updated = { ...f, bookingAmount: val };
+  // Dynamic Price & Breakdown Calculations
+  const plotArea = selectedPlot ? (selectedPlot.plotSize || selectedPlot.area || 0) : 0;
+  const isCorner = selectedPlot?.plotType === 'CORNER';
+  const cornerExtra = isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0;
+  const baseRate = currentSlab.plotRate || rateConfig?.baseSqFtRate || 1000;
+  const effectiveRate = baseRate * (1 + cornerExtra / 100);
+  const calculatedPlotValue = Math.round(plotArea * effectiveRate);
 
-      if (f.scheme === 'MONTHLY_INSTALLMENT') {
-        if (emiType === 'MONTH') {
-          const m = Number(f.installmentCount) || 100;
-          updated.emiAmount = m > 0 ? String(Math.floor((net - dp) / m)) : '0';
-        } else {
-          const emi = Number(f.emiAmount) || 1000;
-          updated.installmentCount = emi > 0 ? String(Math.ceil((net - dp) / emi)) : '100';
-        }
-      }
-      return updated;
-    });
-  };
+  // Helper to calculate total discount in Rupees
+  const calculateDiscountAmount = (type, val) => {
+    const num = Number(val) || 0;
+    if (num <= 0 || !selectedPlot) return 0;
 
-  const handleMonthsChange = (val) => {
-    setForm(f => {
-      const m = Number(val) || 1;
-      const net = Math.max(0, (selectedPlot?.totalPlotValue || 0) - (Number(f.discount) || 0));
-      const dp = Number(f.bookingAmount) || 0;
-      const emi = m > 0 ? Math.floor((net - dp) / m) : 0;
-      return {
-        ...f,
-        installmentCount: val,
-        emiAmount: String(emi)
-      };
-    });
-  };
-
-  const handleEmiAmountChange = (val) => {
-    setForm(f => {
-      const emi = Number(val) || 1;
-      const net = Math.max(0, (selectedPlot?.totalPlotValue || 0) - (Number(f.discount) || 0));
-      const dp = Number(f.bookingAmount) || 0;
-      const m = Math.ceil((net - dp) / emi);
-      return {
-        ...f,
-        emiAmount: val,
-        installmentCount: String(m)
-      };
-    });
-  };
-
-  const handleSchemeChange = (scheme) => {
-    const net = Math.max(0, (selectedPlot?.totalPlotValue || 0) - (Number(form.discount) || 0));
-    setForm(f => {
-      const updated = { ...f, scheme };
-      if (scheme === 'FULL_PAYMENT') {
-        updated.bookingAmount = String(net);
-        updated.emiAmount = '';
-        updated.installmentCount = '1';
-      } else {
-        updated.bookingAmount = '0';
-        updated.installmentCount = '1';
-        updated.emiAmount = String(Math.floor(net / 1));
-      }
-      return updated;
-    });
-  };
-
-  const handleEmiTypeChange = (type) => {
-    setEmiType(type);
-    const net = Math.max(0, (selectedPlot?.totalPlotValue || 0) - (Number(form.discount) || 0));
-    const dp = Number(form.bookingAmount) || 0;
-
-    setForm(f => {
-      const updated = { ...f };
-      if (type === 'MONTH') {
-        const m = Number(f.installmentCount) || 100;
-        const emi = m > 0 ? Math.floor((net - dp) / m) : 0;
-        updated.installmentCount = String(m);
-        updated.emiAmount = String(emi);
-      } else {
-        let emi = Number(f.emiAmount) || Math.floor(net / 100);
-        if (emi <= 0) emi = 1000;
-        const m = Math.ceil((net - dp) / emi);
-        updated.emiAmount = String(emi);
-        updated.installmentCount = String(m);
-      }
-      return updated;
-    });
-  };
-
-  const getDivisorSuggestions = (principal, emiAmount) => {
-    if (!principal || principal <= 0 || !emiAmount || emiAmount <= 0) return [];
-    const sugs = [];
-    for (let m = 12; m <= 240; m++) {
-      if (Math.round(principal * 100) % m === 0) {
-        const emi = principal / m;
-        sugs.push({
-          emi,
-          months: m,
-          diff: Math.abs(emi - emiAmount)
-        });
-      }
+    if (type === 'PERCENT') {
+      return Math.round((calculatedPlotValue * num) / 100);
+    } else if (type === 'SQFT_RATE') {
+      return Math.round(plotArea * num);
     }
-    return sugs.sort((a, b) => a.diff - b.diff).slice(0, 3);
+    return num;
   };
 
-  const handleApplySuggestion = (sug) => {
-    setForm(f => ({
-      ...f,
-      emiAmount: String(sug.emi),
-      installmentCount: String(sug.months)
-    }));
-  };
+  const calculatedDiscount = calculateDiscountAmount(discountType, discountVal);
+  const netContractValue = Math.max(0, calculatedPlotValue - calculatedDiscount);
+
+  const isOneTime = form.tenureMonths === 0;
+  const dpPercent = currentSlab.downpaymentPercent ? currentSlab.downpaymentPercent / 100 : (isOneTime ? 1.0 : 0.40);
+
+  let downpaymentAmt = 0;
+  let emiPrincipalAmt = 0;
+
+  if (isOneTime) {
+    downpaymentAmt = netContractValue;
+    emiPrincipalAmt = 0;
+  } else {
+    if (downpaymentBase === 'BEFORE_DISCOUNT') {
+      // 40% calculated on Gross Plot Value (before discount)
+      downpaymentAmt = Math.round(calculatedPlotValue * dpPercent);
+      emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
+    } else {
+      // 40% calculated on Net Contract Value (after discount)
+      downpaymentAmt = Math.round(netContractValue * dpPercent);
+      emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
+    }
+  }
+
+  const emiMonthlyAmt = !isOneTime && form.tenureMonths > 0 ? Math.round(emiPrincipalAmt / form.tenureMonths) : 0;
+
+  // Sponsor Hierarchy & Commission Breakdown
+  const customerSponsor = selectedCustomer?.sponsorId;
+  const isDeveloperSponsor = customerSponsor && (!customerSponsor.sponsorId || customerSponsor.sponsorId === 'direct');
+  const isSubSponsor = customerSponsor && Boolean(customerSponsor.sponsorId) && customerSponsor.sponsorId !== 'direct';
+
+  const promoterPct = currentSlab.promoterCommissionPercent || 0;
+  const developerPct = currentSlab.developerCommissionPercent || 0;
+  const totalDevDirectPct = +(promoterPct + developerPct).toFixed(2);
 
   const nextStep = () => {
     if (step === 1 && !selectedCustomer) {
@@ -291,11 +218,11 @@ const PlotBooking = () => {
     if (step === 2 && !selectedPlot) {
       return toast.error('Please choose a plot first');
     }
-    setStep(prev => prev + 1);
+    setStep((prev) => prev + 1);
   };
 
   const prevStep = () => {
-    setStep(prev => prev - 1);
+    setStep((prev) => prev - 1);
   };
 
   const handleSubmit = async (e) => {
@@ -306,15 +233,26 @@ const PlotBooking = () => {
     setSubmitLoading(true);
     try {
       const payload = {
-        ...form,
+        plotId: form.plotId,
+        customerId: form.customerId,
+        sponsorId: form.sponsorId || undefined,
+        scheme: isOneTime ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT',
+        tenureMonths: Number(form.tenureMonths),
+        bookingAmount: downpaymentAmt,
+        discount: calculatedDiscount,
+        bookingDate: form.bookingDate,
+        oneTimeMonths: isOneTime ? Number(form.oneTimeMonths || 1) : undefined,
+        downpaymentMonths: !isOneTime ? Number(form.downpaymentMonths || 1) : undefined,
+        downpaymentCalculationBase: downpaymentBase,
+        notes: form.notes,
+        bookingType: form.bookingType || 'BOOKING',
+        holdExpiryDays: Number(form.holdExpiryDays) || 7,
         govtRate: Number(govtRate) || 100,
-        installmentCount: form.scheme === 'MONTHLY_INSTALLMENT' ? Number(form.installmentCount) || 100 : undefined,
-        installmentAmount: form.scheme === 'MONTHLY_INSTALLMENT' ? Number(form.emiAmount) || undefined : undefined,
-        oneTimeMonths: form.scheme === 'FULL_PAYMENT' ? Number(form.oneTimeMonths) || 1 : undefined,
       };
+
       const res = await api.post('/plots/bookings', payload);
       const receipt = res.data.data?.receipt;
-      toast.success('Plot booked successfully');
+      toast.success('Plot booked successfully with locked commission schedule');
 
       if (receipt && receipt._id) {
         navigate(`/dashboard/plots/receipts/${receipt._id}`);
@@ -330,167 +268,207 @@ const PlotBooking = () => {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen">
-        Loading plot booking wizard...
-      </div>
+      <PageLoader
+        title="Loading Plot Booking Wizard..."
+        subtitle="Fetching active plot inventory, customers & rate matrix"
+      />
     );
   }
 
-  const labelCls = "block text-xs font-semibold text-slate-600 mb-1";
-  const inputCls = "w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none";
+  const labelCls = 'block text-xs font-semibold text-slate-600 mb-1';
+  const inputCls = 'w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none font-medium';
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen select-none max-w-6xl mx-auto space-y-6">
-
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Create Plot Booking</h1>
-        <p className="text-slate-500 text-sm">Step-by-step wizard to register a new plot booking.</p>
+        <p className="text-slate-500 text-sm">Step-by-step wizard to register a new plot booking with dynamic tenure rates & 40/60 breakdown.</p>
       </div>
 
-      {/* Step Indicators */}
-      <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-2xl w-full">
+      {/* Step Progress Bar */}
+      <div className="bg-white border border-slate-200 shadow-xs p-5 sm:p-6 rounded-2xl w-full">
         <div className="relative flex items-center justify-between w-full">
-          {/* Progress bar line */}
-          <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-slate-100 z-0 rounded-full" />
+          {/* Background Track Line */}
+          <div className="absolute left-[12%] right-[12%] top-5 -translate-y-1/2 h-1 bg-slate-100 z-0 rounded-full" />
+          
+          {/* Active Filled Progress Line */}
           <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 h-1 transition-all duration-300 z-0 rounded-full bg-primary"
-            style={{ width: step === 1 ? '0%' : step === 2 ? '50%' : '100%' }}
+            className="absolute left-[12%] top-5 -translate-y-1/2 h-1 transition-all duration-500 ease-out z-0 rounded-full bg-primary"
+            style={{
+              width: step === 1 ? '0%' : step === 2 ? '38%' : '76%',
+            }}
           />
 
-          {/* Step 1 */}
-          <div className="relative flex flex-col items-center gap-2 z-10 bg-white px-4">
+          {/* Step 1 Node */}
+          <div className="relative flex flex-col items-center gap-2 z-10 bg-white px-2 sm:px-4">
             <button
               type="button"
               onClick={() => step > 1 && setStep(1)}
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition duration-200 ${step === 1 ? 'bg-primary text-white ring-4 ring-slate-100' : step > 1 ? 'bg-emerald-500 text-white cursor-pointer' : 'bg-slate-100 text-slate-400'
-                }`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                step === 1
+                  ? 'bg-primary text-white ring-4 ring-primary/20 shadow-md scale-105'
+                  : step > 1
+                  ? 'bg-emerald-600 text-white shadow-xs cursor-pointer ring-4 ring-emerald-50 hover:bg-emerald-700'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
+              }`}
             >
-              {step > 1 ? <HiOutlineCheck className="text-base" /> : '1'}
+              {step > 1 ? <HiOutlineCheck className="w-5 h-5 stroke-2" /> : '1'}
             </button>
-            <span className={`text-xs font-bold ${step === 1 ? 'text-slate-800' : 'text-slate-400'}`}>1. Customer Details</span>
+            <div className="flex flex-col items-center text-center">
+              <span className={`text-xs font-bold transition-colors ${step === 1 ? 'text-slate-900' : step > 1 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                1. Customer Details
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline-block max-w-[130px] truncate">
+                {selectedCustomer ? selectedCustomer.name : 'Select or Register'}
+              </span>
+            </div>
           </div>
 
-          {/* Step 2 */}
-          <div className="relative flex flex-col items-center gap-2 z-10 bg-white px-4">
+          {/* Step 2 Node */}
+          <div className="relative flex flex-col items-center gap-2 z-10 bg-white px-2 sm:px-4">
             <button
               type="button"
               onClick={() => step > 2 && setStep(2)}
               disabled={step < 2}
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition duration-200 ${step === 2 ? 'bg-primary text-white ring-4 ring-slate-100' : step > 2 ? 'bg-emerald-500 text-white cursor-pointer' : 'bg-slate-100 text-slate-400'
-                }`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                step === 2
+                  ? 'bg-primary text-white ring-4 ring-primary/20 shadow-md scale-105'
+                  : step > 2
+                  ? 'bg-emerald-600 text-white shadow-xs cursor-pointer ring-4 ring-emerald-50 hover:bg-emerald-700'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+              }`}
             >
-              {step > 2 ? <HiOutlineCheck className="text-base" /> : '2'}
+              {step > 2 ? <HiOutlineCheck className="w-5 h-5 stroke-2" /> : '2'}
             </button>
-            <span className={`text-xs font-bold ${step === 2 ? 'text-slate-800' : 'text-slate-400'}`}>2. Plot Inventory</span>
+            <div className="flex flex-col items-center text-center">
+              <span className={`text-xs font-bold transition-colors ${step === 2 ? 'text-slate-900' : step > 2 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                2. Plot Selection
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline-block max-w-[130px] truncate">
+                {selectedPlot ? `Plot ${selectedPlot.plotNumber}` : 'Choose from Series'}
+              </span>
+            </div>
           </div>
 
-          {/* Step 3 */}
-          <div className="relative flex flex-col items-center gap-2 z-10 bg-white px-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition duration-200 ${step === 3 ? 'bg-primary text-white ring-4 ring-slate-100' : 'bg-slate-100 text-slate-400'
-              }`}>
+          {/* Step 3 Node */}
+          <div className="relative flex flex-col items-center gap-2 z-10 bg-white px-2 sm:px-4">
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                step === 3
+                  ? 'bg-primary text-white ring-4 ring-primary/20 shadow-md scale-105'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
+              }`}
+            >
               3
             </div>
-            <span className={`text-xs font-bold ${step === 3 ? 'text-slate-800' : 'text-slate-400'}`}>3. Terms & Payment</span>
+            <div className="flex flex-col items-center text-center">
+              <span className={`text-xs font-bold transition-colors ${step === 3 ? 'text-slate-900' : 'text-slate-400'}`}>
+                3. Scheme & Payment
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline-block max-w-[130px] truncate">
+                {form.tenureMonths === 0 ? 'One-Time (0-Mo)' : `${form.tenureMonths}-Mo EMI Slabs`}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Grid Layout containing Main Column and Side Column */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
-
-        {/* Main Form/Controls (takes 2 columns) */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 shadow-sm p-6 rounded-2xl">
-
-          {/* STEP 1: CHOOSE CUSTOMER */}
+      {/* Main Wizard Form Container */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Form Area (takes 2 cols on lg) */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 shadow-xs rounded-2xl p-6">
+          {/* STEP 1: CUSTOMER SELECTION */}
           {step === 1 && (
-            <div className="flex flex-col gap-5">
-              <h3 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3">1. Select Plot Customer</h3>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                <h3 className="text-base font-bold text-slate-800">1. Select Plot Customer</h3>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/dashboard/plots/customers/new"
+                    className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5"
+                  >
+                    <HiOutlineUserPlus className="w-4 h-4" /> + Register Customer
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="px-4 py-1.5 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1 bg-primary hover:opacity-90"
+                  >
+                    Next: Choose Plot <HiChevronRight />
+                  </button>
+                </div>
+              </div>
 
-              <div className="flex flex-col gap-1.5 relative">
-                <label className={labelCls}>Search Onboarded Customer</label>
+              {/* Customer Search Bar */}
+              <div className="relative">
+                <label className={labelCls}>Search Existing Customer</label>
                 <div className="relative">
                   <input
-                    className={`${inputCls} pl-10 pr-10`}
-                    placeholder="Search plot customers by ID (e.g. GNC-26-27-001), name, mobile..."
+                    className={`${inputCls} pl-10`}
+                    placeholder="Search by name, customer ID, or mobile number..."
                     value={searchQuery}
-                    onChange={e => {
-                      setSearchQuery(e.target.value);
-                      if (selectedCustomer && e.target.value !== selectedCustomer.name) {
-                        setSelectedCustomer(null);
-                        setForm(f => ({ ...f, customerId: '' }));
-                      }
-                    }}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                  <HiOutlineMagnifyingGlass className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedCustomer(null);
-                        setForm(f => ({ ...f, customerId: '' }));
-                        setSearchResults([]);
-                      }}
-                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition cursor-pointer"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
+                  <HiOutlineMagnifyingGlass className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
                 </div>
 
+                {/* Search Dropdown Results */}
                 {searchResults.length > 0 && (
-                  <div className="absolute top-[4.5rem] left-0 right-0 bg-white border border-slate-200 shadow-xl rounded-xl z-[100] max-h-48 overflow-y-auto divide-y divide-slate-100">
-                    {searchResults.map(c => (
+                  <div className="absolute z-20 top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-slate-100">
+                    {searchResults.map((cust) => (
                       <div
-                        key={c._id}
-                        onClick={() => selectCustomer(c)}
-                        className="p-3 cursor-pointer hover:bg-slate-50 transition flex items-center justify-between text-xs"
+                        key={cust._id}
+                        onClick={() => selectCustomer(cust)}
+                        className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between text-xs"
                       >
                         <div className="flex flex-col">
-                          <strong className="text-slate-800">{c.name} {c.customerCode ? `(${c.customerCode})` : ''}</strong>
-                          <span className="text-slate-500">{c.mobile || 'No Mobile'}</span>
+                          <span className="font-bold text-slate-800">{cust.name}</span>
+                          <span className="text-slate-400">{cust.mobile}</span>
                         </div>
-                        <span className="text-indigo-600 font-mono font-bold tracking-wider">{c.customerCode || c.customerId || ''}</span>
+                        <div className="flex flex-col items-end">
+                          <span className="font-mono font-bold text-indigo-600">{cust.customerCode || cust.customerId}</span>
+                          <span className="text-[11px] text-slate-500">
+                            Sponsor: {cust.sponsorId?.name || 'Direct / Company'}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              {selectedCustomer ? (
-                <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2 text-xs text-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-slate-800">{selectedCustomer.name}</span>
-                    <span className="font-mono font-bold text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded">
-                      {selectedCustomer.customerCode || selectedCustomer.customerId || 'ID N/A'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-indigo-100/60">
-                    <div><span className="text-slate-500">Mobile:</span> {selectedCustomer.mobile || 'N/A'}</div>
-                    <div><span className="text-slate-500">Email:</span> {selectedCustomer.email || 'N/A'}</div>
-                    <div className="col-span-2">
-                      <span className="text-slate-500">Assigned Sponsor:</span>{' '}
-                      <span className="font-semibold text-slate-800">
-                        {selectedCustomer.sponsorId?.name 
-                          ? `${selectedCustomer.sponsorId.name} (${selectedCustomer.sponsorId.sponsorCode || 'Sponsor'})`
-                          : 'Direct / Company'}
+              {/* Selected Customer Card */}
+              {selectedCustomer && (
+                <div className="bg-indigo-50/60 border border-indigo-200 p-4 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                      {selectedCustomer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-800 text-sm">{selectedCustomer.name}</span>
+                      <span className="text-slate-500">{selectedCustomer.mobile} | ID: <strong className="font-mono text-indigo-700">{selectedCustomer.customerCode || selectedCustomer.customerId}</strong></span>
+                      <span className="text-slate-500 mt-0.5">
+                        Sponsor: <strong>{selectedCustomer.sponsorId?.name || '🏢 Company (Direct)'}</strong>
+                        {selectedCustomer.sponsorId && (
+                          <span className="ml-1 text-[11px] text-indigo-600 font-semibold">
+                            ({!selectedCustomer.sponsorId.sponsorId ? '👑 Developer Sponsor' : '👤 Sub Sponsor'})
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">No customer selected.</p>
-                  <p className="text-xs text-slate-500">If the customer is not registered yet, onboard them first on the customers page.</p>
-                  <Link
-                    to="/dashboard/plots/customers/new"
-                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded-xl shadow-sm transition bg-primary"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setSearchQuery('');
+                      setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
+                    }}
+                    className="text-xs text-rose-600 font-bold hover:underline cursor-pointer"
                   >
-                    <HiOutlineUserPlus className="w-4 h-4" /> Add New Customer Page
-                  </Link>
+                    Change
+                  </button>
                 </div>
               )}
 
@@ -498,7 +476,7 @@ const PlotBooking = () => {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="px-6 py-2.5 text-white font-medium text-xs rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5 bg-primary"
+                  className="px-6 py-2.5 text-white font-medium text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 bg-primary"
                 >
                   Next: Choose Plot <HiChevronRight />
                 </button>
@@ -509,57 +487,72 @@ const PlotBooking = () => {
           {/* STEP 2: CHOOSE PLOT */}
           {step === 2 && (
             <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-base font-bold text-slate-800">2. Select Plot</h3>
-                {selectedPlot && (
-                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                    Selected Plot: {selectedPlot.plotNumber}
-                  </span>
-                )}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-800">2. Select Plot</h3>
+                  {selectedPlot && (
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                      Selected: {selectedPlot.plotNumber}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1"
+                  >
+                    <HiChevronLeft /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 font-bold text-xs text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1"
+                  >
+                    Next: Payment Details <HiChevronRight />
+                  </button>
+                </div>
               </div>
 
               {/* Legend */}
               <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-600 border border-slate-200 p-3.5 rounded-xl bg-slate-50">
                 <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 bg-emerald-100 border border-emerald-300 rounded-sm" /> Available</span>
                 <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 bg-amber-100 border border-amber-300 rounded-sm" /> Hold</span>
-                <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 bg-slate-200 border border-slate-300 rounded-sm opacity-60" /> Booked / Registered</span>
+                <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 bg-slate-200 border border-slate-300 rounded-sm opacity-60" /> Booked</span>
                 <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 bg-primary rounded-sm" /> Selected</span>
               </div>
 
               {/* Plot Series Maps */}
               <div className="flex flex-col gap-6 max-h-[500px] overflow-y-auto pr-1">
-                {seriesList.map(s => {
-                  const seriesPlots = plots.filter(p => p.seriesId?._id === s._id || p.seriesId === s._id);
+                {seriesList.map((s) => {
+                  const seriesPlots = plots.filter((p) => (p.seriesId?._id || p.seriesId) === s._id);
                   return (
                     <div key={s._id} className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col gap-3">
-                      {/* Series Header */}
                       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                         <span className="text-xs font-bold text-slate-800 tracking-tight uppercase">{s.prefix}-Plot Series ({s.name})</span>
                         <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-md font-bold">Plots: {seriesPlots.length}</span>
                       </div>
 
-                      {/* Visual Plot Grid */}
                       {seriesPlots.length === 0 ? (
                         <p className="text-xs text-slate-400 italic">No plots generated for this series.</p>
                       ) : (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 gap-2">
-                          {seriesPlots.map(p => {
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                          {seriesPlots.map((p) => {
                             const isAvailable = p.status === 'AVAILABLE';
                             const isCorner = p.plotType === 'CORNER';
                             const isHold = p.status === 'HOLD';
                             const isBooked = p.status === 'BOOKED' || p.status === 'REGISTERED';
                             const isSelected = form.plotId === p._id;
 
-                            let colorCls = "";
+                            let colorCls = '';
                             if (isSelected) {
-                              colorCls = "bg-indigo-600 border-indigo-700 text-white shadow-sm ring-2 ring-indigo-500/20";
+                              colorCls = 'bg-indigo-600 border-indigo-700 text-white shadow-xs ring-2 ring-indigo-500/20';
                             } else if (isHold) {
-                              colorCls = "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100";
+                              colorCls = 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100';
                             } else if (isBooked) {
-                              colorCls = "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60";
+                              colorCls = 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60';
                             } else {
-                              // Available
-                              colorCls = "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100";
+                              colorCls = 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100';
                             }
 
                             return (
@@ -610,7 +603,7 @@ const PlotBooking = () => {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-medium text-xs text-white rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-medium text-xs text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
                 >
                   Next: Payment Details <HiChevronRight />
                 </button>
@@ -618,43 +611,74 @@ const PlotBooking = () => {
             </div>
           )}
 
-          {/* STEP 3: PAYMENT SCHEME & BOOKING INFO */}
+          {/* STEP 3: PAYMENT SCHEME, DYNAMIC TENURE RATES & SPONSOR COMMISSION */}
           {step === 3 && (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <h3 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3">3. Contract Terms & Final Payment</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <HiOutlineSparkles className="w-5 h-5 text-indigo-600" />
+                  3. Contract Terms, Tenure Rates & Sponsor Allocation
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    disabled={submitLoading}
+                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1"
+                  >
+                    <HiChevronLeft /> Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="px-5 py-1.5 text-white rounded-xl font-bold text-xs cursor-pointer transition flex items-center justify-center shadow-xs bg-primary hover:opacity-90"
+                  >
+                    {submitLoading ? <CircularProgress size={16} sx={{ color: '#ffffff' }} /> : 'Confirm Book Plot'}
+                  </button>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Booking Date */}
                 <div className="flex flex-col gap-1">
                   <label className={labelCls}>Booking Date</label>
                   <input
                     className={inputCls}
                     type="date"
                     value={form.bookingDate}
-                    onChange={e => setForm({ ...form, bookingDate: e.target.value })}
+                    onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                     required
                   />
                 </div>
 
+                {/* Tenure / Scheme Matrix Dropdown */}
                 <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Payment Type</label>
+                  <label className={labelCls}>Tenure & Rate Slab (समय / बिक्री दर) *</label>
                   <select
-                    className={inputCls}
-                    value={form.scheme}
-                    onChange={e => handleSchemeChange(e.target.value)}
+                    className={`${inputCls} bg-indigo-50/50 border-indigo-300 text-indigo-950 font-bold`}
+                    value={form.tenureMonths}
+                    onChange={(e) => setForm({ ...form, tenureMonths: Number(e.target.value) })}
                   >
-                    <option value="FULL_PAYMENT">One Time</option>
-                    <option value="MONTHLY_INSTALLMENT">Installment</option>
+                    {slabs.map((s) => (
+                      <option key={s.tenureMonths} value={s.tenureMonths}>
+                        {s.tenureMonths === 0
+                          ? `0 Months (One-Time Payment) — ₹${s.plotRate}/sqft [100% Downpayment]`
+                          : `${s.tenureMonths} Months EMI — ₹${s.plotRate}/sqft [40% Down / 60% in ${s.tenureMonths} EMIs]`}
+                      </option>
+                    ))}
                   </select>
+                  <span className="text-[11px] text-indigo-600 font-semibold px-1">
+                    Rate: ₹{currentSlab.plotRate}/sqft | Promoter: {currentSlab.promoterCommissionPercent}% | Dev Override: {currentSlab.developerCommissionPercent}%
+                  </span>
                 </div>
 
-
-                {/* Discount Input with Dropdown (₹, %, or ₹/Sq.Ft.) */}
+                {/* Discount Input */}
                 <div className="flex flex-col gap-1">
                   <label className={labelCls}>Discount</label>
                   <div className="flex rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 bg-white">
                     <select
                       value={discountType}
-                      onChange={(e) => handleDiscountChange(e.target.value, discountVal)}
+                      onChange={(e) => setDiscountType(e.target.value)}
                       className="px-3 py-2.5 bg-slate-100 text-xs font-bold text-slate-700 border-r border-slate-300 outline-none cursor-pointer"
                     >
                       <option value="RUPEE">₹ (Flat)</option>
@@ -662,42 +686,34 @@ const PlotBooking = () => {
                       <option value="SQFT_RATE">₹ / Sq.Ft.</option>
                     </select>
                     <input
-                      className="w-full px-3.5 py-2.5 text-sm bg-transparent outline-none text-slate-800"
-                      type="text"
+                      className="w-full px-3.5 py-2.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
+                      type="tel"
                       inputMode="numeric"
                       pattern="[0-9]*"
                       value={discountVal}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        handleDiscountChange(discountType, val);
-                      }}
+                      onChange={(e) => setDiscountVal(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder={
                         discountType === 'PERCENT'
-                          ? "e.g. 10%"
+                          ? 'e.g. 10%'
                           : discountType === 'SQFT_RATE'
-                            ? "e.g. 50 (₹/Sq.Ft.)"
-                            : "e.g. 5000 (Flat ₹)"
+                          ? 'e.g. 50 (₹/Sq.Ft.)'
+                          : 'e.g. 5000 (Flat ₹)'
                       }
                     />
                   </div>
-                  {discountType === 'PERCENT' && discountVal && selectedPlot && (
+                  {calculatedDiscount > 0 && (
                     <span className="text-[0.68rem] text-emerald-700 font-semibold px-1">
-                      Calculated Discount: ₹{Number(form.discount || 0).toLocaleString('en-IN')}
-                    </span>
-                  )}
-                  {discountType === 'SQFT_RATE' && discountVal && selectedPlot && (
-                    <span className="text-[0.68rem] text-emerald-700 font-semibold px-1">
-                      Calculated Discount ({(selectedPlot.plotSize || selectedPlot.area || selectedPlot.sizeSqFt || 0).toLocaleString('en-IN')} Sq.Ft. × ₹{discountVal}/Sq.Ft.): ₹{Number(form.discount || 0).toLocaleString('en-IN')}
+                      Calculated Discount: ₹{calculatedDiscount.toLocaleString('en-IN')}
                     </span>
                   )}
                 </div>
 
-                {/* Govt. Rate / Sq.Ft. (Default 100) */}
+                {/* Govt Rate */}
                 <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Govt. Rate (₹ / Sq.Ft.)</label>
+                  <label className={labelCls}>Govt. Base Rate (₹ / Sq.Ft.)</label>
                   <input
                     className={inputCls}
-                    type="text"
+                    type="tel"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     value={govtRate}
@@ -706,107 +722,136 @@ const PlotBooking = () => {
                   />
                 </div>
 
-                {form.scheme === 'FULL_PAYMENT' ? (
+                {/* One Time vs EMI Breakdown */}
+                {isOneTime ? (
                   <>
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Final Payment (₹)</label>
+                      <label className={labelCls}>Total Final Payment (100%)</label>
                       <input
-                        className={`${inputCls} bg-slate-100 cursor-not-allowed`}
+                        className={`${inputCls} bg-emerald-50 border-emerald-200 text-emerald-800 font-bold font-mono cursor-not-allowed`}
                         type="text"
-                        inputMode="numeric"
-                        value={form.bookingAmount}
+                        value={`₹${netContractValue.toLocaleString('en-IN')}`}
                         disabled
-                        required
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Payment Period (Months)</label>
+                      <label className={labelCls}>One-Time Payment Time Limit (Months)</label>
                       <input
                         className={inputCls}
-                        type="text"
+                        type="tel"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         value={form.oneTimeMonths || 1}
-                        onChange={e => {
-                          const val = e.target.value.replace(/[^0-9]/g, '');
-                          setForm({ ...form, oneTimeMonths: val ? Number(val) : 1 });
-                        }}
-                        placeholder="Enter months (e.g. 1, 2, 6, 12)"
+                        onChange={(e) => setForm({ ...form, oneTimeMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
+                        placeholder="Time limit (e.g. 1, 2, 3 months)"
                         required
                       />
+                      <span className="text-[11px] text-slate-400 px-1">Time allowed to complete one-time payment.</span>
                     </div>
                   </>
                 ) : (
                   <>
+                    {/* Downpayment Calculation Basis Toggle */}
+                    <div className="md:col-span-2 bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <HiOutlineAdjustmentsHorizontal className="w-4 h-4 text-indigo-600" />
+                          40% Downpayment Calculation Base
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          {downpaymentBase === 'BEFORE_DISCOUNT'
+                            ? `Computed on Gross Value (₹${calculatedPlotValue.toLocaleString('en-IN')}). Discount of ₹${calculatedDiscount.toLocaleString('en-IN')} reduces the EMI balance.`
+                            : `Computed on Net Value (₹${netContractValue.toLocaleString('en-IN')} after ₹${calculatedDiscount.toLocaleString('en-IN')} discount is deducted).`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDownpaymentBase('AFTER_DISCOUNT')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            downpaymentBase === 'AFTER_DISCOUNT'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          After Discount (Net)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDownpaymentBase('BEFORE_DISCOUNT')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            downpaymentBase === 'BEFORE_DISCOUNT'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          Before Discount (Gross)
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Downpayment / Booking Amount (₹)</label>
+                      <label className={labelCls}>
+                        Downpayment (40% of {downpaymentBase === 'BEFORE_DISCOUNT' ? 'Gross Plot Value' : 'Net Value'})
+                      </label>
                       <input
-                        className={inputCls}
+                        className={`${inputCls} bg-indigo-50 border-indigo-200 text-indigo-800 font-bold font-mono cursor-not-allowed`}
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={form.bookingAmount}
-                        onChange={e => handleDownpaymentChange(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="Downpayment amount"
-                        required
+                        value={`₹${downpaymentAmt.toLocaleString('en-IN')}`}
+                        disabled
                       />
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Downpayment Period (Months)</label>
+                      <label className={labelCls}>Downpayment Time Limit (Months)</label>
                       <input
                         className={inputCls}
-                        type="text"
+                        type="tel"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         value={form.downpaymentMonths || 1}
-                        onChange={e => {
-                          const val = e.target.value.replace(/[^0-9]/g, '');
-                          setForm({ ...form, downpaymentMonths: val ? Number(val) : 1 });
-                        }}
-                        placeholder="Enter months (e.g. 1)"
+                        onChange={(e) => setForm({ ...form, downpaymentMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
+                        placeholder="e.g. 1 or 2 months"
                         required
+                      />
+                      <span className="text-[11px] text-slate-400 px-1">Time allowed to complete 40% downpayment.</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className={labelCls}>EMI Balance ({downpaymentBase === 'BEFORE_DISCOUNT' ? 'Net Value - Downpayment' : '60% of Net Value'})</label>
+                      <input
+                        className={`${inputCls} bg-slate-50 border-slate-200 text-slate-700 font-bold font-mono cursor-not-allowed`}
+                        type="text"
+                        value={`₹${emiPrincipalAmt.toLocaleString('en-IN')}`}
+                        disabled
                       />
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Installment Period (Months)</label>
+                      <label className={labelCls}>Monthly EMI Amount ({form.tenureMonths} Months)</label>
                       <input
-                        className={inputCls}
+                        className={`${inputCls} bg-slate-50 border-slate-200 text-slate-900 font-black font-mono cursor-not-allowed`}
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={form.installmentCount}
-                        onChange={e => handleMonthsChange(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="Enter months (e.g. 1)"
-                        required
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Calculated EMI Amount (₹ / month)</label>
-                      <input
-                        className={`${inputCls} bg-slate-100 cursor-not-allowed`}
-                        type="text"
-                        inputMode="numeric"
-                        value={form.emiAmount}
+                        value={`₹${emiMonthlyAmt.toLocaleString('en-IN')} / month`}
                         disabled
                       />
                     </div>
                   </>
                 )}
 
+                {/* Booking Notes */}
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className={labelCls}>Booking Notes</label>
                   <textarea
-                    className="w-full min-h-[70px] bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none p-3 rounded-xl text-sm text-slate-800 transition resize-none"
-                    placeholder="Internal contract execution comments..."
+                    className="w-full min-h-[60px] bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none p-3 rounded-xl text-sm text-slate-800 transition resize-none font-medium"
+                    placeholder="Internal contract comments or special notes..."
                     value={form.notes}
-                    onChange={e => setForm({ ...form, notes: e.target.value })}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
               </div>
 
+              {/* Navigation Buttons */}
               <div className="flex justify-between pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -819,7 +864,7 @@ const PlotBooking = () => {
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="px-6 py-2.5 text-white rounded-xl font-medium text-xs cursor-pointer transition min-w-[150px] flex items-center justify-center shadow-sm bg-primary"
+                  className="px-6 py-2.5 text-white rounded-xl font-medium text-xs cursor-pointer transition min-w-[170px] flex items-center justify-center shadow-xs bg-primary"
                 >
                   {submitLoading ? <CircularProgress size={18} sx={{ color: '#ffffff' }} /> : 'Confirm Book Plot'}
                 </button>
@@ -830,10 +875,9 @@ const PlotBooking = () => {
 
         {/* Side Preview/Summary Column (takes 1 column) */}
         <div className="flex flex-col gap-6">
-
           {/* Dynamic Details Card based on step */}
           {step === 1 && (
-            <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-2xl flex flex-col gap-4">
+            <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl flex flex-col gap-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">Customer Preview</h3>
               {selectedCustomer ? (
                 <div className="flex flex-col gap-3.5">
@@ -858,15 +902,9 @@ const PlotBooking = () => {
                     <div className="flex flex-col">
                       <span className="text-[0.68rem] text-slate-400 uppercase">Referral Sponsor</span>
                       <span className="text-slate-700">
-                        {selectedCustomer.sponsorId ? `${selectedCustomer.sponsorId.name} ${selectedCustomer.sponsorId.sponsorCode ? `(${selectedCustomer.sponsorId.sponsorCode})` : ''}` : 'Direct / Company (No Sponsor)'}
+                        {selectedCustomer.sponsorId ? `${selectedCustomer.sponsorId.name} ${selectedCustomer.sponsorId.sponsorCode ? `(${selectedCustomer.sponsorId.sponsorCode})` : ''}` : '🏢 Direct / Company'}
                       </span>
                     </div>
-                    {selectedCustomer.address && (
-                      <div className="flex flex-col">
-                        <span className="text-[0.68rem] text-slate-400 uppercase">Address</span>
-                        <span className="text-slate-700 leading-relaxed">{selectedCustomer.address}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ) : (
@@ -879,7 +917,7 @@ const PlotBooking = () => {
           )}
 
           {step === 2 && (
-            <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-2xl flex flex-col gap-4">
+            <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl flex flex-col gap-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">Plot Preview</h3>
               {selectedPlot ? (
                 <div className="flex flex-col gap-3.5">
@@ -896,99 +934,77 @@ const PlotBooking = () => {
                       <span className="text-[0.68rem] text-slate-400 uppercase">Corner Type</span>
                       <span className="text-slate-800">{selectedPlot.plotType}</span>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[0.68rem] text-slate-400 uppercase">Base Rate</span>
-                      <span className="text-slate-800">₹{selectedPlot.baseRate} / Sq Ft</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[0.68rem] text-slate-400 uppercase">Effective Rate</span>
-                      <span className="text-slate-800">₹{selectedPlot.effectiveRate} / Sq Ft</span>
-                    </div>
-                    <div className="flex flex-col pt-2 border-t border-slate-100 font-bold text-sm">
-                      <span className="text-[0.68rem] text-slate-400 uppercase font-semibold">Total Plot Value</span>
-                      <span className="text-indigo-600 mt-0.5">₹{selectedPlot.totalPlotValue.toLocaleString('en-IN')}</span>
-                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-6">
                   <p className="text-xs text-slate-500 font-bold">No Plot Selected</p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto">Please select a plot number from the dropdown list to see details.</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto">Please select a plot number from the grid.</p>
                 </div>
               )}
             </div>
           )}
 
           {step === 3 && (
-            <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-2xl flex flex-col gap-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">Booking Summary</h3>
+            <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl flex flex-col gap-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">Contract Summary</h3>
               <div className="flex flex-col gap-4 text-xs font-semibold">
-
                 {/* Customer Info */}
                 {selectedCustomer && (
                   <div className="flex flex-col gap-1 pb-3 border-b border-slate-100">
                     <span className="text-[0.68rem] text-slate-400 uppercase">Customer</span>
-                    <span className="font-bold text-slate-800 capitalize">{selectedCustomer.name} || {selectedCustomer.customerCode || ''} </span>
+                    <span className="font-bold text-slate-800 capitalize">{selectedCustomer.name} ({selectedCustomer.customerCode || selectedCustomer.customerId})</span>
                   </div>
                 )}
 
-                {/* Plot Info */}
+                {/* Plot Info & Value */}
                 {selectedPlot && (
                   <div className="flex flex-col gap-1 pb-3 border-b border-slate-100">
                     <span className="text-[0.68rem] text-slate-400 uppercase">Selected Plot</span>
                     <span className="font-bold text-slate-800">Plot {selectedPlot.plotNumber} ({selectedPlot.plotSize} Sq Ft)</span>
-                    <span className="text-slate-500 font-medium">Type: {selectedPlot.plotType}</span>
-                    <span className="text-slate-800 font-bold mt-1">Total: ₹{selectedPlot.totalPlotValue.toLocaleString('en-IN')}</span>
+                    <span className="text-slate-500 font-medium">
+                      Rate: ₹{baseRate}/sqft {isCorner ? `+ Corner (+${cornerExtra}%) = ₹${effectiveRate}/sqft` : ''}
+                    </span>
+                    <span className="text-slate-900 font-bold mt-1 font-mono">Gross: ₹{calculatedPlotValue.toLocaleString('en-IN')}</span>
                   </div>
                 )}
 
                 {/* Scheme & Payment Overview */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-[0.68rem] text-slate-400 uppercase">Booking Terms</span>
+                  <span className="text-[0.68rem] text-slate-400 uppercase">Financial Terms</span>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Payment Scheme:</span>
+                    <span className="text-slate-500">Scheme:</span>
                     <span className="font-bold text-slate-800">
-                      {form.scheme === 'FULL_PAYMENT' ? 'One Time' : "Installment"}
+                      {isOneTime ? '0-Month One Time' : `${form.tenureMonths}-Month EMI`}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Booking Date:</span>
-                    <span className="font-bold text-slate-800">
-                      {form.bookingDate}
-                    </span>
-                  </div>
-                  {Number(form.discount) > 0 && (
+                  {calculatedDiscount > 0 && (
                     <div className="flex justify-between items-center text-rose-600 font-semibold">
                       <span>Discount:</span>
-                      <span>- ₹{Number(form.discount).toLocaleString('en-IN')}</span>
+                      <span>- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
                     </div>
                   )}
-                  {selectedPlot && (
-                    <div className="flex justify-between items-center border-t border-slate-100 pt-2">
-                      <span className="text-slate-500">Net Price:</span>
-                      <span className="font-bold text-slate-800">
-                        ₹{(selectedPlot.totalPlotValue - (Number(form.discount) || 0)).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Final Payment:</span>
-                    <span className="text-emerald-700 font-bold">₹{(Number(form.bookingAmount) || 0).toLocaleString('en-IN')}</span>
+                  <div className="flex justify-between items-center border-t border-slate-100 pt-2 font-bold text-slate-900">
+                    <span>Net Amount:</span>
+                    <span className="font-mono">₹{netContractValue.toLocaleString('en-IN')}</span>
                   </div>
-                  {selectedPlot && (
-                    <div className="flex justify-between items-center border-t border-slate-100 pt-2 font-bold text-slate-700">
-                      <span>EMI Balance:</span>
-                      <span>₹{Math.max(0, (selectedPlot.totalPlotValue - (Number(form.discount) || 0)) - (Number(form.bookingAmount) || 0)).toLocaleString('en-IN')}</span>
+
+                  <div className="flex justify-between items-center text-emerald-700 font-bold pt-1">
+                    <span>Downpayment ({isOneTime ? '100%' : `40% ${downpaymentBase === 'BEFORE_DISCOUNT' ? 'Gross' : 'Net'}`}):</span>
+                    <span className="font-mono">₹{downpaymentAmt.toLocaleString('en-IN')}</span>
+                  </div>
+
+                  {!isOneTime && (
+                    <div className="flex justify-between items-center text-indigo-700 font-bold">
+                      <span>EMI ({form.tenureMonths} mos balance):</span>
+                      <span className="font-mono">₹{emiMonthlyAmt.toLocaleString('en-IN')} / mo</span>
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
           )}
-
         </div>
-
       </div>
     </div>
   );

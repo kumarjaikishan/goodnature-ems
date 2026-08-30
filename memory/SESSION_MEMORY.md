@@ -30,5 +30,34 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 
 ### F. Plot Series & Inventory Unified Page
 - The standalone Plot Inventory (`/dashboard/plots/inventory`) has been merged directly into [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) under `/dashboard/plots/series-master` (`Series & Inventory`).
-- The page includes 3 interconnected tabs: **Series Blocks & Layout Grid**, **All Plots Inventory List (Cards & Table with live filters & pagination)**, and **Global Pricing & Corner Rates**.
+- The page includes 3 interconnected tabs: **Series Blocks & Layout Grid**, **All Plots Inventory List (Cards & Table with live filters & pagination)**, and **Global Pricing & Commission Matrix**.
 - Both `/dashboard/plots/series-master` and `/dashboard/plots/inventory` route to this unified component.
+
+### G. Tiered Sponsor Commission Hierarchy & 40/60 Plot Booking Engine
+- **Hierarchy Standard**: 2-level maximum hierarchy: `Company -> Developer Sponsor (direct) -> Sub-Sponsor`. Sub-sponsors cannot have children; referring sponsors must be Developer Sponsors (`sponsorId: null`).
+- **Commission Split**:
+  - Direct under Developer Sponsor: Developer Sponsor earns `(Promoter % + Developer %)`.
+  - Under Sub-Sponsor: Sub-Sponsor earns `Promoter %`, parent Developer Sponsor earns `Developer %` (2% override).
+  - Commission rates are snapshot/locked permanently at the moment of plot booking.
+- **Plot Booking Breakdown**:
+  - 0-Month: 100% Downpayment with time limit (1, 2, or 3 months).
+  - \>0 Months: 40% Downpayment + remaining balance in EMIs distributed across chosen $N$ tenure months.
+  - **Downpayment Calculation Basis**: Defaults to `BEFORE_DISCOUNT` (40% of Gross Plot Value, with discount reducing the EMI balance), with an option to toggle to `AFTER_DISCOUNT` (40% of Net Contract Value).
+- **Rate Matrix Storage**: Configured in `PlotRateConfiguration.rateSlabs` and editable in [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) Pricing & Rates tab.
+
+### H. Collection-Based Sponsor Commission Engine
+- **Core Rule**: Sponsor commissions are credited strictly on a **Collection Basis** (per receipt / payment collected, e.g. downpayment or monthly EMI collection), NOT on the gross plot value upfront.
+- **Auto-Sync Engine**: `syncBookingSponsorCommissions(bookingId)` reads each receipt for the booking, calculates the principal collected (`receipt.amount - receipt.lateFinePaid`), and applies the booking's locked rate matrix slab percentages (`DIRECT_DEVELOPER` or `PROMOTER` + `DEVELOPER_OVERRIDE`).
+- **Reports Sync**: `getReportsData('commissions')` automatically auto-syncs active bookings so all sponsor ledgers reflect exact collection-based commissions in real-time.
+
+### I. Unified Good Nature Theme & Symmetrical Loading States
+- **Theme**: Good Nature Deep Teal (`#0f766e` / `teal-700` / `teal-800` / `emerald-600`) across all buttons, inputs, tabs, and headers. Avoid ad-hoc `indigo-600` or `purple-600`.
+- **Loading Standard**: Standardized symmetrical `<PageLoader />` (`client/src/components/common/PageLoader.jsx`) replaces ad-hoc spinners. Default is `fullScreen: false` so that loading animations render strictly in the content area, preserving the sidebar and navbar without viewport-blocking overlays.
+- **Branding**: Dynamic Redux company selector and uppercase watermark across all printouts, receipts, vouchers, and certificates.
+
+### J. Dedicated Sponsor Ledger Page (`/dashboard/plots/sponsors/:id/ledger`)
+- **Action Button in Sponsors Page**: In [PlotSponsors.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx), clicking the ledger icon in the action column navigates to `/dashboard/plots/sponsors/:id/ledger`.
+- **Credit, Debit & Running Balance Columns**: Calculates exact collection-based credits (e.g. `Downpayment Commission` or `EMI Collection Commission` with % and receipt number), payout debits, and running wallet balances chronologically.
+- **Printable**: Fully formatted for printing with Good Nature header and accounts/sponsor signature blocks.
+
+

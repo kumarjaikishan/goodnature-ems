@@ -1,0 +1,1 @@
+import{j as e,aZ as a,a_ as o,a$ as s}from"./index-BTyIu7RH.js";import{e as l}from"./extendSxProp-hu1jzl6a.js";function u(t){return e.jsx(a,{...t,defaultTheme:s,themeId:o})}function x(t){return function(r){return e.jsx(u,{styles:typeof t=="function"?n=>t({theme:n,...r}):t})}}function m(){return l}export{x as g,m as i};

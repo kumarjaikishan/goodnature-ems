@@ -23,9 +23,12 @@
 - **State & Storage**:
   - Use Redux slices for global auth/user state (`FirstFetch`, `empFirstFetch`).
   - Persist tokens in localStorage (`token` or auth state) and pass via `Authorization: Bearer <token>` header.
-- **Styling**:
-  - Utilize Material UI (MUI v7) paired with Tailwind CSS v4.
-  - Maintain color schemes and dark/light aesthetic integrity.
+- **Styling & Unified Design System**:
+  - Adhere strictly to [docs/FRONTEND_THEME_SYSTEM.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/FRONTEND_THEME_SYSTEM.md).
+  - Primary Brand Palette: **Good Nature Deep Teal & Emerald** (`#0f766e` / `teal-700` / `teal-800` / `emerald-600`).
+  - Never introduce random ad-hoc colors (e.g. `indigo-600`, `purple-600`) for primary buttons, tabs, or headers.
+  - Page Loading: Always use `<PageLoader />` from `client/src/components/common/PageLoader.jsx` for consistent, symmetric loading states across all routes.
+  - Company Branding: All documents, receipts, certificates, and print views must use dynamic Good Nature company settings and uppercase watermarks.
 
 ---
 

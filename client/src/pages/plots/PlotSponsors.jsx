@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
 import Modalbox from '../../components/custommodal/Modalbox';
@@ -10,13 +11,16 @@ import {
   HiOutlineEye,
   HiOutlineTrash,
   HiOutlineLockClosed,
-  HiOutlineLockOpen
+  HiOutlineLockOpen,
+  HiOutlineCurrencyRupee,
+  HiOutlineBanknotes
 } from 'react-icons/hi2';
 import { toast } from 'react-toastify';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
-import { CircularProgress } from '@mui/material';
+import PageLoader from '../../components/common/PageLoader';
 
 const PlotSponsors = () => {
+  const navigate = useNavigate();
   const [sponsors, setSponsors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -195,8 +199,34 @@ const PlotSponsors = () => {
       sortable: true,
     },
     {
+      name: 'Role / Hierarchy',
+      selector: (row) => (row.sponsorId ? 'Sub Sponsor' : 'Developer Sponsor'),
+      cell: (row) => (
+        <span
+          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+            !row.sponsorId
+              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+              : 'bg-blue-50 text-blue-700 border border-blue-200'
+          }`}
+        >
+          {!row.sponsorId ? '👑 Developer Sponsor' : '👤 Sub Sponsor'}
+        </span>
+      ),
+      sortable: true,
+      width: '170px',
+    },
+    {
       name: 'Referring Sponsor',
       selector: (row) => row.sponsorId?.name ? `${row.sponsorId.name} (${row.sponsorId.sponsorCode || ''})` : 'Company (Direct)',
+      cell: (row) => (
+        <span className="text-xs font-medium text-slate-700">
+          {row.sponsorId?.name ? (
+            <span className="font-semibold text-slate-900">{row.sponsorId.name} <span className="font-mono text-slate-500">({row.sponsorId.sponsorCode || ''})</span></span>
+          ) : (
+            <span className="text-emerald-700 font-bold">🏢 Company Direct</span>
+          )}
+        </span>
+      ),
       sortable: true,
     },
     {
@@ -223,7 +253,7 @@ const PlotSponsors = () => {
     },
     {
       name: 'Actions',
-      width: '180px',
+      width: '210px',
       cell: (row) => (
         <div className="flex items-center gap-1">
           <button
@@ -232,6 +262,13 @@ const PlotSponsors = () => {
             title="View Details"
           >
             <HiOutlineEye className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => navigate(`/dashboard/plots/sponsors/${row._id}/ledger`)}
+            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+            title="View Full Sponsor Commission & Payout Ledger"
+          >
+            <HiOutlineBanknotes className="w-5 h-5 text-teal-700" />
           </button>
           <button
             onClick={() => handleOpenModal(row)}
@@ -272,15 +309,17 @@ const PlotSponsors = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Plot Sponsors</h1>
-          <p className="text-slate-500 text-sm">Manage plot project sponsors and agents</p>
+          <p className="text-slate-500 text-sm">Manage plot project sponsors, hierarchy and commissions</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="inline-flex items-center justify-center gap-2 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer bg-primary"
-        >
-          <HiOutlinePlus className="w-5 h-5" />
-          Add New Sponsor
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => handleOpenModal()}
+            className="inline-flex items-center justify-center gap-2 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer bg-primary text-sm"
+          >
+            <HiOutlinePlus className="w-5 h-5" />
+            Add New Sponsor
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -301,7 +340,14 @@ const PlotSponsors = () => {
           columns={columns}
           data={sponsors}
           progressPending={loading}
-          progressComponent={<div className="p-8"><CircularProgress sx={{ color: 'var(--color-primary)' }} /></div>}
+          progressComponent={
+            <PageLoader
+              fullScreen={false}
+              minHeight="min-h-[240px]"
+              title="Loading Plot Sponsors..."
+              subtitle="Fetching sponsor hierarchy, codes and contact details"
+            />
+          }
           customStyles={customStyles}
           pagination
           responsive
@@ -321,17 +367,20 @@ const PlotSponsors = () => {
                   required
                   value={formData.sponsorId}
                   onChange={(e) => setFormData({ ...formData, sponsorId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium text-slate-800"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none bg-white font-medium text-slate-800"
                 >
-                  <option value="direct">🏢 Company (Direct)</option>
+                  <option value="direct">🏢 Company Direct (Becomes a Developer Sponsor)</option>
                   {sponsors
-                    .filter((s) => s._id !== editingSponsor?._id)
+                    .filter((s) => s._id !== editingSponsor?._id && !s.sponsorId)
                     .map((sp) => (
                       <option key={sp._id} value={sp._id}>
-                        {sp.name} ({sp.sponsorCode || 'No Code'})
+                        👑 {sp.name} ({sp.sponsorCode || 'Developer Sponsor'})
                       </option>
                     ))}
                 </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  2-Level Hierarchy: Selecting <strong>Company Direct</strong> creates a <strong>Developer Sponsor</strong>. Selecting an existing Developer Sponsor creates a <strong>Sub-Sponsor</strong>.
+                </p>
               </div>
 
               <div>
@@ -341,7 +390,7 @@ const PlotSponsors = () => {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                   placeholder="Enter sponsor name"
                 />
               </div>
@@ -359,7 +408,7 @@ const PlotSponsors = () => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                       setFormData({ ...formData, mobile: val });
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                     placeholder="10-digit mobile number"
                   />
                 </div>
@@ -369,7 +418,7 @@ const PlotSponsors = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                     placeholder="Email address"
                   />
                 </div>
@@ -382,7 +431,7 @@ const PlotSponsors = () => {
                     type="text"
                     value={formData.panCard}
                     onChange={(e) => setFormData({ ...formData, panCard: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none uppercase text-slate-800"
                     placeholder="PAN Card number"
                   />
                 </div>
@@ -398,7 +447,7 @@ const PlotSponsors = () => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 12);
                       setFormData({ ...formData, aadhaarCard: val });
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                     placeholder="12-digit Aadhaar number"
                   />
                 </div>
@@ -411,7 +460,7 @@ const PlotSponsors = () => {
                     type="date"
                     value={formData.dob}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                   />
                 </div>
                 <div>
@@ -419,7 +468,7 @@ const PlotSponsors = () => {
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none bg-white font-medium text-slate-800"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -432,7 +481,7 @@ const PlotSponsors = () => {
                     type="text"
                     value={formData.occupation}
                     onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                     placeholder="e.g. Business / Service"
                   />
                 </div>
@@ -448,7 +497,7 @@ const PlotSponsors = () => {
                       type="text"
                       value={formData.nomineeName}
                       onChange={(e) => setFormData({ ...formData, nomineeName: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                       placeholder="Nominee full name"
                     />
                   </div>
@@ -458,7 +507,7 @@ const PlotSponsors = () => {
                       type="text"
                       value={formData.nomineeRelation}
                       onChange={(e) => setFormData({ ...formData, nomineeRelation: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                       placeholder="e.g. Spouse / Son"
                     />
                   </div>
@@ -468,7 +517,7 @@ const PlotSponsors = () => {
                       type="number"
                       value={formData.nomineeAge}
                       onChange={(e) => setFormData({ ...formData, nomineeAge: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                       placeholder="Age"
                     />
                   </div>
@@ -491,7 +540,7 @@ const PlotSponsors = () => {
                         permanentAddress: prev.sameAsCurrentAddress ? newCurrent : prev.permanentAddress,
                       }));
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                     placeholder="Current address details..."
                   />
                 </div>
@@ -509,7 +558,7 @@ const PlotSponsors = () => {
                         permanentAddress: checked ? prev.currentAddress : prev.permanentAddress,
                       }));
                     }}
-                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-teal-600 cursor-pointer"
                   />
                   <label htmlFor="sameAsCurrentAddress" className="text-xs font-semibold text-slate-700 cursor-pointer">
                     Permanent Address same as Current Address
@@ -523,7 +572,7 @@ const PlotSponsors = () => {
                     disabled={formData.sameAsCurrentAddress}
                     value={formData.permanentAddress}
                     onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
-                    className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${
+                    className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none ${
                       formData.sameAsCurrentAddress ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'text-slate-800'
                     }`}
                     placeholder="Permanent address details..."

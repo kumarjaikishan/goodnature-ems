@@ -7,7 +7,7 @@ import DataTable from 'react-data-table-component';
 import { HiOutlinePlus, HiEye, HiOutlinePencilSquare, HiOutlineTrash, HiMagnifyingGlass } from 'react-icons/hi2';
 import { toast } from 'react-toastify';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
-import { CircularProgress } from '@mui/material';
+import PageLoader from '../../components/common/PageLoader';
 
 const PlotCustomers = () => {
   const navigate = useNavigate();
@@ -157,7 +157,14 @@ const PlotCustomers = () => {
           columns={columns}
           data={customers}
           progressPending={loading}
-          progressComponent={<div className="p-8"><CircularProgress sx={{ color: 'var(--color-primary)' }} /></div>}
+          progressComponent={
+            <PageLoader
+              fullScreen={false}
+              minHeight="min-h-[240px]"
+              title="Loading Customers..."
+              subtitle="Fetching registered plot customer records"
+            />
+          }
           customStyles={customStyles}
           pagination
           responsive

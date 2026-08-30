@@ -85,13 +85,13 @@ const PlotBookingDetails = lazy(() => import('./pages/plots/PlotBookingDetails')
 const InstallmentCollection = lazy(() => import('./pages/plots/InstallmentCollection'));
 const PlotSeriesMaster = lazy(() => import('./pages/plots/PlotSeriesMaster'));
 const PlotReports = lazy(() => import('./pages/plots/PlotReports'));
-const SponsorCommissionsPage = lazy(() => import('./pages/plots/SponsorCommissionsPage'));
 const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/PlotPayoutLedgerPage'));
 const PlotAgreementViewer = lazy(() => import('./pages/plots/PlotAgreementViewer'));
 const BookingCertificateViewer = lazy(() => import('./pages/plots/BookingCertificateViewer'));
 const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
 const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
 const PlotInterestCalculator = lazy(() => import('./pages/plots/PlotInterestCalculator'));
+const SponsorLedgerPage = lazy(() => import('./pages/plots/SponsorLedgerPage'));
 
 // 🔹 Role-based route definitions
 const routesByRole = {
@@ -131,7 +131,8 @@ const routesByRole = {
       <Route path="plots/dashboard" element={<PlotDashboard />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
-      <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
+      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
       <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
@@ -187,7 +188,8 @@ const routesByRole = {
       <Route path="plots/dashboard" element={<PlotDashboard />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
-      <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
+      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
       <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
@@ -244,7 +246,8 @@ const routesByRole = {
       <Route path="plots/dashboard" element={<PlotDashboard />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
-      <Route path="plots/sponsor-commissions" element={<SponsorCommissionsPage />} />
+      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
       <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />

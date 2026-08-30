@@ -21,14 +21,25 @@ class PlotsService {
     let config = await PlotRateConfiguration.findOne({ status: 'active' });
     if (!config) {
       config = new PlotRateConfiguration({
-        baseSqFtRate: 500,
+        baseSqFtRate: 1000,
         cornerExtraPercent: 20,
         interestRatePercent: 10.88,
+        rateSlabs: PlotRateConfiguration.getDefaultRateSlabs(),
       });
       await config.save();
-    } else if (config.interestRatePercent === undefined || config.interestRatePercent === null) {
-      config.interestRatePercent = 10.88;
-      await config.save();
+    } else {
+      let needsSave = false;
+      if (!config.rateSlabs || config.rateSlabs.length === 0) {
+        config.rateSlabs = PlotRateConfiguration.getDefaultRateSlabs();
+        needsSave = true;
+      }
+      if (config.interestRatePercent === undefined || config.interestRatePercent === null) {
+        config.interestRatePercent = 10.88;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await config.save();
+      }
     }
     return config;
   }
@@ -41,6 +52,9 @@ class PlotsService {
       config.baseSqFtRate = data.baseSqFtRate ?? config.baseSqFtRate;
       config.cornerExtraPercent = data.cornerExtraPercent ?? config.cornerExtraPercent;
       config.interestRatePercent = data.interestRatePercent !== undefined ? Number(data.interestRatePercent) : (config.interestRatePercent ?? 10.88);
+      if (data.rateSlabs && Array.isArray(data.rateSlabs)) {
+        config.rateSlabs = data.rateSlabs;
+      }
     }
     await config.save();
     return config;
@@ -450,8 +464,10 @@ class PlotsService {
         discount = 0,
         installmentCount,
         installmentAmount,
-        bookingDate, // Added custom bookingDate support
-        oneTimeMonths,
+        bookingDate, // Custom bookingDate support
+        oneTimeMonths = 1,
+        tenureMonths,
+        downpaymentMonths = 1,
       } = data;
 
       const plot = await Plot.findById(plotId).session(session);
@@ -490,7 +506,21 @@ class PlotsService {
         ? (sponsorId || null)
         : (customer.sponsorId ? customer.sponsorId : null);
 
-      // 3. Generate Booking number
+      // 3. Rate Slab Lookup & Dynamic Plot Pricing
+      const resolvedTenure = tenureMonths !== undefined
+        ? Number(tenureMonths)
+        : (scheme === 'FULL_PAYMENT' ? 0 : (Number(installmentCount) || 3));
+
+      const rateConfig = await this.getRateConfig();
+      const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
+      const slab = slabs.find(s => Number(s.tenureMonths) === resolvedTenure) || slabs[0];
+
+      const basePlotRate = slab.plotRate || rateConfig.baseSqFtRate || 1000;
+      const cornerExtraPercent = plot.plotType === 'CORNER' ? (rateConfig.cornerExtraPercent || 20) : 0;
+      const effectiveSqFtRate = basePlotRate * (1 + cornerExtraPercent / 100);
+      const plotValue = Math.round(plot.plotSize * effectiveSqFtRate);
+
+      // 4. Generate Booking number
       const bookingDateObj = bookingDate ? new Date(bookingDate) : new Date();
       const date = bookingDateObj;
       const month = date.getMonth(); // 0-indexed: 3 is April
@@ -512,10 +542,33 @@ class PlotsService {
       );
       const bookingNumber = `${fyStr}${String(counter.sequence).padStart(3, '0')}`;
 
-      // Create Booking Document
-      const plotValue = plot.totalPlotValue;
+      // Calculate Downpayment & EMI Breakdown
       const discountVal = Number(discount) || 0;
-      const remainingAmount = plotValue - discountVal;
+      const remainingAmount = Math.max(0, plotValue - discountVal);
+      const resolvedScheme = resolvedTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT';
+      const resolvedDpBase = data.downpaymentCalculationBase === 'AFTER_DISCOUNT' ? 'AFTER_DISCOUNT' : 'BEFORE_DISCOUNT';
+
+      let downpaymentAmt = 0;
+      let emiPrincipalAmt = 0;
+      let emiMonthlyAmt = 0;
+
+      if (resolvedTenure === 0) {
+        downpaymentAmt = remainingAmount;
+        emiPrincipalAmt = 0;
+        emiMonthlyAmt = 0;
+      } else {
+        const dpPercent = slab.downpaymentPercent ? slab.downpaymentPercent / 100 : 0.40;
+        if (resolvedDpBase === 'BEFORE_DISCOUNT') {
+          // 40% computed on Gross Plot Value (before discount)
+          downpaymentAmt = Math.round(plotValue * dpPercent);
+          emiPrincipalAmt = Math.max(0, remainingAmount - downpaymentAmt);
+        } else {
+          // 40% computed on Net Remaining Value (after discount)
+          downpaymentAmt = Math.round(remainingAmount * dpPercent);
+          emiPrincipalAmt = remainingAmount - downpaymentAmt;
+        }
+        emiMonthlyAmt = resolvedTenure > 0 ? Math.round(emiPrincipalAmt / resolvedTenure) : 0;
+      }
 
       const booking = new PlotBooking({
         bookingNumber,
@@ -524,14 +577,23 @@ class PlotsService {
         sponsorId: finalSponsorId,
         plotId,
         plotValue,
-        scheme,
+        scheme: resolvedScheme,
         bookingAmount: 0,
         remainingAmount,
         status: bookingType === 'HOLD' ? 'HOLD' : 'ACTIVE',
         holdExpiryDate: bookingType === 'HOLD' ? new Date(bookingDateObj.getTime() + holdExpiryDays * 24 * 60 * 60 * 1000) : undefined,
         notes,
         discount: discountVal,
-        oneTimeMonths: scheme === 'FULL_PAYMENT' ? Number(oneTimeMonths) || 1 : undefined,
+        oneTimeMonths: resolvedTenure === 0 ? Number(oneTimeMonths) || 1 : undefined,
+        tenureMonths: resolvedTenure,
+        basePlotRate,
+        promoterCommissionPercent: slab.promoterCommissionPercent,
+        developerCommissionPercent: slab.developerCommissionPercent,
+        downpaymentMonths: Number(downpaymentMonths) || 1,
+        downpaymentAmount: downpaymentAmt,
+        emiPrincipalAmount: emiPrincipalAmt,
+        emiMonthlyAmount: emiMonthlyAmt,
+        downpaymentCalculationBase: resolvedDpBase,
       });
       await booking.save({ session });
 
@@ -539,17 +601,13 @@ class PlotsService {
       plot.status = bookingType === 'HOLD' ? 'HOLD' : 'BOOKED';
       await plot.save({ session });
 
-      // ── SCHEME ENGINE LOGIC ──
+      // ── SCHEME ENGINE & INSTALLMENT SCHEDULE LOGIC ──
       if (bookingType === 'BOOKING') {
-        if (scheme === 'FULL_PAYMENT') {
-          // Note: Weekly payout (money-back) will be initialized by the admin 
-          // once the booking is fully paid (remainingAmount === 0).
-
-          // Create a single installment for the full amount so it can be paid later
+        if (resolvedTenure === 0) {
+          // One-Time / Full Payment: single installment for full amount due after oneTimeMonths
           const dueDate = new Date(bookingDateObj);
-          if (oneTimeMonths && oneTimeMonths > 0) {
-            dueDate.setMonth(dueDate.getMonth() + Number(oneTimeMonths));
-          }
+          dueDate.setMonth(dueDate.getMonth() + (Number(oneTimeMonths) || 1));
+
           const installments = [{
             installmentNumber: 1,
             bookingId: booking._id,
@@ -559,41 +617,32 @@ class PlotsService {
             status: 'PENDING',
           }];
           await PlotInstallment.insertMany(installments, { session });
-
-          // 5% instant Sponsor Commission
-          const commissionAmount = Math.round((plotValue * 0.05) * 100) / 100;
-          const commission = new PlotSponsorCommission({
-            bookingId: booking._id,
-            sponsorId: finalSponsorId,
-            customerId: finalCustomerId,
-            amount: commissionAmount,
-            commissionPercent: 5,
-            status: 'active',
-          });
-          await commission.save({ session });
-        } else if (scheme === 'MONTHLY_INSTALLMENT') {
-          // Scheme 2: Monthly installments.
+        } else {
+          // EMI Scheme: 40% Downpayment (Inst #0) + 60% Monthly EMIs (Inst #1..N)
           const installments = [];
-          const downpaymentAmount = Number(bookingAmount) || 0;
 
-          if (downpaymentAmount > 0) {
-            // Installment #0 for the downpayment/final payment
+          // Installment #0: Down Payment (40%)
+          if (downpaymentAmt > 0) {
+            const dpDueDate = new Date(bookingDateObj);
+            dpDueDate.setMonth(dpDueDate.getMonth() + (Number(downpaymentMonths) || 1));
+
             installments.push({
               installmentNumber: 0,
               bookingId: booking._id,
-              dueDate: bookingDateObj,
-              dueAmount: downpaymentAmount,
+              dueDate: dpDueDate,
+              dueAmount: downpaymentAmt,
               paidAmount: 0,
               status: 'PENDING',
             });
           }
 
-          const count = Number(installmentCount) || 100;
-          let principalToDistribute = remainingAmount - downpaymentAmount;
+          // Monthly EMIs for the remaining 60%
+          let principalToDistribute = emiPrincipalAmt;
+          const count = resolvedTenure;
 
           for (let i = 1; i <= count; i++) {
             const dueDate = new Date(bookingDateObj);
-            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setMonth(dueDate.getMonth() + (Number(downpaymentMonths) || 1) + i);
             dueDate.setDate(1);
             dueDate.setHours(0, 0, 0, 0);
 
@@ -602,7 +651,7 @@ class PlotsService {
               // Last installment takes the remainder to prevent rounding residue issues
               dueForThisInst = Math.round(principalToDistribute * 100) / 100;
             } else {
-              dueForThisInst = installmentAmount ? Number(installmentAmount) : Math.floor((remainingAmount - downpaymentAmount) / count);
+              dueForThisInst = Math.floor(emiPrincipalAmt / count);
               dueForThisInst = Math.min(dueForThisInst, principalToDistribute);
             }
             dueForThisInst = Math.round(dueForThisInst * 100) / 100;
@@ -621,6 +670,9 @@ class PlotsService {
           }
           await PlotInstallment.insertMany(installments, { session });
         }
+
+        // ── SPONSOR COMMISSION DISTRIBUTION ENGINE ──
+        await this.syncBookingSponsorCommissions(booking._id, session);
       }
 
       // Log action
@@ -639,6 +691,125 @@ class PlotsService {
       throw error;
     } finally {
       session.endSession();
+    }
+  }
+
+  // ── SPONSOR COMMISSION SYNCHRONIZATION ENGINE ────────────────────
+  async syncBookingSponsorCommissions(bookingId, session = null) {
+    if (!bookingId) return;
+    const query = PlotBooking.findById(bookingId);
+    if (session) query.session(session);
+    const booking = await query;
+    if (!booking) return;
+
+    if (!booking.sponsorId || booking.status === 'HOLD' || booking.status === 'CANCELLED') {
+      const delQuery = PlotSponsorCommission.deleteMany({ bookingId: booking._id });
+      if (session) delQuery.session(session);
+      await delQuery;
+      return;
+    }
+
+    const sponsorQuery = User.findById(booking.sponsorId);
+    if (session) sponsorQuery.session(session);
+    const sponsorDoc = await sponsorQuery;
+    if (!sponsorDoc) return;
+
+    // Delete existing commissions for this booking to re-sync cleanly
+    const delQuery = PlotSponsorCommission.deleteMany({ bookingId: booking._id });
+    if (session) delQuery.session(session);
+    await delQuery;
+
+    const plotValue = Number(booking.plotValue) || 0;
+    let promoterPct = Number(booking.promoterCommissionPercent) || 0;
+    let developerPct = Number(booking.developerCommissionPercent) || 0;
+    const resolvedTenure = Number(booking.tenureMonths) || 0;
+
+    // If commission percentages were not stored on the booking, resolve from rate config
+    if (promoterPct === 0 && developerPct === 0) {
+      const rateConfig = await this.getRateConfig();
+      const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
+      const slab = slabs.find(s => Number(s.tenureMonths) === resolvedTenure) || slabs[0];
+      promoterPct = slab.promoterCommissionPercent !== undefined ? slab.promoterCommissionPercent : (resolvedTenure === 9 ? 11.5 : 10);
+      developerPct = slab.developerCommissionPercent !== undefined ? slab.developerCommissionPercent : 2.0;
+
+      booking.promoterCommissionPercent = promoterPct;
+      booking.developerCommissionPercent = developerPct;
+      if (session) await booking.save({ session });
+      else await booking.save();
+    }
+
+    // Fetch all receipts for this booking to calculate commission on collection basis
+    const receiptQuery = PlotReceipt.find({ bookingId: booking._id }).sort({ createdAt: 1 });
+    if (session) receiptQuery.session(session);
+    const receipts = await receiptQuery;
+
+    for (const receipt of receipts) {
+      const collectionPrincipal = Math.max(0, Number(receipt.amount || 0) - Number(receipt.lateFinePaid || 0));
+      if (collectionPrincipal <= 0) continue;
+
+      const receiptDate = receipt.createdAt ? new Date(receipt.createdAt) : new Date();
+
+      if (!sponsorDoc.sponsorId) {
+        // Developer Sponsor direct to company -> gets Promoter % + Developer %
+        const totalPct = +(promoterPct + developerPct).toFixed(2);
+        const totalAmt = Math.round(collectionPrincipal * (totalPct / 100) * 100) / 100;
+
+        const commDoc = new PlotSponsorCommission({
+          bookingId: booking._id,
+          receiptId: receipt._id,
+          sponsorId: sponsorDoc._id,
+          customerId: booking.customerId,
+          collectionAmount: collectionPrincipal,
+          plotValue: collectionPrincipal,
+          amount: totalAmt,
+          commissionPercent: totalPct,
+          commissionRole: 'DIRECT_DEVELOPER',
+          tierTenureMonths: resolvedTenure,
+          status: 'active',
+          createdAt: receiptDate,
+        });
+        if (session) await commDoc.save({ session });
+        else await commDoc.save();
+      } else {
+        // Sub-Sponsor -> gets Promoter % (e.g. 11.5%), Developer Sponsor gets Developer % (2.0%)
+        const promoterAmt = Math.round(collectionPrincipal * (promoterPct / 100) * 100) / 100;
+        const subCommission = new PlotSponsorCommission({
+          bookingId: booking._id,
+          receiptId: receipt._id,
+          sponsorId: sponsorDoc._id,
+          customerId: booking.customerId,
+          collectionAmount: collectionPrincipal,
+          plotValue: collectionPrincipal,
+          amount: promoterAmt,
+          commissionPercent: promoterPct,
+          commissionRole: 'PROMOTER',
+          tierTenureMonths: resolvedTenure,
+          status: 'active',
+          createdAt: receiptDate,
+        });
+        if (session) await subCommission.save({ session });
+        else await subCommission.save();
+
+        if (developerPct > 0) {
+          const devAmt = Math.round(collectionPrincipal * (developerPct / 100) * 100) / 100;
+          const devCommission = new PlotSponsorCommission({
+            bookingId: booking._id,
+            receiptId: receipt._id,
+            sponsorId: sponsorDoc.sponsorId,
+            customerId: booking.customerId,
+            collectionAmount: collectionPrincipal,
+            plotValue: collectionPrincipal,
+            amount: devAmt,
+            commissionPercent: developerPct,
+            commissionRole: 'DEVELOPER_OVERRIDE',
+            tierTenureMonths: resolvedTenure,
+            status: 'active',
+            createdAt: receiptDate,
+          });
+          if (session) await devCommission.save({ session });
+          else await devCommission.save();
+        }
+      }
     }
   }
 
@@ -926,34 +1097,13 @@ class PlotsService {
         inst.receiptNumber = receipt.receiptNumber;
         inst.status = (inst.paidAmount >= inst.dueAmount && (inst.lateFinePaid + (inst.lateFineRebate || 0)) >= inst.lateFine) ? 'PAID' : 'PARTIAL';
         await inst.save({ session });
-
-        // Re-generate Sponsor Commission if Scheme 2 (MONTHLY_INSTALLMENT) and we paid principal
-        if (booking.scheme === 'MONTHLY_INSTALLMENT' && principalPaidThisTime > 0) {
-          const commPercent = 15;
-          const commissionAmount = Math.round((principalPaidThisTime * 0.15) * 100) / 100;
-          await new PlotSponsorCommission({
-            bookingId: booking._id,
-            installmentId: inst._id,
-            sponsorId: booking.sponsorId,
-            customerId: booking.customerId,
-            amount: commissionAmount,
-            commissionPercent: commPercent,
-            status: 'active',
-          }).save({ session });
-        }
       }
 
       // Recalculate remaining balance on booking dynamically
       await this.recalculateBookingBalance(booking._id, session);
 
-      // For FULL_PAYMENT, if new payment amount > 0, ensure commission is 'active', otherwise 'reversed'
-      if (booking.scheme === 'FULL_PAYMENT') {
-        const status = newAmount > 0 ? 'active' : 'reversed';
-        await PlotSponsorCommission.updateMany(
-          { bookingId: booking._id },
-          { $set: { status } }
-        ).session(session);
-      }
+      // Re-sync sponsor commissions accurately with locked rate matrix & hierarchy
+      await this.syncBookingSponsorCommissions(booking._id, session);
 
       // Save lateFinePaid to receipt
       receipt.lateFinePaid = totalLateFinePaid;
@@ -1141,14 +1291,7 @@ class PlotsService {
       else await inst.save();
     }
 
-    // 2. Remove all sponsor commissions for monthly installment scheme to re-generate accurately
-    if (booking.scheme === 'MONTHLY_INSTALLMENT') {
-      const commQuery = PlotSponsorCommission.deleteMany({ bookingId });
-      if (session) commQuery.session(session);
-      await commQuery;
-    }
-
-    // 3. Fetch all active receipts for this booking sorted by createdAt ascending
+    // 2. Fetch all active receipts for this booking sorted by createdAt ascending
     const receiptQuery = PlotReceipt.find({ bookingId }).sort({ createdAt: 1, _id: 1 });
     if (session) receiptQuery.session(session);
     const receipts = await receiptQuery;
@@ -1209,23 +1352,6 @@ class PlotsService {
 
         if (session) await inst.save({ session });
         else await inst.save();
-
-        // Re-generate Sponsor Commission if Scheme 2 (MONTHLY_INSTALLMENT) and we paid principal
-        if (booking.scheme === 'MONTHLY_INSTALLMENT' && principalPaidThisTime > 0 && booking.sponsorId) {
-          const commPercent = 15;
-          const commissionAmount = Math.round((principalPaidThisTime * 0.15) * 100) / 100;
-          const commDoc = new PlotSponsorCommission({
-            bookingId: booking._id,
-            installmentId: inst._id,
-            sponsorId: booking.sponsorId,
-            customerId: booking.customerId,
-            amount: commissionAmount,
-            commissionPercent: commPercent,
-            status: 'active',
-          });
-          if (session) await commDoc.save({ session });
-          else await commDoc.save();
-        }
       }
 
       // Sync lateFinePaid back to receipt
@@ -1236,6 +1362,9 @@ class PlotsService {
 
     // 5. Recalculate remainingAmount on Booking
     await this.recalculateBookingBalance(bookingId, session);
+
+    // 6. Re-sync sponsor commissions accurately with locked rate matrix & hierarchy
+    await this.syncBookingSponsorCommissions(bookingId, session);
   }
 
   async recalculateBookingBalance(bookingId, session = null) {
@@ -1477,8 +1606,18 @@ class PlotsService {
         })
         .sort({ createdAt: -1 });
     } else if (type === 'commissions') {
+      // Auto-sync active bookings with sponsors to ensure accurate locked rate slabs
+      const activeBookings = await PlotBooking.find({
+        status: { $in: ['ACTIVE', 'COMPLETED'] },
+        sponsorId: { $ne: null }
+      }).select('_id').lean();
+
+      for (const b of activeBookings) {
+        await this.syncBookingSponsorCommissions(b._id);
+      }
+
       const commissions = await PlotSponsorCommission.find({ status: 'active' })
-        .populate('sponsorId', 'name email customerId mobile')
+        .populate('sponsorId', 'name email sponsorCode customerId mobile')
         .populate('customerId', 'name customerId')
         .populate('installmentId', 'dueAmount amount paidAmount')
         .populate({
@@ -1501,7 +1640,8 @@ class PlotsService {
             _id: sp._id,
             name: sp.name,
             email: sp.email,
-            customerId: sp.customerId,
+            sponsorCode: sp.sponsorCode,
+            customerId: sp.customerId || sp.sponsorCode,
             mobile: sp.mobile,
             totalEarned: 0,
             totalPaid: 0,
@@ -2310,6 +2450,156 @@ class PlotsService {
   }
 
   // ── SPONSOR & CUSTOMER MANAGEMENT ───────────────────────────
+  async getSponsorLedger(sponsorId) {
+    const sponsor = await User.findById(sponsorId)
+      .populate('sponsorId', 'name sponsorCode customerId email mobile')
+      .lean();
+    if (!sponsor) {
+      const err = new Error('Sponsor not found');
+      err.status = 404;
+      throw err;
+    }
+
+    // Auto-sync active bookings for this sponsor
+    const activeBookings = await PlotBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
+    }).select('_id').lean();
+
+    for (const b of activeBookings) {
+      await this.syncBookingSponsorCommissions(b._id);
+    }
+
+    // Fetch all active commissions for this sponsor
+    const commissions = await PlotSponsorCommission.find({
+      sponsorId: sponsor._id,
+      status: 'active'
+    })
+      .populate('customerId', 'name customerId customerCode mobile')
+      .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
+      .populate({
+        path: 'bookingId',
+        select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
+        populate: { path: 'plotId', select: 'plotNumber seriesId' }
+      })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    // Fetch all payout vouchers for this sponsor if any
+    const vouchers = await PlotPayoutVoucher.find({
+      $or: [{ customerId: sponsor._id }, { sponsorId: sponsor._id }]
+    }).sort({ payoutDate: 1 }).lean().catch(() => []);
+
+    let totalCredits = 0;
+    let totalDebits = 0;
+    let totalCollectionsBase = 0;
+
+    const rawTransactions = [];
+
+    commissions.forEach(c => {
+      const creditAmt = Number(c.amount || 0);
+      const colAmt = Number(c.collectionAmount || 0);
+      totalCredits += creditAmt;
+      totalCollectionsBase += colAmt;
+
+      const customerName = c.customerId?.name || 'Customer';
+      const customerCode = c.customerId?.customerCode || c.customerId?.customerId || '';
+      const plotNum = c.bookingId?.plotId?.plotNumber ? `Plot #${c.bookingId.plotId.plotNumber}` : 'Plot';
+      const bookingNum = c.bookingId?.bookingNumber ? `Booking #${c.bookingId.bookingNumber}` : '';
+      const receiptNum = c.receiptId?.receiptNumber ? `Receipt #${c.receiptId.receiptNumber}` : '';
+      const receiptType = c.receiptId?.receiptType || 'COLLECTION';
+      
+      const roleLabel = c.commissionRole === 'DEVELOPER_OVERRIDE'
+        ? 'Business Developer Override (2%)'
+        : c.commissionRole === 'DIRECT_DEVELOPER'
+        ? 'Direct Developer Commission'
+        : 'Promoter Commission';
+
+      const typeLabel = receiptType === 'BOOKING' ? 'Downpayment Commission' : 'EMI Collection Commission';
+      const desc = `${typeLabel}: ${c.commissionPercent}% credited on collection of ₹${colAmt.toLocaleString('en-IN')} for ${plotNum} (${customerName}${customerCode ? ` - ${customerCode}` : ''}). ${receiptNum} [${roleLabel}]`;
+
+      rawTransactions.push({
+        id: c._id,
+        date: c.createdAt,
+        type: 'CREDIT',
+        category: 'COMMISSION',
+        role: c.commissionRole,
+        roleLabel,
+        description: desc,
+        bookingId: c.bookingId?._id,
+        bookingNumber: c.bookingId?.bookingNumber,
+        plotNumber: c.bookingId?.plotId?.plotNumber,
+        customerId: c.customerId?._id,
+        customerName: c.customerId?.name,
+        customerCode,
+        receiptId: c.receiptId?._id,
+        receiptNumber: c.receiptId?.receiptNumber,
+        receiptType,
+        collectionAmount: colAmt,
+        commissionPercent: c.commissionPercent,
+        credit: creditAmt,
+        debit: 0,
+        status: c.status
+      });
+    });
+
+    vouchers.forEach(v => {
+      const debitAmt = Number(v.amountPaid || 0);
+      totalDebits += debitAmt;
+
+      const vchNum = v.voucherNumber ? `Voucher #${v.voucherNumber}` : 'Payout Voucher';
+      const mode = (v.paymentMode || 'cash').toUpperCase();
+      const ref = v.transactionReference ? ` (Ref: ${v.transactionReference})` : '';
+      const remarks = v.remarks ? ` - Note: ${v.remarks}` : '';
+      const desc = `Commission Payout Disbursed via ${mode}${ref}${remarks} [${vchNum}]`;
+
+      rawTransactions.push({
+        id: v._id,
+        date: v.payoutDate || v.createdAt,
+        type: 'DEBIT',
+        category: 'PAYOUT',
+        role: 'PAYOUT',
+        roleLabel: 'Commission Payout',
+        description: desc,
+        voucherId: v._id,
+        voucherNumber: v.voucherNumber,
+        paymentMode: v.paymentMode,
+        transactionReference: v.transactionReference,
+        remarks: v.remarks,
+        credit: 0,
+        debit: debitAmt,
+        status: 'PAID'
+      });
+    });
+
+    // Sort chronologically (oldest to newest) to compute running balances accurately
+    rawTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let runningBalance = 0;
+    const computedTransactions = rawTransactions.map(tx => {
+      runningBalance += (tx.credit - tx.debit);
+      return {
+        ...tx,
+        balance: runningBalance
+      };
+    });
+
+    // Reverse so newest transactions are first in view
+    computedTransactions.reverse();
+
+    return {
+      sponsor,
+      summary: {
+        totalCredits,
+        totalDebits,
+        availableBalance: totalCredits - totalDebits,
+        totalCollectionsBase,
+        totalTransactions: computedTransactions.length
+      },
+      transactions: computedTransactions
+    };
+  }
+
   async getSponsors(query = {}) {
     const { search, page = 1, limit = 50 } = query;
     const filter = { role: { $in: ['sponsor', 'agent'] } };
@@ -2373,10 +2663,21 @@ class PlotsService {
     }
     const sponsorCode = `${prefix}${String(nextNum).padStart(3, '0')}`;
 
+    const resolvedParentId = sponsorId === 'company' || sponsorId === 'direct' ? null : sponsorId;
+    if (resolvedParentId) {
+      const parentSponsor = await User.findById(resolvedParentId);
+      if (!parentSponsor) {
+        throw new Error('Referring sponsor not found');
+      }
+      if (parentSponsor.sponsorId) {
+        throw new Error('Hierarchy limit reached: Sub-sponsors cannot have child sponsors under them. Referring sponsor must be a Developer Sponsor (Direct to Company).');
+      }
+    }
+
     const sponsorData = {
       name,
       sponsorCode,
-      sponsorId: sponsorId === 'company' || sponsorId === 'direct' ? null : sponsorId,
+      sponsorId: resolvedParentId,
       password: password || '123456',
       mobile: mobile || '',
       role: 'sponsor',
@@ -2400,6 +2701,20 @@ class PlotsService {
     if (updateData.sponsorId !== undefined) {
       if (updateData.sponsorId === 'company' || updateData.sponsorId === 'direct') {
         updateData.sponsorId = null;
+      } else if (updateData.sponsorId) {
+        // Prevent assigning a parent to a sponsor who already has children
+        const hasChildren = await User.countDocuments({ sponsorId: id, role: { $in: ['sponsor', 'agent'] } });
+        if (hasChildren > 0) {
+          throw new Error('This Developer Sponsor already has sub-sponsors registered under them and cannot be converted into a Sub-Sponsor.');
+        }
+
+        const parentSponsor = await User.findById(updateData.sponsorId);
+        if (!parentSponsor) {
+          throw new Error('Parent sponsor not found');
+        }
+        if (parentSponsor.sponsorId) {
+          throw new Error('Hierarchy limit reached: Sub-sponsors cannot have child sponsors. Referring sponsor must be a Developer Sponsor (Direct to Company).');
+        }
       }
     }
     const sponsor = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true }).populate('sponsorId', 'name sponsorCode mobile email');
@@ -2492,7 +2807,14 @@ class PlotsService {
     const skip = (Number(page) - 1) * Number(limit);
     const total = await PlotCustomer.countDocuments(filter);
     const customers = await PlotCustomer.find(filter)
-      .populate('sponsorId', 'name sponsorCode mobile email')
+      .populate({
+        path: 'sponsorId',
+        select: 'name sponsorCode mobile email sponsorId',
+        populate: {
+          path: 'sponsorId',
+          select: 'name sponsorCode mobile email'
+        }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));

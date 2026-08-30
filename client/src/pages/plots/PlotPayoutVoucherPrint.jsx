@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { HiOutlinePrinter, HiOutlineArrowLeft } from 'react-icons/hi2';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const numberToWords = (num) => {
   if (num === 0) return 'Zero Rupees Only';
@@ -46,6 +48,14 @@ const PlotPayoutVoucherPrint = () => {
   const navigate = useNavigate();
   const [voucher, setVoucher] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const { company: adminCompany } = useSelector((state) => state.user || {});
+  const { companysetting: empCompany } = useSelector((state) => state.employee || {});
+  const company = adminCompany || empCompany || {};
+  const companyName = company?.name || 'Good Nature Projects Pvt. Ltd.';
+  const companyAddress = company?.address || 'Good Nature Complex, Main Road, Bihar - 803118';
+  const companyMobile = company?.mobile || company?.phone || '7766954518';
+  const companyGstin = company?.gstin || '10AAJCR9358L1ZX';
 
   useEffect(() => {
     if (!id) return;
@@ -108,7 +118,7 @@ const PlotPayoutVoucherPrint = () => {
 
         {/* Diagonal Watermark */}
         <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none opacity-[0.03] rotate-[-30deg]">
-          <span className="text-8xl font-black tracking-widest">RISEOWN</span>
+          <span className="text-8xl font-black tracking-widest uppercase">{companyName}</span>
         </div>
 
         {/* Company Header */}
@@ -116,21 +126,21 @@ const PlotPayoutVoucherPrint = () => {
           <div className="flex flex-col gap-4">
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 flex items-center justify-center shrink-0 overflow-hidden rounded-md">
-                <img src="https://res.cloudinary.com/dusxlxlvm/image/upload/v1778255609/riseown/logo/favcon_512x512_xyunyz.webp" alt="Riseown Icon" className="w-full h-full object-contain" />
-              </div>
+              {company?.logo ? (
+                <div className="w-14 h-14 flex items-center justify-center shrink-0 overflow-hidden rounded-md">
+                  <img src={cloudinaryUrl(company.logo, { format: "webp", width: 120, height: 120 })} alt="Company Logo" className="w-full h-full object-contain" />
+                </div>
+              ) : null}
               <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-900">RISEOWN</h1>
-                <p className="text-xs text-gray-400">Marketing Pvt Ltd.</p>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">{companyName}</h1>
+                <p className="text-xs text-gray-500">Plot Management & Development</p>
               </div>
             </div>
 
             {/* Address & Details */}
             <div className="mt-0.5 text-xs text-slate-600 space-y-1 font-medium">
-              <p>Shri Krishna Nagar, Biyawani, Near Panchayat Bhawan</p>
-              <p>Bihar sharif, Nalanda, Bihar, India. pin-803118</p>
-              <p><span className="font-bold text-slate-800">Contact:</span> 7766954518</p>
-              <p><span className="font-bold text-slate-800">GSTIN:</span> 10AAJCR9358L1ZX</p>
+              <p>{companyAddress}</p>
+              <p><span className="font-bold text-slate-800">Contact:</span> {companyMobile} {companyGstin ? `| ` : ''}{companyGstin ? <><span className="font-bold text-slate-800">GSTIN:</span> {companyGstin}</> : null}</p>
             </div>
           </div>
 
@@ -228,7 +238,7 @@ const PlotPayoutVoucherPrint = () => {
           <div className="max-w-md text-slate-500 font-medium">
             <p className="font-bold text-slate-800 uppercase tracking-wider mb-1 text-[0.65rem]">Terms & Conditions</p>
             <ul className="list-decimal pl-4 space-y-0.5 text-[0.65rem] leading-normal">
-              <li>This payout voucher certifies the payout return of money back under terms of the Riseown plot booking scheme.</li>
+              <li>This payout voucher certifies the payout return under terms of the {companyName} plot booking scheme.</li>
               <li>Customers should preserve all issued payout vouchers for ledger audit matching at project completion.</li>
               <li>This is a system generated validated voucher. No physical stamp is necessary.</li>
             </ul>
@@ -239,7 +249,7 @@ const PlotPayoutVoucherPrint = () => {
           </div>
           <div className="text-center w-48 border-t border-slate-900 pt-1.5 select-none">
             <strong className="text-slate-900 block text-xs">Authorized Signatory</strong>
-            <span className="text-[0.6rem] text-slate-500 uppercase font-bold tracking-wider mt-0.5">Riseown Corporate Officer</span>
+            <span className="text-[0.6rem] text-slate-500 uppercase font-bold tracking-wider mt-0.5">Corporate Officer</span>
           </div>
         </div>
       </div>

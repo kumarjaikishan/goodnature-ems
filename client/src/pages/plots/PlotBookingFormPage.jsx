@@ -1,9 +1,17 @@
 import React, { useRef } from 'react';
+import { useSelector } from 'react-redux';
 import { HiOutlinePrinter, HiOutlineDocumentText } from 'react-icons/hi2';
 import { toast } from 'react-toastify';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const PlotBookingFormPage = () => {
   const formRef = useRef(null);
+
+  const { company: adminCompany } = useSelector((state) => state.user || {});
+  const { companysetting: empCompany } = useSelector((state) => state.employee || {});
+  const company = adminCompany || empCompany || {};
+  const companyName = company?.name || 'Good Nature Projects Pvt. Ltd.';
+  const companyAddress = company?.address || 'Good Nature Complex, Main Road, Bihar - 803118';
 
   const handlePrint = () => {
     window.print();
@@ -91,34 +99,40 @@ const PlotBookingFormPage = () => {
         <div className="printable-page relative max-w-4xl mx-auto bg-white border-none p-5 sm:p-6 shadow-md text-black font-sans text-left overflow-hidden">
 
           {/* Background Watermark */}
-          <div className="absolute inset-0 pointer-events-none select-none z-0 flex items-center justify-center opacity-[0.06] print:opacity-[0.06]">
-            <img
-              src="https://res.cloudinary.com/dusxlxlvm/image/upload/f_png,e_grayscale/v1778255609/riseown/logo/favcon_512x512_xyunyz.webp"
-              alt="Watermark"
-              className="w-[28rem] h-[28rem] object-contain filter grayscale"
-            />
+          <div className="absolute inset-0 pointer-events-none select-none z-0 flex items-center justify-center opacity-[0.04] print:opacity-[0.04]">
+            {company?.logo ? (
+              <img
+                src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+                alt="Watermark"
+                className="w-[28rem] h-[28rem] object-contain filter grayscale"
+              />
+            ) : (
+              <span className="text-7xl font-black uppercase tracking-widest text-slate-400">{companyName}</span>
+            )}
           </div>
 
           {/* HEADER SECTION */}
           <div className="relative z-10 flex flex-row justify-between items-center border-b-2 border-gray-600 pb-3 mb-1 gap-2">
             {/* Logo / Brand Info */}
             <div className="flex items-center space-x-3">
-              <div className="w-14 h-14 shrink-0 overflow-hidden flex items-center justify-center">
-                <img
-                  src="https://res.cloudinary.com/dusxlxlvm/image/upload/v1778255609/riseown/logo/favcon_512x512_xyunyz.webp"
-                  alt="Riseown Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              {company?.logo ? (
+                <div className="w-14 h-14 shrink-0 overflow-hidden flex items-center justify-center">
+                  <img
+                    src={cloudinaryUrl(company.logo, { format: "webp", width: 120, height: 120 })}
+                    alt="Company Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : null}
               <div>
                 <h1 className="text-2xl font-extrabold tracking-tight uppercase text-black leading-none">
-                  RISEOWN
+                  {companyName}
                 </h1>
                 <p className="text-[11px] font-bold tracking-wider text-gray-900 uppercase mt-0.5">
-                  RISEOWN MARKETING PVT. LTD.
+                  PLOT BOOKING & LAND DEVELOPMENT
                 </p>
                 <p className="text-[9px] font-medium text-gray-600 leading-tight mt-0.5">
-                  Shri Krishna Nagar, Biyawani, Near Panchayat Bhawan, Bihar Sharif, Nalanda, Bihar - 803118
+                  {companyAddress}
                 </p>
               </div>
             </div>
@@ -487,12 +501,16 @@ const PlotBookingFormPage = () => {
         <div className="printable-page relative max-w-4xl mx-auto bg-white border-none p-5 sm:p-6 shadow-md text-black font-sans text-left flex flex-col justify-between overflow-hidden">
 
           {/* Background Watermark */}
-          <div className="absolute inset-0 pointer-events-none select-none z-0 flex items-center justify-center opacity-[0.06] print:opacity-[0.06]">
-            <img
-              src="https://res.cloudinary.com/dusxlxlvm/image/upload/f_png,e_grayscale/v1778255609/riseown/logo/favcon_512x512_xyunyz.webp"
-              alt="Watermark"
-              className="w-[28rem] h-[28rem] object-contain filter grayscale"
-            />
+          <div className="absolute inset-0 pointer-events-none select-none z-0 flex items-center justify-center opacity-[0.04] print:opacity-[0.04]">
+            {company?.logo ? (
+              <img
+                src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+                alt="Watermark"
+                className="w-[28rem] h-[28rem] object-contain filter grayscale"
+              />
+            ) : (
+              <span className="text-7xl font-black uppercase tracking-widest text-slate-400">{companyName}</span>
+            )}
           </div>
 
           <div className="relative z-10 space-y-4">
@@ -509,7 +527,7 @@ const PlotBookingFormPage = () => {
                   <span className="font-semibold">Statutory Charges:</span> Stamp duty, registration fee, legal expenses, electricity and all present/future taxes shall be borne exclusively by the purchaser.
                 </li>
                 <li>
-                  <span className="font-semibold">Payment Instrument:</span> All payments towards plot booking and installments must be made in favor of <span className="font-bold">RISEOWN MARKETING PVT. LTD.</span> only.
+                  <span className="font-semibold">Payment Instrument:</span> All payments towards plot booking and installments must be made in favor of <span className="font-bold">{companyName}</span> only.
                 </li>
                 <li>
                   <span className="font-semibold">EMI Due Date & Grace Period:</span> Monthly EMI is due on the <span className="font-bold">1st of every month</span>. Grace period is allowed till the <span className="font-bold">14th</span>. Late fine at <span className="font-bold">0.05% per day</span> will apply from the 1st if payment is received on or after the 15th.
@@ -560,9 +578,8 @@ const PlotBookingFormPage = () => {
           {/* CORPORATE FOOTER */}
           <div className="relative z-10 border-t border-dashed border-gray-400 pt-3 mt-6 text-center text-[10px] space-y-0.5 text-gray-800">
             <p className="font-semibold">
-              Corporate Office: Shri Krishna Nagar, Biyawani, Near Panchayat Bhawan, Bihar Sharif, Nalanda, Bihar - 803118
+              Corporate Office: {companyAddress}
             </p>
-            {/* <p>7766954518 | | www.riseown.com</p> */}
           </div>
 
         </div>

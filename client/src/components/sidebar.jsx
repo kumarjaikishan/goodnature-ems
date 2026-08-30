@@ -93,7 +93,6 @@ const Sidebar = () => {
             { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Sponsors", link: "/dashboard/plots/sponsors", roles: ["admin", "superadmin", "manager", "demo"] },
-            // { menu: "Sponsor Commissions", link: "/dashboard/plots/sponsor-commissions", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Collections", link: "/dashboard/plots/installments", roles: ["admin", "superadmin", "manager", "demo"] },
@@ -226,7 +225,7 @@ const Sidebar = () => {
                                 `relative flex items-center gap-2 px-3 py-2 ml-6 text-sm rounded text-gray-600
                                   before:content-[''] before:absolute before:-left-4 before:top-1/2  before:h-[1px] before:w-3  before:bg-gray-700  
                                   after:content-[''] after:absolute after:-left-4 after:top-0 after:h-full after:w-[1px]  after:bg-gray-700
-                                  ${isActive ? "bg-primary text-white after:bg-blue-700 before:bg-blue-700 " : "hover:bg-teal-50"}`
+                                  ${isActive ? "bg-primary text-white after:bg-teal-700 before:bg-teal-700 " : "hover:bg-teal-50"}`
                               }
                             >
                               {child.menu}

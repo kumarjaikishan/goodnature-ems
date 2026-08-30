@@ -13,7 +13,7 @@ import {
   HiOutlineSparkles,
 } from 'react-icons/hi2';
 import Modalbox from '../../components/custommodal/Modalbox';
-import { CircularProgress } from '@mui/material';
+import PageLoader from '../../components/common/PageLoader';
 
 const PlotSeriesMaster = () => {
   const [activeTab, setActiveTab] = useState('layout'); // 'layout' (Blocks & Grid), 'inventory' (Searchable Inventory View), 'rates' (Pricing)
@@ -290,12 +290,71 @@ const PlotSeriesMaster = () => {
     }
   };
 
+  const handleSlabChange = (index, field, value) => {
+    const updatedSlabs = [...(rateConfig.rateSlabs || [])];
+    updatedSlabs[index] = {
+      ...updatedSlabs[index],
+      [field]: field === 'effectiveLabel' ? value : value,
+    };
+    if (field === 'tenureMonths') {
+      const tenure = Number(value) || 0;
+      if (tenure === 0) {
+        updatedSlabs[index].downpaymentPercent = 100;
+        updatedSlabs[index].emiPercent = 0;
+      } else if (updatedSlabs[index].downpaymentPercent === 100) {
+        updatedSlabs[index].downpaymentPercent = 40;
+        updatedSlabs[index].emiPercent = 60;
+      }
+    }
+    setRateConfig({ ...rateConfig, rateSlabs: updatedSlabs });
+  };
+
+  const handleAddSlab = () => {
+    const currentSlabs = rateConfig.rateSlabs || [];
+    const lastSlab = currentSlabs[currentSlabs.length - 1];
+    const newTenure = lastSlab ? (Number(lastSlab.tenureMonths) || 0) + 3 : 3;
+    const newRate = lastSlab ? (Number(lastSlab.plotRate) || 1000) + 50 : 1050;
+    const newPromoter = lastSlab ? +((Number(lastSlab.promoterCommissionPercent) || 10) + 0.5).toFixed(2) : 10.5;
+
+    const newSlab = {
+      tenureMonths: newTenure,
+      plotRate: newRate,
+      promoterCommissionPercent: newPromoter,
+      developerCommissionPercent: 2.0,
+      downpaymentPercent: 40,
+      emiPercent: 60,
+      effectiveLabel: lastSlab?.effectiveLabel || 'Jul 26 - Sept 26',
+    };
+
+    setRateConfig({ ...rateConfig, rateSlabs: [...currentSlabs, newSlab] });
+  };
+
+  const handleRemoveSlab = (index) => {
+    const updatedSlabs = (rateConfig.rateSlabs || []).filter((_, i) => i !== index);
+    setRateConfig({ ...rateConfig, rateSlabs: updatedSlabs });
+  };
+
   const handleUpdateRates = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
     try {
-      await api.put('/plots/rate-config', rateConfig);
-      toast.success('Global rates updated successfully');
+      const payload = {
+        ...rateConfig,
+        baseSqFtRate: Number(rateConfig.baseSqFtRate) || 1000,
+        cornerExtraPercent: Number(rateConfig.cornerExtraPercent) || 20,
+        interestRatePercent: Number(rateConfig.interestRatePercent) || 10.88,
+        rateSlabs: (rateConfig.rateSlabs || []).map((s) => ({
+          ...s,
+          tenureMonths: Number(s.tenureMonths) || 0,
+          plotRate: Number(s.plotRate) || 0,
+          promoterCommissionPercent: Number(s.promoterCommissionPercent) || 0,
+          developerCommissionPercent: Number(s.developerCommissionPercent) || 0,
+          downpaymentPercent: Number(s.downpaymentPercent) || (Number(s.tenureMonths) === 0 ? 100 : 40),
+          emiPercent: Number(s.emiPercent) ?? (Number(s.tenureMonths) === 0 ? 0 : 60),
+        })),
+      };
+      await api.put('/plots/rate-config', payload);
+      toast.success('Global rates & commission matrix updated successfully');
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update rates');
@@ -361,10 +420,10 @@ const PlotSeriesMaster = () => {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 font-medium bg-slate-50 min-h-screen flex flex-col items-center justify-center gap-3">
-        <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-        <p className="text-xs font-bold text-slate-500 animate-pulse">Loading Plot Series & Inventory...</p>
-      </div>
+      <PageLoader
+        title="Loading Plot Series & Inventory..."
+        subtitle="Synchronizing series blocks, layout grid and rate matrix"
+      />
     );
   }
 
@@ -749,55 +808,243 @@ const PlotSeriesMaster = () => {
         </div>
       )}
 
-      {/* ── TAB 2: GLOBAL PRICING & CORNER RATES ── */}
+      {/* ── TAB 2: GLOBAL PRICING & SPONSOR COMMISSION MATRIX ── */}
       {activeTab === 'rates' && (
-        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 max-w-xl">
-          <h3 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <HiOutlineWrenchScrewdriver className="w-5 h-5 text-teal-800" /> Global Pricing & Corner Rates
-          </h3>
-          <form onSubmit={handleUpdateRates} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Base Sq Ft Rate (₹)</label>
-              <input
-                className={inputCls}
-                type="number"
-                value={rateConfig.baseSqFtRate}
-                onChange={(e) => setRateConfig({ ...rateConfig, baseSqFtRate: Number(e.target.value) })}
-                required
-              />
+        <div className="space-y-6">
+          <form onSubmit={handleUpdateRates} className="space-y-6">
+            {/* Top Config Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                  <HiOutlineWrenchScrewdriver className="w-5 h-5 text-teal-700" />
+                  <span>Base Sq Ft Rate</span>
+                </div>
+                <div>
+                  <label className={labelCls}>Default Base Rate (₹/sqft)</label>
+                  <input
+                    className={inputCls}
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={rateConfig.baseSqFtRate ?? ''}
+                    onChange={(e) =>
+                      setRateConfig({
+                        ...rateConfig,
+                        baseSqFtRate: e.target.value.replace(/[^0-9]/g, ''),
+                      })
+                    }
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Default baseline rate per sq.ft.</p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                  <HiOutlineAdjustmentsHorizontal className="w-5 h-5 text-teal-700" />
+                  <span>Corner Plot Premium</span>
+                </div>
+                <div>
+                  <label className={labelCls}>Corner Plot Extra Increment (%)</label>
+                  <input
+                    className={inputCls}
+                    type="tel"
+                    inputMode="decimal"
+                    value={rateConfig.cornerExtraPercent ?? ''}
+                    onChange={(e) =>
+                      setRateConfig({
+                        ...rateConfig,
+                        cornerExtraPercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'),
+                      })
+                    }
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Extra percentage added on corner plots.</p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                  <HiOutlineSparkles className="w-5 h-5 text-amber-600" />
+                  <span>Refund / Settlement Rate</span>
+                </div>
+                <div>
+                  <label className={labelCls}>Settlement Annual Rate (% P.A.)</label>
+                  <input
+                    className={inputCls}
+                    type="tel"
+                    inputMode="decimal"
+                    value={rateConfig.interestRatePercent ?? ''}
+                    onChange={(e) =>
+                      setRateConfig({
+                        ...rateConfig,
+                        interestRatePercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'),
+                      })
+                    }
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Used in plot refund & settlement calculations.</p>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Corner Plot Extra Rate Increment (%)</label>
-              <input
-                className={inputCls}
-                type="number"
-                value={rateConfig.cornerExtraPercent}
-                onChange={(e) => setRateConfig({ ...rateConfig, cornerExtraPercent: Number(e.target.value) })}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Refund / Settlement Rate (% P.A.)</label>
-              <input
-                className={inputCls}
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                value={rateConfig.interestRatePercent ?? 10.88}
-                onChange={(e) => setRateConfig({ ...rateConfig, interestRatePercent: Number(e.target.value) })}
-                required
-              />
-              <p className="text-[11px] text-slate-400">Used for Plot Refund & Settlement Calculator calculations.</p>
-            </div>
-            <div className="pt-4 border-t border-slate-100 flex justify-end shrink-0">
-              <button
-                type="submit"
-                disabled={submitLoading}
-                className="px-5 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs cursor-pointer transition min-w-[120px] flex items-center justify-center shadow-xs"
-              >
-                {submitLoading ? 'Saving...' : 'Save Rates'}
-              </button>
+
+            {/* Matrix Table */}
+            <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <HiOutlineTableCells className="w-5 h-5 text-teal-700" />
+                    Tenure, Plot Rate & Sponsor Commission Matrix
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Schedule for plot selling rates, promoter commission, business developer override, and 40% downpayment / 60% EMI breakdown.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddSlab}
+                    className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5"
+                  >
+                    <HiPlus className="w-4 h-4" /> Add Tenure Slab
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shadow-xs"
+                  >
+                    {submitLoading ? 'Saving...' : 'Save All Matrix Rates'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider text-[0.68rem] font-bold">
+                      <th className="p-3">Period / Label</th>
+                      <th className="p-3">ईएमआई महीना में<br/><span className="text-slate-400 font-normal">EMI Months</span></th>
+                      <th className="p-3">बिक्री दर (₹/sqft)<br/><span className="text-slate-400 font-normal">Plot Rate</span></th>
+                      <th className="p-3 bg-blue-50/50 text-blue-900">प्रमोटर कमीशन (%)<br/><span className="text-blue-500 font-normal">Promoter Commission</span></th>
+                      <th className="p-3 bg-amber-50/50 text-amber-900">बिजनेस डेवलपर्स कमीशन (%)<br/><span className="text-amber-600 font-normal">Developer Override</span></th>
+                      <th className="p-3">Downpayment %</th>
+                      <th className="p-3">EMI Balance %</th>
+                      <th className="p-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {(rateConfig.rateSlabs || []).map((slab, idx) => {
+                      const isOneTime = Number(slab.tenureMonths) === 0;
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3">
+                            <input
+                              type="text"
+                              className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                              value={slab.effectiveLabel || ''}
+                              placeholder="e.g. Jul 26"
+                              onChange={(e) => handleSlabChange(idx, 'effectiveLabel', e.target.value)}
+                            />
+                          </td>
+
+                          <td className="p-3">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="tel"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                                value={slab.tenureMonths ?? ''}
+                                onChange={(e) => handleSlabChange(idx, 'tenureMonths', e.target.value.replace(/[^0-9]/g, ''))}
+                                required
+                              />
+                              <span className="text-[11px] text-slate-400">{isOneTime ? '(1-Time)' : 'Mo'}</span>
+                            </div>
+                          </td>
+
+                          <td className="p-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-400 font-bold">₹</span>
+                              <input
+                                type="tel"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="w-24 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-900"
+                                value={slab.plotRate ?? ''}
+                                onChange={(e) => handleSlabChange(idx, 'plotRate', e.target.value.replace(/[^0-9]/g, ''))}
+                                required
+                              />
+                            </div>
+                          </td>
+
+                          <td className="p-3 bg-blue-50/30">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="tel"
+                                inputMode="decimal"
+                                className="w-20 px-2 py-1 bg-white border border-blue-200 rounded-lg text-xs font-bold text-blue-800"
+                                value={slab.promoterCommissionPercent ?? ''}
+                                onChange={(e) => handleSlabChange(idx, 'promoterCommissionPercent', e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'))}
+                                required
+                              />
+                              <span className="font-bold text-blue-700">%</span>
+                            </div>
+                          </td>
+
+                          <td className="p-3 bg-amber-50/30">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="tel"
+                                inputMode="decimal"
+                                className="w-20 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold text-amber-800"
+                                value={slab.developerCommissionPercent ?? ''}
+                                onChange={(e) => handleSlabChange(idx, 'developerCommissionPercent', e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'))}
+                                required
+                              />
+                              <span className="font-bold text-amber-700">%</span>
+                            </div>
+                          </td>
+
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${isOneTime ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'}`}>
+                              {slab.downpaymentPercent || (isOneTime ? 100 : 40)}%
+                            </span>
+                          </td>
+
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
+                              {slab.emiPercent ?? (isOneTime ? 0 : 60)}%
+                            </span>
+                          </td>
+
+                          <td className="p-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSlab(idx)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              title="Delete slab row"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span><strong>Developer Sponsor Direct:</strong> gets Promoter % + Developer Override (e.g. 10% + 2% = 12%).</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span><strong>Sub-Sponsor:</strong> gets Promoter % (e.g. 10.5%), and parent Developer Sponsor gets 2%.</span>
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -853,10 +1100,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Start Number</label>
                 <input
                   className={inputCls}
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={form.startNumber}
-                  onChange={(e) => setForm({ ...form, startNumber: e.target.value })}
+                  onChange={(e) => setForm({ ...form, startNumber: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -864,10 +1112,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>End Number</label>
                 <input
                   className={inputCls}
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={form.endNumber}
-                  onChange={(e) => setForm({ ...form, endNumber: e.target.value })}
+                  onChange={(e) => setForm({ ...form, endNumber: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -875,10 +1124,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Plot Size (Sq Ft)</label>
                 <input
                   className={inputCls}
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={form.plotArea}
-                  onChange={(e) => setForm({ ...form, plotArea: e.target.value })}
+                  onChange={(e) => setForm({ ...form, plotArea: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -950,10 +1200,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Start Number</label>
                 <input
                   className={inputCls}
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={editForm.startNumber}
-                  onChange={(e) => setEditForm({ ...editForm, startNumber: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, startNumber: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -961,10 +1212,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>End Number</label>
                 <input
                   className={inputCls}
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={editForm.endNumber}
-                  onChange={(e) => setEditForm({ ...editForm, endNumber: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, endNumber: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -972,10 +1224,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Plot Size (Sq Ft)</label>
                 <input
                   className={inputCls}
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={editForm.plotArea}
-                  onChange={(e) => setEditForm({ ...editForm, plotArea: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, plotArea: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -1060,10 +1313,12 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Plot Size (Sq Ft)</label>
                 <input
                   className={`${inputCls} ${selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED' ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
-                  type="number"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   disabled={selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED'}
                   value={configForm.plotSize}
-                  onChange={e => setConfigForm({ ...configForm, plotSize: e.target.value })}
+                  onChange={(e) => setConfigForm({ ...configForm, plotSize: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -1071,10 +1326,12 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Base Rate (₹ / Sq Ft)</label>
                 <input
                   className={`${inputCls} ${selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED' ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
-                  type="number"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   disabled={selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED'}
                   value={configForm.baseRate}
-                  onChange={e => setConfigForm({ ...configForm, baseRate: e.target.value })}
+                  onChange={(e) => setConfigForm({ ...configForm, baseRate: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -1192,10 +1449,12 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Plot Size (Sq Ft) *</label>
                 <input
                   className={inputCls}
-                  type="number"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="1200"
                   value={plotForm.plotSize}
-                  onChange={(e) => setPlotForm({ ...plotForm, plotSize: e.target.value })}
+                  onChange={(e) => setPlotForm({ ...plotForm, plotSize: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>
@@ -1203,9 +1462,11 @@ const PlotSeriesMaster = () => {
                 <label className={labelCls}>Base Rate (₹ / Sq Ft)</label>
                 <input
                   className={inputCls}
-                  type="number"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={plotForm.baseRate}
-                  onChange={(e) => setPlotForm({ ...plotForm, baseRate: e.target.value })}
+                  onChange={(e) => setPlotForm({ ...plotForm, baseRate: e.target.value.replace(/[^0-9]/g, '') })}
                   required
                 />
               </div>

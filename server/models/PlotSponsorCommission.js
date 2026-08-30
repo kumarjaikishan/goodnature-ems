@@ -7,6 +7,10 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       ref: 'PlotBooking',
       required: true,
     },
+    receiptId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotReceipt',
+    },
     installmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotInstallment',
@@ -21,6 +25,11 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       ref: 'PlotCustomer',
       required: true,
     },
+    collectionAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     amount: {
       type: Number,
       required: true,
@@ -29,6 +38,21 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
     commissionPercent: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    commissionRole: {
+      type: String,
+      enum: ['PROMOTER', 'DEVELOPER_OVERRIDE', 'DIRECT_DEVELOPER'],
+      default: 'PROMOTER',
+    },
+    plotValue: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    tierTenureMonths: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     status: {

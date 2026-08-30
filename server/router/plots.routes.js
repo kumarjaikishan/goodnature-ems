@@ -24,6 +24,7 @@ router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSe
 
 // ── Sponsors ──
 router.get('/sponsors', checkPermission('plot_sponsor', 1), ctrl.getSponsors);
+router.get('/sponsors/:id/ledger', checkPermission('plot_sponsor', 1), ctrl.getSponsorLedger);
 router.post('/sponsors', checkPermission('plot_sponsor', 2), ctrl.createSponsor);
 router.put('/sponsors/:id', checkPermission('plot_sponsor', 3), ctrl.updateSponsor);
 router.delete('/sponsors/:id', checkPermission('plot_sponsor', 4), ctrl.deleteSponsor);
