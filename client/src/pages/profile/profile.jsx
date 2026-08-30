@@ -7,8 +7,9 @@ import { toast } from '../../utils/toast';
 import dayjs from 'dayjs';
 import { useSelector } from 'react-redux';
 
+
 const EmployeeProfile = () => {
-  const [isload, setisload] = useState(false);
+  const [isload, setisloade] = useState(false);
   const [submenu, setsubmenu] = useState(1);
   const user = useSelector((state) => state.user);
   const employeee = useSelector((state) => state.employee);
@@ -130,7 +131,7 @@ const EmployeeProfile = () => {
             <div className="mt-2 p-2 grid grid-cols-1 max-h-[300px] overflow-y-auto sm:grid-cols-2 gap-4 text-sm text-gray-700">
               <div className='rounded border border-gray-300 bg-white p-2 md:p-3 flex flex-col gap-1'>
                 <h3 className='font-bold'>Education</h3>
-                {profile?.education.length > 0 ? profile?.education.map((edu,ind) => {
+                {profile?.education.length > 0 ? profile?.education.map((edu, ind) => {
                   return <div key={ind} className='relative my-1 pl-2 rounded overflow-hidden'>
                     <p className='text-gray-800 font-semibold'>{edu.degree}</p>
                     <p className='text-gray-700'>{edu.institution}</p>
