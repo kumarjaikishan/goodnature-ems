@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../../api/axios';
+import { useSelector } from 'react-redux';
+import { apiClient } from '../../utils/apiClient';
 import { toast } from '../../utils/toast';
 import PageLoader from '../../components/common/PageLoader';
 import {
@@ -18,7 +19,11 @@ import {
 } from 'lucide-react';
 
 const SponsorLedgerPage = () => {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
+  const user = useSelector((state) => state.user);
+  const loggedInId = user?.profile?.id || user?.profile?._id || user?.id || user?._id;
+  const targetId = paramId || loggedInId;
+
   const navigate = useNavigate();
 
   const [ledgerData, setLedgerData] = useState(null);
@@ -27,22 +32,26 @@ const SponsorLedgerPage = () => {
   const [filterType, setFilterType] = useState('ALL'); // 'ALL', 'CREDIT', 'DEBIT'
 
   const fetchLedger = async () => {
+    if (!targetId) return;
     setLoading(true);
     try {
-      const res = await api.get(`/plots/sponsors/${id}/ledger`);
-      setLedgerData(res.data.data);
+      const res = await apiClient({
+        url: `plots/sponsors/${targetId}/ledger`,
+        method: 'GET'
+      });
+      setLedgerData(res.data);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to load sponsor ledger');
+      toast.error(err.message || err.response?.data?.message || 'Failed to load sponsor ledger');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (id) {
+    if (targetId) {
       fetchLedger();
     }
-  }, [id]);
+  }, [targetId]);
 
   if (loading) {
     return (
@@ -315,18 +324,11 @@ const SponsorLedgerPage = () => {
                       {/* Type / Role */}
                       <td className="p-3.5 whitespace-nowrap">
                         {isCredit ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${tx.role === 'DEVELOPER_OVERRIDE'
-                                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                : tx.role === 'DIRECT_DEVELOPER'
-                                  ? 'bg-teal-900 text-teal-100 border-teal-800'
-                                  : 'bg-teal-50 text-teal-800 border-teal-200'
-                              }`}
-                          >
-                            {tx.roleLabel}
+                          <span className="px-2.5 py-1 rounded-md text-[11px] font-bold border bg-teal-50 text-teal-800 border-teal-200">
+                            🏷️ {tx.closingNumber || tx.roleLabel || 'Closing'}
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold border bg-rose-50 text-rose-800 border-rose-200">
+                          <span className="px-2.5 py-1 rounded-md text-[11px] font-bold border bg-rose-50 text-rose-800 border-rose-200">
                             Payout Debit
                           </span>
                         )}
@@ -334,23 +336,34 @@ const SponsorLedgerPage = () => {
 
                       {/* Description */}
                       <td className="p-3.5 text-slate-800">
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold leading-relaxed text-slate-900">{tx.description}</p>
-                          {tx.bookingNumber && (
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                              <span className="font-medium text-teal-700">Plot #{tx.plotNumber || '-'}</span>
-                              <span>•</span>
-                              <span>Booking #{tx.bookingNumber}</span>
-                              <span>•</span>
-                              <span>Customer: <strong>{tx.customerName || 'N/A'}</strong></span>
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-bold leading-relaxed text-slate-900">{tx.description}</p>
+                          {tx.directBusiness > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                              <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
+                                Direct: ₹{tx.directBusiness.toLocaleString('en-IN')} @ {tx.directRatesStr} = <strong>₹{tx.directCommission.toLocaleString('en-IN')}</strong>
+                              </span>
+                              {tx.indirectBusiness > 0 && (
+                                <span className="bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded font-semibold">
+                                  Indirect Downline: ₹{tx.indirectBusiness.toLocaleString('en-IN')} @ {tx.indirectRatesStr} = <strong>₹{tx.indirectCommission.toLocaleString('en-IN')}</strong>
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
                       </td>
 
-                      {/* Ref / Receipt # */}
+                      {/* Ref / Receipt # / Closing # */}
                       <td className="p-3.5 whitespace-nowrap font-mono text-xs">
-                        {tx.receiptId ? (
+                        {tx.closingId ? (
+                          <Link
+                            to={`/dashboard/plots/closings`}
+                            className="text-teal-700 hover:text-teal-900 font-bold hover:underline"
+                            title="View Closing Batch"
+                          >
+                            {tx.closingNumber || 'View Closing'}
+                          </Link>
+                        ) : tx.receiptId ? (
                           <Link
                             to={`/dashboard/plots/receipts/${tx.receiptId}`}
                             className="text-teal-700 hover:text-teal-900 font-bold hover:underline"

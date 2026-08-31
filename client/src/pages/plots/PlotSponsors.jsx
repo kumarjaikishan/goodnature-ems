@@ -13,7 +13,8 @@ import {
   Lock,
   Unlock,
   IndianRupee,
-  Banknote
+  Banknote,
+  KeyRound
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
@@ -181,6 +182,22 @@ const PlotSponsors = () => {
     }
   };
 
+  const handleResetPassword = async (sponsor) => {
+    const newPwd = window.prompt(`Enter new password for sponsor "${sponsor.name}" (Leave empty for default "123456"):`, '123456');
+    if (newPwd === null) return; // user cancelled
+
+    try {
+      const res = await request({
+        url: `plots/sponsors/${sponsor._id}/reset-password`,
+        method: 'POST',
+        body: { password: newPwd.trim() || '123456' },
+      });
+      toast.success(res.data?.message || `Password reset successfully to: ${newPwd.trim() || '123456'}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reset password');
+    }
+  };
+
   const columns = [
     {
       name: 'S.No',
@@ -253,50 +270,57 @@ const PlotSponsors = () => {
     },
     {
       name: 'Actions',
-      width: '210px',
+      width: '230px',
       cell: (row) => (
         <div className="flex items-center gap-1">
           <button
             onClick={() => handleOpenViewModal(row)}
-            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="View Details"
           >
-            <Eye size={18} />
+            <Eye size={17} />
           </button>
           <button
             onClick={() => navigate(`/dashboard/plots/sponsors/${row._id}/ledger`)}
             className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
             title="View Full Sponsor Commission & Payout Ledger"
           >
-            <Banknote size={18} className="text-teal-700" />
+            <Banknote size={17} className="text-teal-700" />
+          </button>
+          <button
+            onClick={() => handleResetPassword(row)}
+            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+            title="Reset Login Password"
+          >
+            <KeyRound size={17} />
           </button>
           <button
             onClick={() => handleOpenModal(row)}
-            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition"
+            className="p-1.5 text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="Edit Sponsor"
           >
-            <Edit2 size={18} />
+            <Edit2 size={17} />
           </button>
           <button
             onClick={() => handleToggleBlock(row)}
-            className={`p-1.5 rounded-lg transition ${row.isBlocked
+            className={`p-1.5 rounded-lg transition cursor-pointer ${row.isBlocked
                 ? 'text-emerald-600 hover:bg-emerald-50'
                 : 'text-amber-600 hover:bg-amber-50'
               }`}
             title={row.isBlocked ? 'Unblock Sponsor Login' : 'Block Sponsor Login'}
           >
             {row.isBlocked ? (
-              <Unlock size={18} />
+              <Unlock size={17} />
             ) : (
-              <Lock size={18} />
+              <Lock size={17} />
             )}
           </button>
           <button
             onClick={() => handleDeleteSponsor(row)}
-            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
             title="Delete Sponsor"
           >
-            <Trash2 size={18} />
+            <Trash2 size={17} />
           </button>
         </div>
       ),

@@ -348,6 +348,16 @@ const toggleSponsorBlock = async (req, res, next) => {
   }
 };
 
+const resetSponsorPassword = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+    const result = await plotsService.resetSponsorPassword(req.params.id, password);
+    ApiResponse.success(res, result, result.message);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getCustomers = async (req, res, next) => {
   try {
     const result = await plotsService.getCustomers(req.query);
@@ -393,6 +403,75 @@ const deleteCustomer = async (req, res, next) => {
   }
 };
 
+// ── Plot Commission Closing System ──
+const previewPlotClosing = async (req, res, next) => {
+  try {
+    const preview = await plotsService.previewPlotClosing({
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      excludeClosingId: req.query.excludeClosingId || null,
+    });
+    ApiResponse.success(res, preview);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createPlotClosing = async (req, res, next) => {
+  try {
+    const closing = await plotsService.createPlotClosing(
+      req.body,
+      req.user?._id || req.user?.id || null
+    );
+    ApiResponse.created(res, closing, `Plot Closing ${closing.closingNumber} created successfully`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getPlotClosings = async (req, res, next) => {
+  try {
+    const closings = await plotsService.getPlotClosings(req.query);
+    ApiResponse.success(res, closings);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getPlotClosingById = async (req, res, next) => {
+  try {
+    const closing = await plotsService.getPlotClosingById(req.params.id);
+    ApiResponse.success(res, closing);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePlotClosing = async (req, res, next) => {
+  try {
+    const closing = await plotsService.updatePlotClosing(
+      req.params.id,
+      req.body,
+      req.user?._id || req.user?.id || null
+    );
+    ApiResponse.success(res, closing, `Plot Closing ${closing.closingNumber} updated successfully`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deletePlotClosing = async (req, res, next) => {
+  try {
+    const result = await plotsService.deletePlotClosing(
+      req.params.id,
+      req.user?._id || req.user?.id || null
+    );
+    ApiResponse.success(res, result, result.message);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
@@ -431,9 +510,16 @@ module.exports = {
   updateSponsor,
   deleteSponsor,
   toggleSponsorBlock,
+  resetSponsorPassword,
   getCustomers,
   getCustomerById,
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  previewPlotClosing,
+  createPlotClosing,
+  getPlotClosings,
+  getPlotClosingById,
+  updatePlotClosing,
+  deletePlotClosing,
 };

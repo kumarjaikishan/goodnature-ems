@@ -9,6 +9,7 @@ const PlotPayoutSchedule = require('../models/PlotPayoutSchedule');
 const PlotReceipt = require('../models/PlotReceipt');
 const PlotSponsorCommission = require('../models/PlotSponsorCommission');
 const PlotPayoutVoucher = require('../models/PlotPayoutVoucher');
+const PlotClosing = require('../models/PlotClosing');
 const PlotAuditLog = require('../models/PlotAuditLog');
 const Counter = require('../models/Counter');
 const User = require('../models/user');
@@ -714,6 +715,18 @@ class PlotsService {
     const sponsorDoc = await sponsorQuery;
     if (!sponsorDoc) return;
 
+    // Find existing commissions for this booking to preserve closingId tags
+    const existingQuery = PlotSponsorCommission.find({ bookingId: booking._id });
+    if (session) existingQuery.session(session);
+    const existingComms = await existingQuery;
+    const closingTagMap = {};
+    existingComms.forEach(c => {
+      if (c.closingId && c.receiptId) {
+        const key = `${c.receiptId.toString()}_${c.sponsorId.toString()}_${c.commissionRole}`;
+        closingTagMap[key] = c.closingId;
+      }
+    });
+
     // Delete existing commissions for this booking to re-sync cleanly
     const delQuery = PlotSponsorCommission.deleteMany({ bookingId: booking._id });
     if (session) delQuery.session(session);
@@ -753,6 +766,7 @@ class PlotsService {
         // Developer Sponsor direct to company -> gets Promoter % + Developer %
         const totalPct = +(promoterPct + developerPct).toFixed(2);
         const totalAmt = Math.round(collectionPrincipal * (totalPct / 100) * 100) / 100;
+        const key = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_DIRECT_DEVELOPER`;
 
         const commDoc = new PlotSponsorCommission({
           bookingId: booking._id,
@@ -766,6 +780,7 @@ class PlotsService {
           commissionRole: 'DIRECT_DEVELOPER',
           tierTenureMonths: resolvedTenure,
           status: 'active',
+          closingId: closingTagMap[key] || null,
           createdAt: receiptDate,
         });
         if (session) await commDoc.save({ session });
@@ -773,6 +788,7 @@ class PlotsService {
       } else {
         // Sub-Sponsor -> gets Promoter % (e.g. 11.5%), Developer Sponsor gets Developer % (2.0%)
         const promoterAmt = Math.round(collectionPrincipal * (promoterPct / 100) * 100) / 100;
+        const promoterKey = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_PROMOTER`;
         const subCommission = new PlotSponsorCommission({
           bookingId: booking._id,
           receiptId: receipt._id,
@@ -785,17 +801,20 @@ class PlotsService {
           commissionRole: 'PROMOTER',
           tierTenureMonths: resolvedTenure,
           status: 'active',
+          closingId: closingTagMap[promoterKey] || null,
           createdAt: receiptDate,
         });
         if (session) await subCommission.save({ session });
         else await subCommission.save();
 
-        if (developerPct > 0) {
+        if (developerPct > 0 && sponsorDoc.sponsorId) {
           const devAmt = Math.round(collectionPrincipal * (developerPct / 100) * 100) / 100;
+          const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
+          const devKey = `${receipt._id.toString()}_${parentDevId.toString()}_DEVELOPER_OVERRIDE`;
           const devCommission = new PlotSponsorCommission({
             bookingId: booking._id,
             receiptId: receipt._id,
-            sponsorId: sponsorDoc.sponsorId,
+            sponsorId: parentDevId,
             customerId: booking.customerId,
             collectionAmount: collectionPrincipal,
             plotValue: collectionPrincipal,
@@ -804,6 +823,7 @@ class PlotsService {
             commissionRole: 'DEVELOPER_OVERRIDE',
             tierTenureMonths: resolvedTenure,
             status: 'active',
+            closingId: closingTagMap[devKey] || null,
             createdAt: receiptDate,
           });
           if (session) await devCommission.save({ session });
@@ -1231,6 +1251,16 @@ class PlotsService {
     if (filters.scheme) query.scheme = filters.scheme;
     if (filters.customerId) query.customerId = filters.customerId;
 
+    if (filters.sponsorId) {
+      // Find sub-sponsors if this is a developer sponsor
+      const subSponsors = await User.find({ sponsorId: filters.sponsorId }).select('_id').lean();
+      const subSponsorIds = subSponsors.map(s => s._id);
+      query.$or = [
+        { sponsorId: filters.sponsorId },
+        ...(subSponsorIds.length > 0 ? [{ sponsorId: { $in: subSponsorIds } }] : [])
+      ];
+    }
+
     const page = parseInt(filters.page) || 1;
     const limit = parseInt(filters.limit) || 20;
     const skip = (page - 1) * limit;
@@ -1238,7 +1268,11 @@ class PlotsService {
     const [bookings, total] = await Promise.all([
       PlotBooking.find(query)
         .populate('customerId', 'name mobile customerId')
-        .populate('sponsorId', 'name customerId')
+        .populate({
+          path: 'sponsorId',
+          select: 'name sponsorCode customerId mobile sponsorId',
+          populate: { path: 'sponsorId', select: 'name sponsorCode customerId mobile' }
+        })
         .populate({
           path: 'plotId',
           populate: { path: 'seriesId' }
@@ -1616,9 +1650,10 @@ class PlotsService {
         await this.syncBookingSponsorCommissions(b._id);
       }
 
-      const commissions = await PlotSponsorCommission.find({ status: 'active' })
+      const commissions = await PlotSponsorCommission.find({ status: 'active', closingId: { $ne: null } })
         .populate('sponsorId', 'name email sponsorCode customerId mobile')
         .populate('customerId', 'name customerId')
+        .populate('closingId', 'closingName closingNumber startDate endDate')
         .populate('installmentId', 'dueAmount amount paidAmount')
         .populate({
           path: 'bookingId',
@@ -1774,6 +1809,7 @@ class PlotsService {
 
       const {
         notes, discount, bookingAmount, bookingDate, sponsorId, status, scheme,
+        tenureMonths, downpaymentCalculationBase, govtRate,
         installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, agreementNumber,
         bookingType, holdExpiryDays, customerId, plotId, paymentMode, transactionReference
       } = data;
@@ -1783,6 +1819,8 @@ class PlotsService {
       if (paymentMode !== undefined) booking.paymentMode = paymentMode;
       if (transactionReference !== undefined) booking.transactionReference = transactionReference;
       if (downpaymentMonths !== undefined) booking.downpaymentMonths = Number(downpaymentMonths) || 1;
+      if (downpaymentCalculationBase !== undefined) booking.downpaymentCalculationBase = downpaymentCalculationBase;
+      if (govtRate !== undefined) booking.govtRate = Number(govtRate) || 100;
 
       if (bookingType !== undefined) {
         booking.bookingType = bookingType;
@@ -1818,7 +1856,33 @@ class PlotsService {
 
       let installmentParamsChanged = false;
 
-      if (scheme !== undefined && scheme !== booking.scheme) {
+      // Handle tenure change with rate slab snapshot updates
+      if (tenureMonths !== undefined && Number(tenureMonths) !== booking.tenureMonths) {
+        const resolvedTenure = Number(tenureMonths) || 0;
+        booking.tenureMonths = resolvedTenure;
+        booking.scheme = resolvedTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT';
+        
+        // Find matching slab from rate config to snapshot locked rates
+        const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
+        const slabs = rateConfig?.rateSlabs?.length > 0 ? rateConfig.rateSlabs : PlotRateConfiguration.getDefaultRateSlabs();
+        const slab = slabs.find(s => Number(s.tenureMonths) === resolvedTenure) || slabs[0];
+
+        const plot = await Plot.findById(booking.plotId).session(session);
+        const plotArea = plot ? (plot.plotSize || plot.area || plot.areaSqFt || 0) : 0;
+        const isCorner = plot?.plotType === 'CORNER';
+        const cornerExtra = isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0;
+        const baseRate = slab.plotRate || rateConfig?.baseSqFtRate || 1000;
+        const effectiveRate = baseRate * (1 + cornerExtra / 100);
+
+        booking.basePlotRate = baseRate;
+        booking.promoterCommissionPercent = slab.promoterCommissionPercent ?? 10.0;
+        booking.developerCommissionPercent = slab.developerCommissionPercent ?? 2.0;
+        if (plotArea > 0) {
+          booking.plotValue = Math.round(plotArea * effectiveRate);
+        }
+
+        installmentParamsChanged = true;
+      } else if (scheme !== undefined && scheme !== booking.scheme) {
         booking.scheme = scheme;
         installmentParamsChanged = true;
       }
@@ -1895,15 +1959,16 @@ class PlotsService {
         // Delete all old installments
         await PlotInstallment.deleteMany({ bookingId: id }).session(session);
 
-        const bookingDateObj = booking.bookingDate;
+        const bookingDateObj = booking.bookingDate || new Date();
         const remainingAmount = booking.plotValue - booking.discount;
+        const resolvedDpMonths = Number(booking.downpaymentMonths) || 1;
 
         if (booking.scheme === 'FULL_PAYMENT') {
           // Re-create single installment for full payment
           const dueDate = new Date(bookingDateObj);
-          if (booking.oneTimeMonths && booking.oneTimeMonths > 0) {
-            dueDate.setMonth(dueDate.getMonth() + Number(booking.oneTimeMonths));
-          }
+          const otMonths = Number(booking.oneTimeMonths) || 1;
+          dueDate.setMonth(dueDate.getMonth() + otMonths);
+
           const installments = [{
             installmentNumber: 1,
             bookingId: booking._id,
@@ -1916,25 +1981,28 @@ class PlotsService {
         } else if (booking.scheme === 'MONTHLY_INSTALLMENT') {
           // Re-create monthly installments
           const installments = [];
-          const downpaymentAmount = booking.bookingAmount;
+          const downpaymentAmount = booking.bookingAmount || booking.downpaymentAmount || 0;
 
           if (downpaymentAmount > 0) {
+            const dpDueDate = new Date(bookingDateObj);
+            dpDueDate.setMonth(dpDueDate.getMonth() + resolvedDpMonths);
+
             installments.push({
               installmentNumber: 0,
               bookingId: booking._id,
-              dueDate: bookingDateObj,
+              dueDate: dpDueDate,
               dueAmount: downpaymentAmount,
               paidAmount: 0,
               status: 'PENDING',
             });
           }
 
-          const count = targetCount !== undefined ? targetCount : 100;
-          let principalToDistribute = remainingAmount - downpaymentAmount;
+          const count = targetCount !== undefined ? targetCount : (Number(booking.tenureMonths) || 3);
+          let principalToDistribute = Math.max(0, remainingAmount - downpaymentAmount);
 
           for (let i = 1; i <= count; i++) {
             const dueDate = new Date(bookingDateObj);
-            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setMonth(dueDate.getMonth() + resolvedDpMonths + i);
             dueDate.setDate(1);
             dueDate.setHours(0, 0, 0, 0);
 
@@ -2470,12 +2538,14 @@ class PlotsService {
       await this.syncBookingSponsorCommissions(b._id);
     }
 
-    // Fetch all active commissions for this sponsor
+    // Fetch all closed commissions for this sponsor (commissions are credited to ledger strictly on Closing)
     const commissions = await PlotSponsorCommission.find({
       sponsorId: sponsor._id,
-      status: 'active'
+      status: 'active',
+      closingId: { $ne: null }
     })
       .populate('customerId', 'name customerId customerCode mobile')
+      .populate('closingId', 'closingName closingNumber startDate endDate')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
       .populate({
         path: 'bookingId',
@@ -2484,6 +2554,56 @@ class PlotsService {
       })
       .sort({ createdAt: 1 })
       .lean();
+
+    // Group commissions by Closing batch to credit the sponsor ledger per closing
+    const closingGroups = {};
+    commissions.forEach(c => {
+      if (!c.closingId || !c.closingId._id) return;
+      const clsId = c.closingId._id.toString();
+      if (!closingGroups[clsId]) {
+        closingGroups[clsId] = {
+          closingId: c.closingId._id,
+          closingName: c.closingId.closingName,
+          closingNumber: c.closingId.closingNumber,
+          startDate: c.closingId.startDate,
+          endDate: c.closingId.endDate,
+          directBusiness: 0,
+          directCommission: 0,
+          directRates: [],
+          indirectBusiness: 0,
+          indirectCommission: 0,
+          indirectRates: [],
+          totalBusiness: 0,
+          totalCommission: 0,
+          entries: [],
+          latestDate: c.closingId.endDate || c.createdAt,
+        };
+      }
+
+      const colAmt = Number(c.collectionAmount || 0);
+      const commAmt = Number(c.amount || 0);
+      const ratePct = Number(c.commissionPercent || 0);
+      const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
+      const isIndirect = c.commissionRole === 'DEVELOPER_OVERRIDE';
+
+      if (isDirect) {
+        closingGroups[clsId].directBusiness += colAmt;
+        closingGroups[clsId].directCommission += commAmt;
+        if (ratePct > 0 && !closingGroups[clsId].directRates.includes(ratePct)) {
+          closingGroups[clsId].directRates.push(ratePct);
+        }
+      } else if (isIndirect) {
+        closingGroups[clsId].indirectBusiness += colAmt;
+        closingGroups[clsId].indirectCommission += commAmt;
+        if (ratePct > 0 && !closingGroups[clsId].indirectRates.includes(ratePct)) {
+          closingGroups[clsId].indirectRates.push(ratePct);
+        }
+      }
+
+      closingGroups[clsId].totalBusiness += colAmt;
+      closingGroups[clsId].totalCommission += commAmt;
+      closingGroups[clsId].entries.push(c);
+    });
 
     // Fetch all payout vouchers for this sponsor if any
     const vouchers = await PlotPayoutVoucher.find({
@@ -2496,50 +2616,47 @@ class PlotsService {
 
     const rawTransactions = [];
 
-    commissions.forEach(c => {
-      const creditAmt = Number(c.amount || 0);
-      const colAmt = Number(c.collectionAmount || 0);
-      totalCredits += creditAmt;
-      totalCollectionsBase += colAmt;
+    // Push consolidated closing credit entries to ledger
+    Object.values(closingGroups).forEach(cg => {
+      totalCredits += cg.totalCommission;
+      totalCollectionsBase += cg.totalBusiness;
 
-      const customerName = c.customerId?.name || 'Customer';
-      const customerCode = c.customerId?.customerCode || c.customerId?.customerId || '';
-      const plotNum = c.bookingId?.plotId?.plotNumber ? `Plot #${c.bookingId.plotId.plotNumber}` : 'Plot';
-      const bookingNum = c.bookingId?.bookingNumber ? `Booking #${c.bookingId.bookingNumber}` : '';
-      const receiptNum = c.receiptId?.receiptNumber ? `Receipt #${c.receiptId.receiptNumber}` : '';
-      const receiptType = c.receiptId?.receiptType || 'COLLECTION';
-      
-      const roleLabel = c.commissionRole === 'DEVELOPER_OVERRIDE'
-        ? 'Business Developer Override (2%)'
-        : c.commissionRole === 'DIRECT_DEVELOPER'
-        ? 'Direct Developer Commission'
-        : 'Promoter Commission';
+      const directRatesStr = cg.directRates.length > 0 ? cg.directRates.map(r => `${r}%`).join(', ') : '0%';
+      const indirectRatesStr = cg.indirectRates.length > 0 ? cg.indirectRates.map(r => `${r}%`).join(', ') : '2%';
 
-      const typeLabel = receiptType === 'BOOKING' ? 'Downpayment Commission' : 'EMI Collection Commission';
-      const desc = `${typeLabel}: ${c.commissionPercent}% credited on collection of ₹${colAmt.toLocaleString('en-IN')} for ${plotNum} (${customerName}${customerCode ? ` - ${customerCode}` : ''}). ${receiptNum} [${roleLabel}]`;
+      const parts = [];
+      if (cg.directBusiness > 0) {
+        parts.push(`Direct Collection: ₹${cg.directBusiness.toLocaleString('en-IN')} @ ${directRatesStr} = ₹${cg.directCommission.toLocaleString('en-IN')}`);
+      }
+      if (cg.indirectBusiness > 0) {
+        parts.push(`Indirect Downline: ₹${cg.indirectBusiness.toLocaleString('en-IN')} @ ${indirectRatesStr} = ₹${cg.indirectCommission.toLocaleString('en-IN')}`);
+      }
+
+      const breakdownText = parts.join(' | ');
+      const desc = `${cg.closingName} [${cg.closingNumber}] — Period: ${new Date(cg.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} to ${new Date(cg.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}. Total Business: ₹${cg.totalBusiness.toLocaleString('en-IN')} (${breakdownText})`;
 
       rawTransactions.push({
-        id: c._id,
-        date: c.createdAt,
+        id: cg.closingId,
+        date: cg.latestDate,
         type: 'CREDIT',
-        category: 'COMMISSION',
-        role: c.commissionRole,
-        roleLabel,
+        category: 'COMMISSION_CLOSING',
+        role: cg.indirectCommission > 0 && cg.directCommission > 0 ? 'HYBRID' : (cg.indirectCommission > 0 ? 'DEVELOPER_OVERRIDE' : 'PROMOTER'),
+        roleLabel: `${cg.closingNumber}`,
         description: desc,
-        bookingId: c.bookingId?._id,
-        bookingNumber: c.bookingId?.bookingNumber,
-        plotNumber: c.bookingId?.plotId?.plotNumber,
-        customerId: c.customerId?._id,
-        customerName: c.customerId?.name,
-        customerCode,
-        receiptId: c.receiptId?._id,
-        receiptNumber: c.receiptId?.receiptNumber,
-        receiptType,
-        collectionAmount: colAmt,
-        commissionPercent: c.commissionPercent,
-        credit: creditAmt,
+        closingId: cg.closingId,
+        closingNumber: cg.closingNumber,
+        closingName: cg.closingName,
+        directBusiness: cg.directBusiness,
+        directCommission: cg.directCommission,
+        directRatesStr,
+        indirectBusiness: cg.indirectBusiness,
+        indirectCommission: cg.indirectCommission,
+        indirectRatesStr,
+        collectionAmount: cg.totalBusiness,
+        credit: cg.totalCommission,
         debit: 0,
-        status: c.status
+        status: 'CLOSED',
+        entriesCount: cg.entries.length,
       });
     });
 
@@ -2717,8 +2834,31 @@ class PlotsService {
         }
       }
     }
+
+    // If new password provided, hash it properly
+    if (updateData.password && updateData.password.trim()) {
+      const bcrypt = require('bcrypt');
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(updateData.password.trim(), salt);
+    } else {
+      delete updateData.password;
+    }
+
     const sponsor = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true }).populate('sponsorId', 'name sponsorCode mobile email');
     return sponsor;
+  }
+
+  async resetSponsorPassword(id, newPassword) {
+    const sponsor = await User.findById(id);
+    if (!sponsor) {
+      throw new Error('Sponsor not found');
+    }
+    const pwd = newPassword && newPassword.trim() ? newPassword.trim() : '123456';
+    const bcrypt = require('bcrypt');
+    const salt = await bcrypt.genSalt(10);
+    sponsor.password = await bcrypt.hash(pwd, salt);
+    await sponsor.save();
+    return { message: `Password reset successfully for sponsor ${sponsor.name}`, defaultPassword: pwd };
   }
 
   async deleteSponsor(id) {
@@ -2889,6 +3029,479 @@ class PlotsService {
       throw new Error('Customer not found');
     }
     return { message: 'Customer deleted successfully' };
+  }
+
+  // ── PLOT COMMISSION CLOSING SYSTEM ──────────────────────────────
+
+  /**
+   * Helper to format/parse start and end date boundary for closing.
+   * Start date at 00:00:00.000 UTC / local, End date at 23:59:59.999.
+   */
+  _normalizeClosingDateRange(startDate, endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  /**
+   * Preview unclosed (or currently associated) commissions for a given date window.
+   */
+  async previewPlotClosing({ startDate, endDate, excludeClosingId = null }) {
+    if (!startDate || !endDate) {
+      throw ApiError.badRequest('startDate and endDate are required');
+    }
+    const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
+
+    // Sync all active bookings to ensure commission records exist for all collections
+    const activeBookings = await PlotBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      sponsorId: { $ne: null }
+    }).select('_id').lean();
+
+    for (const b of activeBookings) {
+      await this.syncBookingSponsorCommissions(b._id);
+    }
+
+    const query = {
+      status: 'active',
+      createdAt: { $gte: start, $lte: end },
+    };
+
+    if (excludeClosingId) {
+      // When editing a closing, include commissions that are unclosed OR already in this closing
+      query.$or = [{ closingId: null }, { closingId: excludeClosingId }];
+    } else {
+      query.closingId = null;
+    }
+
+    const commissions = await PlotSponsorCommission.find(query)
+      .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
+      .populate('customerId', 'name customerId customerCode mobile')
+      .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
+      .populate({
+        path: 'bookingId',
+        select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
+        populate: { path: 'plotId', select: 'plotNumber seriesId' }
+      })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    let totalCollection = 0;
+    let totalCommission = 0;
+    let directBusinessTotal = 0;
+    let directCommissionTotal = 0;
+    let indirectBusinessTotal = 0;
+    let indirectCommissionTotal = 0;
+
+    const sponsorMap = {};
+
+    commissions.forEach(c => {
+      const sp = c.sponsorId;
+      if (!sp || !sp._id) return;
+      const spId = sp._id.toString();
+
+      const colAmt = Number(c.collectionAmount || 0);
+      const commAmt = Number(c.amount || 0);
+      const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
+      const isIndirect = c.commissionRole === 'DEVELOPER_OVERRIDE';
+
+      totalCollection += colAmt;
+      totalCommission += commAmt;
+
+      if (!sponsorMap[spId]) {
+        sponsorMap[spId] = {
+          sponsorId: sp._id,
+          sponsorName: sp.name || '',
+          sponsorCode: sp.sponsorCode || '',
+          customerId: sp.customerId || sp.sponsorCode || '',
+          mobile: sp.mobile || '',
+          isDeveloper: !sp.sponsorId,
+          directBusiness: 0,
+          directCommission: 0,
+          indirectBusiness: 0,
+          indirectCommission: 0,
+          totalBusiness: 0,
+          totalCommission: 0,
+          transactionCount: 0,
+          directRates: [],
+          indirectRates: [],
+          entries: [],
+        };
+      }
+
+      const ratePct = Number(c.commissionPercent || 0);
+
+      if (isDirect) {
+        sponsorMap[spId].directBusiness += colAmt;
+        sponsorMap[spId].directCommission += commAmt;
+        if (ratePct > 0 && !sponsorMap[spId].directRates.includes(ratePct)) {
+          sponsorMap[spId].directRates.push(ratePct);
+        }
+        directBusinessTotal += colAmt;
+        directCommissionTotal += commAmt;
+      } else if (isIndirect) {
+        sponsorMap[spId].indirectBusiness += colAmt;
+        sponsorMap[spId].indirectCommission += commAmt;
+        if (ratePct > 0 && !sponsorMap[spId].indirectRates.includes(ratePct)) {
+          sponsorMap[spId].indirectRates.push(ratePct);
+        }
+        indirectBusinessTotal += colAmt;
+        indirectCommissionTotal += commAmt;
+      }
+
+      sponsorMap[spId].totalBusiness += colAmt;
+      sponsorMap[spId].totalCommission += commAmt;
+      sponsorMap[spId].transactionCount += 1;
+      sponsorMap[spId].entries.push(c);
+    });
+
+    const sponsors = Object.values(sponsorMap).map(sp => {
+      const directEffectivePct = sp.directBusiness > 0 ? +((sp.directCommission / sp.directBusiness) * 100).toFixed(2) : 0;
+      const indirectEffectivePct = sp.indirectBusiness > 0 ? +((sp.indirectCommission / sp.indirectBusiness) * 100).toFixed(2) : 0;
+      const totalEffectivePct = sp.totalBusiness > 0 ? +((sp.totalCommission / sp.totalBusiness) * 100).toFixed(2) : 0;
+      return {
+        ...sp,
+        directEffectivePct,
+        indirectEffectivePct,
+        totalEffectivePct,
+        directRatesStr: sp.directRates.length > 0 ? sp.directRates.map(r => `${r}%`).join(', ') : (directEffectivePct > 0 ? `${directEffectivePct}%` : '0%'),
+        indirectRatesStr: sp.indirectRates.length > 0 ? sp.indirectRates.map(r => `${r}%`).join(', ') : (indirectEffectivePct > 0 ? `${indirectEffectivePct}%` : '2%'),
+      };
+    }).sort((a, b) => b.totalCommission - a.totalCommission);
+
+    return {
+      startDate: start,
+      endDate: end,
+      totalCollection: Math.round(totalCollection * 100) / 100,
+      totalCommission: Math.round(totalCommission * 100) / 100,
+      directBusinessTotal: Math.round(directBusinessTotal * 100) / 100,
+      directCommissionTotal: Math.round(directCommissionTotal * 100) / 100,
+      indirectBusinessTotal: Math.round(indirectBusinessTotal * 100) / 100,
+      indirectCommissionTotal: Math.round(indirectCommissionTotal * 100) / 100,
+      sponsorCount: sponsors.length,
+      transactionCount: commissions.length,
+      sponsors,
+      commissions,
+    };
+  }
+
+  /**
+   * Create a new Plot Commission Closing batch
+   */
+  async createPlotClosing(data, userId) {
+    const { closingName, startDate, endDate, remarks } = data;
+    if (!closingName || !closingName.trim()) {
+      throw ApiError.badRequest('Closing Name is required');
+    }
+    if (!startDate || !endDate) {
+      throw ApiError.badRequest('Start Date and End Date are required');
+    }
+
+    const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
+    if (start > end) {
+      throw ApiError.badRequest('Start Date cannot be after End Date');
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      // Calculate preview breakdown in period
+      const preview = await this.previewPlotClosing({ startDate: start, endDate: end });
+
+      if (preview.commissions.length === 0) {
+        throw ApiError.badRequest('No unclosed commission or collection records found in the selected date range.');
+      }
+
+      // Generate sequence closing number
+      const datePrefix = `CLS-${start.getFullYear()}${String(start.getMonth() + 1).padStart(2, '0')}`;
+      const count = await PlotClosing.countDocuments({ closingNumber: new RegExp(`^${datePrefix}`) }).session(session);
+      const closingNumber = `${datePrefix}-${String(count + 1).padStart(3, '0')}`;
+
+      const closingDoc = new PlotClosing({
+        closingName: closingName.trim(),
+        closingNumber,
+        startDate: start,
+        endDate: end,
+        totalCollection: preview.totalCollection,
+        totalCommission: preview.totalCommission,
+        directBusinessTotal: preview.directBusinessTotal,
+        directCommissionTotal: preview.directCommissionTotal,
+        indirectBusinessTotal: preview.indirectBusinessTotal,
+        indirectCommissionTotal: preview.indirectCommissionTotal,
+        sponsorCount: preview.sponsorCount,
+        transactionCount: preview.transactionCount,
+        sponsors: preview.sponsors.map(s => ({
+          sponsorId: s.sponsorId,
+          sponsorName: s.sponsorName,
+          sponsorCode: s.sponsorCode,
+          customerId: s.customerId,
+          mobile: s.mobile,
+          isDeveloper: s.isDeveloper,
+          directBusiness: s.directBusiness,
+          directCommission: s.directCommission,
+          indirectBusiness: s.indirectBusiness,
+          indirectCommission: s.indirectCommission,
+          totalBusiness: s.totalBusiness,
+          totalCommission: s.totalCommission,
+          directRatesStr: s.directRatesStr || '',
+          directEffectivePct: s.directEffectivePct || 0,
+          indirectRatesStr: s.indirectRatesStr || '',
+          indirectEffectivePct: s.indirectEffectivePct || 0,
+          totalEffectivePct: s.totalEffectivePct || 0,
+          transactionCount: s.transactionCount,
+        })),
+        status: 'CLOSED',
+        createdById: userId,
+        remarks: remarks || '',
+      });
+
+      await closingDoc.save({ session });
+
+      // Tag all included commission records with this closingId
+      const commissionIds = preview.commissions.map(c => c._id);
+      await PlotSponsorCommission.updateMany(
+        { _id: { $in: commissionIds } },
+        { $set: { closingId: closingDoc._id } }
+      ).session(session);
+
+      // Write audit log
+      const log = new PlotAuditLog({
+        action: 'CREATE_CLOSING',
+        modelName: 'PlotClosing',
+        documentId: closingDoc._id,
+        userId,
+        details: {
+          closingName: closingDoc.closingName,
+          closingNumber: closingDoc.closingNumber,
+          startDate: start,
+          endDate: end,
+          totalCollection: closingDoc.totalCollection,
+          totalCommission: closingDoc.totalCommission,
+          sponsorCount: closingDoc.sponsorCount,
+          transactionCount: closingDoc.transactionCount,
+        },
+      });
+      await log.save({ session });
+
+      await session.commitTransaction();
+      return closingDoc;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Get list of all closing batches
+   */
+  async getPlotClosings(query = {}) {
+    const filter = {};
+    if (query.status) filter.status = query.status;
+    if (query.search) {
+      const q = query.search.trim();
+      filter.$or = [
+        { closingName: { $regex: q, $options: 'i' } },
+        { closingNumber: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    return PlotClosing.find(filter)
+      .populate('createdById', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  /**
+   * Get a single closing batch with detailed transactions
+   */
+  async getPlotClosingById(id) {
+    const closing = await PlotClosing.findById(id).populate('createdById', 'name email').lean();
+    if (!closing) {
+      throw ApiError.notFound('Closing batch not found');
+    }
+
+    // Fetch linked commission records
+    const commissions = await PlotSponsorCommission.find({ closingId: closing._id })
+      .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
+      .populate('customerId', 'name customerId customerCode mobile')
+      .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
+      .populate({
+        path: 'bookingId',
+        select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
+        populate: { path: 'plotId', select: 'plotNumber seriesId' }
+      })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return {
+      ...closing,
+      transactions: commissions,
+    };
+  }
+
+  /**
+   * Update closing batch dates or name.
+   * Auto-reattributes commission records when date range changes.
+   */
+  async updatePlotClosing(id, data, userId) {
+    const closing = await PlotClosing.findById(id);
+    if (!closing) {
+      throw ApiError.notFound('Closing batch not found');
+    }
+
+    if (closing.status === 'REVERSED') {
+      throw ApiError.badRequest('Cannot update a reversed closing batch');
+    }
+
+    const { closingName, startDate, endDate, remarks } = data;
+
+    const newStart = startDate ? new Date(startDate) : new Date(closing.startDate);
+    newStart.setHours(0, 0, 0, 0);
+
+    const newEnd = endDate ? new Date(endDate) : new Date(closing.endDate);
+    newEnd.setHours(23, 59, 59, 999);
+
+    if (newStart > newEnd) {
+      throw ApiError.badRequest('Start Date cannot be after End Date');
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      // Calculate new preview with updated dates, allowing commissions already in this closing
+      const preview = await this.previewPlotClosing({
+        startDate: newStart,
+        endDate: newEnd,
+        excludeClosingId: closing._id,
+      });
+
+      // 1. Unlink commissions previously tagged to this closing that are now outside the new date range
+      await PlotSponsorCommission.updateMany(
+        { closingId: closing._id, createdAt: { $not: { $gte: newStart, $lte: newEnd } } },
+        { $set: { closingId: null } }
+      ).session(session);
+
+      // 2. Link all valid commissions inside new date range
+      const newCommissionIds = preview.commissions.map(c => c._id);
+      if (newCommissionIds.length > 0) {
+        await PlotSponsorCommission.updateMany(
+          { _id: { $in: newCommissionIds } },
+          { $set: { closingId: closing._id } }
+        ).session(session);
+      }
+
+      // 3. Update closing document
+      if (closingName) closing.closingName = closingName.trim();
+      closing.startDate = newStart;
+      closing.endDate = newEnd;
+      closing.totalCollection = preview.totalCollection;
+      closing.totalCommission = preview.totalCommission;
+      closing.directBusinessTotal = preview.directBusinessTotal;
+      closing.directCommissionTotal = preview.directCommissionTotal;
+      closing.indirectBusinessTotal = preview.indirectBusinessTotal;
+      closing.indirectCommissionTotal = preview.indirectCommissionTotal;
+      closing.sponsorCount = preview.sponsorCount;
+      closing.transactionCount = preview.transactionCount;
+      closing.sponsors = preview.sponsors.map(s => ({
+        sponsorId: s.sponsorId,
+        sponsorName: s.sponsorName,
+        sponsorCode: s.sponsorCode,
+        customerId: s.customerId,
+        mobile: s.mobile,
+        isDeveloper: s.isDeveloper,
+        directBusiness: s.directBusiness,
+        directCommission: s.directCommission,
+        indirectBusiness: s.indirectBusiness,
+        indirectCommission: s.indirectCommission,
+        totalBusiness: s.totalBusiness,
+        totalCommission: s.totalCommission,
+        directRatesStr: s.directRatesStr || '',
+        directEffectivePct: s.directEffectivePct || 0,
+        indirectRatesStr: s.indirectRatesStr || '',
+        indirectEffectivePct: s.indirectEffectivePct || 0,
+        totalEffectivePct: s.totalEffectivePct || 0,
+        transactionCount: s.transactionCount,
+      }));
+      if (remarks !== undefined) closing.remarks = remarks;
+
+      await closing.save({ session });
+
+      // Audit log
+      const log = new PlotAuditLog({
+        action: 'UPDATE_CLOSING',
+        modelName: 'PlotClosing',
+        documentId: closing._id,
+        userId,
+        details: {
+          closingName: closing.closingName,
+          startDate: newStart,
+          endDate: newEnd,
+          totalCollection: closing.totalCollection,
+          totalCommission: closing.totalCommission,
+        },
+      });
+      await log.save({ session });
+
+      await session.commitTransaction();
+      return closing;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Delete / Reverse a closing batch.
+   * Completely unlinks all associated commissions so they return to open unclosed state.
+   */
+  async deletePlotClosing(id, userId) {
+    const closing = await PlotClosing.findById(id);
+    if (!closing) {
+      throw ApiError.notFound('Closing batch not found');
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      // Unlink all commission records associated with this closing
+      await PlotSponsorCommission.updateMany(
+        { closingId: closing._id },
+        { $set: { closingId: null } }
+      ).session(session);
+
+      // Audit log
+      const log = new PlotAuditLog({
+        action: 'DELETE_CLOSING',
+        modelName: 'PlotClosing',
+        documentId: closing._id,
+        userId,
+        details: {
+          closingName: closing.closingName,
+          closingNumber: closing.closingNumber,
+          startDate: closing.startDate,
+          endDate: closing.endDate,
+          totalCommission: closing.totalCommission,
+        },
+      });
+      await log.save({ session });
+
+      // Remove closing document
+      await PlotClosing.findByIdAndDelete(id).session(session);
+
+      await session.commitTransaction();
+      return { message: `Closing ${closing.closingNumber} (${closing.closingName}) successfully reversed and deleted. All associated commissions are restored to unclosed state.` };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }
 

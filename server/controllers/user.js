@@ -29,16 +29,25 @@ const userRegister = async (req, res, next) => {
   }
 }
 const userLogin = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, loginType } = req.body;
+  const rawIdentifier = email?.trim() || req.body.identifier?.trim();
 
-  if (!email || !password) {
-    return next({ status: 400, message: "Email & passowrd are required" });
+  if (!rawIdentifier || !password) {
+    return next({ status: 400, message: "Login ID and password are required" });
   }
   try {
-    const isUser = await user.findOne({ email });
+    const isUser = await user.findOne({
+      $or: [
+        { email: rawIdentifier.toLowerCase() },
+        { email: rawIdentifier },
+        { sponsorCode: rawIdentifier.toUpperCase() },
+        { customerId: rawIdentifier.toUpperCase() },
+        { mobile: rawIdentifier }
+      ]
+    });
     // console.log("inlogin", isUser)
     if (!isUser) {
-      return next({ status: 400, message: "User not found" });
+      return next({ status: 400, message: "Account not found with provided ID / Email / Mobile" });
     }
 
     if (isUser.role === 'customer') {
@@ -51,8 +60,7 @@ const userLogin = async (req, res, next) => {
 
     const passwordMatch = await bcrypt.compare(password, isUser.password);
     if (!passwordMatch) {
-      return next({ status: 400, success: false, message: "Passowrd is incorrect" });
-
+      return next({ status: 400, success: false, message: "Password is incorrect" });
     }
 
     let tobe = {
@@ -80,18 +88,21 @@ const userLogin = async (req, res, next) => {
       { expiresIn: '18d' }
     )
 
-    isUser.password = undefined;
-    isUser.createdAt = undefined;
-    isUser._id = undefined;
-
     let send = {
+      id: isUser._id,
+      _id: isUser._id,
       name: isUser.name,
       email: isUser.email,
-      role: isUser.role
-    }
+      role: isUser.role,
+      sponsorCode: isUser.sponsorCode || isUser.customerId,
+      mobile: isUser.mobile,
+    };
     if (isUser.role == 'admin' || isUser.role == 'manager') {
       send.permissions = isUser.permissions;
     }
+
+    isUser.password = undefined;
+    isUser.createdAt = undefined;
 
     // console.log("at login asigning permission", send)
 

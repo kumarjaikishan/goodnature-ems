@@ -89,6 +89,8 @@ const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
 const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
 const PlotInterestCalculator = lazy(() => import('./pages/plots/PlotInterestCalculator'));
 const SponsorLedgerPage = lazy(() => import('./pages/plots/SponsorLedgerPage'));
+const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
+const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
 
 // 🔹 Role-based route definitions
 const routesByRole = {
@@ -203,6 +205,7 @@ const routesByRole = {
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
+      <Route path="plots/closings" element={<PlotClosingsPage />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -261,6 +264,7 @@ const routesByRole = {
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
+      <Route path="plots/closings" element={<PlotClosingsPage />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -294,6 +298,19 @@ const routesByRole = {
       <Route path="my-leave-ledger" element={<MyLeaveLedger />} />
       <Route path="my-ledger" element={<EmployeeFinancialLedger />} />
       <Route path="setting" element={<Setting />} />
+      <Route path="*" element={<Errorpage />} />
+    </Route>
+  ),
+  sponsor: (
+    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['sponsor']} />}>
+      <Route index element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
+      <Route path="my-bookings" element={<SponsorBookingsPage />} />
+      <Route path="plots/bookings" element={<SponsorBookingsPage />} />
+      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+      <Route path="profile" element={<AdminManagerProfile />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),

@@ -5,11 +5,8 @@ const checkPermission = require('../middleware/checkpermission');
 const ctrl = require('../controllers/plots.controller');
 
 router.use(authmiddlewre);
-// Only staff roles can touch the plots module at all; individual actions
-// are further restricted below by checkPermission (resource, action) so an
-// admin can grant/restrict booking vs collection vs inventory vs delete
-// per person, same as every other module in the app.
-router.use(authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant'));
+// Only staff roles and sponsors (for self-ledger) can touch the plots module
+router.use(authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant', 'sponsor'));
 
 // ── Rate Config (part of inventory setup) ──
 router.get('/rate-config', checkPermission('plot_inventory', 1), ctrl.getRateConfig);
@@ -24,11 +21,18 @@ router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSe
 
 // ── Sponsors ──
 router.get('/sponsors', checkPermission('plot_sponsor', 1), ctrl.getSponsors);
-router.get('/sponsors/:id/ledger', checkPermission('plot_sponsor', 1), ctrl.getSponsorLedger);
+router.get('/sponsors/:id/ledger', (req, res, next) => {
+  // If the logged-in user is a sponsor requesting their own ledger, bypass staff permission
+  if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
+    return next();
+  }
+  return checkPermission('plot_sponsor', 1)(req, res, next);
+}, ctrl.getSponsorLedger);
 router.post('/sponsors', checkPermission('plot_sponsor', 2), ctrl.createSponsor);
 router.put('/sponsors/:id', checkPermission('plot_sponsor', 3), ctrl.updateSponsor);
 router.delete('/sponsors/:id', checkPermission('plot_sponsor', 4), ctrl.deleteSponsor);
 router.patch('/sponsors/:id/toggle-block', checkPermission('plot_sponsor', 3), ctrl.toggleSponsorBlock);
+router.post('/sponsors/:id/reset-password', checkPermission('plot_sponsor', 3), ctrl.resetSponsorPassword);
 
 // ── Customers ──
 router.get('/customers', checkPermission('plot_customer', 1), ctrl.getCustomers);
@@ -39,8 +43,19 @@ router.delete('/customers/:id', checkPermission('plot_customer', 4), ctrl.delete
 
 // ── Bookings & Holds ──
 router.post('/bookings', checkPermission('plot_booking', 2), ctrl.createBookingOrHold);
-router.get('/bookings/list', checkPermission('plot_booking', 1), ctrl.getBookings);
-router.get('/bookings/:id', checkPermission('plot_booking', 1), ctrl.getBookingById);
+router.get('/bookings/list', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    req.query.sponsorId = req.user.id || req.user._id;
+    return next();
+  }
+  return checkPermission('plot_booking', 1)(req, res, next);
+}, ctrl.getBookings);
+router.get('/bookings/:id', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_booking', 1)(req, res, next);
+}, ctrl.getBookingById);
 router.put('/bookings/:id', checkPermission('plot_booking', 3), ctrl.updateBooking);
 router.delete('/bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteBooking);
 
@@ -58,6 +73,14 @@ router.delete('/receipts/:id', checkPermission('plot_collection', 4), ctrl.delet
 // ── Dashboard & Reports ──
 router.get('/dashboard/stats', checkPermission('plot_reports', 1), ctrl.getDashboardStats);
 router.get('/reports/:type', checkPermission('plot_reports', 1), ctrl.getReportsData);
+
+// ── Commission Closings ──
+router.get('/closings/preview', checkPermission('plot_sponsor', 1), ctrl.previewPlotClosing);
+router.post('/closings', checkPermission('plot_sponsor', 2), ctrl.createPlotClosing);
+router.get('/closings', checkPermission('plot_sponsor', 1), ctrl.getPlotClosings);
+router.get('/closings/:id', checkPermission('plot_sponsor', 1), ctrl.getPlotClosingById);
+router.put('/closings/:id', checkPermission('plot_sponsor', 3), ctrl.updatePlotClosing);
+router.delete('/closings/:id', checkPermission('plot_sponsor', 4), ctrl.deletePlotClosing);
 
 // ── Weekly Payouts (money going back OUT to the customer) ──
 router.post('/bookings/:id/payout/initialize', checkPermission('plot_payout', 2), ctrl.initializePlotPayout);

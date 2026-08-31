@@ -96,6 +96,7 @@ const Sidebar = () => {
             { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Collections", link: "/dashboard/plots/installments", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Commission Closings", link: "/dashboard/plots/closings", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
@@ -103,14 +104,16 @@ const Sidebar = () => {
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
         { menu: "Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["admin", "superadmin", "manager"] },
         { menu: "Vouchers", link: "/dashboard/vouchers", icon: <Receipt size={20} />, roles: ["admin", "superadmin", "manager", "demo"] },
+        { menu: "Commission Ledger", link: "/dashboard", icon: <BookOpen size={20} />, roles: ["sponsor"] },
+        { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
       ],
     },
     {
       title: "Others",
       items: [
-        { menu: "Profile", link: "/dashboard/profile", icon: <UserCircle2 size={20} />, roles: ["admin", "superadmin", "manager", "employee", "grant", "demo"] },
+        { menu: "Profile", link: "/dashboard/profile", icon: <UserCircle2 size={20} />, roles: ["admin", "superadmin", "manager", "employee", "grant", "demo", "sponsor"] },
         { menu: "Setting", link: "/dashboard/setting", icon: <Settings size={20} />, roles: ["admin", "superadmin", "manager", "employee", "demo"] },
-        { menu: "Logout", isLogout: true, icon: <LogOut size={20} />, roles: ["admin", "employee", "superadmin", "developer", "manager", "grant", "demo"] },
+        { menu: "Logout", isLogout: true, icon: <LogOut size={20} />, roles: ["admin", "employee", "superadmin", "developer", "manager", "grant", "demo", "sponsor"] },
       ],
     },
   ];

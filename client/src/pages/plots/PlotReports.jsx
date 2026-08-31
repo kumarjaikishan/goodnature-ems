@@ -78,15 +78,38 @@ const PlotReports = () => {
   };
 
   const [editingBooking, setEditingBooking] = useState(null);
-  const [editForm, setEditForm] = useState({ notes: '', discount: 0, bookingAmount: 0, bookingDate: '', sponsorId: '', status: 'ACTIVE', scheme: 'FULL_PAYMENT', installmentCount: 100, installmentAmount: 0 });
+  const [rateConfig, setRateConfig] = useState(null);
+  const [editForm, setEditForm] = useState({
+    plotId: '',
+    customerId: '',
+    sponsorId: '',
+    tenureMonths: 0,
+    scheme: 'FULL_PAYMENT',
+    bookingAmount: 0,
+    paymentMode: 'cash',
+    transactionReference: '',
+    notes: '',
+    bookingType: 'BOOKING',
+    holdExpiryDays: '7',
+    discount: 0,
+    bookingDate: '',
+    oneTimeMonths: 1,
+    downpaymentMonths: 1,
+    status: 'ACTIVE',
+    agreementNumber: '',
+  });
+
+  const [discountType, setDiscountType] = useState('RUPEE'); // 'RUPEE', 'PERCENT', 'SQFT_RATE'
+  const [discountVal, setDiscountVal] = useState('');
+  const [downpaymentBase, setDownpaymentBase] = useState('BEFORE_DISCOUNT');
+  const [govtRate, setGovtRate] = useState('100');
+
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   const [sponsorSearch, setSponsorSearch] = useState('');
   const [showSponsorDropdown, setShowSponsorDropdown] = useState(false);
   const [sponsorSearchResults, setSponsorSearchResults] = useState([]);
-  const [editEmiType, setEditEmiType] = useState('MONTH'); // 'MONTH' or 'AMOUNT'
-
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
@@ -130,56 +153,91 @@ const PlotReports = () => {
     return () => clearTimeout(delayDebounce);
   }, [customerSearch]);
 
-  // Calculate EMI or period dynamically in the edit form
-  const calculatedEmi = (() => {
-    if (!editingBooking || editForm.scheme !== 'MONTHLY_INSTALLMENT') return 0;
-    const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking.plotId || {};
-    const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking.plotValue || 0);
-    const net = Math.max(0, plotVal - (Number(editForm.discount) || 0));
-    const dp = Number(editForm.bookingAmount) || 0;
-    const principal = Math.max(0, net - dp);
-    const count = Number(editForm.installmentCount) || 1;
-    return Math.floor(principal / count);
-  })();
+  const slabs = rateConfig?.rateSlabs?.length > 0
+    ? rateConfig.rateSlabs
+    : [
+        { tenureMonths: 0, plotRate: 1000, promoterCommissionPercent: 10.0, developerCommissionPercent: 2.0, downpaymentPercent: 100, emiPercent: 0 },
+        { tenureMonths: 3, plotRate: 1050, promoterCommissionPercent: 10.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 6, plotRate: 1100, promoterCommissionPercent: 11.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 9, plotRate: 1150, promoterCommissionPercent: 11.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 12, plotRate: 1200, promoterCommissionPercent: 12.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 15, plotRate: 1250, promoterCommissionPercent: 12.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 18, plotRate: 1300, promoterCommissionPercent: 13.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 21, plotRate: 1350, promoterCommissionPercent: 13.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 24, plotRate: 1400, promoterCommissionPercent: 14.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 27, plotRate: 1450, promoterCommissionPercent: 14.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+        { tenureMonths: 30, plotRate: 1500, promoterCommissionPercent: 15.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
+      ];
 
-  const calculatedPeriod = (() => {
-    if (!editingBooking || editForm.scheme !== 'MONTHLY_INSTALLMENT') return 0;
-    const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking.plotId || {};
-    const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking.plotValue || 0);
-    const net = Math.max(0, plotVal - (Number(editForm.discount) || 0));
-    const dp = Number(editForm.bookingAmount) || 0;
-    const principal = Math.max(0, net - dp);
-    const amount = Number(editForm.installmentAmount) || 1;
-    return Math.ceil(principal / amount);
-  })();
+  const currentSlab = slabs.find((s) => Number(s.tenureMonths) === Number(editForm.tenureMonths)) || slabs[0];
 
-  const getDivisorSuggestions = (principal, currentEmi) => {
-    if (principal <= 0) return [];
-    const suggestions = [];
-    for (let months = 1; months <= 200; months++) {
-      if (principal % months === 0) {
-        suggestions.push({
-          months,
-          emi: principal / months
-        });
-      }
+  // Dynamic calculations based on selected plot and tenure slab
+  const selectedPlotObj = plotsList.find(p => p._id === editForm.plotId) || editingBooking?.plotId || {};
+  const plotArea = selectedPlotObj?.plotSize || selectedPlotObj?.area || selectedPlotObj?.areaSqFt || 0;
+  const isCorner = selectedPlotObj?.plotType === 'CORNER';
+  const cornerExtra = isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0;
+  const baseRate = currentSlab.plotRate || rateConfig?.baseSqFtRate || 1000;
+  const effectiveRate = baseRate * (1 + cornerExtra / 100);
+  const calculatedPlotValue = plotArea > 0 ? Math.round(plotArea * effectiveRate) : (editingBooking?.plotValue || 0);
+
+  const calculateDiscountAmount = (type, val) => {
+    const num = Number(val) || 0;
+    if (num <= 0 || !plotArea) return 0;
+    if (type === 'PERCENT') {
+      return Math.round((calculatedPlotValue * num) / 100);
+    } else if (type === 'SQFT_RATE') {
+      return Math.round(plotArea * num);
     }
-    return suggestions
-      .sort((a, b) => Math.abs(a.emi - currentEmi) - Math.abs(b.emi - currentEmi))
-      .slice(0, 5);
+    return num;
   };
+
+  const calculatedDiscount = calculateDiscountAmount(discountType, discountVal);
+  const netContractValue = Math.max(0, calculatedPlotValue - calculatedDiscount);
+  const isOneTime = Number(editForm.tenureMonths) === 0;
+  const dpPercent = currentSlab.downpaymentPercent ? currentSlab.downpaymentPercent / 100 : (isOneTime ? 1.0 : 0.40);
+
+  let downpaymentAmt = 0;
+  let emiPrincipalAmt = 0;
+
+  if (isOneTime) {
+    downpaymentAmt = netContractValue;
+    emiPrincipalAmt = 0;
+  } else {
+    if (downpaymentBase === 'BEFORE_DISCOUNT') {
+      downpaymentAmt = Math.round(calculatedPlotValue * dpPercent);
+      emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
+    } else {
+      downpaymentAmt = Math.round(netContractValue * dpPercent);
+      emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
+    }
+  }
+
+  const emiMonthlyAmt = !isOneTime && editForm.tenureMonths > 0 ? Math.round(emiPrincipalAmt / editForm.tenureMonths) : 0;
 
   const handleEditClick = async (booking) => {
     setEditingBooking(booking);
 
-    if (plotsList.length === 0) {
-      api.get('/plots?limit=5000').then((res) => setPlotsList(res.data.data || [])).catch(() => { });
-    }
+    try {
+      const [plotsRes, rateRes] = await Promise.all([
+        plotsList.length === 0 ? api.get('/plots?limit=5000') : Promise.resolve({ data: { data: plotsList } }),
+        rateConfig ? Promise.resolve({ data: { data: rateConfig } }) : api.get('/plots/rate-config'),
+      ]);
+      setPlotsList(plotsRes.data.data || []);
+      setRateConfig(rateRes.data.data || null);
+    } catch { }
 
     const custObj = booking.customerId;
     const custName = custObj?.name || booking.customerName || '';
     const custCode = custObj?.customerCode || custObj?.mobile || '';
     setCustomerSearch(custName ? `${custName} (${custCode})` : '');
+
+    const bookingTenure = booking.tenureMonths !== undefined ? Number(booking.tenureMonths) : (booking.scheme === 'FULL_PAYMENT' ? 0 : 3);
+    const bookingDiscount = booking.discount || 0;
+
+    setDiscountType('RUPEE');
+    setDiscountVal(bookingDiscount ? String(bookingDiscount) : '');
+    setDownpaymentBase(booking.downpaymentCalculationBase || 'BEFORE_DISCOUNT');
+    setGovtRate(booking.govtRate ? String(booking.govtRate) : '100');
 
     const initialForm = {
       bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
@@ -189,13 +247,12 @@ const PlotReports = () => {
       status: booking.status || 'ACTIVE',
       agreementNumber: booking.agreementNumber || '',
       bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : new Date(booking.createdAt).toISOString().split('T')[0],
-      scheme: booking.scheme || 'FULL_PAYMENT',
-      discount: booking.discount || 0,
+      scheme: booking.scheme || (bookingTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT'),
+      tenureMonths: bookingTenure,
+      discount: bookingDiscount,
       bookingAmount: booking.bookingAmount || 0,
       downpaymentMonths: booking.downpaymentMonths || 1,
       oneTimeMonths: booking.oneTimeMonths || 1,
-      installmentCount: 100,
-      installmentAmount: 0,
       paymentMode: booking.paymentMode || 'cash',
       transactionReference: booking.transactionReference || '',
       sponsorId: booking.sponsorId?._id || booking.sponsorId || '',
@@ -203,24 +260,6 @@ const PlotReports = () => {
     };
     setEditForm(initialForm);
     setSponsorSearch(booking.sponsorId?.name ? `${booking.sponsorId.name} (${booking.sponsorId.sponsorCode || ''})` : 'Direct / Company (No Sponsor)');
-    setEditEmiType('MONTH');
-
-    if (booking.scheme === 'MONTHLY_INSTALLMENT') {
-      try {
-        const { data: res } = await api.get(`/plots/bookings/${booking._id}/installments`);
-        const insts = res.data || [];
-        const regularInsts = insts.filter(i => i.installmentNumber > 0);
-        if (regularInsts.length > 0) {
-          setEditForm(prev => ({
-            ...prev,
-            installmentCount: regularInsts.length,
-            installmentAmount: regularInsts[0].dueAmount,
-          }));
-        }
-      } catch (err) {
-        console.error('Failed to fetch installments:', err);
-      }
-    }
   };
 
   // Sponsor Ledger Modal state in PlotReports
@@ -271,12 +310,13 @@ const PlotReports = () => {
     try {
       const payload = {
         notes: editForm.notes,
-        discount: Number(editForm.discount) || 0,
-        bookingAmount: Number(editForm.bookingAmount) || 0,
+        discount: calculatedDiscount,
+        bookingAmount: downpaymentAmt,
         bookingDate: editForm.bookingDate,
-        sponsorId: editForm.sponsorId,
+        sponsorId: editForm.sponsorId || null,
         status: editForm.status,
-        scheme: editForm.scheme,
+        scheme: isOneTime ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT',
+        tenureMonths: Number(editForm.tenureMonths),
         agreementNumber: editForm.agreementNumber,
         bookingType: editForm.bookingType,
         holdExpiryDays: Number(editForm.holdExpiryDays) || 7,
@@ -284,20 +324,11 @@ const PlotReports = () => {
         plotId: editForm.plotId,
         paymentMode: editForm.paymentMode,
         transactionReference: editForm.transactionReference,
-        downpaymentMonths: Number(editForm.downpaymentMonths) || 1,
+        oneTimeMonths: isOneTime ? Number(editForm.oneTimeMonths || 1) : undefined,
+        downpaymentMonths: !isOneTime ? Number(editForm.downpaymentMonths || 1) : undefined,
+        downpaymentCalculationBase: downpaymentBase,
+        govtRate: Number(govtRate) || 100,
       };
-
-      if (editForm.scheme === 'MONTHLY_INSTALLMENT') {
-        if (editEmiType === 'MONTH') {
-          payload.installmentCount = Number(editForm.installmentCount) || 100;
-          payload.installmentAmount = calculatedEmi;
-        } else {
-          payload.installmentCount = calculatedPeriod;
-          payload.installmentAmount = Number(editForm.installmentAmount);
-        }
-      } else {
-        payload.oneTimeMonths = Number(editForm.oneTimeMonths) || 1;
-      }
 
       await api.put(`/plots/bookings/${editingBooking._id}`, payload);
       toast.success('Booking details updated successfully');
@@ -1197,201 +1228,190 @@ const PlotReports = () => {
             </div>
 
             {/* 3. Scheme, Pricing & Terms */}
-            <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wide">2. Pricing, Payment Scheme & Terms</h4>
+            <div className="p-4 bg-teal-50/50 border border-teal-100 rounded-xl space-y-3">
+              <h4 className="text-xs font-bold text-teal-900 uppercase tracking-wide">2. Tenure & Pricing Slab (समय / दर)</h4>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-600">Payment Scheme</label>
-                <div className="flex gap-6 mt-1">
-                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Tenure / Scheme Matrix Dropdown */}
+                <div className="flex flex-col gap-1 md:col-span-2">
+                  <label className="text-xs font-semibold text-slate-700">Tenure & Rate Slab (समय / बिक्री दर) *</label>
+                  <select
+                    className="w-full px-3.5 py-2.5 bg-white border border-teal-300 rounded-xl text-sm font-bold text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none"
+                    value={editForm.tenureMonths}
+                    onChange={(e) => setEditForm({ ...editForm, tenureMonths: Number(e.target.value) })}
+                  >
+                    {slabs.map((s) => (
+                      <option key={s.tenureMonths} value={s.tenureMonths}>
+                        {s.tenureMonths === 0
+                          ? `0 Months (One-Time Payment) — ₹${s.plotRate}/sqft [100% Downpayment]`
+                          : `${s.tenureMonths} Months EMI — ₹${s.plotRate}/sqft [40% Down / 60% in ${s.tenureMonths} EMIs]`}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-teal-700 font-semibold px-1">
+                    Rate: ₹{currentSlab.plotRate}/sqft | Base Rate: ₹{baseRate}/sqft | Promoter: {currentSlab.promoterCommissionPercent}% | Dev: {currentSlab.developerCommissionPercent}%
+                  </span>
+                </div>
+
+                {/* Discount Input */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-700">Discount</label>
+                  <div className="flex rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 bg-white">
+                    <select
+                      value={discountType}
+                      onChange={(e) => setDiscountType(e.target.value)}
+                      className="px-3 py-2.5 bg-slate-100 text-xs font-bold text-slate-700 border-r border-slate-300 outline-none cursor-pointer"
+                    >
+                      <option value="RUPEE">₹ (Flat)</option>
+                      <option value="PERCENT">% (Percentage)</option>
+                      <option value="SQFT_RATE">₹ / Sq.Ft.</option>
+                    </select>
                     <input
-                      type="radio"
-                      name="editScheme"
-                      value="FULL_PAYMENT"
-                      checked={editForm.scheme === 'FULL_PAYMENT'}
-                      onChange={() => setEditForm({ ...editForm, scheme: 'FULL_PAYMENT' })}
-                      className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
+                      className="w-full px-3.5 py-2.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
+                      type="tel"
+                      value={discountVal}
+                      onChange={(e) => setDiscountVal(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder={
+                        discountType === 'PERCENT'
+                          ? 'e.g. 10%'
+                          : discountType === 'SQFT_RATE'
+                          ? 'e.g. 50 (₹/Sq.Ft.)'
+                          : 'e.g. 5000 (Flat ₹)'
+                      }
                     />
-                    One Time (Full Payment)
-                  </label>
-                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="editScheme"
-                      value="MONTHLY_INSTALLMENT"
-                      checked={editForm.scheme === 'MONTHLY_INSTALLMENT'}
-                      onChange={() => setEditForm({ ...editForm, scheme: 'MONTHLY_INSTALLMENT' })}
-                      className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
-                    />
-                    Monthly EMI (Installments)
-                  </label>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-600">Discount Offered (₹)</label>
-                  <input
-                    type="number"
-                    value={editForm.discount}
-                    onChange={(e) => setEditForm({ ...editForm, discount: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-600">Initial Down Payment (₹)</label>
-                  <input
-                    type="number"
-                    value={editForm.bookingAmount}
-                    onChange={(e) => setEditForm({ ...editForm, bookingAmount: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-600">Downpayment Grace Term (Months)</label>
-                  <input
-                    type="number"
-                    value={editForm.downpaymentMonths}
-                    onChange={(e) => setEditForm({ ...editForm, downpaymentMonths: Number(e.target.value) || 1 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-                    min="1"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 4. EMI / One-Time Schedule Configuration */}
-            {editForm.scheme === 'MONTHLY_INSTALLMENT' && (
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-600">EMI Calculation Mode</label>
-                  <div className="flex gap-6 mt-1">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="editEmiType"
-                        checked={editEmiType === 'MONTH'}
-                        onChange={() => setEditEmiType('MONTH')}
-                        className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
-                      />
-                      Month-based (specify tenure)
-                    </label>
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="editEmiType"
-                        checked={editEmiType === 'AMOUNT'}
-                        onChange={() => setEditEmiType('AMOUNT')}
-                        className="text-indigo-600 focus:ring-teal-600 w-4 h-4 cursor-pointer"
-                      />
-                      Amount-based (specify EMI amount)
-                    </label>
                   </div>
+                  {calculatedDiscount > 0 && (
+                    <span className="text-[0.68rem] text-emerald-700 font-semibold px-1">
+                      Calculated Discount: ₹{calculatedDiscount.toLocaleString('en-IN')}
+                    </span>
+                  )}
                 </div>
 
-                {editEmiType === 'MONTH' ? (
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Govt Rate */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-700">Govt. Base Rate (₹ / Sq.Ft.)</label>
+                  <input
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
+                    type="tel"
+                    value={govtRate}
+                    onChange={(e) => setGovtRate(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="Govt rate per sqft (Default 100)"
+                  />
+                </div>
+
+                {/* One Time vs EMI Breakdown */}
+                {isOneTime ? (
+                  <>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-600">Installment Period (Months)</label>
+                      <label className="text-xs font-semibold text-slate-700">Total Final Payment (100%)</label>
                       <input
-                        type="number"
-                        value={editForm.installmentCount}
-                        onChange={(e) => setEditForm({ ...editForm, installmentCount: Number(e.target.value) || 0 })}
+                        className="w-full px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold font-mono cursor-not-allowed rounded-xl text-sm"
+                        type="text"
+                        value={`₹${netContractValue.toLocaleString('en-IN')}`}
+                        disabled
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700">Payment Time Limit (Months)</label>
+                      <input
                         className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-                        placeholder="e.g. 100"
+                        type="tel"
+                        value={editForm.oneTimeMonths || 1}
+                        onChange={(e) => setEditForm({ ...editForm, oneTimeMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
+                        placeholder="Time limit (e.g. 1, 2, 3 months)"
                         required
                       />
                     </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Downpayment Calculation Basis Toggle */}
+                    <div className="md:col-span-2 bg-white border border-slate-200 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-800">
+                          40% Downpayment Calculation Base
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          {downpaymentBase === 'BEFORE_DISCOUNT'
+                            ? `Gross Value (₹${calculatedPlotValue.toLocaleString('en-IN')}). Discount of ₹${calculatedDiscount.toLocaleString('en-IN')} reduces EMI balance.`
+                            : `Net Value (₹${netContractValue.toLocaleString('en-IN')} after ₹${calculatedDiscount.toLocaleString('en-IN')} discount).`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDownpaymentBase('AFTER_DISCOUNT')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            downpaymentBase === 'AFTER_DISCOUNT'
+                              ? 'bg-teal-700 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          After Discount (Net)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDownpaymentBase('BEFORE_DISCOUNT')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            downpaymentBase === 'BEFORE_DISCOUNT'
+                              ? 'bg-teal-700 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          Before Discount (Gross)
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-600">Calculated EMI (₹/month)</label>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Downpayment (40% of {downpaymentBase === 'BEFORE_DISCOUNT' ? 'Gross Plot Value' : 'Net Value'})
+                      </label>
                       <input
-                        type="number"
-                        value={calculatedEmi}
+                        className="w-full px-3.5 py-2.5 bg-teal-50 border border-teal-200 text-teal-800 font-bold font-mono cursor-not-allowed rounded-xl text-sm"
+                        type="text"
+                        value={`₹${downpaymentAmt.toLocaleString('en-IN')}`}
                         disabled
-                        className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 cursor-not-allowed outline-none"
                       />
                     </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-600">EMI Amount (₹/month)</label>
-                        <input
-                          type="number"
-                          value={editForm.installmentAmount}
-                          onChange={(e) => setEditForm({ ...editForm, installmentAmount: Number(e.target.value) || 0 })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-                          placeholder="Enter EMI amount"
-                          required
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-600">Calculated Period (Months)</label>
-                        <input
-                          type="number"
-                          value={calculatedPeriod}
-                          disabled
-                          className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 cursor-not-allowed outline-none"
-                        />
-                      </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700">Downpayment Grace Term (Months)</label>
+                      <input
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
+                        type="tel"
+                        value={editForm.downpaymentMonths || 1}
+                        onChange={(e) => setEditForm({ ...editForm, downpaymentMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
+                        placeholder="e.g. 1 or 2 months"
+                        required
+                      />
                     </div>
 
-                    {(() => {
-                      const currentPlot = plotsList.find(p => p._id === editForm.plotId) || editingBooking?.plotId || {};
-                      const plotVal = currentPlot.totalValue || (currentPlot.areaSqFt && currentPlot.ratePerSqFt ? currentPlot.areaSqFt * currentPlot.ratePerSqFt : editingBooking?.plotValue || 0);
-                      const net = Math.max(0, plotVal - (Number(editForm.discount) || 0));
-                      const dp = Number(editForm.bookingAmount) || 0;
-                      const principal = Math.max(0, net - dp);
-                      const sugs = getDivisorSuggestions(principal, Number(editForm.installmentAmount) || 0);
-                      if (sugs.length > 0) {
-                        return (
-                          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col gap-2">
-                            <label className="text-[0.65rem] font-bold text-emerald-800 uppercase tracking-wide">Suggested Divisors (Zero Remainders)</label>
-                            <div className="flex flex-wrap gap-2">
-                              {sugs.map((s, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => setEditForm(prev => ({ ...prev, installmentAmount: s.emi, installmentCount: s.months }))}
-                                  className="px-2.5 py-1 bg-white border border-emerald-300 hover:bg-emerald-100 text-xs font-bold text-emerald-800 rounded-lg transition cursor-pointer"
-                                >
-                                  {s.months} mos @ ₹{s.emi}/mo
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700">EMI Balance ({downpaymentBase === 'BEFORE_DISCOUNT' ? 'Net - Downpayment' : '60% of Net'})</label>
+                      <input
+                        className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 text-slate-700 font-bold font-mono cursor-not-allowed rounded-xl text-sm"
+                        type="text"
+                        value={`₹${emiPrincipalAmt.toLocaleString('en-IN')}`}
+                        disabled
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700">Monthly EMI Amount ({editForm.tenureMonths} Months)</label>
+                      <input
+                        className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 text-slate-900 font-black font-mono cursor-not-allowed rounded-xl text-sm"
+                        type="text"
+                        value={`₹${emiMonthlyAmt.toLocaleString('en-IN')} / month`}
+                        disabled
+                      />
+                    </div>
+                  </>
                 )}
               </div>
-            )}
+            </div>
 
-            {editForm.scheme === 'FULL_PAYMENT' && (
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-600">Payment Period (Months)</label>
-                  <input
-                    type="number"
-                    value={editForm.oneTimeMonths || 1}
-                    onChange={(e) => setEditForm({ ...editForm, oneTimeMonths: Number(e.target.value) || 1 })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-                    placeholder="Enter months (e.g. 1, 2, 6, 12)"
-                    min="1"
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 5. Payment Mode & Sponsor Assignment */}
+            {/* 4. Payment Mode & Sponsor Assignment */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-slate-600">Payment Mode</label>

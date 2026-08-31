@@ -60,6 +60,11 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       enum: ['active', 'reversed'],
       default: 'active',
     },
+    closingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotClosing',
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -68,6 +73,7 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
 
 plotSponsorCommissionSchema.index({ sponsorId: 1 });
 plotSponsorCommissionSchema.index({ bookingId: 1 });
+plotSponsorCommissionSchema.index({ closingId: 1, createdAt: -1 });
 // Commission report sorts by createdAt and filters by status.
 plotSponsorCommissionSchema.index({ status: 1, createdAt: -1 });
 

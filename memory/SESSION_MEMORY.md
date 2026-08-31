@@ -58,11 +58,28 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 ### J. Dedicated Sponsor Ledger Page (`/dashboard/plots/sponsors/:id/ledger`)
 - **Action Button in Sponsors Page**: In [PlotSponsors.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx), clicking the ledger icon in the action column navigates to `/dashboard/plots/sponsors/:id/ledger`.
 - **Credit, Debit & Running Balance Columns**: Calculates exact collection-based credits (e.g. `Downpayment Commission` or `EMI Collection Commission` with % and receipt number), payout debits, and running wallet balances chronologically.
-- **Printable**: Fully formatted for printing with Good Nature header and accounts/sponsor signature blocks.
+- **Closing Batch Tagging**: Each ledger credit entry displays the associated `closingNumber` badge if the commission was settled in a closing period.
 
-### K. 100% Frontend Modernization: Lucide-React & Sonner Toast
-- **Icons**: `react-icons` has been completely eliminated and uninstalled from `client/`. All components across the application use `lucide-react`.
-- **Toasts**: `react-toastify` has been completely removed and uninstalled from `client/`. All components import `{ toast }` from `@/utils/toast` (or relative path to `client/src/utils/toast.jsx`), backed by `sonner`'s `<Toaster position="top-right" richColors closeButton />`.
-- **Membership Module**: Completely deleted and purged from frontend routes, sidebar navigation, and navbar headers.
+### K. Plot Commission Closing System & Closing-Driven Sponsor Ledger (`/dashboard/plots/closings`)
+- **Period Selection**: Admins select customizable period dates (e.g. `01-Aug-2026` to `28-Aug-2026`) and assign a unique closing batch name.
+- **Closing-Driven Ledger Credit**: When collections are received, commissions are calculated in the background but are **NOT** immediately credited to the sponsor's ledger balance. Commissions are strictly credited to the sponsor's ledger **upon closing** as a consolidated entry titled by the closing name and number (e.g. `July 2026 Commission Closing [CLS-202607-001]`).
+- **Granular Breakdown & Multi-Slab Percentages**: Each sponsor statement and ledger entry itemizes the entire closing period's collections, including:
+  - Direct collections with exact slab commission percentages (e.g., `10.5%`, `13%`).
+  - Indirect downline collections with developer override percentage (`2%`).
+  - Total business collections and net commission credited.
+- **Date Adjustment**: Expanding or reducing closing dates in the edit modal automatically recalculates and updates the credited ledger amount.
+- **Reversal on Deletion**: Deleting a closing immediately reverses the ledger credit, resets the sponsor's available balance, and disassociates all commissions (`closingId = null`) back to unclosed status.
+- **Printable**: Fully formatted for printing with Good Nature header, audit stamps, and accounts/sponsor signature blocks.
+
+### L. Downpayment & Installment Due Date Scheduling
+- When booking or editing a plot with downpayment grace period (`downpaymentMonths`: 1, 2, 3, etc.), Downpayment (Inst #0) due date is calculated as `bookingDate + downpaymentMonths`.
+- Subsequent monthly EMI installments (Inst #1..N) begin after the downpayment grace period: `bookingDate + downpaymentMonths + i`.
+- Both `createBooking` and `updateBooking` in [`plots.service.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots.service.js) respect this calculation consistently.
+
+### N. Sponsor Portal Authentication & Password Reset
+- **Multi-Identifier Login**: Sponsors can log in with their **Sponsor ID / Code** (e.g., `GNE-26-27-001`), **Mobile Number**, or **Email** along with their password (default initial password: `123456`).
+- **Lightmode Dual Mode Switch on `/login`**: Features a clean green-to-white gradient background (`from-green-100 via-emerald-50 to-white`) with dual mode tabs: **Staff / Admin** and **Sponsor Portal**.
+- **Admin Password Reset Tool**: In the Sponsors table ([`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx)), clicking the **Key icon (`KeyRound`)** allows the administrator to reset any sponsor's password to `123456` (or a custom password) with instant bcrypt re-hashing via `POST /api/plots/sponsors/:id/reset-password`.
+- **Role Isolation**: Logged-in sponsors land on their dedicated **Commission Ledger & Wallet Statement** (`/dashboard`), with sidebar access strictly scoped to their own ledger and profile.
 
 

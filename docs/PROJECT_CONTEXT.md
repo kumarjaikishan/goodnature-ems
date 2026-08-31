@@ -58,7 +58,8 @@
 - **Sponsors & Customers**: KYC details, nominee information, multi-tier sponsor commission structures.
 - **Bookings & Holds**: Full payment vs monthly installment schemes, automatic hold expiry via hourly scheduler.
 - **Installment Collection & Receipts**: Real-time receipt numbering, ledger tracking, print-ready receipts and certificates.
-- **Weekly Payouts**: Automated weekly ROI/return calculations, payout ledger, and payout voucher disbursement.
+- **Commission Closing System**: Bi-weekly / monthly custom date range closings with live calculation preview, direct vs. indirect 2% override breakdown per sponsor, date adjustment with auto-reattribution, and safe reversal on deletion.
+- **Weekly Payout Schedules**: Configurable money-back schedules for investors / fully paid plots with automated scheduler, and payout voucher disbursement.
 
 ### E. Developer & Observability
 - **In-Memory API Performance Monitor**: Measures response time, p95 latency, error rates per route pattern (`/api/api-monitor/stats`).
