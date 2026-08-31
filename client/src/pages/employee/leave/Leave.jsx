@@ -1,6 +1,6 @@
 import { Box, Button, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, TextField } from '@mui/material'
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers'
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import dayjs from 'dayjs'
 import React, { useEffect, useState } from 'react'
 import DataTable from '@/components/common/DataTable'
@@ -111,7 +111,7 @@ const EmpLeave = () => {
                     <form onSubmit={handleSubmit}>
                         <h2>Add Leave Request</h2>
                         <span className="modalcontent">
-                            <LocalizationProvider dateAdapter={AdapterDateFns}>
+                            <LocalizationProvider dateAdapter={AdapterDayjs}>
                                 <Box className="flex flex-col gap-4 mt-2">
                                     <FormControl required fullWidth size="small">
                                         <InputLabel>Leave Policy</InputLabel>
