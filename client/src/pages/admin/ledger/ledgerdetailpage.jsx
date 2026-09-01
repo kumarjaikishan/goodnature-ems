@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import {
     Box, Button, FormControl, InputLabel, Select, MenuItem,
-    TextField, Avatar, OutlinedInput, InputAdornment, CircularProgress
+    TextField, OutlinedInput, InputAdornment, CircularProgress
 } from '@mui/material';
 import DataTable from '@/components/common/DataTable';
 import { toast } from '../../../utils/toast';
@@ -15,22 +15,11 @@ import Loader from '../../../utils/loader';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
-import { Filter, RotateCcw, Download, ArrowLeft } from 'lucide-react';
-
-const SummaryBox = ({ label, value }) => {
-    const isNegative = parseFloat(value) < 0;
-
-    return (
-        <div className="bg-teal-50 border border-teal-300 border-dashed rounded-md px-4 py-2 min-w-[150px] text-center">
-            <p className="text-sm text-gray-600">{label}</p>
-            <hr className="my-2 border-teal-200" />
-            <p className={`text-lg font-semibold ${isNegative ? 'text-red-600' : 'text-black'}`}>
-                {value} ₹
-            </p>
-        </div>
-    );
-};
-
+import {
+    Filter, RotateCcw, Download, ArrowLeft, Plus,
+    TrendingUp, TrendingDown, Wallet, User, Calendar, CreditCard
+} from 'lucide-react';
+import { swal } from '../../../utils/confirmDialog';
 
 const LedgerDetailPage = () => {
     const { id: ledgerId } = useParams();
@@ -40,9 +29,10 @@ const LedgerDetailPage = () => {
 
     const { employee } = useSelector((state) => state.user);
 
-    const ledgerName = searchParams.get('name');
-    const profile = decodeURIComponent(searchParams.get("profileimage"));
+    const ledgerName = searchParams.get('name') || 'Account Ledger';
+    const profile = decodeURIComponent(searchParams.get("profileimage") || '');
     const empId = searchParams.get('empid');
+    const ledgerType = searchParams.get('ledgertype') || 'employee';
 
     const [entries, setEntries] = useState([]);
     const [filtered, setFiltered] = useState([]);
@@ -54,9 +44,13 @@ const LedgerDetailPage = () => {
     const [totalDebit, setTotalDebit] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
     const [totalBalance, setTotalBalance] = useState(0);
+
     const init = {
-        date: dayjs().format('YYYY-MM-DD'), particular: "", debit: "", credit: ""
-    }
+        date: dayjs().format('YYYY-MM-DD'),
+        particular: "",
+        debit: "",
+        credit: ""
+    };
     const [open, setOpen] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
     const [entry, setEntry] = useState(init);
@@ -89,16 +83,16 @@ const LedgerDetailPage = () => {
     }, [entries, filterYear, filterMonth, filterDate]);
 
     const fetchEnteries = async () => {
-        setLoading(true)
+        setLoading(true);
         try {
             const data = await apiClient({
                 url: `entries/${ledgerId}`
             });
-            setEntries(data.entries);
+            setEntries(data.entries || []);
         } catch (err) {
             console.error('Error fetching entries:', err);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     };
 
@@ -108,11 +102,10 @@ const LedgerDetailPage = () => {
         setFilterDate('');
     };
 
-
     const handleDeleteEntry = async (idx) => {
         swal({
-            title: `Are you sure to Delete this entry?`,
-            text: 'Once deleted, you will not be able to recover this',
+            title: `Are you sure you want to delete this entry?`,
+            text: 'Once deleted, this transaction cannot be recovered.',
             icon: "warning",
             buttons: true,
             dangerMode: true,
@@ -123,7 +116,7 @@ const LedgerDetailPage = () => {
                         url: `ledgerentry/${idx}`,
                         method: "DELETE"
                     });
-                    toast.success(data.message);
+                    toast.success(data.message || 'Entry deleted successfully');
                     fetchEnteries();
                 } catch (err) {
                     console.error('Error deleting entry:', err);
@@ -132,30 +125,28 @@ const LedgerDetailPage = () => {
         });
     };
 
-    const handleOpenLedgerDialog = () => {
-        toast("Implement Edit Ledger Dialog");
-    };
-
-    const deleteLedger = async () => {
-        toast("Implement Ledger Delete");
-    };
-
     const exportCSV = () => {
-        const headers = ["S.No", "Date", "Particular", "Debit", "Credit", "Balance"];
+        const headers = ["S.No", "Date", "Particular", "Credit", "Debit", "Balance"];
         const rows = filtered.map((e, idx) => [
-            idx + 1, dayjs(e.date).format('YYYY-MM-DD'), e.particular, e.debit, e.credit, e.balance
+            idx + 1,
+            dayjs(e.date).format('YYYY-MM-DD'),
+            `"${(e.particular || '').replace(/"/g, '""')}"`,
+            e.credit || 0,
+            e.debit || 0,
+            e.balance || 0
         ]);
         const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
         const blob = new Blob([csv], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${ledgerName}_ledger.csv`;
+        a.download = `${ledgerName.replace(/\s+/g, '_')}_ledger.csv`;
         a.click();
         URL.revokeObjectURL(url);
     };
 
-    const saveEntry = async () => {
+    const saveEntry = async (e) => {
+        if (e) e.preventDefault();
         if (savingEntry) return;
         if (!entry.particular || entry.particular.trim() === '') {
             toast.warn("Particular field can't be blank");
@@ -194,10 +185,10 @@ const LedgerDetailPage = () => {
                 body: payload
             });
 
-            toast.success(data.message);
+            toast.success(data.message || 'Entry saved successfully');
             setEditIndex(null);
             setOpen(false);
-            setEntry(init)
+            setEntry(init);
             fetchEnteries();
         } catch (error) {
             console.error('Error saving entry:', error);
@@ -206,215 +197,288 @@ const LedgerDetailPage = () => {
         }
     };
 
-    const handleEditEntry = (entry) => {
-        const formattedDate = new Date(entry.date).toISOString().split("T")[0]; // ✅ format to 'YYYY-MM-DD'
+    const handleEditEntry = (entryItem) => {
+        const formattedDate = new Date(entryItem.date).toISOString().split("T")[0];
         setEntry({
             date: formattedDate,
-            particular: entry.particular,
-            debit: entry.debit?.toString() || "",
-            credit: entry.credit?.toString() || ""
+            particular: entryItem.particular || '',
+            debit: entryItem.debit > 0 ? entryItem.debit.toString() : "",
+            credit: entryItem.credit > 0 ? entryItem.credit.toString() : ""
         });
-        setEditIndex(entry._id);
+        setEditIndex(entryItem._id);
         setOpen(true);
     };
-    const MotionAvatar = motion.create(Avatar);
 
     return (
-        <div className="bg-white rounded shadow-md p-1 md:p-5 relative max-w-6xl mx-auto ">
-            <div className="border border-teal-600 border-dashed rounded-md p-3 md:p-5 mb-4 space-y-4">
-                <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
-                    <div className="flex items-start md:items-center  gap-3">
-                        {/* <Avatar sx={{ width: 55, height: 55 }} alt={ledgerName}
-                            // src={profile}
-                            src={cloudinaryUrl(profile, {
-                                format: "webp",
-                                width: 100,
-                                height: 100,
-                            })}
-                        /> */}
-                        <MotionAvatar
-                            layoutId={`ledger-avatar-${ledgerId}`}   // 👈 SAME layoutId
-                            sx={{ width: 70, height: 70 }}
+        <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto">
+            {/* ── Top Header & Profile Banner ── */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                    {profile && profile !== 'null' && profile !== 'undefined' ? (
+                        <img
+                            src={cloudinaryUrl(profile, { format: "webp", width: 100, height: 100 })}
                             alt={ledgerName}
-                            src={cloudinaryUrl(profile, {
-                                format: "webp",
-                                width: 100,
-                                height: 100,
-                            })}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-teal-600 shadow-xs"
                         />
+                    ) : (
+                        <div className="w-14 h-14 rounded-full bg-teal-50 border border-teal-200 text-teal-800 flex items-center justify-center font-black text-xl shadow-xs">
+                            {ledgerName.charAt(0).toUpperCase()}
+                        </div>
+                    )}
 
-                        <div className="flex flex-col">
-                            <h2 className="text-2xl font-bold text-teal-800 capitalize leading-tight">{ledgerName}</h2>
-                            <div className="flex items-center gap-2 mt-1">
-
-                                {empId && empId !== 'null' && (
-                                    <span className="text-[14px] text-gray-500 font-semibold bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                                        ID: {empId}
-                                    </span>
-                                )}
-                            </div>
+                    <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h1 className="text-xl sm:text-2xl font-black text-slate-900 capitalize">
+                                {ledgerName}
+                            </h1>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wider">
+                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'sponsor' ? 'Sponsor Account' : 'Custom Ledger'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-medium">
+                            {empId && empId !== 'null' && (
+                                <span>Employee ID: <strong className="font-mono text-slate-800">{empId}</strong></span>
+                            )}
+                            <span>Total Transactions: <strong className="text-slate-800 font-bold">{filtered.length}</strong></span>
                         </div>
                     </div>
-                    <Button className=' w-full md:w-auto' onClick={() => navigate(-1)} variant="contained">Ledger Page</Button>
                 </div>
-                {loading ? <Loader /> :
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <SummaryBox label="Total Credit" value={totalCredit} />
-                        <SummaryBox label="Total Debit" value={totalDebit} />
-                        <SummaryBox label="Net Balance" value={totalBalance.toFixed(2)} />
-                    </div>}
-            </div>
 
-            {/* Filters */}
-            <div className="flex  flex-wrap items-center gap-3 mb-4">
-                <div className="p-1 md:p-2 rounded shadow mb-4 md:mb-0 grid grid-cols-2 md:grid-cols-none md:flex gap-3 md:gap-2 mt-1 w-full  md:w-fit">
-                    <FormControl size="small" className="col-span-1 md:w-[120px]">
-                        <InputLabel>Year</InputLabel>
-                        <Select
-                            value={filterYear}
-                            input={
-                                <OutlinedInput
-                                    startAdornment={
-                                        <InputAdornment position="start">
-                                            <Filter size={16} className="text-gray-400" />
-                                        </InputAdornment>
-                                    }
-                                    label="Year"
-                                />
-                            }
-                            onChange={e => setFilterYear(e.target.value)}
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {[...new Set(entries.map(e => dayjs(e.date).year()))].map(y => (
-                                <MenuItem key={y} value={y}>{y}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    <FormControl size="small" className="col-span-1 md:w-[120px]">
-                        <InputLabel>Month</InputLabel>
-                        <Select
-                            value={filterMonth}
-                            input={
-                                <OutlinedInput
-                                    startAdornment={
-                                        <InputAdornment position="start">
-                                            <Filter size={16} className="text-gray-400" />
-                                        </InputAdornment>
-                                    }
-                                    label="Month"
-                                />
-                            }
-                            onChange={e => setFilterMonth(e.target.value)}
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {Array.from({ length: 12 }, (_, i) => (
-                                <MenuItem key={i} value={i + 1}>{dayjs().month(i).format("MMMM")}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <TextField
-                        size="small"
-                        type="date"
-                        className="col-span-1  md:w-[160px]"
-                        value={filterDate}
-                        onChange={e => setFilterDate(e.target.value)}
-                        label="Date"
-                        InputLabelProps={{ shrink: true }}
-                    />
-                    <Button
-                        className="col-span-1  md:w-[120px]"
-                        variant="outlined"
-                        color="secondary"
-                        title='Reset'
-
-                        startIcon={<RotateCcw size={16} />}
-                        onClick={resetFilters}
+                <div className="flex items-center gap-2.5 w-full md:w-auto">
+                    <button
+                        onClick={() => navigate('/dashboard/ledger')}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
                     >
-                        Reset
-                    </Button>
-                </div>
-
-                <div className="flex flex-wrap gap-2 ml-auto">
-                    <Button variant="contained" onClick={() => { setOpen(true); setEditIndex(null); }}>
-                        Add Entry
-                    </Button>
-                    <Button variant="outlined" onClick={exportCSV} startIcon={<Download size={16} />}>
-                        Export CSV
-                    </Button>
+                        <ArrowLeft size={15} /> All Ledgers
+                    </button>
+                    <button
+                        onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}
+                        className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    >
+                        <Plus size={15} /> Add Entry
+                    </button>
+                    <button
+                        onClick={exportCSV}
+                        className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    >
+                        <Download size={15} /> Export CSV
+                    </button>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className=" overflow-x-auto">
+            {/* ── Summary Financial Metrics Cards (Classic Style) ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Total Credit */}
+                <div className="bg-teal-50/60 border border-teal-300 border-dashed rounded-xl px-5 py-3.5 text-center shadow-2xs">
+                    <p className="text-xs font-semibold text-slate-600">Total Credit</p>
+                    <div className="my-2 border-t border-teal-200" />
+                    <p className="text-xl font-bold text-emerald-700 font-mono">
+                        {totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₹
+                    </p>
+                </div>
+
+                {/* Total Debit */}
+                <div className="bg-teal-50/60 border border-teal-300 border-dashed rounded-xl px-5 py-3.5 text-center shadow-2xs">
+                    <p className="text-xs font-semibold text-slate-600">Total Debit</p>
+                    <div className="my-2 border-t border-teal-200" />
+                    <p className="text-xl font-bold text-rose-700 font-mono">
+                        {totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₹
+                    </p>
+                </div>
+
+                {/* Net Balance */}
+                <div className="bg-teal-50/60 border border-teal-300 border-dashed rounded-xl px-5 py-3.5 text-center shadow-2xs">
+                    <p className="text-xs font-semibold text-slate-600">Net Balance</p>
+                    <div className="my-2 border-t border-teal-200" />
+                    <p className={`text-xl font-bold font-mono ${totalBalance < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+                        {totalBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₹
+                    </p>
+                </div>
+            </div>
+
+            {/* ── Filter Toolbar ── */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                    {/* Year Filter */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-600">Year:</span>
+                        <select
+                            value={filterYear}
+                            onChange={(e) => setFilterYear(e.target.value)}
+                            className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                        >
+                            <option value="all">All Years</option>
+                            {[...new Set(entries.map((e) => dayjs(e.date).year()))].map((y) => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Month Filter */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-600">Month:</span>
+                        <select
+                            value={filterMonth}
+                            onChange={(e) => setFilterMonth(e.target.value)}
+                            className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                        >
+                            <option value="all">All Months</option>
+                            {Array.from({ length: 12 }, (_, i) => (
+                                <option key={i} value={i + 1}>{dayjs().month(i).format("MMMM")}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Exact Date */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-600">Date:</span>
+                        <input
+                            type="date"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                        />
+                    </div>
+
+                    {(filterYear !== 'all' || filterMonth !== 'all' || filterDate) && (
+                        <button
+                            onClick={resetFilters}
+                            className="h-9 px-3 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                            <RotateCcw size={13} /> Reset
+                        </button>
+                    )}
+                </div>
+
+                <span className="text-xs font-bold text-slate-500">
+                    Showing <strong className="text-teal-800 font-bold">{filtered.length}</strong> of {entries.length} records
+                </span>
+            </div>
+
+            {/* ── Transaction Entries Table ── */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
                 <DataTable
                     columns={getLedgerColumns(handleEditEntry, handleDeleteEntry, employee, navigate)}
                     data={filtered || []}
                     pagination
                     customStyles={useCustomStyles()}
                     highlightOnHover
-                    noDataComponent="No entries found"
-                    paginationPerPage={10}
-                    paginationRowsPerPageOptions={
-                        [10, 25, 50, 100, filtered.length > 100 ? filtered.length : null].filter(Boolean)
+                    noDataComponent={
+                        <div className="p-12 text-center text-slate-400 text-xs italic font-medium">
+                            No ledger transactions found matching the filter criteria.
+                        </div>
                     }
+                    paginationPerPage={15}
+                    paginationRowsPerPageOptions={[10, 15, 25, 50, 100]}
                     paginationComponentOptions={{
                         rowsPerPageText: 'Rows per page:',
                     }}
-                // fixedHeader
-                // fixedHeaderScrollHeight="500px" // set the scroll height you want
                 />
             </div>
 
-            <Modalbox open={open} onClose={() => {
-                if (savingEntry) return;
-                setOpen(false); setEditIndex(null);
-            }}>
-                <div className="membermodal w-[310px]">
-                    <div className="whole" >
-                        <div className="modalhead">{editIndex !== null ? "Edit Entry" : "Add Entry"}</div>
-                        <span className="modalcontent">
-                            <div className='flex  w-full flex-col gap-3'>
-                                <TextField fullWidth type="date" label="Date" size="small" InputLabelProps={{ shrink: true }}
-                                    value={entry.date || ''} onChange={e => setEntry({ ...entry, date: e.target.value })}
-                                />
-                                <TextField multiline minRows={2} label="Particular" size="small" value={entry.particular || ''}
-                                    onChange={e => setEntry({ ...entry, particular: e.target.value })}
-                                />
-                                <TextField type="number" label="Debit" size="small" value={entry.debit || ''}
-                                    onChange={e => setEntry({ ...entry, debit: e.target.value, credit: "" })}
-                                />
-                                <TextField type="number" label="Credit" size="small" value={entry.credit || ''}
-                                    onChange={e => setEntry({ ...entry, credit: e.target.value, debit: "" })}
+            {/* ── Modal - Add/Edit Transaction Entry ── */}
+            <Modalbox
+                open={open}
+                onClose={() => {
+                    if (savingEntry) return;
+                    setOpen(false);
+                    setEditIndex(null);
+                }}
+            >
+                <div className="p-6 bg-white rounded-2xl w-[420px] max-w-[90vw] space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-800">
+                                {editIndex !== null ? "Edit Transaction Entry" : "Add Transaction Entry"}
+                            </h3>
+                            <p className="text-xs text-slate-400">Record a debit or credit entry in this account ledger.</p>
+                        </div>
+                        <button
+                            type="button"
+                            className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
+                            onClick={() => { setOpen(false); setEditIndex(null); }}
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <form onSubmit={saveEntry} className="flex flex-col gap-3.5">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-bold text-slate-600">Transaction Date</label>
+                            <input
+                                type="date"
+                                className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                                value={entry.date || ''}
+                                onChange={(e) => setEntry({ ...entry, date: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-bold text-slate-600">Particular / Description</label>
+                            <textarea
+                                rows={2}
+                                className="w-full p-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800 resize-none"
+                                placeholder="Enter transaction details or notes..."
+                                value={entry.particular || ''}
+                                onChange={(e) => setEntry({ ...entry, particular: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs font-bold text-rose-700">Debit Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-rose-500 outline-none rounded-xl text-xs font-mono font-bold text-rose-700"
+                                    value={entry.debit || ''}
+                                    onChange={(e) => setEntry({ ...entry, debit: e.target.value, credit: "" })}
                                 />
                             </div>
-                        </span>
-                        <div className="modalfooter">
-                            <Button
-                                variant='outlined'
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs font-bold text-emerald-700">Credit Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none rounded-xl text-xs font-mono font-bold text-emerald-700"
+                                    value={entry.credit || ''}
+                                    onChange={(e) => setEntry({ ...entry, credit: e.target.value, debit: "" })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2.5 mt-2 pt-3 border-t border-slate-100 shrink-0">
+                            <button
+                                type="button"
                                 disabled={savingEntry}
-                                onClick={() => { setOpen(false); setEntry(init); setEditIndex(null) }}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-600 transition cursor-pointer"
+                                onClick={() => { setOpen(false); setEntry(init); setEditIndex(null); }}
                             >
                                 Cancel
-                            </Button>
-                            <Button
-                                variant="contained"
+                            </button>
+                            <button
+                                type="submit"
                                 disabled={savingEntry}
-                                onClick={saveEntry}
-                                startIcon={savingEntry ? <CircularProgress color="inherit" size={18} /> : null}
+                                className="px-5 py-2 bg-teal-700 hover:bg-teal-800 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[100px] flex items-center justify-center cursor-pointer"
                             >
-                                {editIndex !== null ? "Update" : "Add"}
-                            </Button>
-
+                                {savingEntry ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    editIndex !== null ? "Update Entry" : "Save Entry"
+                                )}
+                            </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             </Modalbox>
-
         </div>
     );
 };
 
 export default LedgerDetailPage;
+
 
 

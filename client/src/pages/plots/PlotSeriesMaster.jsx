@@ -46,7 +46,6 @@ const PlotSeriesMaster = () => {
     plotNumber: '',
     plotSize: '',
     plotType: 'NORMAL',
-    baseRate: '',
     remarks: '',
   });
 
@@ -79,7 +78,6 @@ const PlotSeriesMaster = () => {
   const [configForm, setConfigForm] = useState({
     plotSize: '',
     plotType: 'NORMAL',
-    baseRate: '',
     remarks: '',
   });
 
@@ -188,7 +186,6 @@ const PlotSeriesMaster = () => {
       plotNumber: suggestedPlotNo,
       plotSize: selectedS?.plotArea || 1200,
       plotType: selectedS?.defaultPlotType || 'NORMAL',
-      baseRate: rateConfig?.baseSqFtRate || 500,
       remarks: '',
     });
     setShowCreatePlotModal(true);
@@ -368,7 +365,6 @@ const PlotSeriesMaster = () => {
     setConfigForm({
       plotSize: plot.plotSize,
       plotType: plot.plotType,
-      baseRate: plot.baseRate,
       remarks: plot.remarks || '',
     });
     setShowConfigModal(true);
@@ -388,17 +384,6 @@ const PlotSeriesMaster = () => {
     } finally {
       setSubmitLoading(false);
     }
-  };
-
-  const getLiveEffectiveRate = () => {
-    const base = Number(configForm.baseRate || rateConfig.baseSqFtRate || 500);
-    const cornerExtra = configForm.plotType === 'CORNER' ? rateConfig.cornerExtraPercent || 20 : 0;
-    return Math.round(base * (1 + cornerExtra / 100));
-  };
-
-  const getLiveTotalValue = () => {
-    const size = Number(configForm.plotSize || selectedPlot?.plotSize || 1200);
-    return size * getLiveEffectiveRate();
   };
 
   const getPlotCardColor = (status, isCorner = false) => {
@@ -813,32 +798,7 @@ const PlotSeriesMaster = () => {
         <div className="space-y-6">
           <form onSubmit={handleUpdateRates} className="space-y-6">
             {/* Top Config Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
-                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-                  <Wrench size={18} className="text-teal-700" />
-                  <span>Base Sq Ft Rate</span>
-                </div>
-                <div>
-                  <label className={labelCls}>Default Base Rate (₹/sqft)</label>
-                  <input
-                    className={inputCls}
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={rateConfig.baseSqFtRate ?? ''}
-                    onChange={(e) =>
-                      setRateConfig({
-                        ...rateConfig,
-                        baseSqFtRate: e.target.value.replace(/[^0-9]/g, ''),
-                      })
-                    }
-                    required
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">Default baseline rate per sq.ft.</p>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                   <SlidersHorizontal size={18} className="text-teal-700" />
@@ -1308,54 +1268,25 @@ const PlotSeriesMaster = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Plot Size (Sq Ft)</label>
-                <input
-                  className={`${inputCls} ${selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED' ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  disabled={selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED'}
-                  value={configForm.plotSize}
-                  onChange={(e) => setConfigForm({ ...configForm, plotSize: e.target.value.replace(/[^0-9]/g, '') })}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Base Rate (₹ / Sq Ft)</label>
-                <input
-                  className={`${inputCls} ${selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED' ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  disabled={selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED'}
-                  value={configForm.baseRate}
-                  onChange={(e) => setConfigForm({ ...configForm, baseRate: e.target.value.replace(/[^0-9]/g, '') })}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Calculated dynamic value preview card */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-col gap-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500 uppercase font-semibold">Effective Sq Ft Rate:</span>
-                <span className="font-bold text-slate-800">₹{getLiveEffectiveRate()} / Sq Ft</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm">
-                <span className="text-slate-500 uppercase font-semibold">Computed Plot Value:</span>
-                <span className="text-teal-800 text-base font-bold">
-                  ₹{getLiveTotalValue().toLocaleString('en-IN')}
-                </span>
-              </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Plot Size (Sq Ft)</label>
+              <input
+                className={`${inputCls} ${selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED' ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                disabled={selectedPlot?.status === 'BOOKED' || selectedPlot?.status === 'REGISTERED'}
+                value={configForm.plotSize}
+                onChange={(e) => setConfigForm({ ...configForm, plotSize: e.target.value.replace(/[^0-9]/g, '') })}
+                required
+              />
             </div>
 
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Internal Audit Notes / Remarks</label>
               <textarea
                 className="w-full min-h-[60px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
-                placeholder="Reason for corner/rate customization..."
+                placeholder="Optional notes for this plot..."
                 value={configForm.remarks}
                 onChange={(e) => setConfigForm({ ...configForm, remarks: e.target.value })}
               />
@@ -1364,7 +1295,7 @@ const PlotSeriesMaster = () => {
             <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-slate-100 shrink-0">
               <button
                 type="button"
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-600 transition cursor-pointer"
+                className="px-4 py-2 bg-slate-100 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-200 transition cursor-pointer"
                 onClick={() => setShowConfigModal(false)}
               >
                 Cancel
@@ -1372,130 +1303,86 @@ const PlotSeriesMaster = () => {
               <button
                 type="submit"
                 disabled={submitLoading}
-                className="px-5 py-2.5 bg-teal-800 hover:bg-teal-900 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
+                className="px-5 py-2 bg-teal-700 hover:bg-teal-800 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[100px] flex items-center justify-center cursor-pointer"
               >
-                {submitLoading ? 'Saving...' : 'Save Configuration'}
+                {submitLoading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Save Plot Settings'
+                )}
               </button>
             </div>
           </form>
         </div>
       </Modalbox>
 
-      {/* ── MODAL: CREATE INDIVIDUAL PLOT ── */}
+      {/* ── MODAL: CREATE INDIVIDUAL STANDALONE / EXTRA PLOT ── */}
       <Modalbox open={showCreatePlotModal} onClose={() => setShowCreatePlotModal(false)}>
-        <div className="bg-white rounded-2xl w-[92vw] max-w-lg p-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
-                +
-              </span>
-              <div>
-                <h3 className="text-base font-bold text-slate-800">Create Plot</h3>
-                <p className="text-xs text-slate-500">Add an individual plot to any existing series block</p>
-              </div>
+        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">Add Individual Plot</h3>
+              <p className="text-xs text-slate-400">Add a plot directly to a series block or standalone.</p>
             </div>
             <button
-              className="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer transition p-1"
+              className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
               onClick={() => setShowCreatePlotModal(false)}
             >
               ✕
             </button>
           </div>
-
-          <form onSubmit={handleCreatePlot} className="flex flex-col gap-3.5">
+          <form onSubmit={handleCreatePlot} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <label className={labelCls}>Series Block (Optional)</label>
+              <label className={labelCls}>Assign to Series (Optional)</label>
               <select
                 className={inputCls}
                 value={plotForm.seriesId}
                 onChange={(e) => handleSeriesChangeInPlotForm(e.target.value)}
               >
-                <option value="">None / Standalone Plot</option>
+                <option value="">-- Standalone (No Series) --</option>
                 {seriesList.map((s) => (
                   <option key={s._id} value={s._id}>
-                    {s.name} (Prefix: {s.prefix})
+                    {s.name} ({s.prefix})
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <label className={labelCls}>Plot Number *</label>
+                <label className={labelCls}>Plot Number</label>
                 <input
                   className={inputCls}
-                  type="text"
-                  placeholder="e.g. A025 or B101"
+                  placeholder="e.g. A051"
                   value={plotForm.plotNumber}
-                  onChange={(e) => setPlotForm({ ...plotForm, plotNumber: e.target.value })}
+                  onChange={(e) => setPlotForm({ ...plotForm, plotNumber: e.target.value.toUpperCase() })}
                   required
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className={labelCls}>Corner Type</label>
+                <label className={labelCls}>Plot Type</label>
                 <select
                   className={inputCls}
                   value={plotForm.plotType}
                   onChange={(e) => setPlotForm({ ...plotForm, plotType: e.target.value })}
                 >
-                  <option value="NORMAL">Normal Plot</option>
+                  <option value="NORMAL">Normal (Plain)</option>
                   <option value="CORNER">Corner Plot (+{rateConfig.cornerExtraPercent || 20}%)</option>
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Plot Size (Sq Ft) *</label>
-                <input
-                  className={inputCls}
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="1200"
-                  value={plotForm.plotSize}
-                  onChange={(e) => setPlotForm({ ...plotForm, plotSize: e.target.value.replace(/[^0-9]/g, '') })}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Base Rate (₹ / Sq Ft)</label>
-                <input
-                  className={inputCls}
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={plotForm.baseRate}
-                  onChange={(e) => setPlotForm({ ...plotForm, baseRate: e.target.value.replace(/[^0-9]/g, '') })}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Calculated dynamic value preview card */}
-            <div className="p-3.5 bg-emerald-50/70 border border-emerald-100 rounded-xl text-xs flex flex-col gap-1.5">
-              <div className="flex justify-between">
-                <span className="text-slate-600 font-medium">Effective Rate:</span>
-                <span className="font-bold text-slate-800">
-                  ₹
-                  {Math.round(
-                    Number(plotForm.baseRate || 500) *
-                      (plotForm.plotType === 'CORNER' ? 1 + (rateConfig.cornerExtraPercent || 20) / 100 : 1)
-                  )}{' '}
-                  / Sq Ft
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-emerald-200/60 pt-1.5 font-bold text-sm">
-                <span className="text-slate-700">Estimated Value:</span>
-                <span className="text-emerald-700 text-base font-bold">
-                  ₹
-                  {Math.round(
-                    Number(plotForm.plotSize || 0) *
-                      (Number(plotForm.baseRate || 500) *
-                        (plotForm.plotType === 'CORNER' ? 1 + (rateConfig.cornerExtraPercent || 20) / 100 : 1))
-                  ).toLocaleString('en-IN')}
-                </span>
-              </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Plot Size (Sq Ft)</label>
+              <input
+                className={inputCls}
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={plotForm.plotSize}
+                onChange={(e) => setPlotForm({ ...plotForm, plotSize: e.target.value.replace(/[^0-9]/g, '') })}
+                required
+              />
             </div>
 
             <div className="flex flex-col gap-1">

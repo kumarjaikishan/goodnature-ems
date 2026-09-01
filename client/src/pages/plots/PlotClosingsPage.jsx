@@ -25,7 +25,7 @@ import {
   AlertCircle,
   FileSpreadsheet
 } from 'lucide-react';
-import swal from 'sweetalert';
+import { swal } from '../../utils/confirmDialog';
 
 const PlotClosingsPage = () => {
   const navigate = useNavigate();

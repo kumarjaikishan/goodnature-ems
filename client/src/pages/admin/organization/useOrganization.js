@@ -4,7 +4,7 @@ import { toast } from '../../../utils/toast';
 import { apiClient } from '../../../utils/apiClient';
 import { FirstFetch } from '../../../../store/userSlice';
 import useImageUpload from "../../../utils/imageresizer";
-import swal from 'sweetalert';
+import { swal } from '../../../utils/confirmDialog';
 
 export const useOrganization = () => {
     const dispatch = useDispatch();

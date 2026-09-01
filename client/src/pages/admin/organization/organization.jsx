@@ -13,7 +13,7 @@ import { toast } from '../../../utils/toast';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import Addbranch from './addbranch';
 import { useCustomStyles } from '../attandence/attandencehelper';
-import swal from 'sweetalert';
+import { swal } from '../../../utils/confirmDialog';
 import dayjs from 'dayjs';
 import { useOrganization } from './useOrganization';
 

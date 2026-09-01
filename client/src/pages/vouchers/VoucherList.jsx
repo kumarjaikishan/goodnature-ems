@@ -28,7 +28,7 @@ import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import { Edit2, Eye, Trash2, Plus, Search, Filter } from "lucide-react";
 import { toast } from "../../utils/toast";
-import swal from "sweetalert";
+import { swal } from "../../utils/confirmDialog";
 import dayjs from "dayjs";
 import { motion } from "framer-motion";
 
@@ -347,11 +347,33 @@ const VoucherList = () => {
       name: "Ledger",
       selector: (row) => {
         const debitEntry = row.entries?.find(e => e.type === 'DEBIT');
-        return debitEntry ? debitEntry.accountName : (row.employeeId?.userid?.name || "N/A");
+        return debitEntry ? debitEntry.accountName : (row.employeeId?.userid?.name || row.sponsorId?.name || "N/A");
+      },
+      cell: (row) => {
+        const debitEntry = row.entries?.find(e => e.type === 'DEBIT');
+        const name = debitEntry ? debitEntry.accountName : (row.employeeId?.userid?.name || row.sponsorId?.name || "N/A");
+        const isSponsor = Boolean(row.sponsorId);
+        const isEmployee = Boolean(row.employeeId);
+
+        return (
+          <div className="flex flex-col">
+            <span className="font-semibold text-slate-800 text-xs">{name}</span>
+            {isSponsor && (
+              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2 w-fit mt-0.5 font-medium">
+                Sponsor {row.sponsorId?.sponsorCode ? `(${row.sponsorId.sponsorCode})` : ''}
+              </span>
+            )}
+            {isEmployee && (
+              <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.2 w-fit mt-0.5 font-medium">
+                Employee
+              </span>
+            )}
+          </div>
+        );
       },
       sortable: true,
       wrap: true,
-      width: "160px",
+      width: "180px",
     },
     {
       name: "Amount",
@@ -593,8 +615,12 @@ const VoucherList = () => {
             <Autocomplete
               options={ledgers}
               getOptionLabel={(option) => {
-                const subText = option.ledgerType === 'employee' && option.empId ? ` (${option.empId})` : '';
-                return `${option.name}${subText}`;
+                const tag = option.ledgerType === 'sponsor' 
+                  ? ` [Sponsor${option.empId ? `: ${option.empId}` : ''}]` 
+                  : option.ledgerType === 'employee' && option.empId 
+                    ? ` [Emp: ${option.empId}]` 
+                    : ' [Custom]';
+                return `${option.name}${tag}`;
               }}
               renderInput={(params) => (
                 <TextField
@@ -677,8 +703,12 @@ const VoucherList = () => {
             <Autocomplete
               options={ledgers}
               getOptionLabel={(option) => {
-                const subText = option.ledgerType === 'employee' && option.empId ? ` (${option.empId})` : '';
-                return `${option.name}${subText}`;
+                const tag = option.ledgerType === 'sponsor' 
+                  ? ` [Sponsor${option.empId ? `: ${option.empId}` : ''}]` 
+                  : option.ledgerType === 'employee' && option.empId 
+                    ? ` [Emp: ${option.empId}]` 
+                    : ' [Custom]';
+                return `${option.name}${tag}`;
               }}
               renderInput={(params) => (
                 <TextField
@@ -686,7 +716,7 @@ const VoucherList = () => {
                   label="Select Ledger"
                   size="small"
                   required
-                  placeholder="Search ledgers (Employee or Custom)..."
+                  placeholder="Search ledgers (Employee, Sponsor or Custom)..."
                 />
               )}
               value={selectedLedger}

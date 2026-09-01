@@ -5,13 +5,14 @@ const voucherSchema = new mongoose.Schema({
   voucherNo: { type: String, unique: true, required: true },
   type: { type: String, enum: ['SALARY', 'LEAVE_DEDUCTION', 'LEAVE_ENCASHMENT', 'ADJUSTMENT', 'MANUAL'], required: true },
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee' },
+  sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   date: { type: Date, default: Date.now },
   entries: [{
     accountName: { type: String, required: true }, // e.g. "Salary Expense", "Employee Payable"
     type: { type: String, enum: ['DEBIT', 'CREDIT'], required: true },
     amount: { type: Number, required: true },
   }],
-  referenceType: { type: String, enum: ['PAYROLL', 'LEAVE', 'MANUAL'], required: true },
+  referenceType: { type: String, enum: ['PAYROLL', 'LEAVE', 'MANUAL', 'COMMISSION'], required: true },
   referenceId: { type: mongoose.Schema.Types.ObjectId },
   remarks: { type: String }
 }, { timestamps: true });

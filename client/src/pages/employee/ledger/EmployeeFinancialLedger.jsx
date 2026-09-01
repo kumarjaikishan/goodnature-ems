@@ -126,34 +126,53 @@ const EmployeeFinancialLedger = () => {
             grow: 2,
         },
         {
-            name: "Debit",
-            selector: (row) => row.debit,
+            name: "Credit (₹)",
+            selector: (row) => row.credit || 0,
             sortable: true,
-            cell: (row) => (
-                <Typography variant="body2" sx={{ color: row.debit > 0 ? '#dc2626' : 'inherit', fontWeight: row.debit > 0 ? 600 : 400 }}>
-                    {row.debit > 0 ? `₹${row.debit.toLocaleString()}` : '-'}
-                </Typography>
-            )
+            right: true,
+            cell: (row) => {
+                const val = parseFloat(row.credit) || 0;
+                return val > 0 ? (
+                    <span className="font-mono font-bold text-emerald-700 whitespace-nowrap">
+                        +₹{val.toLocaleString('en-IN')}
+                    </span>
+                ) : (
+                    <span className="text-slate-400 font-bold">-</span>
+                );
+            }
         },
         {
-            name: "Credit",
-            selector: (row) => row.credit,
+            name: "Debit (₹)",
+            selector: (row) => row.debit || 0,
             sortable: true,
-            cell: (row) => (
-                <Typography variant="body2" sx={{ color: row.credit > 0 ? '#16a34a' : 'inherit', fontWeight: row.credit > 0 ? 600 : 400 }}>
-                    {row.credit > 0 ? `₹${row.credit.toLocaleString()}` : '-'}
-                </Typography>
-            )
+            right: true,
+            cell: (row) => {
+                const val = parseFloat(row.debit) || 0;
+                return val > 0 ? (
+                    <span className="font-mono font-bold text-rose-700 whitespace-nowrap">
+                        -₹{val.toLocaleString('en-IN')}
+                    </span>
+                ) : (
+                    <span className="text-slate-400 font-bold">-</span>
+                );
+            }
         },
         {
-            name: "Balance",
-            selector: (row) => row.balance,
+            name: "Balance (₹)",
+            selector: (row) => row.balance || 0,
             sortable: true,
-            cell: (row) => (
-                <Typography variant="body2" sx={{ fontWeight: 700, color: row.balance < 0 ? '#dc2626' : '#1a3353' }}>
-                    ₹{row.balance.toLocaleString()}
-                </Typography>
-            )
+            right: true,
+            cell: (row) => {
+                if (row.balance === null || row.balance === undefined || row.balance === '') {
+                    return <span className="text-slate-400 font-bold">-</span>;
+                }
+                const val = parseFloat(row.balance) || 0;
+                return (
+                    <span className="font-mono font-black text-slate-900 whitespace-nowrap">
+                        ₹{val.toLocaleString('en-IN')}
+                    </span>
+                );
+            }
         }
     ];
 

@@ -8,7 +8,7 @@ import {
 import { Edit2, Trash2, PlusCircle, CheckCircle, X } from 'lucide-react';
 import { apiClient } from '../../../../utils/apiClient';
 import { toast } from '../../../../utils/toast';
-import swal from 'sweetalert';
+import { swal } from '../../../../utils/confirmDialog';
 
 const LeavePolicyManager = () => {
     const [policies, setPolicies] = useState([]);

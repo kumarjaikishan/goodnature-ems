@@ -89,6 +89,7 @@ const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
 const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
 const PlotInterestCalculator = lazy(() => import('./pages/plots/PlotInterestCalculator'));
 const SponsorLedgerPage = lazy(() => import('./pages/plots/SponsorLedgerPage'));
+const SponsorBusinessReportPage = lazy(() => import('./pages/plots/SponsorBusinessReportPage'));
 const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
 const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
 
@@ -188,6 +189,7 @@ const routesByRole = {
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
       <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
@@ -247,6 +249,7 @@ const routesByRole = {
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
       <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
@@ -305,7 +308,9 @@ const routesByRole = {
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['sponsor']} />}>
       <Route index element={<SponsorLedgerPage />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
       <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
+      <Route path="my-business" element={<SponsorBusinessReportPage />} />
       <Route path="my-bookings" element={<SponsorBookingsPage />} />
       <Route path="plots/bookings" element={<SponsorBookingsPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />

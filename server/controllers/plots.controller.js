@@ -294,6 +294,15 @@ const updatePlotPayoutVoucher = async (req, res, next) => {
   }
 };
 
+const getSponsorBusinessReport = async (req, res, next) => {
+  try {
+    const result = await plotsService.getSponsorBusinessReport(req.params.id, req.query);
+    ApiResponse.success(res, result, 'Sponsor business report fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getSponsorLedger = async (req, res, next) => {
   try {
     const result = await plotsService.getSponsorLedger(req.params.id);
@@ -506,6 +515,7 @@ module.exports = {
   updatePlotPayoutVoucher,
   getSponsors,
   getSponsorLedger,
+  getSponsorBusinessReport,
   createSponsor,
   updateSponsor,
   deleteSponsor,

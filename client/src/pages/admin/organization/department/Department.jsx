@@ -3,7 +3,7 @@ import { Button, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInpu
 import './department.css'
 import { useEffect, useState } from 'react';
 import { Send, Filter, Edit2, Trash2 } from 'lucide-react';
-import swal from 'sweetalert';
+import { swal } from '../../../../utils/confirmDialog';
 import DataTable from '@/components/common/DataTable';
 import { adddepartment, columns, delette, update } from './departmenthelper';
 import { useCustomStyles } from '../../attandence/attandencehelper';

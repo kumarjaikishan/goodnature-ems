@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from 'react-redux';
-import swal from 'sweetalert';
 import { setlogin } from '../../store/authSlice';
 import { userlogout } from '../../store/userSlice';
 import { emplogout } from '../../store/employee';

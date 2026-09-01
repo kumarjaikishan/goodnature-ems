@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import swal from "sweetalert";
+import { swal } from "../utils/confirmDialog";
 import {
   LayoutDashboard,
   Network,

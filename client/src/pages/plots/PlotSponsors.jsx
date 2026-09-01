@@ -14,7 +14,8 @@ import {
   Unlock,
   IndianRupee,
   Banknote,
-  KeyRound
+  KeyRound,
+  TrendingUp
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
@@ -270,7 +271,7 @@ const PlotSponsors = () => {
     },
     {
       name: 'Actions',
-      width: '230px',
+      width: '260px',
       cell: (row) => (
         <div className="flex items-center gap-1">
           <button
@@ -281,9 +282,22 @@ const PlotSponsors = () => {
             <Eye size={17} />
           </button>
           <button
-            onClick={() => navigate(`/dashboard/plots/sponsors/${row._id}/ledger`)}
+            onClick={() => navigate(`/dashboard/plots/sponsors/${row._id}/business-report`)}
+            className="p-1.5 text-blue-700 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+            title="View Date-Wise Business & Commission Report (Self + Downlines)"
+          >
+            <TrendingUp size={17} className="text-blue-700" />
+          </button>
+          <button
+            onClick={() => {
+              const targetLedgerId = row.ledgerId || row._id;
+              const nameParam = encodeURIComponent(row.name || 'Sponsor');
+              const empIdParam = encodeURIComponent(row.sponsorCode || row.customerId || '');
+              const imgParam = row.profileImage ? `&profileimage=${encodeURIComponent(row.profileImage)}` : '';
+              navigate(`/dashboard/ledger/${targetLedgerId}?name=${nameParam}&empid=${empIdParam}&ledgertype=sponsor${imgParam}`);
+            }}
             className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
-            title="View Full Sponsor Commission & Payout Ledger"
+            title="View Sponsor Financial Ledger"
           >
             <Banknote size={17} className="text-teal-700" />
           </button>

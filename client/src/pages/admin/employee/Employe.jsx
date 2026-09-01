@@ -19,7 +19,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import Modalbox from '../../../components/custommodal/Modalbox';
-import swal from 'sweetalert';
+import { swal } from '../../../utils/confirmDialog';
 import DataTable from '@/components/common/DataTable';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';

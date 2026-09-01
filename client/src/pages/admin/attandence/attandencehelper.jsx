@@ -88,27 +88,28 @@ export const columns = ({
 }) => [
     {
       name: "Name",
-      selector: (row) => row?.employeeId?.userid?.name,
+      selector: (row) => row?.employeeId?.userid?.name || row?.employeeId?.employeeName || '',
       sortable: true,
       style: { minWidth: "180px" },
-      cell: (row) => (
-        <div className="flex items-center gap-2.5">
-          <Avatar
-            alt={row?.employeeId?.employeeName}
-            src={cloudinaryUrl(row?.employeeId?.profileimage, {
-              format: "webp",
-              width: 100,
-              height: 100,
-            })}
-          >
-            {!row?.employeeId?.profileimage && <User size={16} />}
-          </Avatar>
-          <Box>
-            <p className="font-semibold text-slate-800">{row?.employeeId?.employeeName}</p>
-            <p className="text-gray-500 text-[10px] tracking-wide">ID: {row?.employeeId?.empId}</p>
-          </Box>
-        </div>
-      ),
+      cell: (row) => {
+        const empName = row?.employeeId?.userid?.name || row?.employeeId?.employeeName || '—';
+        return (
+          <div className="flex items-center gap-2.5">
+            <Avatar
+              alt={empName}
+              sx={{ width: 32, height: 32 }}
+              src={cloudinaryUrl(row?.employeeId?.profileimage, {
+                format: "webp",
+                width: 80,
+                height: 80,
+              })}
+            >
+              {!row?.employeeId?.profileimage && <User size={16} />}
+            </Avatar>
+            <p className="font-semibold text-slate-800 text-xs">{empName}</p>
+          </div>
+        );
+      },
     },
     {
       name: "Date",
@@ -285,9 +286,8 @@ export const useCustomStyles = () => {
         fontWeight: "bold",
         fontSize: "14px",
         color: "white",
-        justifyContent: "flex-start",
-        paddingLeft: "8px",
-        paddingRight: "0px",
+        paddingLeft: "12px",
+        paddingRight: "12px",
       },
     },
     headRow: {
@@ -303,9 +303,8 @@ export const useCustomStyles = () => {
     },
     cells: {
       style: {
-        justifyContent: "flex-start",
-        paddingLeft: "8px",
-        paddingRight: "0px",
+        paddingLeft: "12px",
+        paddingRight: "12px",
       },
     },
   };

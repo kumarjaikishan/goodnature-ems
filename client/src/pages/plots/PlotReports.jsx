@@ -1249,7 +1249,7 @@ const PlotReports = () => {
                     ))}
                   </select>
                   <span className="text-[11px] text-teal-700 font-semibold px-1">
-                    Rate: ₹{currentSlab.plotRate}/sqft | Base Rate: ₹{baseRate}/sqft | Promoter: {currentSlab.promoterCommissionPercent}% | Dev: {currentSlab.developerCommissionPercent}%
+                    Rate: ₹{currentSlab.plotRate}/sqft | Promoter: {currentSlab.promoterCommissionPercent}% | Dev: {currentSlab.developerCommissionPercent}%
                   </span>
                 </div>
 

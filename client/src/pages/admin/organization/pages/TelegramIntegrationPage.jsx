@@ -3,7 +3,7 @@ import OrganizationLayout from '../OrganizationLayout';
 import TelegramSettings from '../components/TelegramSettings';
 import { useOrganization } from '../useOrganization';
 import { toast } from '../../../../utils/toast';
-import swal from 'sweetalert';
+import { swal } from '../../../../utils/confirmDialog';
 
 const TelegramIntegrationPage = () => {
     const {

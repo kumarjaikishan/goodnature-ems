@@ -127,9 +127,77 @@ const createLedgerForEmployee = async () => {
   }
 };
 
+const createLedgerForSponsors = async () => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const User = mongoose.model('User');
+    const sponsors = await User.find(
+      { role: 'sponsor' },
+      null,
+      { session }
+    );
+
+    for (const sp of sponsors) {
+      let ledger = await Ledger.findOne({ sponsorId: sp._id }).session(session);
+
+      if (!ledger) {
+        const [newLedger] = await Ledger.create(
+          [
+            {
+              name: sp.name || "Sponsor",
+              sponsorId: sp._id,
+              empId: sp.sponsorCode || sp.customerId || "",
+              profileImage: sp.profileImage,
+              ledgerType: 'sponsor',
+              isVoucherLedger: true
+            },
+          ],
+          { session }
+        );
+        ledger = newLedger;
+      } else {
+        let updated = false;
+        if (ledger.empId !== (sp.sponsorCode || sp.customerId || "")) { 
+          ledger.empId = sp.sponsorCode || sp.customerId || ""; 
+          updated = true; 
+        }
+        if (ledger.name !== sp.name) {
+          ledger.name = sp.name;
+          updated = true;
+        }
+        if (ledger.ledgerType !== 'sponsor') { 
+          ledger.ledgerType = 'sponsor'; 
+          updated = true; 
+        }
+        if (ledger.isVoucherLedger !== true) {
+          ledger.isVoucherLedger = true;
+          updated = true;
+        }
+        if (updated) await ledger.save({ session });
+      }
+
+      if (!sp.ledgerId || sp.ledgerId.toString() !== ledger._id.toString()) {
+        sp.ledgerId = ledger._id;
+        await sp.save({ session });
+      }
+    }
+
+    await session.commitTransaction();
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction();
+    console.error("Sponsor Ledger creation error:", error);
+  } finally {
+    session.endSession();
+  }
+};
+
 const ledger = async (req, res) => {
   try {
     await createLedgerForEmployee();
+    await createLedgerForSponsors();
 
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 0;
@@ -138,14 +206,20 @@ const ledger = async (req, res) => {
       $or: [
         { userId: req.userid },
         { userId: { $exists: false } },
-        { userId: null }
+        { userId: null },
+        { ledgerType: 'sponsor' }
       ]
     };
 
-    let query = Ledger.find(filter).populate({
-      path: 'employeeId',
-      select: 'status'
-    });
+    let query = Ledger.find(filter)
+      .populate({
+        path: 'employeeId',
+        select: 'status'
+      })
+      .populate({
+        path: 'sponsorId',
+        select: 'name sponsorCode customerId email mobile'
+      });
 
     const { view } = req.query;
 
@@ -163,6 +237,9 @@ const ledger = async (req, res) => {
       }
       if (l.ledgerType === 'employee') {
         return l.employeeId && l.employeeId.status === true;
+      }
+      if (l.ledgerType === 'sponsor') {
+        return Boolean(l.sponsorId);
       }
       return true;
     });
@@ -289,7 +366,24 @@ const ledgerEntries = async (req, res) => {
 
 const Entries = async (req, res) => {
   try {
-    const entries = await Entry.find({ ledgerId: req.params.id }).sort({ date: -1, createdAt: -1, _id: -1 });
+    let ledgerId = req.params.id;
+
+    // Check if req.params.id is a Ledger _id
+    let ledgerExists = await Ledger.findById(ledgerId);
+    if (!ledgerExists) {
+      // Fallback: check if id is sponsorId or employeeId
+      const foundLedger = await Ledger.findOne({
+        $or: [
+          { sponsorId: ledgerId },
+          { employeeId: ledgerId }
+        ]
+      });
+      if (foundLedger) {
+        ledgerId = foundLedger._id;
+      }
+    }
+
+    const entries = await Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 });
 
     res.json({ entries });
   } catch (err) {

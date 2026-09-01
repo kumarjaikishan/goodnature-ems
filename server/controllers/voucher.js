@@ -17,7 +17,10 @@ exports.getVouchers = async (req, res, next) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 0;
 
-    let voucherQuery = Voucher.find(query).sort({ voucherNo: -1 }).populate('employeeId');
+    let voucherQuery = Voucher.find(query)
+      .sort({ voucherNo: -1 })
+      .populate('employeeId')
+      .populate('sponsorId', 'name sponsorCode customerId email mobile');
 
     let total = 0;
     let pages = 1;
@@ -40,7 +43,9 @@ exports.getVouchers = async (req, res, next) => {
 
 exports.getVoucherDetails = async (req, res, next) => {
   try {
-    const voucher = await Voucher.findById(req.params.id).populate('employeeId');
+    const voucher = await Voucher.findById(req.params.id)
+      .populate('employeeId')
+      .populate('sponsorId', 'name sponsorCode customerId email mobile');
     if (!voucher) return res.status(404).json({ message: 'Voucher not found' });
     return res.status(200).json(voucher);
   } catch (error) {
@@ -114,6 +119,7 @@ exports.createVoucher = async (req, res, next) => {
       voucherNo,
       type: 'MANUAL',
       employeeId: targetLedger.employeeId || null,
+      sponsorId: targetLedger.sponsorId || null,
       date: date ? new Date(date) : new Date(),
       entries: [
         {
@@ -136,6 +142,7 @@ exports.createVoucher = async (req, res, next) => {
     await accountingService.recordLedgerEntry({
       ledgerId: targetLedger._id,
       employeeId: targetLedger.employeeId,
+      sponsorId: targetLedger.sponsorId,
       branchId,
       date: date ? new Date(date) : new Date(),
       type: 'DEBIT',
@@ -193,6 +200,7 @@ exports.editVoucher = async (req, res, next) => {
     voucher.date = date ? new Date(date) : voucher.date;
     voucher.remarks = narration || voucher.remarks;
     voucher.employeeId = targetLedger.employeeId || null;
+    voucher.sponsorId = targetLedger.sponsorId || null;
     voucher.entries = [
       {
         accountName: targetLedger.name,
@@ -215,6 +223,7 @@ exports.editVoucher = async (req, res, next) => {
         await accountingService.recordLedgerEntry({
           ledgerId: targetLedger._id,
           employeeId: targetLedger.employeeId,
+          sponsorId: targetLedger.sponsorId,
           branchId: voucher.branchId,
           date: date ? new Date(date) : new Date(),
           type: 'DEBIT',
@@ -236,6 +245,7 @@ exports.editVoucher = async (req, res, next) => {
       await accountingService.recordLedgerEntry({
         ledgerId: targetLedger._id,
         employeeId: targetLedger.employeeId,
+        sponsorId: targetLedger.sponsorId,
         branchId: voucher.branchId,
         date: date ? new Date(date) : new Date(),
         type: 'DEBIT',

@@ -14,6 +14,9 @@ const PlotAuditLog = require('../models/PlotAuditLog');
 const Counter = require('../models/Counter');
 const User = require('../models/user');
 const PlotCustomer = require('../models/PlotCustomer');
+const Ledger = require('../models/ledger');
+const Entry = require('../models/entry');
+const accountingService = require('./accountingService');
 const ApiError = require('../utils/apiError');
 
 class PlotsService {
@@ -2518,6 +2521,176 @@ class PlotsService {
   }
 
   // ── SPONSOR & CUSTOMER MANAGEMENT ───────────────────────────
+  async getSponsorBusinessReport(sponsorId, filters = {}) {
+    const sponsor = await User.findById(sponsorId)
+      .populate('sponsorId', 'name sponsorCode customerId email mobile')
+      .lean();
+    if (!sponsor) {
+      const err = new Error('Sponsor not found');
+      err.status = 404;
+      throw err;
+    }
+
+    // Auto-sync active bookings for this sponsor
+    const activeBookings = await PlotBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
+    }).select('_id').lean();
+
+    for (const b of activeBookings) {
+      await this.syncBookingSponsorCommissions(b._id);
+    }
+
+    // Find all subordinates (sub-sponsors who have this sponsor as their developer sponsor)
+    const subordinates = await User.find({
+      role: 'sponsor',
+      sponsorId: sponsor._id
+    }).select('_id name sponsorCode customerId mobile email createdAt').lean();
+
+    // Query strictly for commissions where sponsorId === sponsor._id
+    // This ensures only the exact commission earned by this sponsor is returned:
+    // - DIRECT_DEVELOPER: Direct sale by developer sponsor (e.g., 12.5% or 13%)
+    // - PROMOTER: Direct sale by sub-sponsor (e.g., 10.5% or 11%)
+    // - DEVELOPER_OVERRIDE: Override earned from a subordinate sale (2%)
+    const commQuery = {
+      sponsorId: sponsor._id,
+      status: 'active'
+    };
+
+    const commissions = await PlotSponsorCommission.find(commQuery)
+      .populate('customerId', 'name customerId customerCode mobile')
+      .populate('closingId', 'closingName closingNumber startDate endDate')
+      .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
+      .populate({
+        path: 'bookingId',
+        select: 'bookingNumber tenureMonths plotValue netValue discount plotId bookingDate createdAt sponsorId parentSponsorId',
+        populate: [
+          { path: 'plotId', select: 'plotNumber seriesId' },
+          { path: 'sponsorId', select: 'name sponsorCode' }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Filter by date range if provided (using receipt date / creation date)
+    let filteredCommissions = commissions;
+    const { fromDate, toDate, typeFilter, search } = filters;
+
+    if (fromDate || toDate) {
+      filteredCommissions = filteredCommissions.filter(c => {
+        const itemDate = c.receiptId?.createdAt || c.createdAt;
+        const dStr = new Date(itemDate).toISOString().slice(0, 10);
+        if (fromDate && dStr < fromDate) return false;
+        if (toDate && dStr > toDate) return false;
+        return true;
+      });
+    }
+
+    // Filter by direct self vs subordinate if specified
+    if (typeFilter === 'SELF') {
+      filteredCommissions = filteredCommissions.filter(c => c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER');
+    } else if (typeFilter === 'SUBORDINATE') {
+      filteredCommissions = filteredCommissions.filter(c => c.commissionRole === 'DEVELOPER_OVERRIDE');
+    }
+
+    // Search query filter
+    if (search && search.trim()) {
+      const q = search.toLowerCase().trim();
+      filteredCommissions = filteredCommissions.filter(c => {
+        const custName = (c.customerId?.name || '').toLowerCase();
+        const custCode = (c.customerId?.customerCode || c.customerId?.customerId || '').toLowerCase();
+        const bkNo = (c.bookingId?.bookingNumber || '').toLowerCase();
+        const rcNo = (c.receiptId?.receiptNumber || '').toLowerCase();
+        const subSpName = (c.bookingId?.sponsorId?.name || '').toLowerCase();
+        const subSpCode = (c.bookingId?.sponsorId?.sponsorCode || '').toLowerCase();
+        const plotNo = (c.bookingId?.plotId?.plotNumber || '').toLowerCase();
+        return custName.includes(q) || custCode.includes(q) || bkNo.includes(q) || rcNo.includes(q) || subSpName.includes(q) || subSpCode.includes(q) || plotNo.includes(q);
+      });
+    }
+
+    // Calculate Summary Metrics
+    let selfCollection = 0;
+    let selfCommission = 0;
+    let subCollection = 0;
+    let subCommission = 0;
+
+    // Group items by transaction rows
+    const items = filteredCommissions.map(c => {
+      const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
+      const colAmt = Number(c.collectionAmount || 0);
+      const earnAmt = Number(c.amount || 0);
+
+      if (isDirect) {
+        selfCollection += colAmt;
+        selfCommission += earnAmt;
+      } else {
+        subCollection += colAmt;
+        subCommission += earnAmt;
+      }
+
+      const bookingSponsor = c.bookingId?.sponsorId;
+      const isSubordinateSale = c.commissionRole === 'DEVELOPER_OVERRIDE';
+      const isDirectDeveloper = c.commissionRole === 'DIRECT_DEVELOPER';
+
+      let percentFormula = `${c.commissionPercent}%`;
+      if (isDirectDeveloper) {
+        const promoterPart = +(c.commissionPercent - 2).toFixed(2);
+        percentFormula = `${promoterPart}% + 2%`;
+      }
+
+      return {
+        _id: c._id,
+        date: c.receiptId?.createdAt || c.createdAt,
+        receiptNumber: c.receiptId?.receiptNumber || '-',
+        receiptType: c.receiptId?.receiptType || 'PAYMENT',
+        paymentMode: c.receiptId?.paymentMode || 'cash',
+        bookingNumber: c.bookingId?.bookingNumber || '-',
+        plotNumber: c.bookingId?.plotId?.plotNumber || '-',
+        customerName: c.customerId?.name || '-',
+        customerCode: c.customerId?.customerCode || c.customerId?.customerId || '-',
+        customerMobile: c.customerId?.mobile || '-',
+        sourceType: isDirect ? 'SELF' : 'SUBORDINATE',
+        subordinateName: isSubordinateSale ? (bookingSponsor?.name || 'Sub-Sponsor') : null,
+        subordinateCode: isSubordinateSale ? (bookingSponsor?.sponsorCode || '') : null,
+        commissionRole: c.commissionRole,
+        collectionAmount: colAmt,
+        commissionPercent: c.commissionPercent,
+        percentFormula,
+        commissionEarned: earnAmt,
+        isClosed: Boolean(c.closingId),
+        closingNumber: c.closingId?.closingNumber || null,
+        closingName: c.closingId?.closingName || null
+      };
+    });
+
+    const totalCollection = selfCollection + subCollection;
+    const totalCommission = selfCommission + subCommission;
+
+    return {
+      sponsor: {
+        _id: sponsor._id,
+        name: sponsor.name,
+        sponsorCode: sponsor.sponsorCode || sponsor.customerId || '',
+        email: sponsor.email || '',
+        mobile: sponsor.mobile || '',
+        isDeveloperSponsor: !sponsor.sponsorId,
+        parentSponsor: sponsor.sponsorId || null
+      },
+      subordinatesCount: subordinates.length,
+      subordinatesList: subordinates,
+      summary: {
+        totalCollection,
+        totalCommission,
+        selfCollection,
+        selfCommission,
+        subordinateCollection: subCollection,
+        subordinateCommission: subCommission,
+        transactionsCount: items.length
+      },
+      items
+    };
+  }
+
   async getSponsorLedger(sponsorId) {
     const sponsor = await User.findById(sponsorId)
       .populate('sponsorId', 'name sponsorCode customerId email mobile')
@@ -2730,11 +2903,42 @@ class PlotsService {
     }
     const skip = (Number(page) - 1) * Number(limit);
     const total = await User.countDocuments(filter);
-    const sponsors = await User.find(filter)
+    const rawSponsors = await User.find(filter)
       .populate('sponsorId', 'name sponsorCode mobile email')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
+
+    // Map each sponsor to their Ledger account ID
+    const sponsorIds = rawSponsors.map(s => s._id);
+    const ledgers = await Ledger.find({ sponsorId: { $in: sponsorIds } }).lean();
+    const ledgerMap = new Map(ledgers.map(l => [l.sponsorId.toString(), l._id.toString()]));
+
+    const sponsors = await Promise.all(
+      rawSponsors.map(async (s) => {
+        let ledgerId = ledgerMap.get(s._id.toString());
+        if (!ledgerId) {
+          // Auto-create ledger if not found
+          const newLedger = new Ledger({
+            name: s.name || 'Sponsor',
+            sponsorId: s._id,
+            empId: s.sponsorCode || s.customerId || '',
+            profileImage: s.profileImage,
+            ledgerType: 'sponsor',
+            isVoucherLedger: true,
+            advance: 0
+          });
+          await newLedger.save();
+          ledgerId = newLedger._id.toString();
+        }
+        return {
+          ...s,
+          ledgerId
+        };
+      })
+    );
+
     return { sponsors, pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) } };
   }
 
@@ -3266,6 +3470,26 @@ class PlotsService {
         { $set: { closingId: closingDoc._id } }
       ).session(session);
 
+      // Post CREDIT transaction to each sponsor's financial ledger
+      for (const sp of closingDoc.sponsors) {
+        if (sp.totalCommission > 0) {
+          const directText = sp.directBusiness > 0 ? `Direct: ₹${sp.directBusiness.toLocaleString('en-IN')} (${sp.directRatesStr || `${sp.directEffectivePct}%`}) = ₹${sp.directCommission.toLocaleString('en-IN')}` : '';
+          const indirectText = sp.indirectBusiness > 0 ? `Downline: ₹${sp.indirectBusiness.toLocaleString('en-IN')} (${sp.indirectRatesStr || `${sp.indirectEffectivePct}%`}) = ₹${sp.indirectCommission.toLocaleString('en-IN')}` : '';
+          const parts = [directText, indirectText].filter(Boolean).join(' | ');
+          const particular = `Commission credited for Closing ${closingDoc.closingNumber} (${closingDoc.closingName}) [Period: ${new Date(closingDoc.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} - ${new Date(closingDoc.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}] — ${parts}`;
+
+          await accountingService.recordLedgerEntry({
+            sponsorId: sp.sponsorId,
+            date: closingDoc.endDate || new Date(),
+            type: 'CREDIT',
+            amount: sp.totalCommission,
+            source: 'commission_closing',
+            referenceId: closingDoc._id,
+            remarks: particular
+          }, session);
+        }
+      }
+
       // Write audit log
       const log = new PlotAuditLog({
         action: 'CREATE_CLOSING',
@@ -3415,20 +3639,47 @@ class PlotsService {
         isDeveloper: s.isDeveloper,
         directBusiness: s.directBusiness,
         directCommission: s.directCommission,
-        indirectBusiness: s.indirectBusiness,
-        indirectCommission: s.indirectCommission,
-        totalBusiness: s.totalBusiness,
-        totalCommission: s.totalCommission,
         directRatesStr: s.directRatesStr || '',
         directEffectivePct: s.directEffectivePct || 0,
+        indirectBusiness: s.indirectBusiness,
+        indirectCommission: s.indirectCommission,
         indirectRatesStr: s.indirectRatesStr || '',
         indirectEffectivePct: s.indirectEffectivePct || 0,
+        totalBusiness: s.totalBusiness,
+        totalCommission: s.totalCommission,
         totalEffectivePct: s.totalEffectivePct || 0,
         transactionCount: s.transactionCount,
       }));
       if (remarks !== undefined) closing.remarks = remarks;
 
       await closing.save({ session });
+
+      // 4. Update Sponsor Ledger Entries for this closing batch
+      // First remove previously posted entries for this closing
+      const oldEntries = await Entry.find({ referenceId: closing._id, source: 'commission_closing' }).session(session);
+      for (const oldEntry of oldEntries) {
+        await accountingService.deleteLedgerEntry(oldEntry._id, session);
+      }
+
+      // Re-post updated CREDIT entries to sponsor ledgers
+      for (const sp of closing.sponsors) {
+        if (sp.totalCommission > 0) {
+          const directText = sp.directBusiness > 0 ? `Direct: ₹${sp.directBusiness.toLocaleString('en-IN')} (${sp.directRatesStr || `${sp.directEffectivePct}%`}) = ₹${sp.directCommission.toLocaleString('en-IN')}` : '';
+          const indirectText = sp.indirectBusiness > 0 ? `Downline: ₹${sp.indirectBusiness.toLocaleString('en-IN')} (${sp.indirectRatesStr || `${sp.indirectEffectivePct}%`}) = ₹${sp.indirectCommission.toLocaleString('en-IN')}` : '';
+          const parts = [directText, indirectText].filter(Boolean).join(' | ');
+          const particular = `Commission credited for Closing ${closing.closingNumber} (${closing.closingName}) [Period: ${new Date(closing.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} - ${new Date(closing.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}] — ${parts}`;
+
+          await accountingService.recordLedgerEntry({
+            sponsorId: sp.sponsorId,
+            date: closing.endDate || new Date(),
+            type: 'CREDIT',
+            amount: sp.totalCommission,
+            source: 'commission_closing',
+            referenceId: closing._id,
+            remarks: particular
+          }, session);
+        }
+      }
 
       // Audit log
       const log = new PlotAuditLog({
@@ -3469,13 +3720,19 @@ class PlotsService {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      // Unlink all commission records associated with this closing
+      // 1. Reverse & delete all associated financial ledger entries
+      const oldEntries = await Entry.find({ referenceId: closing._id, source: 'commission_closing' }).session(session);
+      for (const oldEntry of oldEntries) {
+        await accountingService.deleteLedgerEntry(oldEntry._id, session);
+      }
+
+      // 2. Unlink all commission records associated with this closing
       await PlotSponsorCommission.updateMany(
         { closingId: closing._id },
         { $set: { closingId: null } }
       ).session(session);
 
-      // Audit log
+      // 3. Audit log
       const log = new PlotAuditLog({
         action: 'DELETE_CLOSING',
         modelName: 'PlotClosing',
@@ -3491,11 +3748,11 @@ class PlotsService {
       });
       await log.save({ session });
 
-      // Remove closing document
+      // 4. Remove closing document
       await PlotClosing.findByIdAndDelete(id).session(session);
 
       await session.commitTransaction();
-      return { message: `Closing ${closing.closingNumber} (${closing.closingName}) successfully reversed and deleted. All associated commissions are restored to unclosed state.` };
+      return { message: `Closing ${closing.closingNumber} (${closing.closingName}) successfully reversed and deleted. All associated commissions and ledger credits are restored to unclosed state.` };
     } catch (error) {
       await session.abortTransaction();
       throw error;

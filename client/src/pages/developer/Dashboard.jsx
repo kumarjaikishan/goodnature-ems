@@ -5,9 +5,8 @@ import { useCustomStyles } from '../admin/attandence/attandencehelper'
 import dayjs from 'dayjs'
 import { Button, TextField } from '@mui/material'
 import { Plus, Flag, Edit2, Trash2, Info, MessageSquareWarning } from "lucide-react";
-import Modalbox from '../../components/custommodal/Modalbox'
 import { toast } from '../../utils/toast'
-import swal from 'sweetalert';
+import { swal } from '../../utils/confirmDialog';
 import DeveloperEsslMonitor from './DeveloperEsslMonitor';
 
 const DeveloperDashboard = () => {

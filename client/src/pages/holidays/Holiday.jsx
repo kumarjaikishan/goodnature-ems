@@ -22,7 +22,7 @@ import {
 import { Select, MenuItem, FormControl, InputLabel, Menu } from '@mui/material';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from '../../utils/toast';
-import swal from 'sweetalert';
+import { swal } from '../../utils/confirmDialog';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import HolidayCalander from './holidayCalander';
 import Modalbox from '../../components/custommodal/Modalbox';

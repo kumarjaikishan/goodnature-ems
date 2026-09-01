@@ -45,9 +45,11 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - **Downpayment Calculation Basis**: Defaults to `BEFORE_DISCOUNT` (40% of Gross Plot Value, with discount reducing the EMI balance), with an option to toggle to `AFTER_DISCOUNT` (40% of Net Contract Value).
 - **Rate Matrix Storage**: Configured in `PlotRateConfiguration.rateSlabs` and editable in [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) Pricing & Rates tab.
 
-### H. Collection-Based Sponsor Commission Engine
-- **Core Rule**: Sponsor commissions are credited strictly on a **Collection Basis** (per receipt / payment collected, e.g. downpayment or monthly EMI collection), NOT on the gross plot value upfront.
-- **Auto-Sync Engine**: `syncBookingSponsorCommissions(bookingId)` reads each receipt for the booking, calculates the principal collected (`receipt.amount - receipt.lateFinePaid`), and applies the booking's locked rate matrix slab percentages (`DIRECT_DEVELOPER` or `PROMOTER` + `DEVELOPER_OVERRIDE`).
+### I. Sponsor Integration with Unified Ledger & Voucher System
+- **Ledger Types**: `Ledger` collection supports `ledgerType: ['employee', 'custom', 'sponsor']`.
+- **Auto-Sync**: `createLedgerForSponsors()` syncs active users with role `sponsor` into the `Ledger` collection with `isVoucherLedger: true`.
+- **Voucher Debits**: When an admin creates a manual voucher selecting a Sponsor Ledger, a `DEBIT` entry is recorded in `Entry` and the sponsor's outstanding ledger balance (`advance`) is reduced immediately.
+- **Reference**: `Voucher` documents store `sponsorId` alongside `employeeId` to maintain clear relational links.
 - **Reports Sync**: `getReportsData('commissions')` automatically auto-syncs active bookings so all sponsor ledgers reflect exact collection-based commissions in real-time.
 
 ### I. Unified Good Nature Theme & Symmetrical Loading States
@@ -82,4 +84,53 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Admin Password Reset Tool**: In the Sponsors table ([`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx)), clicking the **Key icon (`KeyRound`)** allows the administrator to reset any sponsor's password to `123456` (or a custom password) with instant bcrypt re-hashing via `POST /api/plots/sponsors/:id/reset-password`.
 - **Role Isolation**: Logged-in sponsors land on their dedicated **Commission Ledger & Wallet Statement** (`/dashboard`), with sidebar access strictly scoped to their own ledger and profile.
 
+### O. Sponsor Date-Wise Business Breakdown Report (`/dashboard/plots/sponsors/:id/business-report`)
+- **Action Button in Sponsors Page**: Clicking the blue **TrendingUp (`📈`)** icon on [`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx) opens the date-wise business breakdown.
+- **Printable**: Fully formatted for printing and statement audits.
+
+### P. Account Ledger Detail Redesign (`/dashboard/ledger/:id`)
+- **Theme**: Unified Good Nature deep teal styling with white cards, subtle borders, and smooth shadows.
+- **Header Profile Card**: Displays account avatar, name, account type tag (`Employee Account`, `Sponsor Account`, or `Custom Ledger`), and employee ID.
+- **Key Metrics Summary**: Three clear summary metric cards displaying Total Credit (`+₹...` in green), Total Debit (`-₹...` in red), and Net Balance (`₹...` with receivable/payable status).
+- **Modern Filter Bar**: Year, Month, Date pickers with instant reset action.
+- **Polished Modal**: Clean modal for adding/editing transaction entries with validated credit/debit inputs.
+
+### Q. Unified Sponsor Financial Ledger & Closing Auto-Sync
+- **Sponsor Ledgers in General Ledger**: Every sponsor automatically has an official account ledger registered in [`Ledger`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/models/ledger.js) (`ledgerType: 'sponsor'`), accessible directly from the main `/dashboard/ledger` page.
+- **Commission Closing Credit Auto-Posting**: When a Plot Commission Closing batch is created or updated in [`plots.service.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots.service.js), every eligible sponsor with earned commissions is automatically posted a `CREDIT` transaction to their financial ledger account (`source: 'commission_closing'`).
+- **Seamless Deletion & Reversal**: Reversing/deleting a closing batch automatically deletes and reverses all associated ledger entries.
+- **Direct Sponsor Page Navigation**: In [`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx), clicking the **Ledger icon (`Banknote`)** navigates directly to the universal ledger detail page: `/dashboard/ledger/:id?name=...&empid=...&ledgertype=sponsor`.
+
+### R. Sonner Confirmation Dialog System (`confirmDialog` / `swal`)
+- **Complete Replacement of Legacy SweetAlert**: Uninstalled `sweetalert` package and replaced it with a modern, lightweight, themed confirmation utility in [`client/src/utils/confirmDialog.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/utils/confirmDialog.jsx) powered by `sonner`.
+- **Zero Extra Bundle Size**: Uses existing `sonner` and Tailwind CSS to render clean, animated confirmation modals with native promise support (`const proceed = await confirmDialog({ title, text, isDanger })` or `swal({ title, text }).then(proceed => ...)`).
+- **Universal Drop-in Compatibility**: Provides named exports `{ confirmDialog, swal }` so all existing code works with zero refactoring.
+- **Pages Updated**:
+  - `VoucherList.jsx`
+  - `PlotClosingsPage.jsx`
+  - `ledgerdetailpage.jsx`
+  - `ledgerpagelist.jsx`
+  - `payroll.jsx`
+  - `Employe.jsx`
+  - `Department.jsx`
+  - `TelegramIntegrationPage.jsx`
+  - `useOrganization.js`
+  - `organization.jsx`
+  - `LeavePolicyManager.jsx`
+  - `Holiday.jsx`
+  - `DeveloperEsslMonitor.jsx`
+  - `Dashboard.jsx` (developer)
+  - `adminManagerProfile.jsx`
+  - `sidebar.jsx`
+  - `logout.jsx`
+
+### S. Native Tailwind DataTable Engine (`DataTable.jsx`)
+- **Complete Elimination of `react-data-table-component` & `styled-components`**: Removed both libraries from `package.json`.
+- **Pure React + Tailwind Architecture**: Rebuilt [`client/src/components/common/DataTable.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/common/DataTable.jsx) as a lightweight, zero-dependency native `<table>` engine.
+- **100% Drop-In Backwards Compatible**:
+  - **Sorting**: Client-side (instant multi-type sort with `ArrowUpDown` indicators) & Server-side (`onSort`).
+  - **Pagination**: Client-side & Server-side (`paginationServer`, rows per page dropdown, next/previous/first/last page jumps).
+  - **Row Selection**: Checkbox selection (`selectableRows`), "Select All", and `onSelectedRowsChange` callback.
+  - **Styling**: Honors `customStyles.headCells`, `conditionalRowStyles`, `highlightOnHover`, `dense`, and `noDataComponent`.
+  - **Performance**: Zero runtime CSS generation, no memory leaks, seamless printing support.
 

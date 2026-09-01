@@ -23,7 +23,7 @@ import {
 import DataTable from '@/components/common/DataTable';
 import { Search, RotateCcw, Trash2, MessageSquareWarning, X, Eye } from 'lucide-react';
 import dayjs from 'dayjs';
-import swal from 'sweetalert';
+import { swal } from '../../utils/confirmDialog';
 import { toast } from '../../utils/toast';
 import { apiClient } from '../../utils/apiClient';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';

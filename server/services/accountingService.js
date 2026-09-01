@@ -119,6 +119,7 @@ class AccountingService {
   async recordLedgerEntry(data, session = null) {
     const { 
       employeeId, 
+      sponsorId,
       ledgerId,
       date = new Date(), 
       type, // 'DEBIT' or 'CREDIT'
@@ -131,6 +132,7 @@ class AccountingService {
 
     const amountNum = Number(amount) || 0;
     const Employee = mongoose.model('employee');
+    const User = mongoose.model('User');
     const postingDate = toUtcDateOnly(date);
 
     // 1. Find the Ledger
@@ -139,6 +141,8 @@ class AccountingService {
       empLedger = await Ledger.findById(ledgerId).session(session);
     } else if (employeeId) {
       empLedger = await Ledger.findOne({ employeeId }).session(session);
+    } else if (sponsorId) {
+      empLedger = await Ledger.findOne({ sponsorId }).session(session);
     }
 
     // Create ledger for employee if it doesn't exist yet
@@ -158,6 +162,23 @@ class AccountingService {
         // Link back to employee
         emp.ledgerId = empLedger._id;
         await emp.save({ session });
+      }
+    }
+
+    // Create ledger for sponsor if it doesn't exist yet
+    if (!empLedger && sponsorId) {
+      const sponsor = await User.findById(sponsorId).session(session);
+      if (sponsor) {
+        empLedger = new Ledger({
+          sponsorId: sponsor._id,
+          empId: sponsor.sponsorCode || '',
+          ledgerType: 'sponsor',
+          name: sponsor.name || 'Sponsor',
+          profileImage: sponsor.profileImage,
+          isVoucherLedger: true,
+          advance: 0
+        });
+        await empLedger.save({ session });
       }
     }
 

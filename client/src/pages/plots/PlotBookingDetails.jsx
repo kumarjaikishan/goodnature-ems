@@ -295,12 +295,8 @@ const PlotBookingDetails = () => {
               <span className="font-medium text-slate-700">{plot.plotSize || 0} Sq Ft</span>
             </div>
             <div>
-              <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Base Rate</span>
-              <span className="font-medium text-slate-700">₹{plot.baseRate || 0} / Sq Ft</span>
-            </div>
-            <div>
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Effective Rate</span>
-              <span className="font-medium text-slate-700">₹{plot.effectiveRate || 0} / Sq Ft</span>
+              <span className="font-medium text-slate-700">₹{plot.effectiveRate || booking.basePlotRate || 0} / Sq Ft</span>
             </div>
           </div>
         </div>

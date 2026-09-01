@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Avatar, Button, TextField } from "@mui/material";
 import { toast } from "../../utils/toast";
-import swal from "sweetalert";
+import { swal } from "../../utils/confirmDialog";
 import useImageUpload from "../../utils/imageresizer";
 import { FirstFetch } from "../../../store/userSlice";
 import Modalbox from "../../components/custommodal/Modalbox";

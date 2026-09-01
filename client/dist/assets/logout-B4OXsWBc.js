@@ -1,1 +1,0 @@
-import{o as e,t}from"./react-0T9Avz-T.js";import{l as n}from"./userSlice-Cv7FYeVx.js";import{at as r,et as i,r as a,t as o,tt as s}from"./index-DxGRsDyU.js";var c=e(t(),1);a();var l=()=>{let e=s(),t=r();return(0,c.useEffect)(()=>(localStorage.removeItem(`emstoken`),e(n()),e(i()),e(o(!1)),t(`/login`)),[]),null};export{l as default};

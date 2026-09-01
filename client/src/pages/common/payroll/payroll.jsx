@@ -29,7 +29,7 @@ import { useDispatch, useSelector } from "react-redux";
 import CheckPermission from "../../../utils/CheckPermission";
 import { setpayroll, FirstFetch } from "../../../../store/userSlice";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-import swal from "sweetalert";
+import { swal } from "../../../utils/confirmDialog";
 
 export default function PayrollPage() {
   const { employeeId } = useParams();

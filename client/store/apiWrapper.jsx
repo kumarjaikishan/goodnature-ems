@@ -1,5 +1,5 @@
 // apiWrapper.js
-import { toast } from 'react-toastify';
+import { toast } from '../src/utils/toast';
 
 const apiWrapper = async (url, method = 'GET', body = null, successAction) => {
     try {

@@ -27,7 +27,6 @@ const PlotInventory = () => {
   const [adjustForm, setAdjustForm] = useState({
     plotSize: '',
     plotType: 'NORMAL',
-    baseRate: '',
     remarks: '',
   });
 
@@ -68,7 +67,6 @@ const PlotInventory = () => {
     setAdjustForm({
       plotSize: plot.plotSize,
       plotType: plot.plotType,
-      baseRate: plot.baseRate,
       remarks: plot.remarks || '',
     });
     setShowModal(true);
@@ -81,7 +79,6 @@ const PlotInventory = () => {
       await api.put(`/plots/${selectedPlot._id}`, {
         plotSize: Number(adjustForm.plotSize),
         plotType: adjustForm.plotType,
-        baseRate: Number(adjustForm.baseRate),
         remarks: adjustForm.remarks,
       });
       toast.success('Plot properties updated successfully');
@@ -237,10 +234,6 @@ const PlotInventory = () => {
                 <option value="NORMAL">Normal / Plain</option>
                 <option value="CORNER">Corner Plot (+20%)</option>
               </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Base Sq Ft Rate (₹)</label>
-              <input className={inputCls} type="number" value={adjustForm.baseRate} onChange={e => setAdjustForm({ ...adjustForm, baseRate: e.target.value })} required />
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Remarks</label>

@@ -28,6 +28,13 @@ router.get('/sponsors/:id/ledger', (req, res, next) => {
   }
   return checkPermission('plot_sponsor', 1)(req, res, next);
 }, ctrl.getSponsorLedger);
+router.get('/sponsors/:id/business-report', (req, res, next) => {
+  // If the logged-in user is a sponsor requesting their own report, bypass staff permission
+  if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
+    return next();
+  }
+  return checkPermission('plot_sponsor', 1)(req, res, next);
+}, ctrl.getSponsorBusinessReport);
 router.post('/sponsors', checkPermission('plot_sponsor', 2), ctrl.createSponsor);
 router.put('/sponsors/:id', checkPermission('plot_sponsor', 3), ctrl.updateSponsor);
 router.delete('/sponsors/:id', checkPermission('plot_sponsor', 4), ctrl.deleteSponsor);
