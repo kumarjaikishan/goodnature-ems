@@ -189,15 +189,9 @@ const PlotBooking = () => {
     downpaymentAmt = netContractValue;
     emiPrincipalAmt = 0;
   } else {
-    if (downpaymentBase === 'BEFORE_DISCOUNT') {
-      // 40% calculated on Gross Plot Value (before discount)
-      downpaymentAmt = Math.round(calculatedPlotValue * dpPercent);
-      emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
-    } else {
-      // 40% calculated on Net Contract Value (after discount)
-      downpaymentAmt = Math.round(netContractValue * dpPercent);
-      emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
-    }
+    // 40% always calculated on Gross Plot Value (before discount)
+    downpaymentAmt = Math.round(calculatedPlotValue * dpPercent);
+    emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
   }
 
   const emiMonthlyAmt = !isOneTime && form.tenureMonths > 0 ? Math.round(emiPrincipalAmt / form.tenureMonths) : 0;
@@ -751,48 +745,9 @@ const PlotBooking = () => {
                   </>
                 ) : (
                   <>
-                    {/* Downpayment Calculation Basis Toggle */}
-                    <div className="md:col-span-2 bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
-                          40% Downpayment Calculation Base
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                          {downpaymentBase === 'BEFORE_DISCOUNT'
-                            ? `Computed on Gross Value (₹${calculatedPlotValue.toLocaleString('en-IN')}). Discount of ₹${calculatedDiscount.toLocaleString('en-IN')} reduces the EMI balance.`
-                            : `Computed on Net Value (₹${netContractValue.toLocaleString('en-IN')} after ₹${calculatedDiscount.toLocaleString('en-IN')} discount is deducted).`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setDownpaymentBase('AFTER_DISCOUNT')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            downpaymentBase === 'AFTER_DISCOUNT'
-                              ? 'bg-indigo-600 text-white shadow-xs'
-                              : 'text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          After Discount (Net)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDownpaymentBase('BEFORE_DISCOUNT')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            downpaymentBase === 'BEFORE_DISCOUNT'
-                              ? 'bg-indigo-600 text-white shadow-xs'
-                              : 'text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          Before Discount (Gross)
-                        </button>
-                      </div>
-                    </div>
-
                     <div className="flex flex-col gap-1">
                       <label className={labelCls}>
-                        Downpayment (40% of {downpaymentBase === 'BEFORE_DISCOUNT' ? 'Gross Plot Value' : 'Net Value'})
+                        Downpayment (40% of Gross Plot Value)
                       </label>
                       <input
                         className={`${inputCls} bg-indigo-50 border-indigo-200 text-indigo-800 font-bold font-mono cursor-not-allowed`}
@@ -818,7 +773,7 @@ const PlotBooking = () => {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>EMI Balance ({downpaymentBase === 'BEFORE_DISCOUNT' ? 'Net Value - Downpayment' : '60% of Net Value'})</label>
+                      <label className={labelCls}>EMI Balance (Net Contract - Downpayment)</label>
                       <input
                         className={`${inputCls} bg-slate-50 border-slate-200 text-slate-700 font-bold font-mono cursor-not-allowed`}
                         type="text"
@@ -990,7 +945,7 @@ const PlotBooking = () => {
                   </div>
 
                   <div className="flex justify-between items-center text-emerald-700 font-bold pt-1">
-                    <span>Downpayment ({isOneTime ? '100%' : `40% ${downpaymentBase === 'BEFORE_DISCOUNT' ? 'Gross' : 'Net'}`}):</span>
+                    <span>Downpayment ({isOneTime ? '100%' : '40% Gross'}):</span>
                     <span className="font-mono">₹{downpaymentAmt.toLocaleString('en-IN')}</span>
                   </div>
 

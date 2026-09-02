@@ -20,6 +20,7 @@ import {
   FileText,
   History,
   TrendingUp,
+  Coins,
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 import Popover from "@mui/material/Popover";
@@ -100,6 +101,19 @@ const Sidebar = () => {
             { menu: "Commission Closings", link: "/dashboard/plots/closings", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
+          ],
+        },
+        {
+          menu: "Investments",
+          icon: <Coins size={20} />,
+          roles: ["admin", "superadmin", "manager", "demo"],
+          children: [
+            { menu: "Dashboard", link: "/dashboard/investments/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Investment", link: "/dashboard/investments/accounts", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Collections", link: "/dashboard/investments/collections", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Dues & Defaulters", link: "/dashboard/investments/dues", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Premature Settlement", link: "/dashboard/investments/settlement", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Scheme Matrix & Rules", link: "/dashboard/investments/schemes", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },

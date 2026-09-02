@@ -29,6 +29,8 @@ This document tracks known tasks, technical debt, and pending improvements ident
 ## 2. Completed / Stabilized Features
 - [x] Plot inventory generation and series master management with dimensional config.
 - [x] Plot booking, hold expiry logic, and installment collection with receipt printing.
+- [x] Standardized 40% plot downpayment calculation always on Gross Plot Value (before discount).
+- [x] Recurring Deposit (R.D.) and Fixed Deposit (F.D.) Investment Management module (Maturity matrix from 24M to 120M, Certificate generator, Passbook, Dues scanner, and Premature settlement).
 - [x] Tiered sponsor commission matrix (0, 3, 6, 9, 12, 15, 18, 21 months) locked at booking time.
 - [x] Collection-based sponsor commission calculation engine (crediting commissions per payment receipt).
 - [x] Unified Good Nature design system and symmetric page loading animation `<PageLoader />`.

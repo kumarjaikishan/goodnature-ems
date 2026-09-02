@@ -58,10 +58,16 @@
 - **Sponsors & Customers**: KYC details, nominee information, multi-tier sponsor commission structures.
 - **Bookings & Holds**: Full payment vs monthly installment schemes, automatic hold expiry via hourly scheduler.
 - **Installment Collection & Receipts**: Real-time receipt numbering, ledger tracking, print-ready receipts and certificates.
-- **Commission Closing System**: Bi-weekly / monthly custom date range closings with live calculation preview, direct vs. indirect 2% override breakdown per sponsor, date adjustment with auto-reattribution, and safe reversal on deletion.
-- **Weekly Payout Schedules**: Configurable money-back schedules for investors / fully paid plots with automated scheduler, and payout voucher disbursement.
+- **Commission Ledger**: Direct and indirect sponsor commissions with monthly closing and voucher payout workflows.
 
-### E. Developer & Observability
+### E. Investment Management (Recurring & Fixed Deposits)
+- **Schemes**: Recurring Deposit (R.D., min ₹1,000/mo) and Fixed Deposit (F.D., min ₹10,000 lump sum).
+- **Maturity Matrices**: 24M (112% RD / 121% FD) up to 120M (200% RD / 350% FD).
+- **Sponsor Earnings**: Collection-linked sponsor commission split (Sub-Sponsor Promoter % + Developer Sponsor 1.0% override).
+- **Documents & Passbooks**: Official Certificate of Deposit / Bond printouts and customer passbook statements.
+- **Settlement Engine**: Premature simple interest calculation and maturity payout processing.
+
+### F. Developer & Observability
 - **In-Memory API Performance Monitor**: Measures response time, p95 latency, error rates per route pattern (`/api/api-monitor/stats`).
 - **Telegram Bot Notifications**: Real-time punch and system alert broadcasting.
 - **Server-Sent Events (SSE)**: Live event feed (`/events`) pushing real-time check-in/out updates to active dashboards.

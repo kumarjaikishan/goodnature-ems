@@ -286,7 +286,18 @@ const PlotBookingDetails = () => {
                 <div>
                   <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Monthly EMI Amount</span>
                   <span className="font-medium text-slate-700">
-                    ₹{(installments.find(i => i.installmentNumber > 0)?.dueAmount || 0).toLocaleString('en-IN')}
+                    {(() => {
+                      const regularInsts = (installments || []).filter(i => i.installmentNumber > 0);
+                      const months = regularInsts.length || booking.installmentCount || booking.tenureMonths || 0;
+                      const net = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
+                      const dp = booking.bookingAmount || booking.downpaymentAmount || 0;
+                      const rem = Math.max(0, net - dp);
+                      const rawEmi = months > 0 ? (rem / months) : (regularInsts[0]?.dueAmount || 0);
+                      const emiFormatted = rawEmi % 1 === 0
+                        ? rawEmi.toLocaleString('en-IN')
+                        : rawEmi.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      return `₹${emiFormatted}`;
+                    })()}
                   </span>
                 </div>
               </>

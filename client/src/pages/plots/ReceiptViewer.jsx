@@ -183,7 +183,6 @@ const ReceiptViewer = () => {
             {/* Address & Details */}
             <div className="text-[10px] text-slate-600 space-y-0.5 font-medium">
               <p>{companyAddress}</p>
-              <p><span className="font-bold text-slate-800">Contact:</span> {companyMobile} {companyGstin ? `| ` : ''}{companyGstin ? <><span className="font-bold text-slate-800">GSTIN:</span> {companyGstin}</> : null}</p>
             </div>
           </div>
         </div>

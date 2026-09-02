@@ -76,6 +76,7 @@ app.use((req, res, next) => {
 
 
 const plotRoutes = require('./router/plots.routes');
+const investmentRoutes = require('./router/investment.routes');
 
 // ----------------------
 // API performance monitor (records timing for every request; stats are
@@ -96,10 +97,11 @@ app.get(['/', '/health', '/api/health'], (req, res) => {
 });
 
 app.use('/api/plots', plotRoutes);
+app.use('/api/investments', investmentRoutes);
 app.use('/api', route);
+app.use('/api/telegram', TelegramRoute);
 app.get('/events', eventsHandler);
 app.use('/', esslRoutes);
-app.use('/api/telegram', TelegramRoute);
 
 // ----------------------
 // 404 handler

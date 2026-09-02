@@ -144,4 +144,17 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Team Hierarchy Widget**: Displays enrolled sub-sponsors in the sponsor's downline network with active status and quick links.
 - **Recent Plot Bookings & Latest Commission Credits**: Live feeds of recent plot purchases and collection commission entries.
 
+### U. Recurring & Fixed Deposit (R.D. / F.D.) Investment Module
+- **Dual Scheme Support**: Supports Recurring Deposit (R.D.) monthly installments (minimum ₹1,000 in multiples of ₹1,000) and Fixed Deposit (F.D.) one-time lump sum deposits (minimum ₹10,000 in multiples of ₹10,000).
+- **Guaranteed Returns Schedule**: 24M (112% RD / 121% FD), 36M (120% RD / 135% FD), 48M (130% RD / 150% FD), 60M (140% RD / 175% FD), 72M (150% RD / 200% FD), 120M (200% RD / 350% FD).
+- **Unified Customer & Sponsor Hierarchy**: Customers (`PlotCustomer`) and Sponsors (`User`) are shared with the Plot Management module. Sub-Sponsors receive Promoter commission % (4% - 15%), Developer Sponsors receive a 1.0% override.
+- **Document & Print Generation**:
+  - Official Certificate of Deposit / Bond with company logo watermark (`/dashboard/investments/certificates/:id`).
+  - Customer Passbook & Installment Statement (`/dashboard/investments/passbook/:id`).
+- **Settlement & Cancellation**: Supports premature closure with configurable simple interest rate calculations and audit notes.
+
+### V. Universal Toast Adapter Standard
+- `react-toastify` has been replaced across the frontend by `sonner` via the centralized adapter: `client/src/utils/toast.jsx` (`import { toast } from '../../utils/toast'`).
+- Always use `import api from '../../api/axios'` for HTTP requests and `import PageLoader from '../../components/common/PageLoader'` for loading screens.
+
 

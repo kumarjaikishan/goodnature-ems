@@ -143,6 +143,16 @@ const Navbar = () => {
     } else {
       pageTitle = commonTitles[lastPart] || "Plot Management";
     }
+  } else if (pathParts.includes("investments")) {
+    if (pathParts.includes("new")) pageTitle = "New Deposit Account";
+    else if (pathParts.includes("accounts")) pageTitle = "Investment Accounts";
+    else if (pathParts.includes("collections")) pageTitle = "Deposit Collections";
+    else if (pathParts.includes("dues")) pageTitle = "Dues & Defaulters";
+    else if (pathParts.includes("schemes")) pageTitle = "Scheme Matrix";
+    else if (pathParts.includes("settlement")) pageTitle = "Premature Settlement";
+    else if (pathParts.includes("certificates")) pageTitle = "Deposit Certificate";
+    else if (pathParts.includes("passbook")) pageTitle = "Passbook Statement";
+    else pageTitle = "Investment Management";
   } else if (lastPart && !commonTitles[lastPart]) {
     if (pathParts.includes("ledger") && pathParts.length > 2) {
       pageTitle = "Ledger Detail";

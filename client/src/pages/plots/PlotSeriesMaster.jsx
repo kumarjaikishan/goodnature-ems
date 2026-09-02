@@ -61,7 +61,6 @@ const PlotSeriesMaster = () => {
     defaultPlotType: 'NORMAL',
     numberFormat: 'A000',
     defaultDimensions: { north: '', south: '', east: '', west: '' },
-    defaultBoundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
 
@@ -74,7 +73,6 @@ const PlotSeriesMaster = () => {
     startNumber: '',
     endNumber: '',
     defaultDimensions: { north: '', south: '', east: '', west: '' },
-    defaultBoundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
 
@@ -159,7 +157,6 @@ const PlotSeriesMaster = () => {
         defaultPlotType: 'NORMAL',
         numberFormat: 'A000',
         defaultDimensions: { north: '', south: '', east: '', west: '' },
-        defaultBoundaries: { north: '', south: '', east: '', west: '' },
         remarks: '',
       });
       fetchData();
@@ -203,10 +200,10 @@ const PlotSeriesMaster = () => {
         west: selectedS?.defaultDimensions?.west || '',
       },
       boundaries: {
-        north: selectedS?.defaultBoundaries?.north || '',
-        south: selectedS?.defaultBoundaries?.south || '',
-        east: selectedS?.defaultBoundaries?.east || '',
-        west: selectedS?.defaultBoundaries?.west || '',
+        north: '',
+        south: '',
+        east: '',
+        west: '',
       },
       remarks: '',
     });
@@ -245,10 +242,10 @@ const PlotSeriesMaster = () => {
         west: selectedS?.defaultDimensions?.west || plotForm.dimensions.west,
       },
       boundaries: {
-        north: selectedS?.defaultBoundaries?.north || plotForm.boundaries.north,
-        south: selectedS?.defaultBoundaries?.south || plotForm.boundaries.south,
-        east: selectedS?.defaultBoundaries?.east || plotForm.boundaries.east,
-        west: selectedS?.defaultBoundaries?.west || plotForm.boundaries.west,
+        north: plotForm.boundaries.north,
+        south: plotForm.boundaries.south,
+        east: plotForm.boundaries.east,
+        west: plotForm.boundaries.west,
       },
     });
   };
@@ -300,12 +297,6 @@ const PlotSeriesMaster = () => {
         south: series.defaultDimensions?.south || '',
         east: series.defaultDimensions?.east || '',
         west: series.defaultDimensions?.west || '',
-      },
-      defaultBoundaries: {
-        north: series.defaultBoundaries?.north || '',
-        south: series.defaultBoundaries?.south || '',
-        east: series.defaultBoundaries?.east || '',
-        west: series.defaultBoundaries?.west || '',
       },
       remarks: series.remarks || '',
     });
@@ -770,12 +761,11 @@ const PlotSeriesMaster = () => {
                         const isCorner = p.plotType === 'CORNER';
                         const isNonStandardSize = p.plotSize && p.plotSize !== s.plotArea;
                         const colorCls = getPlotCardColor(p.status, isCorner);
-
                         return (
                           <div
                             key={p._id}
                             onClick={() => openConfigPlot(p)}
-                            className={`p-3 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group h-20 shadow-2xs hover:scale-103 ${colorCls}`}
+                            className={`p-2.5 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group h-18 shadow-2xs hover:scale-103 ${colorCls}`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
@@ -784,16 +774,11 @@ const PlotSeriesMaster = () => {
                                   CORNER
                                 </span>
                               )}
-                              {!isCorner && isNonStandardSize && (
-                                <span className="text-[0.55rem] bg-slate-200 text-slate-700 font-bold px-1 rounded leading-none">
-                                  {p.plotSize}sf
-                                </span>
-                              )}
                             </div>
 
                             <div className="my-auto">
-                              <p className="text-[0.72rem] font-black leading-none font-mono text-slate-800">
-                                ₹{Number(p.totalPlotValue || 0).toLocaleString('en-IN')}
+                              <p className="text-[0.75rem] font-bold leading-none font-mono text-slate-700">
+                                {p.plotSize || s.plotArea} <span className="text-[0.65rem] font-medium text-slate-500">Sq Ft</span>
                               </p>
                             </div>
 
@@ -836,39 +821,35 @@ const PlotSeriesMaster = () => {
                       const isCorner = p.plotType === 'CORNER';
                       const colorCls = getPlotCardColor(p.status, isCorner);
 
-                      return (
-                        <div
-                          key={p._id}
-                          onClick={() => openConfigPlot(p)}
-                          className={`p-3 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group h-20 shadow-2xs hover:scale-103 ${colorCls}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
-                            {isCorner ? (
-                              <span className="text-[0.55rem] bg-teal-800 text-white font-extrabold px-1.5 py-0.5 rounded leading-none">
-                                CORNER
-                              </span>
-                            ) : (
-                              <span className="text-[0.55rem] bg-slate-200 text-slate-700 font-bold px-1 rounded leading-none">
-                                {p.plotSize}sf
-                              </span>
-                            )}
-                          </div>
+                        return (
+                          <div
+                            key={p._id}
+                            onClick={() => openConfigPlot(p)}
+                            className={`p-2.5 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group h-18 shadow-2xs hover:scale-103 ${colorCls}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
+                              {isCorner && (
+                                <span className="text-[0.55rem] bg-teal-800 text-white font-extrabold px-1.5 py-0.5 rounded leading-none">
+                                  CORNER
+                                </span>
+                              )}
+                            </div>
 
-                          <div className="my-auto">
-                            <p className="text-[0.72rem] font-black leading-none font-mono text-slate-800">
-                              ₹{Number(p.totalPlotValue || 0).toLocaleString('en-IN')}
-                            </p>
-                          </div>
+                            <div className="my-auto">
+                              <p className="text-[0.75rem] font-bold leading-none font-mono text-slate-700">
+                                {p.plotSize || 0} <span className="text-[0.65rem] font-medium text-slate-500">Sq Ft</span>
+                              </p>
+                            </div>
 
-                          <div className="flex justify-between items-center border-t border-black/5 pt-1">
-                            <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90">
-                              {isAvailable ? 'Available' : p.status}
-                            </span>
-                            <Edit2 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                            <div className="flex justify-between items-center border-t border-black/5 pt-1">
+                              <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90">
+                                {isAvailable ? 'Available' : p.status}
+                              </span>
+                              <Edit2 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                            </div>
                           </div>
-                        </div>
-                      );
+                        );
                     })}
                 </div>
               </div>
@@ -1311,64 +1292,6 @@ const PlotSeriesMaster = () => {
               </div>
             </div>
 
-            {/* Boundaries / Chaudhi (N/S/E/W) */}
-            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
-              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
-                Boundaries / चौहद्दी (Surroundings)
-              </label>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    North (उत्तर चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. 20ft Wide Road / Plot #A02"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={form.defaultBoundaries.north}
-                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, north: e.target.value } })}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    South (दक्षिण चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Plot #A04 / Green Belt"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={form.defaultBoundaries.south}
-                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, south: e.target.value } })}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    East (पूरब चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Plot #A05 / Boundary Wall"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={form.defaultBoundaries.east}
-                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, east: e.target.value } })}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    West (पश्चिम चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. 30ft Main Sector Road"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={form.defaultBoundaries.west}
-                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, west: e.target.value } })}
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Remarks</label>
               <textarea
@@ -1586,64 +1509,6 @@ const PlotSeriesMaster = () => {
                         plotArea: autoArea > 0 ? String(autoArea) : editForm.plotArea
                       });
                     }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Default Boundaries / Chaudhi for Series */}
-            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
-              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
-                Default Boundaries / चौहद्दी (Surroundings)
-              </label>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    North (उत्तर चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Road / Plot Boundary"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={editForm.defaultBoundaries?.north || ''}
-                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), north: e.target.value } })}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    South (दक्षिण चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Road / Adjacent Plot"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={editForm.defaultBoundaries?.south || ''}
-                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), south: e.target.value } })}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    East (पूरब चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Pathway / Boundary Wall"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={editForm.defaultBoundaries?.east || ''}
-                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), east: e.target.value } })}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
-                    West (पश्चिम चौहद्दी)
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Main Sector Road"
-                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
-                    value={editForm.defaultBoundaries?.west || ''}
-                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), west: e.target.value } })}
                   />
                 </div>
               </div>

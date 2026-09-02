@@ -95,6 +95,18 @@ const SponsorBusinessReportPage = lazy(() => import('./pages/plots/SponsorBusine
 const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
 const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
 
+// Investments (RD / FD)
+const InvestmentDashboard = lazy(() => import('./pages/investments/InvestmentDashboard'));
+const InvestmentSchemeMaster = lazy(() => import('./pages/investments/InvestmentSchemeMaster'));
+const InvestmentNewAccount = lazy(() => import('./pages/investments/InvestmentNewAccount'));
+const InvestmentAccountsLedger = lazy(() => import('./pages/investments/InvestmentAccountsLedger'));
+const InvestmentCollections = lazy(() => import('./pages/investments/InvestmentCollections'));
+const InvestmentDuesReport = lazy(() => import('./pages/investments/InvestmentDuesReport'));
+const InvestmentSettlementPage = lazy(() => import('./pages/investments/InvestmentSettlementPage'));
+const InvestmentCertificateViewer = lazy(() => import('./pages/investments/InvestmentCertificateViewer'));
+const InvestmentPassbookViewer = lazy(() => import('./pages/investments/InvestmentPassbookViewer'));
+const InvestmentReceiptViewer = lazy(() => import('./pages/investments/InvestmentReceiptViewer'));
+
 // 🔹 Role-based route definitions
 const routesByRole = {
   admin: (
@@ -142,6 +154,7 @@ const routesByRole = {
       <Route path="plots/addbooking" element={<PlotBooking />} />
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
@@ -151,6 +164,19 @@ const routesByRole = {
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
+
+      {/* Investments (RD / FD) */}
+      <Route path="investments/dashboard" element={<InvestmentDashboard />} />
+      <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
+      <Route path="investments/new" element={<InvestmentNewAccount />} />
+      <Route path="investments/accounts" element={<InvestmentAccountsLedger />} />
+      <Route path="investments/collections" element={<InvestmentCollections />} />
+      <Route path="investments/dues" element={<InvestmentDuesReport />} />
+      <Route path="investments/settlement" element={<InvestmentSettlementPage />} />
+      <Route path="investments/certificates/:id" element={<InvestmentCertificateViewer />} />
+      <Route path="investments/passbook/:id" element={<InvestmentPassbookViewer />} />
+      <Route path="investments/receipts/:id" element={<InvestmentReceiptViewer />} />
+
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -200,6 +226,7 @@ const routesByRole = {
       <Route path="plots/addbooking" element={<PlotBooking />} />
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
@@ -210,6 +237,17 @@ const routesByRole = {
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="plots/closings" element={<PlotClosingsPage />} />
+      {/* Investments (RD / FD) */}
+      <Route path="investments/dashboard" element={<InvestmentDashboard />} />
+      <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
+      <Route path="investments/new" element={<InvestmentNewAccount />} />
+      <Route path="investments/accounts" element={<InvestmentAccountsLedger />} />
+      <Route path="investments/collections" element={<InvestmentCollections />} />
+      <Route path="investments/dues" element={<InvestmentDuesReport />} />
+      <Route path="investments/settlement" element={<InvestmentSettlementPage />} />
+      <Route path="investments/certificates/:id" element={<InvestmentCertificateViewer />} />
+      <Route path="investments/passbook/:id" element={<InvestmentPassbookViewer />} />
+      <Route path="investments/receipts/:id" element={<InvestmentReceiptViewer />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -260,6 +298,7 @@ const routesByRole = {
       <Route path="plots/addbooking" element={<PlotBooking />} />
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
@@ -270,6 +309,19 @@ const routesByRole = {
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="plots/closings" element={<PlotClosingsPage />} />
+
+      {/* Investments (RD / FD) */}
+      <Route path="investments/dashboard" element={<InvestmentDashboard />} />
+      <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
+      <Route path="investments/new" element={<InvestmentNewAccount />} />
+      <Route path="investments/accounts" element={<InvestmentAccountsLedger />} />
+      <Route path="investments/collections" element={<InvestmentCollections />} />
+      <Route path="investments/dues" element={<InvestmentDuesReport />} />
+      <Route path="investments/settlement" element={<InvestmentSettlementPage />} />
+      <Route path="investments/certificates/:id" element={<InvestmentCertificateViewer />} />
+      <Route path="investments/passbook/:id" element={<InvestmentPassbookViewer />} />
+      <Route path="investments/receipts/:id" element={<InvestmentReceiptViewer />} />
+
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),

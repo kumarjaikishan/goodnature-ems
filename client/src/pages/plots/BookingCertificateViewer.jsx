@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import api from '../../api/axios';
 import { toast } from '../../utils/toast';
 import { Printer, ArrowLeft } from 'lucide-react';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const numberToWords = (num) => {
   if (num === 0) return 'Zero Rupees Only';
@@ -48,6 +50,12 @@ const BookingCertificateViewer = () => {
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const { company: adminCompany } = useSelector((state) => state.user || {});
+  const { companysetting: empCompany } = useSelector((state) => state.employee || {});
+  const company = adminCompany || empCompany || {};
+  const companyName = company?.name || company?.companyName || 'GOODFEEL';
+  const companyAddress = company?.address || 'At- Nala Road, Bihar sharif, Nalanda, Bihar';
+
   useEffect(() => {
     if (!id) return;
     Promise.all([
@@ -72,23 +80,21 @@ const BookingCertificateViewer = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
-        <p className="text-sm font-bold text-slate-500">Booking details not found or permission denied.</p>
-        <button onClick={() => navigate('/dashboard/plots/booking')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
+      <div className="p-8 text-center text-slate-500">
+        Booking not found. <button onClick={() => navigate('/dashboard/plots/booking')} className="text-emerald-600 underline font-bold">Go Back</button>
       </div>
     );
   }
 
   const customer = booking.customerId || {};
   const plot = booking.plotId || {};
-  const sponsor = booking.sponsorId || {};
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
@@ -139,10 +145,42 @@ const BookingCertificateViewer = () => {
           }
         `}</style>
 
+        {/* Background Logo Watermark (Black & White / Grayscale) */}
+        {company?.logo ? (
+          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0">
+            <img
+              src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+              alt="Watermark Logo"
+              className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
+            />
+          </div>
+        ) : null}
+
+        {/* Company Header */}
+        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-4 relative z-10">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              {company?.logo ? (
+                <div className="w-12 h-12 flex items-center justify-center shrink-0 overflow-hidden rounded-md">
+                  <img src={cloudinaryUrl(company.logo, { format: "webp", width: 120, height: 120 })} alt="Company Logo" className="w-full h-full object-contain" />
+                </div>
+              ) : null}
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">{companyName}</h1>
+                <p className="text-[10px] text-gray-500">Plot Management & Development</p>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-slate-600 space-y-0.5 font-medium">
+              <p>{companyAddress}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Booking Certificate Title */}
-        <div className="text-center mb-5 pb-3 border-b-2 border-slate-900 select-none relative z-10">
-          <span className="text-slate-900 text-lg font-black uppercase tracking-wider">
-            Plot Booking
+        <div className="text-center mb-4 select-none relative z-10">
+          <span className="px-4 py-1 text-slate-900 text-[1rem] font-black uppercase tracking-wider rounded-sm">
+            PLOT BOOKING CERTIFICATE
           </span>
         </div>
 
@@ -314,22 +352,16 @@ const BookingCertificateViewer = () => {
                 ) : (
                   (() => {
                     const regularInsts = (installments || []).filter(i => i.installmentNumber > 0);
-                    const months = regularInsts.length || booking.installmentCount || 0;
+                    const months = regularInsts.length || booking.installmentCount || booking.tenureMonths || 0;
                     const net = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
                     const dpInst = (installments || []).find(i => i.installmentNumber === 0);
-                    const dp = booking.bookingAmount || dpInst?.dueAmount || 0;
+                    const dp = booking.bookingAmount || dpInst?.dueAmount || booking.downpaymentAmount || 0;
                     const rem = Math.max(0, net - dp);
-                    const standardEmiAmt = booking.installmentAmount || booking.emiAmount || regularInsts[0]?.dueAmount || (months > 0 ? Math.round(rem / months) : 0);
-                    const lastEmiInst = regularInsts.length > 0 ? regularInsts[regularInsts.length - 1] : null;
-                    const lastEmiAmt = lastEmiInst ? lastEmiInst.dueAmount : standardEmiAmt;
-                    const isEmiUniform = standardEmiAmt === lastEmiAmt;
-                    const regularEmiCount = regularInsts.length > 1 ? regularInsts.filter(i => i.dueAmount === standardEmiAmt).length : (months - (isEmiUniform ? 0 : 1));
-
-                    if (isEmiUniform) {
-                      return `${months} Month(s) @ ₹${standardEmiAmt.toLocaleString('en-IN')}/mo`;
-                    } else {
-                      return `${months} Month(s) (${regularEmiCount} @ ₹${standardEmiAmt.toLocaleString('en-IN')} + 1 @ ₹${lastEmiAmt.toLocaleString('en-IN')})`;
-                    }
+                    const rawEmi = months > 0 ? (rem / months) : 0;
+                    const emiFormatted = rawEmi % 1 === 0
+                      ? rawEmi.toLocaleString('en-IN')
+                      : rawEmi.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return `${months} Month(s) @ ₹${emiFormatted}/mo`;
                   })()
                 )}
               </td>
