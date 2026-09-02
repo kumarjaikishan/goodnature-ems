@@ -9,11 +9,14 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 1rem;
    
     .modalbox {
         position: relative;
         width: fit-content;
         max-width: 95vw;
         max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 1rem;
     }
 }

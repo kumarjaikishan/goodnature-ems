@@ -249,14 +249,37 @@ class PlotsService {
           totalPlotValue,
           status: 'AVAILABLE',
         }).save();
-      } else if (areaChanged && plot.status === 'AVAILABLE') {
-        // If plot area changed, update all existing AVAILABLE plots
-        plot.plotSize = series.plotArea;
+      } else if (plot.status === 'AVAILABLE' || plot.status === 'HOLD') {
+        // When series defaults (dimensions, boundaries, plot size, plot type) are updated,
+        // propagate them to all active unbooked (AVAILABLE/HOLD) plots in the series block
+        if (data.defaultDimensions !== undefined) {
+          plot.dimensions = {
+            north: Number(data.defaultDimensions.north) || 0,
+            south: Number(data.defaultDimensions.south) || 0,
+            east: Number(data.defaultDimensions.east) || 0,
+            west: Number(data.defaultDimensions.west) || 0,
+          };
+        }
+        if (data.defaultBoundaries !== undefined) {
+          plot.boundaries = {
+            north: data.defaultBoundaries.north || '',
+            south: data.defaultBoundaries.south || '',
+            east: data.defaultBoundaries.east || '',
+            west: data.defaultBoundaries.west || '',
+          };
+        }
+        if (areaChanged || data.plotArea) {
+          plot.plotSize = series.plotArea;
+        }
+        if (data.defaultPlotType) {
+          plot.plotType = series.defaultPlotType;
+        }
+
         let multiplier = 1;
         if (plot.plotType === 'CORNER') {
           multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
         }
-        plot.effectiveRate = plot.baseRate * multiplier;
+        plot.effectiveRate = (plot.baseRate || baseRate) * multiplier;
         plot.totalPlotValue = plot.plotSize * plot.effectiveRate;
         await plot.save();
       }

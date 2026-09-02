@@ -1096,8 +1096,8 @@ const PlotSeriesMaster = () => {
 
       {/* ── MODAL: CREATE PLOT SERIES BLOCK ── */}
       <Modalbox open={showModal} onClose={() => setShowModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[550px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+        <div className="p-6 bg-white rounded-2xl w-[550px] max-w-[90vw] max-h-[85vh] overflow-y-auto space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
             <h3 className="text-base font-bold text-slate-800">Create Plot Series</h3>
             <button
               className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
@@ -1399,8 +1399,8 @@ const PlotSeriesMaster = () => {
 
       {/* ── MODAL: EDIT PLOT SERIES ── */}
       <Modalbox open={showEditModal} onClose={() => setShowEditModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] max-h-[85vh] overflow-y-auto space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
             <h3 className="text-base font-bold text-slate-800">Edit Plot Series: {selectedSeries?.name}</h3>
             <button
               className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
