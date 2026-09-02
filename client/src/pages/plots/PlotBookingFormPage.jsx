@@ -219,6 +219,46 @@ const PlotBookingFormPage = () => {
                   </div>
                 </div>
 
+                {/* Dimensions (N/S/E/W) */}
+                <div className="pt-1 border-t border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="font-semibold text-gray-700">North (उत्तर): <span className="text-[8.5px] text-teal-800 font-medium">पूरब-पश्चिम जानिब उत्तर</span></span>
+                    <input type="text" placeholder="ft" className="border-b border-black w-full focus:outline-none px-0.5 text-center bg-transparent text-[10px]" />
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="font-semibold text-gray-700">South (दक्षिण): <span className="text-[8.5px] text-teal-800 font-medium">पूरब-पश्चिम जानिब दक्षिण</span></span>
+                    <input type="text" placeholder="ft" className="border-b border-black w-full focus:outline-none px-0.5 text-center bg-transparent text-[10px]" />
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="font-semibold text-gray-700">East (पूरब): <span className="text-[8.5px] text-teal-800 font-medium">उत्तर-दक्षिण जानिब पूरब</span></span>
+                    <input type="text" placeholder="ft" className="border-b border-black w-full focus:outline-none px-0.5 text-center bg-transparent text-[10px]" />
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="font-semibold text-gray-700">West (पश्चिम): <span className="text-[8.5px] text-teal-800 font-medium">उत्तर-दक्षिण जानिब पश्चिम</span></span>
+                    <input type="text" placeholder="ft" className="border-b border-black w-full focus:outline-none px-0.5 text-center bg-transparent text-[10px]" />
+                  </div>
+                </div>
+
+                {/* Chaudhi (Surroundings) */}
+                <div className="pt-1 border-t border-gray-200 grid grid-cols-2 gap-1 text-[11px]">
+                  <div className="flex items-center space-x-1">
+                    <span className="font-semibold">चौहद्दी उत्तर (N):</span>
+                    <input type="text" className="border-b border-black w-full focus:outline-none px-1 bg-transparent text-[10px]" />
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="font-semibold">चौहद्दी दक्षिण (S):</span>
+                    <input type="text" className="border-b border-black w-full focus:outline-none px-1 bg-transparent text-[10px]" />
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="font-semibold">चौहद्दी पूरब (E):</span>
+                    <input type="text" className="border-b border-black w-full focus:outline-none px-1 bg-transparent text-[10px]" />
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="font-semibold">चौहद्दी पश्चिम (W):</span>
+                    <input type="text" className="border-b border-black w-full focus:outline-none px-1 bg-transparent text-[10px]" />
+                  </div>
+                </div>
+
               </div>
 
               {/* Photo Box (1 col) */}

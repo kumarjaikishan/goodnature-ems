@@ -35,11 +35,21 @@ export default defineConfig({
         target: 'http://localhost:5008',
         changeOrigin: true,
         secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err, req) => {
+            console.warn(`[proxy error] ${req.url?.split('?')[0]}: Backend server (5008) is unreachable (${err.code || 'ECONNREFUSED'})`);
+          });
+        }
       },
       '/events': {
         target: 'http://localhost:5008',
         changeOrigin: true,
         secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err, req) => {
+            console.warn(`[proxy error] /events: Backend server (5008) is offline (${err.code || 'ECONNREFUSED'})`);
+          });
+        }
       }
     }
   }

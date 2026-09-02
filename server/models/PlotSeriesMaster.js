@@ -37,6 +37,20 @@ const plotSeriesMasterSchema = new mongoose.Schema(
       type: String,
       default: 'A000', // e.g. A001, A002
     },
+    // Default dimensions for plots generated in this series
+    defaultDimensions: {
+      north: { type: Number, default: 0 },
+      south: { type: Number, default: 0 },
+      east: { type: Number, default: 0 },
+      west: { type: Number, default: 0 },
+    },
+    // Default boundaries / Chaudhi for plots generated in this series
+    defaultBoundaries: {
+      north: { type: String, default: '' },
+      south: { type: String, default: '' },
+      east: { type: String, default: '' },
+      west: { type: String, default: '' },
+    },
     remarks: {
       type: String,
       default: '',

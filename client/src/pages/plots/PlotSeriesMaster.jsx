@@ -46,6 +46,8 @@ const PlotSeriesMaster = () => {
     plotNumber: '',
     plotSize: '',
     plotType: 'NORMAL',
+    dimensions: { north: '', south: '', east: '', west: '' },
+    boundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
 
@@ -58,6 +60,8 @@ const PlotSeriesMaster = () => {
     plotArea: '',
     defaultPlotType: 'NORMAL',
     numberFormat: 'A000',
+    defaultDimensions: { north: '', south: '', east: '', west: '' },
+    defaultBoundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
 
@@ -69,6 +73,8 @@ const PlotSeriesMaster = () => {
     defaultPlotType: 'NORMAL',
     startNumber: '',
     endNumber: '',
+    defaultDimensions: { north: '', south: '', east: '', west: '' },
+    defaultBoundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
 
@@ -78,6 +84,8 @@ const PlotSeriesMaster = () => {
   const [configForm, setConfigForm] = useState({
     plotSize: '',
     plotType: 'NORMAL',
+    dimensions: { north: '', south: '', east: '', west: '' },
+    boundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
 
@@ -150,6 +158,8 @@ const PlotSeriesMaster = () => {
         plotArea: '',
         defaultPlotType: 'NORMAL',
         numberFormat: 'A000',
+        defaultDimensions: { north: '', south: '', east: '', west: '' },
+        defaultBoundaries: { north: '', south: '', east: '', west: '' },
         remarks: '',
       });
       fetchData();
@@ -186,6 +196,18 @@ const PlotSeriesMaster = () => {
       plotNumber: suggestedPlotNo,
       plotSize: selectedS?.plotArea || 1200,
       plotType: selectedS?.defaultPlotType || 'NORMAL',
+      dimensions: {
+        north: selectedS?.defaultDimensions?.north || '',
+        south: selectedS?.defaultDimensions?.south || '',
+        east: selectedS?.defaultDimensions?.east || '',
+        west: selectedS?.defaultDimensions?.west || '',
+      },
+      boundaries: {
+        north: selectedS?.defaultBoundaries?.north || '',
+        south: selectedS?.defaultBoundaries?.south || '',
+        east: selectedS?.defaultBoundaries?.east || '',
+        west: selectedS?.defaultBoundaries?.west || '',
+      },
       remarks: '',
     });
     setShowCreatePlotModal(true);
@@ -216,6 +238,18 @@ const PlotSeriesMaster = () => {
       plotNumber: suggestedPlotNo || plotForm.plotNumber,
       plotSize: selectedS?.plotArea || plotForm.plotSize,
       plotType: selectedS?.defaultPlotType || plotForm.plotType,
+      dimensions: {
+        north: selectedS?.defaultDimensions?.north || plotForm.dimensions.north,
+        south: selectedS?.defaultDimensions?.south || plotForm.dimensions.south,
+        east: selectedS?.defaultDimensions?.east || plotForm.dimensions.east,
+        west: selectedS?.defaultDimensions?.west || plotForm.dimensions.west,
+      },
+      boundaries: {
+        north: selectedS?.defaultBoundaries?.north || plotForm.boundaries.north,
+        south: selectedS?.defaultBoundaries?.south || plotForm.boundaries.south,
+        east: selectedS?.defaultBoundaries?.east || plotForm.boundaries.east,
+        west: selectedS?.defaultBoundaries?.west || plotForm.boundaries.west,
+      },
     });
   };
 
@@ -230,6 +264,18 @@ const PlotSeriesMaster = () => {
       await api.post('/plots', {
         ...plotForm,
         seriesId: plotForm.seriesId || undefined,
+        dimensions: {
+          north: Number(plotForm.dimensions.north) || 0,
+          south: Number(plotForm.dimensions.south) || 0,
+          east: Number(plotForm.dimensions.east) || 0,
+          west: Number(plotForm.dimensions.west) || 0,
+        },
+        boundaries: {
+          north: plotForm.boundaries.north || '',
+          south: plotForm.boundaries.south || '',
+          east: plotForm.boundaries.east || '',
+          west: plotForm.boundaries.west || '',
+        },
       });
       toast.success(`Plot "${plotForm.plotNumber.toUpperCase()}" created successfully!`);
       setShowCreatePlotModal(false);
@@ -249,6 +295,18 @@ const PlotSeriesMaster = () => {
       defaultPlotType: series.defaultPlotType,
       startNumber: series.startNumber,
       endNumber: series.endNumber,
+      defaultDimensions: {
+        north: series.defaultDimensions?.north || '',
+        south: series.defaultDimensions?.south || '',
+        east: series.defaultDimensions?.east || '',
+        west: series.defaultDimensions?.west || '',
+      },
+      defaultBoundaries: {
+        north: series.defaultBoundaries?.north || '',
+        south: series.defaultBoundaries?.south || '',
+        east: series.defaultBoundaries?.east || '',
+        west: series.defaultBoundaries?.west || '',
+      },
       remarks: series.remarks || '',
     });
     setShowEditModal(true);
@@ -365,6 +423,18 @@ const PlotSeriesMaster = () => {
     setConfigForm({
       plotSize: plot.plotSize,
       plotType: plot.plotType,
+      dimensions: {
+        north: plot.dimensions?.north || '',
+        south: plot.dimensions?.south || '',
+        east: plot.dimensions?.east || '',
+        west: plot.dimensions?.west || '',
+      },
+      boundaries: {
+        north: plot.boundaries?.north || '',
+        south: plot.boundaries?.south || '',
+        east: plot.boundaries?.east || '',
+        west: plot.boundaries?.west || '',
+      },
       remarks: plot.remarks || '',
     });
     setShowConfigModal(true);
@@ -375,7 +445,21 @@ const PlotSeriesMaster = () => {
     if (!selectedPlot) return;
     setSubmitLoading(true);
     try {
-      await api.put(`/plots/${selectedPlot._id}`, configForm);
+      await api.put(`/plots/${selectedPlot._id}`, {
+        ...configForm,
+        dimensions: {
+          north: Number(configForm.dimensions.north) || 0,
+          south: Number(configForm.dimensions.south) || 0,
+          east: Number(configForm.dimensions.east) || 0,
+          west: Number(configForm.dimensions.west) || 0,
+        },
+        boundaries: {
+          north: configForm.boundaries.north || '',
+          south: configForm.boundaries.south || '',
+          east: configForm.boundaries.east || '',
+          west: configForm.boundaries.west || '',
+        },
+      });
       toast.success('Plot properties updated successfully');
       setShowConfigModal(false);
       fetchData();
@@ -1087,6 +1171,7 @@ const PlotSeriesMaster = () => {
                   type="tel"
                   inputMode="numeric"
                   pattern="[0-9]*"
+                  placeholder="Auto-calculated or enter manually"
                   value={form.plotArea}
                   onChange={(e) => setForm({ ...form, plotArea: e.target.value.replace(/[^0-9]/g, '') })}
                   required
@@ -1104,10 +1189,190 @@ const PlotSeriesMaster = () => {
                 </select>
               </div>
             </div>
+
+            {/* Dimensions (N/S/E/W) with Auto Area Calculation */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-600 inline-block" />
+                  Dimensions / पैमाइश (in Feet - N / S / E / W)
+                </label>
+                <span className="text-[10px] text-slate-500 font-medium">Auto-calculates area if entered</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब उत्तर</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={form.defaultDimensions.north}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...form.defaultDimensions, north: val };
+                      const n = parseFloat(val) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setForm({
+                        ...form,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : form.plotArea
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब दक्षिण</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={form.defaultDimensions.south}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...form.defaultDimensions, south: val };
+                      const n = parseFloat(nextDims.north) || parseFloat(val) || 0;
+                      const s = parseFloat(val) || 0;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setForm({
+                        ...form,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : form.plotArea
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पूरब</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={form.defaultDimensions.east}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...form.defaultDimensions, east: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(val) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setForm({
+                        ...form,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : form.plotArea
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पश्चिम</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={form.defaultDimensions.west}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...form.defaultDimensions, west: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || parseFloat(val) || 0;
+                      const w = parseFloat(val) || 0;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setForm({
+                        ...form,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : form.plotArea
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Boundaries / Chaudhi (N/S/E/W) */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
+                Boundaries / चौहद्दी (Surroundings)
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 20ft Wide Road / Plot #A02"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={form.defaultBoundaries.north}
+                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, north: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Plot #A04 / Green Belt"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={form.defaultBoundaries.south}
+                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, south: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Plot #A05 / Boundary Wall"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={form.defaultBoundaries.east}
+                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, east: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 30ft Main Sector Road"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={form.defaultBoundaries.west}
+                    onChange={(e) => setForm({ ...form, defaultBoundaries: { ...form.defaultBoundaries, west: e.target.value } })}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Remarks</label>
               <textarea
-                className="w-full min-h-[60px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
+                className="w-full min-h-[50px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-2.5 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
                 value={form.remarks}
                 onChange={(e) => setForm({ ...form, remarks: e.target.value })}
               />
@@ -1204,10 +1469,190 @@ const PlotSeriesMaster = () => {
                 </select>
               </div>
             </div>
+
+            {/* Default Dimensions for Series */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-600 inline-block" />
+                  Default Dimensions / पैमाइश (in Feet - N / S / E / W)
+                </label>
+                <span className="text-[10px] text-slate-500 font-medium">Auto-updates plot area</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब उत्तर</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={editForm.defaultDimensions?.north || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(editForm.defaultDimensions || {}), north: val };
+                      const n = parseFloat(val) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setEditForm({
+                        ...editForm,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : editForm.plotArea
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब दक्षिण</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={editForm.defaultDimensions?.south || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(editForm.defaultDimensions || {}), south: val };
+                      const n = parseFloat(nextDims.north) || parseFloat(val) || 0;
+                      const s = parseFloat(val) || 0;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setEditForm({
+                        ...editForm,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : editForm.plotArea
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पूरब</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={editForm.defaultDimensions?.east || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(editForm.defaultDimensions || {}), east: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(val) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setEditForm({
+                        ...editForm,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : editForm.plotArea
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पश्चिम</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={editForm.defaultDimensions?.west || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(editForm.defaultDimensions || {}), west: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || parseFloat(val) || 0;
+                      const w = parseFloat(val) || 0;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setEditForm({
+                        ...editForm,
+                        defaultDimensions: nextDims,
+                        plotArea: autoArea > 0 ? String(autoArea) : editForm.plotArea
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Default Boundaries / Chaudhi for Series */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
+                Default Boundaries / चौहद्दी (Surroundings)
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Road / Plot Boundary"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={editForm.defaultBoundaries?.north || ''}
+                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), north: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Road / Adjacent Plot"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={editForm.defaultBoundaries?.south || ''}
+                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), south: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Pathway / Boundary Wall"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={editForm.defaultBoundaries?.east || ''}
+                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), east: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Main Sector Road"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={editForm.defaultBoundaries?.west || ''}
+                    onChange={(e) => setEditForm({ ...editForm, defaultBoundaries: { ...(editForm.defaultBoundaries || {}), west: e.target.value } })}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Remarks</label>
               <textarea
-                className="w-full min-h-[60px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
+                className="w-full min-h-[50px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-2.5 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
                 value={editForm.remarks}
                 onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
               />
@@ -1234,7 +1679,7 @@ const PlotSeriesMaster = () => {
 
       {/* ── MODAL: CONFIGURE & ADJUST INDIVIDUAL PLOT ── */}
       <Modalbox open={showConfigModal} onClose={() => setShowConfigModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4">
+        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4 max-h-[85vh] overflow-y-auto">
           <div className="flex justify-between items-center pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2 text-slate-800">
               <SlidersHorizontal className="text-teal-800" size={20} />
@@ -1282,10 +1727,189 @@ const PlotSeriesMaster = () => {
               />
             </div>
 
+            {/* Plot Dimensions (N/S/E/W) */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-600 inline-block" />
+                  Plot Dimensions / पैमाइश (in Feet - N / S / E / W)
+                </label>
+                <span className="text-[10px] text-slate-500 font-medium">Auto-updates plot area</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब उत्तर</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={configForm.dimensions?.north || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(configForm.dimensions || {}), north: val };
+                      const n = parseFloat(val) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setConfigForm({
+                        ...configForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : configForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब दक्षिण</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={configForm.dimensions?.south || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(configForm.dimensions || {}), south: val };
+                      const n = parseFloat(nextDims.north) || parseFloat(val) || 0;
+                      const s = parseFloat(val) || 0;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setConfigForm({
+                        ...configForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : configForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पूरब</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={configForm.dimensions?.east || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(configForm.dimensions || {}), east: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(val) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setConfigForm({
+                        ...configForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : configForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पश्चिम</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={configForm.dimensions?.west || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(configForm.dimensions || {}), west: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || parseFloat(val) || 0;
+                      const w = parseFloat(val) || 0;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setConfigForm({
+                        ...configForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : configForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Plot Boundaries / Chaudhi */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
+                Boundaries / चौहद्दी (Surroundings)
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 20ft Wide Road / Plot #A02"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={configForm.boundaries?.north || ''}
+                    onChange={(e) => setConfigForm({ ...configForm, boundaries: { ...(configForm.boundaries || {}), north: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Plot #A04 / Green Belt"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={configForm.boundaries?.south || ''}
+                    onChange={(e) => setConfigForm({ ...configForm, boundaries: { ...(configForm.boundaries || {}), south: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Plot #A05 / Boundary Wall"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={configForm.boundaries?.east || ''}
+                    onChange={(e) => setConfigForm({ ...configForm, boundaries: { ...(configForm.boundaries || {}), east: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 30ft Main Sector Road"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={configForm.boundaries?.west || ''}
+                    onChange={(e) => setConfigForm({ ...configForm, boundaries: { ...(configForm.boundaries || {}), west: e.target.value } })}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Internal Audit Notes / Remarks</label>
               <textarea
-                className="w-full min-h-[60px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
+                className="w-full min-h-[50px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-2.5 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
                 placeholder="Optional notes for this plot..."
                 value={configForm.remarks}
                 onChange={(e) => setConfigForm({ ...configForm, remarks: e.target.value })}
@@ -1318,7 +1942,7 @@ const PlotSeriesMaster = () => {
 
       {/* ── MODAL: CREATE INDIVIDUAL STANDALONE / EXTRA PLOT ── */}
       <Modalbox open={showCreatePlotModal} onClose={() => setShowCreatePlotModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4">
+        <div className="p-6 bg-white rounded-2xl w-[520px] max-w-[90vw] space-y-4 max-h-[85vh] overflow-y-auto">
           <div className="flex justify-between items-center pb-3 border-b border-slate-100">
             <div>
               <h3 className="text-base font-bold text-slate-800">Add Individual Plot</h3>
@@ -1385,10 +2009,189 @@ const PlotSeriesMaster = () => {
               />
             </div>
 
+            {/* Dimensions (N/S/E/W) with Auto Area Calculation */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-600 inline-block" />
+                  Dimensions / पैमाइश (in Feet - N / S / E / W)
+                </label>
+                <span className="text-[10px] text-slate-500 font-medium">Auto-calculates area if entered</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब उत्तर</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={plotForm.dimensions?.north || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(plotForm.dimensions || {}), north: val };
+                      const n = parseFloat(val) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setPlotForm({
+                        ...plotForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : plotForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण)
+                    <span className="block text-[9px] text-teal-700 font-medium">पूरब-पश्चिम जानिब दक्षिण</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 30"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={plotForm.dimensions?.south || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(plotForm.dimensions || {}), south: val };
+                      const n = parseFloat(nextDims.north) || parseFloat(val) || 0;
+                      const s = parseFloat(val) || 0;
+                      const east = parseFloat(nextDims.east) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setPlotForm({
+                        ...plotForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : plotForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पूरब</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={plotForm.dimensions?.east || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(plotForm.dimensions || {}), east: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(val) || 0;
+                      const w = parseFloat(nextDims.west) || east;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setPlotForm({
+                        ...plotForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : plotForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम)
+                    <span className="block text-[9px] text-teal-700 font-medium">उत्तर-दक्षिण जानिब पश्चिम</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 40"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
+                    value={plotForm.dimensions?.west || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const nextDims = { ...(plotForm.dimensions || {}), west: val };
+                      const n = parseFloat(nextDims.north) || 0;
+                      const s = parseFloat(nextDims.south) || n;
+                      const east = parseFloat(nextDims.east) || parseFloat(val) || 0;
+                      const w = parseFloat(val) || 0;
+                      const autoArea = Math.round(((n + s) / 2) * ((east + w) / 2));
+                      setPlotForm({
+                        ...plotForm,
+                        dimensions: nextDims,
+                        plotSize: autoArea > 0 ? String(autoArea) : plotForm.plotSize
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Boundaries / Chaudhi (N/S/E/W) */}
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
+                Boundaries / चौहद्दी (Surroundings)
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    North (उत्तर चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 20ft Wide Road / Plot #A02"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={plotForm.boundaries?.north || ''}
+                    onChange={(e) => setPlotForm({ ...plotForm, boundaries: { ...(plotForm.boundaries || {}), north: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    South (दक्षिण चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Plot #A04 / Green Belt"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={plotForm.boundaries?.south || ''}
+                    onChange={(e) => setPlotForm({ ...plotForm, boundaries: { ...(plotForm.boundaries || {}), south: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    East (पूरब चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Plot #A05 / Boundary Wall"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={plotForm.boundaries?.east || ''}
+                    onChange={(e) => setPlotForm({ ...plotForm, boundaries: { ...(plotForm.boundaries || {}), east: e.target.value } })}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 block mb-0.5 leading-tight">
+                    West (पश्चिम चौहद्दी)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 30ft Main Sector Road"
+                    className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2.5 rounded-lg text-xs font-medium"
+                    value={plotForm.boundaries?.west || ''}
+                    onChange={(e) => setPlotForm({ ...plotForm, boundaries: { ...(plotForm.boundaries || {}), west: e.target.value } })}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Remarks / Notes (Optional)</label>
               <textarea
-                className="w-full min-h-[55px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-2.5 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
+                className="w-full min-h-[50px] bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-2.5 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
                 placeholder="Optional notes for this plot..."
                 value={plotForm.remarks}
                 onChange={(e) => setPlotForm({ ...plotForm, remarks: e.target.value })}

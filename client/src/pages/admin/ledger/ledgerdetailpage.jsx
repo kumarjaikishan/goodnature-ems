@@ -209,6 +209,10 @@ const LedgerDetailPage = () => {
         setOpen(true);
     };
 
+    const { user: authUser } = useSelector((state) => state.auth || {});
+    const currentUser = useSelector((state) => state.user?.profile || state.user || {});
+    const isSponsorUser = currentUser?.role === 'sponsor' || authUser?.role === 'sponsor';
+
     return (
         <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto">
             {/* ── Top Header & Profile Banner ── */}
@@ -237,7 +241,7 @@ const LedgerDetailPage = () => {
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-medium">
                             {empId && empId !== 'null' && (
-                                <span>Employee ID: <strong className="font-mono text-slate-800">{empId}</strong></span>
+                                <span>{ledgerType === 'sponsor' ? 'Sponsor ID' : 'Employee ID'}: <strong className="font-mono text-slate-800">{empId}</strong></span>
                             )}
                             <span>Total Transactions: <strong className="text-slate-800 font-bold">{filtered.length}</strong></span>
                         </div>
@@ -245,18 +249,22 @@ const LedgerDetailPage = () => {
                 </div>
 
                 <div className="flex items-center gap-2.5 w-full md:w-auto">
-                    <button
-                        onClick={() => navigate('/dashboard/ledger')}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                    >
-                        <ArrowLeft size={15} /> All Ledgers
-                    </button>
-                    <button
-                        onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}
-                        className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                    >
-                        <Plus size={15} /> Add Entry
-                    </button>
+                    {!isSponsorUser && (
+                        <>
+                            <button
+                                onClick={() => navigate('/dashboard/ledger')}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                            >
+                                <ArrowLeft size={15} /> All Ledgers
+                            </button>
+                            <button
+                                onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}
+                                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                            >
+                                <Plus size={15} /> Add Entry
+                            </button>
+                        </>
+                    )}
                     <button
                         onClick={exportCSV}
                         className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
@@ -358,7 +366,7 @@ const LedgerDetailPage = () => {
             {/* ── Transaction Entries Table ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
                 <DataTable
-                    columns={getLedgerColumns(handleEditEntry, handleDeleteEntry, employee, navigate)}
+                    columns={getLedgerColumns(handleEditEntry, handleDeleteEntry, employee, navigate, isSponsorUser)}
                     data={filtered || []}
                     pagination
                     customStyles={useCustomStyles()}

@@ -325,7 +325,13 @@ const updateLedger = async (req, res) => {
     // Handle image upload if file provided
     if (req.file) {
       const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'ems/ledger'
+        folder: 'ems/ledger',
+        format: 'webp',
+        transformation: [
+          { width: 400, height: 400, crop: 'limit' },
+          { quality: 'auto:good' },
+          { fetch_format: 'auto' }
+        ]
       });
 
       ledger.profileImage = uploadResult.secure_url;

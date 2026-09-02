@@ -69,7 +69,7 @@ class PlotsService {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const { name, prefix, startNumber, endNumber, plotArea, defaultPlotType, numberFormat, remarks } = data;
+      const { name, prefix, startNumber, endNumber, plotArea, defaultPlotType, numberFormat, remarks, defaultDimensions, defaultBoundaries } = data;
 
       // Create series master
       const series = new PlotSeriesMaster({
@@ -80,6 +80,8 @@ class PlotsService {
         plotArea,
         defaultPlotType,
         numberFormat,
+        defaultDimensions: defaultDimensions || {},
+        defaultBoundaries: defaultBoundaries || {},
         remarks,
       });
       await series.save({ session });
@@ -117,6 +119,8 @@ class PlotsService {
           sequenceNumber: i,
           plotSize: plotArea,
           plotType: defaultPlotType,
+          dimensions: defaultDimensions || { north: 0, south: 0, east: 0, west: 0 },
+          boundaries: defaultBoundaries || { north: '', south: '', east: '', west: '' },
           baseRate,
           effectiveRate,
           totalPlotValue,
@@ -196,6 +200,8 @@ class PlotsService {
     series.name = data.name ?? series.name;
     series.remarks = data.remarks ?? series.remarks;
     series.defaultPlotType = data.defaultPlotType ?? series.defaultPlotType;
+    if (data.defaultDimensions !== undefined) series.defaultDimensions = data.defaultDimensions;
+    if (data.defaultBoundaries !== undefined) series.defaultBoundaries = data.defaultBoundaries;
 
     const areaChanged = data.plotArea && Number(data.plotArea) !== series.plotArea;
     if (areaChanged) {
@@ -236,6 +242,8 @@ class PlotsService {
           sequenceNumber: i,
           plotSize: series.plotArea,
           plotType: series.defaultPlotType,
+          dimensions: series.defaultDimensions || { north: 0, south: 0, east: 0, west: 0 },
+          boundaries: series.defaultBoundaries || { north: '', south: '', east: '', west: '' },
           baseRate,
           effectiveRate,
           totalPlotValue,
@@ -311,7 +319,7 @@ class PlotsService {
   }
 
   async createPlot(data, userId) {
-    const { seriesId, plotNumber, plotSize, plotType, baseRate, sequenceNumber, remarks } = data;
+    const { seriesId, plotNumber, plotSize, plotType, baseRate, sequenceNumber, remarks, dimensions, boundaries } = data;
     if (!plotNumber || !plotSize) {
       throw ApiError.badRequest('Plot Number and Plot Size are required');
     }
@@ -357,6 +365,8 @@ class PlotsService {
       sequenceNumber: seq,
       plotSize: Number(plotSize),
       plotType: resolvedPlotType,
+      dimensions: dimensions || series?.defaultDimensions || { north: 0, south: 0, east: 0, west: 0 },
+      boundaries: boundaries || series?.defaultBoundaries || { north: '', south: '', east: '', west: '' },
       baseRate: resolvedBaseRate,
       effectiveRate,
       totalPlotValue,
@@ -409,17 +419,19 @@ class PlotsService {
         );
       }
 
-      // Allow remarks/notes updates on booked plots
-      if (data.remarks !== undefined) {
-        plot.remarks = data.remarks;
-        await plot.save();
-      }
+      // Allow remarks, dimensions and boundaries updates on booked plots
+      if (data.remarks !== undefined) plot.remarks = data.remarks;
+      if (data.dimensions !== undefined) plot.dimensions = data.dimensions;
+      if (data.boundaries !== undefined) plot.boundaries = data.boundaries;
+      await plot.save();
       return plot;
     }
 
     plot.plotType = data.plotType ?? plot.plotType;
     plot.plotSize = data.plotSize ?? plot.plotSize;
     plot.baseRate = data.baseRate ?? plot.baseRate;
+    if (data.dimensions !== undefined) plot.dimensions = data.dimensions;
+    if (data.boundaries !== undefined) plot.boundaries = data.boundaries;
 
     // Recalculate values
     const rateConfig = await this.getRateConfig();
@@ -959,33 +971,40 @@ class PlotsService {
         resolvedReceiptType = 'DOWNPAYMENT';
       }
 
+      // Non-cash collections require admin approval before realizing into ledger
+      const isCash = String(paymentMode).toLowerCase() === 'cash';
+      const initialStatus = isCash ? 'APPROVED' : 'PENDING';
+
       // Create Receipt
       const receipt = new PlotReceipt({
         receiptNumber,
         receiptType: resolvedReceiptType,
         bookingId: booking._id,
         amount: Number(amountPaid),
-        lateFinePaid: totalLateFinePaid,
+        lateFinePaid: isCash ? totalLateFinePaid : 0,
         lateFineRebate: Number(lateFineRebate),
         paymentMode,
         transactionReference,
         remarks,
+        status: initialStatus,
+        approvedBy: isCash ? processedBy : undefined,
+        approvedAt: isCash ? (customDate ? paymentDate : new Date()) : undefined,
       });
       if (customDate) {
         receipt.createdAt = paymentDate;
       }
       await receipt.save({ session });
 
-      // Rebuild entire ledger state for 100% accuracy
+      // Rebuild entire ledger state for 100% accuracy (only processes APPROVED receipts)
       await this.rebuildBookingInstallmentsState(booking._id, session);
 
       // Log event
       await new PlotAuditLog({
-        action: 'COLLECT_INSTALLMENTS',
-        modelName: 'PlotInstallment',
-        documentId: booking._id,
+        action: isCash ? 'COLLECT_INSTALLMENTS' : 'SUBMIT_PENDING_COLLECTION',
+        modelName: 'PlotReceipt',
+        documentId: receipt._id,
         userId: processedBy,
-        details: { amountPaid, receiptNumber, updatedCount: updatedInstallments.length },
+        details: { amountPaid, receiptNumber, paymentMode, status: initialStatus },
       }).save({ session });
 
       await session.commitTransaction();
@@ -1208,6 +1227,84 @@ class PlotsService {
       session.endSession();
     }
   }
+
+  // Approve Pending Collection Receipt (Admin Action)
+  async approveReceipt(receiptId, adminUserId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const receipt = await PlotReceipt.findById(receiptId).session(session);
+      if (!receipt) throw ApiError.notFound('Receipt not found');
+      if (receipt.status === 'APPROVED') {
+        throw ApiError.badRequest('Receipt is already approved');
+      }
+
+      receipt.status = 'APPROVED';
+      receipt.approvedBy = adminUserId;
+      receipt.approvedAt = new Date();
+      receipt.rejectionReason = '';
+      await receipt.save({ session });
+
+      // Rebuild ledger and sync commissions with approved receipt included
+      await this.rebuildBookingInstallmentsState(receipt.bookingId, session);
+
+      // Audit log
+      await new PlotAuditLog({
+        action: 'APPROVE_RECEIPT',
+        modelName: 'PlotReceipt',
+        documentId: receipt._id,
+        userId: adminUserId,
+        details: { receiptNumber: receipt.receiptNumber, amount: receipt.amount, paymentMode: receipt.paymentMode },
+      }).save({ session });
+
+      await session.commitTransaction();
+      return receipt;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  // Reject Pending Collection Receipt (Admin Action)
+  async rejectReceipt(receiptId, rejectionReason, adminUserId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const receipt = await PlotReceipt.findById(receiptId).session(session);
+      if (!receipt) throw ApiError.notFound('Receipt not found');
+      if (receipt.status === 'REJECTED') {
+        throw ApiError.badRequest('Receipt is already rejected');
+      }
+
+      receipt.status = 'REJECTED';
+      receipt.rejectionReason = rejectionReason || 'Rejected by Admin';
+      receipt.approvedBy = adminUserId;
+      receipt.approvedAt = new Date();
+      await receipt.save({ session });
+
+      // If it was previously approved, rebuild ledger to revert effects
+      await this.rebuildBookingInstallmentsState(receipt.bookingId, session);
+
+      // Audit log
+      await new PlotAuditLog({
+        action: 'REJECT_RECEIPT',
+        modelName: 'PlotReceipt',
+        documentId: receipt._id,
+        userId: adminUserId,
+        details: { receiptNumber: receipt.receiptNumber, amount: receipt.amount, rejectionReason },
+      }).save({ session });
+
+      await session.commitTransaction();
+      return receipt;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
   // ── AUTO-EXPIRY FOR HOLDS ───────────────────────────────────────
   async expireHoldBookings() {
     const expiredHolds = await PlotBooking.find({
@@ -1328,8 +1425,11 @@ class PlotsService {
       else await inst.save();
     }
 
-    // 2. Fetch all active receipts for this booking sorted by createdAt ascending
-    const receiptQuery = PlotReceipt.find({ bookingId }).sort({ createdAt: 1, _id: 1 });
+    // 2. Fetch all realized / approved receipts for this booking sorted by createdAt ascending
+    const receiptQuery = PlotReceipt.find({
+      bookingId,
+      status: { $in: ['APPROVED', undefined, null] }
+    }).sort({ createdAt: 1, _id: 1 });
     if (session) receiptQuery.session(session);
     const receipts = await receiptQuery;
 
@@ -2520,6 +2620,227 @@ class PlotsService {
     }
   }
 
+  // ── SPONSOR PORTAL DASHBOARD ───────────────────────────────
+  async getSponsorDashboardStats(sponsorId) {
+    const sponsor = await User.findById(sponsorId)
+      .populate('sponsorId', 'name sponsorCode customerId email mobile')
+      .lean();
+    if (!sponsor) {
+      const err = new Error('Sponsor not found');
+      err.status = 404;
+      throw err;
+    }
+
+    // Auto-sync active bookings for this sponsor
+    const activeBookings = await PlotBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
+    }).select('_id').lean();
+
+    for (const b of activeBookings) {
+      await this.syncBookingSponsorCommissions(b._id);
+    }
+
+    // 1. Fetch Subordinates / Team Network
+    const subordinates = await User.find({
+      role: 'sponsor',
+      sponsorId: sponsor._id
+    }).select('_id name sponsorCode customerId mobile email createdAt profileImage isBlocked').lean();
+
+    const subordinateIds = subordinates.map(s => s._id);
+
+    // 2. Fetch Direct Bookings and Team Bookings
+    const allRelevantBookings = await PlotBooking.find({
+      $or: [
+        { sponsorId: sponsor._id },
+        { parentSponsorId: sponsor._id },
+        { sponsorId: { $in: subordinateIds } }
+      ]
+    })
+      .populate('customerId', 'name customerId customerCode mobile email')
+      .populate('plotId', 'plotNumber plotSize plotType seriesId')
+      .populate('sponsorId', 'name sponsorCode customerId mobile')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let directBookingsCount = 0;
+    let teamBookingsCount = 0;
+    let directPlotValue = 0;
+    let teamPlotValue = 0;
+    let activeBookingsCount = 0;
+    let completedBookingsCount = 0;
+
+    const recentBookings = [];
+
+    allRelevantBookings.forEach((b, idx) => {
+      const isDirect = String(b.sponsorId?._id || b.sponsorId) === String(sponsor._id);
+      const val = Number(b.netValue || b.plotValue || 0);
+
+      if (isDirect) {
+        directBookingsCount++;
+        directPlotValue += val;
+      } else {
+        teamBookingsCount++;
+        teamPlotValue += val;
+      }
+
+      if (b.status === 'ACTIVE') activeBookingsCount++;
+      if (b.status === 'COMPLETED') completedBookingsCount++;
+
+      if (idx < 5) {
+        recentBookings.push({
+          _id: b._id,
+          bookingNumber: b.bookingNumber,
+          bookingDate: b.bookingDate || b.createdAt,
+          customerName: b.customerId?.name || 'Unknown',
+          customerMobile: b.customerId?.mobile || '',
+          plotNumber: b.plotId?.plotNumber || '-',
+          plotSize: b.plotId?.plotSize || 0,
+          plotValue: b.plotValue,
+          netValue: b.netValue,
+          status: b.status,
+          isDirect,
+          sponsorName: b.sponsorId?.name || 'Self',
+          sponsorCode: b.sponsorId?.sponsorCode || ''
+        });
+      }
+    });
+
+    // 3. Commissions Breakdown & Financial Stats
+    const commissions = await PlotSponsorCommission.find({
+      sponsorId: sponsor._id,
+      status: 'active'
+    })
+      .populate('customerId', 'name customerId customerCode')
+      .populate('closingId', 'closingName closingNumber startDate endDate')
+      .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
+      .populate({
+        path: 'bookingId',
+        select: 'bookingNumber plotId',
+        populate: { path: 'plotId', select: 'plotNumber' }
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let totalCommissionEarned = 0;
+    let directCommissionEarned = 0;
+    let teamCommissionEarned = 0;
+    let totalCollectionVolume = 0;
+    let closedCommission = 0;
+    let unclosedCommission = 0;
+
+    const monthlyTrendsMap = {};
+    const recentCommissions = [];
+
+    commissions.forEach((c, idx) => {
+      const colAmt = Number(c.collectionAmount || 0);
+      const earnAmt = Number(c.amount || 0);
+      const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
+
+      totalCollectionVolume += colAmt;
+      totalCommissionEarned += earnAmt;
+
+      if (isDirect) {
+        directCommissionEarned += earnAmt;
+      } else {
+        teamCommissionEarned += earnAmt;
+      }
+
+      if (c.closingId) {
+        closedCommission += earnAmt;
+      } else {
+        unclosedCommission += earnAmt;
+      }
+
+      // Group by Month for Charts/Trends
+      const d = new Date(c.receiptId?.createdAt || c.createdAt);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyTrendsMap[monthKey]) {
+        monthlyTrendsMap[monthKey] = {
+          month: monthKey,
+          label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+          collection: 0,
+          commission: 0,
+          count: 0
+        };
+      }
+      monthlyTrendsMap[monthKey].collection += colAmt;
+      monthlyTrendsMap[monthKey].commission += earnAmt;
+      monthlyTrendsMap[monthKey].count++;
+
+      if (idx < 6) {
+        recentCommissions.push({
+          _id: c._id,
+          date: c.receiptId?.createdAt || c.createdAt,
+          receiptNumber: c.receiptId?.receiptNumber || '-',
+          bookingNumber: c.bookingId?.bookingNumber || '-',
+          plotNumber: c.bookingId?.plotId?.plotNumber || '-',
+          customerName: c.customerId?.name || '-',
+          collectionAmount: colAmt,
+          commissionPercent: c.commissionPercent,
+          commissionEarned: earnAmt,
+          commissionRole: c.commissionRole,
+          isClosed: Boolean(c.closingId),
+          closingNumber: c.closingId?.closingNumber || null
+        });
+      }
+    });
+
+    // 4. Payout Vouchers and Running Balance
+    const vouchers = await PlotPayoutVoucher.find({
+      $or: [{ customerId: sponsor._id }, { sponsorId: sponsor._id }]
+    }).sort({ payoutDate: -1 }).lean().catch(() => []);
+
+    let totalDisbursedPayouts = 0;
+    vouchers.forEach(v => {
+      totalDisbursedPayouts += Number(v.amountPaid || 0);
+    });
+
+    // Available balance in wallet/ledger
+    const availableBalance = Math.max(0, closedCommission - totalDisbursedPayouts);
+
+    // Sort Monthly trends
+    const monthlyTrends = Object.values(monthlyTrendsMap).sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
+
+    return {
+      sponsor: {
+        _id: sponsor._id,
+        name: sponsor.name,
+        sponsorCode: sponsor.sponsorCode || sponsor.customerId || '',
+        email: sponsor.email || '',
+        mobile: sponsor.mobile || '',
+        profileImage: sponsor.profileImage || '',
+        isDeveloperSponsor: !sponsor.sponsorId,
+        parentSponsor: sponsor.sponsorId || null,
+        joinedDate: sponsor.createdAt
+      },
+      metrics: {
+        totalCommissionEarned: Math.round(totalCommissionEarned * 100) / 100,
+        directCommissionEarned: Math.round(directCommissionEarned * 100) / 100,
+        teamCommissionEarned: Math.round(teamCommissionEarned * 100) / 100,
+        closedCommission: Math.round(closedCommission * 100) / 100,
+        unclosedCommission: Math.round(unclosedCommission * 100) / 100,
+        totalDisbursedPayouts: Math.round(totalDisbursedPayouts * 100) / 100,
+        availableBalance: Math.round(availableBalance * 100) / 100,
+        totalCollectionVolume: Math.round(totalCollectionVolume * 100) / 100,
+        totalBookingsCount: allRelevantBookings.length,
+        directBookingsCount,
+        teamBookingsCount,
+        activeBookingsCount,
+        completedBookingsCount,
+        totalBusinessValue: directPlotValue + teamPlotValue,
+        directPlotValue,
+        teamPlotValue,
+        subordinatesCount: subordinates.length
+      },
+      subordinates: subordinates.slice(0, 10),
+      monthlyTrends,
+      recentBookings,
+      recentCommissions,
+      recentVouchers: vouchers.slice(0, 5)
+    };
+  }
+
   // ── SPONSOR & CUSTOMER MANAGEMENT ───────────────────────────
   async getSponsorBusinessReport(sponsorId, filters = {}) {
     const sponsor = await User.findById(sponsorId)
@@ -3005,6 +3326,8 @@ class PlotsService {
       address,
       panCard,
       aadhaarCard,
+      photo: data.photo || '',
+      signature: data.signature || '',
       commissionRate: Number(commissionRate) || 0,
     };
 
@@ -3124,6 +3447,8 @@ class PlotsService {
             bankBranch: legacy.bankBranch || '',
             accountNumber: legacy.accountNumber || '',
             ifscCode: legacy.ifscCode || '',
+            photo: legacy.photo || legacy.profileImage || '',
+            signature: legacy.signature || '',
             sponsorId: legacy.sponsorId || null,
             isBlocked: legacy.isBlocked || false,
             createdAt: legacy.createdAt,
@@ -3153,7 +3478,7 @@ class PlotsService {
     const customers = await PlotCustomer.find(filter)
       .populate({
         path: 'sponsorId',
-        select: 'name sponsorCode mobile email sponsorId',
+        select: 'name sponsorCode mobile email photo signature sponsorId',
         populate: {
           path: 'sponsorId',
           select: 'name sponsorCode mobile email'
@@ -3169,7 +3494,8 @@ class PlotsService {
     const {
       sponsorId, name, email, mobile, gender, age, relationType, fatherOrHusbandName,
       address, currentAddress, permanentAddress, sameAsCurrentAddress, aadhaarCard, panCard,
-      nomineeName, nomineeRelation, nomineeAge, accountHolderName, bankName, bankBranch, accountNumber, ifscCode
+      nomineeName, nomineeRelation, nomineeAge, accountHolderName, bankName, bankBranch, accountNumber, ifscCode,
+      photo, signature
     } = data;
 
     const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
@@ -3199,16 +3525,18 @@ class PlotsService {
       bankBranch: bankBranch || '',
       accountNumber: accountNumber || '',
       ifscCode: ifscCode || '',
+      photo: photo || '',
+      signature: signature || '',
     });
     await customer.save();
     return customer;
   }
 
   async getCustomerById(id) {
-    const customer = await PlotCustomer.findById(id).populate('sponsorId', 'name sponsorCode mobile email');
+    const customer = await PlotCustomer.findById(id).populate('sponsorId', 'name sponsorCode mobile email photo signature');
     if (!customer) {
       // Fallback check in User model if legacy
-      const user = await User.findById(id).populate('sponsorId', 'name sponsorCode mobile email');
+      const user = await User.findById(id).populate('sponsorId', 'name sponsorCode mobile email photo signature');
       if (user && user.role === 'customer') return user;
       throw new Error('Customer not found');
     }
@@ -3219,7 +3547,7 @@ class PlotsService {
     if (data.sponsorId === 'company' || data.sponsorId === 'direct') {
       data.sponsorId = null;
     }
-    const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true }).populate('sponsorId', 'name sponsorCode mobile email');
+    const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true }).populate('sponsorId', 'name sponsorCode mobile email photo signature');
     return customer;
   }
 

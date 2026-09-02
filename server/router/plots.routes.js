@@ -2,11 +2,15 @@ const router = require('express').Router();
 const authmiddlewre = require('../middleware/auth_middleware');
 const authorizeRoles = require('../middleware/Role_middleware');
 const checkPermission = require('../middleware/checkpermission');
+const upload = require('../middleware/multer_middleware');
 const ctrl = require('../controllers/plots.controller');
 
 router.use(authmiddlewre);
 // Only staff roles and sponsors (for self-ledger) can touch the plots module
 router.use(authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant', 'sponsor'));
+
+// ── Media Upload (Photos, Signatures, etc.) ──
+router.post('/upload-media', upload.single('file'), ctrl.uploadMedia);
 
 // ── Rate Config (part of inventory setup) ──
 router.get('/rate-config', checkPermission('plot_inventory', 1), ctrl.getRateConfig);
@@ -21,6 +25,13 @@ router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSe
 
 // ── Sponsors ──
 router.get('/sponsors', checkPermission('plot_sponsor', 1), ctrl.getSponsors);
+router.get('/sponsors/:id/dashboard', (req, res, next) => {
+  // If the logged-in user is a sponsor requesting their own dashboard, bypass staff permission
+  if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
+    return next();
+  }
+  return checkPermission('plot_sponsor', 1)(req, res, next);
+}, ctrl.getSponsorDashboardStats);
 router.get('/sponsors/:id/ledger', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own ledger, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
@@ -76,6 +87,8 @@ router.get('/receipts/list', checkPermission('plot_collection', 1), ctrl.getRece
 router.get('/receipts/:id', checkPermission('plot_collection', 1), ctrl.getReceiptById);
 router.put('/receipts/:id', checkPermission('plot_collection', 3), ctrl.updateReceipt);
 router.delete('/receipts/:id', checkPermission('plot_collection', 4), ctrl.deleteReceipt);
+router.put('/receipts/:id/approve', checkPermission('plot_collection', 3), ctrl.approveReceipt);
+router.put('/receipts/:id/reject', checkPermission('plot_collection', 3), ctrl.rejectReceipt);
 
 // ── Dashboard & Reports ──
 router.get('/dashboard/stats', checkPermission('plot_reports', 1), ctrl.getDashboardStats);

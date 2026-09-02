@@ -4,10 +4,11 @@ import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
 import Modalbox from '../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
-import { Plus, Eye, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, Search, User } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import PageLoader from '../../components/common/PageLoader';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const PlotCustomers = () => {
   const navigate = useNavigate();
@@ -76,6 +77,24 @@ const PlotCustomers = () => {
       name: 'Customer Name',
       selector: (row) => row.name,
       sortable: true,
+      cell: (row) => (
+        <div className="flex items-center gap-2.5 py-1">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center">
+            {row.photo || row.profileImage ? (
+              <img
+                src={cloudinaryUrl(row.photo || row.profileImage, { format: 'webp', width: 80, height: 80, crop: 'fill' })}
+                alt={row.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User size={14} className="text-slate-400" />
+            )}
+          </div>
+          <div>
+            <span className="font-semibold text-slate-900 block leading-tight">{row.name}</span>
+          </div>
+        </div>
+      ),
     },
     {
       name: 'Mobile',
@@ -179,19 +198,32 @@ const PlotCustomers = () => {
             <h2 className="flex items-center justify-between px-6">
               <span>Customer Details</span>
               <span className="font-mono text-xs font-semibold text-white bg-white/20 px-2.5 py-1 rounded-md">
-                {viewingUser?.customerCode || 'N/A'}
+                {viewingUser?.customerCode || viewingUser?.customerId || 'N/A'}
               </span>
             </h2>
 
             {viewingUser && (
               <div className="modalcontent space-y-4 text-sm">
                 {/* Profile & Sponsor Header Card */}
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Customer Name</p>
-                    <p className="font-bold text-slate-800">{viewingUser.name}</p>
+                <div className="flex items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-indigo-200 flex-shrink-0 flex items-center justify-center shadow-xs">
+                      {viewingUser.photo || viewingUser.profileImage ? (
+                        <img
+                          src={cloudinaryUrl(viewingUser.photo || viewingUser.profileImage, { format: 'webp', width: 140, height: 140, crop: 'fill' })}
+                          alt={viewingUser.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User size={24} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-semibold uppercase">Customer Name</p>
+                      <p className="font-bold text-slate-900 text-base">{viewingUser.name}</p>
+                    </div>
                   </div>
-                  <div>
+                  <div className="text-right">
                     <p className="text-xs text-slate-400 font-semibold uppercase">Assigned Sponsor</p>
                     <p className="font-bold text-purple-700">
                       {viewingUser.sponsorId?.name
@@ -242,6 +274,23 @@ const PlotCustomers = () => {
                     <p className="font-medium text-slate-700">{viewingUser.aadhaarCard || 'N/A'}</p>
                   </div>
                 </div>
+
+                {/* Customer Signature Card */}
+                {viewingUser.signature && (
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-slate-400 font-semibold uppercase">Customer Signature</p>
+                      <p className="text-[11px] text-slate-500">Verified digital record</p>
+                    </div>
+                    <div className="h-12 w-32 bg-white border border-slate-200 rounded-lg p-1 flex items-center justify-center">
+                      <img
+                        src={cloudinaryUrl(viewingUser.signature, { format: 'webp', width: 200, height: 80, crop: 'fit' })}
+                        alt="Signature"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Nominee Details Section */}
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">

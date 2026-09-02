@@ -1,5 +1,42 @@
 const plotsService = require('../services/plots.service');
 const ApiResponse = require('../utils/apiResponse');
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const uploadMedia = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file provided' });
+    }
+    const folder = req.body.folder || 'ems/plots';
+    const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+      folder,
+      format: 'webp',
+      transformation: [
+        { width: 500, height: 500, crop: 'limit' },
+        { quality: 'auto:good' },
+        { fetch_format: 'auto' }
+      ]
+    });
+
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.error('Failed to remove temp file:', err.message);
+    });
+
+    return ApiResponse.success(res, { url: uploadResult.secure_url }, 'Image uploaded successfully');
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlink(req.file.path, () => {});
+    }
+    next(error);
+  }
+};
 
 const getRateConfig = async (req, res, next) => {
   try {
@@ -201,6 +238,25 @@ const deleteReceipt = async (req, res, next) => {
   }
 };
 
+const approveReceipt = async (req, res, next) => {
+  try {
+    const receipt = await plotsService.approveReceipt(req.params.id, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, receipt, 'Collection approved and realized into ledger successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const rejectReceipt = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    const receipt = await plotsService.rejectReceipt(req.params.id, reason, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, receipt, 'Collection rejected successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getDashboardStats = async (req, res, next) => {
   try {
     const stats = await plotsService.getDashboardStats();
@@ -289,6 +345,15 @@ const updatePlotPayoutVoucher = async (req, res, next) => {
   try {
     const voucher = await plotsService.updatePlotPayoutVoucher(req.params.id, req.body, req.user?._id || req.user?.id || null);
     ApiResponse.success(res, voucher, 'Payout voucher updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getSponsorDashboardStats = async (req, res, next) => {
+  try {
+    const result = await plotsService.getSponsorDashboardStats(req.params.id);
+    ApiResponse.success(res, result, 'Sponsor dashboard stats fetched successfully');
   } catch (error) {
     next(error);
   }
@@ -503,6 +568,8 @@ module.exports = {
   getReceiptById,
   updateReceipt,
   deleteReceipt,
+  approveReceipt,
+  rejectReceipt,
   getDashboardStats,
   getReportsData,
   updateBooking,
@@ -514,6 +581,7 @@ module.exports = {
   deletePlotPayoutVoucher,
   updatePlotPayoutVoucher,
   getSponsors,
+  getSponsorDashboardStats,
   getSponsorLedger,
   getSponsorBusinessReport,
   createSponsor,
@@ -532,4 +600,5 @@ module.exports = {
   getPlotClosingById,
   updatePlotClosing,
   deletePlotClosing,
+  uploadMedia,
 };

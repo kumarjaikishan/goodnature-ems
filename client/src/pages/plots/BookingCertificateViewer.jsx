@@ -216,6 +216,30 @@ const BookingCertificateViewer = () => {
               <td colSpan={3} className="p-2 font-bold text-slate-900">{customer.address || '-'}</td>
             </tr>
 
+            {/* Row 3b: Plot Dimensions & Chaudhi (Boundaries) */}
+            {(plot.dimensions?.north || plot.dimensions?.east || plot.boundaries?.north || plot.boundaries?.east) && (
+              <tr className="border-b border-slate-100 bg-slate-50/40">
+                <td className="p-2 text-slate-500 font-medium">
+                  <div className="flex justify-between items-center">
+                    <span>Dimensions / पैमाइश</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="p-2 font-bold text-slate-900 font-mono text-[10px]">
+                  <span>उत्तर: {plot.dimensions?.north || 0} ft | दक्षिण: {plot.dimensions?.south || 0} ft | पूरब: {plot.dimensions?.east || 0} ft | पश्चिम: {plot.dimensions?.west || 0} ft</span>
+                </td>
+                <td className="p-2 text-slate-500 font-medium">
+                  <div className="flex justify-between items-center">
+                    <span>चौहद्दी / Bounds</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="p-2 font-medium text-slate-800 text-[10px]">
+                  <span>उत्तर: {plot.boundaries?.north || '-'}, दक्षिण: {plot.boundaries?.south || '-'}, पूरब: {plot.boundaries?.east || '-'}, पश्चिम: {plot.boundaries?.west || '-'}</span>
+                </td>
+              </tr>
+            )}
+
             {/* Numeric details row */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">

@@ -176,22 +176,6 @@ router.route('/permission').get(authmiddlewre, authorizeRoles('developer'), deve
 // /permission, /demo above).
 router.route('/api-monitor/stats').get(authmiddlewre, authorizeRoles('developer'), apiMonitorController.getApiStats)
 router.route('/api-monitor/stats').delete(authmiddlewre, authorizeRoles('developer'), apiMonitorController.clearApiStats)
-router.route('/permission/:id')
-  .put(authmiddlewre, authorizeRoles('developer'), developer.updatedefaultpermission)
-
-
-router.route('/superfirstfetch').post(authmiddlewre, leave.addleave);
-
-router.route("/ledgerEntries").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), ledger.ledgerEntries);
-router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 1), ledger.ledger);
-router.route("/entries/:id").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger_entry", 1), ledger.Entries);
-
-router.route("/ledger").post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 2), upload.single('image'), ledger.createLedger)
-
-router.route("/ledger/:id")
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 3), upload.single('image'), ledger.updateLedger)
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 4), ledger.deleteLedger);
-
 router.route('/api-monitor/stats').delete(authmiddlewre, authorizeRoles('developer'), apiMonitorController.clearApiStats)
 router.route('/permission/:id')
   .put(authmiddlewre, authorizeRoles('developer'), developer.updatedefaultpermission)
@@ -201,7 +185,13 @@ router.route('/superfirstfetch').post(authmiddlewre, leave.addleave);
 
 router.route("/ledgerEntries").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), ledger.ledgerEntries);
 router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 1), ledger.ledger);
-router.route("/entries/:id").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger_entry", 1), ledger.Entries);
+router.route("/entries/:id").get(authmiddlewre, (req, res, next) => {
+  // If the logged-in user is a sponsor requesting their own ledger entries, allow access
+  if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
+    return next();
+  }
+  return checkPermission("ledger_entry", 1)(req, res, next);
+}, ledger.Entries);
 
 router.route("/ledger").post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 2), upload.single('image'), ledger.createLedger)
 

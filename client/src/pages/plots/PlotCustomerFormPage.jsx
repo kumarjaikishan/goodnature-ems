@@ -2,17 +2,22 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
-import { ArrowLeft, CheckCircle, UserPlus } from 'lucide-react';
+import { ArrowLeft, CheckCircle, UserPlus, Camera, PenTool, Trash2 } from 'lucide-react';
 import { CircularProgress } from '@mui/material';
 import { toast } from '../../utils/toast';
+import useImageUpload from '../../utils/imageresizer';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const PlotCustomerFormPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
 
+  const { handleImage } = useImageUpload();
   const [sponsors, setSponsors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingSign, setUploadingSign] = useState(false);
 
   const initialFormState = {
     sponsorId: '',
@@ -32,6 +37,8 @@ const PlotCustomerFormPage = () => {
     nomineeName: '',
     nomineeRelation: '',
     nomineeAge: '',
+    photo: '',
+    signature: '',
     // Bank Details
     accountHolderName: '',
     bankName: '',
@@ -87,6 +94,8 @@ const PlotCustomerFormPage = () => {
           nomineeName: customer.nomineeName || '',
           nomineeRelation: customer.nomineeRelation || '',
           nomineeAge: customer.nomineeAge || '',
+          photo: customer.photo || customer.profileImage || '',
+          signature: customer.signature || '',
           accountHolderName: customer.accountHolderName || '',
           bankName: customer.bankName || '',
           bankBranch: customer.bankBranch || '',
@@ -98,6 +107,73 @@ const PlotCustomerFormPage = () => {
       toast.error('Failed to load customer details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Image Upload Handlers with WebP Compression ──
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingPhoto(true);
+      // Resize to max 350px width and convert to WebP (typically 15-30KB)
+      const webpFile = await handleImage(350, file, 0.85);
+
+      const formData = new FormData();
+      formData.append('file', webpFile);
+      formData.append('folder', 'ems/plots/customers/photos');
+
+      const res = await apiClient({
+        url: 'plots/upload-media',
+        method: 'POST',
+        body: formData,
+      });
+
+      const url = res.data?.url || res.url;
+      if (url) {
+        setFormState((prev) => ({ ...prev, photo: url }));
+        toast.success('Customer photo uploaded & compressed (WebP)');
+      }
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      toast.error('Failed to upload customer photo');
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSignatureUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingSign(true);
+      // Resize signature to max 400px width and convert to WebP (typically 10-20KB)
+      const webpFile = await handleImage(400, file, 0.85);
+
+      const formData = new FormData();
+      formData.append('file', webpFile);
+      formData.append('folder', 'ems/plots/customers/signatures');
+
+      const res = await apiClient({
+        url: 'plots/upload-media',
+        method: 'POST',
+        body: formData,
+      });
+
+      const url = res.data?.url || res.url;
+      if (url) {
+        setFormState((prev) => ({ ...prev, signature: url }));
+        toast.success('Customer signature uploaded & compressed (WebP)');
+      }
+    } catch (err) {
+      console.error('Signature upload error:', err);
+      toast.error('Failed to upload signature');
+    } finally {
+      setUploadingSign(false);
+      e.target.value = '';
     }
   };
 
@@ -456,40 +532,95 @@ const PlotCustomerFormPage = () => {
             </div>
           </div>
 
-          {/* Step 4: Nominee Details */}
+          {/* Step 5: Customer Photo & Signature */}
           <h2 className="text-base font-bold text-slate-800 pt-3 border-t border-slate-100">
-            4. Nominee Details
+            5. Customer Photo & Signature (Optimized WebP)
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Nominee Full Name</label>
-              <input
-                type="text"
-                value={formState.nomineeName}
-                onChange={(e) => setFormState({ ...formState, nomineeName: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="Nominee name"
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Customer Photo Upload */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center text-center">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Customer Passport Photo
+              </label>
+              <div className="relative w-28 h-32 bg-white border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center overflow-hidden group shadow-2xs">
+                {formState.photo ? (
+                  <>
+                    <img
+                      src={cloudinaryUrl(formState.photo, { format: 'webp', width: 200, height: 240, crop: 'fill' })}
+                      alt="Customer Photo"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormState((prev) => ({ ...prev, photo: '' }))}
+                      className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-md opacity-0 group-hover:opacity-100 transition shadow-xs cursor-pointer"
+                      title="Remove Photo"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-400 p-2">
+                    <Camera size={24} className="mb-1 text-slate-400" />
+                    <span className="text-[10px] font-medium leading-tight">Passport Size (3.5x4.5cm)</span>
+                  </div>
+                )}
+              </div>
+              <label className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer shadow-2xs transition">
+                <Camera size={14} className="text-indigo-600" />
+                <span>{uploadingPhoto ? 'Compressing...' : formState.photo ? 'Change Photo' : 'Upload Photo'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  disabled={uploadingPhoto}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-[10px] text-slate-400 mt-1">Auto-converted to ~20KB WebP</p>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Relation with Nominee</label>
-              <input
-                type="text"
-                value={formState.nomineeRelation}
-                onChange={(e) => setFormState({ ...formState, nomineeRelation: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="e.g. Spouse / Son / Daughter"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Nominee Age</label>
-              <input
-                type="number"
-                value={formState.nomineeAge}
-                onChange={(e) => setFormState({ ...formState, nomineeAge: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="Age"
-              />
+
+            {/* Customer Signature Upload */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center text-center">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Customer Signature
+              </label>
+              <div className="relative w-48 h-24 bg-white border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center overflow-hidden group shadow-2xs p-1">
+                {formState.signature ? (
+                  <>
+                    <img
+                      src={cloudinaryUrl(formState.signature, { format: 'webp', width: 300, height: 150, crop: 'fit' })}
+                      alt="Customer Signature"
+                      className="w-full h-full object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormState((prev) => ({ ...prev, signature: '' }))}
+                      className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-md opacity-0 group-hover:opacity-100 transition shadow-xs cursor-pointer"
+                      title="Remove Signature"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-400 p-2">
+                    <PenTool size={22} className="mb-1 text-slate-400" />
+                    <span className="text-[10px] font-medium">Clear white background signature</span>
+                  </div>
+                )}
+              </div>
+              <label className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer shadow-2xs transition">
+                <PenTool size={14} className="text-indigo-600" />
+                <span>{uploadingSign ? 'Compressing...' : formState.signature ? 'Change Signature' : 'Upload Signature'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSignatureUpload}
+                  disabled={uploadingSign}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-[10px] text-slate-400 mt-1">Auto-converted to ~15KB WebP</p>
             </div>
           </div>
         </div>

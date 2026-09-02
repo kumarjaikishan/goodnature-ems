@@ -88,7 +88,9 @@ const userSchema = new mongoose.Schema({
     bankName: { type: String, default: '' },
     bankBranch: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
-    ifscCode: { type: String, default: '' }
+    ifscCode: { type: String, default: '' },
+    photo: { type: String, default: '' },
+    signature: { type: String, default: '' }
 }, { timestamps: true })
 
 

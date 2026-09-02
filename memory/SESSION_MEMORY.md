@@ -62,7 +62,15 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Credit, Debit & Running Balance Columns**: Calculates exact collection-based credits (e.g. `Downpayment Commission` or `EMI Collection Commission` with % and receipt number), payout debits, and running wallet balances chronologically.
 - **Closing Batch Tagging**: Each ledger credit entry displays the associated `closingNumber` badge if the commission was settled in a closing period.
 
-### K. Plot Commission Closing System & Closing-Driven Sponsor Ledger (`/dashboard/plots/closings`)
+### K. Plot Dimensions & Chaudhi (Directional Boundaries)
+- **Geometry & Auto Calculation**: Plots support directional dimensions `{ north, south, east, west }` (in feet). When entering values (e.g., N: 30, S: 30, E: 40, W: 40), the UI automatically computes and populates Plot Area in Sq Ft via $\text{Area} = \frac{N+S}{2} \times \frac{E+W}{2}$ ($30 \times 40 = 1200\text{ Sq Ft}$).
+- **Chaudhi (Boundaries)**: Plots and Series Masters support `{ north, south, east, west }` strings representing surrounding roads, adjoining plots, parks, or boundaries.
+- **Integration Points**:
+  - `PlotSeriesMaster.jsx`: Series generator modal, individual plot creation modal, and configure/adjust plot modal.
+  - `PlotBookingDetails.jsx`: Specifications card displays directional dimensions and Chaudhi grid.
+  - Printable Agreements & Certificates: [PlotAgreementEnglish.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotAgreementEnglish.jsx), [BookingCertificateViewer.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/BookingCertificateViewer.jsx), and [PlotBookingFormPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotBookingFormPage.jsx).
+
+### L. Plot Commission Closing System & Closing-Driven Sponsor Ledger (`/dashboard/plots/closings`)
 - **Period Selection**: Admins select customizable period dates (e.g. `01-Aug-2026` to `28-Aug-2026`) and assign a unique closing batch name.
 - **Closing-Driven Ledger Credit**: When collections are received, commissions are calculated in the background but are **NOT** immediately credited to the sponsor's ledger balance. Commissions are strictly credited to the sponsor's ledger **upon closing** as a consolidated entry titled by the closing name and number (e.g. `July 2026 Commission Closing [CLS-202607-001]`).
 - **Granular Breakdown & Multi-Slab Percentages**: Each sponsor statement and ledger entry itemizes the entire closing period's collections, including:
@@ -124,13 +132,16 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `sidebar.jsx`
   - `logout.jsx`
 
-### S. Native Tailwind DataTable Engine (`DataTable.jsx`)
-- **Complete Elimination of `react-data-table-component` & `styled-components`**: Removed both libraries from `package.json`.
-- **Pure React + Tailwind Architecture**: Rebuilt [`client/src/components/common/DataTable.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/common/DataTable.jsx) as a lightweight, zero-dependency native `<table>` engine.
-- **100% Drop-In Backwards Compatible**:
-  - **Sorting**: Client-side (instant multi-type sort with `ArrowUpDown` indicators) & Server-side (`onSort`).
-  - **Pagination**: Client-side & Server-side (`paginationServer`, rows per page dropdown, next/previous/first/last page jumps).
-  - **Row Selection**: Checkbox selection (`selectableRows`), "Select All", and `onSelectedRowsChange` callback.
-  - **Styling**: Honors `customStyles.headCells`, `conditionalRowStyles`, `highlightOnHover`, `dense`, and `noDataComponent`.
-  - **Performance**: Zero runtime CSS generation, no memory leaks, seamless printing support.
+### T. Dedicated Sponsor Portal Dashboard (`/dashboard`)
+- **Landing Experience**: When a user with role `sponsor` logs in, `/dashboard` renders [`SponsorDashboard.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/SponsorDashboard.jsx).
+- **Hero Profile Card**: Greets the sponsor with their profile image, role designation (`Developer Sponsor` vs `Sub-Sponsor`), Sponsor ID, contact info, and fast-action shortcuts to their **Official Ledger** and **Business Report**.
+- **Financial & Portfolio Metrics**: 4 dynamic metric tiles displaying:
+  - **Available Balance** (closed earnings net of disbursed vouchers, ready for withdrawal).
+  - **Total Commission Earned** (with granular direct vs downline team breakdown).
+  - **Bookings Portfolio Count** (direct vs team booked plot count).
+  - **Total Sales & Collection Volume** (total contract value & collection amounts).
+- **Monthly Performance Bar Chart**: 6-month visual volume tracker illustrating collection volume and credited commission trends with interactive tooltips.
+- **Team Hierarchy Widget**: Displays enrolled sub-sponsors in the sponsor's downline network with active status and quick links.
+- **Recent Plot Bookings & Latest Commission Credits**: Live feeds of recent plot purchases and collection commission entries.
+
 

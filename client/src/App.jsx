@@ -11,6 +11,7 @@ import { Avatar } from '@mui/material';
 import dayjs from 'dayjs';
 
 import ScrollToTop from './components/ScrollToTop';
+import { swal } from './utils/confirmDialog';
 // import  Errorpage  from './pages/error/Errorpage';
 
 
@@ -89,6 +90,7 @@ const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
 const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
 const PlotInterestCalculator = lazy(() => import('./pages/plots/PlotInterestCalculator'));
 const SponsorLedgerPage = lazy(() => import('./pages/plots/SponsorLedgerPage'));
+const SponsorDashboard = lazy(() => import('./pages/plots/SponsorDashboard'));
 const SponsorBusinessReportPage = lazy(() => import('./pages/plots/SponsorBusinessReportPage'));
 const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
 const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
@@ -306,7 +308,10 @@ const routesByRole = {
   ),
   sponsor: (
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['sponsor']} />}>
-      <Route index element={<SponsorLedgerPage />} />
+      <Route index element={<SponsorDashboard />} />
+      <Route path="sponsor-dashboard" element={<SponsorDashboard />} />
+      <Route path="ledger" element={<SponsorLedgerPage />} />
+      <Route path="ledger/:id" element={<LedgerDetailPage />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
       <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
       <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />

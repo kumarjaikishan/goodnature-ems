@@ -19,6 +19,7 @@ import {
   ChevronRight,
   FileText,
   History,
+  TrendingUp,
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 import Popover from "@mui/material/Popover";
@@ -43,7 +44,7 @@ const Sidebar = () => {
     {
       title: "Menu",
       items: [
-        { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo"] },
+        { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo", "sponsor"] },
         { menu: "Permissions", link: "/dashboard/permission", icon: <LayoutDashboard size={20} />, roles: ["developer"] },
         { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <LayoutDashboard size={20} />, roles: ["developer"] },
         {
@@ -104,8 +105,9 @@ const Sidebar = () => {
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
         { menu: "Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["admin", "superadmin", "manager"] },
         { menu: "Vouchers", link: "/dashboard/vouchers", icon: <Receipt size={20} />, roles: ["admin", "superadmin", "manager", "demo"] },
-        { menu: "Commission Ledger", link: "/dashboard", icon: <BookOpen size={20} />, roles: ["sponsor"] },
+        { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
+        { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
       ],
     },
     {

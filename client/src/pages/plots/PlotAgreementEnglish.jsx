@@ -521,11 +521,29 @@ const PlotAgreementEnglish = ({
                           <td className="p-2 font-bold bg-slate-100/70 border-r border-slate-300">EMI DURATION:</td>
                           <td className="p-2 font-bold">{installmentCount} installments</td>
                         </tr>
-                        <tr>
+                        <tr className="border-b border-slate-300">
                           <td className="p-2 font-bold bg-slate-100/70 border-r border-slate-300">EMI AMOUNT:</td>
                           <td className="p-2 border-r border-slate-300 font-bold">{formatCurrency(standardEmiAmt)}</td>
                           <td className="p-2 font-bold bg-slate-100/70 border-r border-slate-300">PAYMENT MODE / DETAILS:</td>
                           <td className="p-2 font-bold uppercase">{booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD'}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                          <td className="p-2 font-bold bg-slate-100/70 border-r border-slate-300">PLOT DIMENSIONS / पैमाइश:</td>
+                          <td className="p-2 border-r border-slate-300 text-xs" colSpan={3}>
+                            <strong>North (पूरब-पश्चिम जानिब उत्तर):</strong> {plot.dimensions?.north || '-'} ft &nbsp;|&nbsp; 
+                            <strong>South (पूरब-पश्चिम जानिब दक्षिण):</strong> {plot.dimensions?.south || '-'} ft &nbsp;|&nbsp; 
+                            <strong>East (उत्तर-दक्षिण जानिब पूरब):</strong> {plot.dimensions?.east || '-'} ft &nbsp;|&nbsp; 
+                            <strong>West (उत्तर-दक्षिण जानिब पश्चिम):</strong> {plot.dimensions?.west || '-'} ft
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-bold bg-slate-100/70 border-r border-slate-300">CHAUDHI / चौहद्दी:</td>
+                          <td className="p-2 font-medium" colSpan={3}>
+                            <strong>North:</strong> {plot.boundaries?.north || '-'} &nbsp;|&nbsp; 
+                            <strong>South:</strong> {plot.boundaries?.south || '-'} &nbsp;|&nbsp; 
+                            <strong>East:</strong> {plot.boundaries?.east || '-'} &nbsp;|&nbsp; 
+                            <strong>West:</strong> {plot.boundaries?.west || '-'}
+                          </td>
                         </tr>
                       </tbody>
                     </table>

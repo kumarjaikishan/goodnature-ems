@@ -180,7 +180,15 @@ const addemployee = async (req, res, next) => {
 
         let uploadResult = null;
         if (req.file) {
-            uploadResult = await cloudinary.uploader.upload(req.file.path, { folder: 'ems/employee' });
+            uploadResult = await cloudinary.uploader.upload(req.file.path, {
+                folder: 'ems/employee',
+                format: 'webp',
+                transformation: [
+                    { width: 400, height: 400, crop: 'limit' },
+                    { quality: 'auto:good' },
+                    { fetch_format: 'auto' }
+                ]
+            });
             fs.unlink(req.file.path, (err) => { if (err) console.error('Failed to delete local file:', err); });
         }
 
@@ -209,7 +217,15 @@ const updateemployee = async (req, res, next) => {
 
         let uploadResult = null;
         if (req.file) {
-            uploadResult = await cloudinary.uploader.upload(req.file.path, { folder: "ems/employee" });
+            uploadResult = await cloudinary.uploader.upload(req.file.path, {
+                folder: "ems/employee",
+                format: 'webp',
+                transformation: [
+                    { width: 400, height: 400, crop: 'limit' },
+                    { quality: 'auto:good' },
+                    { fetch_format: 'auto' }
+                ]
+            });
             fs.unlink(req.file.path, err => { if (err) console.log("File delete error:", err.message); });
         }
 
@@ -553,7 +569,13 @@ const editAdmin = async (req, res, next) => {
         // Handle profile image upload
         if (req.file) {
             const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-                folder: 'ems/employee'
+                folder: 'ems/employee',
+                format: 'webp',
+                transformation: [
+                    { width: 400, height: 400, crop: 'limit' },
+                    { quality: 'auto:good' },
+                    { fetch_format: 'auto' }
+                ]
             });
 
             if (uploadResult) {

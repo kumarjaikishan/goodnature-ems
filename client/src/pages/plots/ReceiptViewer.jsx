@@ -6,6 +6,8 @@ import { toast } from '../../utils/toast';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
+import PageLoader from '../../components/common/PageLoader';
+
 const numberToWords = (num) => {
   if (num === 0) return 'Zero Rupees Only';
   const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
@@ -76,17 +78,21 @@ const ReceiptViewer = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
-        <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-800 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <PageLoader
+          fullScreen={false}
+          title="Loading Payment Voucher..."
+          subtitle="Fetching official receipt records"
+        />
       </div>
     );
   }
 
   if (!receipt) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 gap-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
         <p className="text-sm font-bold text-slate-500">Receipt not found or permission denied.</p>
-        <button onClick={() => navigate('/plot-reports')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
+        <button onClick={() => navigate('/dashboard/plots/installments')} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer">Go Back</button>
       </div>
     );
   }
@@ -104,13 +110,13 @@ const ReceiptViewer = () => {
       <div className="w-full max-w-4xl flex items-center justify-between mb-6 print:hidden">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-sm font-bold text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs text-slate-600 hover:bg-slate-50 transition cursor-pointer shadow-xs"
         >
           <ArrowLeft size={14} /> Back
         </button>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-450 text-white rounded-sm font-bold text-xs transition shadow-lg shadow-emerald-500/10"
+          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition shadow-sm cursor-pointer"
         >
           <Printer size={14} /> Print Receipt
         </button>
@@ -147,10 +153,16 @@ const ReceiptViewer = () => {
           }
         `}</style>
 
-        {/* Diagonal Watermark */}
-        <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none opacity-[0.03] rotate-[-30deg]">
-          <span className="text-8xl font-black tracking-widest uppercase">{companyName}</span>
-        </div>
+        {/* Background Logo Watermark (Black & White / Grayscale) */}
+        {company?.logo ? (
+          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0">
+            <img
+              src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+              alt="Watermark Logo"
+              className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
+            />
+          </div>
+        ) : null}
 
         {/* Company Header */}
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-4">
@@ -340,8 +352,20 @@ const ReceiptViewer = () => {
         </div>
 
         {/* Notice line */}
-        <div className="mb-2 text-[9px] text-slate-500 font-bold italic select-none">
-          * Receipt is subject to realization of payment (applicable for Cheque, DD, UPI, RTGS, NEFT, etc.).
+        <div className="mb-2 text-[9.5px] text-slate-500 font-semibold italic select-none border-t border-slate-100 pt-2 flex flex-col gap-0.5">
+          <p>
+            * Note: This receipt is issued subject to realization of payment (applicable for Cheque, DD, UPI, RTGS, NEFT, etc.).
+          </p>
+          {receipt.status === 'PENDING' && (
+            <p className="text-amber-700 font-bold not-italic">
+              * Payment Status: Pending verification & administrative clearance.
+            </p>
+          )}
+          {receipt.status === 'REJECTED' && (
+            <p className="text-rose-700 font-bold not-italic">
+              * Payment Status: Rejected ({receipt.rejectionReason || 'Declined'}).
+            </p>
+          )}
         </div>
       </div>
     </div>

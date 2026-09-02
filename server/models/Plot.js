@@ -48,6 +48,20 @@ const plotSchema = new mongoose.Schema(
       enum: ['AVAILABLE', 'HOLD', 'BOOKED', 'CANCELLED', 'REGISTERED'],
       default: 'AVAILABLE',
     },
+    // Dimensions in Ft: North, South, East, West
+    dimensions: {
+      north: { type: Number, default: 0 },
+      south: { type: Number, default: 0 },
+      east: { type: Number, default: 0 },
+      west: { type: Number, default: 0 },
+    },
+    // Boundaries / Chaudhi (What is on North, South, East, West e.g. Road, Plot No, Green Belt, etc.)
+    boundaries: {
+      north: { type: String, default: '' },
+      south: { type: String, default: '' },
+      east: { type: String, default: '' },
+      west: { type: String, default: '' },
+    },
     remarks: {
       type: String,
       default: '',

@@ -15,6 +15,7 @@ import {
   Calendar,
   Sparkles,
 } from 'lucide-react';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const PlotBookingDetails = () => {
   const { id } = useParams();
@@ -163,9 +164,31 @@ const PlotBookingDetails = () => {
 
         {/* Card 1: Customer Details */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <User size={16} className="text-slate-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Customer Details</h3>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                {customer?.photo || customer?.profileImage ? (
+                  <img
+                    src={cloudinaryUrl(customer.photo || customer.profileImage, { format: 'webp', width: 80, height: 80, crop: 'fill' })}
+                    alt={customer.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={16} className="text-slate-500" />
+                )}
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Customer Details</h3>
+            </div>
+            {customer?.signature && (
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase">Sign:</span>
+                <img
+                  src={cloudinaryUrl(customer.signature, { format: 'webp', width: 100, height: 40, crop: 'fit' })}
+                  alt="Customer Signature"
+                  className="h-5 w-auto object-contain"
+                />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
             <div>
@@ -297,6 +320,63 @@ const PlotBookingDetails = () => {
             <div>
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Effective Rate</span>
               <span className="font-medium text-slate-700">₹{plot.effectiveRate || booking.basePlotRate || 0} / Sq Ft</span>
+            </div>
+            {/* Dimensions (N/S/E/W) */}
+            <div className="col-span-2 sm:col-span-3 pt-2 border-t border-slate-100">
+              <span className="text-slate-400 font-medium block text-[0.68rem] uppercase mb-1">Plot Dimensions / पैमाइश (Ft)</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-700 font-bold block">North (उत्तर)</span>
+                    <span className="text-[9px] text-teal-700 font-medium block">पूरब-पश्चिम जानिब उत्तर</span>
+                  </div>
+                  <strong className="text-slate-800 font-mono text-sm mt-1">{plot.dimensions?.north || '-'} ft</strong>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-700 font-bold block">South (दक्षिण)</span>
+                    <span className="text-[9px] text-teal-700 font-medium block">पूरब-पश्चिम जानिब दक्षिण</span>
+                  </div>
+                  <strong className="text-slate-800 font-mono text-sm mt-1">{plot.dimensions?.south || '-'} ft</strong>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-700 font-bold block">East (पूरब)</span>
+                    <span className="text-[9px] text-teal-700 font-medium block">उत्तर-दक्षिण जानिब पूरब</span>
+                  </div>
+                  <strong className="text-slate-800 font-mono text-sm mt-1">{plot.dimensions?.east || '-'} ft</strong>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-700 font-bold block">West (पश्चिम)</span>
+                    <span className="text-[9px] text-teal-700 font-medium block">उत्तर-दक्षिण जानिब पश्चिम</span>
+                  </div>
+                  <strong className="text-slate-800 font-mono text-sm mt-1">{plot.dimensions?.west || '-'} ft</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Boundaries / Chaudhi */}
+            <div className="col-span-2 sm:col-span-3 pt-2 border-t border-slate-100">
+              <span className="text-slate-400 font-medium block text-[0.68rem] uppercase mb-1">Boundaries / चौहद्दी (Surroundings)</span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-500 font-bold block">North (उत्तर चौहद्दी)</span>
+                  <span className="text-slate-800 font-semibold">{plot.boundaries?.north || '-'}</span>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-500 font-bold block">South (दक्षिण चौहद्दी)</span>
+                  <span className="text-slate-800 font-semibold">{plot.boundaries?.south || '-'}</span>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-500 font-bold block">East (पूरब चौहद्दी)</span>
+                  <span className="text-slate-800 font-semibold">{plot.boundaries?.east || '-'}</span>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-500 font-bold block">West (पश्चिम चौहद्दी)</span>
+                  <span className="text-slate-800 font-semibold">{plot.boundaries?.west || '-'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

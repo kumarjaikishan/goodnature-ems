@@ -15,14 +15,20 @@ import {
   IndianRupee,
   Banknote,
   KeyRound,
-  TrendingUp
+  TrendingUp,
+  Camera,
+  PenTool,
+  User,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import PageLoader from '../../components/common/PageLoader';
+import useImageUpload from '../../utils/imageresizer';
+import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const PlotSponsors = () => {
   const navigate = useNavigate();
+  const { handleImage } = useImageUpload();
   const [sponsors, setSponsors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -30,6 +36,8 @@ const PlotSponsors = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState(null);
   const [viewingSponsor, setViewingSponsor] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingSign, setUploadingSign] = useState(false);
 
   const customStyles = useCustomStyles();
   const [formData, setFormData] = useState({
@@ -48,6 +56,8 @@ const PlotSponsors = () => {
     nomineeAge: '',
     panCard: '',
     aadhaarCard: '',
+    photo: '',
+    signature: '',
     commissionRate: 0,
     sponsorId: 'direct',
   });
@@ -73,6 +83,70 @@ const PlotSponsors = () => {
     fetchSponsors();
   }, [search]);
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingPhoto(true);
+      const webpFile = await handleImage(350, file, 0.85);
+
+      const fd = new FormData();
+      fd.append('file', webpFile);
+      fd.append('folder', 'ems/plots/sponsors/photos');
+
+      const res = await apiClient({
+        url: 'plots/upload-media',
+        method: 'POST',
+        body: fd,
+      });
+
+      const url = res.data?.url || res.url;
+      if (url) {
+        setFormData((prev) => ({ ...prev, photo: url }));
+        toast.success('Sponsor photo uploaded & compressed (WebP)');
+      }
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      toast.error('Failed to upload sponsor photo');
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSignatureUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingSign(true);
+      const webpFile = await handleImage(400, file, 0.85);
+
+      const fd = new FormData();
+      fd.append('file', webpFile);
+      fd.append('folder', 'ems/plots/sponsors/signatures');
+
+      const res = await apiClient({
+        url: 'plots/upload-media',
+        method: 'POST',
+        body: fd,
+      });
+
+      const url = res.data?.url || res.url;
+      if (url) {
+        setFormData((prev) => ({ ...prev, signature: url }));
+        toast.success('Sponsor signature uploaded & compressed (WebP)');
+      }
+    } catch (err) {
+      console.error('Signature upload error:', err);
+      toast.error('Failed to upload sponsor signature');
+    } finally {
+      setUploadingSign(false);
+      e.target.value = '';
+    }
+  };
+
   const handleOpenModal = (sponsor = null) => {
     if (sponsor) {
       setEditingSponsor(sponsor);
@@ -92,6 +166,8 @@ const PlotSponsors = () => {
         nomineeAge: sponsor.nomineeAge || '',
         panCard: sponsor.panCard || '',
         aadhaarCard: sponsor.aadhaarCard || '',
+        photo: sponsor.photo || sponsor.profileImage || '',
+        signature: sponsor.signature || '',
         commissionRate: sponsor.commissionRate || 0,
         sponsorId: sponsor.sponsorId?._id || sponsor.sponsorId || 'direct',
       });
@@ -113,6 +189,8 @@ const PlotSponsors = () => {
         nomineeAge: '',
         panCard: '',
         aadhaarCard: '',
+        photo: '',
+        signature: '',
         commissionRate: 0,
         sponsorId: 'direct',
       });
@@ -138,7 +216,7 @@ const PlotSponsors = () => {
       toast.success(`Sponsor ${sponsor.isBlocked ? 'unblocked' : 'blocked'} successfully`);
       fetchSponsors();
     } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${actionStr} sponsor`);
+      toast.error(err.response?.data?.message || err.message || 'Failed to toggle sponsor block state');
     }
   };
 
@@ -206,32 +284,33 @@ const PlotSponsors = () => {
       width: '65px',
     },
     {
-      name: 'Sponsor ID',
-      selector: (row) => row.sponsorCode || 'N/A',
-      sortable: true,
-      width: '130px',
-    },
-    {
       name: 'Name',
       selector: (row) => row.name,
       sortable: true,
+      cell: (row) => (
+        <div className="flex items-center gap-2.5 py-1">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center">
+            {row.photo || row.profileImage ? (
+              <img
+                src={cloudinaryUrl(row.photo || row.profileImage, { format: 'webp', width: 80, height: 80, crop: 'fill' })}
+                alt={row.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User size={14} className="text-slate-400" />
+            )}
+          </div>
+          <div>
+            <span className="font-semibold text-slate-900 block leading-tight">{row.name}</span>
+          </div>
+        </div>
+      ),
     },
     {
-      name: 'Role / Hierarchy',
-      selector: (row) => (row.sponsorId ? 'Sub Sponsor' : 'Developer Sponsor'),
-      cell: (row) => (
-        <span
-          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-            !row.sponsorId
-              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-              : 'bg-blue-50 text-blue-700 border border-blue-200'
-          }`}
-        >
-          {!row.sponsorId ? '👑 Developer Sponsor' : '👤 Sub Sponsor'}
-        </span>
-      ),
+      name: 'Sponsor ID',
+      selector: (row) => row.sponsorCode || 'N/A',
       sortable: true,
-      width: '170px',
+      width: '140px',
     },
     {
       name: 'Referring Sponsor',
@@ -562,6 +641,94 @@ const PlotSponsors = () => {
                 </div>
               </div>
 
+              {/* Photo & Signature Upload Section */}
+              <div className="border-t border-slate-100 pt-3">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Photo & Signature (Optimized WebP)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Sponsor Photo */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center text-center">
+                    <span className="text-[11px] font-semibold text-slate-600 mb-1.5">Profile Photo</span>
+                    <div className="relative w-20 h-24 bg-white border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center overflow-hidden group shadow-2xs">
+                      {formData.photo ? (
+                        <>
+                          <img
+                            src={cloudinaryUrl(formData.photo, { format: 'webp', width: 160, height: 190, crop: 'fill' })}
+                            alt="Sponsor Photo"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData((prev) => ({ ...prev, photo: '' }))}
+                            className="absolute top-1 right-1 p-0.5 bg-rose-600 text-white rounded opacity-0 group-hover:opacity-100 transition shadow-xs cursor-pointer"
+                            title="Remove Photo"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 p-1">
+                          <Camera size={20} className="mb-0.5 text-slate-400" />
+                          <span className="text-[9px]">Passport Photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <label className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-md cursor-pointer shadow-2xs transition">
+                      <Camera size={12} className="text-indigo-600" />
+                      <span>{uploadingPhoto ? 'Compressing...' : formData.photo ? 'Change' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        disabled={uploadingPhoto}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Sponsor Signature */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center text-center">
+                    <span className="text-[11px] font-semibold text-slate-600 mb-1.5">Digital Signature</span>
+                    <div className="relative w-36 h-24 bg-white border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center overflow-hidden group shadow-2xs p-1">
+                      {formData.signature ? (
+                        <>
+                          <img
+                            src={cloudinaryUrl(formData.signature, { format: 'webp', width: 200, height: 100, crop: 'fit' })}
+                            alt="Sponsor Signature"
+                            className="w-full h-full object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData((prev) => ({ ...prev, signature: '' }))}
+                            className="absolute top-1 right-1 p-0.5 bg-rose-600 text-white rounded opacity-0 group-hover:opacity-100 transition shadow-xs cursor-pointer"
+                            title="Remove Signature"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 p-1">
+                          <PenTool size={18} className="mb-0.5 text-slate-400" />
+                          <span className="text-[9px]">Signature</span>
+                        </div>
+                      )}
+                    </div>
+                    <label className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-md cursor-pointer shadow-2xs transition">
+                      <PenTool size={12} className="text-indigo-600" />
+                      <span>{uploadingSign ? 'Compressing...' : formData.signature ? 'Change' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSignatureUpload}
+                        disabled={uploadingSign}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Address Section */}
               <div className="space-y-3">
                 <div>
@@ -652,12 +819,25 @@ const PlotSponsors = () => {
 
             {viewingSponsor && (
               <div className="modalcontent space-y-4 text-sm">
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Full Name</p>
-                    <p className="font-bold text-slate-800">{viewingSponsor.name}</p>
+                <div className="flex items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-indigo-200 flex-shrink-0 flex items-center justify-center shadow-xs">
+                      {viewingSponsor.photo || viewingSponsor.profileImage ? (
+                        <img
+                          src={cloudinaryUrl(viewingSponsor.photo || viewingSponsor.profileImage, { format: 'webp', width: 140, height: 140, crop: 'fill' })}
+                          alt={viewingSponsor.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User size={24} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-semibold uppercase">Full Name</p>
+                      <p className="font-bold text-slate-900 text-base">{viewingSponsor.name}</p>
+                    </div>
                   </div>
-                  <div>
+                  <div className="text-right">
                     <p className="text-xs text-slate-400 font-semibold uppercase">Referring Sponsor</p>
                     <p className="font-bold text-purple-700">
                       {viewingSponsor.sponsorId?.name
@@ -693,6 +873,7 @@ const PlotSponsors = () => {
                   </div>
                 </div>
 
+                {/* ID Cards */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-slate-400 font-semibold uppercase">PAN Card</p>
@@ -703,6 +884,23 @@ const PlotSponsors = () => {
                     <p className="font-medium text-slate-700">{viewingSponsor.aadhaarCard || 'N/A'}</p>
                   </div>
                 </div>
+
+                {/* Sponsor Signature Card */}
+                {viewingSponsor.signature && (
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-slate-400 font-semibold uppercase">Digital Signature</p>
+                      <p className="text-[11px] text-slate-500">Verified digital record</p>
+                    </div>
+                    <div className="h-12 w-32 bg-white border border-slate-200 rounded-lg p-1 flex items-center justify-center">
+                      <img
+                        src={cloudinaryUrl(viewingSponsor.signature, { format: 'webp', width: 200, height: 80, crop: 'fit' })}
+                        alt="Signature"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Nominee details preview */}
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
