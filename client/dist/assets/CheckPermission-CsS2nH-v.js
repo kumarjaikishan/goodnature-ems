@@ -1,0 +1,1 @@
+import{o as e,t}from"./react-0T9Avz-T.js";import{it as n}from"./index-Cbk6mzfv.js";var r=e(t(),1),i=(e,t)=>{let{profile:i}=n(e=>e.user);return(0,r.useEffect)(()=>{},[]),i.role==`superadmin`?!0:i?.permissions[e]?i.permissions[e].includes(t):!1};export{i as t};

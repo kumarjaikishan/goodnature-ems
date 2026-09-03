@@ -76,7 +76,14 @@ const InvestmentNewAccount = () => {
     setForm((prev) => ({
       ...prev,
       customerId: custId,
-      sponsorId: cust?.sponsorId?._id || cust?.sponsorId || prev.sponsorId,
+      sponsorId: cust?.sponsorId?._id || cust?.sponsorId || '',
+      nominee: {
+        name: cust?.nomineeName || prev.nominee.name || '',
+        relation: cust?.nomineeRelation || prev.nominee.relation || '',
+        age: cust?.nomineeAge || prev.nominee.age || '',
+        mobile: prev.nominee.mobile || '',
+        address: prev.nominee.address || '',
+      },
     }));
   };
 
@@ -118,7 +125,10 @@ const InvestmentNewAccount = () => {
   mDate.setMonth(mDate.getMonth() + Number(form.tenureMonths));
 
   const selectedCustObj = customers.find((c) => c._id === form.customerId);
-  const selectedSponObj = sponsors.find((s) => s._id === form.sponsorId);
+  const selectedSponObj =
+    (selectedCustObj?.sponsorId && typeof selectedCustObj.sponsorId === 'object'
+      ? selectedCustObj.sponsorId
+      : sponsors.find((s) => s._id === form.sponsorId)) || null;
   const isDirectDev = selectedSponObj && (!selectedSponObj.sponsorId || selectedSponObj.sponsorId === 'direct');
 
   const handleSubmit = async (e) => {
@@ -215,16 +225,16 @@ const InvestmentNewAccount = () => {
             </div>
           </div>
 
-          {/* Customer & Sponsor Selection */}
+          {/* Customer Selection & Auto-linked Sponsor */}
           <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-4">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
               <User size={16} className="text-teal-700" />
-              Member & Sponsor Assignment
+              Customer / Investor
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>Customer / Investor *</label>
+                <label className={labelCls}>Select Customer *</label>
                 <select
                   className={inputCls}
                   value={form.customerId}
@@ -246,22 +256,31 @@ const InvestmentNewAccount = () => {
 
               <div>
                 <label className={labelCls}>Assigned Sponsor</label>
-                <select
-                  className={inputCls}
-                  value={form.sponsorId}
-                  onChange={(e) => setForm({ ...form, sponsorId: e.target.value })}
-                >
-                  <option value="">-- Direct (No Sub-Sponsor) --</option>
-                  {Array.isArray(sponsors) &&
-                    sponsors.map((s) => {
-                      const sponCode = s.sponsorCode || s.code || (typeof s.sponsorId === 'string' ? s.sponsorId : s.sponsorId?.sponsorCode) || 'Sponsor';
-                      return (
-                        <option key={s._id} value={s._id}>
-                          {s.name} ({sponCode})
-                        </option>
-                      );
-                    })}
-                </select>
+                <div className="h-10 flex items-center px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm text-slate-700 font-medium select-none">
+                  {selectedCustObj ? (
+                    selectedCustObj.sponsorId?.name ? (
+                      <span className="flex items-center gap-1.5 text-teal-800 font-semibold">
+                        <span className="w-2 h-2 rounded-full bg-teal-600"></span>
+                        {selectedCustObj.sponsorId.name}{' '}
+                        <span className="text-[11px] text-slate-500 font-normal">
+                          ({selectedCustObj.sponsorId.sponsorCode || 'Sponsor'})
+                        </span>
+                      </span>
+                    ) : selectedSponObj ? (
+                      <span className="flex items-center gap-1.5 text-teal-800 font-semibold">
+                        <span className="w-2 h-2 rounded-full bg-teal-600"></span>
+                        {selectedSponObj.name}{' '}
+                        <span className="text-[11px] text-slate-500 font-normal">
+                          ({selectedSponObj.sponsorCode || 'Sponsor'})
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">Direct / No Sponsor</span>
+                    )
+                  ) : (
+                    <span className="text-slate-400 italic">Auto-linked on customer selection</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
