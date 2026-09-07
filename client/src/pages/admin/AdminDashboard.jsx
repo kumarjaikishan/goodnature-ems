@@ -112,7 +112,13 @@ const Main = () => {
     let tp = [];
     let tl = [];
 
+    const todayKey = dayjs().format('YYYY-MM-DD');
+
     attandence?.forEach(e => {
+      // Ensure we only count records for today (date is stored at UTC midnight for that calendar day)
+      const recordDateKey = e.date ? dayjs(e.date).format('YYYY-MM-DD') : null;
+      if (recordDateKey !== todayKey) return;
+
       if (e.status === 'absent') {
         ta.push(e);
       }

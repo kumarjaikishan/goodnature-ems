@@ -47,9 +47,6 @@ export default defineConfig({
             if (id.includes('@reduxjs') || id.includes('react-redux') || id.includes('redux-persist')) {
               return 'vendor-redux';
             }
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'vendor-mui';
-            }
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
             }

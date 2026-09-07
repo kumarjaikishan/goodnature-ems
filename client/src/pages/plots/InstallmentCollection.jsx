@@ -1,25 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
 import { toast } from '../../utils/toast';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import PageLoader from '../../components/common/PageLoader';
+import Button from '@/components/ui/Button';
+import { Plus, ArrowLeft, Search } from 'lucide-react';
+
+import { getReceiptColumns } from './installments/ReceiptColumns';
+import ReceivePaymentForm from './installments/ReceivePaymentForm';
 import {
-  Banknote,
-  CheckCircle,
-  Printer,
-  ArrowLeft,
-  Plus,
-  Edit2,
-  Trash2,
-  Check,
-  XCircle,
-  Clock,
-  AlertCircle,
-} from 'lucide-react';
-import Modalbox from '../../components/custommodal/Modalbox';
-import numberToWords from '../../utils/numToWord';
+  EditReceiptModal,
+  ApproveReceiptModal,
+  RejectReceiptModal,
+  DeleteReceiptModal,
+} from './installments/CollectionModals';
 
 const InstallmentCollection = () => {
   const navigate = useNavigate();
@@ -81,9 +77,9 @@ const InstallmentCollection = () => {
   // Receipts / Collections list
   const [receipts, setReceipts] = useState([]);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, PENDING, APPROVED, REJECTED
-  const [paymentTypeFilter, setPaymentTypeFilter] = useState('ALL'); // ALL, INSTALLMENT, DOWNPAYMENT, FULL_PAYMENT
-  const [paymentModeFilter, setPaymentModeFilter] = useState('ALL'); // ALL, cash, upi, bank_transfer, cheque, neft_rtgs
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState('ALL');
+  const [paymentModeFilter, setPaymentModeFilter] = useState('ALL');
 
   // Approval / Rejection state
   const [approvingReceipt, setApprovingReceipt] = useState(null);
@@ -151,29 +147,26 @@ const InstallmentCollection = () => {
   const activeSelectRequestId = useState({ current: 0 })[0];
 
   const handleBookingSelect = async (bookingId) => {
-    // Increment request ID to cancel/ignore previous async responses
     const currentReqId = ++activeSelectRequestId.current;
 
     if (!bookingId) {
       setSelectedBooking(null);
       setInstallments([]);
       setSelectedInstIds([]);
-      setForm(f => ({ ...f, amountPaid: '', lateFineRebate: '' }));
+      setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
       setDetailsLoading(false);
       return;
     }
 
-    const b = bookings.find(item => item._id === bookingId);
+    const b = bookings.find((item) => item._id === bookingId);
     setSelectedBooking(b);
-    // Immediately clear previous booking's installments and selection to avoid UI confusion
     setInstallments([]);
     setSelectedInstIds([]);
-    setForm(f => ({ ...f, amountPaid: '', lateFineRebate: '' }));
+    setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
     setDetailsLoading(true);
 
     try {
       const rateRes = await api.get('/plots/rate-config');
-      // If user switched to another booking while fetching, drop this result
       if (currentReqId !== activeSelectRequestId.current) return;
 
       const graceDays = rateRes.data.data?.lateFineGraceDays || 15;
@@ -181,23 +174,22 @@ const InstallmentCollection = () => {
 
       if (b.scheme === 'MONTHLY_INSTALLMENT') {
         const instRes = await api.get(`/plots/bookings/${bookingId}/installments`);
-        // Check again after second async call
         if (currentReqId !== activeSelectRequestId.current) return;
 
         const fetchedInsts = instRes.data.data || [];
         setInstallments(fetchedInsts);
 
-        const firstUnpaid = fetchedInsts.find(i => i.status !== 'PAID');
+        const firstUnpaid = fetchedInsts.find((i) => i.status !== 'PAID');
         if (firstUnpaid) {
           setSelectedInstIds([firstUnpaid._id]);
           const principalDue = firstUnpaid.dueAmount - firstUnpaid.paidAmount;
           const fine = getLateFine(firstUnpaid, graceDays);
-          setForm(f => ({ ...f, amountPaid: String(principalDue + fine), lateFineRebate: '' }));
+          setForm((f) => ({ ...f, amountPaid: String(principalDue + fine), lateFineRebate: '' }));
         } else {
-          setForm(f => ({ ...f, amountPaid: '', lateFineRebate: '' }));
+          setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
         }
       } else {
-        setForm(f => ({ ...f, amountPaid: String(b.remainingAmount || 0), lateFineRebate: '' }));
+        setForm((f) => ({ ...f, amountPaid: String(b.remainingAmount || 0), lateFineRebate: '' }));
       }
     } catch {
       if (currentReqId === activeSelectRequestId.current) {
@@ -211,15 +203,15 @@ const InstallmentCollection = () => {
   };
 
   const handleCollectionDateChange = (newDate) => {
-    setForm(f => {
+    setForm((f) => {
       const updatedForm = { ...f, createdAt: newDate };
       if (selectedBooking?.scheme === 'MONTHLY_INSTALLMENT') {
         const totalCalculated = installments
-          .filter(i => selectedInstIds.includes(i._id))
+          .filter((i) => selectedInstIds.includes(i._id))
           .reduce((sum, i) => {
             const p = i.dueAmount - i.paidAmount;
-            const f = getLateFine(i, gracePeriod, newDate);
-            return sum + p + f;
+            const fVal = getLateFine(i, gracePeriod, newDate);
+            return sum + p + fVal;
           }, 0);
         if (totalCalculated > 0) {
           updatedForm.amountPaid = String(totalCalculated);
@@ -233,26 +225,26 @@ const InstallmentCollection = () => {
     const isSelected = selectedInstIds.includes(inst._id);
     let updated = [];
     if (isSelected) {
-      updated = selectedInstIds.filter(id => id !== inst._id);
+      updated = selectedInstIds.filter((id) => id !== inst._id);
     } else {
       updated = [...selectedInstIds, inst._id];
     }
     setSelectedInstIds(updated);
 
     const totalCalculated = installments
-      .filter(i => updated.includes(i._id))
+      .filter((i) => updated.includes(i._id))
       .reduce((sum, i) => {
         const p = i.dueAmount - i.paidAmount;
-        const f = getLateFine(i, gracePeriod, form.createdAt);
-        return sum + p + f;
+        const fVal = getLateFine(i, gracePeriod, form.createdAt);
+        return sum + p + fVal;
       }, 0);
 
-    setForm(f => ({ ...f, amountPaid: totalCalculated > 0 ? String(totalCalculated) : '' }));
+    setForm((f) => ({ ...f, amountPaid: totalCalculated > 0 ? String(totalCalculated) : '' }));
   };
 
   const getSelectedLateFineTotal = () => {
     return installments
-      .filter(i => selectedInstIds.includes(i._id))
+      .filter((i) => selectedInstIds.includes(i._id))
       .reduce((sum, i) => sum + getLateFine(i, gracePeriod, form.createdAt), 0);
   };
 
@@ -261,7 +253,6 @@ const InstallmentCollection = () => {
     if (!selectedBooking) return toast.error('Select a booking contract');
     if (!form.amountPaid || Number(form.amountPaid) <= 0) return toast.error('Enter a valid collection amount');
 
-    // Cheque number validation: exactly 6 digits
     if (form.paymentMode === 'cheque') {
       const cleanCheque = (form.transactionReference || '').trim();
       if (!/^\d{6}$/.test(cleanCheque)) {
@@ -312,7 +303,6 @@ const InstallmentCollection = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    // Cheque number validation: exactly 6 digits
     if (editForm.paymentMode === 'cheque') {
       const cleanCheque = (editForm.transactionReference || '').trim();
       if (!/^\d{6}$/.test(cleanCheque)) {
@@ -386,6 +376,47 @@ const InstallmentCollection = () => {
     }
   };
 
+  const filteredReceipts = useMemo(() => {
+    return receipts.filter((r) => {
+      const query = searchQuery.toLowerCase().trim();
+      const receiptStatus = (r.status || 'APPROVED').toUpperCase();
+      if (statusFilter !== 'ALL' && receiptStatus !== statusFilter) return false;
+      if (paymentTypeFilter !== 'ALL' && r.receiptType !== paymentTypeFilter) return false;
+      if (paymentModeFilter !== 'ALL' && r.paymentMode !== paymentModeFilter) return false;
+
+      if (!query) return true;
+
+      const bookingNo = (r.bookingId?.bookingNumber || '').toLowerCase();
+      const plotNo = (r.bookingId?.plotId?.plotNumber || '').toLowerCase();
+      const customerName = (r.bookingId?.customerId?.name || '').toLowerCase();
+      const receiptType = (r.receiptType || '').toLowerCase();
+      const paymentMode = (r.paymentMode || '').toLowerCase();
+      const txRef = (r.transactionReference || '').toLowerCase();
+
+      return (
+        bookingNo.includes(query) ||
+        plotNo.includes(query) ||
+        customerName.includes(query) ||
+        receiptType.includes(query) ||
+        paymentMode.includes(query) ||
+        txRef.includes(query)
+      );
+    });
+  }, [receipts, searchQuery, statusFilter, paymentTypeFilter, paymentModeFilter]);
+
+  const receiptColumns = useMemo(
+    () =>
+      getReceiptColumns({
+        navigate,
+        setApprovingReceipt,
+        setRejectingReceipt,
+        setRejectionReason,
+        handleEditClick,
+        setDeletingReceipt,
+      }),
+    [navigate]
+  );
+
   if (loading) {
     return (
       <PageLoader
@@ -395,197 +426,6 @@ const InstallmentCollection = () => {
     );
   }
 
-  const labelCls = "block text-xs font-semibold text-slate-600 mb-1";
-  const inputCls = "w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none";
-
-  const filteredReceipts = receipts.filter(r => {
-    const query = searchQuery.toLowerCase().trim();
-
-    const receiptStatus = (r.status || 'APPROVED').toUpperCase();
-    if (statusFilter !== 'ALL' && receiptStatus !== statusFilter) return false;
-
-    if (paymentTypeFilter !== 'ALL' && r.receiptType !== paymentTypeFilter) return false;
-    if (paymentModeFilter !== 'ALL' && r.paymentMode !== paymentModeFilter) return false;
-
-    if (!query) return true;
-
-    const bookingNo = (r.bookingId?.bookingNumber || '').toLowerCase();
-    const plotNo = (r.bookingId?.plotId?.plotNumber || '').toLowerCase();
-    const customerName = (r.bookingId?.customerId?.name || '').toLowerCase();
-    const receiptType = (r.receiptType || '').toLowerCase();
-    const paymentMode = (r.paymentMode || '').toLowerCase();
-    const txRef = (r.transactionReference || '').toLowerCase();
-
-    return bookingNo.includes(query) ||
-      plotNo.includes(query) ||
-      customerName.includes(query) ||
-      receiptType.includes(query) ||
-      paymentMode.includes(query) ||
-      txRef.includes(query);
-  });
-
-  const receiptColumns = [
-    {
-      name: 'Date',
-      selector: (row) => row.createdAt,
-      cell: (row) => (
-        <span className="text-slate-600 font-medium whitespace-nowrap">
-          {new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '110px',
-    },
-    {
-      name: 'Booking No.',
-      selector: (row) => row.bookingId?.bookingNumber || '-',
-      cell: (row) => (
-        <span className="font-bold text-slate-900 tracking-wide font-mono">
-          {row.bookingId?.bookingNumber || '-'}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '130px',
-    },
-    {
-      name: 'Plot #',
-      selector: (row) => row.bookingId?.plotId?.plotNumber || '-',
-      cell: (row) => (
-        <span className="font-bold text-slate-800">
-          {row.bookingId?.plotId?.plotNumber || '-'}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '90px',
-    },
-    {
-      name: 'Customer',
-      selector: (row) => row.bookingId?.customerId?.name || '-',
-      cell: (row) => (
-        <span className="font-bold text-slate-900">
-          {row.bookingId?.customerId?.name || '-'}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '150px',
-      grow: 2,
-    },
-    {
-      name: 'Amount Paid',
-      selector: (row) => row.amount || 0,
-      cell: (row) => (
-        <span className="font-bold text-emerald-700 font-mono">
-          ₹{(row.amount || 0).toLocaleString('en-IN')}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '120px',
-    },
-    {
-      name: 'Mode',
-      selector: (row) => row.paymentMode,
-      cell: (row) => (
-        <span className="font-bold uppercase text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-          {row.paymentMode}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '95px',
-    },
-    {
-      name: 'Status',
-      selector: (row) => row.status || 'APPROVED',
-      cell: (row) => {
-        const status = (row.status || 'APPROVED').toUpperCase();
-        if (status === 'PENDING') {
-          return (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-              <Clock size={12} /> Pending Approval
-            </span>
-          );
-        }
-        if (status === 'REJECTED') {
-          return (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={row.rejectionReason || 'Rejected'}>
-              <XCircle size={12} /> Rejected
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <Check size={12} /> Approved
-          </span>
-        );
-      },
-      sortable: true,
-      minWidth: '145px',
-    },
-    {
-      name: 'Ref No.',
-      selector: (row) => row.transactionReference || '-',
-      cell: (row) => (
-        <span className="font-mono text-xs text-slate-500">
-          {row.transactionReference || '-'}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '110px',
-    },
-    {
-      name: 'Actions',
-      minWidth: '180px',
-      cell: (r) => {
-        const isPending = (r.status || 'APPROVED').toUpperCase() === 'PENDING';
-        return (
-          <div className="flex items-center gap-1.5 py-1">
-            {isPending && (
-              <>
-                <button
-                  onClick={() => setApprovingReceipt(r)}
-                  className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
-                  title="Approve Collection"
-                >
-                  <Check size={13} /> Approve
-                </button>
-                <button
-                  onClick={() => {
-                    setRejectingReceipt(r);
-                    setRejectionReason('');
-                  }}
-                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center"
-                  title="Reject Collection"
-                >
-                  <XCircle size={15} />
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => navigate(`/dashboard/plots/receipts/${r._id}`)}
-              className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-semibold border border-slate-200 transition cursor-pointer flex items-center justify-center"
-              title="Print Receipt"
-            >
-              <Printer size={15} />
-            </button>
-            <button
-              onClick={() => handleEditClick(r)}
-              className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold border border-indigo-200 transition cursor-pointer flex items-center justify-center"
-              title="Edit Collection"
-            >
-              <Edit2 size={15} />
-            </button>
-            <button
-              onClick={() => setDeletingReceipt(r)}
-              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center"
-              title="Delete / Reverse"
-            >
-              <Trash2 size={15} />
-            </button>
-          </div>
-        );
-      },
-    },
-  ];
-
   return (
     <div className="p-6 bg-slate-50 min-h-screen space-y-6">
       {/* Top Header Section */}
@@ -594,7 +434,7 @@ const InstallmentCollection = () => {
           <h1 className="text-2xl font-bold text-slate-800">
             {view === 'list' ? 'Installment Collections & Receipts' : 'Record Installment Collection'}
           </h1>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 text-xs mt-0.5">
             {view === 'list'
               ? 'View collections ledger history and print payment vouchers/receipts.'
               : 'Record and process incoming monthly installments for active plot contracts.'}
@@ -602,27 +442,30 @@ const InstallmentCollection = () => {
         </div>
         <div>
           {view === 'list' ? (
-            <button
-              onClick={() => setView('add')}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition cursor-pointer shadow-sm"
-              type="button"
-            >
-              <Plus size={16} /> Add Collection
-            </button>
+            <Button variant="primary" size="md" startIcon={Plus} onClick={() => setView('add')}>
+              Add Collection
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="secondary"
+              size="md"
+              startIcon={ArrowLeft}
               onClick={() => {
                 setView('list');
                 setSelectedBooking(null);
                 setInstallments([]);
                 setSelectedInstIds([]);
-                setForm({ amountPaid: '', paymentMode: 'cash', transactionReference: '', remarks: '', createdAt: new Date().toISOString().split('T')[0] });
+                setForm({
+                  amountPaid: '',
+                  paymentMode: 'cash',
+                  transactionReference: '',
+                  remarks: '',
+                  createdAt: new Date().toISOString().split('T')[0],
+                });
               }}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-medium text-sm transition cursor-pointer"
-              type="button"
             >
-              <ArrowLeft size={16} /> Back to Collections
-            </button>
+              Back to Collections
+            </Button>
           )}
         </div>
       </div>
@@ -630,31 +473,34 @@ const InstallmentCollection = () => {
       {view === 'list' ? (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3 border border-slate-200">
-            {/* Dropdown Filters Group */}
+          <div className="bg-white p-3.5 rounded-2xl shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 border border-slate-200">
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Approval Status Dropdown */}
               <div className="flex flex-col gap-0.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Status</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Status</label>
                 <select
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                  className="h-10 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition min-w-[150px]"
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="h-10 px-3 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition min-w-[150px]"
                 >
                   <option value="ALL">All Statuses ({receipts.length})</option>
-                  <option value="PENDING">Pending Approval ({receipts.filter(r => (r.status || 'APPROVED').toUpperCase() === 'PENDING').length})</option>
-                  <option value="APPROVED">Approved ({receipts.filter(r => (r.status || 'APPROVED').toUpperCase() === 'APPROVED').length})</option>
-                  <option value="REJECTED">Rejected ({receipts.filter(r => (r.status || 'APPROVED').toUpperCase() === 'REJECTED').length})</option>
+                  <option value="PENDING">
+                    Pending Approval ({receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'PENDING').length})
+                  </option>
+                  <option value="APPROVED">
+                    Approved ({receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'APPROVED').length})
+                  </option>
+                  <option value="REJECTED">
+                    Rejected ({receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'REJECTED').length})
+                  </option>
                 </select>
               </div>
 
-              {/* Payment Type Dropdown */}
               <div className="flex flex-col gap-0.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Payment Type</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Payment Type</label>
                 <select
                   value={paymentTypeFilter}
-                  onChange={e => setPaymentTypeFilter(e.target.value)}
-                  className="h-10 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition min-w-[160px]"
+                  onChange={(e) => setPaymentTypeFilter(e.target.value)}
+                  className="h-10 px-3 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition min-w-[160px]"
                 >
                   <option value="ALL">All Payment Types</option>
                   <option value="INSTALLMENT">Monthly Installments</option>
@@ -663,13 +509,12 @@ const InstallmentCollection = () => {
                 </select>
               </div>
 
-              {/* Payment Mode Dropdown */}
               <div className="flex flex-col gap-0.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Payment Mode</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Payment Mode</label>
                 <select
                   value={paymentModeFilter}
-                  onChange={e => setPaymentModeFilter(e.target.value)}
-                  className="h-10 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition min-w-[150px]"
+                  onChange={(e) => setPaymentModeFilter(e.target.value)}
+                  className="h-10 px-3 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition min-w-[150px]"
                 >
                   <option value="ALL">All Payment Modes</option>
                   <option value="cash">Cash</option>
@@ -681,21 +526,18 @@ const InstallmentCollection = () => {
               </div>
             </div>
 
-            {/* Search Input */}
             <div className="flex flex-col gap-0.5 w-full lg:max-w-xs">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Search</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Search</label>
               <div className="relative w-full">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  <Search size={15} />
                 </span>
                 <input
                   type="text"
                   placeholder="Search Booking, Plot #, Customer..."
-                  className="w-full h-10 pl-9 pr-9 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
+                  className="w-full h-10 pl-9 pr-9 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 {searchQuery && (
                   <button
@@ -711,7 +553,7 @@ const InstallmentCollection = () => {
           </div>
 
           {/* DataTable */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xs border border-slate-200 overflow-hidden">
             <DataTable
               columns={receiptColumns}
               data={filteredReceipts}
@@ -729,7 +571,7 @@ const InstallmentCollection = () => {
               responsive
               highlightOnHover
               noDataComponent={
-                <div className="p-8 text-center text-slate-400 italic font-medium">
+                <div className="p-8 text-center text-slate-400 italic text-xs font-medium">
                   {receipts.length === 0 ? 'No receipt records found.' : 'No matching records found.'}
                 </div>
               }
@@ -737,603 +579,58 @@ const InstallmentCollection = () => {
           </div>
         </div>
       ) : (
-        /* Form View (Record Collection) */
-        <div className="max-w-5xl mx-auto w-full">
-          {/* Booking Selection & Payment Form */}
-          <div className="flex flex-col gap-5 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-            <h3 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Banknote size={20} className="text-indigo-600" /> Receive Payment
-            </h3>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Active Contracts</label>
-                <select
-                  className={inputCls}
-                  onChange={e => handleBookingSelect(e.target.value)}
-                  value={selectedBooking?._id || ''}
-                >
-                  <option value="">Select Customer / Plot Booking...</option>
-                  {bookings.map(b => (
-                    <option key={b._id} value={b._id}>
-                      {b.customerId?.name || b.customerName} |  {b.bookingNumber} | {b.plotId?.plotNumber}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedBooking && (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs select-none">
-                    <div>
-                      <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Customer Name</span>
-                      <span className="font-bold text-slate-800 text-sm">{selectedBooking.customerId?.name || selectedBooking.customerName || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Booking No</span>
-                      <span className="font-bold text-slate-800 font-mono text-sm">{selectedBooking.bookingNumber}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Total Plot Value</span>
-                      <span className="font-bold text-slate-800 text-sm">₹{(selectedBooking.plotValue || 0).toLocaleString('en-IN')}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Outstanding Balance</span>
-                      <span className="font-bold text-indigo-600 text-sm">₹{(selectedBooking.remainingAmount || 0).toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
-
-                  {detailsLoading ? (
-                    <div className="flex flex-col items-center justify-center py-8 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                      <div className="w-6 h-6 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-                      <span className="text-xs text-slate-500 font-medium animate-pulse">Loading installment schedule for #{selectedBooking.bookingNumber}...</span>
-                    </div>
-                  ) : (selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && installments.length > 0) ? (
-                    <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
-                      <label className="text-[0.68rem] font-bold text-slate-500 uppercase tracking-wide px-1">Installments Ledger / Select to Pay</label>
-                      <table className="w-full border-collapse text-xs text-left">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-slate-600 font-semibold select-none">
-                            <th className="p-2 w-8"></th>
-                            <th className="p-2">Inst #</th>
-                            <th className="p-2">Due Date</th>
-                            <th className="p-2 text-right">Principal</th>
-                            <th className="p-2 text-right">Late Fine</th>
-                            <th className="p-2 text-right font-bold">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {installments.map(inst => {
-                            const isPaid = inst.status === 'PAID';
-                            const principalDue = inst.dueAmount - inst.paidAmount;
-                            const fine = getLateFine(inst, gracePeriod, form.createdAt);
-                            const lateDays = getLateDays(inst, gracePeriod, form.createdAt);
-                            const totalDue = principalDue + fine;
-                            const isSelected = selectedInstIds.includes(inst._id);
-
-                            const collectionDateObj = form.createdAt ? new Date(form.createdAt) : new Date();
-                            const currentYear = collectionDateObj.getFullYear();
-                            const currentMonth = collectionDateObj.getMonth();
-                            const dueDate = new Date(inst.dueDate);
-                            const dueYear = dueDate.getFullYear();
-                            const dueMonth = dueDate.getMonth();
-
-                            const isOverdue = !isPaid && (dueYear < currentYear || (dueYear === currentYear && dueMonth < currentMonth));
-                            const isCurrentMonthDue = !isPaid && dueYear === currentYear && dueMonth === currentMonth;
-
-                            let rowBgClass = '';
-                            let statusBadge = null;
-
-                            if (isPaid) {
-                              rowBgClass = 'opacity-50 cursor-not-allowed';
-                            } else if (isSelected) {
-                              rowBgClass = 'bg-indigo-50';
-                            } else if (isOverdue) {
-                              rowBgClass = 'bg-rose-50 hover:bg-rose-100';
-                              statusBadge = (
-                                <span className="ml-1.5 px-2 py-0.5 text-[0.65rem] font-bold uppercase rounded-full bg-rose-100 text-rose-700">
-                                  Overdue
-                                </span>
-                              );
-                            } else if (isCurrentMonthDue) {
-                              rowBgClass = 'bg-amber-50 hover:bg-amber-100';
-                              statusBadge = (
-                                <span className="ml-1.5 px-2 py-0.5 text-[0.65rem] font-bold uppercase rounded-full bg-amber-100 text-amber-700">
-                                  Due
-                                </span>
-                              );
-                            } else {
-                              rowBgClass = 'hover:bg-slate-100';
-                            }
-
-                            return (
-                              <tr
-                                key={inst._id}
-                                onClick={() => !isPaid && handleCheckboxToggle(inst)}
-                                className={`border-b border-slate-100 cursor-pointer select-none transition ${rowBgClass}`}
-                              >
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    disabled={isPaid}
-                                    onChange={() => { }}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                                  />
-                                </td>
-                                <td className="p-2 font-bold text-slate-800 flex items-center">
-                                  <span>{inst.installmentNumber === 0 ? 'Downpmt' : `#${inst.installmentNumber}`}</span>
-                                  {statusBadge}
-                                </td>
-                                <td className="p-2 text-slate-600">
-                                  {new Date(inst.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                </td>
-                                <td className="p-2 text-right text-slate-700">
-                                  ₹{principalDue.toLocaleString('en-IN')}
-                                </td>
-                                <td className="p-2 text-right font-bold text-rose-600">
-                                  {fine > 0 ? (
-                                    <div className="flex flex-col items-end leading-tight">
-                                      <span>₹{fine.toLocaleString('en-IN')}</span>
-                                      <span className="text-[0.65rem] font-medium text-slate-500">
-                                        ({lateDays} days)
-                                      </span>
-                                    </div>
-                                  ) : '-'}
-                                </td>
-                                <td className="p-2 text-right font-bold text-slate-800">
-                                  ₹{totalDue.toLocaleString('en-IN')}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : null}
-                </>
-              )}
-
-              {/* Input Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Collection Amount (₹)</label>
-                  <input
-                    className={inputCls}
-                    type="text"
-                    inputMode="decimal"
-                    pattern="[0-9.]*"
-                    value={form.amountPaid}
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9.]/g, '');
-                      setForm({ ...form, amountPaid: val });
-                    }}
-                    placeholder="Enter collected cash"
-                    required
-                  />
-                  {form.amountPaid && Number(form.amountPaid) > 0 ? (
-                    <p className="text-[0.7rem] font-bold text-indigo-700 mt-1 capitalize bg-indigo-50/70 border border-indigo-100 rounded-lg px-2.5 py-1">
-                      {numberToWords(Math.floor(Number(form.amountPaid)))} Rupees Only
-                    </p>
-                  ) : null}
-                </div>
-
-                {selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between items-center">
-                      <label className={labelCls}>Late Fine Rebate (₹)</label>
-                      <span className="text-[0.65rem] text-slate-400 font-medium">
-                        Max: ₹{getSelectedLateFineTotal().toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <input
-                      className={inputCls}
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9.]*"
-                      value={form.lateFineRebate}
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9.]/g, '');
-                        setForm({ ...form, lateFineRebate: val });
-                      }}
-                      placeholder="Enter rebate amount if any"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Payment Mode</label>
-                  <select
-                    className={inputCls}
-                    value={form.paymentMode}
-                    onChange={e => setForm({ ...form, paymentMode: e.target.value })}
-                  >
-                    <option value="cash">Cash</option>
-                    <option value="upi">UPI / Online</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="neft_rtgs">NEFT / RTGS</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Collection Date</label>
-                  <input
-                    type="date"
-                    className={inputCls}
-                    value={form.createdAt}
-                    onChange={e => handleCollectionDateChange(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {form.paymentMode !== 'cash' && (
-                  <div className="flex flex-col gap-1">
-                    <label className={labelCls}>
-                      {form.paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'Reference / UTR / Transaction No.'}
-                    </label>
-                    <input
-                      className={inputCls}
-                      type={form.paymentMode === 'cheque' ? 'tel' : 'text'}
-                      inputMode={form.paymentMode === 'cheque' ? 'numeric' : 'text'}
-                      maxLength={form.paymentMode === 'cheque' ? 6 : 50}
-                      pattern={form.paymentMode === 'cheque' ? '[0-9]{6}' : undefined}
-                      placeholder={form.paymentMode === 'cheque' ? 'e.g. 045123' : 'Enter UTR / Transaction Reference'}
-                      value={form.transactionReference}
-                      onChange={e => {
-                        let val = e.target.value;
-                        if (form.paymentMode === 'cheque') {
-                          val = val.replace(/[^0-9]/g, '').slice(0, 6);
-                        }
-                        setForm({ ...form, transactionReference: val });
-                      }}
-                      required
-                    />
-                    {form.paymentMode === 'cheque' && form.transactionReference && form.transactionReference.length !== 6 && (
-                      <span className="text-[10px] text-amber-600 font-semibold mt-0.5">
-                        {form.transactionReference.length}/6 digits entered
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-                  <label className={labelCls}>Narration / Remarks</label>
-                  <textarea
-                    className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition min-h-[70px] resize-none"
-                    placeholder="Enter narration notes for this payment..."
-                    value={form.remarks}
-                    onChange={e => setForm({ ...form, remarks: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {form.paymentMode !== 'cash' && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-center gap-2">
-                  <Clock size={16} className="text-amber-700 shrink-0" />
-                  <span>
-                    <strong>Non-Cash Payment Notice:</strong> Payments collected via <strong>{form.paymentMode.toUpperCase()}</strong> will be recorded in <strong>Pending Approval</strong> state and will realize into the customer's balance once verified & approved by an admin.
-                  </span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={submitLoading || !selectedBooking || !form.amountPaid || Number(form.amountPaid) <= 0}
-                className="mt-2 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm cursor-pointer transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
-              >
-                <CheckCircle size={18} /> {submitLoading ? 'Saving...' : (form.paymentMode === 'cash' ? 'Collect Payment (Realize Immediately)' : 'Submit Collection for Admin Approval')}
-              </button>
-            </form>
-          </div>
-        </div>
+        <ReceivePaymentForm
+          handleSubmit={handleSubmit}
+          bookings={bookings}
+          selectedBooking={selectedBooking}
+          handleBookingSelect={handleBookingSelect}
+          detailsLoading={detailsLoading}
+          installments={installments}
+          selectedInstIds={selectedInstIds}
+          handleCheckboxToggle={handleCheckboxToggle}
+          getLateFine={getLateFine}
+          getLateDays={getLateDays}
+          gracePeriod={gracePeriod}
+          getSelectedLateFineTotal={getSelectedLateFineTotal}
+          form={form}
+          setForm={setForm}
+          handleCollectionDateChange={handleCollectionDateChange}
+          submitLoading={submitLoading}
+        />
       )}
 
-      {/* Edit Collection Modal */}
-      <Modalbox open={Boolean(editingReceipt)} onClose={() => setEditingReceipt(null)}>
-        <div className="p-6 bg-white rounded-2xl w-[600px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-            <h3 className="text-base font-bold text-slate-800">
-              Edit Collection: {editingReceipt?.receiptNumber}
-            </h3>
-            <button
-              type="button"
-              className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
-              onClick={() => setEditingReceipt(null)}
-            >
-              ✕
-            </button>
-          </div>
+      {/* Modals */}
+      <EditReceiptModal
+        editingReceipt={editingReceipt}
+        onClose={() => setEditingReceipt(null)}
+        onSubmit={handleEditSubmit}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        editLoading={editLoading}
+      />
 
-          <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Collection Amount (₹)</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9.]*"
-                  className={inputCls}
-                  value={editForm.amount}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                    setEditForm({ ...editForm, amount: val });
-                  }}
-                  placeholder="Enter collected cash"
-                  required
-                />
-                {editForm.amount && Number(editForm.amount) > 0 ? (
-                  <p className="text-[0.7rem] font-bold text-indigo-700 mt-1 capitalize bg-indigo-50/70 border border-indigo-100 rounded-lg px-2.5 py-1">
-                    {numberToWords(Math.floor(Number(editForm.amount)))} Rupees Only
-                  </p>
-                ) : null}
-              </div>
+      <ApproveReceiptModal
+        approvingReceipt={approvingReceipt}
+        onClose={() => setApprovingReceipt(null)}
+        onSubmit={handleApproveSubmit}
+        actionLoading={actionLoading}
+      />
 
-              {editingReceipt?.bookingId?.scheme === 'MONTHLY_INSTALLMENT' && (
-                <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Late Fine Rebate (₹)</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    pattern="[0-9.]*"
-                    className={inputCls}
-                    value={editForm.lateFineRebate}
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9.]/g, '');
-                      setEditForm({ ...editForm, lateFineRebate: val });
-                    }}
-                    placeholder="Enter rebate amount"
-                  />
-                </div>
-              )}
+      <RejectReceiptModal
+        rejectingReceipt={rejectingReceipt}
+        onClose={() => setRejectingReceipt(null)}
+        onSubmit={handleRejectSubmit}
+        rejectionReason={rejectionReason}
+        setRejectionReason={setRejectionReason}
+        actionLoading={actionLoading}
+      />
 
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Payment Mode</label>
-                <select
-                  className={inputCls}
-                  value={editForm.paymentMode}
-                  onChange={e => setEditForm({ ...editForm, paymentMode: e.target.value })}
-                >
-                  <option value="cash">Cash</option>
-                  <option value="upi">UPI / Online</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="neft_rtgs">NEFT / RTGS</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Payment Date</label>
-                <input
-                  type="date"
-                  className={inputCls}
-                  value={editForm.createdAt}
-                  onChange={e => setEditForm({ ...editForm, createdAt: e.target.value })}
-                />
-              </div>
-
-              {editForm.paymentMode !== 'cash' && (
-                <div className="flex flex-col gap-1 sm:col-span-2">
-                  <label className={labelCls}>
-                    {editForm.paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'Reference / UTR / Transaction No.'}
-                  </label>
-                  <input
-                    className={inputCls}
-                    type={editForm.paymentMode === 'cheque' ? 'tel' : 'text'}
-                    inputMode={editForm.paymentMode === 'cheque' ? 'numeric' : 'text'}
-                    maxLength={editForm.paymentMode === 'cheque' ? 6 : 50}
-                    pattern={editForm.paymentMode === 'cheque' ? '[0-9]{6}' : undefined}
-                    placeholder={editForm.paymentMode === 'cheque' ? 'e.g. 045123' : 'Enter UTR / Transaction Reference'}
-                    value={editForm.transactionReference}
-                    onChange={e => {
-                      let val = e.target.value;
-                      if (editForm.paymentMode === 'cheque') {
-                        val = val.replace(/[^0-9]/g, '').slice(0, 6);
-                      }
-                      setEditForm({ ...editForm, transactionReference: val });
-                    }}
-                    required
-                  />
-                  {editForm.paymentMode === 'cheque' && editForm.transactionReference && editForm.transactionReference.length !== 6 && (
-                    <span className="text-[10px] text-amber-600 font-semibold mt-0.5">
-                      {editForm.transactionReference.length}/6 digits entered
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1 sm:col-span-2">
-                <label className={labelCls}>Narration / Remarks</label>
-                <textarea
-                  className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition min-h-[70px] resize-none"
-                  value={editForm.remarks}
-                  onChange={e => setEditForm({ ...editForm, remarks: e.target.value })}
-                  placeholder="Enter notes..."
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-slate-100 shrink-0">
-              <button
-                type="button"
-                onClick={() => setEditingReceipt(null)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium text-xs text-slate-600 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={editLoading}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-medium text-xs text-white rounded-xl shadow-sm transition min-w-[100px] flex items-center justify-center disabled:opacity-50"
-              >
-                {editLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modalbox>
-
-      {/* Approve Collection Modal */}
-      <Modalbox open={Boolean(approvingReceipt)} onClose={() => setApprovingReceipt(null)}>
-        <div className="p-6 bg-white rounded-2xl w-[480px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100 shrink-0">
-            <h3 className="text-base font-bold text-emerald-800 flex items-center gap-2">
-              <CheckCircle size={18} className="text-emerald-600" /> Approve Collection: {approvingReceipt?.receiptNumber}
-            </h3>
-            <button
-              type="button"
-              className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
-              onClick={() => setApprovingReceipt(null)}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="text-xs text-slate-600 font-medium leading-relaxed space-y-3">
-            <p>
-              Are you approving the receipt of payment for <strong className="text-slate-900 font-bold">{approvingReceipt?.bookingId?.customerId?.name || 'Customer'}</strong> ({approvingReceipt?.bookingId?.bookingNumber})?
-            </p>
-
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-1.5 text-xs text-emerald-900 font-medium">
-              <div className="flex justify-between">
-                <span>Amount to Realize:</span>
-                <strong className="text-emerald-800 font-bold font-mono">₹{(approvingReceipt?.amount || 0).toLocaleString('en-IN')}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span>Payment Mode:</span>
-                <strong className="uppercase">{approvingReceipt?.paymentMode}</strong>
-              </div>
-              {approvingReceipt?.transactionReference && (
-                <div className="flex justify-between">
-                  <span>Reference / UTR:</span>
-                  <strong className="font-mono">{approvingReceipt.transactionReference}</strong>
-                </div>
-              )}
-            </div>
-
-            <p className="text-[11px] text-slate-500">
-              Upon approval, this payment will immediately update the customer's outstanding balance, mark the installment as paid, and sync sponsor commission schedules.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-slate-100 shrink-0">
-            <button
-              type="button"
-              onClick={() => setApprovingReceipt(null)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-600 transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={actionLoading}
-              onClick={handleApproveSubmit}
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
-            >
-              {actionLoading ? 'Approving...' : 'Yes, Approve & Realize'}
-            </button>
-          </div>
-        </div>
-      </Modalbox>
-
-      {/* Reject Collection Modal */}
-      <Modalbox open={Boolean(rejectingReceipt)} onClose={() => setRejectingReceipt(null)}>
-        <div className="p-6 bg-white rounded-2xl w-[480px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100 shrink-0">
-            <h3 className="text-base font-bold text-rose-700 flex items-center gap-2">
-              <AlertCircle size={18} className="text-rose-600" /> Reject Collection: {rejectingReceipt?.receiptNumber}
-            </h3>
-            <button
-              type="button"
-              className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
-              onClick={() => setRejectingReceipt(null)}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="text-xs text-slate-600 font-medium leading-relaxed space-y-3">
-            <p>
-              Rejecting payment of <strong className="text-rose-700 font-bold">₹{(rejectingReceipt?.amount || 0).toLocaleString('en-IN')}</strong> ({rejectingReceipt?.paymentMode?.toUpperCase()}). This payment will not be credited to the customer's account.
-            </p>
-
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Reason for Rejection</label>
-              <textarea
-                className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-rose-500 outline-none p-2.5 rounded-xl font-medium text-xs text-slate-800 transition min-h-[70px] resize-none"
-                placeholder="e.g. Cheque bounced / Transaction UTR not credited in company account..."
-                value={rejectionReason}
-                onChange={e => setRejectionReason(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-slate-100 shrink-0">
-            <button
-              type="button"
-              onClick={() => setRejectingReceipt(null)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-600 transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={actionLoading}
-              onClick={handleRejectSubmit}
-              className="px-5 py-2 bg-rose-600 hover:bg-rose-700 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
-            >
-              {actionLoading ? 'Rejecting...' : 'Confirm Rejection'}
-            </button>
-          </div>
-        </div>
-      </Modalbox>
-
-      {/* Delete / Reversal Confirmation Modal */}
-      <Modalbox open={Boolean(deletingReceipt)} onClose={() => setDeletingReceipt(null)}>
-        <div className="p-6 bg-white rounded-2xl w-[500px] max-w-[90vw] space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100 shrink-0">
-            <h3 className="text-base font-bold text-rose-600">
-              Reverse Collection: {deletingReceipt?.receiptNumber}
-            </h3>
-            <button
-              type="button"
-              className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
-              onClick={() => setDeletingReceipt(null)}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="text-xs text-slate-600 font-medium leading-relaxed space-y-2">
-            <p>
-              Are you sure you want to reverse and delete this installment payment of <strong className="text-rose-600 font-bold">₹{(deletingReceipt?.amount || 0).toLocaleString('en-IN')}</strong>?
-            </p>
-            <ul className="list-disc pl-5 space-y-1 text-slate-500">
-              <li>Restore the customer's outstanding balance.</li>
-              <li>Reset the paid installments to PENDING status.</li>
-              <li>Permanently delete sponsor commission schedules generated by this transaction.</li>
-            </ul>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-slate-100 shrink-0">
-            <button
-              type="button"
-              onClick={() => setDeletingReceipt(null)}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium text-xs text-slate-600 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={deleteLoading}
-              onClick={handleDeleteSubmit}
-              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 font-medium text-xs text-white rounded-xl shadow-sm transition min-w-[120px] flex items-center justify-center disabled:opacity-50"
-            >
-              {deleteLoading ? 'Reversing...' : 'Yes, Delete & Reverse'}
-            </button>
-          </div>
-        </div>
-      </Modalbox>
+      <DeleteReceiptModal
+        deletingReceipt={deletingReceipt}
+        onClose={() => setDeletingReceipt(null)}
+        onSubmit={handleDeleteSubmit}
+        deleteLoading={deleteLoading}
+      />
     </div>
   );
 };
