@@ -64,6 +64,9 @@ const userSlice = createSlice({
             // console.log('payload setting',action.payload)
             state.profile = action.payload;
         },
+        setEmployees(state, action) {
+            state.employee = action.payload;
+        },
         tooglesidebar(state, action) {
             state.sidebar = !state.sidebar;
         },
@@ -82,18 +85,10 @@ const userSlice = createSlice({
         builder
             .addCase(FirstFetch.fulfilled, (state, action) => {
                 state.profile = action.payload?.user;
-                state.department = action.payload?.departmentlist;
-                state.adminManager = action.payload?.adminManager;
-                state.employee = action.payload?.employee;
-                state.attandence = action.payload?.attendance;
-                state.company = action.payload?.company;
-                state.branch = action.payload?.branch;
-                state.holidays = action.payload?.holidays;
-                state.notices = action.payload?.notices;
-                state.leaveBalance = action.payload?.leaveBalance;
-                state.leavePolicies = action.payload?.leavePolicies || [];
-                state.advance = action.payload?.advance;
-                state.ledger = action.payload?.ledger;
+                state.department = action.payload?.departmentlist || [];
+                state.company = action.payload?.company || null;
+                state.branch = action.payload?.branch || [];
+                state.notices = action.payload?.notices || [];
                 state.status = 'succeeded';
             })
             .addCase(FirstFetch.pending, (state) => {
@@ -102,5 +97,5 @@ const userSlice = createSlice({
     },
 });
 
-export const { userlogout, updateAttendance, setPrimaryColor, setpayroll, toogleliveAttandence, setuser, tooglesidebar, toogleextendedonMobile } = userSlice.actions;
+export const { userlogout, updateAttendance, setEmployees, setPrimaryColor, setpayroll, toogleliveAttandence, setuser, tooglesidebar, toogleextendedonMobile } = userSlice.actions;
 export default userSlice.reducer;

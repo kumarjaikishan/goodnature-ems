@@ -7,7 +7,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "cross-env TZ=UTC node --env-file=.env scripts/seed.js",
     "dev": "cross-env TZ=UTC nodemon --env-file=.env index.js",
-    "jai": "cross-env TZ=UTC nodemon --env-file=.env index.js",
     "start": "cross-env TZ=UTC node index.js"
   },
   "keywords": [],
@@ -23,6 +22,8 @@
     "dayjs": "^1.11.15",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.1",
     "multer": "^2.0.1",

@@ -769,7 +769,7 @@ async function seed() {
 
   const p1Doc = agr1.landParcels[0];
   agr1.registryDeeds.push({
-    deedNumber: 'DEED-2026-9812',
+    deedNumber: 'AGR-2627-001/DEED-2026-9812',
     deedDate: new Date('2026-05-15'),
     subRegistrarOffice: 'Sadar Registry Office, Danapur',
     registeredDismil: p1_reg_dismil,
@@ -851,7 +851,7 @@ async function seed() {
       agreementId: agr1._id,
       sourceType: 'REGISTRY_DEED',
       deedId: agr1.registryDeeds[0]._id,
-      deedNumber: 'DEED-2026-9812',
+      deedNumber: 'AGR-2627-001/DEED-2026-9812',
       date: new Date('2026-05-15'),
       entryType: 'CREDIT',
       sqFt: p1_reg_sqft,
@@ -911,7 +911,7 @@ async function seed() {
         unregisteredAvailableSqFt: 0,
         allocatedSqFt: 0,
         availableSqFt: agr2_p1_sqft,
-        remarks: 'Fully registered via DEED-2026-4401',
+        remarks: 'Fully registered via AGR-2627-002/DEED-2026-4401',
       },
       {
         mauja: 'Neora',
@@ -983,7 +983,7 @@ async function seed() {
   const agr2_p1 = agr2.landParcels[0];
   const agr2_p2 = agr2.landParcels[1];
   agr2.registryDeeds.push({
-    deedNumber: 'DEED-2026-4401',
+    deedNumber: 'AGR-2627-002/DEED-2026-4401',
     deedDate: new Date('2026-06-01'),
     subRegistrarOffice: 'Bihta Sub-Registry Office',
     registeredDismil: agr2_reg_d,
@@ -1061,7 +1061,7 @@ async function seed() {
       agreementId: agr2._id,
       sourceType: 'REGISTRY_DEED',
       deedId: agr2.registryDeeds[0]._id,
-      deedNumber: 'DEED-2026-4401',
+      deedNumber: 'AGR-2627-002/DEED-2026-4401',
       date: new Date('2026-06-01'),
       entryType: 'CREDIT',
       sqFt: agr2_reg_sqft,
@@ -1074,47 +1074,149 @@ async function seed() {
 
   console.log(`  ✓ Created Agreement 2 (${agr2.agreementNumber}) with 2 parcels, 1 deed, and active Kisan Ledger.`);
 
-  // Agreement 3: Phulwari Single Parcel
-  const agr3_d = 12.0;
-  const agr3_sqft = Math.round(agr3_d * 435.6 * 100) / 100;
-  const agr3_cost = 900000;
+  // Helper function to build clean un-registered multi-parcel agreements
+  const createUnregisteredAgreement = async ({
+    agreementNumber,
+    agreementDate,
+    agreementEndDate,
+    remarks,
+    farmers,
+    parcelsRaw,
+    paidAmount = 150000,
+  }) => {
+    let totalDismil = 0;
+    let totalCost = 0;
 
-  const agr3 = new KisanLandAgreement({
-    agreementNumber: 'AGR-2627-003',
-    agreementDate: new Date('2026-06-10'),
-    araziDismil: agr3_d,
-    totalSqFt: agr3_sqft,
-    ratePerDismil: 75000,
-    ratePerSqFt: 172.17,
-    totalAgreementAmount: agr3_cost,
-    remarks: 'Phulwari Sharif land acquisition, registry scheduled next month.',
-    status: 'ACTIVE',
-    landParcels: [
-      {
-        mauja: 'Phulwari',
-        khataNumber: '515',
-        khesraNumber: '440',
-        thanaNumber: '3',
-        jamabandiNumber: 'JB-88',
-        chaudhi: {
-          north: 'Road 30ft Wide',
-          south: 'Plot 441 (Tribhuvan Sah)',
-          east: 'Public School Compound',
-          west: 'Self Farm Boundary',
+    const landParcels = parcelsRaw.map((p) => {
+      const p_sqft = Math.round(p.dismil * 435.6 * 100) / 100;
+      const p_amount = Math.round(p.dismil * p.ratePerDismil);
+      const p_rateSqft = Math.round((p.ratePerDismil / 435.6) * 100) / 100;
+
+      totalDismil += p.dismil;
+      totalCost += p_amount;
+
+      return {
+        mauja: p.mauja,
+        khataNumber: p.khataNumber,
+        khesraNumber: p.khesraNumber,
+        thanaNumber: p.thanaNumber || '14',
+        jamabandiNumber: p.jamabandiNumber || `JB-${Math.floor(100 + Math.random() * 900)}`,
+        chaudhi: p.chaudhi || {
+          north: 'Sector Road / Approach Path',
+          south: 'Cultivated Farm Land',
+          east: 'Canal / Boundary Line',
+          west: 'Adjacent Landowner Boundary',
         },
-        araziDismil: agr3_d,
-        totalSqFt: agr3_sqft,
-        ratePerDismil: 75000,
-        ratePerSqFt: 172.17,
-        totalAmount: agr3_cost,
+        araziDismil: p.dismil,
+        totalSqFt: p_sqft,
+        ratePerDismil: p.ratePerDismil,
+        ratePerSqFt: p_rateSqft,
+        totalAmount: p_amount,
         registeredDismil: 0,
         registeredSqFt: 0,
-        unregisteredAgreedSqFt: agr3_sqft,
-        unregisteredAvailableSqFt: agr3_sqft,
+        unregisteredAgreedSqFt: p_sqft,
+        unregisteredAvailableSqFt: p_sqft,
         allocatedSqFt: 0,
         availableSqFt: 0,
+        remarks: p.remarks || 'Available for Registry Deed conversion',
+      };
+    });
+
+    totalDismil = Math.round(totalDismil * 100) / 100;
+    const totalSqFt = Math.round(totalDismil * 435.6 * 100) / 100;
+    const ratePerDismil = Math.round(totalCost / totalDismil);
+    const ratePerSqFt = Math.round((ratePerDismil / 435.6) * 100) / 100;
+
+    const agrDoc = new KisanLandAgreement({
+      agreementNumber,
+      agreementDate: new Date(agreementDate),
+      agreementEndDate: agreementEndDate ? new Date(agreementEndDate) : new Date('2026-12-31'),
+      araziDismil: totalDismil,
+      totalSqFt,
+      ratePerDismil,
+      ratePerSqFt,
+      totalAgreementAmount: totalCost,
+      remarks,
+      status: 'ACTIVE',
+      landParcels,
+      farmers,
+      attachments: [
+        {
+          fileName: `${agreementNumber}_Notarized_Agreement`,
+          fileType: 'Agreement Scan',
+          fileUrl: `https://res.cloudinary.com/demo/image/upload/v1/${agreementNumber.toLowerCase()}.pdf`,
+          fileSize: 245760,
+          description: 'Original stamped agreement document',
+        },
+      ],
+      registryDeeds: [],
+      totalRegisteredDismil: 0,
+      totalRegisteredSqFt: 0,
+      unregisteredAgreedSqFt: totalSqFt,
+      unregisteredAvailableSqFt: totalSqFt,
+      totalAvailableSqFt: totalSqFt,
+      totalAllocatedSqFt: 0,
+      financialSummary: {
+        totalCost,
+        totalPaid: paidAmount,
+        balanceDue: totalCost - paidAmount,
       },
-    ],
+    });
+
+    await agrDoc.save();
+
+    // Financial Ledger Entries
+    await KisanLedger.create([
+      {
+        agreementId: agrDoc._id,
+        agreementNumber: agrDoc.agreementNumber,
+        date: new Date(agreementDate),
+        type: 'CREDIT',
+        amount: totalCost,
+        runningBalance: totalCost,
+        farmerName: farmers[0]?.name || 'Primary Farmer',
+        paymentMode: 'AGREEMENT_VALUE',
+        remarks: `Initial agreement credit (${totalDismil} Dismil across ${landParcels.length} parcels)`,
+      },
+      {
+        agreementId: agrDoc._id,
+        agreementNumber: agrDoc.agreementNumber,
+        date: new Date(new Date(agreementDate).getTime() + 2 * 24 * 60 * 60 * 1000),
+        type: 'DEBIT',
+        amount: paidAmount,
+        runningBalance: totalCost - paidAmount,
+        farmerName: farmers[0]?.name || 'Primary Farmer',
+        paymentMode: 'BANK_TRANSFER',
+        referenceNumber: `TXN-${agreementNumber.replace('AGR-', '')}-889`,
+        remarks: 'Advance token payment to landowner via RTGS/NEFT',
+      },
+    ]);
+
+    // Land Stock Ledger
+    await LandStockLedger.create([
+      {
+        agreementId: agrDoc._id,
+        sourceType: 'AGREEMENT',
+        date: new Date(agreementDate),
+        entryType: 'CREDIT',
+        sqFt: totalSqFt,
+        dismil: totalDismil,
+        transactionType: 'INITIAL_AGREEMENT',
+        runningAvailableSqFt: totalSqFt,
+        remarks: `Land acquisition agreement signed (${totalDismil} Dismil inward across ${landParcels.length} parcels)`,
+      },
+    ]);
+
+    console.log(`  ✓ Created Agreement (${agreementNumber}) with ${landParcels.length} parcels (0 deeds) & Kisan Ledger.`);
+    return agrDoc;
+  };
+
+  // 10 Multi-Parcel, 0-Deed Agreements (AGR-2627-003 to AGR-2627-012)
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-003',
+    agreementDate: '2026-05-10',
+    agreementEndDate: '2026-11-10',
+    remarks: 'Phulwari Sharif prime expansion. 3 parcels across Khata 515 & 516.',
     farmers: [
       {
         name: 'Maheshwar Choudhary',
@@ -1127,73 +1229,260 @@ async function seed() {
         address: 'Phulwari Sharif, Patna',
       },
     ],
-    attachments: [
-      {
-        fileName: 'Phulwari_Stamp_Agreement',
-        fileType: 'Agreement Scan',
-        fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample_agr3.pdf',
-        fileSize: 314572,
-        description: 'Stamped notarized agreement',
-      },
+    parcelsRaw: [
+      { mauja: 'Phulwari', khataNumber: '515', khesraNumber: '440', dismil: 12.0, ratePerDismil: 75000, thanaNumber: '3', jamabandiNumber: 'JB-88' },
+      { mauja: 'Phulwari', khataNumber: '515', khesraNumber: '442', dismil: 14.5, ratePerDismil: 72000, thanaNumber: '3', jamabandiNumber: 'JB-89' },
+      { mauja: 'Phulwari', khataNumber: '516', khesraNumber: '445', dismil: 18.0, ratePerDismil: 70000, thanaNumber: '3', jamabandiNumber: 'JB-90' },
     ],
-    totalRegisteredDismil: 0,
-    totalRegisteredSqFt: 0,
-    unregisteredAgreedSqFt: agr3_sqft,
-    unregisteredAvailableSqFt: agr3_sqft,
-    totalAvailableSqFt: agr3_sqft,
-    totalAllocatedSqFt: 0,
-    financialSummary: {
-      totalCost: agr3_cost,
-      totalPaid: 200000,
-      balanceDue: agr3_cost - 200000,
-    },
+    paidAmount: 350000,
   });
 
-  await agr3.save();
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-004',
+    agreementDate: '2026-05-18',
+    agreementEndDate: '2026-12-15',
+    remarks: 'Bihta Kanhauli ring road belt. 3 parcels across 2 distinct Maujas.',
+    farmers: [
+      {
+        name: 'Ram Pravesh Yadav',
+        guardianName: 'Devnandan Yadav',
+        relation: 'Father',
+        mobile: '9835012345',
+        aadhaarNumber: '334455667788',
+        panNumber: 'APYPR1234K',
+        sharePercent: 60,
+        address: 'Kanhauli, Bihta, Patna',
+      },
+      {
+        name: 'Sudhir Yadav',
+        guardianName: 'Ram Pravesh Yadav',
+        relation: 'Father',
+        mobile: '9835012346',
+        aadhaarNumber: '334455667789',
+        panNumber: 'BPYPS5678L',
+        sharePercent: 40,
+        address: 'Kanhauli, Bihta, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Kanhauli', khataNumber: '210', khesraNumber: '680', dismil: 22.0, ratePerDismil: 62000, thanaNumber: '15', jamabandiNumber: 'JB-210' },
+      { mauja: 'Kanhauli', khataNumber: '210', khesraNumber: '682', dismil: 16.0, ratePerDismil: 62000, thanaNumber: '15', jamabandiNumber: 'JB-211' },
+      { mauja: 'Paijawa', khataNumber: '88', khesraNumber: '112', dismil: 20.5, ratePerDismil: 58000, thanaNumber: '16', jamabandiNumber: 'JB-304' },
+    ],
+    paidAmount: 500000,
+  });
 
-  // Create Kisan Financial Ledger entries for Agreement 3
-  await KisanLedger.create([
-    {
-      agreementId: agr3._id,
-      agreementNumber: agr3.agreementNumber,
-      date: new Date('2026-06-10'),
-      type: 'CREDIT',
-      amount: agr3_cost,
-      runningBalance: agr3_cost,
-      farmerName: 'Maheshwar Choudhary',
-      paymentMode: 'AGREEMENT_VALUE',
-      remarks: 'Initial agreement value credit (12.0 Dismil)',
-    },
-    {
-      agreementId: agr3._id,
-      agreementNumber: agr3.agreementNumber,
-      date: new Date('2026-06-12'),
-      type: 'DEBIT',
-      amount: 200000,
-      runningBalance: agr3_cost - 200000,
-      farmerName: 'Maheshwar Choudhary',
-      paymentMode: 'CASH',
-      receiptNumber: 'KREC-2627-004',
-      remarks: 'Token cash advance paid to farmer',
-    },
-  ]);
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-005',
+    agreementDate: '2026-05-25',
+    agreementEndDate: '2026-11-25',
+    remarks: 'Danapur-Khagaul connector land. 2 high-value commercial parcels.',
+    farmers: [
+      {
+        name: 'Birendra Kumar Singh',
+        guardianName: 'Late Tribhuwan Singh',
+        relation: 'Father',
+        mobile: '9431088776',
+        aadhaarNumber: '778899001122',
+        panNumber: 'CPSBK8899N',
+        sharePercent: 100,
+        address: 'Saguna More, Danapur, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Khagaul', khataNumber: '405', khesraNumber: '921', dismil: 15.0, ratePerDismil: 95000, thanaNumber: '8', jamabandiNumber: 'JB-405' },
+      { mauja: 'Khagaul', khataNumber: '405', khesraNumber: '924', dismil: 18.5, ratePerDismil: 92000, thanaNumber: '8', jamabandiNumber: 'JB-406' },
+    ],
+    paidAmount: 600000,
+  });
 
-  // Land Stock Ledger for Agreement 3
-  await LandStockLedger.create([
-    {
-      agreementId: agr3._id,
-      sourceType: 'AGREEMENT',
-      date: new Date('2026-06-10'),
-      entryType: 'CREDIT',
-      sqFt: agr3_sqft,
-      dismil: agr3_d,
-      transactionType: 'INITIAL_AGREEMENT',
-      runningAvailableSqFt: agr3_sqft,
-      remarks: 'Land acquisition agreement signed (12.0 Dismil inward)',
-    },
-  ]);
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-006',
+    agreementDate: '2026-06-02',
+    agreementEndDate: '2026-12-02',
+    remarks: 'Naubatpur Lakhna agricultural corridor. 4 multi-khesra parcels.',
+    farmers: [
+      {
+        name: 'Awadhesh Kumar Mishra',
+        guardianName: 'Kameshwar Mishra',
+        relation: 'Father',
+        mobile: '9934112233',
+        aadhaarNumber: '112233445566',
+        panNumber: 'AKMPM7788Q',
+        sharePercent: 100,
+        address: 'Lakhna, Naubatpur, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Naubatpur', khataNumber: '178', khesraNumber: '301', dismil: 10.0, ratePerDismil: 45000, thanaNumber: '22', jamabandiNumber: 'JB-178' },
+      { mauja: 'Naubatpur', khataNumber: '178', khesraNumber: '304', dismil: 12.5, ratePerDismil: 45000, thanaNumber: '22', jamabandiNumber: 'JB-179' },
+      { mauja: 'Lakhna', khataNumber: '95', khesraNumber: '144', dismil: 15.0, ratePerDismil: 42000, thanaNumber: '23', jamabandiNumber: 'JB-882' },
+      { mauja: 'Lakhna', khataNumber: '95', khesraNumber: '148', dismil: 20.0, ratePerDismil: 42000, thanaNumber: '23', jamabandiNumber: 'JB-883' },
+    ],
+    paidAmount: 400000,
+  });
 
-  console.log(`  ✓ Created Agreement 3 (${agr3.agreementNumber}) with 1 parcel and active Kisan Ledger.\n`);
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-007',
+    agreementDate: '2026-06-08',
+    agreementEndDate: '2026-12-20',
+    remarks: 'Shivala-Parbatpur bypass expansion. 3 parcels on main bypass link.',
+    farmers: [
+      {
+        name: 'Gajendra Prasad',
+        guardianName: 'Late Bindeshwari Prasad',
+        relation: 'Father',
+        mobile: '9708112244',
+        aadhaarNumber: '998811223344',
+        panNumber: 'CPGPP4455R',
+        sharePercent: 100,
+        address: 'Shivala Chowk, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Shivala', khataNumber: '612', khesraNumber: '802', dismil: 16.0, ratePerDismil: 52000, thanaNumber: '11', jamabandiNumber: 'JB-612' },
+      { mauja: 'Shivala', khataNumber: '612', khesraNumber: '805', dismil: 14.0, ratePerDismil: 52000, thanaNumber: '11', jamabandiNumber: 'JB-613' },
+      { mauja: 'Parbatpur', khataNumber: '340', khesraNumber: '550', dismil: 25.0, ratePerDismil: 48000, thanaNumber: '12', jamabandiNumber: 'JB-901' },
+    ],
+    paidAmount: 450000,
+  });
+
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-008',
+    agreementDate: '2026-06-15',
+    agreementEndDate: '2027-01-15',
+    remarks: 'Maner riverview township sector. 3 fertile parcels.',
+    farmers: [
+      {
+        name: 'Harendra Rai',
+        guardianName: 'Babulal Rai',
+        relation: 'Father',
+        mobile: '9122334455',
+        aadhaarNumber: '445566778899',
+        panNumber: 'BIPHR6677T',
+        sharePercent: 50,
+        address: 'Maner Bazar, Patna',
+      },
+      {
+        name: 'Jitendra Rai',
+        guardianName: 'Babulal Rai',
+        relation: 'Father',
+        mobile: '9122334456',
+        aadhaarNumber: '445566778890',
+        panNumber: 'BIPJR6678U',
+        sharePercent: 50,
+        address: 'Maner Bazar, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Maner', khataNumber: '730', khesraNumber: '1205', dismil: 30.0, ratePerDismil: 40000, thanaNumber: '29', jamabandiNumber: 'JB-730' },
+      { mauja: 'Maner', khataNumber: '730', khesraNumber: '1208', dismil: 22.0, ratePerDismil: 40000, thanaNumber: '29', jamabandiNumber: 'JB-731' },
+      { mauja: 'Sadisopur', khataNumber: '144', khesraNumber: '310', dismil: 18.0, ratePerDismil: 46000, thanaNumber: '30', jamabandiNumber: 'JB-144' },
+    ],
+    paidAmount: 550000,
+  });
+
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-009',
+    agreementDate: '2026-06-22',
+    agreementEndDate: '2027-01-20',
+    remarks: 'Bikram agricultural node with future highway interchange.',
+    farmers: [
+      {
+        name: 'Chandreshwar Pandey',
+        guardianName: 'Late Shivnath Pandey',
+        relation: 'Father',
+        mobile: '9835778899',
+        aadhaarNumber: '887766554433',
+        panNumber: 'AYPCP9900M',
+        sharePercent: 100,
+        address: 'Bikram, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Bikram', khataNumber: '522', khesraNumber: '710', dismil: 24.0, ratePerDismil: 38000, thanaNumber: '41', jamabandiNumber: 'JB-522' },
+      { mauja: 'Bikram', khataNumber: '522', khesraNumber: '715', dismil: 26.0, ratePerDismil: 38000, thanaNumber: '41', jamabandiNumber: 'JB-523' },
+      { mauja: 'Gorakhri', khataNumber: '89', khesraNumber: '215', dismil: 15.0, ratePerDismil: 35000, thanaNumber: '42', jamabandiNumber: 'JB-215' },
+    ],
+    paidAmount: 300000,
+  });
+
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-010',
+    agreementDate: '2026-06-28',
+    agreementEndDate: '2027-02-15',
+    remarks: 'Sarmera-Bihta four-lane frontage land. 3 wide frontage parcels.',
+    farmers: [
+      {
+        name: 'Umeshwar Prasad Sah',
+        guardianName: 'Late Jaglal Sah',
+        relation: 'Father',
+        mobile: '9470998811',
+        aadhaarNumber: '223344556677',
+        panNumber: 'BVUPS1122P',
+        sharePercent: 100,
+        address: 'Neora Colony, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Neora', khataNumber: '415', khesraNumber: '1330', dismil: 20.0, ratePerDismil: 56000, thanaNumber: '18', jamabandiNumber: 'JB-415' },
+      { mauja: 'Neora', khataNumber: '415', khesraNumber: '1335', dismil: 18.0, ratePerDismil: 56000, thanaNumber: '18', jamabandiNumber: 'JB-416' },
+      { mauja: 'Rampur', khataNumber: '110', khesraNumber: '610', dismil: 12.0, ratePerDismil: 52000, thanaNumber: '12', jamabandiNumber: 'JB-610' },
+    ],
+    paidAmount: 420000,
+  });
+
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-011',
+    agreementDate: '2026-07-04',
+    agreementEndDate: '2027-02-28',
+    remarks: 'Paijawa Green Meadows township parcel group.',
+    farmers: [
+      {
+        name: 'Dharmendra Kumar Gupta',
+        guardianName: 'Ramanand Gupta',
+        relation: 'Father',
+        mobile: '9835889900',
+        aadhaarNumber: '667788990011',
+        panNumber: 'AKPGP3344R',
+        sharePercent: 100,
+        address: 'Paijawa, Bihta, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Paijawa', khataNumber: '120', khesraNumber: '340', dismil: 17.5, ratePerDismil: 48000, thanaNumber: '16', jamabandiNumber: 'JB-120' },
+      { mauja: 'Paijawa', khataNumber: '120', khesraNumber: '344', dismil: 15.0, ratePerDismil: 48000, thanaNumber: '16', jamabandiNumber: 'JB-121' },
+      { mauja: 'Kanhauli', khataNumber: '215', khesraNumber: '702', dismil: 21.0, ratePerDismil: 60000, thanaNumber: '15', jamabandiNumber: 'JB-702' },
+    ],
+    paidAmount: 380000,
+  });
+
+  await createUnregisteredAgreement({
+    agreementNumber: 'AGR-2627-012',
+    agreementDate: '2026-07-10',
+    agreementEndDate: '2027-03-10',
+    remarks: 'Danapur West residential extension zone. 3 high potential plots.',
+    farmers: [
+      {
+        name: 'Kailash Nath Tiwary',
+        guardianName: 'Late B. N. Tiwary',
+        relation: 'Father',
+        mobile: '9123889900',
+        aadhaarNumber: '119988776655',
+        panNumber: 'ABTPT5566S',
+        sharePercent: 100,
+        address: 'Danapur Cantt, Patna',
+      },
+    ],
+    parcelsRaw: [
+      { mauja: 'Danapur', khataNumber: '601', khesraNumber: '1410', dismil: 14.0, ratePerDismil: 88000, thanaNumber: '14', jamabandiNumber: 'JB-601' },
+      { mauja: 'Danapur', khataNumber: '601', khesraNumber: '1415', dismil: 16.5, ratePerDismil: 88000, thanaNumber: '14', jamabandiNumber: 'JB-602' },
+      { mauja: 'Khagaul', khataNumber: '420', khesraNumber: '960', dismil: 11.5, ratePerDismil: 90000, thanaNumber: '8', jamabandiNumber: 'JB-960' },
+    ],
+    paidAmount: 480000,
+  });
+
+  console.log(`  ✓ Successfully seeded all 12 Kisan Land Agreements (AGR-2627-001 to AGR-2627-012).\n`);
 
   // ───────────────────────────────────────────────────────────────────────────
   // STEP 5: SEED SAMPLE BOOKINGS ACROSS E, A, D, AND C SERIES PLOTS
@@ -1512,9 +1801,9 @@ async function seed() {
   console.log(`    - A Series: 10 Plots (A-001 to A-010, 40x60)`);
   console.log(`    - D Series: 10 Plots (D-001 to D-010, 40x40)`);
   console.log(`    - C Series: 10 Plots (C-001 to C-010, 30x40)`);
-  console.log(`  • Multi-Parcel Kisan Agreements: 3 (AGR-2627-001, AGR-2627-002, AGR-2627-003)`);
-  console.log(`  • Registry Deeds: 2 (DEED-2026-9812, DEED-2026-4401)`);
-  console.log(`  • Kisan Financial Ledger Entries: 6 (with complete Credit/Debit balance reconciliation)`);
+  console.log(`  • Multi-Parcel Kisan Agreements: 12 (AGR-2627-001 to AGR-2627-012, 10 without deeds)
+  • Registry Deeds: 2 (DEED-2026-9812, DEED-2026-4401)
+  • Kisan Financial Ledger Entries: 24 (with complete Credit/Debit balance reconciliation)`);
   console.log(`  • Sample Plot Bookings: 4 (allocated across E, A, D, C series)`);
   console.log('════════════════════════════════════════════════════════════════\n');
 

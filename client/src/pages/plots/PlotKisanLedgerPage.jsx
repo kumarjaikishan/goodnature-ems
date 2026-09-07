@@ -115,7 +115,7 @@ const PlotKisanLedgerPage = () => {
   const openCreateDeedModal = () => {
     const agr = data?.agreement;
     setDeedForm({
-      deedNumber: '',
+      deedNumber: agr?.agreementNumber ? `${agr.agreementNumber}/` : '',
       deedDate: new Date().toISOString().split('T')[0],
       subRegistrarOffice: '',
       registeredDismil: agr?.unregisteredAgreedSqFt

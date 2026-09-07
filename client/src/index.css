@@ -123,8 +123,8 @@ body {
 .membermodal {
     max-width: 100%;
     max-height: 90vh;
-    border-radius: 12px;
-    background: var(--color-primary);
+    border-radius: 16px;
+    background: #ffffff;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -135,7 +135,7 @@ body {
         max-height: 90vh;
         display: flex;
         flex-direction: column;
-        background: var(--color-primary);
+        background: #ffffff;
 
         /* Header */
         h2,
@@ -143,24 +143,25 @@ body {
             height: 48px;
             min-height: 48px;
             line-height: 48px;
-            text-align: center;
-            letter-spacing: 0.5px;
-            color: white;
-            font-size: 18px;
-            font-weight: 600;
+            text-align: left;
+            letter-spacing: -0.2px;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 700;
             width: 100%;
-            padding: 0 16px;
+            padding: 0 20px;
+            border-bottom: 1px solid #f1f5f9;
+            background: #f8fafc;
         }
 
         /* Body */
         .modalcontent {
             max-height: calc(90vh - 48px - 55px);
             overflow-y: auto;
-            background: white;
-            border-radius: 16px 16px 0 0;
+            background: #ffffff;
             width: 100%;
             display: block;
-            padding: 16px 16px 10px;
+            padding: 20px 20px 12px;
             flex: 1 1 auto;
         }
 
@@ -173,8 +174,9 @@ body {
             justify-content: flex-end;
             align-items: center;
             gap: 8px;
-            padding: 0 16px;
-            background: white;
+            padding: 0 20px;
+            background: #ffffff;
+            border-top: 1px solid #f1f5f9;
             width: 100%;
             flex-shrink: 0;
         }

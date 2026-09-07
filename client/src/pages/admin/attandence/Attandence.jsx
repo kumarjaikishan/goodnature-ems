@@ -13,6 +13,8 @@ import CheckPermission from "../../../utils/CheckPermission";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { Search, Filter, FileSpreadsheet, FileText, X, Trash2, Edit2, Clock, User } from "lucide-react";
 import { TableRowSkeleton } from "../../../components/skeletons";
+import DateInput from "@/components/ui/DateInput";
+import Select from "@/components/ui/Select";
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
@@ -668,109 +670,106 @@ const AttendanceControls = React.memo(({
 
           {/* Branch Filter */}
           <div className="relative">
-            <select
+            <Select
+              size="sm"
               value={filtere.branch}
               onChange={(e) => setfiltere({ ...filtere, branch: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
-            >
-              <option value="all">All Branches</option>
-              {profile?.role === 'manager'
-                ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                  ?.map((list) => (
-                    <option key={list._id} value={list._id}>
-                      {list.name}
-                    </option>
-                  ))
-                : branch?.map((list) => (
-                  <option key={list._id} value={list._id}>{list.name}</option>
-                ))}
-            </select>
+              options={[
+                { label: "All Branches", value: "all" },
+                ...(profile?.role === 'manager'
+                  ? (branch?.filter((e) => profile?.branchIds?.includes(e._id)) || []).map((list) => ({ label: list.name, value: list._id }))
+                  : (branch || []).map((list) => ({ label: list.name, value: list._id }))
+                )
+              ]}
+              className="!py-1 !text-xs !bg-slate-50/50"
+            />
           </div>
 
           {/* Department Filter */}
           <div className="relative">
-            <select
+            <Select
+              size="sm"
               value={filtere.departmente}
               disabled={filtere.branch === "all"}
               onChange={(e) => setfiltere({ ...filtere, departmente: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100"
-            >
-              <option value="all">All Departments</option>
-              {department
-                ?.filter((e) => e.branchId?._id === filtere.branch)
-                .map((val) => (
-                  <option key={val._id} value={val._id}>
-                    {val.department}
-                  </option>
-                ))}
-            </select>
+              options={[
+                { label: "All Departments", value: "all" },
+                ...(department?.filter((e) => e.branchId?._id === filtere.branch) || []).map((val) => ({
+                  label: val.department,
+                  value: val._id
+                }))
+              ]}
+              className="!py-1 !text-xs !bg-slate-50/50"
+            />
           </div>
 
           {/* Status Filter */}
           <div className="relative">
-            <select
+            <Select
+              size="sm"
               value={filtere.status}
               onChange={(e) => setfiltere({ ...filtere, status: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="present">Present</option>
-              <option value="leave">Leave</option>
-              <option value="absent">Absent</option>
-              <option value="weekly off">Weekly off</option>
-              <option value="holiday">Holiday</option>
-              <option value="half day">Half Day</option>
-            </select>
+              options={[
+                { label: "All Status", value: "all" },
+                { label: "Present", value: "present" },
+                { label: "Leave", value: "leave" },
+                { label: "Absent", value: "absent" },
+                { label: "Weekly off", value: "weekly off" },
+                { label: "Holiday", value: "holiday" },
+                { label: "Half Day", value: "half day" },
+              ]}
+              className="!py-1 !text-xs !bg-slate-50/50"
+            />
           </div>
 
           {/* Month Filter */}
           <div className="relative">
-            <select
+            <Select
+              size="sm"
               value={filtere.month}
               onChange={(e) => setfiltere({ ...filtere, month: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
-            >
-              <option value="all">All Months</option>
-              {months.map((m, idx) => (
-                <option key={idx} value={idx}>{m}</option>
-              ))}
-            </select>
+              options={[
+                { label: "All Months", value: "all" },
+                ...months.map((m, idx) => ({ label: m, value: idx }))
+              ]}
+              className="!py-1 !text-xs !bg-slate-50/50"
+            />
           </div>
 
           {/* From Date */}
           <div className="relative flex flex-col">
-            <input
-              type="date"
-              title="From Date"
+            <DateInput
+              size="sm"
+              placeholder="From Date"
               value={filtere.fromDate}
               onChange={(e) => setfiltere({ ...filtere, fromDate: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="!py-1 !text-xs !rounded-lg !bg-slate-50/50"
             />
           </div>
 
           {/* To Date */}
           <div className="relative flex flex-col">
-            <input
-              type="date"
-              title="To Date"
+            <DateInput
+              size="sm"
+              placeholder="To Date"
               value={filtere.toDate}
               onChange={(e) => setfiltere({ ...filtere, toDate: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="!py-1 !text-xs !rounded-lg !bg-slate-50/50"
             />
           </div>
 
           {/* Year Filter */}
           <div className="relative">
-            <select
+            <Select
+              size="sm"
               value={filtere.year}
               onChange={(e) => setfiltere({ ...filtere, year: e.target.value })}
-              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
-            >
-              <option value="all">All Years</option>
-              {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+              options={[
+                { label: "All Years", value: "all" },
+                ...Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => ({ label: String(y), value: y }))
+              ]}
+              className="!py-1 !text-xs !bg-slate-50/50"
+            />
           </div>
         </div>
       )}

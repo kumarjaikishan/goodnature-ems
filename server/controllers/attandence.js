@@ -925,6 +925,17 @@ const bulkMarkAttendanceExcel = async (req, res) => {
     const companyId = req.user.companyId;
     const companyData = await company.findOne();
 
+    // Batch fetch all referenced employees, branches, and holidays upfront to avoid N+1 DB calls
+    const empIds = [...new Set(attendanceRecords.map(r => r.empId).filter(Boolean))];
+    const employeesList = await employee.find({ empId: { $in: empIds } }).select('_id branchId empId').lean();
+    const employeeMap = new Map(employeesList.map(e => [String(e.empId), e]));
+
+    const branchIds = [...new Set(employeesList.map(e => String(e.branchId)).filter(Boolean))];
+    const branchesList = await BranchModal.find({ _id: { $in: branchIds } }).lean();
+    const branchMap = new Map(branchesList.map(b => [String(b._id), b]));
+
+    const holidaysList = await Holiday.find().lean();
+
     // IST = UTC+5:30
     const parseTime = (t) => {
       const [h, m] = t.split(':').map(Number);
@@ -945,16 +956,17 @@ const bulkMarkAttendanceExcel = async (req, res) => {
 
       if (!empId || !date) continue;
 
-      const emp = await employee.findOne({ empId, companyId }).select('_id branchId empId');
+      const emp = employeeMap.get(String(empId));
       if (!emp) {
-        console.warn(`Employee with empId ${empId} not found in company ${companyId}`);
+        console.warn(`Employee with empId ${empId} not found`);
         continue;
       }
 
       const parsedDate = parseAttendanceDateTime(date);
       const dateObj = getAttendanceDateUTC(parsedDate);
       if (!dateObj) continue;
-      const branch = await BranchModal.findById(emp.branchId);
+
+      const branch = branchMap.get(String(emp.branchId));
 
       let snapshot = {};
       if (branch?.defaultsetting) {
@@ -1019,12 +1031,11 @@ const bulkMarkAttendanceExcel = async (req, res) => {
 
       const dateStr = dayjs(dateObj).format('YYYY-MM-DD');
 
-      const isHolidayRecord = await Holiday.findOne({
-        companyId,
-        fromDate: { $lte: dateStr },
-        toDate: { $gte: dateStr }
+      const isHoliday = holidaysList.some(h => {
+        const from = dayjs(h.fromDate).format('YYYY-MM-DD');
+        const to = dayjs(h.toDate).format('YYYY-MM-DD');
+        return dateStr >= from && dateStr <= to;
       });
-      const isHoliday = !!isHolidayRecord;
 
       if (punchInDate && punchOutDate && punchOutDate > punchInDate) {
         workingMinutes = Math.floor((punchOutDate - punchInDate) / (1000 * 60));

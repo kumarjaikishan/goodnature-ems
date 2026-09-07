@@ -32,6 +32,8 @@ class PlotsService {
         baseSqFtRate: 1000,
         cornerExtraPercent: 20,
         interestRatePercent: 10.88,
+        lateFineGraceDays: 15,
+        lateFineDailyPercent: 0.05,
         rateSlabs: PlotRateConfiguration.getDefaultRateSlabs(),
       });
       await config.save();
@@ -43,6 +45,14 @@ class PlotsService {
       }
       if (config.interestRatePercent === undefined || config.interestRatePercent === null) {
         config.interestRatePercent = 10.88;
+        needsSave = true;
+      }
+      if (config.lateFineGraceDays === undefined || config.lateFineGraceDays === null) {
+        config.lateFineGraceDays = 15;
+        needsSave = true;
+      }
+      if (config.lateFineDailyPercent === undefined || config.lateFineDailyPercent === null) {
+        config.lateFineDailyPercent = 0.05;
         needsSave = true;
       }
       if (needsSave) {
@@ -60,6 +70,12 @@ class PlotsService {
       config.baseSqFtRate = data.baseSqFtRate ?? config.baseSqFtRate;
       config.cornerExtraPercent = data.cornerExtraPercent ?? config.cornerExtraPercent;
       config.interestRatePercent = data.interestRatePercent !== undefined ? Number(data.interestRatePercent) : (config.interestRatePercent ?? 10.88);
+      if (data.lateFineGraceDays !== undefined) {
+        config.lateFineGraceDays = Math.max(0, Number(data.lateFineGraceDays) || 0);
+      }
+      if (data.lateFineDailyPercent !== undefined) {
+        config.lateFineDailyPercent = Math.max(0, Number(data.lateFineDailyPercent) || 0);
+      }
       if (data.rateSlabs && Array.isArray(data.rateSlabs)) {
         config.rateSlabs = data.rateSlabs;
       }
@@ -73,7 +89,15 @@ class PlotsService {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const { name, prefix, startNumber, endNumber, plotArea, defaultPlotType, numberFormat, remarks, defaultDimensions, defaultBoundaries } = data;
+      const { name, prefix, startNumber, endNumber, plotArea, defaultPlotType, numberFormat, remarks, defaultDimensions, defaultBoundaries, gracePeriodDays, lateFineDailyPercent } = data;
+
+      // Get current rate configuration
+      const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session) || {
+        baseSqFtRate: 500,
+        cornerExtraPercent: 20,
+        lateFineGraceDays: 15,
+        lateFineDailyPercent: 0.05,
+      };
 
       // Create series master
       const series = new PlotSeriesMaster({
@@ -87,14 +111,10 @@ class PlotsService {
         defaultDimensions: defaultDimensions || {},
         defaultBoundaries: defaultBoundaries || {},
         remarks,
+        gracePeriodDays: gracePeriodDays !== undefined && gracePeriodDays !== '' ? Math.max(0, Number(gracePeriodDays)) : (rateConfig.lateFineGraceDays ?? 15),
+        lateFineDailyPercent: lateFineDailyPercent !== undefined && lateFineDailyPercent !== '' ? Math.max(0, Number(lateFineDailyPercent)) : (rateConfig.lateFineDailyPercent ?? 0.05),
       });
       await series.save({ session });
-
-      // Get current rate configuration
-      const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session) || {
-        baseSqFtRate: 500,
-        cornerExtraPercent: 20,
-      };
 
       const baseRate = rateConfig.baseSqFtRate;
       const plotsToCreate = [];
@@ -206,6 +226,12 @@ class PlotsService {
     series.defaultPlotType = data.defaultPlotType ?? series.defaultPlotType;
     if (data.defaultDimensions !== undefined) series.defaultDimensions = data.defaultDimensions;
     if (data.defaultBoundaries !== undefined) series.defaultBoundaries = data.defaultBoundaries;
+    if (data.gracePeriodDays !== undefined && data.gracePeriodDays !== '') {
+      series.gracePeriodDays = Math.max(0, Number(data.gracePeriodDays));
+    }
+    if (data.lateFineDailyPercent !== undefined && data.lateFineDailyPercent !== '') {
+      series.lateFineDailyPercent = Math.max(0, Number(data.lateFineDailyPercent));
+    }
 
     const areaChanged = data.plotArea && Number(data.plotArea) !== series.plotArea;
     if (areaChanged) {
@@ -1074,8 +1100,36 @@ class PlotsService {
         targetInstIds = unpaid.map(i => i._id);
       }
 
-      // Default grace period in days
-      const gracePeriod = 15;
+      // Resolve series and rate configuration for grace period and daily fine rate
+      let gracePeriod = 15;
+      let lateFineDailyPercent = 0.05;
+
+      const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
+      if (rateConfig) {
+        if (rateConfig.lateFineGraceDays !== undefined && rateConfig.lateFineGraceDays !== null) {
+          gracePeriod = rateConfig.lateFineGraceDays;
+        }
+        if (rateConfig.lateFineDailyPercent !== undefined && rateConfig.lateFineDailyPercent !== null) {
+          lateFineDailyPercent = rateConfig.lateFineDailyPercent;
+        }
+      }
+
+      if (booking.plotId) {
+        const plotDoc = await Plot.findById(booking.plotId).session(session);
+        if (plotDoc && plotDoc.seriesId) {
+          const seriesDoc = await PlotSeriesMaster.findById(plotDoc.seriesId).session(session);
+          if (seriesDoc) {
+            if (seriesDoc.gracePeriodDays !== undefined && seriesDoc.gracePeriodDays !== null) {
+              gracePeriod = seriesDoc.gracePeriodDays;
+            }
+            if (seriesDoc.lateFineDailyPercent !== undefined && seriesDoc.lateFineDailyPercent !== null) {
+              lateFineDailyPercent = seriesDoc.lateFineDailyPercent;
+            }
+          }
+        }
+      }
+
+      const dailyRateMultiplier = (Number(lateFineDailyPercent) || 0.05) / 100;
 
       // Loop through targetInstIds and apply payment amount.
       // NOTE: none of the per-installment/commission writes in this loop
@@ -1105,7 +1159,7 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round(installment.dueAmount * 0.0005 * diffDays);
+            calculatedFine = Math.round(installment.dueAmount * dailyRateMultiplier * diffDays);
           }
         }
         const effectiveFine = Math.max(installment.lateFine || 0, calculatedFine);
@@ -1265,7 +1319,35 @@ class PlotsService {
         inst.paidDate = null;
       }
 
-      const gracePeriod = 15;
+      let gracePeriod = 15;
+      let lateFineDailyPercent = 0.05;
+
+      const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
+      if (rateConfig) {
+        if (rateConfig.lateFineGraceDays !== undefined && rateConfig.lateFineGraceDays !== null) {
+          gracePeriod = rateConfig.lateFineGraceDays;
+        }
+        if (rateConfig.lateFineDailyPercent !== undefined && rateConfig.lateFineDailyPercent !== null) {
+          lateFineDailyPercent = rateConfig.lateFineDailyPercent;
+        }
+      }
+
+      if (booking.plotId) {
+        const plotDoc = await Plot.findById(booking.plotId).session(session);
+        if (plotDoc && plotDoc.seriesId) {
+          const seriesDoc = await PlotSeriesMaster.findById(plotDoc.seriesId).session(session);
+          if (seriesDoc) {
+            if (seriesDoc.gracePeriodDays !== undefined && seriesDoc.gracePeriodDays !== null) {
+              gracePeriod = seriesDoc.gracePeriodDays;
+            }
+            if (seriesDoc.lateFineDailyPercent !== undefined && seriesDoc.lateFineDailyPercent !== null) {
+              lateFineDailyPercent = seriesDoc.lateFineDailyPercent;
+            }
+          }
+        }
+      }
+
+      const dailyRateMultiplier = (Number(lateFineDailyPercent) || 0.05) / 100;
       const paymentDate = updateData.createdAt ? new Date(updateData.createdAt) : new Date(receipt.createdAt);
 
       let remainingPaid = newAmount;
@@ -1289,7 +1371,7 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round(inst.dueAmount * 0.0005 * diffDays);
+            calculatedFine = Math.round(inst.dueAmount * dailyRateMultiplier * diffDays);
           }
         }
         const effectiveFine = Math.max(inst.lateFine || 0, calculatedFine);
@@ -2201,10 +2283,97 @@ class PlotsService {
     const booking = await query;
     if (!booking) return;
 
-    // 1. Reset all installments for this booking to zero state
-    const instQuery = PlotInstallment.find({ bookingId }).sort({ installmentNumber: 1 });
+    // 1. Fetch installments for this booking; if none exist, initialize/generate the schedule first
+    let instQuery = PlotInstallment.find({ bookingId }).sort({ installmentNumber: 1 });
     if (session) instQuery.session(session);
-    const installments = await instQuery;
+    let installments = await instQuery;
+
+    if (installments.length === 0 && booking.status !== 'HOLD') {
+      const bookingDateObj = booking.bookingDate || new Date();
+      const remainingAmount = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
+      const resolvedDpMonths = Number(booking.downpaymentMonths) || 1;
+
+      if (booking.scheme === 'FULL_PAYMENT') {
+        const dueDate = new Date(bookingDateObj);
+        const otMonths = Number(booking.oneTimeMonths) || 1;
+        dueDate.setMonth(dueDate.getMonth() + otMonths);
+
+        installments = [{
+          installmentNumber: 1,
+          bookingId: booking._id,
+          dueDate,
+          dueAmount: remainingAmount,
+          paidAmount: 0,
+          status: 'PENDING',
+        }];
+        if (session) {
+          await PlotInstallment.insertMany(installments, { session });
+        } else {
+          await PlotInstallment.insertMany(installments);
+        }
+      } else {
+        const newInsts = [];
+        const downpaymentAmount = booking.bookingAmount || booking.downpaymentAmount || 0;
+
+        if (downpaymentAmount > 0) {
+          const dpDueDate = new Date(bookingDateObj);
+          dpDueDate.setMonth(dpDueDate.getMonth() + resolvedDpMonths);
+
+          newInsts.push({
+            installmentNumber: 0,
+            bookingId: booking._id,
+            dueDate: dpDueDate,
+            dueAmount: downpaymentAmount,
+            paidAmount: 0,
+            status: 'PENDING',
+          });
+        }
+
+        const count = Number(booking.tenureMonths) || (Number(booking.installmentCount) || 3);
+        let principalToDistribute = Math.max(0, remainingAmount - downpaymentAmount);
+
+        for (let i = 1; i <= count; i++) {
+          const dueDate = new Date(bookingDateObj);
+          dueDate.setMonth(dueDate.getMonth() + resolvedDpMonths + (i - 1) + 1);
+          dueDate.setDate(1);
+          dueDate.setHours(0, 0, 0, 0);
+
+          let dueForThisInst = 0;
+          if (i === count) {
+            dueForThisInst = Math.round(principalToDistribute * 100) / 100;
+          } else {
+            dueForThisInst = booking.emiMonthlyAmount ? booking.emiMonthlyAmount : Math.floor((remainingAmount - downpaymentAmount) / count);
+            dueForThisInst = Math.min(dueForThisInst, principalToDistribute);
+          }
+          dueForThisInst = Math.round(dueForThisInst * 100) / 100;
+          principalToDistribute -= dueForThisInst;
+
+          if (dueForThisInst > 0) {
+            newInsts.push({
+              installmentNumber: i,
+              bookingId: booking._id,
+              dueDate,
+              dueAmount: dueForThisInst,
+              paidAmount: 0,
+              status: 'PENDING',
+            });
+          }
+        }
+
+        if (newInsts.length > 0) {
+          if (session) {
+            await PlotInstallment.insertMany(newInsts, { session });
+          } else {
+            await PlotInstallment.insertMany(newInsts);
+          }
+        }
+      }
+
+      // Re-query generated installments
+      instQuery = PlotInstallment.find({ bookingId }).sort({ installmentNumber: 1 });
+      if (session) instQuery.session(session);
+      installments = await instQuery;
+    }
 
     for (const inst of installments) {
       inst.paidAmount = 0;
@@ -2227,7 +2396,35 @@ class PlotsService {
     if (session) receiptQuery.session(session);
     const receipts = await receiptQuery;
 
-    const gracePeriod = 15;
+    let gracePeriod = 15;
+    let lateFineDailyPercent = 0.05;
+
+    const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' });
+    if (rateConfig) {
+      if (rateConfig.lateFineGraceDays !== undefined && rateConfig.lateFineGraceDays !== null) {
+        gracePeriod = rateConfig.lateFineGraceDays;
+      }
+      if (rateConfig.lateFineDailyPercent !== undefined && rateConfig.lateFineDailyPercent !== null) {
+        lateFineDailyPercent = rateConfig.lateFineDailyPercent;
+      }
+    }
+
+    if (booking.plotId) {
+      const plotDoc = await Plot.findById(booking.plotId);
+      if (plotDoc && plotDoc.seriesId) {
+        const seriesDoc = await PlotSeriesMaster.findById(plotDoc.seriesId);
+        if (seriesDoc) {
+          if (seriesDoc.gracePeriodDays !== undefined && seriesDoc.gracePeriodDays !== null) {
+            gracePeriod = seriesDoc.gracePeriodDays;
+          }
+          if (seriesDoc.lateFineDailyPercent !== undefined && seriesDoc.lateFineDailyPercent !== null) {
+            lateFineDailyPercent = seriesDoc.lateFineDailyPercent;
+          }
+        }
+      }
+    }
+
+    const dailyRateMultiplier = (Number(lateFineDailyPercent) || 0.05) / 100;
 
     // 4. Re-apply each receipt in chronological order
     for (const receipt of receipts) {
@@ -2251,7 +2448,7 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round(inst.dueAmount * 0.0005 * diffDays);
+            calculatedFine = Math.round(inst.dueAmount * dailyRateMultiplier * diffDays);
           }
         }
         const effectiveFine = Math.max(inst.lateFine || 0, calculatedFine);

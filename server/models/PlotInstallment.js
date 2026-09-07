@@ -49,7 +49,6 @@ const plotInstallmentSchema = new mongoose.Schema(
     },
     paymentMode: {
       type: String,
-      enum: ['cash', 'upi', 'bank_transfer', 'cheque', 'neft_rtgs', ''],
       default: '',
     },
     status: {

@@ -66,6 +66,7 @@ const EmployeeFinancialLedger = lazy(() => import('./pages/employee/ledger/Emplo
 const DeveloperDashboard = lazy(() => import('./pages/developer/Dashboard'));
 const Permission = lazy(() => import('./pages/developer/Permission'));
 const ApiMonitor = lazy(() => import('./pages/developer/ApiMonitor'));
+const ErrorLogs = lazy(() => import('./pages/developer/ErrorLogs'));
 
 // Profile
 const EmployeeProfile = lazy(() => import('./pages/profile/profile'));
@@ -398,6 +399,7 @@ const routesByRole = {
       <Route index element={<DeveloperDashboard />} />
       <Route path="permission" element={<Permission />} />
       <Route path="api-monitor" element={<ApiMonitor />} />
+      <Route path="error-logs" element={<ErrorLogs />} />
     </Route>
   ),
 };

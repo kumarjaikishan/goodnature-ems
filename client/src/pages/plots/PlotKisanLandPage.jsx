@@ -345,7 +345,7 @@ const PlotKisanLandPage = () => {
   const openCreateDeedModal = (agr) => {
     setTargetAgreementForDeed(agr);
     setDeedForm({
-      deedNumber: '',
+      deedNumber: agr?.agreementNumber ? `${agr.agreementNumber}/` : '',
       deedDate: new Date().toISOString().split('T')[0],
       subRegistrarOffice: '',
       registeredDismil: agr.unregisteredAgreedSqFt

@@ -263,7 +263,7 @@ const VoucherDetails = () => {
                 <div>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Voucher No.</span>
                   <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a", fontFamily: "monospace" }}>
-                    {voucher.voucherNo.replace("GN-INV-", "")}
+                    {voucher.voucherNo.replace(/^(GN-)?INV-/, "INV-")}
                   </span>
                 </div>
                 <div>
@@ -358,7 +358,7 @@ const VoucherDetails = () => {
                     PAYMENT VOUCHER
                   </span>
                   <div style={{ fontSize: "10px", color: "#e6fffa", fontWeight: "700", marginTop: "4px" }}>
-                    NO: <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#ffffff" }}>{voucher.voucherNo.replace("GN-INV-", "")}</span>
+                    NO: <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#ffffff" }}>{voucher.voucherNo.replace(/^(GN-)?INV-/, "INV-")}</span>
                   </div>
                 </div>
               </div>
@@ -470,7 +470,7 @@ const VoucherDetails = () => {
                     PAYMENT VOUCHER
                   </div>
                   <div style={{ marginTop: "4px", fontSize: "10px", fontWeight: "700", color: "#475569" }}>
-                    VOUCHER NO: <span style={{ fontFamily: "monospace", color: "#0f172a", fontSize: "11px" }}>{voucher.voucherNo.replace("GN-INV-", "")}</span>
+                    VOUCHER NO: <span style={{ fontFamily: "monospace", color: "#0f172a", fontSize: "11px" }}>{voucher.voucherNo.replace(/^(GN-)?INV-/, "INV-")}</span>
                   </div>
                 </div>
               </div>

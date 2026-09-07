@@ -63,8 +63,24 @@ const EmployeeAdvancePage = () => {
     /* -------------------- LOAD DATA -------------------- */
 
     useEffect(() => {
-        if (advance) setRows(advance);
-    }, [advance]);
+        fetchAdvanceData();
+    }, []);
+
+    const fetchAdvanceData = async () => {
+        try {
+            setloading(true);
+            const [advRes, empRes] = await Promise.all([
+                apiClient({ url: "advance" }),
+                apiClient({ url: "getemployee" })
+            ]);
+            if (Array.isArray(advRes)) setRows(advRes);
+            if (Array.isArray(empRes)) dispatch(setEmployees(empRes));
+        } catch (err) {
+            console.error("Error fetching advance data:", err);
+        } finally {
+            setloading(false);
+        }
+    };
 
     useEffect(() => {
         if (filters.branch === 'all') {
@@ -175,7 +191,7 @@ const EmployeeAdvancePage = () => {
                 toast.success("Advance recorded successfully");
             }
 
-            dispatch(FirstFetch());
+            fetchAdvanceData();
             handleClose();
         } catch (error) {
             console.error("Error saving advance:", error);
@@ -200,7 +216,7 @@ const EmployeeAdvancePage = () => {
                         method: "DELETE"
                     });
                     toast.success("Advance deleted");
-                    dispatch(FirstFetch());
+                    fetchAdvanceData();
                 } catch (error) {
                     console.error("Error deleting advance:", error);
                     toast.error(error.message || "Failed to delete");

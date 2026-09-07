@@ -73,6 +73,16 @@ const plotRateConfigurationSchema = new mongoose.Schema(
       default: 10.88,
       min: 0,
     },
+    lateFineGraceDays: {
+      type: Number,
+      default: 15,
+      min: 0,
+    },
+    lateFineDailyPercent: {
+      type: Number,
+      default: 0.05,
+      min: 0,
+    },
     rateSlabs: {
       type: [rateSlabSchema],
       default: defaultRateSlabs,

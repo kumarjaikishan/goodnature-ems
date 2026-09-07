@@ -75,10 +75,23 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
   }, [company, editbranch, editbranchdata]);
 
   useEffect(() => {
+    fetchManagers();
+  }, [adminManager]);
+
+  const fetchManagers = async () => {
     if (adminManager?.length > 0) {
       setUsers(adminManager.filter(e => e.role === 'manager'));
+      return;
     }
-  }, [adminManager]);
+    try {
+      const data = await apiClient({ url: "getAdmin" });
+      if (Array.isArray(data)) {
+        setUsers(data.filter(e => e.role === 'manager'));
+      }
+    } catch (err) {
+      console.error("Error fetching admin/managers:", err);
+    }
+  };
 
   const cancele = () => {
     setopenviewmodal(false);

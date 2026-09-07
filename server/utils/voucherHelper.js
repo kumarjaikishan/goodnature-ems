@@ -23,10 +23,13 @@ const generateVoucherNo = async (date, session = null) => {
     date = new Date();
   }
   const finYear = getFinancialYearString(date);
-  const prefix = `GN-INV-${finYear}`;
+  const prefix = `INV-${finYear}`;
   
-  let query = { voucherNo: new RegExp('^' + prefix) };
-  let latestVoucherQuery = Voucher.findOne(query).sort({ voucherNo: -1 });
+  // Search for both new INV-{finYear} and legacy GN-INV-{finYear} to ensure continuous sequential numbering
+  let query = {
+    voucherNo: { $regex: `^(GN-)?INV-${finYear}` }
+  };
+  let latestVoucherQuery = Voucher.findOne(query).sort({ voucherNo: -1, createdAt: -1 });
   if (session) {
     latestVoucherQuery = latestVoucherQuery.session(session);
   }
@@ -35,7 +38,7 @@ const generateVoucherNo = async (date, session = null) => {
   let nextNum = 1;
   if (latestVoucher && latestVoucher.voucherNo) {
     const parts = latestVoucher.voucherNo.split('-');
-    const lastPart = parts[2]; 
+    const lastPart = parts[parts.length - 1]; 
     if (lastPart && lastPart.length > 4) {
       const numStr = lastPart.substring(4); 
       const parsed = parseInt(numStr, 10);
@@ -45,7 +48,7 @@ const generateVoucherNo = async (date, session = null) => {
     }
   }
   
-  return `GN-INV-${finYear}${nextNum.toString().padStart(4, '0')}`;
+  return `INV-${finYear}${nextNum.toString().padStart(4, '0')}`;
 };
 
 module.exports = {

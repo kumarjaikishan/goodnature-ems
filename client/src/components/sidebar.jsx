@@ -21,6 +21,9 @@ import {
   History,
   TrendingUp,
   Coins,
+  ShieldAlert,
+  Gauge,
+  KeyRound,
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 
@@ -46,8 +49,9 @@ const Sidebar = () => {
       title: "Menu",
       items: [
         { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo", "sponsor"] },
-        { menu: "Permissions", link: "/dashboard/permission", icon: <LayoutDashboard size={20} />, roles: ["developer"] },
-        { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <LayoutDashboard size={20} />, roles: ["developer"] },
+        { menu: "Permissions", link: "/dashboard/permission", icon: <KeyRound size={20} />, roles: ["developer"] },
+        { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <Gauge size={20} />, roles: ["developer"] },
+        { menu: "Error Logs", link: "/dashboard/error-logs", icon: <ShieldAlert size={20} />, roles: ["developer"] },
         {
           menu: "Organization",
           icon: <Network size={20} />,
@@ -114,7 +118,7 @@ const Sidebar = () => {
             { menu: "Collections", link: "/dashboard/investments/collections", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Dues & Defaulters", link: "/dashboard/investments/dues", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Premature Settlement", link: "/dashboard/investments/settlement", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Scheme Matrix & Rules", link: "/dashboard/investments/schemes", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Scheme Rules", link: "/dashboard/investments/schemes", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
@@ -202,9 +206,7 @@ const Sidebar = () => {
             <h2 className="capitalize font-bold text-sm text-slate-800 truncate tracking-tight">
               {company?.name || "Good Nature"}
             </h2>
-            <p className="text-[10px] font-semibold text-teal-700 uppercase tracking-wider">
-              Management Portal
-            </p>
+
           </div>
         )}
       </div>
@@ -261,17 +263,15 @@ const Sidebar = () => {
                         onClick={() => {
                           if (showText) setOpenSubmenu(openSubmenu === menuId ? null : menuId);
                         }}
-                        className={`relative flex w-full items-center rounded-xl font-medium text-xs transition-all cursor-pointer ${
-                          showText
-                            ? "justify-between px-3 py-2 text-slate-700 hover:text-teal-900 hover:bg-teal-50/80"
-                            : "justify-center h-10 w-full text-slate-600 hover:text-teal-800 hover:bg-teal-50"
-                        } ${
-                          isChildActive
+                        className={`relative flex w-full items-center rounded-xl font-medium text-xs transition-all cursor-pointer ${showText
+                          ? "justify-between px-3 py-2 text-slate-700 hover:text-teal-900 hover:bg-teal-50/80"
+                          : "justify-center h-10 w-full text-slate-600 hover:text-teal-800 hover:bg-teal-50"
+                          } ${isChildActive
                             ? "bg-teal-50/90 text-teal-900 font-semibold border border-teal-200/80"
                             : isOpen && showText
-                            ? "bg-teal-50/50 text-teal-900 font-semibold"
-                            : ""
-                        }`}
+                              ? "bg-teal-50/50 text-teal-900 font-semibold"
+                              : ""
+                          }`}
                       >
                         <div className="flex items-center gap-2.5">
                           <span className={`text-[17px] transition-colors ${isChildActive ? "text-teal-700" : isOpen ? "text-teal-600" : "text-slate-500"}`}>
@@ -289,7 +289,7 @@ const Sidebar = () => {
                       {/* Expanded Submenu (Open Sidebar) */}
                       {showText && (
                         <div
-                          className="relative ml-5 pl-3 mt-1.5 space-y-1 border-l-2 border-teal-200 overflow-hidden transition-all duration-200"
+                          className="relative ml-5 pl-3 mt-1.5 space-y-1 border-l-2 border-slate-200 overflow-hidden transition-all duration-200"
                           style={{ maxHeight: isOpen ? `${item.children.length * 48}px` : "0px" }}
                         >
                           {item.children.map((child) => {
@@ -297,16 +297,15 @@ const Sidebar = () => {
                             return (
                               <div key={child.menu} className="relative flex items-center">
                                 {/* Tree horizontal branch connector line */}
-                                <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-2.5 h-[2px] bg-teal-200 pointer-events-none" />
-                                
+                                <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-2.5 h-[2px] bg-slate-200 pointer-events-none" />
+
                                 <NavLink
                                   to={child.link}
                                   onClick={() => setOpenSubmenu(menuId)}
                                   className={({ isActive }) =>
-                                    `w-full block px-2.5 py-1.5 text-xs rounded-lg transition-all ${
-                                      isActive
-                                        ? "bg-teal-700 text-white font-semibold shadow-xs"
-                                        : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
+                                    `w-full block px-2.5 py-1.5 text-xs rounded-lg transition-all ${isActive
+                                      ? "bg-teal-700 text-white font-semibold shadow-xs"
+                                      : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
                                     }`
                                   }
                                 >
@@ -337,10 +336,9 @@ const Sidebar = () => {
                                   key={child.menu}
                                   onClick={() => setHoveredMenu(null)}
                                   className={({ isActive }) =>
-                                    `block px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${
-                                      isActive
-                                        ? "bg-teal-700 text-white font-semibold shadow-xs"
-                                        : "text-slate-700 hover:text-teal-900 hover:bg-teal-50"
+                                    `block px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${isActive
+                                      ? "bg-teal-700 text-white font-semibold shadow-xs"
+                                      : "text-slate-700 hover:text-teal-900 hover:bg-teal-50"
                                     }`
                                   }
                                 >
@@ -360,9 +358,8 @@ const Sidebar = () => {
                   <button
                     key={item.menu}
                     onClick={handleLogout}
-                    className={`flex cursor-pointer w-full items-center rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors ${
-                      showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
-                    }`}
+                    className={`flex cursor-pointer w-full items-center rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors ${showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
+                      }`}
                   >
                     <span className="text-[17px] text-rose-500">{item.icon}</span>
                     {showText && <span>{item.menu}</span>}
@@ -374,12 +371,10 @@ const Sidebar = () => {
                     key={item.link}
                     onClick={() => setOpenSubmenu(null)}
                     className={({ isActive }) =>
-                      `flex items-center rounded-xl text-xs transition-all ${
-                        showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
-                      } ${
-                        isActive
-                          ? "bg-teal-700 text-white font-semibold shadow-xs"
-                          : "text-slate-700 hover:text-teal-900 hover:bg-teal-50 font-medium"
+                      `flex items-center rounded-xl text-xs transition-all ${showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
+                      } ${isActive
+                        ? "bg-teal-700 text-white font-semibold shadow-xs"
+                        : "text-slate-700 hover:text-teal-900 hover:bg-teal-50 font-medium"
                       }`
                     }
                   >

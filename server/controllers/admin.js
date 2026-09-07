@@ -661,199 +661,28 @@ const deleteAdmin = async (req, res, next) => {
 
 const firstfetch = async (req, res, next) => {
     try {
-        const startOfMonth = dayjs().startOf('month').toDate();
+        const isManager = req.user.role === 'manager';
+        const allowedBranches = req.user.branchIds || [];
 
-        // 1️⃣ Parallel initial queries (User, Company, Ledger, Notices)
-        const [user, companye, ledgerDocs, notices] = await Promise.all([
+        const [user, companye, branches, departmentlist, notices] = await Promise.all([
             usermodal.findById(req.user.id).select('name email profileImage role permissions branchIds').lean(),
             company.findOne().lean(),
-            Ledger.find({ userId: req.user.id }).lean(),
+            branch.find().populate({ path: 'managerIds', select: 'name profileImage profileimage' }).lean(),
+            departmentModal.find(isManager ? { branchId: { $in: allowedBranches } } : {})
+                .populate('branchId', 'name')
+                .select('department branchId')
+                .sort({ department: 1 })
+                .lean(),
             noticeModal.find().sort({ date: -1 }).lean()
         ]);
 
-        let branches = [];
-        let departmentlist = [];
-        let employees = [];
-        let adminManager = [];
-        let attendance = [];
-        let holidays = [];
-        let leaveBalance = [];
-        let leavePolicies = [];
-        let advance = [];
-
-        if (req.user.role == 'manager') {
-            const allowedBranches = req.user.branchIds || [];
-
-            const [branchesRes, departmentlistRes, employeesRes, holidaysRes, leavePoliciesRes] = await Promise.all([
-                branch.find()
-                    .populate({ path: 'managerIds', select: 'name profileimage' })
-                    .lean(),
-                departmentModal.find({ branchId: { $in: allowedBranches } })
-                    .populate('branchId', 'name')
-                    .select('department branchId')
-                    .sort({ department: 1 })
-                    .lean(),
-                employeeModal.find({ branchId: { $in: allowedBranches } })
-                    .populate('department', 'department')
-                    .populate('userid', 'email name')
-                    .sort({ empId: 1 })
-                    .lean(),
-                holidaymodal.find().lean(),
-                LeavePolicy.find().lean()
-            ]);
-
-            branches = branchesRes;
-            departmentlist = departmentlistRes;
-            employees = employeesRes;
-            holidays = holidaysRes;
-            leavePolicies = leavePoliciesRes;
-
-            const employeeIds = employees.map(emp => emp._id);
-
-            const [attendanceRes, leaveBalanceRes, advanceRes] = await Promise.all([
-                attendanceModal.find({
-                    employeeId: { $in: employeeIds },
-                    date: { $gte: startOfMonth }
-                })
-                    .select('-rulesSnapshot -dutyStart -dutyEnd')
-                    .sort({ date: -1, empId: 1 })
-                    .populate({
-                        path: 'employeeId',
-                        select: 'userid profileimage department',
-                        populate: { path: 'userid', select: 'name' }
-                    })
-                    .populate({ path: 'leave', select: 'reason' })
-                    .lean(),
-                LeaveBalance.find({
-                    branchId: { $in: allowedBranches }
-                })
-                    .populate({
-                        path: "employeeId",
-                        select: "userid profileimage empId designation",
-                        populate: { path: "userid", select: "name" },
-                    })
-                    .sort({ date: -1, createdAt: -1 })
-                    .lean(),
-                advancemodal.find({
-                    branchId: { $in: allowedBranches }
-                })
-                    .populate({
-                        path: "employeeId",
-                        select: "userid profileimage empId",
-                        populate: { path: "userid", select: "name" },
-                    })
-                    .sort({ date: -1, createdAt: -1 })
-                    .lean()
-            ]);
-
-            attendance = attendanceRes;
-            leaveBalance = leaveBalanceRes;
-            advance = advanceRes;
-        }
-
-        if (req.user.role == 'superadmin' || req.user.role == 'admin' || req.user.role == 'demo') {
-            const [
-                branchesRes,
-                departmentlistRes,
-                adminManagerRes,
-                employeesRes,
-                attendanceRes,
-                holidaysRes,
-                leaveBalanceRes,
-                advanceRes,
-                leavePoliciesRes
-            ] = await Promise.all([
-                branch.find()
-                    .populate({ path: 'managerIds', select: 'name profileImage' })
-                    .lean(),
-                departmentModal.find()
-                    .populate('branchId', 'name')
-                    .select('department branchId')
-                    .sort({ department: 1 })
-                    .lean(),
-                usermodal.find({ role: { $in: ['admin', 'manager'] } })
-                    .select('-password')
-                    .lean(),
-                employeeModal.find()
-                    .populate('department', 'department')
-                    .populate('userid', 'email name role')
-                    .sort({ empId: 1 })
-                    .lean(),
-                attendanceModal.find({ date: { $gte: startOfMonth } })
-                    .select('-rulesSnapshot -dutyStart -dutyEnd')
-                    .sort({ date: -1, empId: 1 })
-                    .populate({
-                        path: 'employeeId',
-                        select: 'userid profileimage department',
-                        populate: { path: 'userid', select: 'name' }
-                    })
-                    .populate({ path: 'leave', select: 'reason' })
-                    .lean(),
-                holidaymodal.find().lean(),
-                LeaveBalance.find()
-                    .populate({
-                        path: "employeeId",
-                        select: "userid profileimage empId designation",
-                        populate: { path: "userid", select: "name" },
-                    })
-                    .sort({ date: -1, createdAt: -1 })
-                    .lean(),
-                advancemodal.find()
-                    .populate({
-                        path: "employeeId",
-                        select: "userid profileimage empId designation",
-                        populate: { path: "userid", select: "name" },
-                    })
-                    .sort({ date: -1, createdAt: -1 })
-                    .lean(),
-                LeavePolicy.find().lean()
-            ]);
-
-            branches = branchesRes;
-            departmentlist = departmentlistRes;
-            adminManager = adminManagerRes;
-            employees = employeesRes;
-            attendance = attendanceRes;
-            holidays = holidaysRes;
-            leaveBalance = leaveBalanceRes;
-            advance = advanceRes;
-            leavePolicies = leavePoliciesRes;
-        }
-
-        // Ledger balance processing
-        const ledgerIds = ledgerDocs.map((l) => l._id);
-        const latestBalanceByLedger = {};
-        if (ledgerIds.length) {
-            const latestEntries = await Entry.aggregate([
-                { $match: { ledgerId: { $in: ledgerIds } } },
-                { $sort: { ledgerId: 1, date: -1, createdAt: -1 } },
-                { $group: { _id: '$ledgerId', balance: { $first: '$balance' } } }
-            ]);
-            latestEntries.forEach((entry) => {
-                latestBalanceByLedger[entry._id.toString()] = entry.balance;
-            });
-        }
-
-        const ledgersWithBalance = ledgerDocs.map((ledgerDoc) => ({
-            ...ledgerDoc,
-            netBalance: latestBalanceByLedger[ledgerDoc._id.toString()] ?? 0
-        }));
-
         const response = {
-            user: user,
-            departmentlist,
-            employee: employees,
-            attendance,
-            advance,
-            holidays,
-            notices,
-            ledger: ledgersWithBalance,
-            leaveBalance,
-            leavePolicies
+            user,
+            departmentlist: departmentlist || [],
+            branch: branches || [],
+            notices: notices || []
         };
         if (companye) response.company = companye;
-        if (branches?.length) response.branch = branches;
-        if (adminManager?.length) response.adminManager = adminManager;
 
         return res.status(200).json(response);
     } catch (error) {
@@ -1077,15 +906,26 @@ const deleteBranch = async (req, res, next) => {
 const getemployee = async (req, res, next) => {
     const { empid } = req.query;
     try {
-        const employe = await employeeModal.findById(empid)
-            .populate('userid', '-password')
-            .populate('department');
+        if (empid) {
+            const employe = await employeeModal.findById(empid)
+                .populate('userid', '-password')
+                .populate('department');
+            return res.status(200).json(employe);
+        }
 
-        return res.status(200).json(employe);
-        // setTimeout(() => {
-        //     return res.status(200).json(employe);
-        // }, 100);
+        let filter = {};
+        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
+            filter.branchId = { $in: req.user.branchIds };
+        }
 
+        const employees = await employeeModal.find(filter)
+            .select('empId designation profileimage phone status branchId department userid')
+            .populate('department', 'department')
+            .populate('userid', 'email name')
+            .sort({ empId: 1 })
+            .lean();
+
+        return res.status(200).json(employees);
     } catch (error) {
         console.error(error.message);
         return next({ status: 500, message: 'Internal Server Error' });

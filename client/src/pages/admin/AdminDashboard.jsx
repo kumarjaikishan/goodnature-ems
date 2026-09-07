@@ -5,7 +5,7 @@ import DashboardCard from '../../components/dashboardCard';
 import { toast } from '../../utils/toast';
 import { User, Search, Users, Filter } from 'lucide-react';
 import dayjs from 'dayjs';
-import { FirstFetch, updateAttendance } from '../../../store/userSlice';
+import { FirstFetch, updateAttendance, setEmployees } from '../../../store/userSlice';
 import OfficialNoticeBoard from '../../components/notice';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 import { apiClient } from '../../utils/apiClient';
@@ -13,7 +13,6 @@ import { EmployeeAttendanceSkeleton } from '../../components/skeletons';
 
 const Main = () => {
   const { attandence, employee, branch, department, notices } = useSelector((state) => state.user);
-  const isLoadingData = !employee || !attandence;
   const { islogin } = useSelector((state) => state.auth);
   const [currentpresent, setcurrentpresent] = useState([]);
   const [todaypresent, settodaypresent] = useState([]);
@@ -26,10 +25,33 @@ const Main = () => {
   const [depfilter, setdepfilter] = useState('all');
   const [employeelist, setemployeelist] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
 
   useEffect(() => {
     !islogin && navigate('/login');
   }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoadingDashboard(true);
+      const [empData, attData] = await Promise.all([
+        apiClient({ url: 'getemployee' }),
+        apiClient({ url: 'attandence/list', params: { date: dayjs().format('YYYY-MM-DD') } })
+      ]);
+      if (Array.isArray(empData)) dispatch(setEmployees(empData));
+      if (Array.isArray(attData?.data)) dispatch(updateAttendance(attData.data));
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  const isLoadingData = loadingDashboard || !employee;
 
   useEffect(() => {
     if (!employee || employee.length === 0) return;
@@ -55,24 +77,6 @@ const Main = () => {
     attandenceRef.current = attandence;
   }, [attandence]);
 
-  useEffect(() => {
-    const fetchLatestData = async () => {
-      try {
-        const response = await apiClient({
-          url: 'user/fetchFirst',
-          method: 'GET',
-        });
-        if (response.success) {
-          dispatch(FirstFetch(response));
-        }
-      } catch (error) {
-        console.error("Dashboard background refresh error:", error);
-      }
-    };
-
-    fetchLatestData();
-  }, [dispatch]);
-
   const handleSaveNotice = async (formData) => {
     try {
       const response = await apiClient({
@@ -82,8 +86,7 @@ const Main = () => {
       });
       if (response.success) {
         toast.success(response.message || 'Notice published successfully');
-        const fetchRes = await apiClient({ url: 'user/fetchFirst', method: 'GET' });
-        if (fetchRes.success) dispatch(FirstFetch(fetchRes));
+        dispatch(FirstFetch());
       }
     } catch (err) {
       toast.error(err.message || 'Failed to publish notice');
@@ -98,8 +101,7 @@ const Main = () => {
       });
       if (response.success) {
         toast.success(response.message || 'Notice deleted successfully');
-        const fetchRes = await apiClient({ url: 'user/fetchFirst', method: 'GET' });
-        if (fetchRes.success) dispatch(FirstFetch(fetchRes));
+        dispatch(FirstFetch());
       }
     } catch (err) {
       toast.error(err.message || 'Failed to delete notice');

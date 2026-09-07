@@ -230,6 +230,13 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - [VoucherList.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/vouchers/VoucherList.jsx): Ledger filter dropdown & Create/Edit Voucher dialog modal ledger picker.
   - [advance.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/advance/advance.jsx): Employee selector toolbar filter.
   - [leaveledger.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/leaveledger/leaveledger.jsx): Individual Employee selection in Add/Adjust Leave Balance modal.
-- **Contract Pattern**: `onChange={(val, raw) => ...}` passes primitive string/number instead of native event `e.target.value`.
-
-
+### Z. Backend Security & Performance Hardening
+- **CORS Allowlist**: [server/index.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/index.js) now explicitly validates incoming origins against `allowedOrigins` (`localhost:5173`, `localhost:5174`, `CLIENT_URL`), `*.vercel.app` preview deployments, and blocks rogue cross-origin callers.
+- **Login Rate Limiting**: Added `express-rate-limit` to `/api/signin` and `/api/setpassword` (15 attempts / 15 minutes per IP) in [server/router/route.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/router/route.js).
+- **Error Observability**: Centralized error middleware in [server/utils/error_util.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/utils/error_util.js) logs formatted error codes, HTTP methods, route paths, and stack traces.
+- **Attendance Bulk Excel Import Optimization**: In `bulkMarkAttendanceExcel` ([server/controllers/attandence.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/controllers/attandence.js)), replaced per-row `findOne`/`findById` roundtrips with batch `$in` fetches for all employees, branches, and holidays upfront.
+### AA. Developer Portal Error Logging Page (`/dashboard/error-logs`)
+- **Backend Ring Buffer**: [`server/utils/errorLogger.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/utils/errorLogger.js) maintains the last 100 runtime errors in-memory with automatic payload sanitization (passwords, tokens, and secrets redacted).
+- **Backend Endpoints**: `GET /api/developer/errors` and `DELETE /api/developer/errors` (restricted strictly to `developer` role).
+- **Frontend Page**: [`client/src/pages/developer/ErrorLogs.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/developer/ErrorLogs.jsx) features real-time 5s auto-refresh, status breakdown cards (500, 400, 404), keyword search, expandable details (User, IP, ISO time, sanitized request body payload, and 1-click stack trace copy).
+- **Navigation**: Visible in [sidebar.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx) under the Developer menu (`/dashboard/error-logs`).

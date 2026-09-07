@@ -77,32 +77,29 @@ const EditBookingModal = ({
   if (!editingBooking) return null;
 
   return (
-    <Modalbox open={Boolean(editingBooking)} onClose={onClose}>
-      <div className="p-6 bg-white rounded-2xl w-[720px] max-w-[95vw] space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">
-              Edit Booking Contract #{editingBooking?.bookingNumber}
-            </h3>
-            <p className="text-[0.7rem] font-medium text-slate-500">
-              Update customer, plot, pricing, payment, and land stock parameters.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition p-1"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
-
-        <form onSubmit={onSubmit} className="flex flex-col gap-4 text-xs">
-          {/* 1. Customer & Plot Selection */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-              1. Customer & Plot Assignment
-            </h4>
+    <Modalbox
+      open={Boolean(editingBooking)}
+      onClose={onClose}
+      title={`Edit Booking Contract #${editingBooking?.bookingNumber}`}
+      subtitle="Update customer, plot, pricing, payment, and land stock parameters."
+      maxWidth="max-w-md"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} type="button">
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" type="submit" form="edit-booking-form" loading={saving}>
+            Save Changes
+          </Button>
+        </>
+      }
+    >
+      <form id="edit-booking-form" onSubmit={onSubmit} className="flex flex-col gap-4 text-xs">
+        {/* 1. Customer & Plot Selection */}
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+            1. Customer & Plot Assignment
+          </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Customer Search */}
@@ -655,17 +652,7 @@ const EditBookingModal = ({
               placeholder="Enter general contract notes..."
             />
           </div>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 shrink-0 sticky bottom-0 bg-white z-10">
-            <Button variant="secondary" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" loading={saving}>
-              Save Changes
-            </Button>
-          </div>
         </form>
-      </div>
     </Modalbox>
   );
 };

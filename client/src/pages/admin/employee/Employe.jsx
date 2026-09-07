@@ -96,6 +96,21 @@ const Employe = () => {
   const [inp, setInp] = useState(init);
 
   useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const data = await apiClient({ url: "getemployee" });
+      if (Array.isArray(data)) {
+        dispatch(setEmployees(data));
+      }
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+    }
+  };
+
+  useEffect(() => {
     setFilters((prev) => ({
       ...prev,
       department: 'all'
@@ -247,62 +262,73 @@ const Employe = () => {
     }
   };
 
-  const edite = (emp) => {
-    setisupdate(true);
-    const safeValue = (val) => (val === undefined || val === null || val === 'undefined') ? '' : val;
+  const edite = async (row) => {
+    setisload(true);
+    try {
+      const emp = await apiClient({ url: `getemployee?empid=${row._id || row.id}` });
+      if (!emp) throw new Error("Employee not found");
 
-    setInp({
-      employeeId: emp._id,
-      branchId: safeValue(emp?.branchId),
-      department: safeValue(emp?.department?._id || emp?.department),
-      employeeName: safeValue(emp?.userid?.name || emp?.rawname),
-      email: safeValue(emp?.userid?.email || emp?.email),
-      dob: emp?.dob ? emp.dob.split('T')[0] : '',
-      salary: emp?.salary || 0,
-      status: emp?.status ?? true,
-      empId: emp?.empId ? Number(String(emp.empId).replace('EMP', '')) : '',
-      guardian: {
-        name: safeValue(emp?.guardian?.name),
-        relation: safeValue(emp?.guardian?.relation) || 'S/o'
-      },
-      acHolderName: safeValue(emp?.acHolderName),
-      bankName: safeValue(emp?.bankName),
-      bankbranch: safeValue(emp?.bankbranch),
-      acnumber: safeValue(emp?.acnumber),
-      ifscCode: safeValue(emp?.ifscCode),
-      upi: safeValue(emp?.upi),
-      adhaar: safeValue(emp?.adhaar),
-      pan: safeValue(emp?.pan),
-      deviceUserId: safeValue(emp?.deviceUserId),
-      designation: safeValue(emp?.designation),
-      phone: safeValue(emp?.phone),
-      address: safeValue(emp?.address),
-      gender: safeValue(emp?.gender) || 'male',
-      bloodGroup: safeValue(emp?.bloodGroup),
-      Emergencyphone: safeValue(emp?.Emergencyphone),
-      skills: emp?.skills || [],
-      maritalStatus: emp?.maritalStatus ?? true,
-      achievements: (emp?.achievements || []).map(ach => ({
-        title: safeValue(ach.title),
-        description: safeValue(ach.description),
-        date: ach.date ? ach.date.split('T')[0] : ''
-      })),
-      education: (emp?.education || []).map(edu => ({
-        degree: safeValue(edu.degree),
-        institution: safeValue(edu.institution),
-        date: edu.date ? edu.date.split('T')[0] : ''
-      })),
-      overridedefaultPolicies: emp?.overridedefaultPolicies || false,
-      allowances: emp?.allowances || [],
-      bonuses: emp?.bonuses || [],
-      deductions: emp?.deductions || [],
-      allowSeeLedger: emp?.allowSeeLedger || false,
-      telegramId: safeValue(emp?.telegramId)
-    });
-    if (emp.profileimage) {
-      setPhotoPreview(emp.profileimage);
+      setisupdate(true);
+      const safeValue = (val) => (val === undefined || val === null || val === 'undefined') ? '' : val;
+
+      setInp({
+        employeeId: emp._id,
+        branchId: safeValue(emp?.branchId),
+        department: safeValue(emp?.department?._id || emp?.department),
+        employeeName: safeValue(emp?.userid?.name || emp?.rawname),
+        email: safeValue(emp?.userid?.email || emp?.email),
+        dob: emp?.dob ? emp.dob.split('T')[0] : '',
+        salary: emp?.salary || 0,
+        status: emp?.status ?? true,
+        empId: emp?.empId ? Number(String(emp.empId).replace('EMP', '')) : '',
+        guardian: {
+          name: safeValue(emp?.guardian?.name),
+          relation: safeValue(emp?.guardian?.relation) || 'S/o'
+        },
+        acHolderName: safeValue(emp?.acHolderName),
+        bankName: safeValue(emp?.bankName),
+        bankbranch: safeValue(emp?.bankbranch),
+        acnumber: safeValue(emp?.acnumber),
+        ifscCode: safeValue(emp?.ifscCode),
+        upi: safeValue(emp?.upi),
+        adhaar: safeValue(emp?.adhaar),
+        pan: safeValue(emp?.pan),
+        deviceUserId: safeValue(emp?.deviceUserId),
+        designation: safeValue(emp?.designation),
+        phone: safeValue(emp?.phone),
+        address: safeValue(emp?.address),
+        gender: safeValue(emp?.gender) || 'male',
+        bloodGroup: safeValue(emp?.bloodGroup),
+        Emergencyphone: safeValue(emp?.Emergencyphone),
+        skills: emp?.skills || [],
+        maritalStatus: emp?.maritalStatus ?? true,
+        achievements: (emp?.achievements || []).map(ach => ({
+          title: safeValue(ach.title),
+          description: safeValue(ach.description),
+          date: ach.date ? ach.date.split('T')[0] : ''
+        })),
+        education: (emp?.education || []).map(edu => ({
+          degree: safeValue(edu.degree),
+          institution: safeValue(edu.institution),
+          date: edu.date ? edu.date.split('T')[0] : ''
+        })),
+        overridedefaultPolicies: emp?.overridedefaultPolicies || false,
+        allowances: emp?.allowances || [],
+        bonuses: emp?.bonuses || [],
+        deductions: emp?.deductions || [],
+        allowSeeLedger: emp?.allowSeeLedger || false,
+        telegramId: safeValue(emp?.telegramId)
+      });
+      if (emp.profileimage) {
+        setPhotoPreview(emp.profileimage);
+      }
+      setopenmodal(true);
+    } catch (err) {
+      console.error("Error loading employee details for editing:", err);
+      toast.error(err.message || "Failed to load employee details");
+    } finally {
+      setisload(false);
     }
-    setopenmodal(true);
   };
 
   const deletee = (id) => {

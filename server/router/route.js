@@ -23,6 +23,16 @@ const employeemiddlewre = require('../middleware/employee_middleware');
 const { exec } = require("child_process");
 const { Create_Order, verify_payment, webhook, checkstatus } = require('../services/payment');
 const { getSubscriptionStatus, getAllTransactions } = require('../services/subscriptions');
+const rateLimit = require('express-rate-limit');
+
+// Rate limiter for authentication endpoints (prevents brute-force attacks)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // max 15 requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts. Please try again after 15 minutes." }
+});
 
 // const DEPLOY_SCRIPT = "/home/ubuntu/deploy.sh";
 const deploy_script = {
@@ -42,9 +52,9 @@ router.route('/jwtcheck').get(authmiddlewre, (req, res) => {
   })
 });
 
-router.route('/signin').post(users.userLogin);
+router.route('/signin').post(authLimiter, users.userLogin);
 router.route('/resetrequest').get(authmiddlewre, authorizeRoles('superadmin'), users.passreset);
-router.route('/setpassword').post(users.setpassword);
+router.route('/setpassword').post(authLimiter, users.setpassword);
 // router.route('/signup').post(users.userRegister);
 
 router.route('/departmentlist').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.departmentlist);
@@ -52,6 +62,8 @@ router.route('/adddepartment').post(authmiddlewre, authorizeRoles('superadmin', 
 router.route('/updatedepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 3), admin.updatedepartment);
 router.route('/deletedepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 4), admin.deletedepartment);
 router.route('/firstfetch').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.firstfetch);
+router.route('/user/fetchFirst').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.firstfetch);
+router.route('/fetchFirst').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.firstfetch);
 router.route('/leavehandle').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 3), admin.leavehandle);
 router.route('/leavehandle/:leaveid').delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 4), admin.deleteleave);
 // router.route('/addcompany').post(authmiddlewre, authorizeRoles('superadmin','superadmin'), admin.addcompany);
@@ -242,6 +254,11 @@ router.route('/developer/essl-logs')
 router.route('/developer/essl-events')
   .get(authmiddlewre, authorizeRoles('developer'), admin.getEsslEventsDeveloper)
   .delete(authmiddlewre, authorizeRoles('developer'), admin.bulkDeleteEsslEvents);
+
+// Developer System Error Logs Monitoring Routes
+router.route('/developer/errors')
+  .get(authmiddlewre, authorizeRoles('developer'), developer.getSystemErrors)
+  .delete(authmiddlewre, authorizeRoles('developer'), developer.clearSystemErrors);
 
 router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"), (req, res) => {
   const { project } = req.params;

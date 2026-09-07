@@ -233,211 +233,203 @@ const BulkMark = ({
   if (!openmodal) return null;
 
   return (
-    <Modalbox open={openmodal} outside={false} onClose={() => setopenmodal(false)}>
-      <div className="w-full max-w-4xl p-6 space-y-4 bg-white rounded-2xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">Bulk Mark Attendance</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Apply timestamps, status, and department filters in batch</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setopenmodal(false)}
-              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
+    <Modalbox
+      open={openmodal}
+      outside={false}
+      onClose={() => setopenmodal(false)}
+      title="Bulk Mark Attendance"
+      subtitle="Apply timestamps, status, and department filters in batch"
+      size="4xl"
+      footer={
+        <>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setopenmodal(false)}
+            variant="outline"
+            disabled={isLoadingData}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            loading={isload}
+            icon={<Send size={14} />}
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={isLoadingData}
+          >
+            Save Bulk Attendance ({checkedemployee.length})
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-3.5">
+          {/* Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Select
+              size="sm"
+              label="Branch"
+              disabled={isLoadingData}
+              value={selectedBranch}
+              onChange={(e) => {
+                setselectedBranch(e.target.value);
+                setselecteddepartment('all');
+              }}
+              options={[
+                { value: 'all', label: 'All Branches' },
+                ...(branch || []).map(b => ({ value: b._id, label: b.name }))
+              ]}
+            />
+
+            <Select
+              size="sm"
+              label="Department"
+              disabled={isLoadingData}
+              value={selecteddepartment}
+              onChange={(e) => setselecteddepartment(e.target.value)}
+              options={[
+                { value: 'all', label: 'All Departments' },
+                ...(department || [])
+                  .filter(d => selectedBranch === 'all' || (d.branchId?._id || d.branchId) === selectedBranch)
+                  .map(d => ({ value: d._id, label: d.department }))
+              ]}
+            />
+
+            <DateInput
+              size="sm"
+              label="Attendance Date"
+              required
+              disabled={isLoadingData}
+              value={attandenceDate.format('YYYY-MM-DD')}
+              onChange={(e) => {
+                const val = e?.target?.value !== undefined ? e.target.value : e;
+                if (val) setattandenceDate(dayjs(val));
+              }}
+            />
           </div>
 
-          <div className="space-y-3.5">
-            {/* Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Select
-                size="sm"
-                label="Branch"
-                disabled={isLoadingData}
-                value={selectedBranch}
-                onChange={(e) => {
-                  setselectedBranch(e.target.value);
-                  setselecteddepartment('all');
-                }}
-                options={[
-                  { value: "all", label: "All Branches" },
-                  ...((profile?.role === 'manager'
-                    ? branch?.filter(b => profile?.branchIds?.includes(b._id))
-                    : branch
-                  ) || []).map(b => ({ value: b._id, label: b.name }))
-                ]}
-              />
+          {/* Quick Apply-To-All Toolbar */}
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Apply to Selected ({checkedemployee.length} selected)
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Punch In Time</label>
+                <input
+                  type="time"
+                  disabled={isLoadingData}
+                  className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  value={toall.punchIn}
+                  onChange={(e) => settoall({ ...toall, punchIn: e.target.value })}
+                />
+              </div>
 
-              <Select
-                size="sm"
-                label="Department"
-                disabled={selectedBranch === 'all' || isLoadingData}
-                value={selecteddepartment}
-                onChange={(e) => setselecteddepartment(e.target.value)}
-                options={[
-                  { value: "all", label: "All Departments" },
-                  ...(filteredDepartments || []).map(d => ({ value: d._id, label: d.department }))
-                ]}
-              />
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Punch Out Time</label>
+                <input
+                  type="time"
+                  disabled={isLoadingData}
+                  className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  value={toall.punchOut}
+                  onChange={(e) => settoall({ ...toall, punchOut: e.target.value })}
+                />
+              </div>
 
-              <DateInput
-                size="sm"
-                label="Attendance Date"
-                disabled={isLoadingData}
-                value={attandenceDate?.isValid() ? attandenceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')}
-                onChange={(e) => {
-                  const val = e?.target?.value !== undefined ? e.target.value : e;
-                  setattandenceDate(val ? dayjs(val) : dayjs());
-                }}
-              />
-            </div>
+              <div>
+                <Select
+                  size="sm"
+                  label="Status"
+                  disabled={isLoadingData}
+                  value={toall.status}
+                  onChange={(e) => settoall({ ...toall, status: e.target.value })}
+                  options={[
+                    { value: '', label: 'Select Status' },
+                    { value: 'present', label: 'Present' },
+                    { value: 'leave', label: 'Leave' },
+                    { value: 'absent', label: 'Absent' },
+                    { value: 'weekly off', label: 'Weekly off' },
+                    { value: 'holiday', label: 'Holiday' },
+                    { value: 'half day', label: 'Half Day' }
+                  ]}
+                />
+              </div>
 
-            {/* Apply to All */}
-            <div className="relative border border-dashed border-teal-300 bg-teal-50/40 rounded-xl p-3.5 pt-4">
-              <span className="absolute top-0 left-3 -translate-y-1/2 bg-white border border-teal-200 px-2 py-0.5 rounded text-[11px] font-bold text-teal-800">
-                Apply To All Selected
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Punch In</label>
-                  <input
-                    type="time"
-                    disabled={isLoadingData}
-                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 bg-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
-                    value={toall.punchIn}
-                    onChange={(e) => settoall(prev => ({ ...prev, punchIn: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Punch Out</label>
-                  <input
-                    type="time"
-                    disabled={isLoadingData}
-                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 bg-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
-                    value={toall.punchOut}
-                    onChange={(e) => settoall(prev => ({ ...prev, punchOut: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Status</label>
-                  <select
-                    disabled={isLoadingData}
-                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 bg-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors cursor-pointer"
-                    value={toall.status}
-                    onChange={(e) => settoall(prev => ({ ...prev, status: e.target.value }))}
-                  >
-                    <option value="">Select Status</option>
-                    <option value="present">Present</option>
-                    <option value="leave">Leave</option>
-                    <option value="absent">Absent</option>
-                    <option value="weekly off">Weekly Off</option>
-                    <option value="holiday">Holiday</option>
-                    <option value="half day">Half Day</option>
-                  </select>
-                </div>
-
-                <div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    onClick={applyToAll}
-                    disabled={isLoadingData}
-                    className="w-full"
-                  >
-                    Apply All
-                  </Button>
-                </div>
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  onClick={applyToAll}
+                  disabled={isLoadingData}
+                  className="w-full"
+                >
+                  Apply All
+                </Button>
               </div>
             </div>
+          </div>
 
-            {/* Employee Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
-              <div className="max-h-72 overflow-y-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-700 font-semibold sticky top-0 border-b border-slate-200 z-10">
+          {/* Employee Table */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+            <div className="max-h-72 overflow-y-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-700 font-semibold sticky top-0 border-b border-slate-200 z-10">
+                  <tr>
+                    <th className="p-2.5 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        onChange={handleAllSelect}
+                        checked={
+                          checkedemployee.length > 0 &&
+                          checkedemployee.length === employees.length
+                        }
+                        disabled={isLoadingData || employees.length === 0}
+                        className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300 cursor-pointer"
+                      />
+                    </th>
+                    <th className="p-2.5">Employee Name</th>
+                    <th className="p-2.5 w-32">Punch In</th>
+                    <th className="p-2.5 w-32">Punch Out</th>
+                    <th className="p-2.5 w-36">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingData ? (
                     <tr>
-                      <th className="p-2.5 w-10 text-center">
-                        <input
-                          type="checkbox"
-                          onChange={handleAllSelect}
-                          checked={
-                            checkedemployee.length > 0 &&
-                            checkedemployee.length === employees.length
-                          }
-                          disabled={isLoadingData || employees.length === 0}
-                          className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300 cursor-pointer"
-                        />
-                      </th>
-                      <th className="p-2.5">Employee Name</th>
-                      <th className="p-2.5 w-32">Punch In</th>
-                      <th className="p-2.5 w-32">Punch Out</th>
-                      <th className="p-2.5 w-36">Status</th>
+                      <td colSpan={5} className="text-center py-8 text-slate-400">
+                        Fetching employees and attendance...
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {isLoadingData ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-8 text-slate-400">
-                          Fetching employees and attendance...
-                        </td>
-                      </tr>
-                    ) : employees.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-8 text-slate-400">
-                          No active employees found.
-                        </td>
-                      </tr>
-                    ) : (
-                      employees.map((emp) => (
-                        <BulkEmployeeRow
-                          key={emp._id}
-                          emp={emp}
-                          isChecked={checkedSet.has(emp._id)}
-                          punchIn={rowData[emp._id]?.punchIn}
-                          punchOut={rowData[emp._id]?.punchOut}
-                          status={rowData[emp._id]?.status}
-                          onCheck={handleCheck}
-                          onTimeChange={handleTimeChange}
-                          onStatusChange={handleStatusChange}
-                        />
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ) : employees.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8 text-slate-400">
+                        No active employees found.
+                      </td>
+                    </tr>
+                  ) : (
+                    employees.map((emp) => (
+                      <BulkEmployeeRow
+                        key={emp._id}
+                        emp={emp}
+                        isChecked={checkedSet.has(emp._id)}
+                        punchIn={rowData[emp._id]?.punchIn}
+                        punchOut={rowData[emp._id]?.punchOut}
+                        status={rowData[emp._id]?.status}
+                        onCheck={handleCheck}
+                        onTimeChange={handleTimeChange}
+                        onStatusChange={handleStatusChange}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => { setopenmodal(false); }}
-              variant="outline"
-              disabled={isLoadingData}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              loading={isload}
-              icon={<Send size={14} />}
-              variant="primary"
-              type="submit"
-              disabled={isLoadingData}
-            >
-              Save Bulk Attendance ({checkedemployee.length})
-            </Button>
-          </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </Modalbox>
   );
 };

@@ -12,8 +12,8 @@ const RecordPaymentModal = ({
   handleSavePayment,
 }) => {
   return (
-    <Modalbox open={open} onClose={onClose} outside={true}>
-      <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4">
+    <Modalbox open={open} onClose={onClose} outside={true} maxWidth="max-w-md" showClose={false}>
+      <div className="p-6 w-full space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-base font-bold text-emerald-900 flex items-center gap-2">

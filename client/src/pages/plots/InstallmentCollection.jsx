@@ -26,9 +26,10 @@ const InstallmentCollection = () => {
   const [installments, setInstallments] = useState([]);
   const [selectedInstIds, setSelectedInstIds] = useState([]);
   const [gracePeriod, setGracePeriod] = useState(15);
+  const [lateFineDailyPercent, setLateFineDailyPercent] = useState(0.05);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getLateFine = (inst, graceDays, customDate = null) => {
+  const getLateFine = (inst, graceDays, customDate = null, fineDailyPercent = lateFineDailyPercent) => {
     if (selectedBooking?.scheme !== 'MONTHLY_INSTALLMENT') return 0;
     if (inst.status === 'PAID') return inst.lateFine || 0;
     if (inst.installmentNumber === 0) return 0;
@@ -46,7 +47,8 @@ const InstallmentCollection = () => {
     let dynamicFine = 0;
     if (diffDays > graceDays) {
       const principal = inst.dueAmount - inst.paidAmount;
-      dynamicFine = Math.round(principal * 0.0005 * diffDays);
+      const rate = (Number(fineDailyPercent) || 0.05) / 100;
+      dynamicFine = Math.round(principal * rate * diffDays);
     }
 
     const storedUnpaidFine = Math.max(0, (inst.lateFine || 0) - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
@@ -169,25 +171,32 @@ const InstallmentCollection = () => {
       const rateRes = await api.get('/plots/rate-config');
       if (currentReqId !== activeSelectRequestId.current) return;
 
-      const graceDays = rateRes.data.data?.lateFineGraceDays || 15;
+      const seriesGrace = b?.plotId?.seriesId?.gracePeriodDays;
+      const seriesDailyPercent = b?.plotId?.seriesId?.lateFineDailyPercent;
+
+      const graceDays = (seriesGrace !== undefined && seriesGrace !== null)
+        ? seriesGrace
+        : (rateRes.data.data?.lateFineGraceDays ?? 15);
+
+      const dailyPercent = (seriesDailyPercent !== undefined && seriesDailyPercent !== null)
+        ? seriesDailyPercent
+        : (rateRes.data.data?.lateFineDailyPercent ?? 0.05);
+
       setGracePeriod(graceDays);
+      setLateFineDailyPercent(dailyPercent);
 
-      if (b.scheme === 'MONTHLY_INSTALLMENT') {
-        const instRes = await api.get(`/plots/bookings/${bookingId}/installments`);
-        if (currentReqId !== activeSelectRequestId.current) return;
+      const instRes = await api.get(`/plots/bookings/${bookingId}/installments`);
+      if (currentReqId !== activeSelectRequestId.current) return;
 
-        const fetchedInsts = instRes.data.data || [];
-        setInstallments(fetchedInsts);
+      const fetchedInsts = instRes.data.data || [];
+      setInstallments(fetchedInsts);
 
-        const firstUnpaid = fetchedInsts.find((i) => i.status !== 'PAID');
-        if (firstUnpaid) {
-          setSelectedInstIds([firstUnpaid._id]);
-          const principalDue = firstUnpaid.dueAmount - firstUnpaid.paidAmount;
-          const fine = getLateFine(firstUnpaid, graceDays);
-          setForm((f) => ({ ...f, amountPaid: String(principalDue + fine), lateFineRebate: '' }));
-        } else {
-          setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
-        }
+      const firstUnpaid = fetchedInsts.find((i) => i.status !== 'PAID');
+      if (firstUnpaid) {
+        setSelectedInstIds([firstUnpaid._id]);
+        const principalDue = firstUnpaid.dueAmount - firstUnpaid.paidAmount;
+        const fine = getLateFine(firstUnpaid, graceDays, null, dailyPercent);
+        setForm((f) => ({ ...f, amountPaid: String(principalDue + fine), lateFineRebate: '' }));
       } else {
         setForm((f) => ({ ...f, amountPaid: String(b.remainingAmount || 0), lateFineRebate: '' }));
       }

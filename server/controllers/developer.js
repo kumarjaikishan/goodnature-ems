@@ -185,4 +185,41 @@ const updatedefaultpermission = async (req, res, next) => {
 }
 
 
-module.exports = { allUser, addUser, editUser, deleteUser, addDemo, getDemo,deleteDemo,saveModule, adddefaultpermission, updatedefaultpermission, getdefaultpermission };
+const { getErrorLogs, clearErrorLogs } = require('../utils/errorLogger');
+
+const getSystemErrors = async (req, res, next) => {
+    try {
+        const errors = getErrorLogs();
+        return res.status(200).json({
+            count: errors.length,
+            errors
+        });
+    } catch (error) {
+        return next({ status: 500, message: error.message });
+    }
+};
+
+const clearSystemErrors = async (req, res, next) => {
+    try {
+        clearErrorLogs();
+        return res.status(200).json({ message: "Error logs cleared successfully" });
+    } catch (error) {
+        return next({ status: 500, message: error.message });
+    }
+};
+
+module.exports = { 
+    allUser, 
+    addUser, 
+    editUser, 
+    deleteUser, 
+    addDemo, 
+    getDemo, 
+    deleteDemo, 
+    saveModule, 
+    adddefaultpermission, 
+    updatedefaultpermission, 
+    getdefaultpermission,
+    getSystemErrors,
+    clearSystemErrors
+};

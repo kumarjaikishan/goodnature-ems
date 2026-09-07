@@ -230,8 +230,8 @@ const EditAgreementModal = ({
   };
 
   return (
-    <Modalbox open={open} onClose={onClose} outside={true}>
-      <div className="bg-white rounded-3xl p-5 md:p-7 max-w-4xl w-full space-y-5 max-h-[92vh] overflow-y-auto">
+    <Modalbox open={open} onClose={onClose} outside={true} maxWidth="max-w-4xl" showClose={false}>
+      <div className="p-5 md:p-7 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">

@@ -54,6 +54,8 @@ const Leaveledger = () => {
     const [loading, setLoading] = useState(false);
     const { company, employee, leaveBalance, branch, leavePolicies } = useSelector((state) => state.user);
 
+    const [policies, setPolicies] = useState([]);
+
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({
             ...prev,
@@ -62,8 +64,26 @@ const Leaveledger = () => {
     };
 
     useEffect(() => {
-        if (leaveBalance) setRows(leaveBalance);
-    }, [leaveBalance]);
+        fetchLeaveLedgerData();
+    }, []);
+
+    const fetchLeaveLedgerData = async () => {
+        try {
+            setLoading(true);
+            const [lbRes, polRes, empRes] = await Promise.all([
+                apiClient({ url: "leave-balances" }),
+                apiClient({ url: "leave-policies" }),
+                apiClient({ url: "getemployee" })
+            ]);
+            if (Array.isArray(lbRes)) setRows(lbRes);
+            if (Array.isArray(polRes)) setPolicies(polRes);
+            if (Array.isArray(empRes)) dispatch(setEmployees(empRes));
+        } catch (err) {
+            console.error("Error fetching leave ledger data:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -157,7 +177,7 @@ const Leaveledger = () => {
                 });
                 toast.success("Leave balance added");
             }
-            dispatch(FirstFetch());
+            fetchLeaveLedgerData();
             handleClose();
         } catch (error) {
             console.error("Error saving leave balance:", error);
@@ -175,7 +195,7 @@ const Leaveledger = () => {
                     method: "DELETE"
                 });
                 toast.success("Leave balance deleted");
-                dispatch(FirstFetch());
+                fetchLeaveLedgerData();
             } catch (error) {
                 console.error("Error deleting leave balance:", error);
                 toast.error(error.message || "Failed to delete");
@@ -314,7 +334,9 @@ const Leaveledger = () => {
             value: emp._id
         }));
 
-    const policyOptions = (leavePolicies || []).map(p => ({
+    const activePolicies = policies?.length > 0 ? policies : (leavePolicies || []);
+
+    const policyOptions = activePolicies.map(p => ({
         label: `${p.name} (${p.allocationType})`,
         value: p._id
     }));

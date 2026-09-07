@@ -15,6 +15,8 @@ import {
   FileText,
   User,
   ExternalLink,
+  AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Modalbox from '../../components/custommodal/Modalbox';
@@ -28,6 +30,8 @@ const PlotSeriesMaster = () => {
     baseSqFtRate: 500,
     cornerExtraPercent: 20,
     interestRatePercent: 10.88,
+    lateFineGraceDays: 15,
+    lateFineDailyPercent: 0.05,
   });
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -67,6 +71,8 @@ const PlotSeriesMaster = () => {
     numberFormat: 'A000',
     defaultDimensions: { north: '', south: '', east: '', west: '' },
     remarks: '',
+    gracePeriodDays: 15,
+    lateFineDailyPercent: 0.05,
   });
 
   // Edit series form
@@ -79,6 +85,8 @@ const PlotSeriesMaster = () => {
     endNumber: '',
     defaultDimensions: { north: '', south: '', east: '', west: '' },
     remarks: '',
+    gracePeriodDays: 15,
+    lateFineDailyPercent: 0.05,
   });
 
   // Plot configuration / adjust modal state
@@ -163,6 +171,8 @@ const PlotSeriesMaster = () => {
         numberFormat: 'A000',
         defaultDimensions: { north: '', south: '', east: '', west: '' },
         remarks: '',
+        gracePeriodDays: rateConfig.lateFineGraceDays ?? 15,
+        lateFineDailyPercent: rateConfig.lateFineDailyPercent ?? 0.05,
       });
       fetchData();
     } catch (err) {
@@ -304,6 +314,8 @@ const PlotSeriesMaster = () => {
         west: series.defaultDimensions?.west || '',
       },
       remarks: series.remarks || '',
+      gracePeriodDays: series.gracePeriodDays ?? rateConfig.lateFineGraceDays ?? 15,
+      lateFineDailyPercent: series.lateFineDailyPercent ?? rateConfig.lateFineDailyPercent ?? 0.05,
     });
     setShowEditModal(true);
   };
@@ -394,6 +406,8 @@ const PlotSeriesMaster = () => {
         baseSqFtRate: Number(rateConfig.baseSqFtRate) || 1000,
         cornerExtraPercent: Number(rateConfig.cornerExtraPercent) || 20,
         interestRatePercent: Number(rateConfig.interestRatePercent) || 10.88,
+        lateFineGraceDays: Math.max(0, Number(rateConfig.lateFineGraceDays) || 0),
+        lateFineDailyPercent: Math.max(0, Number(rateConfig.lateFineDailyPercent) || 0),
         rateSlabs: (rateConfig.rateSlabs || []).map((s) => ({
           ...s,
           tenureMonths: Number(s.tenureMonths) || 0,
@@ -647,7 +661,7 @@ const PlotSeriesMaster = () => {
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr className="bg-slate-100/75 border-b border-slate-200 select-none text-slate-700 font-bold uppercase text-[10px] tracking-wider">
-                    {['Series Name', 'Prefix', 'Plot Range', 'Default Area', 'Default Type', 'Format', 'Remarks', 'Actions'].map((h) => (
+                    {['Series Name', 'Prefix', 'Plot Range', 'Default Area', 'Default Type', 'Grace Period', 'Late Fine / Day', 'Format', 'Remarks', 'Actions'].map((h) => (
                       <th key={h} className="p-3.5">
                         {h}
                       </th>
@@ -657,7 +671,7 @@ const PlotSeriesMaster = () => {
                 <tbody className="divide-y divide-slate-100">
                   {seriesList.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="p-8 text-center text-slate-400 italic font-medium">
+                      <td colSpan="10" className="p-8 text-center text-slate-400 italic font-medium">
                         No plot series defined yet. Click "Create Series Block" to get started.
                       </td>
                     </tr>
@@ -673,6 +687,16 @@ const PlotSeriesMaster = () => {
                         <td className="p-3.5">
                           <span className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
                             {s.defaultPlotType}
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            {s.gracePeriodDays ?? rateConfig.lateFineGraceDays ?? 15} Days
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            {s.lateFineDailyPercent ?? rateConfig.lateFineDailyPercent ?? 0.05}%
                           </span>
                         </td>
                         <td className="p-3.5 font-mono text-slate-500">{s.numberFormat}</td>
@@ -901,7 +925,7 @@ const PlotSeriesMaster = () => {
         <div className="space-y-6">
           <form onSubmit={handleUpdateRates} className="space-y-6">
             {/* Top Config Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                   <SlidersHorizontal size={18} className="text-teal-700" />
@@ -947,6 +971,57 @@ const PlotSeriesMaster = () => {
                     required
                   />
                   <p className="text-[11px] text-slate-400 mt-1">Used in plot refund & settlement calculations.</p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                  <Clock size={18} className="text-blue-600" />
+                  <span>EMI Grace Period</span>
+                </div>
+                <div>
+                  <label className={labelCls}>Grace Period (Days)</label>
+                  <input
+                    className={inputCls}
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="e.g. 15"
+                    value={rateConfig.lateFineGraceDays ?? ''}
+                    onChange={(e) =>
+                      setRateConfig({
+                        ...rateConfig,
+                        lateFineGraceDays: e.target.value.replace(/[^0-9]/g, ''),
+                      })
+                    }
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Days after EMI due date before late fine starts.</p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                  <AlertCircle size={18} className="text-rose-600" />
+                  <span>Daily Late Fine</span>
+                </div>
+                <div>
+                  <label className={labelCls}>Daily Fine Rate (% / Day)</label>
+                  <input
+                    className={inputCls}
+                    type="tel"
+                    inputMode="decimal"
+                    placeholder="e.g. 0.05"
+                    value={rateConfig.lateFineDailyPercent ?? ''}
+                    onChange={(e) =>
+                      setRateConfig({
+                        ...rateConfig,
+                        lateFineDailyPercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'),
+                      })
+                    }
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Daily penalty % on overdue EMI installment.</p>
                 </div>
               </div>
             </div>
@@ -1330,6 +1405,35 @@ const PlotSeriesMaster = () => {
               </div>
             </div>
 
+            {/* Late Fine & Grace Period Settings for this Series */}
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Grace Period (Days)</label>
+                <input
+                  className={inputCls}
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 15"
+                  value={form.gracePeriodDays ?? ''}
+                  onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value.replace(/[^0-9]/g, '') })}
+                />
+                <span className="text-[10px] text-slate-400">Delay days before fine starts</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Late Fine (% / Day)</label>
+                <input
+                  className={inputCls}
+                  type="tel"
+                  inputMode="decimal"
+                  placeholder="e.g. 0.05"
+                  value={form.lateFineDailyPercent ?? ''}
+                  onChange={(e) => setForm({ ...form, lateFineDailyPercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1') })}
+                />
+                <span className="text-[10px] text-slate-400">Daily late fine % on due EMI</span>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Remarks</label>
               <textarea
@@ -1549,6 +1653,35 @@ const PlotSeriesMaster = () => {
                     }}
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Late Fine & Grace Period Settings for this Series */}
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Grace Period (Days)</label>
+                <input
+                  className={inputCls}
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 15"
+                  value={editForm.gracePeriodDays ?? ''}
+                  onChange={(e) => setEditForm({ ...editForm, gracePeriodDays: e.target.value.replace(/[^0-9]/g, '') })}
+                />
+                <span className="text-[10px] text-slate-400">Delay days before fine starts</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Late Fine (% / Day)</label>
+                <input
+                  className={inputCls}
+                  type="tel"
+                  inputMode="decimal"
+                  placeholder="e.g. 0.05"
+                  value={editForm.lateFineDailyPercent ?? ''}
+                  onChange={(e) => setEditForm({ ...editForm, lateFineDailyPercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1') })}
+                />
+                <span className="text-[10px] text-slate-400">Daily late fine % on due EMI</span>
               </div>
             </div>
 

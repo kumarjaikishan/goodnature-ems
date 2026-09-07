@@ -9,9 +9,9 @@ export const NumberInput = forwardRef(({
   helperText,
   startIcon: StartIcon,
   currency = false, // If true, shows ₹ icon
+  allowDecimal = false,
   min,
   max,
-  step = 1,
   value,
   onChange,
   className = '',
@@ -20,6 +20,7 @@ export const NumberInput = forwardRef(({
   required = false,
   size = 'md',
   id,
+  placeholder,
   ...props
 }, ref) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
@@ -28,6 +29,65 @@ export const NumberInput = forwardRef(({
     sm: 'py-1.5 text-xs px-2.5',
     md: 'py-2 text-sm px-3',
     lg: 'py-2.5 text-base px-3.5',
+  };
+
+  const handleInputChange = (e) => {
+    let val = e.target.value;
+    if (allowDecimal) {
+      // Allow only numbers and a single decimal point
+      val = val.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+    } else {
+      // Strict digits only
+      val = val.replace(/\D/g, '');
+    }
+
+    if (max !== undefined && val !== '') {
+      if (Number(val) > Number(max)) return;
+    }
+
+    if (onChange) {
+      // Create synthetic event or pass sanitized value
+      const syntheticEvent = {
+        ...e,
+        target: {
+          ...e.target,
+          name: e.target.name,
+          value: val,
+        },
+      };
+      onChange(syntheticEvent);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    // Prevent non-numeric characters from being typed
+    if (
+      [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'Escape',
+        'Enter',
+        'ArrowLeft',
+        'ArrowRight',
+        'Home',
+        'End',
+      ].includes(e.key) ||
+      (e.ctrlKey || e.metaKey)
+    ) {
+      return;
+    }
+
+    if (allowDecimal && e.key === '.') {
+      if (String(value || '').includes('.')) {
+        e.preventDefault();
+      }
+      return;
+    }
+
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
   };
 
   return (
@@ -60,14 +120,13 @@ export const NumberInput = forwardRef(({
         <input
           ref={ref}
           id={inputId}
-          type="number"
+          type="tel"
           inputMode="numeric"
           pattern="[0-9]*"
-          min={min}
-          max={max}
-          step={step}
+          placeholder={placeholder}
           value={value ?? ''}
-          onChange={onChange}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           disabled={disabled}
           required={required}
           className={`

@@ -4,6 +4,7 @@ import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
 import Modalbox from '../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
+import { Button } from '../../components/ui/Button';
 import { Plus, Eye, Edit2, Trash2, Search, User } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
@@ -149,13 +150,14 @@ const PlotCustomers = () => {
           <h1 className="text-2xl font-bold text-slate-800">Customers</h1>
           <p className="text-slate-500 text-sm">Manage customers registered under plot projects</p>
         </div>
-        <button
+        <Button
+          variant="primary"
+          size="md"
+          startIcon={Plus}
           onClick={() => navigate('/dashboard/plots/customers/new')}
-          className="inline-flex items-center justify-center gap-2 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer bg-primary"
         >
-          <Plus size={18} />
           Add New Customer
-        </button>
+        </Button>
       </div>
 
       {/* Search Bar */}

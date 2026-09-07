@@ -41,8 +41,8 @@ const KisanLedgersDrawer = ({
     : [{ name: 'Good Nature Developers Pvt Ltd' }];
 
   return (
-    <Modalbox open={open} onClose={onClose} outside={true}>
-      <div className="bg-white rounded-3xl p-5 md:p-6 max-w-5xl w-full space-y-5 max-h-[90vh] overflow-y-auto">
+    <Modalbox open={open} onClose={onClose} outside={true} maxWidth="max-w-5xl" showClose={false}>
+      <div className="p-5 md:p-6 space-y-5">
         {/* Modal Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
           <div>

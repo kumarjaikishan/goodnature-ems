@@ -36,7 +36,7 @@ const BranchManagerPage = () => {
                 seteditbranchdata(null);
                 seteditbranch(false);
             }}>
-                <div className="membermodal w-[680px]" >
+                <div className="w-[680px] max-w-[92vw] bg-white rounded-2xl" >
                     <Addbranch setopenviewmodal={setopenviewmodal} editbranchdata={editbranchdata} editbranch={editbranch} company={company} employee={employee} />
                 </div>
             </Modalbox>

@@ -189,13 +189,13 @@ const Navbar = () => {
 
       <div className={` ${(sidebarOpen && isMobile) ? "hidden" : "flex"} gap-3 md:gap-4 items-center text-grey`}>
         {/* Dynamic Live Date & Time Card */}
-        <div className="hidden sm:flex items-center gap-2 select-none">
+        <div className="hidden sm:flex items-center gap-2 select-none py-0.5">
           <Clock size={16} className="text-teal-600 shrink-0" />
-          <div className="flex flex-col leading-none">
-            <span className="text-[13px] font-extrabold text-slate-800 tracking-tight tabular-nums">
-              {currentTime.format("hh:mm:ss a")}
+          <div className="flex flex-col justify-center">
+            <span className="text-[13px] font-bold text-slate-800 tracking-wide tabular-nums leading-tight">
+              {currentTime.format("hh:mm:ss A")}
             </span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 leading-tight">
               {currentTime.format("ddd, DD MMM")}
             </span>
           </div>

@@ -1,5 +1,5 @@
 import { apiClient } from "../../../utils/apiClient";
-import { FirstFetch } from "../../../../store/userSlice";
+import { FirstFetch, setEmployees } from "../../../../store/userSlice";
 import { toast } from "../../../utils/toast";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { Eye, FileSpreadsheet, Clock, Edit2, KeyRound, Trash2 } from "lucide-react";
@@ -213,10 +213,10 @@ export const addemployee = async ({ formData, dispatch, setisload, setInp, setop
         setInp(init);
         resetPhoto();
         setopenmodal(false);
-        dispatch(FirstFetch())
+        const updatedList = await apiClient({ url: "getemployee" });
+        if (Array.isArray(updatedList)) dispatch(setEmployees(updatedList));
     } catch (error) {
         console.error('Error adding employee:', error);
-        // Error handling is managed by apiClient/useApi (toast.warn/error)
     } finally {
         setisload(false);
     }
@@ -237,7 +237,8 @@ export const employeeupdate = async ({ formData, dispatch, setEmployeePhoto, set
         setEmployeePhoto(null)
         setInp(init);
         setopenmodal(false);
-        dispatch(FirstFetch())
+        const updatedList = await apiClient({ url: "getemployee" });
+        if (Array.isArray(updatedList)) dispatch(setEmployees(updatedList));
     } catch (error) {
         console.error('Error updating employee:', error);
     } finally {
@@ -260,8 +261,9 @@ export const employeedelette = async ({ employeeId, setisload, dispatch }) => {
             body: { employeeId }
         });
 
-        dispatch(FirstFetch())
         toast.success(data.message, { autoClose: 1200 });
+        const updatedList = await apiClient({ url: "getemployee" });
+        if (Array.isArray(updatedList)) dispatch(setEmployees(updatedList));
     } catch (error) {
         console.error('Error deleting employee:', error);
     } finally {

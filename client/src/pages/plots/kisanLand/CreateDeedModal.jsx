@@ -129,8 +129,8 @@ const CreateDeedModal = ({
   };
 
   return (
-    <Modalbox open={open} onClose={onClose} outside={true}>
-      <div className="bg-white rounded-3xl p-5 md:p-6 max-w-3xl w-full space-y-4 max-h-[92vh] overflow-y-auto">
+    <Modalbox open={open} onClose={onClose} outside={true} maxWidth="max-w-3xl" showClose={false}>
+      <div className="p-4 sm:p-6 w-full space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
@@ -161,17 +161,31 @@ const CreateDeedModal = ({
           {/* Top Deed Metadata */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-purple-50/40 p-3.5 rounded-2xl border border-purple-100">
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Registry Deed Number *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-700">
+                  Registry Deed Number *
+                </label>
+                {targetAgreementForDeed?.agreementNumber && (
+                  <span className="text-[10px] font-mono text-purple-700 font-semibold bg-purple-100/70 px-1.5 py-0.5 rounded">
+                    Pattern: {targetAgreementForDeed.agreementNumber}/DEED-XXXX
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 required
-                placeholder="e.g. DEED-2026-9812"
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-purple-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-purple-900"
+                placeholder={
+                  targetAgreementForDeed?.agreementNumber
+                    ? `e.g. ${targetAgreementForDeed.agreementNumber}/DEED-2026-001`
+                    : 'e.g. AGR-2627-001/DEED-2026-001'
+                }
+                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-purple-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-purple-900 placeholder:text-slate-400 placeholder:font-normal"
                 value={deedForm.deedNumber || ''}
                 onChange={(e) => setDeedForm({ ...deedForm, deedNumber: e.target.value })}
               />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Note pattern: <strong>Agreement No / Deed No</strong> (shows parent agreement origin followed by deed identifier).
+              </p>
             </div>
 
             <div>

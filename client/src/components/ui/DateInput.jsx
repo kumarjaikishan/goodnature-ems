@@ -162,7 +162,7 @@ export const DateInput = forwardRef(({
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
-          w-full rounded-xl border bg-white text-slate-800 transition-all duration-150 outline-none
+          w-full rounded-lg border bg-white text-slate-800 transition-all duration-150 outline-none
           flex items-center justify-between text-left cursor-pointer
           ${sizeClasses[size] || sizeClasses.md}
           ${error

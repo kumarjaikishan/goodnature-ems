@@ -1,8 +1,15 @@
 require("dotenv").config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 5008;
+
+// Basic security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false // Disabled on API layer to prevent blocking client CDN/assets
+}));
 
 const errorHandle = require('./utils/error_util');
 const route = require('./router/route');
@@ -16,16 +23,25 @@ require('./conn/conn');
 // Enable CORS
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, or server-to-server) or matching allowed origins / vercel previews
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Allow configured origins, localhost, or vercel preview deployments
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      /^http:\/\/localhost:\d+$/.test(origin);
+
+    if (isAllowed) {
       return callback(null, true);
     }
-    return callback(null, true); // Alternatively allow all in production if needed
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true
 }));

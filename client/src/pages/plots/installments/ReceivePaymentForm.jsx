@@ -87,7 +87,7 @@ const ReceivePaymentForm = ({
                     Loading installment schedule for #{selectedBooking.bookingNumber}...
                   </span>
                 </div>
-              ) : selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && installments.length > 0 ? (
+              ) : installments && installments.length > 0 ? (
                 <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
                   <label className="text-[0.68rem] font-bold text-slate-500 uppercase tracking-wide px-1">
                     Installments Ledger / Select to Pay
