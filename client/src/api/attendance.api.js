@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 export const bulkMarkAttendanceApi = async (attendanceRecords) => {
   const response = await fetch(
     `${import.meta.env.VITE_API_ADDRESS}bulkMarkAttendance`,
@@ -18,11 +20,30 @@ export const bulkMarkAttendanceApi = async (attendanceRecords) => {
   return response.json();
 };
 
-export const getBulkMarkDataApi = async (date, branchId, departmentId) => {
+export const getBulkMarkDataApi = async (dateOrParams, branchId, departmentId) => {
+  let dateVal;
+  let branchVal;
+  let deptVal;
+
+  if (typeof dateOrParams === 'object' && dateOrParams !== null && !dayjs.isDayjs(dateOrParams)) {
+    dateVal = dateOrParams.date;
+    branchVal = dateOrParams.branchId;
+    deptVal = dateOrParams.departmentId;
+  } else {
+    dateVal = dateOrParams;
+    branchVal = branchId;
+    deptVal = departmentId;
+  }
+
+  // Format date if dayjs object was passed
+  if (dayjs.isDayjs(dateVal)) {
+    dateVal = dateVal.format('YYYY-MM-DD');
+  }
+
   const query = new URLSearchParams({
-    date,
-    branchId: branchId || 'all',
-    departmentId: departmentId || 'all'
+    date: dateVal || dayjs().format('YYYY-MM-DD'),
+    branchId: branchVal || 'all',
+    departmentId: deptVal || 'all'
   }).toString();
 
   const response = await fetch(
@@ -36,7 +57,8 @@ export const getBulkMarkDataApi = async (date, branchId, departmentId) => {
   );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch bulk mark data");
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Failed to fetch bulk mark data");
   }
 
   return response.json();
