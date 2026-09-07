@@ -12,6 +12,7 @@ import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
@@ -387,13 +388,15 @@ const Leaveledger = () => {
                             value="All Active Employees"
                         />
                     ) : (
-                        <Select
+                        <SearchableSelect
                             label="Select Employee"
                             required
                             options={employeeOptions}
                             placeholder="Select Employee..."
+                            searchPlaceholder="Search employee name or ID..."
                             value={form.employeeId}
-                            onChange={(e) => setEmployeeId(e.target.value)}
+                            onChange={(val) => setEmployeeId(val)}
+                            allowClear={false}
                         />
                     )}
 

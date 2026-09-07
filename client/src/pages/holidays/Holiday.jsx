@@ -100,10 +100,11 @@ const HolidayForm = () => {
   }, [company]);
 
   const handleFromDateChange = (val) => {
+    const rawVal = val?.target?.value !== undefined ? val.target.value : val;
     setForm(prev => {
-      const next = { ...prev, fromDate: val };
-      if (val && !prev.toDate) {
-        next.toDate = val;
+      const next = { ...prev, fromDate: rawVal };
+      if (rawVal && !prev.toDate) {
+        next.toDate = rawVal;
       }
       return next;
     });
@@ -176,11 +177,13 @@ const HolidayForm = () => {
     setIsUpdate(true);
     setopen(true);
     setHolidayId(holi._id);
+    const rawFrom = holi.fromDate || holi.From;
+    const rawTo = holi.toDate || holi.till || rawFrom;
     setForm({
-      name: holi.name,
+      name: holi.name || '',
       type: holi.type || 'Public',
-      fromDate: holi.From ? dayjs(holi.From).format('YYYY-MM-DD') : '',
-      toDate: holi.till ? dayjs(holi.till).format('YYYY-MM-DD') : '',
+      fromDate: rawFrom ? (dayjs(rawFrom).isValid() ? dayjs(rawFrom).format('YYYY-MM-DD') : rawFrom) : '',
+      toDate: rawTo ? (dayjs(rawTo).isValid() ? dayjs(rawTo).format('YYYY-MM-DD') : rawTo) : '',
       description: holi.description || ''
     });
     setTimeout(() => {
@@ -639,7 +642,10 @@ const HolidayForm = () => {
                   required
                   align="right"
                   value={form.toDate}
-                  onChange={(val) => setForm(prev => ({ ...prev, toDate: val }))}
+                  onChange={(val) => {
+                    const rawVal = val?.target?.value !== undefined ? val.target.value : val;
+                    setForm(prev => ({ ...prev, toDate: rawVal }));
+                  }}
                 />
               </div>
 

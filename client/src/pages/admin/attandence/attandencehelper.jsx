@@ -367,9 +367,9 @@ export const useCustomStyles = () => {
         letterSpacing: "0.03em",
         textTransform: "uppercase",
         color: "#ffffff",
-        paddingLeft: "12px",
-        paddingRight: "12px",
-        minHeight: "38px",
+        paddingLeft: "8px",
+        paddingRight: "8px",
+        minHeight: "34px",
       },
     },
     headRow: {
@@ -379,7 +379,7 @@ export const useCustomStyles = () => {
     },
     rows: {
       style: {
-        minHeight: "36px",
+        minHeight: "34px",
         borderBottom: "1px solid #f1f5f9",
         "&:hover": {
           backgroundColor: "#f8fafc",
@@ -388,8 +388,8 @@ export const useCustomStyles = () => {
     },
     cells: {
       style: {
-        paddingLeft: "12px",
-        paddingRight: "12px",
+        paddingLeft: "8px",
+        paddingRight: "8px",
         paddingTop: "2px",
         paddingBottom: "2px",
       },

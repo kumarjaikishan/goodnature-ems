@@ -223,6 +223,13 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Fix Pattern**:
   1. `client/src/pages/plots/PlotClosingsPage.jsx`: Added `isSubmittingRef`, `lastPreviewKeyRef`, and `AbortController` request cancellation to abort in-flight previews upon submit and ignore late responses while `isSubmittingRef.current` is active.
   2. `server/models/entry.js`: Added `'commission_closing'`, `'plot_payout'`, and `'investment'` to the `source` enum.
-  3. `server/services/plots.service.js`: Added explicit session propagation and safe `userId` ObjectId checks for `PlotAuditLog`.
+### Y. SearchableSelect Combobox Component Adoption
+- **Component**: [`client/src/components/ui/SearchableSelect.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/SearchableSelect.jsx)
+- **Features**: Live search filter, clear button (`allowClear`), keyboard navigation (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`), custom option rendering with subtitles, and size variants (`sm`, `md`, `lg`).
+- **Applied Locations**:
+  - [VoucherList.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/vouchers/VoucherList.jsx): Ledger filter dropdown & Create/Edit Voucher dialog modal ledger picker.
+  - [advance.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/advance/advance.jsx): Employee selector toolbar filter.
+  - [leaveledger.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/leaveledger/leaveledger.jsx): Individual Employee selection in Add/Adjust Leave Balance modal.
+- **Contract Pattern**: `onChange={(val, raw) => ...}` passes primitive string/number instead of native event `e.target.value`.
 
 

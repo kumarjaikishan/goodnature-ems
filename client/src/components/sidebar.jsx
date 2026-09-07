@@ -289,26 +289,30 @@ const Sidebar = () => {
                       {/* Expanded Submenu (Open Sidebar) */}
                       {showText && (
                         <div
-                          className="ml-4 pl-2.5 mt-0.5 space-y-0.5 border-l-2 border-teal-100 overflow-hidden transition-all duration-200"
-                          style={{ maxHeight: isOpen ? `${item.children.length * 42}px` : "0px" }}
+                          className="relative ml-5 pl-3 mt-1.5 space-y-1 border-l-2 border-teal-200 overflow-hidden transition-all duration-200"
+                          style={{ maxHeight: isOpen ? `${item.children.length * 48}px` : "0px" }}
                         >
                           {item.children.map((child) => {
                             if (!child.roles.includes(role)) return null;
                             return (
-                              <NavLink
-                                to={child.link}
-                                key={child.menu}
-                                onClick={() => setOpenSubmenu(menuId)}
-                                className={({ isActive }) =>
-                                  `block px-2.5 py-1.5 text-xs rounded-lg transition-all ${
-                                    isActive
-                                      ? "bg-teal-700 text-white font-semibold shadow-xs"
-                                      : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
-                                  }`
-                                }
-                              >
-                                {child.menu}
-                              </NavLink>
+                              <div key={child.menu} className="relative flex items-center">
+                                {/* Tree horizontal branch connector line */}
+                                <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-2.5 h-[2px] bg-teal-200 pointer-events-none" />
+                                
+                                <NavLink
+                                  to={child.link}
+                                  onClick={() => setOpenSubmenu(menuId)}
+                                  className={({ isActive }) =>
+                                    `w-full block px-2.5 py-1.5 text-xs rounded-lg transition-all ${
+                                      isActive
+                                        ? "bg-teal-700 text-white font-semibold shadow-xs"
+                                        : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
+                                    }`
+                                  }
+                                >
+                                  {child.menu}
+                                </NavLink>
+                              </div>
                             );
                           })}
                         </div>

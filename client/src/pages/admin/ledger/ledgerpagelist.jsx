@@ -18,6 +18,9 @@ const LedgerListPage = () => {
     const [ledgers, setLedgers] = useState([]);
     const [filteredLedgers, setFilteredLedgers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [typeFilter, setTypeFilter] = useState("all");
+    const [balanceFilter, setBalanceFilter] = useState("all");
+    const [sortBy, setSortBy] = useState("name_asc");
     const navigate = useNavigate();
     const { ledger } = useSelector(e => e.user);
     const [editLedgerId, setEditLedgerId] = useState(null);
@@ -46,16 +49,63 @@ const LedgerListPage = () => {
     }, []);
 
     useEffect(() => {
-        if (ledgers.length < 1) return;
-        if (searchQuery.trim() === "") {
-            setFilteredLedgers(ledgers);
-        } else {
-            const lower = searchQuery.toLowerCase();
-            setFilteredLedgers(
-                ledgers.filter((l) => l.name.toLowerCase().includes(lower))
+        if (!ledgers) return;
+        let result = [...ledgers];
+
+        // Search query filter (name or empId)
+        if (searchQuery.trim() !== "") {
+            const lower = searchQuery.toLowerCase().trim();
+            result = result.filter((l) => 
+                (l.name && l.name.toLowerCase().includes(lower)) ||
+                (l.empId && String(l.empId).toLowerCase().includes(lower))
             );
         }
-    }, [searchQuery, ledgers]);
+
+        // Ledger Type Filter (employee, custom, sponsor, etc.)
+        if (typeFilter !== "all") {
+            result = result.filter((l) => {
+                const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId);
+                const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                
+                if (typeFilter === 'employee') {
+                    return isEmployee && !isSponsor;
+                }
+                if (typeFilter === 'sponsor') {
+                    return isSponsor;
+                }
+                if (typeFilter === 'custom') {
+                    // Custom ledgers are those that are NOT employees and NOT sponsors
+                    return !isEmployee && !isSponsor;
+                }
+                return true;
+            });
+        }
+
+        // Balance Status Filter
+        if (balanceFilter === "payable") {
+            result = result.filter((l) => (l.netBalance || 0) > 0);
+        } else if (balanceFilter === "receivable") {
+            result = result.filter((l) => (l.netBalance || 0) < 0);
+        } else if (balanceFilter === "zero") {
+            result = result.filter((l) => (l.netBalance || 0) === 0);
+        }
+
+        // Sorting
+        result.sort((a, b) => {
+            if (sortBy === "name_asc") {
+                return (a.name || "").localeCompare(b.name || "");
+            } else if (sortBy === "name_desc") {
+                return (b.name || "").localeCompare(a.name || "");
+            } else if (sortBy === "balance_desc") {
+                return Math.abs(b.netBalance || 0) - Math.abs(a.netBalance || 0);
+            } else if (sortBy === "balance_asc") {
+                return Math.abs(a.netBalance || 0) - Math.abs(b.netBalance || 0);
+            }
+            return 0;
+        });
+
+        setFilteredLedgers(result);
+    }, [searchQuery, typeFilter, balanceFilter, sortBy, ledgers]);
 
     const fetchLedgers = async () => {
         setLoading(true);
@@ -232,62 +282,143 @@ const LedgerListPage = () => {
                 </div>
             </div>
 
-            {/* Toolbar */}
-            <div className="flex flex-wrap justify-between items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex gap-3 items-center flex-wrap w-full md:w-auto">
-                    <div className="w-full sm:w-[240px]">
-                        <Input
-                            size="sm"
-                            placeholder="Search ledger..."
-                            icon={<Search size={14} className="text-slate-400" />}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+            {/* Toolbar & Filters */}
+            <div className="bg-white p-3 md:p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex flex-wrap justify-between items-center gap-2.5">
+                    {/* Left: Search & View Toggle */}
+                    <div className="flex gap-2.5 items-center flex-wrap flex-1 min-w-[280px]">
+                        <div className="w-full sm:w-[220px]">
+                            <Input
+                                size="sm"
+                                placeholder="Search name or ID..."
+                                icon={<Search size={14} className="text-slate-400" />}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+
+                        {/* View Switcher Toggle */}
+                        <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-0.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setViewType('card');
+                                    localStorage.setItem('ledgerViewType', 'card');
+                                }}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                    viewType === 'card'
+                                        ? 'bg-teal-700 text-white shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                                }`}
+                            >
+                                <LayoutGrid className="w-3.5 h-3.5" />
+                                Card
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setViewType('table');
+                                    localStorage.setItem('ledgerViewType', 'table');
+                                }}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                    viewType === 'table'
+                                        ? 'bg-teal-700 text-white shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                                }`}
+                            >
+                                <Table className="w-3.5 h-3.5" />
+                                Table
+                            </button>
+                        </div>
                     </div>
 
-                    {/* View Switcher Toggle */}
-                    <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-0.5">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setViewType('card');
-                                localStorage.setItem('ledgerViewType', 'card');
-                            }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                                viewType === 'card'
-                                    ? 'bg-teal-700 text-white shadow-sm'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                            }`}
-                        >
-                            <LayoutGrid className="w-3.5 h-3.5" />
-                            Card
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setViewType('table');
-                                localStorage.setItem('ledgerViewType', 'table');
-                            }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                                viewType === 'table'
-                                    ? 'bg-teal-700 text-white shadow-sm'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                            }`}
-                        >
-                            <Table className="w-3.5 h-3.5" />
-                            Table
-                        </button>
-                    </div>
+                    {/* Right: Add Ledger Button */}
+                    <Button
+                        icon={<Plus size={15} />}
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleOpenLedgerDialog()}
+                    >
+                        Add Ledger
+                    </Button>
                 </div>
 
-                <Button
-                    icon={<Plus size={15} />}
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleOpenLedgerDialog()}
-                >
-                    Add Ledger
-                </Button>
+                {/* Filter Controls Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* Type Filter */}
+                        <div className="flex items-center gap-1.5">
+                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Type:</label>
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer"
+                            >
+                                <option value="all">All Ledgers ({ledgers.length})</option>
+                                <option value="employee">
+                                    Employees ({ledgers.filter(l => (l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId))).length})
+                                </option>
+                                <option value="sponsor">
+                                    Sponsors ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId))).length})
+                                </option>
+                                <option value="custom">
+                                    Custom Ledgers ({ledgers.filter(l => !(l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId)) && !(l.ledgerType === 'sponsor' || Boolean(l.sponsorId))).length})
+                                </option>
+                            </select>
+                        </div>
+
+                        {/* Balance Filter */}
+                        <div className="flex items-center gap-1.5">
+                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Balance:</label>
+                            <select
+                                value={balanceFilter}
+                                onChange={(e) => setBalanceFilter(e.target.value)}
+                                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer"
+                            >
+                                <option value="all">All Balances</option>
+                                <option value="payable">Payable (We Owe)</option>
+                                <option value="receivable">Receivable (Owed to Us)</option>
+                                <option value="zero">Settled (₹ 0.00)</option>
+                            </select>
+                        </div>
+
+                        {/* Sort Filter */}
+                        <div className="flex items-center gap-1.5">
+                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Sort:</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer"
+                            >
+                                <option value="name_asc">Name (A → Z)</option>
+                                <option value="name_desc">Name (Z → A)</option>
+                                <option value="balance_desc">Highest Balance First</option>
+                                <option value="balance_asc">Lowest Balance First</option>
+                            </select>
+                        </div>
+
+                        {/* Reset Filter Button */}
+                        {(searchQuery || typeFilter !== 'all' || balanceFilter !== 'all' || sortBy !== 'name_asc') && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery("");
+                                    setTypeFilter("all");
+                                    setBalanceFilter("all");
+                                    setSortBy("name_asc");
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                                <X size={13} /> Clear Filters
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter count indicator */}
+                    <div className="text-[11px] font-semibold text-slate-500">
+                        Showing <span className="text-teal-700 font-bold">{filteredLedgers.length}</span> of {ledgers.length} ledgers
+                    </div>
+                </div>
             </div>
 
             {loading ? <Loader /> : (
@@ -324,11 +455,13 @@ const LedgerListPage = () => {
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
-                                                        l.ledgerType === 'employee' 
+                                                        l.ledgerType === 'employee' || Boolean(l.employeeId)
                                                             ? 'bg-blue-50 text-blue-700 border border-blue-100' 
+                                                            : l.ledgerType === 'sponsor' || Boolean(l.sponsorId)
+                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
                                                             : 'bg-amber-50 text-amber-700 border border-amber-100'
                                                     }`}>
-                                                        {l.ledgerType || 'Custom'}
+                                                        {l.ledgerType === 'sponsor' || Boolean(l.sponsorId) ? 'Sponsor' : (l.ledgerType || (l.employeeId ? 'Employee' : 'Custom'))}
                                                     </span>
                                                     {l.empId && (
                                                         <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
@@ -472,11 +605,13 @@ const LedgerListPage = () => {
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
-                                                    l.ledgerType === 'employee' 
+                                                    l.ledgerType === 'employee' || Boolean(l.employeeId)
                                                         ? 'bg-blue-50 text-blue-700 border border-blue-100' 
+                                                        : l.ledgerType === 'sponsor' || Boolean(l.sponsorId)
+                                                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
                                                         : 'bg-amber-50 text-amber-700 border border-amber-100'
                                                 }`}>
-                                                    {l.ledgerType || 'Custom'}
+                                                    {l.ledgerType === 'sponsor' || Boolean(l.sponsorId) ? 'Sponsor' : (l.ledgerType || (l.employeeId ? 'Employee' : 'Custom'))}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">

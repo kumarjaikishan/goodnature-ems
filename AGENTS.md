@@ -32,10 +32,15 @@ Before making ANY changes or proposing new features:
 1. **Investigate & Verify**:
    - Locate the exact files and check current logic before making edits.
    - Verify model schemas in `server/models/` and routes in `server/router/`.
-2. **Execute Minimum-Diff Changes**:
+2. **Execute Minimum-Diff Changes & Opportunistic Hygiene**:
    - Preserve existing function signatures, comments, and structure.
    - Respect the 4-number CRUD permission standard (`1: Read, 2: Create, 3: Update, 4: Delete`).
    - Respect timezone handling in `server/utils/attendanceTime.js` (UTC dates stored at UTC midnight for attendance, IST calculation in India time).
+   - **Automatic Hygiene on Touched Files**: Whenever editing any file for a task or bug fix, automatically:
+     - Remove dead / unused imports and variables in that file.
+     - Remove leftover debugging `console.log` statements in that file.
+     - Use shared UI components (`Button`, `Input`, `DateInput`, `Select`, `SearchableSelect`) where appropriate without rewriting working logic.
+     - Inspect `useEffect` hooks in that file to ensure proper dependency management without introducing render loops.
 3. **Record Findings**:
    - Update `memory/SESSION_MEMORY.md` with any newly identified quirks, caveats, or fixes.
    - Update `docs/TODO.md` when completing or identifying new tasks.

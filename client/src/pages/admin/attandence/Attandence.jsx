@@ -450,7 +450,7 @@ const Attandence = () => {
 
 
   return (
-    <div className='p-4 md:p-6 max-w-7xl mx-auto space-y-5'>
+    <div className='p-3 md:p-4 max-w-7xl mx-auto space-y-3.5'>
 
       {/* Header & Controls Panel */}
       <AttendanceControls
@@ -549,17 +549,17 @@ const AttendanceControls = React.memo(({
   const isFiltered = filtere.fromDate || filtere.toDate || filtere.branch !== 'all' || filtere.departmente !== 'all' || filtere.status !== 'all' || filtere.month !== 'all' || filtere.year !== 'all' || inputValue;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-4 md:p-5 space-y-4">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-3 md:p-3.5 space-y-2.5">
 
       {/* Top Bar: Title / Segmented Tab Switcher / Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3.5">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 border-b border-slate-100 pb-2.5">
+        <div className="flex items-center gap-2.5">
           {/* Segmented View Switcher */}
-          <div className="inline-flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200">
+          <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
             <button
               type="button"
               onClick={() => setmarkattandence(false)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 !markattandence
                   ? "bg-teal-700 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -572,7 +572,7 @@ const AttendanceControls = React.memo(({
               <button
                 type="button"
                 onClick={() => setmarkattandence(true)}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                   markattandence
                     ? "bg-teal-700 text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
@@ -651,18 +651,18 @@ const AttendanceControls = React.memo(({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {/* Employee Search */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-2 relative">
             <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-              <Search size={14} />
+              <Search size={13} />
             </div>
             <input
               type="text"
               placeholder="Search employee name..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-7 pr-2.5 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
@@ -671,7 +671,7 @@ const AttendanceControls = React.memo(({
             <select
               value={filtere.branch}
               onChange={(e) => setfiltere({ ...filtere, branch: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
               <option value="all">All Branches</option>
               {profile?.role === 'manager'
@@ -693,7 +693,7 @@ const AttendanceControls = React.memo(({
               value={filtere.departmente}
               disabled={filtere.branch === "all"}
               onChange={(e) => setfiltere({ ...filtere, departmente: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100"
             >
               <option value="all">All Departments</option>
               {department
@@ -711,7 +711,7 @@ const AttendanceControls = React.memo(({
             <select
               value={filtere.status}
               onChange={(e) => setfiltere({ ...filtere, status: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
               <option value="all">All Status</option>
               <option value="present">Present</option>
@@ -728,7 +728,7 @@ const AttendanceControls = React.memo(({
             <select
               value={filtere.month}
               onChange={(e) => setfiltere({ ...filtere, month: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
               <option value="all">All Months</option>
               {months.map((m, idx) => (
@@ -744,7 +744,7 @@ const AttendanceControls = React.memo(({
               title="From Date"
               value={filtere.fromDate}
               onChange={(e) => setfiltere({ ...filtere, fromDate: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             />
           </div>
 
@@ -755,7 +755,7 @@ const AttendanceControls = React.memo(({
               title="To Date"
               value={filtere.toDate}
               onChange={(e) => setfiltere({ ...filtere, toDate: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             />
           </div>
 
@@ -764,7 +764,7 @@ const AttendanceControls = React.memo(({
             <select
               value={filtere.year}
               onChange={(e) => setfiltere({ ...filtere, year: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+              className="w-full px-2 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
               <option value="all">All Years</option>
               {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (

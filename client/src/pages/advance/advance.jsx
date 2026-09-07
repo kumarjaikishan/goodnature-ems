@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import { Edit2, Trash2, Plus, User } from "lucide-react";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import Select from "@/components/ui/Select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import DateInput from "@/components/ui/DateInput";
 import NumberInput from "@/components/ui/NumberInput";
 import Button from "@/components/ui/Button";
@@ -299,11 +300,14 @@ const EmployeeAdvancePage = () => {
                     </div>
 
                     <div className="w-72">
-                        <Select
+                        <SearchableSelect
                             size="sm"
                             options={employeeOptions}
+                            placeholder="Select Employee..."
+                            searchPlaceholder="Search employee..."
                             value={selectedEmployeeId}
-                            onChange={(e) => handleEmployeeSelect(e.target.value)}
+                            onChange={(val) => handleEmployeeSelect(val || 'all')}
+                            allowClear={false}
                         />
                     </div>
                 </div>

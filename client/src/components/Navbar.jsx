@@ -1,25 +1,32 @@
 
 import { useSelector, useDispatch } from 'react-redux';
-import { Menu, User } from 'lucide-react';
+import { Menu, User, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NotificationIcon } from './popover';
 import { useLocation } from 'react-router-dom';
 import { toogleextendedonMobile, tooglesidebar } from '../../store/userSlice';
+import dayjs from 'dayjs';
 
 const Navbar = () => {
   const location = useLocation();
   const [notificatione, setnotification] = useState([]);
+  const [currentTime, setCurrentTime] = useState(dayjs());
   const { notification, profile } = useSelector((state) => state.employee);
   const user = useSelector((state) => state.user);
   const dispatch = useDispatch();
-  // console.log(isadmin, islogin, user)
+
+  // Dynamic live time update every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(dayjs());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (notification) {
       setnotification(notification)
     }
-    // console.log(profile) //profile.profileimage
-    // console.log(user) //user.profile.role
   }, [notification])
 
   const commonTitles = {
@@ -174,18 +181,34 @@ const Navbar = () => {
   const isMobile = window.innerWidth < 600;
 
   return (
-    <div className='navbar no-print h-[50px] w-full bg-white flex items-center justify-between px-1 md:px-4 py-2'>
-      <div className='flex ml-1 md:ml-0 items-center gap-2'>
-        <Menu onClick={() => dispatch(tooglesidebar())} className='cursor-pointer text-slate-700' size={24} />
-        <p className='font-semibold text-[14px] md:text-xl'>{pageTitle}</p>
+    <div className='navbar no-print h-[50px] w-full bg-white flex items-center justify-between px-2 md:px-4 py-2 border-b border-slate-100'>
+      <div className='flex items-center gap-2.5'>
+        <Menu onClick={() => dispatch(tooglesidebar())} className='cursor-pointer text-slate-700 hover:text-teal-700 transition-colors' size={22} />
+        <p className='font-semibold text-[14px] md:text-lg text-slate-800 tracking-tight'>{pageTitle}</p>
       </div>
 
-      <div className={` ${(sidebarOpen && isMobile) ? "hidden" : "flex"} gap-2 md:gap-4 items-center px-2 text-grey`}>
+      <div className={` ${(sidebarOpen && isMobile) ? "hidden" : "flex"} gap-3 md:gap-4 items-center text-grey`}>
+        {/* Dynamic Live Date & Time Card */}
+        <div className="hidden sm:flex items-center gap-2 select-none">
+          <Clock size={16} className="text-teal-600 shrink-0" />
+          <div className="flex flex-col leading-none">
+            <span className="text-[13px] font-extrabold text-slate-800 tracking-tight tabular-nums">
+              {currentTime.format("hh:mm:ss a")}
+            </span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+              {currentTime.format("ddd, DD MMM")}
+            </span>
+          </div>
+        </div>
+
         <NotificationIcon notifications={notificatione} />
 
+        {/* Divider */}
+        <div className="w-[1px] h-5 bg-slate-200" />
+
         <div className='flex flex-col items-end px-1'>
-          <span className='text-[10px] md:text-xs font-medium leading-4 capitalize'>{user?.profile?.name}</span>
-          <p className='text-[8px] md:text-[10px] text-gray-500 text-right capitalize'>{user?.profile?.role == 'grant' ? 'User' : user?.profile?.role}</p>
+          <span className='text-[10px] md:text-xs font-semibold text-slate-800 leading-4 capitalize'>{user?.profile?.name}</span>
+          <p className='text-[8px] md:text-[10px] text-teal-700 font-medium text-right capitalize'>{user?.profile?.role === 'grant' ? 'User' : user?.profile?.role}</p>
         </div>
         {user?.profile?.role === 'employee' ? (
           profile?.profileimage ? (

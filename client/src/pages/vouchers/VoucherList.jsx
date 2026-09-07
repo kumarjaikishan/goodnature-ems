@@ -11,6 +11,7 @@ import dayjs from "dayjs";
 import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import DateInput from "@/components/ui/DateInput";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -594,13 +595,14 @@ const VoucherList = () => {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
-              <Select
+              <SearchableSelect
                 size="sm"
                 label="Filter by Ledger"
                 options={ledgerSelectOptions}
                 placeholder="All Ledgers"
                 value={selectedFilterLedgerId}
-                onChange={(e) => setSelectedFilterLedgerId(e.target.value)}
+                onChange={(val) => setSelectedFilterLedgerId(val)}
+                allowClear
               />
               <Select
                 size="sm"
@@ -662,14 +664,15 @@ const VoucherList = () => {
         maxWidth="max-w-lg"
       >
         <form onSubmit={handleSubmitVoucher} className="space-y-4">
-          <Select
+          <SearchableSelect
             label="Select Ledger"
             required
             options={ledgerSelectOptions}
             placeholder="Select ledger (Employee, Sponsor or Custom)..."
             value={selectedLedgerId}
-            onChange={(e) => setSelectedLedgerId(e.target.value)}
+            onChange={(val) => setSelectedLedgerId(val)}
             disabled={Boolean(editingVoucher)}
+            allowClear={false}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

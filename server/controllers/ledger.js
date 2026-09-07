@@ -204,17 +204,19 @@ const ledger = async (req, res) => {
 
     let filter = {
       $or: [
+        { ledgerType: 'custom' },
+        { ledgerType: 'employee' },
+        { ledgerType: 'sponsor' },
         { userId: req.userid },
         { userId: { $exists: false } },
-        { userId: null },
-        { ledgerType: 'sponsor' }
+        { userId: null }
       ]
     };
 
     let query = Ledger.find(filter)
       .populate({
         path: 'employeeId',
-        select: 'status'
+        select: 'status employeeName empId profileimage'
       })
       .populate({
         path: 'sponsorId',
@@ -226,7 +228,8 @@ const ledger = async (req, res) => {
     const ledgers = await query;
 
     const visibleLedgers = ledgers.filter(l => {
-      if (l.ledgerType === 'custom') {
+      const type = l.ledgerType || (l.employeeId ? 'employee' : (l.sponsorId ? 'sponsor' : 'custom'));
+      if (type === 'custom') {
         if (view === 'ledger') {
           return l.isVoucherLedger !== true;
         }
@@ -235,10 +238,10 @@ const ledger = async (req, res) => {
         }
         return true;
       }
-      if (l.ledgerType === 'employee') {
+      if (type === 'employee') {
         return l.employeeId && l.employeeId.status === true;
       }
-      if (l.ledgerType === 'sponsor') {
+      if (type === 'sponsor') {
         return Boolean(l.sponsorId);
       }
       return true;
