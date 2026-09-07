@@ -1,6 +1,5 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const ContentLoader = () => {
     return (
@@ -9,61 +8,31 @@ const ContentLoader = () => {
                 {/* Background soft glow */}
                 <div className="absolute inset-0 bg-teal-500/10 blur-3xl rounded-full scale-150 animate-pulse"></div>
                 
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{
-                        repeat: Infinity,
-                        duration: 3,
-                        ease: "linear"
-                    }}
-                    className="relative z-10"
-                >
+                <div className="relative z-10 animate-spin [animation-duration:3s]">
                     <Settings
                         className="text-teal-600 drop-shadow-lg"
                         size={60}
                     />
-                </motion.div>
+                </div>
                 
-                <motion.div
-                    animate={{ rotate: -360 }}
-                    transition={{
-                        repeat: Infinity,
-                        duration: 2,
-                        ease: "linear"
-                    }}
-                    className="absolute -bottom-2 -right-2 z-20"
-                >
+                <div className="absolute -bottom-2 -right-2 z-20 animate-spin [animation-direction:reverse] [animation-duration:2s]">
                     <Settings
                         className="text-teal-400 drop-shadow-md"
                         size={25}
                     />
-                </motion.div>
+                </div>
             </div>
             
-            <motion.div 
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="mt-8 flex flex-col items-center"
-            >
+            <div className="mt-8 flex flex-col items-center animate-in fade-in duration-500 delay-150">
                 <p className="text-teal-700 font-semibold tracking-wide text-sm uppercase opacity-80">
                     Loading Content
                 </p>
-                <div className="mt-2 flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                        <motion.div
-                            key={i}
-                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
-                            transition={{
-                                repeat: Infinity,
-                                duration: 1,
-                                delay: i * 0.2
-                            }}
-                            className="w-1.5 h-1.5 bg-teal-500 rounded-full"
-                        />
-                    ))}
+                <div className="mt-2 flex gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce [animation-delay:0ms]"></span>
+                    <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce [animation-delay:150ms]"></span>
+                    <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce [animation-delay:300ms]"></span>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 };

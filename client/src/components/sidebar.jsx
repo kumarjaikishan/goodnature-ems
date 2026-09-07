@@ -93,6 +93,7 @@ const Sidebar = () => {
           roles: ["admin", "superadmin", "manager", "demo"],
           children: [
             { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Agreements", link: "/dashboard/plots/agreements", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Sponsors", link: "/dashboard/plots/sponsors", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"] },

@@ -11,7 +11,12 @@ import {
   LayoutGrid,
   Table,
   Sparkles,
+  Building2,
+  FileText,
+  User,
+  ExternalLink,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Modalbox from '../../components/custommodal/Modalbox';
 import PageLoader from '../../components/common/PageLoader';
 
@@ -761,11 +766,18 @@ const PlotSeriesMaster = () => {
                         const isCorner = p.plotType === 'CORNER';
                         const isNonStandardSize = p.plotSize && p.plotSize !== s.plotArea;
                         const colorCls = getPlotCardColor(p.status, isCorner);
+                        const firstSrc = p.activeBooking?.landSourcing?.[0];
+                        const srcLabel = firstSrc
+                          ? (firstSrc.sourceType === 'REGISTRY_DEED'
+                              ? `Deed #${firstSrc.deedNumber || ''}`
+                              : `Agr #${firstSrc.agreementNumber || ''}`)
+                          : null;
+
                         return (
                           <div
                             key={p._id}
                             onClick={() => openConfigPlot(p)}
-                            className={`p-2.5 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group h-18 shadow-2xs hover:scale-103 ${colorCls}`}
+                            className={`p-2 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group min-h-[5rem] shadow-2xs hover:scale-103 ${colorCls}`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
@@ -776,17 +788,27 @@ const PlotSeriesMaster = () => {
                               )}
                             </div>
 
-                            <div className="my-auto">
-                              <p className="text-[0.75rem] font-bold leading-none font-mono text-slate-700">
-                                {p.plotSize || s.plotArea} <span className="text-[0.65rem] font-medium text-slate-500">Sq Ft</span>
+                            <div className="my-0.5">
+                              <p className="text-[0.72rem] font-bold leading-none font-mono text-slate-700">
+                                {p.plotSize || s.plotArea} <span className="text-[0.6rem] font-medium text-slate-500">Sq Ft</span>
                               </p>
+                              {p.activeBooking?.customerName && (
+                                <p className="text-[0.62rem] font-semibold text-rose-800 truncate mt-0.5 leading-tight" title={p.activeBooking.customerName}>
+                                  {p.activeBooking.customerName}
+                                </p>
+                              )}
+                              {srcLabel && (
+                                <span className="inline-block text-[0.58rem] font-bold px-1 py-0.2 rounded bg-white/80 border border-teal-300 text-teal-900 truncate max-w-full mt-0.5">
+                                  {srcLabel}
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex justify-between items-center border-t border-black/5 pt-1">
-                              <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90">
+                              <span className="text-[0.58rem] font-bold uppercase tracking-wider opacity-90">
                                 {isAvailable ? 'Available' : p.status}
                               </span>
-                              <Edit2 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                              <Edit2 size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
                             </div>
                           </div>
                         );
@@ -820,36 +842,52 @@ const PlotSeriesMaster = () => {
                       const isAvailable = p.status === 'AVAILABLE';
                       const isCorner = p.plotType === 'CORNER';
                       const colorCls = getPlotCardColor(p.status, isCorner);
+                      const firstSrc = p.activeBooking?.landSourcing?.[0];
+                      const srcLabel = firstSrc
+                        ? (firstSrc.sourceType === 'REGISTRY_DEED'
+                            ? `Deed #${firstSrc.deedNumber || ''}`
+                            : `Agr #${firstSrc.agreementNumber || ''}`)
+                        : null;
 
-                        return (
-                          <div
-                            key={p._id}
-                            onClick={() => openConfigPlot(p)}
-                            className={`p-2.5 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group h-18 shadow-2xs hover:scale-103 ${colorCls}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
-                              {isCorner && (
-                                <span className="text-[0.55rem] bg-teal-800 text-white font-extrabold px-1.5 py-0.5 rounded leading-none">
-                                  CORNER
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="my-auto">
-                              <p className="text-[0.75rem] font-bold leading-none font-mono text-slate-700">
-                                {p.plotSize || 0} <span className="text-[0.65rem] font-medium text-slate-500">Sq Ft</span>
-                              </p>
-                            </div>
-
-                            <div className="flex justify-between items-center border-t border-black/5 pt-1">
-                              <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90">
-                                {isAvailable ? 'Available' : p.status}
+                      return (
+                        <div
+                          key={p._id}
+                          onClick={() => openConfigPlot(p)}
+                          className={`p-2 border rounded-2xl flex flex-col justify-between transition cursor-pointer select-none relative group min-h-[5rem] shadow-2xs hover:scale-103 ${colorCls}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
+                            {isCorner && (
+                              <span className="text-[0.55rem] bg-teal-800 text-white font-extrabold px-1.5 py-0.5 rounded leading-none">
+                                CORNER
                               </span>
-                              <Edit2 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
-                            </div>
+                            )}
                           </div>
-                        );
+
+                          <div className="my-0.5">
+                            <p className="text-[0.72rem] font-bold leading-none font-mono text-slate-700">
+                              {p.plotSize || 0} <span className="text-[0.6rem] font-medium text-slate-500">Sq Ft</span>
+                            </p>
+                            {p.activeBooking?.customerName && (
+                              <p className="text-[0.62rem] font-semibold text-rose-800 truncate mt-0.5 leading-tight" title={p.activeBooking.customerName}>
+                                {p.activeBooking.customerName}
+                              </p>
+                            )}
+                            {srcLabel && (
+                              <span className="inline-block text-[0.58rem] font-bold px-1 py-0.2 rounded bg-white/80 border border-teal-300 text-teal-900 truncate max-w-full mt-0.5">
+                                {srcLabel}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center border-t border-black/5 pt-1">
+                            <span className="text-[0.58rem] font-bold uppercase tracking-wider opacity-90">
+                              {isAvailable ? 'Available' : p.status}
+                            </span>
+                            <Edit2 size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                          </div>
+                        </div>
+                      );
                     })}
                 </div>
               </div>
@@ -1560,8 +1598,77 @@ const PlotSeriesMaster = () => {
 
           <form onSubmit={handleConfigSubmit} className="flex flex-col gap-4">
             {selectedPlot && (selectedPlot.status === 'BOOKED' || selectedPlot.status === 'REGISTERED') && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium">
-                <strong>Notice:</strong> Plot is currently <strong>{selectedPlot.status}</strong>. Dimensions, corner type, and base rates are locked to preserve customer agreements and payment schedules. You can still update internal audit notes.
+              <div className="space-y-3">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium">
+                  <strong>Notice:</strong> Plot is currently <strong>{selectedPlot.status}</strong>. Dimensions, corner type, and base rates are locked to preserve customer agreements and payment schedules.
+                </div>
+
+                {/* Land Sourcing & Customer Information Card */}
+                <div className="p-4 bg-teal-50/50 border border-teal-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-teal-100 pb-2">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-teal-900">
+                      <Building2 size={16} className="text-teal-700" />
+                      <span>Land Acquisition & Agreement Details</span>
+                    </div>
+                    {selectedPlot.activeBooking?._id && (
+                      <Link
+                        to={`/dashboard/plots/booking/${selectedPlot.activeBooking._id}`}
+                        className="text-[11px] font-bold text-teal-700 hover:text-teal-900 underline flex items-center gap-1"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View Full Booking <ExternalLink size={12} />
+                      </Link>
+                    )}
+                  </div>
+
+                  {selectedPlot.activeBooking && (
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 bg-white/70 p-2.5 rounded-xl border border-teal-100">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-semibold uppercase">Customer</span>
+                        <span className="font-bold text-slate-900">{selectedPlot.activeBooking.customerName || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-semibold uppercase">Booking #</span>
+                        <span className="font-mono font-bold text-teal-800">{selectedPlot.activeBooking.bookingNumber || 'N/A'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Linked Kisan Agreements or Registry Deeds */}
+                  {selectedPlot.activeBooking?.landSourcing && selectedPlot.activeBooking.landSourcing.length > 0 ? (
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wide">
+                        Linked Land Documents ({selectedPlot.activeBooking.landSourcing.length})
+                      </span>
+                      {selectedPlot.activeBooking.landSourcing.map((src, idx) => (
+                        <div key={idx} className="p-2.5 bg-white border border-teal-200/80 rounded-xl text-xs space-y-1">
+                          <div className="flex items-center justify-between font-bold text-slate-800">
+                            <span className="flex items-center gap-1">
+                              <FileText size={13} className="text-teal-700" />
+                              {src.sourceType === 'REGISTRY_DEED' ? (
+                                <>Registry Deed #{src.deedNumber || 'N/A'}</>
+                              ) : (
+                                <>Agreement #{src.agreementNumber || 'N/A'}</>
+                              )}
+                            </span>
+                            <span className="text-[10px] bg-teal-50 text-teal-800 border border-teal-200 px-1.5 py-0.5 rounded font-bold">
+                              {src.allocatedSqFt || 0} SqFt ({src.allocatedDismil || 0} Dismil)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
+                            <span>Mauja: <strong className="text-slate-700">{src.mauja || '-'}</strong></span>
+                            <span>Khata/Khesra: <strong className="text-slate-700">{src.khataNumber || '-'}/{src.khesraNumber || '-'}</strong></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-500 italic">
+                      No specific land acquisition deed or agreement linked yet.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

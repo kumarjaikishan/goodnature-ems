@@ -459,9 +459,9 @@ const Attandence = () => {
 
 
   return (
-    <div className='p-1 max-w-6xl mx-auto '>
+    <div className='p-4 md:p-6 max-w-7xl mx-auto space-y-5'>
 
-      {/* control component */}
+      {/* Header & Controls Panel */}
       <AttendanceControls
         markattandence={markattandence}
         setmarkattandence={setmarkattandence}
@@ -486,8 +486,8 @@ const Attandence = () => {
         isExportingCsv={isExportingCsv}
       />
 
-      {/* tabledata */}
-      <div className="capitalize ">
+      {/* Table Section */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <AttendanceTableSection
           memoColumns={memoColumns}
           finalData={finalData}
@@ -541,246 +541,246 @@ const AttendanceControls = React.memo(({
   isExportingCsv
 }) => {
 
+  const handleResetFilters = () => {
+    setfiltere({
+      fromDate: "",
+      toDate: "",
+      branch: "all",
+      departmente: "all",
+      employee: "",
+      status: "all",
+      month: "all",
+      year: "all",
+    });
+    setInputValue("");
+  };
+
+  const isFiltered = filtere.fromDate || filtere.toDate || filtere.branch !== 'all' || filtere.departmente !== 'all' || filtere.status !== 'all' || filtere.month !== 'all' || filtere.year !== 'all' || inputValue;
+
   return (
-    <div className="bg-white flex flex-col rounded-lg mb-4 shadow-xl p-4">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-4 md:p-5 space-y-4">
 
-      {/* top buttons */}
-      <div className="flex justify-between items-center mb-4 flex-wrap">
-        <div className="flex mb-1 w-full md:w-auto p-1 items-center gap-2 rounded bg-primary text-white">
-          <p
-            onClick={() => setmarkattandence(false)}
-            className={`px-2 py-1 rounded cursor-pointer ${!markattandence && "text-primary bg-white"}`}
-          >
-            View Attendance
-          </p>
-
-          {canAdd && (
-            <p
-              onClick={() => setmarkattandence(true)}
-              className={`px-2 py-1 rounded cursor-pointer ${markattandence && "text-primary bg-white"}`}
+      {/* Top Bar: Title / Segmented Tab Switcher / Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3.5">
+        <div className="flex items-center gap-3">
+          {/* Segmented View Switcher */}
+          <div className="inline-flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setmarkattandence(false)}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                !markattandence
+                  ? "bg-teal-700 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              Mark Attendance
-            </p>
+              Attendance Logs
+            </button>
+
+            {canAdd && (
+              <button
+                type="button"
+                onClick={() => setmarkattandence(true)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  markattandence
+                    ? "bg-teal-700 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Mark Actions
+              </button>
+            )}
+          </div>
+
+          {isFiltered && !markattandence && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <X size={13} /> Reset Filters
+            </button>
           )}
         </div>
 
-        <div className="flex w-full md:w-[320px] gap-2">
+        {/* Action Buttons: Multi-Delete & Exports */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           {selectedRows.length > 0 && (
-            <Button
-              className="flex-1"
-              variant="contained"
+            <button
+              type="button"
               onClick={multidelete}
-              color="error"
-              loading={selectedRows.length > 0 && isload}
+              disabled={isload}
+              className="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              Delete ({selectedRows.length})
-            </Button>
+              <Trash2 size={14} /> Delete Selected ({selectedRows.length})
+            </button>
           )}
 
-          <ButtonGroup className="flex-1" variant="outlined" size="small">
-            <Button
+          <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+            <button
+              type="button"
               onClick={exportCSV}
-              startIcon={<FileSpreadsheet size={16} />}
-              fullWidth
-              loading={isExportingCsv}
+              disabled={isExportingCsv}
+              className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-teal-700 hover:bg-white rounded-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              CSV
-            </Button>
-            <Button
+              <FileSpreadsheet size={14} className="text-emerald-600" />
+              {isExportingCsv ? 'Exporting...' : 'CSV'}
+            </button>
+            <div className="w-[1px] h-4 bg-slate-200 my-auto" />
+            <button
+              type="button"
               onClick={exportPDF}
-              startIcon={<FileText size={16} />}
-              fullWidth
-              loading={isGeneratingPdf}
+              disabled={isGeneratingPdf}
+              className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-teal-700 hover:bg-white rounded-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              PDF
-            </Button>
-          </ButtonGroup>
+              <FileText size={14} className="text-rose-600" />
+              {isGeneratingPdf ? 'Generating...' : 'PDF'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* conditional section */}
+      {/* Conditional Section: Mark Attendance Actions or Filter Bar */}
       {markattandence ? (
-        <div className="flex gap-2">
-          <Button variant="contained" onClick={openModal}>
-            Mark Individual
-          </Button>
+        <div className="flex flex-wrap items-center gap-3 p-3 bg-teal-50/50 border border-teal-100 rounded-lg">
+          <button
+            type="button"
+            onClick={openModal}
+            className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg shadow-xs transition-all cursor-pointer flex items-center gap-2"
+          >
+            Mark Individual Attendance
+          </button>
 
-          <Button variant="outlined" onClick={openBulkModal}>
-            Mark Bulk
-          </Button>
+          <button
+            type="button"
+            onClick={openBulkModal}
+            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-xs rounded-lg shadow-xs transition-all cursor-pointer flex items-center gap-2"
+          >
+            Bulk Mark Attendance
+          </button>
         </div>
       ) : (
-        <div className="border border-gray-400 rounded p-3 md:p-0 md:border-0 
-grid grid-cols-2 md:grid-cols-6 gap-3 w-full">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* Employee Search */}
+          <div className="col-span-2 sm:col-span-3 lg:col-span-2 relative">
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+              <Search size={14} />
+            </div>
+            <input
+              type="text"
+              placeholder="Search employee name..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all placeholder:text-slate-400"
+            />
+          </div>
 
-          <TextField
-            size="small"
-            type="date"
-            className="w-full"
-            value={filtere.fromDate}
-            onChange={(e) => setfiltere({ ...filtere, fromDate: e.target.value })}
-            label="From Date"
-            InputLabelProps={{ shrink: true }}
-          />
-
-          <TextField
-            size="small"
-            type="date"
-            className="w-full"
-            value={filtere.toDate}
-            onChange={(e) => setfiltere({ ...filtere, toDate: e.target.value })}
-            label="To Date"
-            InputLabelProps={{ shrink: true }}
-          />
-
-          <FormControl size="small" className="w-full">
-            <InputLabel>Branch</InputLabel>
-            <Select
+          {/* Branch Filter */}
+          <div className="relative">
+            <select
               value={filtere.branch}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Branch"
-                />
-              }
               onChange={(e) => setfiltere({ ...filtere, branch: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
-              <MenuItem value="all">All</MenuItem>
+              <option value="all">All Branches</option>
               {profile?.role === 'manager'
                 ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
                   ?.map((list) => (
-                    <MenuItem key={list._id} value={list._id}>
+                    <option key={list._id} value={list._id}>
                       {list.name}
-                    </MenuItem>
+                    </option>
                   ))
-                :
-                branch?.map((list) => (
-                  <MenuItem key={list._id} value={list._id}>{list.name}</MenuItem>
-                ))
-              }
-            </Select>
-          </FormControl>
+                : branch?.map((list) => (
+                  <option key={list._id} value={list._id}>{list.name}</option>
+                ))}
+            </select>
+          </div>
 
-          <FormControl size="small" className="w-full">
-            <InputLabel>Department</InputLabel>
-            <Select
+          {/* Department Filter */}
+          <div className="relative">
+            <select
               value={filtere.departmente}
               disabled={filtere.branch === "all"}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Department"
-                />
-              }
               onChange={(e) => setfiltere({ ...filtere, departmente: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100"
             >
-              <MenuItem value="all">All</MenuItem>
+              <option value="all">All Departments</option>
               {department
                 ?.filter((e) => e.branchId?._id === filtere.branch)
                 .map((val) => (
-                  <MenuItem key={val._id} value={val._id}>
+                  <option key={val._id} value={val._id}>
                     {val.department}
-                  </MenuItem>
+                  </option>
                 ))}
-            </Select>
-          </FormControl>
+            </select>
+          </div>
 
-          <FormControl size="small" className="w-full">
-            <InputLabel>Status</InputLabel>
-            <Select
+          {/* Status Filter */}
+          <div className="relative">
+            <select
               value={filtere.status}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Status"
-                />
-              }
               onChange={(e) => setfiltere({ ...filtere, status: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
-              <MenuItem value="all">All</MenuItem>
-              <MenuItem value="present">Present</MenuItem>
-              <MenuItem value="leave">Leave</MenuItem>
-              <MenuItem value="absent">Absent</MenuItem>
-              <MenuItem value="weekly off">Weekly off</MenuItem>
-              <MenuItem value="holiday">Holiday</MenuItem>
-              <MenuItem value="half day">Half Day</MenuItem>
-            </Select>
-          </FormControl>
+              <option value="all">All Status</option>
+              <option value="present">Present</option>
+              <option value="leave">Leave</option>
+              <option value="absent">Absent</option>
+              <option value="weekly off">Weekly off</option>
+              <option value="holiday">Holiday</option>
+              <option value="half day">Half Day</option>
+            </select>
+          </div>
 
-          <FormControl size="small" className="w-full">
-            <InputLabel>Month</InputLabel>
-            <Select
+          {/* Month Filter */}
+          <div className="relative">
+            <select
               value={filtere.month}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Month"
-                />
-              }
               onChange={(e) => setfiltere({ ...filtere, month: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
-              <MenuItem value="all">All</MenuItem>
+              <option value="all">All Months</option>
               {months.map((m, idx) => (
-                <MenuItem key={idx} value={idx}>{m}</MenuItem>
+                <option key={idx} value={idx}>{m}</option>
               ))}
-            </Select>
-          </FormControl>
+            </select>
+          </div>
 
-          <FormControl size="small" className="w-full">
-            <InputLabel>Year</InputLabel>
-            <Select
+          {/* From Date */}
+          <div className="relative flex flex-col">
+            <input
+              type="date"
+              title="From Date"
+              value={filtere.fromDate}
+              onChange={(e) => setfiltere({ ...filtere, fromDate: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+            />
+          </div>
+
+          {/* To Date */}
+          <div className="relative flex flex-col">
+            <input
+              type="date"
+              title="To Date"
+              value={filtere.toDate}
+              onChange={(e) => setfiltere({ ...filtere, toDate: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+            />
+          </div>
+
+          {/* Year Filter */}
+          <div className="relative">
+            <select
               value={filtere.year}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Year"
-                />
-              }
               onChange={(e) => setfiltere({ ...filtere, year: e.target.value })}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
             >
-              <MenuItem value="all">All</MenuItem>
+              <option value="all">All Years</option>
               {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
-                <MenuItem key={y} value={y}>{y}</MenuItem>
+                <option key={y} value={y}>{y}</option>
               ))}
-            </Select>
-          </FormControl>
-
-          <TextField
-            size="small"
-            className="w-full md:col-span-2"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            label="Search Employee"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search size={16} className="text-gray-400" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+            </select>
+          </div>
         </div>
       )}
 
@@ -804,32 +804,27 @@ const AttendanceTableSection = React.memo(({
 }) => {
 
   return (
-    <div className="capitalize">
-      <DataTable
-        columns={memoColumns}
-        data={finalData}
-        progressPending={pageLoading}
-        progressComponent={<TableRowSkeleton rows={8} />}
-        // Server-side pagination: the backend only ever sends us one page
-        // (<=200 rows) instead of the whole company's attendance history.
-        pagination
-        paginationServer
-        paginationTotalRows={totalRows}
-        paginationPerPage={perPage}
-        paginationDefaultPage={1}
-        onChangePage={onChangePage}
-        onChangeRowsPerPage={onChangeRowsPerPage}
-        onSort={handleSort}
-        selectableRows
-        customStyles={customStyles}
-        conditionalRowStyles={conditionalRowStyles}
-        onSelectedRowsChange={handleRowSelect}
-        selectedRows={selectedRows}
-        highlightOnHover
-      />
-    </div>
+    <DataTable
+      columns={memoColumns}
+      data={finalData}
+      progressPending={pageLoading}
+      progressComponent={<TableRowSkeleton rows={8} />}
+      pagination
+      paginationServer
+      paginationTotalRows={totalRows}
+      paginationPerPage={perPage}
+      paginationDefaultPage={1}
+      onChangePage={onChangePage}
+      onChangeRowsPerPage={onChangeRowsPerPage}
+      onSort={handleSort}
+      selectableRows
+      customStyles={customStyles}
+      conditionalRowStyles={conditionalRowStyles}
+      onSelectedRowsChange={handleRowSelect}
+      selectedRows={selectedRows}
+      highlightOnHover
+    />
   );
 });
 
-
-export default Attandence
+export default Attandence;

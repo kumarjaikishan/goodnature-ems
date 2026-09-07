@@ -110,6 +110,25 @@ router.get('/payout-vouchers/:id', checkPermission('plot_payout', 1), ctrl.getPl
 router.delete('/payout-vouchers/:id', checkPermission('plot_payout', 4), ctrl.deletePlotPayoutVoucher);
 router.put('/payout-vouchers/:id', checkPermission('plot_payout', 3), ctrl.updatePlotPayoutVoucher);
 
+// ── Kisan Land Agreements & Land Stock Pooling ──
+router.post('/kisan-agreements/upload-document', upload.single('file'), ctrl.uploadLandDocument);
+router.post('/kisan-agreements', checkPermission('plot_inventory', 2), ctrl.createKisanAgreement);
+router.get('/kisan-agreements', checkPermission('plot_inventory', 1), ctrl.getKisanAgreements);
+router.get('/kisan-agreements/sources', checkPermission('plot_inventory', 1), ctrl.getAvailableLandStockSources);
+router.get('/kisan-agreements/:id', checkPermission('plot_inventory', 1), ctrl.getKisanAgreementById);
+router.put('/kisan-agreements/:id', checkPermission('plot_inventory', 3), ctrl.updateKisanAgreement);
+router.delete('/kisan-agreements/:id', checkPermission('plot_inventory', 4), ctrl.deleteKisanAgreement);
+router.post('/kisan-agreements/:id/deeds', checkPermission('plot_inventory', 2), ctrl.addRegistryDeed);
+router.put('/kisan-agreements/:agreementId/deeds/:deedId', checkPermission('plot_inventory', 3), ctrl.updateRegistryDeed);
+router.delete('/kisan-agreements/:agreementId/deeds/:deedId', checkPermission('plot_inventory', 4), ctrl.deleteRegistryDeed);
+router.post('/kisan-agreements/:id/payments', checkPermission('plot_inventory', 2), ctrl.recordKisanPayment);
+
+// ── Booking Restructuring, Customer Refund & Revisions ──
+router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctrl.restructureBooking);
+router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);
+router.get('/bookings/:id/revisions', checkPermission('plot_booking', 1), ctrl.getBookingRevisions);
+router.put('/bookings/revisions/:revisionId/narration', checkPermission('plot_booking', 3), ctrl.updateBookingRevisionNarration);
+
 // ── Plots Inventory (Wildcard /:id placed AFTER specific routes) ──
 router.get('/', checkPermission('plot_inventory', 1), ctrl.getPlots);
 router.post('/', checkPermission('plot_inventory', 2), ctrl.createPlot);

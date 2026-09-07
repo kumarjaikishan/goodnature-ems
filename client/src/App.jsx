@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, Suspense, lazy } from 'react';
 import { FirstFetch } from '../store/userSlice';
 import { empFirstFetch } from '../store/employee';
+import { setlogin } from '../store/authSlice';
 import ProtectedRoutes from './utils/protectedRoute';
 import { Settings, User } from 'lucide-react';
 import { connectSSE, closeSSE } from "./utils/sse";
@@ -94,6 +95,8 @@ const SponsorDashboard = lazy(() => import('./pages/plots/SponsorDashboard'));
 const SponsorBusinessReportPage = lazy(() => import('./pages/plots/SponsorBusinessReportPage'));
 const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
 const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
+const PlotKisanLandPage = lazy(() => import('./pages/plots/PlotKisanLandPage'));
+const PlotKisanLedgerPage = lazy(() => import('./pages/plots/PlotKisanLedgerPage'));
 
 // Investments (RD / FD)
 const InvestmentDashboard = lazy(() => import('./pages/investments/InvestmentDashboard'));
@@ -143,6 +146,11 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
+      <Route path="plots/agreements" element={<PlotKisanLandPage />} />
+      <Route path="plots/kisan-land" element={<PlotKisanLandPage />} />
+      <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
@@ -214,6 +222,11 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
+      <Route path="plots/agreements" element={<PlotKisanLandPage />} />
+      <Route path="plots/kisan-land" element={<PlotKisanLandPage />} />
+      <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
@@ -286,6 +299,11 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
+      <Route path="plots/agreements" element={<PlotKisanLandPage />} />
+      <Route path="plots/kisan-land" element={<PlotKisanLandPage />} />
+      <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
       <Route path="plots/sponsors" element={<PlotSponsors />} />
       <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
@@ -390,27 +408,45 @@ function App() {
   const { islogin } = useSelector((state) => state.auth);
   const user = useSelector((state) => state.user);
   const navigate = useNavigate();
-
   const primaryColor = useSelector((state) => state.user.primaryColor) || "#115e59";
+
+  const getRoleFromToken = () => {
+    try {
+      const token = localStorage.getItem('emstoken');
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload?.role || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const effectiveRole = user?.profile?.role || getRoleFromToken();
+
+  useEffect(() => {
+    const token = localStorage.getItem('emstoken');
+    if (token && !islogin) {
+      dispatch(setlogin(true));
+    }
+  }, [islogin, dispatch]);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--color-primary", primaryColor);
   }, [primaryColor]);
 
   useEffect(() => {
-
-    const role = user?.profile?.role;
+    const role = effectiveRole;
 
     if (['superadmin', 'admin', 'manager', 'demo'].includes(role)) {
       dispatch(FirstFetch());
     } else if (role === 'employee') {
       dispatch(empFirstFetch());
     }
-  }, [islogin, user?.profile?.role, dispatch]);
+  }, [islogin, effectiveRole, dispatch]);
 
   useEffect(() => {
     islogin && jwtcheck();
-    console.log("islogin", islogin)
+    console.log("islogin", islogin);
   }, [islogin]);
 
   const tokenErrors = {
@@ -421,6 +457,7 @@ function App() {
   const jwtcheck = async () => {
     try {
       const token = localStorage.getItem('emstoken');
+      if (!token) return;
       const responsee = await fetch(`${import.meta.env.VITE_API_ADDRESS}jwtcheck`, {
         method: 'GET',
         headers: {
@@ -448,7 +485,7 @@ function App() {
     }
   }
 
-  const roleRoute = islogin ? routesByRole[user?.profile?.role] || [] : [];
+  const roleRoute = islogin && effectiveRole ? routesByRole[effectiveRole] || [] : [];
 
   useEffect(() => {
     if (islogin && user?.liveAttandence && ["superadmin", "admin", "manager", "demo"].includes(user?.profile?.role)) {
@@ -531,31 +568,48 @@ function App() {
           </div>
         </div>}
       >
-        <Routes>
-          {/* Public routes */}
-          <Route path="/resetpassword/:token" element={<PasswordReset />} />
+        {islogin && !effectiveRole ? (
+          <div className="flex items-center justify-center h-screen w-screen bg-white">
+            <div className="relative">
+              <Settings
+                className="animate-spin"
+                style={{ animationDuration: "2.5s" }}
+                size={60}
+                color="teal"
+              />
+              <Settings
+                className="absolute -bottom-4 left-0 animate-spin"
+                style={{ animationDuration: "3s" }}
+                size={25}
+                color="teal"
+              />
+            </div>
+          </div>
+        ) : (
+          <Routes>
+            {/* Public routes */}
+            <Route path="/resetpassword/:token" element={<PasswordReset />} />
 
+            <Route
+              path="/login"
+              element={islogin ? <Navigate to="/dashboard" replace /> : <Login />}
+            />
+            <Route
+              path="/"
+              element={!islogin ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
+            />
+            <Route path="/logout" element={<Logout />} />
 
-          <Route
-            path="/login"
-            element={islogin ? <Navigate to="/dashboard" replace /> : <Login />}
-          />
-          <Route
-            path="/dashboard"
-            element={!islogin && <Navigate to="/login" replace />}
-          />
-          <Route
-            path="/"
-            element={!islogin ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
-          />
-          <Route path="/logout" element={<Logout />} />
+            {/* Role based routes */}
+            {roleRoute}
 
-          {/* Role based routes */}
-          {roleRoute}
-
-          {/* Fallback */}
-          <Route path="*" element={<Errorpage />} />
-        </Routes>
+            {/* Fallback */}
+            <Route
+              path="*"
+              element={!islogin ? <Navigate to="/login" replace /> : <Errorpage />}
+            />
+          </Routes>
+        )}
       </Suspense>
     </>
   );

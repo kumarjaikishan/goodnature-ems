@@ -250,7 +250,8 @@ export const DataTable = ({
                       if (el) el.indeterminate = isSomeDisplayedSelected;
                     }}
                     onChange={handleSelectAll}
-                    className="w-4 h-4 rounded-md border-slate-300 text-teal-700 focus:ring-teal-500 accent-teal-600 cursor-pointer"
+                    style={{ accentColor: '#0f766e' }}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600 accent-teal-700 cursor-pointer"
                   />
                 </th>
               )}
@@ -338,7 +339,8 @@ export const DataTable = ({
                           type="checkbox"
                           checked={isSelected}
                           onChange={(e) => handleSelectRow(row, rowIdx, e)}
-                          className="w-4 h-4 rounded-md border-slate-300 text-teal-700 focus:ring-teal-500 accent-teal-600 cursor-pointer"
+                          style={{ accentColor: '#0f766e' }}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600 accent-teal-700 cursor-pointer"
                         />
                       </td>
                     )}

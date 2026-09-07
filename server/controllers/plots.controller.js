@@ -1,4 +1,5 @@
 const plotsService = require('../services/plots.service');
+const kisanLandService = require('../services/kisanLand.service');
 const ApiResponse = require('../utils/apiResponse');
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
@@ -30,6 +31,43 @@ const uploadMedia = async (req, res, next) => {
     });
 
     return ApiResponse.success(res, { url: uploadResult.secure_url }, 'Image uploaded successfully');
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlink(req.file.path, () => {});
+    }
+    next(error);
+  }
+};
+
+const uploadLandDocument = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file provided' });
+    }
+    const folder = 'ems/kisan_documents';
+    const isPdf = req.file.mimetype === 'application/pdf';
+    
+    const uploadOptions = {
+      folder,
+      resource_type: isPdf ? 'raw' : 'auto',
+    };
+
+    const uploadResult = await cloudinary.uploader.upload(req.file.path, uploadOptions);
+
+    if (fs.existsSync(req.file.path)) {
+      fs.unlink(req.file.path, () => {});
+    }
+
+    return ApiResponse.success(
+      res,
+      {
+        url: uploadResult.secure_url,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        format: uploadResult.format || (isPdf ? 'pdf' : 'doc'),
+      },
+      'Document uploaded successfully'
+    );
   } catch (error) {
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlink(req.file.path, () => {});
@@ -546,6 +584,138 @@ const deletePlotClosing = async (req, res, next) => {
   }
 };
 
+// ── KISAN LAND AGREEMENT CONTROLLERS ──────────────────────────────
+const createKisanAgreement = async (req, res, next) => {
+  try {
+    const agreement = await kisanLandService.createAgreement(req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.created(res, agreement, 'Kisan Land Agreement created successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getKisanAgreements = async (req, res, next) => {
+  try {
+    const result = await kisanLandService.getAgreements(req.query);
+    ApiResponse.paginated(res, result.agreements, result.pagination);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getKisanAgreementById = async (req, res, next) => {
+  try {
+    const result = await kisanLandService.getAgreementById(req.params.id);
+    ApiResponse.success(res, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const addRegistryDeed = async (req, res, next) => {
+  try {
+    const agreement = await kisanLandService.addRegistryDeed(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, agreement, 'Registry Deed added & converted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const recordKisanPayment = async (req, res, next) => {
+  try {
+    const payment = await kisanLandService.recordKisanPayment(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, payment, 'Payment to Kisan recorded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateKisanAgreement = async (req, res, next) => {
+  try {
+    const agreement = await kisanLandService.updateAgreement(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, agreement, 'Kisan Land Agreement updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteKisanAgreement = async (req, res, next) => {
+  try {
+    await kisanLandService.deleteAgreement(req.params.id, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, null, 'Kisan Land Agreement deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateRegistryDeed = async (req, res, next) => {
+  try {
+    const agreement = await kisanLandService.updateRegistryDeed(req.params.agreementId, req.params.deedId, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, agreement, 'Registry Deed updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteRegistryDeed = async (req, res, next) => {
+  try {
+    const agreement = await kisanLandService.deleteRegistryDeed(req.params.agreementId, req.params.deedId, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, agreement, 'Registry Deed deleted & stock restored successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAvailableLandStockSources = async (req, res, next) => {
+  try {
+    const sources = await kisanLandService.getAvailableLandStockSources();
+    ApiResponse.success(res, sources);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── BOOKING RESTRUCTURING & CUSTOMER REFUND CONTROLLERS ─────────────
+const restructureBooking = async (req, res, next) => {
+  try {
+    const result = await plotsService.restructureBooking(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, result, 'Plot Booking restructured & recalibrated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const processCustomerRefund = async (req, res, next) => {
+  try {
+    const result = await plotsService.processCustomerRefund(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, result, 'Customer cancellation & refund voucher processed successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getBookingRevisions = async (req, res, next) => {
+  try {
+    const revisions = await plotsService.getBookingRevisions(req.params.id);
+    ApiResponse.success(res, revisions);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateBookingRevisionNarration = async (req, res, next) => {
+  try {
+    const updated = await plotsService.updateBookingRevisionNarration(
+      req.params.revisionId,
+      req.body.adminNarration,
+      req.user?._id || req.user?.id || null
+    );
+    ApiResponse.success(res, updated, 'Revision narration updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
@@ -601,4 +771,21 @@ module.exports = {
   updatePlotClosing,
   deletePlotClosing,
   uploadMedia,
+  uploadLandDocument,
+  // Kisan Land Exports
+  createKisanAgreement,
+  getKisanAgreements,
+  getKisanAgreementById,
+  updateKisanAgreement,
+  deleteKisanAgreement,
+  addRegistryDeed,
+  updateRegistryDeed,
+  deleteRegistryDeed,
+  recordKisanPayment,
+  getAvailableLandStockSources,
+  // Restructuring & Refund Exports
+  restructureBooking,
+  processCustomerRefund,
+  getBookingRevisions,
+  updateBookingRevisionNarration,
 };

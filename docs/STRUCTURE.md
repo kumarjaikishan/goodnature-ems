@@ -11,6 +11,8 @@ Ems-goodnature/
 │
 ├── docs/                       # Project knowledge base
 │   ├── PROJECT_CONTEXT.md      # Purpose, modules, and full tech stack details
+│   ├── COMPONENT_CATALOG.md    # Catalog of centralized UI components, modals, loaders, and API clients
+│   ├── FRONTEND_THEME_SYSTEM.md# Design tokens, color palette, and UI theme rules
 │   ├── ARCHITECTURE.md         # Component diagrams, request pipelines, and data flows
 │   ├── STRUCTURE.md            # File tree and directory breakdown (this file)
 │   ├── RULES.md                # Coding conventions, security guidelines, and business constraints

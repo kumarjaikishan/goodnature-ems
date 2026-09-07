@@ -1,6 +1,8 @@
 const Voucher = require('../models/voucher');
 const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
+const Employee = require('../models/employee');
+const User = require('../models/user');
 const mongoose = require('mongoose');
 const { generateVoucherNo } = require('../utils/voucherHelper');
 

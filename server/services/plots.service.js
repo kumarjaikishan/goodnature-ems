@@ -14,6 +14,10 @@ const PlotAuditLog = require('../models/PlotAuditLog');
 const Counter = require('../models/Counter');
 const User = require('../models/user');
 const PlotCustomer = require('../models/PlotCustomer');
+const KisanLandAgreement = require('../models/KisanLandAgreement');
+const LandStockLedger = require('../models/LandStockLedger');
+const PlotBookingRevision = require('../models/PlotBookingRevision');
+const Voucher = require('../models/voucher');
 const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
 const accountingService = require('./accountingService');
@@ -331,9 +335,57 @@ class PlotsService {
         .populate('seriesId')
         .sort({ plotNumber: 1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
       Plot.countDocuments(query),
     ]);
+
+    // Attach active booking and land sourcing details for booked/held plots
+    const bookedPlotIds = plots
+      .filter((p) => p.status === 'BOOKED' || p.status === 'HOLD' || p.status === 'REGISTERED')
+      .map((p) => p._id);
+
+    if (bookedPlotIds.length > 0) {
+      const activeBookings = await PlotBooking.find({
+        plotId: { $in: bookedPlotIds },
+        status: { $ne: 'CANCELLED' },
+      })
+        .select('bookingNumber customerName customerMobile sponsorName landSourcing status bookingDate plotId')
+        .populate('customerId', 'name mobile customerId customerCode')
+        .lean();
+
+      const bookingMap = new Map();
+      for (const b of activeBookings) {
+        bookingMap.set(String(b.plotId), b);
+      }
+
+      const orphanedPlotIds = [];
+      for (const p of plots) {
+        const b = bookingMap.get(String(p._id));
+        if (b) {
+          p.activeBooking = {
+            _id: b._id,
+            bookingNumber: b.bookingNumber,
+            customerName: b.customerId?.name || b.customerName,
+            customerMobile: b.customerId?.mobile || b.customerMobile,
+            customerCode: b.customerId?.customerCode || b.customerId?.customerId,
+            landSourcing: b.landSourcing || [],
+            status: b.status,
+            bookingDate: b.bookingDate,
+          };
+        } else if (p.status === 'BOOKED' || p.status === 'HOLD') {
+          // Self-heal orphaned plots in memory and in the background DB
+          p.status = 'AVAILABLE';
+          orphanedPlotIds.push(p._id);
+        }
+      }
+
+      if (orphanedPlotIds.length > 0) {
+        Plot.updateMany({ _id: { $in: orphanedPlotIds } }, { $set: { status: 'AVAILABLE' } }).catch((err) => {
+          console.error('Failed to reconcile orphaned plot status:', err);
+        });
+      }
+    }
 
     return {
       plots,
@@ -507,12 +559,90 @@ class PlotsService {
         oneTimeMonths = 1,
         tenureMonths,
         downpaymentMonths = 1,
+        landSourcing = [],
       } = data;
 
       const plot = await Plot.findById(plotId).session(session);
       if (!plot) throw ApiError.notFound('Plot not found');
       if (plot.status !== 'AVAILABLE') {
         throw ApiError.badRequest(`Plot ${plot.plotNumber} is not available (Status: ${plot.status})`);
+      }
+
+      const requiredPlotArea = plot.plotSize || plot.area || 0;
+
+      // 1b. Process & Validate Mandatory Land Stock Sourcing
+      if (!Array.isArray(landSourcing) || landSourcing.filter((item) => Number(item.allocatedSqFt) > 0).length === 0) {
+        throw ApiError.badRequest(
+          `Land Acquisition Sourcing is mandatory. Please link and allocate ${requiredPlotArea} Sq.Ft. from an active Kisan Land Agreement or Registry Deed.`
+        );
+      }
+
+      const processedSourcing = [];
+      let totalSourcedSqFt = 0;
+      for (const item of landSourcing) {
+        const numSqFt = Number(item.allocatedSqFt) || 0;
+        if (numSqFt <= 0) continue;
+        totalSourcedSqFt += numSqFt;
+
+        const agr = await KisanLandAgreement.findById(item.agreementId).session(session);
+        if (!agr) throw ApiError.badRequest(`Land Agreement ${item.agreementId} not found`);
+
+          if (item.sourceType === 'REGISTRY_DEED') {
+            const deed = agr.registryDeeds.find((d) => String(d._id) === String(item.deedId) || d.deedNumber === item.deedNumber);
+            if (!deed) throw ApiError.badRequest(`Registry Deed ${item.deedNumber} not found in Agreement ${agr.agreementNumber}`);
+            if ((deed.availableSqFt || 0) < numSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Registry Deed ${deed.deedNumber}. Available: ${deed.availableSqFt} SqFt, Requested: ${numSqFt} SqFt`);
+            }
+            deed.allocatedSqFt = (deed.allocatedSqFt || 0) + numSqFt;
+            deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+            if (deed.availableSqFt <= 0) deed.status = 'FULLY_ALLOCATED';
+
+            agr.totalAllocatedSqFt = (agr.totalAllocatedSqFt || 0) + numSqFt;
+            agr.totalAvailableSqFt = Math.max(0, agr.totalSqFt - agr.totalAllocatedSqFt);
+            await agr.save({ session });
+
+            processedSourcing.push({
+              sourceType: 'REGISTRY_DEED',
+              agreementId: agr._id,
+              agreementNumber: agr.agreementNumber,
+              deedId: deed._id,
+              deedNumber: deed.deedNumber,
+              mauja: agr.mauja,
+              khataNumber: agr.khataNumber,
+              khesraNumber: agr.khesraNumber,
+              allocatedSqFt: numSqFt,
+              allocatedDismil: Math.round((numSqFt / 435.6) * 1000) / 1000,
+            });
+          } else {
+            // Sourced from Unregistered Agreement Land Stock
+            if ((agr.unregisteredAvailableSqFt || 0) < numSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Agreement ${agr.agreementNumber}. Available: ${agr.unregisteredAvailableSqFt} SqFt, Requested: ${numSqFt} SqFt`);
+            }
+            agr.unregisteredAllocatedSqFt = (agr.unregisteredAllocatedSqFt || 0) + numSqFt;
+            agr.unregisteredAvailableSqFt = Math.max(0, agr.unregisteredAgreedSqFt - agr.unregisteredAllocatedSqFt);
+            agr.totalAllocatedSqFt = (agr.totalAllocatedSqFt || 0) + numSqFt;
+            agr.totalAvailableSqFt = Math.max(0, agr.totalSqFt - agr.totalAllocatedSqFt);
+            await agr.save({ session });
+
+            processedSourcing.push({
+              sourceType: 'AGREEMENT',
+              agreementId: agr._id,
+              agreementNumber: agr.agreementNumber,
+              deedId: null,
+              deedNumber: '',
+              mauja: agr.mauja,
+              khataNumber: agr.khataNumber,
+              khesraNumber: agr.khesraNumber,
+              allocatedSqFt: numSqFt,
+              allocatedDismil: Math.round((numSqFt / 435.6) * 1000) / 1000,
+            });
+          }
+        }
+
+      if (Math.abs(totalSourcedSqFt - requiredPlotArea) > 0.5) {
+        throw ApiError.badRequest(
+          `Total allocated land source (${totalSourcedSqFt} Sq.Ft.) does not match plot area (${requiredPlotArea} Sq.Ft.). Please adjust the allocated area.`
+        );
       }
 
       // 2. Resolve/Register Customer in PlotCustomer
@@ -633,8 +763,32 @@ class PlotsService {
         emiPrincipalAmount: emiPrincipalAmt,
         emiMonthlyAmount: emiMonthlyAmt,
         downpaymentCalculationBase: resolvedDpBase,
+        landSourcing: processedSourcing,
       });
       await booking.save({ session });
+
+      // Log Land Stock Ledger for each allocated source
+      for (const src of processedSourcing) {
+        const stockLog = new LandStockLedger({
+          agreementId: src.agreementId,
+          sourceType: src.sourceType,
+          deedId: src.deedId || null,
+          deedNumber: src.deedNumber || '',
+          bookingId: booking._id,
+          bookingNumber: booking.bookingNumber,
+          customerName: customer.name,
+          plotNumber: plot.plotNumber,
+          transactionType: 'BOOKING_ALLOCATION',
+          entryType: 'DEBIT',
+          dismil: src.allocatedDismil,
+          sqFt: src.allocatedSqFt,
+          runningAvailableSqFt: src.sourceType === 'REGISTRY_DEED' ? 0 : 0, // audited per agreement
+          date: booking.bookingDate,
+          remarks: `Allocated ${src.allocatedSqFt} SqFt (${src.allocatedDismil} Dismil) to Booking #${booking.bookingNumber} (${customer.name}, Plot ${plot.plotNumber})`,
+          performedBy: processedBy,
+        });
+        await stockLog.save({ session });
+      }
 
       // Update plot status
       plot.status = bookingType === 'HOLD' ? 'HOLD' : 'BOOKED';
@@ -678,10 +832,13 @@ class PlotsService {
           // Monthly EMIs for the remaining 60%
           let principalToDistribute = emiPrincipalAmt;
           const count = resolvedTenure;
+          const dpMonths = Number(downpaymentMonths) || 1;
 
           for (let i = 1; i <= count; i++) {
+            // Downpayment ends after dpMonths (e.g. 3 Sep + 2 months = 3 Nov in Nov).
+            // First EMI (i=1) starts on the 1st of the next month (e.g. 1 Dec).
             const dueDate = new Date(bookingDateObj);
-            dueDate.setMonth(dueDate.getMonth() + (Number(downpaymentMonths) || 1) + i);
+            dueDate.setMonth(dueDate.getMonth() + dpMonths + (i - 1) + 1);
             dueDate.setDate(1);
             dueDate.setHours(0, 0, 0, 0);
 
@@ -1328,6 +1485,620 @@ class PlotsService {
       session.endSession();
     }
   }
+  // ── DYNAMIC BOOKING RESTRUCTURING ENGINE ──────────────────────────
+  async restructureBooking(bookingId, updateData, userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const booking = await PlotBooking.findById(bookingId).session(session);
+      if (!booking) throw ApiError.notFound('Booking not found');
+      if (['CANCELLED'].includes(booking.status)) {
+        throw ApiError.badRequest(`Cannot restructure a booking with status: ${booking.status}`);
+      }
+
+      const plot = await Plot.findById(booking.plotId).session(session);
+      if (!plot) throw ApiError.notFound('Plot not found');
+
+      // Fetch all approved receipts to know total paid so far
+      const receipts = await PlotReceipt.find({ bookingId: booking._id, status: 'APPROVED' }).session(session);
+      const totalPaidSoFar = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+      // Fetch current installments
+      const existingInstallments = await PlotInstallment.find({ bookingId: booking._id }).sort({ installmentNumber: 1 }).session(session);
+      const paidInstCount = existingInstallments.filter((i) => i.status === 'PAID').length;
+
+      const customerBefore = await PlotCustomer.findById(booking.customerId).session(session);
+      const sponsorBefore = booking.sponsorId ? await User.findById(booking.sponsorId).session(session) : null;
+      const rateConfigObj = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
+      const prevCornerExtra = plot?.plotType === 'CORNER' ? (rateConfigObj?.cornerExtraPercent || 20) : 0;
+      const prevBaseRate = booking.basePlotRate || 1000;
+      const prevEffectiveRate = Math.round(prevBaseRate * (1 + prevCornerExtra / 100));
+
+      // 1. Capture Previous State Snapshot
+      const previousSnapshot = {
+        customerId: booking.customerId,
+        customerName: customerBefore?.name || booking.customerName || 'N/A',
+        customerMobile: customerBefore?.mobile || booking.customerMobile || '',
+        sponsorId: booking.sponsorId || null,
+        sponsorName: sponsorBefore?.name || 'Direct / Company',
+        plotId: booking.plotId,
+        plotNumber: plot?.plotNumber || '',
+        plotSize: plot.plotSize,
+        scheme: booking.scheme,
+        tenureMonths: booking.tenureMonths,
+        basePlotRate: prevBaseRate,
+        effectiveRate: prevEffectiveRate,
+        govtRate: booking.govtRate || 100,
+        plotValue: booking.plotValue,
+        discount: booking.discount || 0,
+        remainingAmount: booking.remainingAmount,
+        downpaymentAmount: booking.downpaymentAmount || 0,
+        downpaymentMonths: booking.downpaymentMonths || 1,
+        oneTimeMonths: booking.oneTimeMonths || 1,
+        emiMonthlyAmount: booking.emiMonthlyAmount || 0,
+        promoterCommissionPercent: booking.promoterCommissionPercent,
+        developerCommissionPercent: booking.developerCommissionPercent,
+        agreementNumber: booking.agreementNumber || '',
+        bookingDate: booking.bookingDate,
+        bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
+        status: booking.status,
+        paymentMode: booking.paymentMode || 'cash',
+        transactionReference: booking.transactionReference || '',
+        landSourcing: JSON.parse(JSON.stringify(booking.landSourcing || [])),
+        paidInstallmentsCount: paidInstCount,
+        totalPaidAmount: totalPaidSoFar,
+      };
+
+      // 2. Parse New Parameters
+      const newPlotSize = updateData.plotSize !== undefined ? Number(updateData.plotSize) : plot.plotSize;
+      const newTenureMonths = updateData.tenureMonths !== undefined ? Number(updateData.tenureMonths) : booking.tenureMonths;
+      const newDiscount = updateData.discount !== undefined ? Number(updateData.discount) : (booking.discount || 0);
+      const newOneTimeMonths = updateData.oneTimeMonths !== undefined ? Number(updateData.oneTimeMonths) : (booking.oneTimeMonths || 1);
+      const newDpBase = updateData.downpaymentCalculationBase || booking.downpaymentCalculationBase || 'BEFORE_DISCOUNT';
+      const reason = updateData.reason || 'Customer requested terms restructuring';
+
+      // Slab & Pricing calculation
+      const rateConfig = await this.getRateConfig();
+      const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
+      const slab = slabs.find((s) => Number(s.tenureMonths) === newTenureMonths) || slabs[0];
+
+      const basePlotRate = slab.plotRate || rateConfig.baseSqFtRate || 1000;
+      const cornerExtraPercent = plot.plotType === 'CORNER' ? (rateConfig.cornerExtraPercent || 20) : 0;
+      const effectiveSqFtRate = basePlotRate * (1 + cornerExtraPercent / 100);
+      const newPlotValue = Math.round(newPlotSize * effectiveSqFtRate);
+      const newNetContractValue = Math.max(0, newPlotValue - newDiscount);
+
+      // 3. Land Stock Sourcing Re-allocation & Adjustment
+      let newLandSourcing = Array.isArray(updateData.landSourcing) && updateData.landSourcing.length > 0
+        ? updateData.landSourcing
+        : (booking.landSourcing || []);
+
+      const isSourcingProvided = Array.isArray(updateData.landSourcing) && updateData.landSourcing.length > 0;
+      if (deltaSqFt !== 0 || isSourcingProvided) {
+        // If plot size changed, update plot model size
+        if (deltaSqFt !== 0) {
+          plot.plotSize = newPlotSize;
+          plot.effectiveRate = effectiveSqFtRate;
+          plot.totalPlotValue = newPlotValue;
+          await plot.save({ session });
+        }
+
+        // 1. Release previous land allocations
+        const oldSourcing = Array.isArray(booking.landSourcing) ? booking.landSourcing : [];
+        for (const oldSrc of oldSourcing) {
+          const oldSqFt = Number(oldSrc.allocatedSqFt) || 0;
+          if (oldSqFt <= 0) continue;
+
+          const oldAgr = await KisanLandAgreement.findById(oldSrc.agreementId).session(session);
+          if (oldAgr) {
+            if (oldSrc.sourceType === 'REGISTRY_DEED') {
+              const deed = oldAgr.registryDeeds.find((d) => String(d._id) === String(oldSrc.deedId) || d.deedNumber === oldSrc.deedNumber);
+              if (deed) {
+                deed.allocatedSqFt = Math.max(0, (deed.allocatedSqFt || 0) - oldSqFt);
+                deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+                deed.status = 'ACTIVE';
+              }
+            } else {
+              oldAgr.unregisteredAllocatedSqFt = Math.max(0, (oldAgr.unregisteredAllocatedSqFt || 0) - oldSqFt);
+              oldAgr.unregisteredAvailableSqFt = Math.max(0, oldAgr.unregisteredAgreedSqFt - oldAgr.unregisteredAllocatedSqFt);
+            }
+            oldAgr.totalAllocatedSqFt = Math.max(0, (oldAgr.totalAllocatedSqFt || 0) - oldSqFt);
+            oldAgr.totalAvailableSqFt = Math.max(0, oldAgr.totalSqFt - oldAgr.totalAllocatedSqFt);
+            await oldAgr.save({ session });
+
+            await new LandStockLedger({
+              agreementId: oldAgr._id,
+              sourceType: oldSrc.sourceType,
+              deedId: oldSrc.deedId || null,
+              deedNumber: oldSrc.deedNumber || '',
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              customerName: booking.customerName || '',
+              plotNumber: plot.plotNumber || '',
+              transactionType: 'BOOKING_RESTRUCTURING_DELTA',
+              entryType: 'CREDIT',
+              dismil: oldSrc.allocatedDismil || Math.round((oldSqFt / 435.6) * 1000) / 1000,
+              sqFt: oldSqFt,
+              runningAvailableSqFt: oldAgr.totalAvailableSqFt,
+              date: new Date(),
+              remarks: `Released ${oldSqFt} SqFt allocation in Restructuring for Booking #${booking.bookingNumber}`,
+              performedBy: userId,
+            }).save({ session });
+          }
+        }
+
+        // 2. Allocate new land sources
+        const processedNewSourcing = [];
+        for (const newSrc of newLandSourcing) {
+          const newSqFt = Number(newSrc.allocatedSqFt) || 0;
+          if (newSqFt <= 0) continue;
+
+          const newAgr = await KisanLandAgreement.findById(newSrc.agreementId).session(session);
+          if (!newAgr) throw ApiError.badRequest(`Land Agreement ${newSrc.agreementId} not found`);
+
+          if (newSrc.sourceType === 'REGISTRY_DEED') {
+            const deed = newAgr.registryDeeds.find((d) => String(d._id) === String(newSrc.deedId) || d.deedNumber === newSrc.deedNumber);
+            if (!deed) throw ApiError.badRequest(`Registry Deed ${newSrc.deedNumber} not found in Agreement ${newAgr.agreementNumber}`);
+            if ((deed.availableSqFt || 0) < newSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Registry Deed ${deed.deedNumber}. Available: ${deed.availableSqFt} SqFt, Requested: ${newSqFt} SqFt`);
+            }
+            deed.allocatedSqFt = (deed.allocatedSqFt || 0) + newSqFt;
+            deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+            if (deed.availableSqFt <= 0) deed.status = 'FULLY_ALLOCATED';
+
+            newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
+            newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            await newAgr.save({ session });
+
+            processedNewSourcing.push({
+              sourceType: 'REGISTRY_DEED',
+              agreementId: newAgr._id,
+              agreementNumber: newAgr.agreementNumber,
+              deedId: deed._id,
+              deedNumber: deed.deedNumber,
+              mauja: newAgr.mauja,
+              khataNumber: newAgr.khataNumber,
+              khesraNumber: newAgr.khesraNumber,
+              allocatedSqFt: newSqFt,
+              allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
+            });
+          } else {
+            if ((newAgr.unregisteredAvailableSqFt || 0) < newSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${newAgr.unregisteredAvailableSqFt} SqFt, Requested: ${newSqFt} SqFt`);
+            }
+            newAgr.unregisteredAllocatedSqFt = (newAgr.unregisteredAllocatedSqFt || 0) + newSqFt;
+            newAgr.unregisteredAvailableSqFt = Math.max(0, newAgr.unregisteredAgreedSqFt - newAgr.unregisteredAllocatedSqFt);
+            newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
+            newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            await newAgr.save({ session });
+
+            processedNewSourcing.push({
+              sourceType: 'AGREEMENT',
+              agreementId: newAgr._id,
+              agreementNumber: newAgr.agreementNumber,
+              deedId: null,
+              deedNumber: '',
+              mauja: newAgr.mauja,
+              khataNumber: newAgr.khataNumber,
+              khesraNumber: newAgr.khesraNumber,
+              allocatedSqFt: newSqFt,
+              allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
+            });
+          }
+
+          await new LandStockLedger({
+            agreementId: newAgr._id,
+            sourceType: newSrc.sourceType,
+            deedId: newSrc.deedId || null,
+            deedNumber: newSrc.deedNumber || '',
+            bookingId: booking._id,
+            bookingNumber: booking.bookingNumber,
+            customerName: booking.customerName || '',
+            plotNumber: plot.plotNumber || '',
+            transactionType: 'BOOKING_RESTRUCTURING_DELTA',
+            entryType: 'DEBIT',
+            dismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
+            sqFt: newSqFt,
+            runningAvailableSqFt: newAgr.totalAvailableSqFt,
+            date: new Date(),
+            remarks: `Allocated ${newSqFt} SqFt in Restructuring for Booking #${booking.bookingNumber}`,
+            performedBy: userId,
+          }).save({ session });
+        }
+
+        newLandSourcing = processedNewSourcing;
+      }
+
+      // 4. Downpayment & EMI Recalculation
+      let newDpAmt = 0;
+      let newEmiPrincipal = 0;
+      let newEmiMonthly = 0;
+
+      if (newTenureMonths === 0) {
+        newDpAmt = newNetContractValue;
+        newEmiPrincipal = 0;
+        newEmiMonthly = 0;
+      } else {
+        const dpPercent = slab.downpaymentPercent ? slab.downpaymentPercent / 100 : 0.40;
+        if (newDpBase === 'BEFORE_DISCOUNT') {
+          newDpAmt = Math.round(newPlotValue * dpPercent);
+          newEmiPrincipal = Math.max(0, newNetContractValue - newDpAmt);
+        } else {
+          newDpAmt = Math.round(newNetContractValue * dpPercent);
+          newEmiPrincipal = newNetContractValue - newDpAmt;
+        }
+        newEmiMonthly = newTenureMonths > 0 ? Math.round(newEmiPrincipal / newTenureMonths) : 0;
+      }
+
+      // 5. Update Booking Document
+      const resolvedScheme = newTenureMonths === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT';
+      booking.plotValue = newPlotValue;
+      booking.discount = newDiscount;
+      booking.tenureMonths = newTenureMonths;
+      booking.scheme = resolvedScheme;
+      booking.basePlotRate = basePlotRate;
+      booking.promoterCommissionPercent = slab.promoterCommissionPercent;
+      booking.developerCommissionPercent = slab.developerCommissionPercent;
+      booking.downpaymentAmount = newDpAmt;
+      booking.emiPrincipalAmount = newEmiPrincipal;
+      booking.emiMonthlyAmount = newEmiMonthly;
+      booking.downpaymentCalculationBase = newDpBase;
+      booking.landSourcing = newLandSourcing;
+      if (newTenureMonths === 0) booking.oneTimeMonths = newOneTimeMonths;
+      booking.revisionCount = (booking.revisionCount || 0) + 1;
+      booking.remainingAmount = Math.max(0, newNetContractValue - totalPaidSoFar);
+
+      await booking.save({ session });
+
+      // 6. Recalibrate Installment Schedule
+      // Keep fully paid installments and re-generate remaining unpaid installments
+      const paidInstallments = existingInstallments.filter((i) => i.status === 'PAID');
+      const unpaidInstallments = existingInstallments.filter((i) => i.status !== 'PAID');
+
+      // Delete unpaid installments and generate clean remaining schedule
+      for (const unp of unpaidInstallments) {
+        await unp.deleteOne({ session });
+      }
+
+      const remainingBalanceToSchedule = Math.max(0, newNetContractValue - totalPaidSoFar);
+
+      if (remainingBalanceToSchedule > 0) {
+        const remainingMonths = Math.max(1, newTenureMonths - paidInstCount);
+        const newInstallmentsToInsert = [];
+        let principalDist = remainingBalanceToSchedule;
+
+        const startIdx = paidInstCount + 1;
+        for (let i = 1; i <= remainingMonths; i++) {
+          const instNum = paidInstCount === 0 && newTenureMonths > 0 && i === 1 && newDpAmt > totalPaidSoFar ? 0 : startIdx + i - 1;
+          const dueDate = new Date(booking.bookingDate);
+          const dpMonths = Number(booking.downpaymentMonths) || 1;
+          if (instNum === 0) {
+            // Downpayment due date
+            dueDate.setMonth(dueDate.getMonth() + dpMonths);
+          } else {
+            // First EMI (instNum = 1) starts 1st of month following downpayment end date
+            dueDate.setMonth(dueDate.getMonth() + dpMonths + (instNum - 1) + 1);
+            dueDate.setDate(1);
+            dueDate.setHours(0, 0, 0, 0);
+          }
+
+          let dueAmt = 0;
+          if (i === remainingMonths) {
+            dueAmt = Math.round(principalDist * 100) / 100;
+          } else {
+            dueAmt = Math.floor(remainingBalanceToSchedule / remainingMonths);
+            dueAmt = Math.min(dueAmt, principalDist);
+          }
+          dueAmt = Math.round(dueAmt * 100) / 100;
+          principalDist -= dueAmt;
+
+          if (dueAmt > 0) {
+            newInstallmentsToInsert.push({
+              installmentNumber: instNum,
+              bookingId: booking._id,
+              dueDate,
+              dueAmount: dueAmt,
+              paidAmount: 0,
+              status: 'PENDING',
+            });
+          }
+        }
+        if (newInstallmentsToInsert.length > 0) {
+          await PlotInstallment.insertMany(newInstallmentsToInsert, { session });
+        }
+      }
+
+      // 7. Sync Sponsor Commissions with New Terms
+      await this.syncBookingSponsorCommissions(booking._id, session);
+
+      // 8. Capture New Snapshot & Save Revision Audit Record
+      const customerAfter = await PlotCustomer.findById(booking.customerId).session(session);
+      const sponsorAfter = booking.sponsorId ? await User.findById(booking.sponsorId).session(session) : null;
+
+      const newSnapshot = {
+        customerId: booking.customerId,
+        customerName: customerAfter?.name || booking.customerName || 'N/A',
+        customerMobile: customerAfter?.mobile || booking.customerMobile || '',
+        sponsorId: booking.sponsorId || null,
+        sponsorName: sponsorAfter?.name || 'Direct / Company',
+        plotId: booking.plotId,
+        plotNumber: plot?.plotNumber || '',
+        plotSize: newPlotSize,
+        scheme: resolvedScheme,
+        tenureMonths: newTenureMonths,
+        basePlotRate,
+        effectiveRate: Math.round(effectiveSqFtRate),
+        govtRate: booking.govtRate || 100,
+        plotValue: newPlotValue,
+        discount: newDiscount,
+        remainingAmount: booking.remainingAmount,
+        downpaymentAmount: newDpAmt,
+        downpaymentMonths: booking.downpaymentMonths || 1,
+        oneTimeMonths: booking.oneTimeMonths || 1,
+        emiMonthlyAmount: newEmiMonthly,
+        promoterCommissionPercent: slab.promoterCommissionPercent,
+        developerCommissionPercent: slab.developerCommissionPercent,
+        agreementNumber: booking.agreementNumber || '',
+        bookingDate: booking.bookingDate,
+        bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
+        status: booking.status,
+        paymentMode: booking.paymentMode || 'cash',
+        transactionReference: booking.transactionReference || '',
+        landSourcing: newLandSourcing,
+        paidInstallmentsCount: paidInstCount,
+        totalPaidAmount: totalPaidSoFar,
+      };
+
+      // Detect every single changed field
+      const changedFields = [];
+      const fieldLabels = {
+        customerName: 'Customer Name',
+        plotNumber: 'Plot Number',
+        plotSize: 'Plot Area (Sq.Ft.)',
+        tenureMonths: 'Tenure / Scheme (Months)',
+        basePlotRate: 'Base Rate (₹/SqFt)',
+        effectiveRate: 'Effective Rate (₹/SqFt)',
+        plotValue: 'Gross Plot Value',
+        discount: 'Discount Applied',
+        remainingAmount: 'Remaining / Outstanding Amount',
+        downpaymentAmount: 'Downpayment Amount',
+        downpaymentMonths: 'Downpayment Grace Period',
+        oneTimeMonths: 'Payment Time Limit',
+        emiMonthlyAmount: 'Monthly EMI Amount',
+        promoterCommissionPercent: 'Promoter Commission %',
+        developerCommissionPercent: 'Developer Commission %',
+        agreementNumber: 'Agreement Number',
+        bookingDate: 'Booking Date',
+        bookingType: 'Booking Type',
+        status: 'Status',
+        paymentMode: 'Payment Mode',
+        transactionReference: 'Transaction Reference',
+        sponsorName: 'Sponsor / Promoter',
+      };
+
+      for (const [key, label] of Object.entries(fieldLabels)) {
+        let oldVal = previousSnapshot[key];
+        let newVal = newSnapshot[key];
+
+        if (key === 'bookingDate') {
+          oldVal = oldVal ? new Date(oldVal).toISOString().split('T')[0] : '';
+          newVal = newVal ? new Date(newVal).toISOString().split('T')[0] : '';
+        }
+
+        if (String(oldVal ?? '') !== String(newVal ?? '')) {
+          changedFields.push({
+            field: key,
+            label,
+            oldValue: previousSnapshot[key],
+            newValue: newSnapshot[key],
+          });
+        }
+      }
+
+      // Generate comprehensive system log describing every single change
+      let systemLog = '';
+      if (changedFields.length > 0) {
+        systemLog = changedFields.map(f => `• ${f.label}: "${f.oldValue ?? 'None'}" → "${f.newValue ?? 'None'}"`).join('\n');
+      } else {
+        systemLog = '• Contract terms restructured with no detected field discrepancies.';
+      }
+
+      const userNarration = (updateData.adminNarration || updateData.reason || '').trim();
+      const primaryReason = userNarration || (changedFields.length > 0 ? `Updated: ${changedFields.map(f => f.label).join(', ')}` : 'Terms restructured');
+
+      const revision = new PlotBookingRevision({
+        bookingId: booking._id,
+        bookingNumber: booking.bookingNumber,
+        revisionNumber: booking.revisionCount,
+        revisionDate: new Date(),
+        reason: primaryReason,
+        adminNarration: userNarration,
+        systemLog,
+        previousSnapshot,
+        newSnapshot,
+        changedFields,
+        deltas: {
+          deltaPlotSize: deltaSqFt,
+          deltaPlotValue: newPlotValue - previousSnapshot.plotValue,
+          deltaDiscount: newDiscount - previousSnapshot.discount,
+          deltaRemainingAmount: booking.remainingAmount - previousSnapshot.remainingAmount,
+          deltaEmiMonthlyAmount: newEmiMonthly - previousSnapshot.emiMonthlyAmount,
+          deltaDownpaymentAmount: newDpAmt - previousSnapshot.downpaymentAmount,
+          deltaPromoterCommissionPercent: (slab.promoterCommissionPercent || 0) - (previousSnapshot.promoterCommissionPercent || 0),
+        },
+        editedBy: userId,
+      });
+      await revision.save({ session });
+
+      // Audit Log
+      await new PlotAuditLog({
+        action: 'RESTRUCTURE_BOOKING',
+        modelName: 'PlotBooking',
+        documentId: booking._id,
+        userId,
+        details: { revisionNumber: booking.revisionCount, reason, deltas: revision.deltas },
+      }).save({ session });
+
+      await session.commitTransaction();
+      return { booking, revision };
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  // ── CUSTOMER PLOT REFUND & CANCELLATION REIMBURSEMENT ──────────────
+  async processCustomerRefund(bookingId, refundData, userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const booking = await PlotBooking.findById(bookingId).session(session);
+      if (!booking) throw ApiError.notFound('Booking not found');
+      if (booking.status === 'CANCELLED') {
+        throw ApiError.badRequest('Booking is already cancelled');
+      }
+
+      const { deductionAmount = 0, paymentMode = 'BANK_TRANSFER', transactionReference = '', remarks = '', refundDate = new Date() } = refundData;
+
+      // 1. Calculate Total Collections Paid by Customer
+      const receipts = await PlotReceipt.find({ bookingId: booking._id, status: 'APPROVED' }).session(session);
+      const totalCollected = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+      const numDeduction = Number(deductionAmount) || 0;
+      const netRefund = Math.max(0, totalCollected - numDeduction);
+
+      // 2. Restore all Sourced Land Stock back to Kisan Agreements & Registry Deeds
+      if (Array.isArray(booking.landSourcing) && booking.landSourcing.length > 0) {
+        for (const src of booking.landSourcing) {
+          const numSqFt = Number(src.allocatedSqFt) || 0;
+          if (numSqFt <= 0) continue;
+
+          const agr = await KisanLandAgreement.findById(src.agreementId).session(session);
+          if (agr) {
+            if (src.sourceType === 'REGISTRY_DEED') {
+              const deed = agr.registryDeeds.find((d) => String(d._id) === String(src.deedId) || d.deedNumber === src.deedNumber);
+              if (deed) {
+                deed.allocatedSqFt = Math.max(0, (deed.allocatedSqFt || 0) - numSqFt);
+                deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+                deed.status = 'ACTIVE';
+              }
+            } else {
+              agr.unregisteredAllocatedSqFt = Math.max(0, (agr.unregisteredAllocatedSqFt || 0) - numSqFt);
+              agr.unregisteredAvailableSqFt = Math.max(0, agr.unregisteredAgreedSqFt - agr.unregisteredAllocatedSqFt);
+            }
+            agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
+            agr.totalAvailableSqFt = Math.max(0, agr.totalSqFt - agr.totalAllocatedSqFt);
+            await agr.save({ session });
+
+            // Log Stock Restoration in Land Stock Ledger
+            await new LandStockLedger({
+              agreementId: agr._id,
+              sourceType: src.sourceType,
+              deedId: src.deedId || null,
+              deedNumber: src.deedNumber || '',
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              transactionType: 'BOOKING_CANCELLATION_RESTORE',
+              entryType: 'CREDIT',
+              dismil: src.allocatedDismil || Math.round((numSqFt / 435.6) * 1000) / 1000,
+              sqFt: numSqFt,
+              runningAvailableSqFt: agr.totalAvailableSqFt,
+              date: new Date(refundDate),
+              remarks: `Restored ${numSqFt} SqFt due to Customer Refund & Cancellation of Booking #${booking.bookingNumber}`,
+              performedBy: userId,
+            }).save({ session });
+          }
+        }
+      }
+
+      // 3. Mark Plot as AVAILABLE
+      await Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' }).session(session);
+
+      // 4. Reverse / Cancel Sponsor Commissions for this Booking
+      await PlotSponsorCommission.updateMany(
+        { bookingId: booking._id },
+        { $set: { status: 'reversed' } }
+      ).session(session);
+
+      // 5. Update Booking Status to CANCELLED & Refund Record
+      booking.status = 'CANCELLED';
+      booking.refundStatus = 'PROCESSED';
+      booking.refundAmount = netRefund;
+      booking.refundDeduction = numDeduction;
+      booking.refundDate = new Date(refundDate);
+      await booking.save({ session });
+
+      // 6. Create Reimbursement Voucher in General Ledger if Voucher model is present
+      let createdVoucher = null;
+      try {
+        const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
+        const vCounter = await Counter.findByIdAndUpdate(
+          `VOUCHER_FY_${fyStr}`,
+          { $inc: { sequence: 1 } },
+          { new: true, upsert: true, session }
+        );
+        const voucherNumber = `VCH-${fyStr}-${String(vCounter.sequence).padStart(4, '0')}`;
+
+        createdVoucher = new Voucher({
+          voucherNumber,
+          voucherType: 'EXPENSE',
+          category: 'Plot Cancellation Refund',
+          amount: netRefund,
+          paymentMode,
+          transactionReference,
+          remarks: `Refund for Cancelled Plot Booking #${booking.bookingNumber}. Total Paid: ₹${totalCollected}, Deductions: ₹${numDeduction}, Net Refund: ₹${netRefund}. ${remarks}`,
+          date: new Date(refundDate),
+          status: 'APPROVED',
+          createdBy: userId,
+        });
+        await createdVoucher.save({ session });
+        booking.refundVoucherId = createdVoucher._id;
+        await booking.save({ session });
+      } catch (vErr) {
+        console.warn('[CustomerRefund] Optional voucher generation skipped:', vErr.message);
+      }
+
+      // Audit Log
+      await new PlotAuditLog({
+        action: 'PROCESS_CUSTOMER_REFUND',
+        modelName: 'PlotBooking',
+        documentId: booking._id,
+        userId,
+        details: { totalCollected, deductionAmount: numDeduction, netRefund, paymentMode },
+      }).save({ session });
+
+      await session.commitTransaction();
+      return { booking, totalCollected, netRefund, voucher: createdVoucher };
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  // ── GET BOOKING REVISIONS ──────────────────────────────────────────
+  async getBookingRevisions(bookingId) {
+    return PlotBookingRevision.find({ bookingId })
+      .populate('editedBy', 'name email')
+      .sort({ revisionNumber: -1 })
+      .lean();
+  }
+
+  // ── UPDATE REVISION NARRATION ──────────────────────────────────────────
+  async updateBookingRevisionNarration(revisionId, adminNarration, userId) {
+    const revision = await PlotBookingRevision.findById(revisionId);
+    if (!revision) throw ApiError.notFound('Revision record not found');
+
+    revision.adminNarration = (adminNarration || '').trim();
+    if (!revision.reason || revision.reason.trim() === '') {
+      revision.reason = revision.adminNarration || 'Admin updated narration';
+    }
+    await revision.save();
+    return revision;
+  }
   // ── AUTO-EXPIRY FOR HOLDS ───────────────────────────────────────
   async expireHoldBookings() {
     const expiredHolds = await PlotBooking.find({
@@ -1933,11 +2704,61 @@ class PlotsService {
       const booking = await PlotBooking.findById(id).session(session);
       if (!booking) throw ApiError.notFound('Booking not found');
 
+      const plotBefore = await Plot.findById(booking.plotId).session(session);
+      const customerBefore = await PlotCustomer.findById(booking.customerId).session(session);
+      const sponsorBefore = booking.sponsorId ? await User.findById(booking.sponsorId).session(session) : null;
+      const existingInstallments = await PlotInstallment.find({ bookingId: id }).session(session);
+      const paidInstCount = existingInstallments.filter((i) => i.status === 'PAID').length;
+      const receiptsBefore = await PlotReceipt.find({ bookingId: id, status: 'APPROVED' }).session(session);
+      const totalPaidSoFar = receiptsBefore.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+      // Previous effective rate based on plot type corner extra
+      const prevRateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
+      const prevCornerExtra = plotBefore?.plotType === 'CORNER' ? (prevRateConfig?.cornerExtraPercent || 20) : 0;
+      const prevBaseRate = booking.basePlotRate || 1000;
+      const prevEffectiveRate = Math.round(prevBaseRate * (1 + prevCornerExtra / 100));
+
+      // Previous State Snapshot for complete revision audit trail
+      const previousSnapshot = {
+        customerId: booking.customerId,
+        customerName: customerBefore?.name || booking.customerName || 'N/A',
+        customerMobile: customerBefore?.mobile || booking.customerMobile || '',
+        sponsorId: booking.sponsorId || null,
+        sponsorName: sponsorBefore?.name || 'Direct / Company',
+        plotId: booking.plotId,
+        plotNumber: plotBefore?.plotNumber || '',
+        plotSize: plotBefore ? (plotBefore.plotSize || plotBefore.area || plotBefore.areaSqFt || 0) : 0,
+        scheme: booking.scheme,
+        tenureMonths: booking.tenureMonths,
+        basePlotRate: prevBaseRate,
+        effectiveRate: prevEffectiveRate,
+        govtRate: booking.govtRate || 100,
+        plotValue: booking.plotValue,
+        discount: booking.discount || 0,
+        remainingAmount: booking.remainingAmount,
+        downpaymentAmount: booking.bookingAmount || booking.downpaymentAmount || 0,
+        downpaymentMonths: booking.downpaymentMonths || 1,
+        oneTimeMonths: booking.oneTimeMonths || 1,
+        emiMonthlyAmount: booking.emiMonthlyAmount || 0,
+        promoterCommissionPercent: booking.promoterCommissionPercent || 0,
+        developerCommissionPercent: booking.developerCommissionPercent || 0,
+        agreementNumber: booking.agreementNumber || '',
+        bookingDate: booking.bookingDate,
+        bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
+        status: booking.status,
+        paymentMode: booking.paymentMode || 'cash',
+        transactionReference: booking.transactionReference || '',
+        landSourcing: JSON.parse(JSON.stringify(booking.landSourcing || [])),
+        paidInstallmentsCount: paidInstCount,
+        totalPaidAmount: totalPaidSoFar,
+      };
+
       const {
         notes, discount, bookingAmount, bookingDate, sponsorId, status, scheme,
         tenureMonths, downpaymentCalculationBase, govtRate,
         installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, agreementNumber,
-        bookingType, holdExpiryDays, customerId, plotId, paymentMode, transactionReference
+        bookingType, holdExpiryDays, customerId, plotId, paymentMode, transactionReference,
+        landSourcing, reason
       } = data;
 
       if (notes !== undefined) booking.notes = notes;
@@ -1945,8 +2766,136 @@ class PlotsService {
       if (paymentMode !== undefined) booking.paymentMode = paymentMode;
       if (transactionReference !== undefined) booking.transactionReference = transactionReference;
       if (downpaymentMonths !== undefined) booking.downpaymentMonths = Number(downpaymentMonths) || 1;
-      if (downpaymentCalculationBase !== undefined) booking.downpaymentCalculationBase = downpaymentCalculationBase;
-      if (govtRate !== undefined) booking.govtRate = Number(govtRate) || 100;
+      // Land Stock Sourcing Adjustment & Reconciliation
+      if (Array.isArray(landSourcing) && landSourcing.length > 0) {
+        const oldSourcing = Array.isArray(booking.landSourcing) ? booking.landSourcing : [];
+
+        // 1. Revert/Release previous allocations from old agreements/deeds
+        for (const oldSrc of oldSourcing) {
+          const oldSqFt = Number(oldSrc.allocatedSqFt) || 0;
+          if (oldSqFt <= 0) continue;
+
+          const oldAgr = await KisanLandAgreement.findById(oldSrc.agreementId).session(session);
+          if (oldAgr) {
+            if (oldSrc.sourceType === 'REGISTRY_DEED') {
+              const deed = oldAgr.registryDeeds.find((d) => String(d._id) === String(oldSrc.deedId) || d.deedNumber === oldSrc.deedNumber);
+              if (deed) {
+                deed.allocatedSqFt = Math.max(0, (deed.allocatedSqFt || 0) - oldSqFt);
+                deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+                deed.status = 'ACTIVE';
+              }
+            } else {
+              oldAgr.unregisteredAllocatedSqFt = Math.max(0, (oldAgr.unregisteredAllocatedSqFt || 0) - oldSqFt);
+              oldAgr.unregisteredAvailableSqFt = Math.max(0, oldAgr.unregisteredAgreedSqFt - oldAgr.unregisteredAllocatedSqFt);
+            }
+            oldAgr.totalAllocatedSqFt = Math.max(0, (oldAgr.totalAllocatedSqFt || 0) - oldSqFt);
+            oldAgr.totalAvailableSqFt = Math.max(0, oldAgr.totalSqFt - oldAgr.totalAllocatedSqFt);
+            await oldAgr.save({ session });
+
+            // Record Credit log for released stock
+            await new LandStockLedger({
+              agreementId: oldAgr._id,
+              sourceType: oldSrc.sourceType,
+              deedId: oldSrc.deedId || null,
+              deedNumber: oldSrc.deedNumber || '',
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              customerName: booking.customerName || '',
+              plotNumber: booking.plotId?.plotNumber || '',
+              transactionType: 'MANUAL_ADJUSTMENT',
+              entryType: 'CREDIT',
+              dismil: oldSrc.allocatedDismil || Math.round((oldSqFt / 435.6) * 1000) / 1000,
+              sqFt: oldSqFt,
+              runningAvailableSqFt: oldAgr.totalAvailableSqFt,
+              date: new Date(),
+              remarks: `Released ${oldSqFt} SqFt previous allocation during contract edit for Booking #${booking.bookingNumber}`,
+              performedBy: userId,
+            }).save({ session });
+          }
+        }
+
+        // 2. Apply new allocations & deduct from new agreements/deeds
+        const processedNewSourcing = [];
+        for (const newSrc of landSourcing) {
+          const newSqFt = Number(newSrc.allocatedSqFt) || 0;
+          if (newSqFt <= 0) continue;
+
+          const newAgr = await KisanLandAgreement.findById(newSrc.agreementId).session(session);
+          if (!newAgr) throw ApiError.badRequest(`Land Agreement ${newSrc.agreementId} not found`);
+
+          if (newSrc.sourceType === 'REGISTRY_DEED') {
+            const deed = newAgr.registryDeeds.find((d) => String(d._id) === String(newSrc.deedId) || d.deedNumber === newSrc.deedNumber);
+            if (!deed) throw ApiError.badRequest(`Registry Deed ${newSrc.deedNumber} not found in Agreement ${newAgr.agreementNumber}`);
+            if ((deed.availableSqFt || 0) < newSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Registry Deed ${deed.deedNumber}. Available: ${deed.availableSqFt} SqFt, Requested: ${newSqFt} SqFt`);
+            }
+            deed.allocatedSqFt = (deed.allocatedSqFt || 0) + newSqFt;
+            deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+            if (deed.availableSqFt <= 0) deed.status = 'FULLY_ALLOCATED';
+
+            newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
+            newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            await newAgr.save({ session });
+
+            processedNewSourcing.push({
+              sourceType: 'REGISTRY_DEED',
+              agreementId: newAgr._id,
+              agreementNumber: newAgr.agreementNumber,
+              deedId: deed._id,
+              deedNumber: deed.deedNumber,
+              mauja: newAgr.mauja,
+              khataNumber: newAgr.khataNumber,
+              khesraNumber: newAgr.khesraNumber,
+              allocatedSqFt: newSqFt,
+              allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
+            });
+          } else {
+            if ((newAgr.unregisteredAvailableSqFt || 0) < newSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${newAgr.unregisteredAvailableSqFt} SqFt, Requested: ${newSqFt} SqFt`);
+            }
+            newAgr.unregisteredAllocatedSqFt = (newAgr.unregisteredAllocatedSqFt || 0) + newSqFt;
+            newAgr.unregisteredAvailableSqFt = Math.max(0, newAgr.unregisteredAgreedSqFt - newAgr.unregisteredAllocatedSqFt);
+            newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
+            newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            await newAgr.save({ session });
+
+            processedNewSourcing.push({
+              sourceType: 'AGREEMENT',
+              agreementId: newAgr._id,
+              agreementNumber: newAgr.agreementNumber,
+              deedId: null,
+              deedNumber: '',
+              mauja: newAgr.mauja,
+              khataNumber: newAgr.khataNumber,
+              khesraNumber: newAgr.khesraNumber,
+              allocatedSqFt: newSqFt,
+              allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
+            });
+          }
+
+          // Record Debit log for newly applied stock
+          await new LandStockLedger({
+            agreementId: newAgr._id,
+            sourceType: newSrc.sourceType,
+            deedId: newSrc.deedId || null,
+            deedNumber: newSrc.deedNumber || '',
+            bookingId: booking._id,
+            bookingNumber: booking.bookingNumber,
+            customerName: booking.customerName || '',
+            plotNumber: booking.plotId?.plotNumber || '',
+            transactionType: 'MANUAL_ADJUSTMENT',
+            entryType: 'DEBIT',
+            dismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
+            sqFt: newSqFt,
+            runningAvailableSqFt: newAgr.totalAvailableSqFt,
+            date: new Date(),
+            remarks: `Applied ${newSqFt} SqFt allocation during contract edit for Booking #${booking.bookingNumber}`,
+            performedBy: userId,
+          }).save({ session });
+        }
+
+        booking.landSourcing = processedNewSourcing;
+      }
 
       if (bookingType !== undefined) {
         booking.bookingType = bookingType;
@@ -2127,8 +3076,9 @@ class PlotsService {
           let principalToDistribute = Math.max(0, remainingAmount - downpaymentAmount);
 
           for (let i = 1; i <= count; i++) {
+            // Downpayment ends after resolvedDpMonths. First EMI starts 1st of next month.
             const dueDate = new Date(bookingDateObj);
-            dueDate.setMonth(dueDate.getMonth() + resolvedDpMonths + i);
+            dueDate.setMonth(dueDate.getMonth() + resolvedDpMonths + (i - 1) + 1);
             dueDate.setDate(1);
             dueDate.setHours(0, 0, 0, 0);
 
@@ -2170,13 +3120,148 @@ class PlotsService {
         await this.rebuildBookingInstallmentsState(id, session);
       }
 
+      // Sync Sponsor Commissions with New Rates/Tenure Terms
+      await this.syncBookingSponsorCommissions(booking._id, session);
+
+      // Capture New Snapshot & Save Revision Audit Record
+      const plotAfter = await Plot.findById(booking.plotId).session(session);
+      const customerAfter = await PlotCustomer.findById(booking.customerId).session(session);
+      const sponsorAfter = booking.sponsorId ? await User.findById(booking.sponsorId).session(session) : null;
+      const updatedInstallments = await PlotInstallment.find({ bookingId: id }).session(session);
+      const updatedPaidCount = updatedInstallments.filter((i) => i.status === 'PAID').length;
+      const updatedReceipts = await PlotReceipt.find({ bookingId: id, status: 'APPROVED' }).session(session);
+      const updatedTotalPaid = updatedReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+      const postRateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
+      const postCornerExtra = plotAfter?.plotType === 'CORNER' ? (postRateConfig?.cornerExtraPercent || 20) : 0;
+      const postBaseRate = booking.basePlotRate || 1000;
+      const postEffectiveRate = Math.round(postBaseRate * (1 + postCornerExtra / 100));
+
+      const newSnapshot = {
+        customerId: booking.customerId,
+        customerName: customerAfter?.name || booking.customerName || 'N/A',
+        customerMobile: customerAfter?.mobile || booking.customerMobile || '',
+        sponsorId: booking.sponsorId || null,
+        sponsorName: sponsorAfter?.name || 'Direct / Company',
+        plotId: booking.plotId,
+        plotNumber: plotAfter?.plotNumber || '',
+        plotSize: plotAfter ? (plotAfter.plotSize || plotAfter.area || plotAfter.areaSqFt || 0) : 0,
+        scheme: booking.scheme,
+        tenureMonths: booking.tenureMonths,
+        basePlotRate: postBaseRate,
+        effectiveRate: postEffectiveRate,
+        govtRate: booking.govtRate || 100,
+        plotValue: booking.plotValue,
+        discount: booking.discount || 0,
+        remainingAmount: booking.remainingAmount,
+        downpaymentAmount: booking.bookingAmount || booking.downpaymentAmount || 0,
+        downpaymentMonths: booking.downpaymentMonths || 1,
+        oneTimeMonths: booking.oneTimeMonths || 1,
+        emiMonthlyAmount: booking.emiMonthlyAmount || 0,
+        promoterCommissionPercent: booking.promoterCommissionPercent || 0,
+        developerCommissionPercent: booking.developerCommissionPercent || 0,
+        agreementNumber: booking.agreementNumber || '',
+        bookingDate: booking.bookingDate,
+        bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
+        status: booking.status,
+        paymentMode: booking.paymentMode || 'cash',
+        transactionReference: booking.transactionReference || '',
+        landSourcing: JSON.parse(JSON.stringify(booking.landSourcing || [])),
+        paidInstallmentsCount: updatedPaidCount,
+        totalPaidAmount: updatedTotalPaid,
+      };
+
+      // Detect every single changed field
+      const changedFields = [];
+      const fieldLabels = {
+        customerName: 'Customer Name',
+        plotNumber: 'Plot Number',
+        plotSize: 'Plot Area (Sq.Ft.)',
+        tenureMonths: 'Tenure / Scheme (Months)',
+        basePlotRate: 'Base Rate (₹/SqFt)',
+        effectiveRate: 'Effective Rate (₹/SqFt)',
+        plotValue: 'Gross Plot Value',
+        discount: 'Discount Applied',
+        remainingAmount: 'Remaining / Outstanding Amount',
+        downpaymentAmount: 'Downpayment Amount',
+        downpaymentMonths: 'Downpayment Grace Period',
+        oneTimeMonths: 'Payment Time Limit',
+        emiMonthlyAmount: 'Monthly EMI Amount',
+        promoterCommissionPercent: 'Promoter Commission %',
+        developerCommissionPercent: 'Developer Commission %',
+        agreementNumber: 'Agreement Number',
+        bookingDate: 'Booking Date',
+        bookingType: 'Booking Type',
+        status: 'Status',
+        paymentMode: 'Payment Mode',
+        transactionReference: 'Transaction Reference',
+        sponsorName: 'Sponsor / Promoter',
+      };
+
+      for (const [key, label] of Object.entries(fieldLabels)) {
+        let oldVal = previousSnapshot[key];
+        let newVal = newSnapshot[key];
+
+        if (key === 'bookingDate') {
+          oldVal = oldVal ? new Date(oldVal).toISOString().split('T')[0] : '';
+          newVal = newVal ? new Date(newVal).toISOString().split('T')[0] : '';
+        }
+
+        if (String(oldVal ?? '') !== String(newVal ?? '')) {
+          changedFields.push({
+            field: key,
+            label,
+            oldValue: previousSnapshot[key],
+            newValue: newSnapshot[key],
+          });
+        }
+      }
+
+      // Generate comprehensive system log describing every single change
+      let systemLog = '';
+      if (changedFields.length > 0) {
+        systemLog = changedFields.map(f => `• ${f.label}: "${f.oldValue ?? 'None'}" → "${f.newValue ?? 'None'}"`).join('\n');
+      } else {
+        systemLog = '• Contract saved with no detected field discrepancies.';
+      }
+
+      const userNarration = (data.adminNarration || data.reason || '').trim();
+      const primaryReason = userNarration || (changedFields.length > 0 ? `Updated: ${changedFields.map(f => f.label).join(', ')}` : 'Contract edited via Edit Booking Contract');
+
+      booking.revisionCount = (booking.revisionCount || 0) + 1;
+      await booking.save({ session });
+
+      const revision = new PlotBookingRevision({
+        bookingId: booking._id,
+        bookingNumber: booking.bookingNumber,
+        revisionNumber: booking.revisionCount,
+        revisionDate: new Date(),
+        reason: primaryReason,
+        adminNarration: userNarration,
+        systemLog,
+        previousSnapshot,
+        newSnapshot,
+        changedFields,
+        deltas: {
+          deltaPlotSize: (newSnapshot.plotSize || 0) - (previousSnapshot.plotSize || 0),
+          deltaPlotValue: (newSnapshot.plotValue || 0) - (previousSnapshot.plotValue || 0),
+          deltaDiscount: (newSnapshot.discount || 0) - (previousSnapshot.discount || 0),
+          deltaRemainingAmount: (newSnapshot.remainingAmount || 0) - (previousSnapshot.remainingAmount || 0),
+          deltaEmiMonthlyAmount: (newSnapshot.emiMonthlyAmount || 0) - (previousSnapshot.emiMonthlyAmount || 0),
+          deltaDownpaymentAmount: (newSnapshot.downpaymentAmount || 0) - (previousSnapshot.downpaymentAmount || 0),
+          deltaPromoterCommissionPercent: (newSnapshot.promoterCommissionPercent || 0) - (previousSnapshot.promoterCommissionPercent || 0),
+        },
+        editedBy: userId,
+      });
+      await revision.save({ session });
+
       // Log action
       await new PlotAuditLog({
         action: 'UPDATE_BOOKING',
         modelName: 'PlotBooking',
         documentId: booking._id,
         userId,
-        details: { bookingNumber: booking.bookingNumber, updatedFields: data },
+        details: { bookingNumber: booking.bookingNumber, revisionNumber: booking.revisionCount, updatedFields: data },
       }).save({ session });
 
       await session.commitTransaction();
@@ -2206,12 +3291,62 @@ class PlotsService {
         );
       }
 
-      // Revert plot status to AVAILABLE
-      await Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' }).session(session);
+      // Restore all Sourced Land Stock back to Kisan Agreements & Registry Deeds
+      if (Array.isArray(booking.landSourcing) && booking.landSourcing.length > 0) {
+        for (const src of booking.landSourcing) {
+          const numSqFt = Number(src.allocatedSqFt) || 0;
+          if (numSqFt <= 0) continue;
 
-      // Clean up empty installments and commissions if any
+          const agr = await KisanLandAgreement.findById(src.agreementId).session(session);
+          if (agr) {
+            if (src.sourceType === 'REGISTRY_DEED') {
+              const deed = agr.registryDeeds.find((d) => String(d._id) === String(src.deedId) || d.deedNumber === src.deedNumber);
+              if (deed) {
+                deed.allocatedSqFt = Math.max(0, (deed.allocatedSqFt || 0) - numSqFt);
+                deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+                deed.status = 'ACTIVE';
+              }
+            } else {
+              agr.unregisteredAllocatedSqFt = Math.max(0, (agr.unregisteredAllocatedSqFt || 0) - numSqFt);
+              agr.unregisteredAvailableSqFt = Math.max(0, agr.unregisteredAgreedSqFt - agr.unregisteredAllocatedSqFt);
+            }
+            agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
+            agr.totalAvailableSqFt = Math.max(0, agr.totalSqFt - agr.totalAllocatedSqFt);
+            await agr.save({ session });
+
+            // Record Credit log in Land Stock Ledger
+            await new LandStockLedger({
+              agreementId: agr._id,
+              sourceType: src.sourceType,
+              deedId: src.deedId || null,
+              deedNumber: src.deedNumber || '',
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              customerName: booking.customerName || '',
+              plotNumber: booking.plotId?.plotNumber || '',
+              transactionType: 'BOOKING_CANCELLATION_RESTORE',
+              entryType: 'CREDIT',
+              dismil: src.allocatedDismil || Math.round((numSqFt / 435.6) * 1000) / 1000,
+              sqFt: numSqFt,
+              runningAvailableSqFt: agr.totalAvailableSqFt,
+              date: new Date(),
+              remarks: `Restored ${numSqFt} SqFt due to Deletion of Booking #${booking.bookingNumber}`,
+              performedBy: userId,
+            }).save({ session });
+          }
+        }
+      }
+
+      // Delete associated installments, schedules, commissions, revisions
       await PlotInstallment.deleteMany({ bookingId: id }).session(session);
+      await PlotPayoutSchedule.deleteMany({ bookingId: id }).session(session);
       await PlotSponsorCommission.deleteMany({ bookingId: id }).session(session);
+      await PlotBookingRevision.deleteMany({ bookingId: id }).session(session);
+
+      // Reset the plot status back to AVAILABLE
+      if (booking.plotId) {
+        await Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' }).session(session);
+      }
 
       // Delete the booking itself
       await PlotBooking.findByIdAndDelete(id).session(session);
@@ -3603,20 +4738,22 @@ class PlotsService {
   /**
    * Preview unclosed (or currently associated) commissions for a given date window.
    */
-  async previewPlotClosing({ startDate, endDate, excludeClosingId = null }) {
+  async previewPlotClosing({ startDate, endDate, excludeClosingId = null, session = null }) {
     if (!startDate || !endDate) {
       throw ApiError.badRequest('startDate and endDate are required');
     }
     const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
 
     // Sync all active bookings to ensure commission records exist for all collections
-    const activeBookings = await PlotBooking.find({
+    const activeBookingQuery = PlotBooking.find({
       status: { $in: ['ACTIVE', 'COMPLETED'] },
       sponsorId: { $ne: null }
-    }).select('_id').lean();
+    }).select('_id');
+    if (session) activeBookingQuery.session(session);
+    const activeBookings = await activeBookingQuery.lean();
 
     for (const b of activeBookings) {
-      await this.syncBookingSponsorCommissions(b._id);
+      await this.syncBookingSponsorCommissions(b._id, session);
     }
 
     const query = {
@@ -3631,7 +4768,7 @@ class PlotsService {
       query.closingId = null;
     }
 
-    const commissions = await PlotSponsorCommission.find(query)
+    const commQuery = PlotSponsorCommission.find(query)
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
@@ -3640,8 +4777,9 @@ class PlotsService {
         select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
         populate: { path: 'plotId', select: 'plotNumber seriesId' }
       })
-      .sort({ createdAt: 1 })
-      .lean();
+      .sort({ createdAt: 1 });
+    if (session) commQuery.session(session);
+    const commissions = await commQuery.lean();
 
     let totalCollection = 0;
     let totalCommission = 0;
@@ -3763,7 +4901,7 @@ class PlotsService {
     session.startTransaction();
     try {
       // Calculate preview breakdown in period
-      const preview = await this.previewPlotClosing({ startDate: start, endDate: end });
+      const preview = await this.previewPlotClosing({ startDate: start, endDate: end, session });
 
       if (preview.commissions.length === 0) {
         throw ApiError.badRequest('No unclosed commission or collection records found in the selected date range.');
@@ -3846,7 +4984,7 @@ class PlotsService {
         action: 'CREATE_CLOSING',
         modelName: 'PlotClosing',
         documentId: closingDoc._id,
-        userId,
+        userId: (userId && mongoose.Types.ObjectId.isValid(userId)) ? userId : undefined,
         details: {
           closingName: closingDoc.closingName,
           closingNumber: closingDoc.closingNumber,
@@ -3952,6 +5090,7 @@ class PlotsService {
         startDate: newStart,
         endDate: newEnd,
         excludeClosingId: closing._id,
+        session,
       });
 
       // 1. Unlink commissions previously tagged to this closing that are now outside the new date range
@@ -4037,7 +5176,7 @@ class PlotsService {
         action: 'UPDATE_CLOSING',
         modelName: 'PlotClosing',
         documentId: closing._id,
-        userId,
+        userId: (userId && mongoose.Types.ObjectId.isValid(userId)) ? userId : undefined,
         details: {
           closingName: closing.closingName,
           startDate: newStart,
@@ -4088,7 +5227,7 @@ class PlotsService {
         action: 'DELETE_CLOSING',
         modelName: 'PlotClosing',
         documentId: closing._id,
-        userId,
+        userId: (userId && mongoose.Types.ObjectId.isValid(userId)) ? userId : undefined,
         details: {
           closingName: closing.closingName,
           closingNumber: closing.closingNumber,

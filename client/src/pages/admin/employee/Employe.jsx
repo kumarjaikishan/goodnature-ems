@@ -1,31 +1,17 @@
-import { columns, addemployee, employeedelette, employeeupdate } from "./employeehelper";
+import { getEmployeeColumns, addemployee, employeedelette, employeeupdate } from "./employeehelper";
 import TextField from '@mui/material/TextField';
-import { Avatar, Box, Button, FormControlLabel, IconButton, OutlinedInput, Switch, Typography } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { Button } from '@mui/material';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
-  Send,
-  Eye,
   Search,
   Plus,
   FileSpreadsheet,
-  KeyRound,
-  Filter,
   X,
-  ChevronUp,
-  ChevronDown,
-  Edit2,
-  Trash2,
-  Clock,
   AlertCircle
 } from "lucide-react";
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { swal } from '../../../utils/confirmDialog';
 import DataTable from '@/components/common/DataTable';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputAdornment from '@mui/material/InputAdornment';
 import { useNavigate } from "react-router-dom";
 import EmployeeProfile from "./profile";
 import { useDispatch, useSelector } from "react-redux";
@@ -33,8 +19,9 @@ import { toast } from "../../../utils/toast";
 import useImageUpload from "../../../utils/imageresizer";
 import CheckPermission from "../../../utils/CheckPermission";
 import { useCustomStyles } from "../attandence/attandencehelper";
-import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import WeeklyOffLedgerModal from "./WeeklyOffLedgerModal";
+import EmployeeFormModal from "./EmployeeFormModal";
+import { apiClient } from "../../../utils/apiClient";
 
 const Employe = () => {
   const [openmodal, setopenmodal] = useState(false);
@@ -56,23 +43,15 @@ const Employe = () => {
   const [pass, setpass] = useState({
     userid: '',
     pass: ''
-  })
+  });
   const [filters, setFilters] = useState({
     searchText: '',
     branch: 'all',
     department: 'all'
   });
 
-  const employepic = 'https://res.cloudinary.com/dusxlxlvm/image/upload/v1753113610/ems/assets/employee_fi3g5p.webp'
-
-  useEffect(() => {
-    setFilters((prev) => ({
-      ...prev,
-      department: 'all'
-    }));
-    // console.log(profile)
-  }, [filters.branch]);
-  let navigate = useNavigate();
+  const inputref = useRef(null);
+  const navigate = useNavigate();
 
   const init = {
     employeeId: '',
@@ -108,7 +87,7 @@ const Employe = () => {
     achievements: [],
     education: [],
     overridedefaultPolicies: false,
-    allowances: [], // [{ name: "HRA", mode: "percentage", value: 40 }]
+    allowances: [],
     bonuses: [],
     deductions: [],
     allowSeeLedger: false,
@@ -117,8 +96,17 @@ const Employe = () => {
   const [inp, setInp] = useState(init);
 
   useEffect(() => {
-    department.length > 0 && setdepartmentlist(department.filter((dep) => dep?.branchId?._id == filters.branch))
+    setFilters((prev) => ({
+      ...prev,
+      department: 'all'
+    }));
   }, [filters.branch]);
+
+  useEffect(() => {
+    if (department?.length > 0) {
+      setdepartmentlist(department.filter((dep) => (dep?.branchId?._id || dep?.branchId) === filters.branch));
+    }
+  }, [filters.branch, department]);
 
   const handleNestedChange = (e, type, index, field) => {
     const updated = [...inp[type]];
@@ -146,50 +134,24 @@ const Employe = () => {
   const canEdit = CheckPermission('employee', 3);
   const canDelete = CheckPermission('employee', 4);
 
-  useEffect(() => {
-    // console.log(departmentlist)
-    // console.log(employee)
-    if (employee?.length < 1) return;
+  const handleViewProfile = (id) => {
+    setviewEmployee(id);
+    setopenviewmodal(true);
+  };
 
-    const data = employee?.map((emp) => {
-      return {
-        id: emp._id,
-        rawname: emp?.userid?.name,
-        empId: emp?.empId,
-        name: (<div className="flex items-center capitalize gap-3 ">
-          <Avatar
-            src={cloudinaryUrl(emp?.profileimage, {
-              format: "webp",
-              width: 100,
-              height: 100,
-            })}
-            alt={emp.employeename}>
-          </Avatar>
-          <Box>
-            <Typography variant="body2">{emp?.userid?.name}</Typography>
-            <p className="t text-[10px] text-gray-600">({emp?.designation})</p>
-          </Box>
-        </div>),
-        phone: emp?.phone || '-',
-        // email: emp?.userid?.email || '-',
-        status: emp?.status,
-        branch: emp?.branchId,
-        department: emp?.department?.department,
-        departmentid: emp?.department?._id,
-        action: (<div className="action flex gap-2.5 items-center">
-          <span className="eye edit text-green-600 hover:text-green-700 cursor-pointer p-1" title="View Profile" onClick={() => { setviewEmployee(emp._id); setopenviewmodal(true) }} ><Eye size={16} /></span>
-          <span className="eye edit text-amber-600 hover:text-amber-700 cursor-pointer p-1" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}`)} ><FileSpreadsheet size={16} /></span>
-          <span className="eye edit text-teal-600 hover:text-teal-700 cursor-pointer p-1" title="Weekly Off Ledger" onClick={() => { setSelectedWOEmployee(emp); setOpenWOLedger(true); }}><Clock size={16} /></span>
-          {canEdit && <span className="edit text-teal-700 hover:text-teal-800 cursor-pointer p-1" title="Edit" onClick={() => edite(emp)}><Edit2 size={16} /></span>}
-          {canEdit && <span className="eye edit text-emerald-600 hover:text-emerald-700 cursor-pointer p-1" title="Reset Password" onClick={() => { setpass({ ...pass, userid: emp.userid._id }); setpassmodal(true) }} ><KeyRound size={16} /> </span>}
-          {canDelete && <span className="delete text-red-500 hover:text-red-600 cursor-pointer p-1" title="Delete" onClick={() => deletee(emp._id)}><Trash2 size={16} /></span>}
-        </div>)
-      }
-    })
-    // console.log("bffdg",data)
-    setemployeelist(data);
+  const handleViewAttendance = (userId) => {
+    navigate(`/dashboard/performance/${userId}`);
+  };
 
-  }, [employee])
+  const handleViewWOLedger = (emp) => {
+    setSelectedWOEmployee(emp);
+    setOpenWOLedger(true);
+  };
+
+  const handleResetPassword = (userId) => {
+    setpass(prev => ({ ...prev, userid: userId }));
+    setpassmodal(true);
+  };
 
   const handleChange = (e, name) => {
     setInp({
@@ -218,6 +180,11 @@ const Employe = () => {
     }
   };
 
+  const resetPhoto = () => {
+    setPhotoPreview(null);
+    setEmployeePhoto(null);
+  };
+
   const adddepartcall = async (e) => {
     e.preventDefault();
 
@@ -225,8 +192,6 @@ const Employe = () => {
       const formData = new FormData();
       Object.keys(inp).forEach(key => {
         const value = inp[key];
-
-        // Handle complex types
         if (Array.isArray(value) || typeof value === 'object') {
           formData.append(key, JSON.stringify(value));
         } else {
@@ -235,19 +200,17 @@ const Employe = () => {
       });
 
       if (employeePhoto) {
-        let resizedfile = await handleImage(350, employeePhoto);
+        const resizedfile = await handleImage(350, employeePhoto);
         formData.append('photo', resizedfile);
       }
 
       await employeeupdate({ formData, dispatch, setisload, setEmployeePhoto, setInp, setopenmodal, init, resetPhoto });
       setPhotoPreview(null);
-      setEmployeePhoto(null)
+      setEmployeePhoto(null);
     } else {
       const formData = new FormData();
-
       Object.keys(inp).forEach(key => {
         const value = inp[key];
-        // Handle complex types
         if (Array.isArray(value) || typeof value === 'object') {
           formData.append(key, JSON.stringify(value));
         } else {
@@ -256,18 +219,12 @@ const Employe = () => {
       });
 
       if (employeePhoto) {
-        let resizedfile = await handleImage(350, employeePhoto);
+        const resizedfile = await handleImage(350, employeePhoto);
         formData.append('photo', resizedfile);
       }
 
       await addemployee({ formData, dispatch, setisload, setInp, setopenmodal, init, resetPhoto });
     }
-
-  };
-
-  const resetPhoto = () => {
-    setPhotoPreview(null);
-    setEmployeePhoto(null);
   };
 
   const updatePassword = async (e) => {
@@ -282,74 +239,68 @@ const Employe = () => {
       setpass({
         userid: '',
         pass: ''
-      })
+      });
       setpassmodal(false);
       toast.success(data.message, { autoClose: 1200 });
     } catch (error) {
       console.error('Error updating password:', error);
     }
-  }
+  };
 
-  const edite = (employee) => {
-    // console.log(employee)
-    // console.log(branch)
+  const edite = (emp) => {
     setisupdate(true);
     const safeValue = (val) => (val === undefined || val === null || val === 'undefined') ? '' : val;
 
     setInp({
-      employeeId: employee._id,
-      branchId: safeValue(employee?.branchId),
-      department: safeValue(employee?.department?._id),
-      employeeName: safeValue(employee?.userid?.name),
-      email: safeValue(employee?.userid?.email),
-      dob: employee?.dob ? employee.dob.split('T')[0] : '', // Format to yyyy-MM-dd
-      salary: employee?.salary || 0,
-      status: employee?.status ?? true,
-
-      empId: employee?.empId ? Number(employee.empId.split('EMP')[1]) : '',
+      employeeId: emp._id,
+      branchId: safeValue(emp?.branchId),
+      department: safeValue(emp?.department?._id || emp?.department),
+      employeeName: safeValue(emp?.userid?.name || emp?.rawname),
+      email: safeValue(emp?.userid?.email || emp?.email),
+      dob: emp?.dob ? emp.dob.split('T')[0] : '',
+      salary: emp?.salary || 0,
+      status: emp?.status ?? true,
+      empId: emp?.empId ? Number(String(emp.empId).replace('EMP', '')) : '',
       guardian: {
-        name: safeValue(employee?.guardian?.name),
-        relation: safeValue(employee?.guardian?.relation) || 'S/o'
+        name: safeValue(emp?.guardian?.name),
+        relation: safeValue(emp?.guardian?.relation) || 'S/o'
       },
-
-      acHolderName: safeValue(employee?.acHolderName),
-      bankName: safeValue(employee?.bankName),
-      bankbranch: safeValue(employee?.bankbranch),
-      acnumber: safeValue(employee?.acnumber),
-      ifscCode: safeValue(employee?.ifscCode),
-      upi: safeValue(employee?.upi),
-      adhaar: safeValue(employee?.adhaar),
-      pan: safeValue(employee?.pan),
-      deviceUserId: safeValue(employee?.deviceUserId),
-
-      designation: safeValue(employee?.designation),
-      phone: safeValue(employee?.phone),
-      address: safeValue(employee?.address),
-      gender: safeValue(employee?.gender) || 'male',
-      bloodGroup: safeValue(employee?.bloodGroup),
-      Emergencyphone: safeValue(employee?.Emergencyphone),
-      skills: employee?.skills || [],
-      maritalStatus: employee?.maritalStatus ?? true,
-      achievements: (employee?.achievements || []).map(ach => ({
+      acHolderName: safeValue(emp?.acHolderName),
+      bankName: safeValue(emp?.bankName),
+      bankbranch: safeValue(emp?.bankbranch),
+      acnumber: safeValue(emp?.acnumber),
+      ifscCode: safeValue(emp?.ifscCode),
+      upi: safeValue(emp?.upi),
+      adhaar: safeValue(emp?.adhaar),
+      pan: safeValue(emp?.pan),
+      deviceUserId: safeValue(emp?.deviceUserId),
+      designation: safeValue(emp?.designation),
+      phone: safeValue(emp?.phone),
+      address: safeValue(emp?.address),
+      gender: safeValue(emp?.gender) || 'male',
+      bloodGroup: safeValue(emp?.bloodGroup),
+      Emergencyphone: safeValue(emp?.Emergencyphone),
+      skills: emp?.skills || [],
+      maritalStatus: emp?.maritalStatus ?? true,
+      achievements: (emp?.achievements || []).map(ach => ({
         title: safeValue(ach.title),
         description: safeValue(ach.description),
         date: ach.date ? ach.date.split('T')[0] : ''
       })),
-      education: (employee?.education || []).map(edu => ({
+      education: (emp?.education || []).map(edu => ({
         degree: safeValue(edu.degree),
         institution: safeValue(edu.institution),
         date: edu.date ? edu.date.split('T')[0] : ''
       })),
-
-      overridedefaultPolicies: employee?.overridedefaultPolicies || false,
-      allowances: employee?.allowances || [],
-      bonuses: employee?.bonuses || [],
-      deductions: employee?.deductions || [],
-      allowSeeLedger: employee?.allowSeeLedger || false,
-      telegramId: safeValue(employee?.telegramId)
+      overridedefaultPolicies: emp?.overridedefaultPolicies || false,
+      allowances: emp?.allowances || [],
+      bonuses: emp?.bonuses || [],
+      deductions: emp?.deductions || [],
+      allowSeeLedger: emp?.allowSeeLedger || false,
+      telegramId: safeValue(emp?.telegramId)
     });
-    if (employee.profileimage) {
-      setPhotoPreview(employee.profileimage);
+    if (emp.profileimage) {
+      setPhotoPreview(emp.profileimage);
     }
     setopenmodal(true);
   };
@@ -368,719 +319,237 @@ const Employe = () => {
     });
   };
 
-  const inputref = useRef(null);
-
-  const filteredEmployees = employeelist?.filter(emp => {
-    const name = emp.rawname?.toLowerCase() || '';
-    const deptId = emp.departmentid || '';
-    const branchId = emp.branch || '';
-
-    const nameMatch = filters.searchText.trim() === '' || name.includes(filters.searchText.toLowerCase());
-    const deptMatch = filters.department === 'all' || deptId === filters.department;
-    const branchMatch = filters.branch === 'all' || branchId === filters.branch;
-
-    return nameMatch && deptMatch && branchMatch;
-  });
-
   const exportCSV = () => {
-    // return console.log(filteredEmployees)
-    const headers = ["S.No", "Name", "Email", "Department"];
+    const headers = ["S.No", "Name", "Email", "Department", "Designation", "Status"];
     const rows = filteredEmployees.map((e, idx) => [
-      idx + 1, e.rawname, e.email, e.department
+      idx + 1, e.rawname, e.email, e.department, e.designation, e.status ? "Active" : "Inactive"
     ]);
     const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Employee List.csv`;
+    a.download = `Employee_Directory.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  useEffect(() => {
+    if (!employee || employee.length === 0) {
+      setemployeelist([]);
+      return;
+    }
+
+    const data = employee.map((emp) => {
+      const dept = typeof emp?.department === 'object' ? emp?.department?.department : (emp?.department || '—');
+      return {
+        ...emp,
+        id: emp._id,
+        rawname: emp?.userid?.name || emp?.employeename || '',
+        designation: emp?.designation || '',
+        profileimage: emp?.profileimage,
+        phone: emp?.phone || '—',
+        email: emp?.userid?.email || '—',
+        status: emp?.status,
+        branch: emp?.branchId,
+        department: dept,
+        departmentid: emp?.department?._id || emp?.department,
+      };
+    });
+
+    setemployeelist(data);
+  }, [employee]);
+
+  const filteredEmployees = useMemo(() => {
+    return employeelist.filter((emp) => {
+      const name = emp.rawname?.toLowerCase() || '';
+      const deptId = emp.departmentid || '';
+      const branchId = emp.branch || '';
+
+      const nameMatch = filters.searchText.trim() === '' || name.includes(filters.searchText.toLowerCase());
+      const deptMatch = filters.department === 'all' || deptId === filters.department;
+      const branchMatch = filters.branch === 'all' || branchId === filters.branch;
+
+      return nameMatch && deptMatch && branchMatch;
+    });
+  }, [employeelist, filters]);
+
+  const columns = useMemo(() => getEmployeeColumns({
+    canEdit,
+    canDelete,
+    onViewProfile: handleViewProfile,
+    onViewAttendance: handleViewAttendance,
+    onViewWOLedger: handleViewWOLedger,
+    onEdit: edite,
+    onResetPassword: handleResetPassword,
+    onDelete: deletee,
+  }), [canEdit, canDelete]);
+
+  const customStyles = useCustomStyles();
+
+  const handleResetFilters = () => {
+    setFilters({
+      searchText: '',
+      branch: 'all',
+      department: 'all'
+    });
+  };
+
+  const isFiltered = filters.searchText || filters.branch !== 'all' || filters.department !== 'all';
   const toggleSection = (section) => {
     setOpenSection((prev) => (prev === section ? null : section));
   };
 
   return (
-    <div className='employee p-1 max-w-6xl mx-auto '>
-      {/* <h2 className="text-2xl mb-8 font-bold text-slate-800">Manage Employees</h2> */}
-      <div className="flex gap-5 justify-between items-center flex-wrap">
-        {/* Search + Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1 w-full md:w-fit">
-          {/* Search (full on small, shrink on md+) */}
-          <TextField
-            size="small"
-            className="md:col-span-1 md:max-w-[200px] col-span-2"
-            value={filters.searchText}
-            placeholder="Search by Employee / ID"
-            onChange={(e) => handleFilterChange("searchText", e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search size={16} className="text-gray-400" />
-                </InputAdornment>
-              ),
-              endAdornment: filters.searchText && (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => handleFilterChange("searchText", '')}
-                    edge="end"
-                    size="small"
-                  >
-                    <X size={16} />
-                  </IconButton>
-                </InputAdornment>
-              )
-            }}
-            variant="outlined"
-          />
+    <div className='p-4 md:p-6 max-w-7xl mx-auto space-y-5'>
+      
+      {/* Controls & Search Filter Toolbar */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-4 md:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3.5">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-bold text-slate-800 tracking-tight">
+              Employee Directory
+            </h1>
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer ml-2"
+              >
+                <X size={13} /> Reset Filters
+              </button>
+            )}
+          </div>
 
-          {/* Branch (50% on small, shrink on md+) */}
-          <FormControl
-            size="small"
-            className=" md:max-w-[160px] col-span-1"
-          >
-            <InputLabel>Branch</InputLabel>
-            <Select
-              label="Branch"
-              value={filters.branch}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Branch"
-                />
-              }
-              onChange={(e) => handleFilterChange("branch", e.target.value)}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={exportCSV}
+              className="px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-white border border-slate-200 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <MenuItem value="all">All</MenuItem>
+              <FileSpreadsheet size={14} className="text-emerald-600" />
+              Export CSV
+            </button>
+
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => setopenmodal(true)}
+                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus size={14} /> Add Employee
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter Inputs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+          <div className="sm:col-span-1 lg:col-span-2 relative">
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+              <Search size={14} />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by Employee name..."
+              value={filters.searchText}
+              onChange={(e) => handleFilterChange("searchText", e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all placeholder:text-slate-400"
+            />
+          </div>
+
+          <div>
+            <select
+              value={filters.branch}
+              onChange={(e) => handleFilterChange("branch", e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
+            >
+              <option value="all">All Branches</option>
               {profile?.role === 'manager'
                 ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
                   ?.map((list) => (
-                    <MenuItem key={list._id} value={list._id}>
+                    <option key={list._id} value={list._id}>
                       {list.name}
-                    </MenuItem>
+                    </option>
                   ))
-                :
-                branch?.map((list) => (
-                  <MenuItem key={list._id} value={list._id}>
-                    {list.name}
-                  </MenuItem>
-                ))
-              }
-            </Select>
-          </FormControl>
+                : branch?.map((list) => (
+                  <option key={list._id} value={list._id}>{list.name}</option>
+                ))}
+            </select>
+          </div>
 
-          {/* Department (50% on small, shrink on md+) */}
-          <FormControl
-            size="small"
-            className=" md:max-w-[160px] col-span-1"
-          >
-            <InputLabel>Department</InputLabel>
-            <Select
-              label="Department"
+          <div>
+            <select
               disabled={filters.branch === "all"}
               value={filters.department}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="Department"
-                />
-              }
-              onChange={(e) =>
-                handleFilterChange("department", e.target.value)
-              }
+              onChange={(e) => handleFilterChange("department", e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100"
             >
-              <MenuItem value="all">All</MenuItem>
+              <option value="all">All Departments</option>
               {departmentlist.length > 0 ? (
                 departmentlist.map((list) => (
-                  <MenuItem key={list._id} value={list._id}>
+                  <option key={list._id} value={list._id}>
                     {list.department}
-                  </MenuItem>
+                  </option>
                 ))
               ) : (
-                <MenuItem disabled>No departments found</MenuItem>
+                <option disabled>No departments found</option>
               )}
-            </Select>
-          </FormControl>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex gap-1 w-full md:w-fit">
-
-          {canCreate && (
-            <Button
-              variant="contained"
-              className="flex-[2] md:w-fit md:flex-none"
-              startIcon={<Plus size={16} />}
-              onClick={() => setopenmodal(true)}
-            >
-              Add Employee
-            </Button>
-          )}
+            </select>
+          </div>
         </div>
       </div>
 
-
-      <div className="mt-2 capitalize">
+      {/* Directory Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <DataTable
           columns={columns}
           data={filteredEmployees}
           pagination
-          customStyles={useCustomStyles()}
+          customStyles={customStyles}
           highlightOnHover
           paginationPerPage={20}
           paginationRowsPerPageOptions={[20, 50, 100, 300]}
           noDataComponent={
-            <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-              <AlertCircle size={18} className="text-amber-500" /> No Employee records found.
+            <div className="flex items-center justify-center gap-2 py-10 text-center text-slate-500 text-xs font-medium">
+              <AlertCircle size={16} className="text-amber-500" /> No Employee records found.
             </div>
           }
         />
       </div>
 
-      <Modalbox open={openmodal} onClose={() => {
-        setopenmodal(false); setisupdate(false); setInp(init); resetPhoto();
-      }}>
-        <div className="membermodal w-[680px]">
-          <div className="whole" >
-            <form onSubmit={adddepartcall}>
-              <div className="modalhead">{isupdate ? "Update Employee" : "Add Employee"}</div>
-              <span className="modalcontent ">
-                <div className='flex flex-col gap-3 w-full'>
-                  <FormControl fullWidth required size="small">
-                    <InputLabel>Branch</InputLabel>
-                    <Select
-                      value={inp.branchId}
-                      label="branch"
-                      onChange={(e) => handleChange(e, 'branchId')}
-                    >
-                      {profile?.role === 'manager'
-                        ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                          ?.map((list) => (
-                            <MenuItem key={list._id} value={list._id}>
-                              {list.name}
-                            </MenuItem>
-                          ))
-                        :
-                        branch?.map((list) => (
-                          <MenuItem key={list._id} value={list._id}>
-                            {list.name}
-                          </MenuItem>
-                        ))
-                      }
-                    </Select>
-                  </FormControl>
-                  <div className="flex gap-2">
-                    <FormControl disabled={!inp.branchId} fullWidth required size="small">
-                      <InputLabel>Department</InputLabel>
-                      <Select
-                        value={inp.department}
-                        label="Department"
-                        onChange={(e) => handleChange(e, 'department')}
-                      >
-                        {department?.filter(e => (e.branchId?._id || e.branchId) === inp.branchId).length > 0 ? (
-                          department
-                            .filter(e => (e.branchId?._id || e.branchId) === inp.branchId)
-                            .map((list) => (
-                              <MenuItem key={list._id} value={list._id}>
-                                {list.department}
-                              </MenuItem>
-                            ))
-                        ) : (
-                          <MenuItem disabled>No departments found</MenuItem>
-                        )}
+      {/* Extracted Modular Employee Form Modal */}
+      <EmployeeFormModal
+        open={openmodal}
+        onClose={() => {
+          setopenmodal(false);
+          setisupdate(false);
+          setInp(init);
+          resetPhoto();
+        }}
+        isupdate={isupdate}
+        inp={inp}
+        setInp={setInp}
+        handleChange={handleChange}
+        handleNestedChange={handleNestedChange}
+        addItem={addItem}
+        removeItem={removeItem}
+        photoPreview={photoPreview}
+        handlePhotoChange={handlePhotoChange}
+        inputref={inputref}
+        openSection={openSection}
+        toggleSection={toggleSection}
+        branch={branch}
+        department={department}
+        profile={profile}
+        adddepartcall={adddepartcall}
+        isload={isload}
+        init={init}
+        resetPhoto={resetPhoto}
+      />
 
-                      </Select>
-                    </FormControl>
-                    <FormControl disabled={!inp.branchId} fullWidth required size="small">
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={inp?.status}
-                        label="Status"
-                        onChange={(e) => handleChange(e, 'status')}
-                      >
-                        <MenuItem value={true}>Active</MenuItem>
-                        <MenuItem value={false}>Inactive</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <TextField fullWidth required value={inp.employeeName || ''} onChange={(e) => handleChange(e, 'employeeName')} label="Name" size="small" />
-                    <TextField fullWidth required value={inp.email || ''} onChange={(e) => handleChange(e, 'email')} label="Email" size="small" />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <TextField fullWidth value={inp.designation || ''} onChange={(e) => handleChange(e, 'designation')} label="Designation" size="small" />
-                    <TextField fullWidth value={inp.salary || ''} onChange={(e) => handleChange(e, 'salary')} label="Salary" size="small" />
-                  </div>
-
-
-                  <div className="flex gap-2">
-                    {/* Employee ID with EMP prefix */}
-                    <TextField
-                      fullWidth
-                      type="number"
-                      value={inp.empId || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val.length <= 3) {
-                          handleChange(e, "empId");
-                        }
-                      }}
-                      label="Employee ID"
-                      size="small"
-                      helperText={`ID - EMP${String(inp?.empId || '').padStart(3, '0')}`}
-                      InputProps={{
-                        startAdornment: <InputAdornment position="start">EMP</InputAdornment>,
-                      }}
-                      inputProps={{
-                        maxLength: 3, // still good for text inputs
-                      }}
-                    />
-
-                    {/* Guardian Name with prefix dropdown */}
-                    <TextField
-                      fullWidth
-                      value={inp?.guardian?.name || ''}
-                      onChange={(e) =>
-                        setInp((prev) => ({
-                          ...prev,
-                          guardian: { ...prev.guardian, name: e.target.value },
-                        }))
-                      }
-                      label="Guardian Name"
-                      size="small"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start" sx={{ minWidth: 45 }}>
-                            <Select
-                              variant="standard"
-                              disableUnderline
-                              value={inp?.guardian?.relation || "S/o"}
-                              onChange={(e) =>
-                                setInp((prev) => ({
-                                  ...prev,
-                                  guardian: { ...prev.guardian, relation: e.target.value },
-                                }))
-                              }
-                            >
-                              <MenuItem value="S/o">S/o</MenuItem>
-                              <MenuItem value="D/o">D/o</MenuItem>
-                              <MenuItem value="H/o">H/o</MenuItem>
-                              <MenuItem value="W/o">W/o</MenuItem>
-                            </Select>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <TextField fullWidth type="tel" value={inp.deviceUserId || ''}
-                      inputProps={{ maxLength: 1000, inputMode: 'numeric', pattern: '[0-9]*' }}
-                      onChange={(e) => {
-                        const onlyNums = e.target.value.replace(/\D/g, ''); // remove non-digits
-                        handleChange({ ...e, target: { ...e.target, value: onlyNums } }, 'deviceUserId');
-                      }}
-                      label="deviceUserId" size="small" />
-                    <TextField fullWidth value={inp.telegramId || ''}
-                      onChange={(e) => handleChange(e, 'telegramId')}
-                      label="Telegram Chat ID" size="small" />
-                  </div>
-
-                  <div className="w-full  flex justify-center">
-                    <div className="mt-1 w-fit text-center gap-2  relative">
-                      <input style={{ display: 'none' }} type="file" onChange={handlePhotoChange} ref={inputref} accept="image/*" name="" id="fileInput" />
-                      {photoPreview ?
-                        <img src={photoPreview} alt="Preview" className="mt-2 w-[100px] h-[100px] rounded-full object-cover" />
-                        : <Avatar
-                          sx={{ width: 100, height: 100 }}
-                          alt={inp.employeeName} src="/static/images/avatar/1.jpg" />
-                      }
-                      <span onClick={() => inputref.current.click()}
-                        className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
-                      >
-                        <Edit2 size={16} />
-                      </span>
-
-                    </div>
-                  </div>
-
-                  {/* Personal Deatils */}
-                  {isupdate &&
-                    <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                      <div
-                        className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                        onClick={() => toggleSection('personal')}
-                      >
-                        <span className="md:font-semibold text-[12px] md:text-sm text-left">Personal Deatils (Optional)</span>
-                        {openSection === 'personal' ? (
-                          <ChevronUp size={20} />
-                        ) : (
-                          <ChevronDown size={20} />
-                        )}
-                      </div>
-
-                      <div
-                        className={`
-                          rounded overflow-hidden transition-all duration-300 ease-linear
-                          ${openSection === 'personal' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                        `}
-                      >
-                        <Box sx={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: 2,
-                        }}>
-                          <TextField fullWidth value={inp.phone || ''} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'phone')} label="Phone" size="small" />
-                          <TextField fullWidth value={inp.Emergencyphone || ''} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'Emergencyphone')} label="Emergency/ Relative Phone" size="small" />
-                          <TextField fullWidth value={inp.address || ''} onChange={(e) => handleChange(e, 'address')} label="Address" size="small" />
-                          <TextField fullWidth value={inp.bloodGroup || ''} onChange={(e) => handleChange(e, 'bloodGroup')} label="Blood Group" size="small" />
-                          <TextField fullWidth inputProps={{ maxLength: 12 }} value={inp.adhaar || ''} onChange={(e) => handleChange(e, 'adhaar')} label="Adhaar No." size="small" />
-                          <TextField fullWidth inputProps={{ maxLength: 10 }} value={inp.pan || ''} onChange={(e) => handleChange(e, 'pan')} label="Pan No." size="small" />
-                          <TextField InputLabelProps={{ shrink: true }} fullWidth value={inp.dob || ''} type="date" onChange={(e) => handleChange(e, 'dob')} label="Date of Birth" size="small" />
-                          <FormControl size="small">
-                            <InputLabel>Marital Status</InputLabel>
-                            <Select
-                              label="maritalStatus"
-                              value={inp.maritalStatus}
-                              onChange={(e) => handleChange(e, 'maritalStatus')}
-                            >
-                              <MenuItem selected value={true}>Married</MenuItem>
-                              <MenuItem selected value={false}>Unmarried</MenuItem>
-                            </Select>
-                          </FormControl>
-                          <FormControl size="small">
-                            <InputLabel>Gender</InputLabel>
-                            <Select
-                              label="Gender"
-                              value={inp.gender}
-                              onChange={(e) => handleChange(e, 'gender')}
-                            >
-                              <MenuItem selected value='male'>Male</MenuItem>
-                              <MenuItem selected value='female'>female</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Box>
-                      </div>
-
-                    </div>
-                  }
-
-                  {/* Banking Details */}
-                  {isupdate &&
-                    <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                      <div
-                        className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                        onClick={() => toggleSection('banking')}
-                      >
-                        <span className="md:font-semibold text-[12px] md:text-sm text-left">Banking Details (optional)</span>
-                        {openSection === 'banking' ? (
-                          <ChevronUp size={20} />
-                        ) : (
-                          <ChevronDown size={20} />
-                        )}
-                      </div>
-
-                      <div
-                        className={`
-                          rounded overflow-hidden transition-all duration-300 ease-linear
-                          ${openSection === 'banking' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                        `}
-                      >
-                        <Box sx={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: 2,
-                        }}>
-                          <TextField fullWidth value={inp.acHolderName || ''} onChange={(e) => handleChange(e, 'acHolderName')} label="A/C Holder Name" size="small" />
-                          <TextField fullWidth value={inp.bankName || ''} onChange={(e) => handleChange(e, 'bankName')} label="Bank Name" size="small" />
-                          <TextField fullWidth value={inp.bankbranch || ''} onChange={(e) => handleChange(e, 'bankbranch')} label="Branch" size="small" />
-                          <TextField fullWidth value={inp.acnumber || ''} onChange={(e) => handleChange(e, 'acnumber')} label="A/C No." size="small" />
-                          <TextField fullWidth value={inp.ifscCode || ''} onChange={(e) => handleChange(e, 'ifscCode')} label="IFSC Code" size="small" />
-                          <TextField fullWidth value={inp.upi || ''} onChange={(e) => handleChange(e, 'upi')} label="Upi Id/No." size="small" />
-                        </Box>
-                      </div>
-
-                    </div>
-                  }
-
-                  {/* Document & skills */}
-                  {isupdate &&
-                    <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                      <div
-                        className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                        onClick={() => toggleSection('document')}
-                      >
-                        <span className="md:font-semibold text-[12px] md:text-sm text-left">Document & Skills (optional)</span>
-                        {openSection === 'document' ? (
-                          <ChevronUp size={20} />
-                        ) : (
-                          <ChevronDown size={20} />
-                        )}
-                      </div>
-
-                      <div
-                        className={`
-                          rounded overflow-hidden transition-all duration-300 ease-linear flex gap-6 flex-col
-                          ${openSection === 'document' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                        `}
-                      >
-                        <div className=" flex flex-col gap-2">
-                          <Typography fontWeight="bold">Achievements</Typography>
-                          {inp?.achievements?.map((ach, idx) => (
-                            <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 2, alignItems: 'center' }}>
-                              <TextField
-                                label="Title"
-                                size="small"
-                                value={ach.title || ''}
-                                onChange={(e) => handleNestedChange(e, 'achievements', idx, 'title')}
-                              />
-                              <TextField
-                                label="Description"
-                                size="small"
-                                value={ach.description || ''}
-                                onChange={(e) => handleNestedChange(e, 'achievements', idx, 'description')}
-                              />
-                              <TextField
-                                type="date"
-                                size="small"
-                                label="Date"
-                                InputLabelProps={{ shrink: true }}
-                                value={ach.date || ''}
-                                onChange={(e) => handleNestedChange(e, 'achievements', idx, 'date')}
-                              />
-                              <Trash2 size={20} className="text-red-500 hover:text-red-600 cursor-pointer" title="Delete this" onClick={() => removeItem('achievements', idx)} />
-                            </Box>
-                          ))}
-                          <Button onClick={() => addItem('achievements')} variant="outlined">Add Achievement</Button>
-                        </div>
-
-                        <div className=" flex flex-col gap-2">
-                          <Typography fontWeight="bold">Education</Typography>
-                          {inp?.education?.map((edu, idx) => (
-                            <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 2, alignItems: 'center' }}>
-                              <TextField
-                                label="Degree"
-                                size="small"
-                                value={edu.degree || ''}
-                                onChange={(e) => handleNestedChange(e, 'education', idx, 'degree')}
-                              />
-                              <TextField
-                                label="Institution"
-                                size="small"
-                                value={edu.institution || ''}
-                                onChange={(e) => handleNestedChange(e, 'education', idx, 'institution')}
-                              />
-                              <TextField
-                                type="date"
-                                size="small"
-                                label="Date"
-                                InputLabelProps={{ shrink: true }}
-                                value={edu.date || ''}
-                                onChange={(e) => handleNestedChange(e, 'education', idx, 'date')}
-                              />
-                              <Trash2 size={20} className="text-red-500 hover:text-red-600 cursor-pointer" title="Delete this" onClick={() => removeItem('education', idx)} />
-                            </Box>
-                          ))}
-                          <Button onClick={() => addItem('education')} variant="outlined">Add Education</Button>
-                        </div>
-                      </div>
-
-                    </div>
-                  }
-
-                  <div className="flex items-center gap-2">
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={inp.allowSeeLedger}
-                          onChange={(e) => setInp({ ...inp, allowSeeLedger: e.target.checked })}
-                          color="primary"
-                        />
-                      }
-                      label="Allow to see Ledger"
-                    />
-                  </div>
-                  <FormControlLabel
-                    label="Override Payroll Policies"
-                    control={
-                      <Switch
-                        checked={inp.overridedefaultPolicies}
-                        onChange={() =>
-                          setInp(prev => ({
-                            ...prev,
-                            overridedefaultPolicies: !inp.overridedefaultPolicies,
-                          }))
-                        }
-                        color="primary"
-                      />
-                    }
-                    sx={{ mt: 2 }}
-                  />
-
-
-                  {/* payroll policies override */}
-                  {isupdate && inp.overridedefaultPolicies &&
-                    <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                      <div
-                        className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                        onClick={() => toggleSection('policy')}
-                      >
-                        <span className="md:font-semibold text-[12px] md:text-sm text-left">Payroll Policies</span>
-                        {openSection === 'policy' ? (
-                          <ChevronUp size={20} />
-                        ) : (
-                          <ChevronDown size={20} />
-                        )}
-                      </div>
-
-                      <div
-                        className={`
-                          rounded overflow-hidden transition-all duration-300 ease-linear flex gap-6 flex-col
-                          ${openSection === 'policy' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                        `}
-                      >
-                        <div className="flex flex-col gap-3">
-                          {['allowances', 'bonuses', 'deductions'].map((type) => {
-                            // fallback to [] if not defined
-                            const policies = inp?.[type] || [];
-
-                            return (
-                              <div className="flex flex-col shadow-lg gap-2 px-2 pb-2 my-2 border rounded border-dashed relative border-primary" key={type}>
-                                <p className="capitalize absolute t-0 -translate-y-1/2 l-2 bg-white px-2">{type}</p>
-                                <div className="mt-6 flex flex-col gap-2">
-                                  {policies.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 mb-2">
-                                      <TextField
-                                        label="Name"
-                                        size="small"
-                                        required
-                                        className="flex-1"
-                                        value={item.name || ''}
-                                        onChange={(e) => {
-                                          const updated = policies.map((policy, i) =>
-                                            i === idx ? { ...policy, name: e.target.value } : policy
-                                          );
-                                          setInp({
-                                            ...inp,
-
-                                            [type]: updated
-
-                                          });
-                                        }}
-                                      />
-                                      <Select
-                                        size="small"
-                                        className="w-[120px]"
-                                        value={item.type}
-                                        onChange={(e) => {
-                                          const updated = policies.map((policy, i) =>
-                                            i === idx ? { ...policy, type: e.target.value } : policy
-                                          );
-                                          setInp({
-                                            ...inp,
-
-                                            [type]: updated
-
-                                          });
-                                        }}
-                                      >
-                                        <MenuItem value="amount">Amount</MenuItem>
-                                        {/* <MenuItem value="percentage">%</MenuItem> */}
-                                      </Select>
-                                      <TextField
-                                        label={item.type === 'amount' ? '₹' : '%'}
-                                        type="number"
-                                        size="small"
-                                        value={item.value || ''}
-                                        required
-                                        className="w-[90px]"
-                                        onChange={(e) => {
-                                          const updated = policies.map((policy, i) =>
-                                            i === idx ? { ...policy, value: Number(e.target.value) } : policy
-                                          );
-                                          setInp({
-                                            ...inp,
-
-                                            [type]: updated
-
-                                          });
-                                        }}
-                                      />
-                                      <Trash2
-                                        size={18}
-                                        className="text-red-500 hover:text-red-600 cursor-pointer"
-                                        onClick={() => {
-                                          const updated = policies.filter((_, i) => i !== idx);
-                                          setInp({
-                                            ...inp,
-                                            [type]: updated
-                                          });
-                                        }}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                                <Button
-                                  size="small"
-                                  variant="contained"
-
-                                  onClick={() =>
-                                    setInp({
-                                      ...inp,
-                                      [type]: [
-                                        ...policies,
-                                        { name: '', type: 'amount', value: 0 }
-                                      ]
-                                    })
-                                  }
-                                >
-                                  + Add more {type.slice(0, -1)}
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </span>
-
-              <div className="modalfooter">
-                <Button size="small" onClick={() => {
-                  setopenmodal(false); setisupdate(false); setInp(init); resetPhoto();
-                }} variant="outlined">Cancel</Button>
-                {!isupdate ? (
-                  <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit" >
-                    Add
-                  </Button>
-                ) : (
-                  <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit">
-                    Update
-                  </Button>
-                )}
-
-              </div>
-            </form>
-          </div>
-        </div>
-      </Modalbox>
-
-      <Modalbox open={openviewmodal} onClose={() => {
-        setopenviewmodal(false);
-      }}>
+      {/* View Profile Modal */}
+      <Modalbox open={openviewmodal} onClose={() => setopenviewmodal(false)}>
         <div className="w-[92vw] max-w-[690px] max-h-[90vh] overflow-y-auto rounded-xl">
           <EmployeeProfile
             viewEmployee={viewEmployee}
@@ -1089,15 +558,14 @@ const Employe = () => {
         </div>
       </Modalbox>
 
-      <Modalbox open={passmodal} onClose={() => {
-        setpassmodal(false);
-      }}>
-        <div className="membermodal w-[350px]" >
+      {/* Password Reset Modal */}
+      <Modalbox open={passmodal} onClose={() => setpassmodal(false)}>
+        <div className="membermodal w-[350px]">
           <form onSubmit={updatePassword}>
-            <h2>Reset Passowrd</h2>
-            <div className="modalcontent flex  flex-col gap-3">
-              <TextField fullWidth required value={pass.pass} onChange={(e) => setpass({ ...pass, pass: e.target.value })} label="Passowrd" size="small" />
-              <Button variant="contained" sx={{ mt: 2 }} type="submit" >Reset Password</Button>
+            <h2 className="text-sm font-bold text-slate-800 mb-3">Reset Password</h2>
+            <div className="modalcontent flex flex-col gap-3">
+              <TextField fullWidth required value={pass.pass} onChange={(e) => setpass({ ...pass, pass: e.target.value })} label="Password" size="small" />
+              <Button variant="contained" sx={{ mt: 2 }} type="submit">Reset Password</Button>
             </div>
           </form>
         </div>
@@ -1113,3 +581,4 @@ const Employe = () => {
 };
 
 export default Employe;
+

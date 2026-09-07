@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from '../../utils/toast';
@@ -58,6 +58,11 @@ const PlotClosingsPage = () => {
   const [previewError, setPreviewError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Refs to prevent submit / preview race conditions
+  const isSubmittingRef = useRef(false);
+  const lastPreviewKeyRef = useRef('');
+  const previewAbortControllerRef = useRef(null);
+
   // Fetch all closings list
   const fetchClosings = async () => {
     setLoading(true);
@@ -78,10 +83,17 @@ const PlotClosingsPage = () => {
   }, [search]);
 
   // Load preview when date range changes
-  const fetchPreview = async (startDate, endDate, excludeClosingId = null) => {
+  const fetchPreview = async (startDate, endDate, excludeClosingId = null, force = false) => {
+    if (isSubmittingRef.current) return;
+
     if (!startDate || !endDate) {
       setPreviewData(null);
       setPreviewError('');
+      return;
+    }
+
+    const key = `${startDate}_${endDate}_${excludeClosingId || ''}`;
+    if (!force && lastPreviewKeyRef.current === key) {
       return;
     }
 
@@ -91,18 +103,32 @@ const PlotClosingsPage = () => {
       return;
     }
 
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    previewAbortControllerRef.current = abortController;
+
     setPreviewLoading(true);
     setPreviewError('');
     try {
       const res = await api.get('/plots/closings/preview', {
         params: { startDate, endDate, excludeClosingId },
+        signal: abortController.signal,
       });
+      if (isSubmittingRef.current) return;
       setPreviewData(res.data.data);
+      lastPreviewKeyRef.current = key;
     } catch (err) {
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED' || isSubmittingRef.current) {
+        return;
+      }
       setPreviewError(err.response?.data?.message || 'Failed to calculate preview for this date range');
       setPreviewData(null);
     } finally {
-      setPreviewLoading(false);
+      if (!isSubmittingRef.current) {
+        setPreviewLoading(false);
+      }
     }
   };
 
@@ -123,10 +149,11 @@ const PlotClosingsPage = () => {
     });
     setPreviewData(null);
     setPreviewError('');
+    lastPreviewKeyRef.current = '';
     setShowCreateModal(true);
 
     // Initial preview trigger
-    fetchPreview(formatDate(firstDay), formatDate(today));
+    fetchPreview(formatDate(firstDay), formatDate(today), null, true);
   };
 
   // Open Edit Modal
@@ -141,8 +168,9 @@ const PlotClosingsPage = () => {
       endDate: end,
       remarks: closing.remarks || '',
     });
+    lastPreviewKeyRef.current = '';
     setShowEditModal(true);
-    fetchPreview(start, end, closing._id);
+    fetchPreview(start, end, closing._id, true);
   };
 
   // Open Details Modal
@@ -176,6 +204,10 @@ const PlotClosingsPage = () => {
       return;
     }
 
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+    }
+    isSubmittingRef.current = true;
     setSubmitting(true);
     try {
       const res = await api.post('/plots/closings', formData);
@@ -186,6 +218,7 @@ const PlotClosingsPage = () => {
       toast.error(err.response?.data?.message || 'Failed to create closing');
     } finally {
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -194,6 +227,10 @@ const PlotClosingsPage = () => {
     e.preventDefault();
     if (!editingClosing) return;
 
+    if (previewAbortControllerRef.current) {
+      previewAbortControllerRef.current.abort();
+    }
+    isSubmittingRef.current = true;
     setSubmitting(true);
     try {
       const res = await api.put(`/plots/closings/${editingClosing._id}`, formData);
@@ -204,6 +241,7 @@ const PlotClosingsPage = () => {
       toast.error(err.response?.data?.message || 'Failed to update closing');
     } finally {
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -518,11 +556,8 @@ const PlotClosingsPage = () => {
                 <input
                   type="date"
                   value={formData.startDate}
-                  onChange={(e) => {
-                    const newStart = e.target.value;
-                    setFormData({ ...formData, startDate: newStart });
-                    fetchPreview(newStart, formData.endDate);
-                  }}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  onBlur={() => fetchPreview(formData.startDate, formData.endDate)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                   required
                 />
@@ -535,11 +570,8 @@ const PlotClosingsPage = () => {
                 <input
                   type="date"
                   value={formData.endDate}
-                  onChange={(e) => {
-                    const newEnd = e.target.value;
-                    setFormData({ ...formData, endDate: newEnd });
-                    fetchPreview(formData.startDate, newEnd);
-                  }}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  onBlur={() => fetchPreview(formData.startDate, formData.endDate)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                   required
                 />
@@ -746,11 +778,8 @@ const PlotClosingsPage = () => {
                 <input
                   type="date"
                   value={formData.startDate}
-                  onChange={(e) => {
-                    const newStart = e.target.value;
-                    setFormData({ ...formData, startDate: newStart });
-                    fetchPreview(newStart, formData.endDate, editingClosing?._id);
-                  }}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  onBlur={() => fetchPreview(formData.startDate, formData.endDate, editingClosing?._id)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                   required
                 />
@@ -763,11 +792,8 @@ const PlotClosingsPage = () => {
                 <input
                   type="date"
                   value={formData.endDate}
-                  onChange={(e) => {
-                    const newEnd = e.target.value;
-                    setFormData({ ...formData, endDate: newEnd });
-                    fetchPreview(formData.startDate, newEnd, editingClosing?._id);
-                  }}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  onBlur={() => fetchPreview(formData.startDate, formData.endDate, editingClosing?._id)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                   required
                 />

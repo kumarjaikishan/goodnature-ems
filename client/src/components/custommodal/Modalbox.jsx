@@ -1,7 +1,6 @@
 import './modalbox.css'
 import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
-import { motion } from "framer-motion";
 
 const Modalbox = ({ open, onClose, children, shadow = true, outside = true }) => {
 
@@ -35,23 +34,14 @@ const Modalbox = ({ open, onClose, children, shadow = true, outside = true }) =>
         <>
             {open && createPortal(
                 <div className='modalwrapper' onClick={outside ? onClose : falsee}>
-                    <motion.div className="modalbox"
+                    <div className="modalbox"
                         onClick={(e) => {
                             e.stopPropagation();
                         }}
                         style={shadow ? { boxShadow: '0 10px 20px rgba(0,0,0,0.4)' } : undefined}
-                        initial={{ scale: 0.1 }}
-                        animate={{ scale: 1 }}
-                        transition={{
-                            type: "spring",
-                            stiffness: 350,
-                            damping: 17,
-                            bounce: 0.5, // gives that elastic feel
-                            duration: 0.5,
-                        }}
                     >
                         {children}
-                    </motion.div>
+                    </div>
                 </div>,
                 document.body
             )}

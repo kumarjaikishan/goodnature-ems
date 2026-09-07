@@ -24,10 +24,54 @@ import {
   ScrollText,
   Coins,
   CalendarPlus,
-  Award
+  Award,
+  Building2,
+  History,
+  SlidersHorizontal
 } from 'lucide-react';
 import Modalbox from '../../components/custommodal/Modalbox';
 import PageLoader from '../../components/common/PageLoader';
+
+const formatIndianDate = (d) => {
+  if (!d || isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${day} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+const getDynamicEmiHelper = (bookingDateStr, dpMonthsVal) => {
+  if (!bookingDateStr) return 'Time allowed to complete 40% downpayment.';
+  const bDate = new Date(bookingDateStr);
+  if (isNaN(bDate.getTime())) return 'Time allowed to complete 40% downpayment.';
+
+  const dpMonths = Number(dpMonthsVal) || 1;
+  const bFormatted = formatIndianDate(bDate);
+
+  const dpDate = new Date(bDate);
+  dpDate.setMonth(dpDate.getMonth() + dpMonths);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dpMonthYear = `${monthNames[dpDate.getMonth()]} ${dpDate.getFullYear()}`;
+
+  const firstEmiDate = new Date(bDate);
+  firstEmiDate.setMonth(firstEmiDate.getMonth() + dpMonths + 1);
+  firstEmiDate.setDate(1);
+  const firstEmiFormatted = formatIndianDate(firstEmiDate);
+
+  return `Time allowed to complete 40% downpayment (${bFormatted} + ${dpMonths} month${dpMonths > 1 ? 's' : ''} = DP ends in ${dpMonthYear}). 1st EMI starts on ${firstEmiFormatted}.`;
+};
+
+const getDynamicOneTimeHelper = (bookingDateStr, oneTimeMonthsVal) => {
+  if (!bookingDateStr) return 'Time allowed to complete one-time payment.';
+  const bDate = new Date(bookingDateStr);
+  if (isNaN(bDate.getTime())) return 'Time allowed to complete one-time payment.';
+
+  const otMonths = Number(oneTimeMonthsVal) || 1;
+  const targetDate = new Date(bDate);
+  targetDate.setMonth(targetDate.getMonth() + otMonths);
+  const targetFormatted = formatIndianDate(targetDate);
+
+  return `Full payment due by ${targetFormatted} (${otMonths} month${otMonths > 1 ? 's' : ''} from booking date).`;
+};
 
 const PlotReports = () => {
   const navigate = useNavigate();
@@ -104,8 +148,10 @@ const PlotReports = () => {
     downpaymentMonths: 1,
     status: 'ACTIVE',
     agreementNumber: '',
+    landSourcing: [],
   });
 
+  const [availableLandSources, setAvailableLandSources] = useState([]);
   const [discountType, setDiscountType] = useState('RUPEE'); // 'RUPEE', 'PERCENT', 'SQFT_RATE'
   const [discountVal, setDiscountVal] = useState('');
   const [downpaymentBase, setDownpaymentBase] = useState('BEFORE_DISCOUNT');
@@ -260,8 +306,14 @@ const PlotReports = () => {
       transactionReference: booking.transactionReference || '',
       sponsorId: booking.sponsorId?._id || booking.sponsorId || '',
       notes: booking.notes || '',
+      landSourcing: Array.isArray(booking.landSourcing) ? JSON.parse(JSON.stringify(booking.landSourcing)) : [],
     };
     setEditForm(initialForm);
+
+    // Fetch available land acquisition sources
+    api.get('/plots/kisan-agreements/sources')
+      .then(res => setAvailableLandSources(res.data.data || []))
+      .catch(() => setAvailableLandSources([]));
     setSponsorSearch(booking.sponsorId?.name ? `${booking.sponsorId.name} (${booking.sponsorId.sponsorCode || ''})` : 'Direct / Company (No Sponsor)');
   };
 
@@ -285,6 +337,49 @@ const PlotReports = () => {
       setSponsorLedgerData([]);
     } finally {
       setSponsorLedgerLoading(false);
+    }
+  };
+
+  // Booking Revisions & Audit History Modal state
+  const [selectedRevisionsBooking, setSelectedRevisionsBooking] = useState(null);
+  const [revisionsData, setRevisionsData] = useState([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [editingNarrationId, setEditingNarrationId] = useState(null);
+  const [editingNarrationText, setEditingNarrationText] = useState('');
+  const [savingNarration, setSavingNarration] = useState(false);
+
+  const openRevisionsModal = async (booking) => {
+    if (!booking || !booking._id) return;
+    setSelectedRevisionsBooking(booking);
+    setRevisionsLoading(true);
+    setEditingNarrationId(null);
+    try {
+      const res = await api.get(`/plots/bookings/${booking._id}/revisions`);
+      setRevisionsData(res.data.data || []);
+    } catch {
+      toast.error('Failed to load contract revisions');
+      setRevisionsData([]);
+    } finally {
+      setRevisionsLoading(false);
+    }
+  };
+
+  const handleSaveNarration = async (revId) => {
+    if (!revId) return;
+    setSavingNarration(true);
+    try {
+      const res = await api.put(`/plots/bookings/revisions/${revId}/narration`, {
+        adminNarration: editingNarrationText,
+      });
+      toast.success('Narration updated successfully');
+      setRevisionsData((prev) =>
+        prev.map((r) => (r._id === revId ? { ...r, adminNarration: res.data.data?.adminNarration || editingNarrationText, reason: res.data.data?.reason || editingNarrationText } : r))
+      );
+      setEditingNarrationId(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update narration');
+    } finally {
+      setSavingNarration(false);
     }
   };
 
@@ -331,6 +426,9 @@ const PlotReports = () => {
         downpaymentMonths: !isOneTime ? Number(editForm.downpaymentMonths || 1) : undefined,
         downpaymentCalculationBase: downpaymentBase,
         govtRate: Number(govtRate) || 100,
+        landSourcing: editForm.landSourcing || [],
+        reason: (editForm.reason || '').trim(),
+        adminNarration: (editForm.reason || '').trim(),
       };
 
       await api.put(`/plots/bookings/${editingBooking._id}`, payload);
@@ -533,45 +631,81 @@ const PlotReports = () => {
           </button>
 
           {/* 5. Print Plot Agreement */}
-          <button
-            onClick={async () => {
-              if (b.agreementNumber && b.agreementNumber.trim() !== '') {
-                navigate(`/dashboard/plots/agreements/${b._id}`);
-              } else {
-                const input = window.prompt(
-                  `Enter Agreement Number for Booking #${b.bookingNumber} (Plot #${b.plotId?.plotNumber || ''}):`,
-                  ''
-                );
-                if (input === null) return;
-                const finalAgreementNo = input.trim();
-                if (finalAgreementNo) {
-                  try {
-                    await api.put(`/plots/bookings/${b._id}`, { agreementNumber: finalAgreementNo });
-                    toast.success('Agreement number saved successfully');
-                    b.agreementNumber = finalAgreementNo;
-                  } catch (err) {
-                    console.error('Failed to update agreement number:', err);
-                  }
-                }
-                navigate(`/dashboard/plots/agreements/${b._id}`);
-              }
-            }}
-            title="Print Legal Plot Agreement"
-            className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition cursor-pointer border border-amber-200 shadow-2xs"
-          >
-            <ScrollText size={15} />
-          </button>
+          {(() => {
+            const netVal = Math.max(0, (b.plotValue || 0) - (b.discount || 0));
+            const paid = Math.max(0, netVal - (b.remainingAmount || 0));
+            const dpReq = b.scheme === 'FULL_PAYMENT' ? netVal : (b.bookingAmount || b.downpaymentAmount || Math.round(netVal * 0.40));
+            const isDpComplete = paid >= (dpReq - 1);
 
-          {/* 6. Edit Booking */}
+            return (
+              <button
+                onClick={async () => {
+                  if (!isDpComplete) {
+                    toast.warning(`Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`);
+                    return;
+                  }
+
+                  if (b.agreementNumber && b.agreementNumber.trim() !== '') {
+                    navigate(`/dashboard/plots/agreements/${b._id}`);
+                  } else {
+                    const input = window.prompt(
+                      `Enter Agreement Number for Booking #${b.bookingNumber} (Plot #${b.plotId?.plotNumber || ''}):`,
+                      ''
+                    );
+                    if (input === null) return;
+                    const finalAgreementNo = input.trim();
+                    if (finalAgreementNo) {
+                      try {
+                        await api.put(`/plots/bookings/${b._id}`, { agreementNumber: finalAgreementNo });
+                        toast.success('Agreement number saved successfully');
+                        b.agreementNumber = finalAgreementNo;
+                      } catch (err) {
+                        console.error('Failed to update agreement number:', err);
+                      }
+                    }
+                    navigate(`/dashboard/plots/agreements/${b._id}`);
+                  }
+                }}
+                title={
+                  !isDpComplete
+                    ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
+                    : 'Print Legal Plot Agreement'
+                }
+                className={`p-1.5 rounded-lg transition shadow-2xs border ${
+                  isDpComplete
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200 cursor-pointer'
+                    : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <ScrollText size={15} />
+              </button>
+            );
+          })()}
+
+          {/* 6. Edit Booking Contract */}
           <button
             onClick={() => handleEditClick(b)}
-            title="Edit Booking"
+            title="Edit Booking Contract"
             className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
           >
             <Edit3 size={15} />
           </button>
 
-          {/* 7. Delete Booking */}
+          {/* 7. View Revision & Restructuring History */}
+          <button
+            onClick={() => openRevisionsModal(b)}
+            title="View Contract Revision History & Audits"
+            className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs relative"
+          >
+            <History size={15} />
+            {(b.revisionCount || 0) > 0 && (
+              <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                {b.revisionCount}
+              </span>
+            )}
+          </button>
+
+          {/* 8. Delete Booking */}
           <button
             onClick={() => openDeleteBookingModal(b)}
             disabled={deletingId === b._id}
@@ -1331,11 +1465,16 @@ const PlotReports = () => {
                       <input
                         className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                         type="tel"
-                        value={editForm.oneTimeMonths || 1}
-                        onChange={(e) => setEditForm({ ...editForm, oneTimeMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={editForm.oneTimeMonths === 0 ? '0' : (editForm.oneTimeMonths ?? '')}
+                        onChange={(e) => setEditForm({ ...editForm, oneTimeMonths: e.target.value.replace(/[^0-9]/g, '') })}
                         placeholder="Time limit (e.g. 1, 2, 3 months)"
                         required
                       />
+                      <span className="text-[10px] text-teal-700 font-medium px-1">
+                        {getDynamicOneTimeHelper(editForm.bookingDate, editForm.oneTimeMonths)}
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -1357,11 +1496,16 @@ const PlotReports = () => {
                       <input
                         className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
                         type="tel"
-                        value={editForm.downpaymentMonths || 1}
-                        onChange={(e) => setEditForm({ ...editForm, downpaymentMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
-                        placeholder="e.g. 1 or 2 months"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={editForm.downpaymentMonths === 0 ? '0' : (editForm.downpaymentMonths ?? '')}
+                        onChange={(e) => setEditForm({ ...editForm, downpaymentMonths: e.target.value.replace(/[^0-9]/g, '') })}
+                        placeholder="e.g. 1, 2, or 3 months"
                         required
                       />
+                      <span className="text-[10px] text-teal-700 font-medium px-1">
+                        {getDynamicEmiHelper(editForm.bookingDate, editForm.downpaymentMonths)}
+                      </span>
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -1386,6 +1530,164 @@ const PlotReports = () => {
                   </>
                 )}
               </div>
+            </div>
+
+            {/* 3. Land Acquisition Stock Allocation (Kisan Agreement & Deed Multi-Source) */}
+            <div className="p-4 bg-teal-50/70 border border-teal-300 rounded-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
+                    <Building2 size={16} className="text-teal-700" />
+                    3. Land Acquisition Sourcing (किसान एग्रीमेंट / डीड स्टॉक) <span className="text-rose-600 font-black">*</span>
+                  </h4>
+                  <p className="text-[11px] text-teal-700 mt-0.5">
+                    Required: Allocate the entire plot area ({plotArea} Sq.Ft.) from an active Kisan Agreement or Registry Deed.
+                  </p>
+                </div>
+                {availableLandSources.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentTotal = (editForm.landSourcing || []).reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+                      const remaining = Math.max(0, plotArea - currentTotal);
+                      const firstSrc = availableLandSources[0];
+                      if (!firstSrc) return;
+                      setEditForm({
+                        ...editForm,
+                        landSourcing: [
+                          ...(editForm.landSourcing || []),
+                          {
+                            sourceType: firstSrc.sourceType,
+                            agreementId: firstSrc.agreementId,
+                            agreementNumber: firstSrc.agreementNumber,
+                            deedId: firstSrc.deedId || null,
+                            deedNumber: firstSrc.deedNumber || '',
+                            mauja: firstSrc.mauja || '',
+                            khataNumber: firstSrc.khataNumber || '',
+                            khesraNumber: firstSrc.khesraNumber || '',
+                            allocatedSqFt: remaining > 0 ? remaining : Math.min(plotArea, firstSrc.availableSqFt),
+                            allocatedDismil: Math.round(((remaining > 0 ? remaining : Math.min(plotArea, firstSrc.availableSqFt)) / 435.6) * 1000) / 1000,
+                          },
+                        ],
+                      });
+                    }}
+                    className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-lg transition cursor-pointer self-start sm:self-auto"
+                  >
+                    + Add Land Source
+                  </button>
+                )}
+              </div>
+
+              {(!editForm.landSourcing || editForm.landSourcing.length === 0) ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-amber-800">
+                  <span>⚠️ No land stock linked yet. Choose an agreement/deed below.</span>
+                  {availableLandSources.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const first = availableLandSources[0];
+                        setEditForm({
+                          ...editForm,
+                          landSourcing: [
+                            {
+                              sourceType: first.sourceType,
+                              agreementId: first.agreementId,
+                              agreementNumber: first.agreementNumber,
+                              deedId: first.deedId || null,
+                              deedNumber: first.deedNumber || '',
+                              mauja: first.mauja || '',
+                              khataNumber: first.khataNumber || '',
+                              khesraNumber: first.khesraNumber || '',
+                              allocatedSqFt: plotArea,
+                              allocatedDismil: Math.round((plotArea / 435.6) * 1000) / 1000,
+                            },
+                          ],
+                        });
+                      }}
+                      className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs cursor-pointer"
+                    >
+                      Auto-Allocate {plotArea} Sq.Ft.
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2 mt-2">
+                  {editForm.landSourcing.map((src, idx) => (
+                    <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 bg-white p-2.5 rounded-xl border border-teal-200 shadow-2xs">
+                      <select
+                        className="flex-1 h-9 px-2.5 text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg outline-none w-full"
+                        value={src.deedNumber ? `DEED_${src.deedNumber}` : `AGR_${src.agreementId}`}
+                        onChange={(e) => {
+                          const chosen = availableLandSources.find((s) => (s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`) === e.target.value);
+                          if (!chosen) return;
+                          const updated = [...editForm.landSourcing];
+                          updated[idx] = {
+                            ...updated[idx],
+                            sourceType: chosen.sourceType,
+                            agreementId: chosen.agreementId,
+                            agreementNumber: chosen.agreementNumber,
+                            deedId: chosen.deedId || null,
+                            deedNumber: chosen.deedNumber || '',
+                            mauja: chosen.mauja || '',
+                            khataNumber: chosen.khataNumber || '',
+                            khesraNumber: chosen.khesraNumber || '',
+                          };
+                          setEditForm({ ...editForm, landSourcing: updated });
+                        }}
+                      >
+                        {availableLandSources.map((s) => (
+                          <option key={s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`} value={s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                        <input
+                          type="number"
+                          className="w-28 h-9 px-2.5 text-xs font-bold text-slate-900 border border-slate-300 rounded-lg outline-none text-right font-mono"
+                          value={src.allocatedSqFt}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            const updated = [...editForm.landSourcing];
+                            updated[idx] = {
+                              ...updated[idx],
+                              allocatedSqFt: val,
+                              allocatedDismil: Math.round((val / 435.6) * 1000) / 1000,
+                            };
+                            setEditForm({ ...editForm, landSourcing: updated });
+                          }}
+                          placeholder="Sq. Ft."
+                        />
+                        <span className="text-xs font-semibold text-slate-500">SqFt</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const filtered = editForm.landSourcing.filter((_, i) => i !== idx);
+                            setEditForm({ ...editForm, landSourcing: filtered });
+                          }}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {(() => {
+                    const totalAlloc = (editForm.landSourcing || []).reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+                    const isMatch = Math.abs(totalAlloc - plotArea) <= 0.5;
+                    return (
+                      <div className="flex justify-between items-center text-xs font-bold px-1 pt-1">
+                        <span className={isMatch ? 'text-emerald-700' : 'text-rose-600'}>
+                          {isMatch ? '✅ Land Stock Area Matched:' : '⚠️ Sourced Area Mismatch:'}
+                        </span>
+                        <span className={`font-mono ${isMatch ? 'text-emerald-800' : 'text-rose-700'}`}>
+                          {totalAlloc} / {plotArea} Sq. Ft.
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* 4. Payment Mode & Sponsor Assignment */}
@@ -1417,63 +1719,29 @@ const PlotReports = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600">Sponsor / Agent Assignment</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search sponsor by name or ID..."
-                  value={sponsorSearch}
-                  onChange={(e) => {
-                    setSponsorSearch(e.target.value);
-                    setShowSponsorDropdown(true);
-                  }}
-                  onFocus={() => setShowSponsorDropdown(true)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none pr-8"
-                />
-                {sponsorSearch && (
-                  <button
-                    type="button"
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    onClick={() => {
-                      setSponsorSearch('');
-                      setEditForm({ ...editForm, sponsorId: '' });
-                      setShowSponsorDropdown(false);
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                {showSponsorDropdown && (
-                  <div className="absolute top-[48px] left-0 right-0 max-h-40 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-y-auto">
-                    <div
-                      className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold border-b border-slate-100"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setEditForm({ ...editForm, sponsorId: '' });
-                        setSponsorSearch('Direct / Company (No Sponsor)');
-                        setShowSponsorDropdown(false);
-                      }}
-                    >
-                      Direct / Company (No Sponsor)
-                    </div>
-                    {sponsorSearchResults.map(c => (
-                      <div
-                        key={c._id}
-                        className="p-2.5 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer font-semibold flex items-center justify-between border-b border-slate-100 last:border-0"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setEditForm({ ...editForm, sponsorId: c._id });
-                          setSponsorSearch(`${c.name} (${c.sponsorCode || c.customerId || ''})`);
-                          setShowSponsorDropdown(false);
-                        }}
-                      >
-                        <span>{c.name}</span>
-                        <span className="text-[0.65rem] font-bold text-indigo-600">{c.sponsorCode || c.customerId}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <label className="text-xs font-semibold text-slate-600">Sponsor / Agent (Fixed with Customer Profile)</label>
+              <div className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 flex items-center justify-between cursor-not-allowed">
+                <span>{editingBooking?.sponsorId?.name ? `${editingBooking.sponsorId.name} (${editingBooking.sponsorId.sponsorCode || editingBooking.sponsorId.customerId || 'Agent'})` : 'Direct / Company (No Sponsor)'}</span>
+                <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">Fixed</span>
               </div>
+              <p className="text-[10px] text-slate-400">Sponsor is mapped to the customer profile. To update sponsor, edit the customer record directly.</p>
+            </div>
+
+            <div className="flex flex-col gap-1 p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl">
+              <label className="text-xs font-bold text-indigo-950 flex items-center justify-between">
+                <span>📝 Edit Reason / Admin Narration (कारण विवरण)</span>
+                <span className="text-[10px] text-indigo-600 font-normal">Tracked in audit trail & revision history</span>
+              </label>
+              <textarea
+                value={editForm.reason || ''}
+                onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
+                rows="2"
+                className="w-full bg-white border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none p-2.5 rounded-xl font-medium text-xs text-slate-800 transition resize-none mt-1"
+                placeholder="e.g. Customer requested tenure extension from 24 to 27 months and updated plot allocation..."
+              />
+              <p className="text-[10px] text-slate-500">
+                Note: System will automatically log all modified fields in the audit record alongside your custom narration.
+              </p>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -1483,7 +1751,7 @@ const PlotReports = () => {
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                 rows="2"
                 className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition resize-none"
-                placeholder="Enter contract update remarks..."
+                placeholder="Enter general contract notes..."
               />
             </div>
 
@@ -1731,6 +1999,255 @@ const PlotReports = () => {
             </div>
           );
         })()}
+      </Modalbox>
+
+      {/* ── MODAL: CONTRACT REVISION HISTORY & AUDIT TRAIL ── */}
+      <Modalbox open={Boolean(selectedRevisionsBooking)} onClose={() => setSelectedRevisionsBooking(null)} outside={true}>
+        <div className="bg-white rounded-3xl p-6 max-w-3xl w-full space-y-4 max-h-[85vh] flex flex-col">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <History size={18} className="text-indigo-600" />
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Contract Revision & Audit Trail #{selectedRevisionsBooking?.bookingNumber}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Track every edit, tenure change, land sourcing shift, and financial recalculation.
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setSelectedRevisionsBooking(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+            {revisionsLoading ? (
+              <div className="py-12 text-center text-slate-400">Loading revision audits...</div>
+            ) : revisionsData.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <History size={28} className="mx-auto mb-2 text-slate-300" />
+                <p className="font-bold text-slate-600">No revisions recorded yet</p>
+                <p className="text-[11px] text-slate-400 mt-1">This booking is in its original contracted state (Revision #0).</p>
+              </div>
+            ) : (
+              revisionsData.map((rev) => (
+                <div key={rev._id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800">
+                        Revision #{rev.revisionNumber}
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-700">
+                        {new Date(rev.revisionDate || rev.createdAt).toLocaleDateString('en-IN', {
+                          day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      Edited By: {rev.editedBy?.name || 'Authorized Admin'}
+                    </span>
+                  </div>
+
+                  {/* 1. Admin / User Custom Narration (Editable directly in this modal) */}
+                  <div className="bg-white p-3.5 rounded-xl border border-indigo-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                        <span>📝 Admin / Editor Narration:</span>
+                      </span>
+                      {editingNarrationId !== rev._id ? (
+                        <button
+                          onClick={() => {
+                            setEditingNarrationId(rev._id);
+                            setEditingNarrationText(rev.adminNarration || rev.reason || '');
+                          }}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer flex items-center gap-1"
+                        >
+                          <Edit3 size={12} /> Edit Narration
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {editingNarrationId === rev._id ? (
+                      <div className="space-y-2 pt-1">
+                        <textarea
+                          value={editingNarrationText}
+                          onChange={(e) => setEditingNarrationText(e.target.value)}
+                          rows="2"
+                          className="w-full bg-indigo-50/50 border border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none p-2.5 rounded-xl font-medium text-xs text-slate-800 transition resize-none"
+                          placeholder="Enter reason / narration for this contract revision..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setEditingNarrationId(null)}
+                            disabled={savingNarration}
+                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveNarration(rev._id)}
+                            disabled={savingNarration}
+                            className="px-4 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                          >
+                            {savingNarration ? 'Saving...' : 'Save Narration'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-700 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200 font-medium">
+                        {rev.adminNarration || rev.reason || 'No custom narration provided.'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 2. Automatic System Log of Discrepancies / Changed Fields */}
+                  {rev.systemLog && (
+                    <div className="bg-slate-900 text-slate-100 p-3 rounded-xl space-y-1 font-mono text-[11px] shadow-xs">
+                      <span className="text-[10px] uppercase font-bold text-teal-400 tracking-wider block">
+                        ⚙️ System Audit Trace (Auto-Generated Log):
+                      </span>
+                      <pre className="whitespace-pre-wrap font-sans text-slate-200 text-xs leading-relaxed">
+                        {rev.systemLog}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* 3. Specific Changes Highlights (Visual Cards) */}
+                  {Array.isArray(rev.changedFields) && rev.changedFields.length > 0 && (
+                    <div className="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 space-y-2">
+                      <span className="text-[10px] font-black uppercase text-indigo-900 tracking-wider block">
+                        🎯 Specific Attributes Modified in this Revision ({rev.changedFields.length}):
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        {rev.changedFields.map((cf, idx) => (
+                          <div key={idx} className="bg-white p-2 rounded-lg border border-indigo-100 flex flex-col justify-between">
+                            <span className="font-bold text-slate-700">{cf.label || cf.field}</span>
+                            <div className="flex items-center gap-1.5 mt-1 font-mono text-[10px]">
+                              <span className="text-rose-600 line-through truncate max-w-[120px]">
+                                {String(cf.oldValue ?? 'None')}
+                              </span>
+                              <span className="text-slate-400 font-bold">→</span>
+                              <span className="text-emerald-700 font-bold truncate max-w-[120px]">
+                                {String(cf.newValue ?? 'None')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comparison Grid: Previous vs New */}
+                  <div className="grid grid-cols-2 gap-3 text-slate-700 text-[11px]">
+                    <div className="p-3 bg-rose-50/60 border border-rose-200 rounded-xl space-y-1.5">
+                      <h5 className="font-black text-rose-900 text-[10px] uppercase tracking-wider">Previous State</h5>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Customer:</span>
+                        <span className="font-bold text-slate-800">{rev.previousSnapshot?.customerName || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Plot #:</span>
+                        <span className="font-bold text-slate-800">{rev.previousSnapshot?.plotNumber ? `Plot #${rev.previousSnapshot.plotNumber}` : '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Plot Size:</span>
+                        <span className="font-mono font-bold">{rev.previousSnapshot?.plotSize || '-'} Sq.Ft.</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Tenure / Scheme:</span>
+                        <span className="font-bold">{rev.previousSnapshot?.tenureMonths ? `${rev.previousSnapshot.tenureMonths} Mos (EMI)` : 'One Time'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Plot Value:</span>
+                        <span className="font-mono font-bold">₹{(rev.previousSnapshot?.plotValue || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Discount:</span>
+                        <span className="font-mono font-bold text-emerald-700">₹{(rev.previousSnapshot?.discount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Effective Rate:</span>
+                        <span className="font-mono font-bold">₹{rev.previousSnapshot?.effectiveRate || rev.previousSnapshot?.basePlotRate || 0}/sqft</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Downpayment (40%):</span>
+                        <span className="font-mono font-bold text-teal-800">₹{(rev.previousSnapshot?.downpaymentAmount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Monthly EMI:</span>
+                        <span className="font-mono font-bold">₹{(rev.previousSnapshot?.emiMonthlyAmount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Promoter Comm %:</span>
+                        <span className="font-bold text-indigo-700">{rev.previousSnapshot?.promoterCommissionPercent || 10}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Sponsor:</span>
+                        <span className="font-bold text-slate-700 truncate max-w-[130px]">{rev.previousSnapshot?.sponsorName || 'Direct'}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1.5">
+                      <h5 className="font-black text-emerald-900 text-[10px] uppercase tracking-wider">New Restructured State</h5>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Customer:</span>
+                        <span className="font-bold text-emerald-900">{rev.newSnapshot?.customerName || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Plot #:</span>
+                        <span className="font-bold text-emerald-900">{rev.newSnapshot?.plotNumber ? `Plot #${rev.newSnapshot.plotNumber}` : '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Plot Size:</span>
+                        <span className="font-mono font-bold text-emerald-900">{rev.newSnapshot?.plotSize || '-'} Sq.Ft.</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Tenure / Scheme:</span>
+                        <span className="font-bold text-emerald-900">{rev.newSnapshot?.tenureMonths ? `${rev.newSnapshot.tenureMonths} Mos (EMI)` : 'One Time'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Plot Value:</span>
+                        <span className="font-mono font-bold text-emerald-900">₹{(rev.newSnapshot?.plotValue || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Discount:</span>
+                        <span className="font-mono font-bold text-emerald-700">₹{(rev.newSnapshot?.discount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Effective Rate:</span>
+                        <span className="font-mono font-bold text-emerald-900">₹{rev.newSnapshot?.effectiveRate || rev.newSnapshot?.basePlotRate || 0}/sqft</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Downpayment (40%):</span>
+                        <span className="font-mono font-bold text-emerald-900">₹{(rev.newSnapshot?.downpaymentAmount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Monthly EMI:</span>
+                        <span className="font-mono font-bold text-emerald-900">₹{(rev.newSnapshot?.emiMonthlyAmount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Promoter Comm %:</span>
+                        <span className="font-bold text-emerald-800">{rev.newSnapshot?.promoterCommissionPercent || 10}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Sponsor:</span>
+                        <span className="font-bold text-emerald-900 truncate max-w-[130px]">{rev.newSnapshot?.sponsorName || 'Direct'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-end pt-3 border-t border-slate-100">
+            <button
+              onClick={() => setSelectedRevisionsBooking(null)}
+              className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </Modalbox>
     </div>
   );

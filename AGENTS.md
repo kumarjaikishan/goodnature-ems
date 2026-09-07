@@ -10,6 +10,8 @@ All AI assistants must adhere to the instructions and guidelines defined here be
 Before making ANY changes or proposing new features:
 1. **Read Relevant Documentation First**:
    - [docs/PROJECT_CONTEXT.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/PROJECT_CONTEXT.md) — Tech stack, purpose, and system modules.
+   - [docs/COMPONENT_CATALOG.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/COMPONENT_CATALOG.md) — Centralized API (`api/axios.js`), reusable modals (`Modalbox.jsx`), loaders (`PageLoader.jsx`), dialogs (`confirmDialog.jsx`), and tables (`DataTable.jsx`).
+   - [docs/FRONTEND_THEME_SYSTEM.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/FRONTEND_THEME_SYSTEM.md) — Unified Good Nature deep teal & emerald styling standards.
    - [docs/ARCHITECTURE.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/ARCHITECTURE.md) — Component architecture, data flows, auth, timezone, and scheduler details.
    - [docs/RULES.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/RULES.md) — Coding conventions, security guidelines, and business constraints.
    - [docs/DECISIONS.md](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/docs/DECISIONS.md) — Immutable decisions and established core design patterns.

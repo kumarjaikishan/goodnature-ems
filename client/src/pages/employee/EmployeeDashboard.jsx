@@ -4,7 +4,6 @@ import HolidayCalander from '../holidays/holidayCalander';
 import dayjs from 'dayjs';
 import OfficialNoticeBoard from '../../components/notice';
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-import { motion } from 'framer-motion';
 import {
   Hand,
   LogIn,

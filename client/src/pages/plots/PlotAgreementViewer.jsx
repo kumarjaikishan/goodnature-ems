@@ -96,7 +96,7 @@ const PlotAgreementViewer = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
         <p className="text-sm font-bold text-slate-500">Booking details not found or permission denied.</p>
-        <button onClick={() => navigate('/plot-reports')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
+        <button onClick={() => navigate('/dashboard/plots/reports')} className="px-4 py-2 bg-slate-800 text-white rounded text-xs font-bold">Go Back</button>
       </div>
     );
   }
@@ -113,10 +113,64 @@ const PlotAgreementViewer = () => {
   });
 
   const netPlotValue = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
+  const paidAmount = Math.max(0, netPlotValue - (booking.remainingAmount || 0));
+  const downpaymentInst = (installments || []).find(i => i.installmentNumber === 0);
+  const downpaymentRequired = booking.scheme === 'FULL_PAYMENT'
+    ? netPlotValue
+    : (booking.bookingAmount || booking.downpaymentAmount || downpaymentInst?.dueAmount || Math.round(netPlotValue * 0.40));
+  const isDownpaymentCompleted = paidAmount >= (downpaymentRequired - 1);
+
+  if (!isDownpaymentCompleted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6">
+        <div className="bg-white border border-amber-200 shadow-xl rounded-2xl p-8 max-w-lg w-full text-center space-y-4">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+            ⚠️
+          </div>
+          <h2 className="text-xl font-black text-slate-800">Agreement Locked</h2>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            The legal plot agreement for Booking <strong className="font-mono text-slate-900">#{booking.bookingNumber}</strong> (Plot <strong className="text-slate-900">#{plot.plotNumber}</strong>) can only be generated and printed <strong className="text-emerald-700">after the downpayment is fully completed</strong>.
+          </p>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2 text-left">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Scheme:</span>
+              <span className="font-bold text-slate-800">{booking.scheme === 'FULL_PAYMENT' ? 'One Time (Full Payment)' : 'EMI (Monthly Installment)'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Downpayment Required:</span>
+              <span className="font-bold text-amber-700">₹{downpaymentRequired.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Amount Paid So Far:</span>
+              <span className="font-bold text-slate-800">₹{paidAmount.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-2">
+              <span className="text-slate-500">Pending Downpayment:</span>
+              <span className="font-bold text-rose-600">₹{Math.max(0, downpaymentRequired - paidAmount).toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => navigate(-1)}
+              className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => navigate(`/dashboard/plots/installments`)}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
+            >
+              Collect Downpayment
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const customerName = customer.name || booking.customerName || 'Allottee';
   const companyName = booking.companyName || 'M/s Good Nature Projects Pvt. Ltd.';
 
-  const downpaymentInst = (installments || []).find(i => i.installmentNumber === 0);
   const downpaymentAmount = booking.bookingAmount || downpaymentInst?.dueAmount || Math.max(0, netPlotValue - (booking.remainingAmount || 0));
   const remainingBalanceAmount = Math.max(0, netPlotValue - downpaymentAmount);
 

@@ -19,6 +19,14 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // Brotli (best performance for modern browsers)
+    viteCompression({
+      algorithm: 'brotliCompress',
+      ext: '.br',
+      deleteOriginFile: false,
+      filter: (file) => /\.(js|css|html|svg)$/.test(file),
+      threshold: 1024
+    }),
     // Gzip (fallback)
     viteCompression({
       algorithm: 'gzip',
@@ -28,6 +36,28 @@ export default defineConfig({
       threshold: 1024
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router-dom/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@reduxjs') || id.includes('react-redux') || id.includes('redux-persist')) {
+              return 'vendor-redux';
+            }
+            if (id.includes('@mui') || id.includes('@emotion')) {
+              return 'vendor-mui';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+          }
+        }
+      }
+    }
+  },
   server: {
     allowedHosts: ['local.battlefiesta.in'],
     proxy: {

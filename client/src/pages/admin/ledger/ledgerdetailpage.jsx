@@ -14,7 +14,6 @@ import { useCustomStyles } from '../attandence/attandencehelper';
 import Loader from '../../../utils/loader';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import { useSelector } from 'react-redux';
-import { motion } from 'framer-motion';
 import {
     Filter, RotateCcw, Download, ArrowLeft, Plus,
     TrendingUp, TrendingDown, Wallet, User, Calendar, CreditCard

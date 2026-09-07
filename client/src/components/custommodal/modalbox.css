@@ -10,7 +10,8 @@
     justify-content: center;
     align-items: center;
     padding: 1rem;
-   
+    animation: modalOverlayFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
     .modalbox {
         position: relative;
         width: fit-content;
@@ -18,5 +19,32 @@
         max-height: 90vh;
         overflow-y: auto;
         border-radius: 1rem;
+        animation: modalSpringBounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        transform-origin: center center;
+        will-change: transform, opacity;
+    }
+}
+
+@keyframes modalOverlayFade {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSpringBounce {
+    0% {
+        opacity: 0;
+        transform: scale(0.7) translateY(24px);
+    }
+    70% {
+        opacity: 1;
+        transform: scale(1.03) translateY(-4px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
     }
 }

@@ -26,6 +26,47 @@ const getTodayDateString = () => {
   return `${year}-${month}-${date}`;
 };
 
+const formatIndianDate = (d) => {
+  if (!d || isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${day} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+const getDynamicEmiHelper = (bookingDateStr, dpMonthsVal) => {
+  if (!bookingDateStr) return 'Time allowed to complete 40% downpayment.';
+  const bDate = new Date(bookingDateStr);
+  if (isNaN(bDate.getTime())) return 'Time allowed to complete 40% downpayment.';
+
+  const dpMonths = Number(dpMonthsVal) || 1;
+  const bFormatted = formatIndianDate(bDate);
+
+  const dpDate = new Date(bDate);
+  dpDate.setMonth(dpDate.getMonth() + dpMonths);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dpMonthYear = `${monthNames[dpDate.getMonth()]} ${dpDate.getFullYear()}`;
+
+  const firstEmiDate = new Date(bDate);
+  firstEmiDate.setMonth(firstEmiDate.getMonth() + dpMonths + 1);
+  firstEmiDate.setDate(1);
+  const firstEmiFormatted = formatIndianDate(firstEmiDate);
+
+  return `Time allowed to complete 40% downpayment (${bFormatted} + ${dpMonths} month${dpMonths > 1 ? 's' : ''} = DP ends in ${dpMonthYear}). 1st EMI starts on ${firstEmiFormatted}.`;
+};
+
+const getDynamicOneTimeHelper = (bookingDateStr, oneTimeMonthsVal) => {
+  if (!bookingDateStr) return 'Time allowed to complete one-time payment.';
+  const bDate = new Date(bookingDateStr);
+  if (isNaN(bDate.getTime())) return 'Time allowed to complete one-time payment.';
+
+  const otMonths = Number(oneTimeMonthsVal) || 1;
+  const targetDate = new Date(bDate);
+  targetDate.setMonth(targetDate.getMonth() + otMonths);
+  const targetFormatted = formatIndianDate(targetDate);
+
+  return `Full payment due by ${targetFormatted} (${otMonths} month${otMonths > 1 ? 's' : ''} from booking date).`;
+};
+
 const PlotBooking = () => {
   const navigate = useNavigate();
   const [plots, setPlots] = useState([]);
@@ -63,6 +104,8 @@ const PlotBooking = () => {
   const [discountVal, setDiscountVal] = useState('');
   const [downpaymentBase, setDownpaymentBase] = useState('BEFORE_DISCOUNT'); // 'BEFORE_DISCOUNT' (default) or 'AFTER_DISCOUNT'
   const [govtRate, setGovtRate] = useState('100'); // default 100 / sqft
+  const [availableLandSources, setAvailableLandSources] = useState([]);
+  const [landSourcing, setLandSourcing] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -71,14 +114,16 @@ const PlotBooking = () => {
   useEffect(() => {
     const loadInitData = async () => {
       try {
-        const [plotsRes, seriesRes, rateRes] = await Promise.all([
+        const [plotsRes, seriesRes, rateRes, sourcesRes] = await Promise.all([
           api.get('/plots?limit=5000'),
           api.get('/plots/series'),
           api.get('/plots/rate-config'),
+          api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
         ]);
         setPlots(plotsRes.data.data || []);
         setSeriesList(seriesRes.data.data || []);
         setRateConfig(rateRes.data.data || null);
+        setAvailableLandSources(sourcesRes.data.data || []);
         setLoading(false);
       } catch {
         toast.error('Failed to load plot inventory & rate data');
@@ -134,6 +179,22 @@ const PlotBooking = () => {
 
     setSelectedPlot(p);
     setForm((f) => ({ ...f, plotId: p._id }));
+
+    // Auto-allocate first available land source for this plot's area if not already set
+    const pArea = p.plotSize || p.area || 1200;
+    if (availableLandSources.length > 0 && landSourcing.length === 0) {
+      const first = availableLandSources[0];
+      setLandSourcing([
+        {
+          sourceType: first.sourceType,
+          agreementId: first.agreementId,
+          agreementNumber: first.agreementNumber,
+          deedId: first.deedId || null,
+          deedNumber: first.deedNumber || '',
+          allocatedSqFt: pArea,
+        },
+      ]);
+    }
   };
 
   // Slabs from rate config or default fallback
@@ -224,6 +285,16 @@ const PlotBooking = () => {
     if (!form.plotId) return toast.error('Please select a plot');
     if (!form.customerId) return toast.error('Please select a customer');
 
+    const totalSourcedArea = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+    if (landSourcing.length === 0 || totalSourcedArea <= 0) {
+      toast.error('Please allocate this plot from a Kisan Land Agreement or Registry Deed.');
+      return;
+    }
+    if (Math.abs(totalSourcedArea - plotArea) > 0.5) {
+      toast.error(`Total allocated land (${totalSourcedArea} Sq.Ft.) must match plot area (${plotArea} Sq.Ft.).`);
+      return;
+    }
+
     setSubmitLoading(true);
     try {
       const payload = {
@@ -242,6 +313,7 @@ const PlotBooking = () => {
         bookingType: form.bookingType || 'BOOKING',
         holdExpiryDays: Number(form.holdExpiryDays) || 7,
         govtRate: Number(govtRate) || 100,
+        landSourcing: landSourcing.filter((s) => Number(s.allocatedSqFt) > 0),
       };
 
       const res = await api.post('/plots/bookings', payload);
@@ -735,12 +807,14 @@ const PlotBooking = () => {
                         type="tel"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={form.oneTimeMonths || 1}
-                        onChange={(e) => setForm({ ...form, oneTimeMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
+                        value={form.oneTimeMonths === 0 ? '0' : (form.oneTimeMonths ?? '')}
+                        onChange={(e) => setForm({ ...form, oneTimeMonths: e.target.value.replace(/[^0-9]/g, '') })}
                         placeholder="Time limit (e.g. 1, 2, 3 months)"
                         required
                       />
-                      <span className="text-[11px] text-slate-400 px-1">Time allowed to complete one-time payment.</span>
+                      <span className="text-[11px] text-teal-700 font-medium px-1">
+                        {getDynamicOneTimeHelper(form.bookingDate, form.oneTimeMonths)}
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -758,18 +832,20 @@ const PlotBooking = () => {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className={labelCls}>Downpayment Time Limit (Months)</label>
+                      <label className={labelCls}>Downpayment Grace Period (Months)</label>
                       <input
                         className={inputCls}
                         type="tel"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={form.downpaymentMonths || 1}
-                        onChange={(e) => setForm({ ...form, downpaymentMonths: Number(e.target.value.replace(/[^0-9]/g, '')) || 1 })}
-                        placeholder="e.g. 1 or 2 months"
+                        value={form.downpaymentMonths === 0 ? '0' : (form.downpaymentMonths ?? '')}
+                        onChange={(e) => setForm({ ...form, downpaymentMonths: e.target.value.replace(/[^0-9]/g, '') })}
+                        placeholder="e.g. 1, 2, or 3 months"
                         required
                       />
-                      <span className="text-[11px] text-slate-400 px-1">Time allowed to complete 40% downpayment.</span>
+                      <span className="text-[11px] text-teal-700 font-medium px-1">
+                        {getDynamicEmiHelper(form.bookingDate, form.downpaymentMonths)}
+                      </span>
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -793,6 +869,139 @@ const PlotBooking = () => {
                     </div>
                   </>
                 )}
+
+                {/* Land Acquisition Stock Allocation (Mandatory Multi-Source) */}
+                <div className="flex flex-col gap-2 md:col-span-2 p-4 bg-teal-50/70 border border-teal-300 rounded-2xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 size={16} className="text-teal-700" />
+                        Land Acquisition Sourcing (किसान एग्रीमेंट / डीड स्टॉक) <span className="text-rose-600 font-black">*</span>
+                      </h4>
+                      <p className="text-[11px] text-teal-700 mt-0.5">
+                        Required: Allocate the entire plot area ({plotArea} Sq.Ft.) from an active Kisan Agreement or Registry Deed.
+                      </p>
+                    </div>
+                    {availableLandSources.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentTotal = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+                          const remaining = Math.max(0, plotArea - currentTotal);
+                          const firstSrc = availableLandSources[0];
+                          if (!firstSrc) return;
+                          setLandSourcing([
+                            ...landSourcing,
+                            {
+                              sourceType: firstSrc.sourceType,
+                              agreementId: firstSrc.agreementId,
+                              agreementNumber: firstSrc.agreementNumber,
+                              deedId: firstSrc.deedId || null,
+                              deedNumber: firstSrc.deedNumber || '',
+                              allocatedSqFt: remaining > 0 ? remaining : Math.min(plotArea, firstSrc.availableSqFt),
+                            },
+                          ]);
+                        }}
+                        className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-lg transition cursor-pointer self-start sm:self-auto"
+                      >
+                        + Add Land Source
+                      </button>
+                    )}
+                  </div>
+
+                  {landSourcing.length === 0 ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-amber-800">
+                      <span>⚠️ No land stock linked yet. You must link an agreement/deed before confirming.</span>
+                      {availableLandSources.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const first = availableLandSources[0];
+                            setLandSourcing([
+                              {
+                                sourceType: first.sourceType,
+                                agreementId: first.agreementId,
+                                agreementNumber: first.agreementNumber,
+                                deedId: first.deedId || null,
+                                deedNumber: first.deedNumber || '',
+                                allocatedSqFt: plotArea,
+                              },
+                            ]);
+                          }}
+                          className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs"
+                        >
+                          Auto-Allocate {plotArea} Sq.Ft.
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                      {landSourcing.map((src, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 bg-white p-2.5 rounded-xl border border-teal-200 shadow-2xs">
+                          <select
+                            className="flex-1 h-9 px-2.5 text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg outline-none"
+                            value={src.deedNumber ? `DEED_${src.deedNumber}` : `AGR_${src.agreementId}`}
+                            onChange={(e) => {
+                              const chosen = availableLandSources.find((s) => (s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`) === e.target.value);
+                              if (!chosen) return;
+                              const updated = [...landSourcing];
+                              updated[idx] = {
+                                ...updated[idx],
+                                sourceType: chosen.sourceType,
+                                agreementId: chosen.agreementId,
+                                agreementNumber: chosen.agreementNumber,
+                                deedId: chosen.deedId || null,
+                                deedNumber: chosen.deedNumber || '',
+                              };
+                              setLandSourcing(updated);
+                            }}
+                          >
+                            {availableLandSources.map((s) => (
+                              <option key={s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`} value={s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`}>
+                                {s.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                            <input
+                              type="number"
+                              className="w-28 h-9 px-2.5 text-xs font-bold text-slate-900 border border-slate-300 rounded-lg outline-none text-right font-mono"
+                              value={src.allocatedSqFt}
+                              onChange={(e) => {
+                                const updated = [...landSourcing];
+                                updated[idx].allocatedSqFt = Number(e.target.value);
+                                setLandSourcing(updated);
+                              }}
+                              placeholder="Sq. Ft."
+                            />
+                            <span className="text-xs font-semibold text-slate-500">SqFt</span>
+                            <button
+                              type="button"
+                              onClick={() => setLandSourcing(landSourcing.filter((_, i) => i !== idx))}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {(() => {
+                        const totalAlloc = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+                        const isMatch = Math.abs(totalAlloc - plotArea) <= 0.5;
+                        return (
+                          <div className="flex justify-between items-center text-xs font-bold px-1 pt-1">
+                            <span className={isMatch ? 'text-emerald-700' : 'text-rose-600'}>
+                              {isMatch ? '✅ Land Stock Area Matched:' : '⚠️ Sourced Area Mismatch:'}
+                            </span>
+                            <span className={`font-mono ${isMatch ? 'text-emerald-800' : 'text-rose-600 font-black'}`}>
+                              {totalAlloc} / {plotArea} Sq. Ft.
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
 
                 {/* Booking Notes */}
                 <div className="flex flex-col gap-1 md:col-span-2">

@@ -38,4 +38,7 @@ This document tracks known tasks, technical debt, and pending improvements ident
 - [x] eSSL biometric raw body parsing and heartbeat ping tracking.
 - [x] Real-time Server-Sent Events (SSE) for attendance punch broadcasts.
 - [x] In-memory developer API performance monitor (`/api/api-monitor/stats`).
+- [x] Plot booking deletion child cascade cleanup and auto-healing plot availability sync.
+- [x] Enhanced numeric input UX with mobile numeric keypad support and dynamic 1st EMI helper text.
+- [x] Commission closing submission race condition resolution and transaction session pass-through.
 

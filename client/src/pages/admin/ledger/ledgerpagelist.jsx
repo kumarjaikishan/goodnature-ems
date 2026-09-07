@@ -11,7 +11,6 @@ import MenuItem from "@mui/material/MenuItem";
 import Modalbox from "../../../components/custommodal/Modalbox";
 import Loader from "../../../utils/loader";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-import { motion } from "framer-motion";
 import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2 } from "lucide-react";
 
 const LedgerListPage = () => {

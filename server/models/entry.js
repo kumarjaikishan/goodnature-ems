@@ -7,7 +7,11 @@ const entrySchema = new mongoose.Schema({
   debit: { type: Number, default: 0 },
   credit: { type: Number, default: 0 },
   balance: Number,
-  source: { type: String, enum: ['ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll'], default: 'ledger' },
+  source: { 
+    type: String, 
+    enum: ['ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll', 'commission_closing', 'plot_payout', 'investment'], 
+    default: 'ledger' 
+  },
   referenceId: { type: mongoose.Schema.Types.ObjectId }, // Link to Advance, Payroll, etc.
   status: { type: String, enum: ['active', 'reversed'], default: 'active' },
   reversalReference: { type: mongoose.Schema.Types.ObjectId, ref: 'Entry' }

@@ -33,6 +33,14 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - The page includes 3 interconnected tabs: **Series Blocks & Layout Grid**, **All Plots Inventory List (Cards & Table with live filters & pagination)**, and **Global Pricing & Commission Matrix**.
 - Both `/dashboard/plots/series-master` and `/dashboard/plots/inventory` route to this unified component.
 
+### S. Frontend Route Conflict Resolution
+- **Gotcha**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
+- **Fix**: Removed the conflicting route and let `{roleRoute}` handle all `/dashboard` nested views through `<ProtectedRoutes />`, with fallback redirecting unauthenticated users to `/login`.
+
+### T. Standalone MongoDB vs Replica Set Transactions
+- **Gotcha**: Calling `session.startTransaction()` on a standalone local MongoDB instance throws `"Transaction numbers are only allowed on a replica set member or mongos"`.
+- **Fix Pattern**: [server/conn/conn.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/conn/conn.js) patches `mongoose.startSession()` globally on boot. If the active MongoDB connection is standalone, `startTransaction()`, `commitTransaction()`, and `abortTransaction()` are safely handled as no-ops while passing standard operations through to MongoDB without transaction headers, while full multi-document ACID transactions remain active for replica sets / MongoDB Atlas.
+
 ### G. Tiered Sponsor Commission Hierarchy & 40/60 Plot Booking Engine
 - **Hierarchy Standard**: 2-level maximum hierarchy: `Company -> Developer Sponsor (direct) -> Sub-Sponsor`. Sub-sponsors cannot have children; referring sponsors must be Developer Sponsors (`sponsorId: null`).
 - **Commission Split**:
@@ -44,6 +52,14 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - \>0 Months: 40% Downpayment + remaining balance in EMIs distributed across chosen $N$ tenure months.
   - **Downpayment Calculation Basis**: Defaults to `BEFORE_DISCOUNT` (40% of Gross Plot Value, with discount reducing the EMI balance), with an option to toggle to `AFTER_DISCOUNT` (40% of Net Contract Value).
 - **Rate Matrix Storage**: Configured in `PlotRateConfiguration.rateSlabs` and editable in [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) Pricing & Rates tab.
+
+### V. Comprehensive Database Seeding Script (`npm run seed`)
+- **Script**: `server/scripts/seed.js` (executable via `npm run seed` in `server/`).
+- **Features**:
+  - Automatically clears previous test data for Plot Series, Plots, Customers, Kisan Agreements, Deeds, Kisan Ledgers, Stock Ledgers, Bookings, and Receipts.
+  - Generates Series: **E Series** (11 plots, 800 sqft, 20x40), **A Series** (10 plots, 2400 sqft, 40x60), **D Series** (10 plots, 1600 sqft, 40x40), **C Series** (10 plots, 1200 sqft, 30x40).
+  - Generates **Multi-Parcel Kisan Agreements** with Chaudhi, Dismil rates, document attachments, selective Registry Deeds, and fully balanced Kisan Financial Ledgers.
+  - Seeds sample bookings with live downpayments and land stock allocation tracking.
 
 ### I. Sponsor Integration with Unified Ledger & Voucher System
 - **Ledger Types**: `Ledger` collection supports `ledgerType: ['employee', 'custom', 'sponsor']`.
@@ -86,15 +102,37 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - Subsequent monthly EMI installments (Inst #1..N) begin after the downpayment grace period: `bookingDate + downpaymentMonths + i`.
 - Both `createBooking` and `updateBooking` in [`plots.service.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots.service.js) respect this calculation consistently.
 
-### N. Sponsor Portal Authentication & Password Reset
-- **Multi-Identifier Login**: Sponsors can log in with their **Sponsor ID / Code** (e.g., `GNE-26-27-001`), **Mobile Number**, or **Email** along with their password (default initial password: `123456`).
-- **Lightmode Dual Mode Switch on `/login`**: Features a clean green-to-white gradient background (`from-green-100 via-emerald-50 to-white`) with dual mode tabs: **Staff / Admin** and **Sponsor Portal**.
-- **Admin Password Reset Tool**: In the Sponsors table ([`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx)), clicking the **Key icon (`KeyRound`)** allows the administrator to reset any sponsor's password to `123456` (or a custom password) with instant bcrypt re-hashing via `POST /api/plots/sponsors/:id/reset-password`.
+### U. Land Acquisition Sourcing & Plot Booking Sourcing Ledger
+- **Validation**: When creating a plot booking (`POST /api/plots/bookings`), `landSourcing` is mandatory. The sum of allocated Sq Ft across selected Kisan Agreements / Registry Deeds must equal the plot area.
+- **Stock Ledger**: Every booking writes a `DEBIT` entry to `LandStockLedger` for each allocated Kisan Agreement or Registry Deed with `allocatedSqFt`, `allocatedDismil`, `bookingNumber`, `customerName`, and `plotNumber`.
+- **Plot Master & Booking Integration**:
+  - `PlotBookingDetails.jsx` renders Card 6 ("Land Acquisition & Sourcing (किसान एग्रीमेंट / रजिस्ट्री डीड विवरण)") showing linked Agreement # / Deed #, Mauja, Khata, Khesra, and allocated area.
+  - `getPlots` in `plots.service.js` attaches `activeBooking` with `landSourcing` for booked/held/registered plots.
+  - `PlotSeriesMaster.jsx` renders badges with Agreement/Deed tags and customer names on plot cards, plus a dedicated Land Acquisition & Agreement Details card in the Plot Configuration modal.
+
 - **Role Isolation**: Logged-in sponsors land on their dedicated **Commission Ledger & Wallet Statement** (`/dashboard`), with sidebar access strictly scoped to their own ledger and profile.
 
 ### O. Sponsor Date-Wise Business Breakdown Report (`/dashboard/plots/sponsors/:id/business-report`)
 - **Action Button in Sponsors Page**: Clicking the blue **TrendingUp (`📈`)** icon on [`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx) opens the date-wise business breakdown.
 - **Printable**: Fully formatted for printing and statement audits.
+
+### Q. Kisan Land Acquisition, Registry Conversion & Multi-Source Stock Allocation
+- **Models**:
+  - `KisanLandAgreement`: Master agreement record storing Mauja, Thana, Khata, Khesra, Jamabandi, Arazi Dismil, multi-farmer subdocs (`farmers` array with share %, guardian, mobile, Aadhaar, PAN), `registryDeeds` subdocs array, and stock counters (`totalSqFt`, `totalRegisteredSqFt`, `unregisteredAllocatedSqFt`, `totalAllocatedSqFt`, `totalAvailableSqFt`). Standard: $1\text{ Dismil} = 435.6\text{ Sq. Ft.}$.
+  - `LandStockLedger`: Granular land stock tracking (`INITIAL_AGREEMENT`, `REGISTRY_CONVERSION`, `BOOKING_ALLOCATION`, `BOOKING_RESTRUCTURING_DELTA`, `BOOKING_CANCELLATION_RESTORE`).
+  - `KisanLedger`: Financial ledger for land acquisition recording debits/credits (token, advances, registry disbursement) with running balance payable to farmers.
+  - `PlotBookingRevision`: Immutable snapshot audit trail recording previous vs new parameters, deltas, and user modification reasons.
+- **Mandatory Land Sourcing Enforcement**:
+  - Every plot booking requires 100% of its plot area (e.g. $1200\text{ Sq. Ft.}$) to be allocated from an active `KisanLandAgreement` (unregistered stock) or `registryDeeds` (registered stock).
+  - Validated strictly on backend in `plotsService.createBooking` and frontend in `PlotBooking.jsx` (with one-click auto-allocation).
+  - Every booking immediately creates a `BOOKING_ALLOCATION` DEBIT entry in `LandStockLedger` and reduces available stock on the respective agreement/deed.
+  - Sourcing stock adjustment: If plot size increased, $+ \Delta\text{SqFt}$ is deducted from source agreement stock and logged as `DEBIT` in `LandStockLedger`; if reduced, $+ |\Delta\text{SqFt}|$ is credited back to source agreement.
+- **Customer Cancellation & Refund Engine (`plotsService.processCustomerRefund`)**:
+  - Calculates total paid collections, applies deduction fee, generates refund voucher, sets plot status back to `AVAILABLE`, and restores all sourced land stock chunks back to their respective agreement/registry deed pools.
+- **Routes & UI**:
+  - Main management page: `/dashboard/plots/kisan-land` (`PlotKisanLandPage.jsx`).
+  - Sourcing selector added to Step 3 of Plot Booking (`PlotBooking.jsx`).
+  - Restructure modal, Customer Refund modal, and Revision History table mounted in `PlotBookingDetails.jsx`.
 
 ### P. Account Ledger Detail Redesign (`/dashboard/ledger/:id`)
 - **Theme**: Unified Good Nature deep teal styling with white cards, subtle borders, and smooth shadows.
@@ -153,8 +191,38 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - Customer Passbook & Installment Statement (`/dashboard/investments/passbook/:id`).
 - **Settlement & Cancellation**: Supports premature closure with configurable simple interest rate calculations and audit notes.
 
-### V. Universal Toast Adapter Standard
-- `react-toastify` has been replaced across the frontend by `sonner` via the centralized adapter: `client/src/utils/toast.jsx` (`import { toast } from '../../utils/toast'`).
-- Always use `import api from '../../api/axios'` for HTTP requests and `import PageLoader from '../../components/common/PageLoader'` for loading screens.
+### W. Kisan Land Agreements & Registry Deeds Architecture
+- **Tabbed Interface Standard**: [PlotKisanLandPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotKisanLandPage.jsx) features 2 top-level tabs:
+  1. **Kisan Land Agreements**: Lists all farmer land acquisitions with land particulars (Mauja, Khata, Khesra, Thana, Jamabandi), farmers breakdown, agreed area, registered area, free stock, and farmer payment balance. Rows feature direct actions: `+ Deed` (convert to registry deed), `Pay` (record farmer payment), `Kisan Ledger` (direct financial ledger), `Full Audit`, `Edit`, and `Delete`.
+  2. **Registry Deeds Master**: Aggregated/flattened registry deeds view with search by Deed #, Mauja, Khata, Khesra, SRO Office, and Farmer name. Rows feature `Ledgers`, `Edit`, and `Delete`.
+- **Modular Component Breakdown (`client/src/pages/plots/kisanLand/`)**:
+  - `KisanSummaryMetrics.jsx`: Top 4 metric tiles.
+  - `KisanAgreementsTable.jsx`: Filterable agreements table with 2-row left-aligned actions.
+  - `RegistryDeedsTable.jsx`: Filterable registry deeds master table.
+  - `CreateAgreementModal.jsx` & `EditAgreementModal.jsx`: Agreement creation/editing with live calculations and dynamic farmer rows.
+  - `CreateDeedModal.jsx` & `EditDeedModal.jsx`: Registry deed creation and editing.
+  - `RecordPaymentModal.jsx`: Farmer payment recording.
+  - `KisanLedgersDrawer.jsx`: Full 4-tab modal drawer featuring Debit, Credit, and Balance columns for both financial and stock allocation ledgers.
+- **Backend Service & Route Endpoints**:
+  - `PUT /api/plots/kisan-agreements/:id`: Updates Mauja, Khata, Khesra, Thana, Jamabandi, Rate, Total Amount, Remarks, and Farmers array.
+  - `DELETE /api/plots/kisan-agreements/:id`: Safely deletes agreement only if no plot bookings are actively allocated, no registry deeds exist, and no payments have been recorded.
+  - `PUT /api/plots/kisan-agreements/:agreementId/deeds/:deedId`: Updates Deed number, date, Sub-Registrar Office, and remarks.
+  - `DELETE /api/plots/kisan-agreements/:agreementId/deeds/:deedId`: Reverts converted stock back to unregistered agreement stock and removes deed stock ledger entries (blocked if deed area is actively allocated to plot bookings).
+
+### V. Plot Booking Deletion & Plot Status Synchronization
+- **Gotcha**: When a `PlotBooking` was permanently deleted via `DELETE /api/plots/bookings/:id`, child schedules and land sourcing were cleaned up, but `Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' })` was omitted. This caused plots to remain permanently stuck in `status: 'BOOKED'` across the Add Booking screen (`/dashboard/plots/addbooking`) and Series Master (`/dashboard/plots/series-master`).
+- **Fix Pattern**:
+  1. `plotsService.deleteBooking()` now explicitly deletes all child documents (`PlotInstallment`, `PlotPayoutSchedule`, `PlotSponsorCommission`, `PlotBookingRevision`) and resets the associated `Plot` status back to `'AVAILABLE'`.
+  2. `plotsService.getPlots()` includes active self-healing: if any plot is flagged as `BOOKED` or `HOLD` but lacks an active `PlotBooking` record in MongoDB, it automatically falls back to `'AVAILABLE'` in the response and updates MongoDB in the background.
+  3. Reconciled existing stuck plots via `server/scripts/syncPlotStatuses.js`.
+
+### X. Plot Commission Closing Submit-Preview Race Condition & Ledger Entry Validation
+- **Gotcha 1 (Submit Race Condition)**: Clicking "Confirm & Close Period" while a date input was focused triggered `onBlur` -> `fetchPreview()` immediately followed by `onSubmit` -> `handleCreateSubmit()`. `POST /plots/closings` completed quickly, tagging all unclosed commissions with `closingId`. The in-flight `fetchPreview` resolved right after, found 0 unclosed transactions, and set `previewError`, displaying an error message despite the closing succeeding in MongoDB.
+- **Gotcha 2 (Entry Schema Enum Failure)**: When `createPlotClosing` or `updatePlotClosing` recorded ledger entries with `source: 'commission_closing'`, Mongoose failed with `ValidationError: Entry validation failed: source: commission_closing is not a valid enum value for path source`.
+- **Gotcha 3 (Overlapping Closing Ranges)**: If an earlier closing batch covers multiple months (e.g. `01-Jun-2026` to `30-Sep-2026`), all receipts in July/August/September are tagged to that closing and will not show up as "unclosed" in subsequent monthly previews unless the earlier closing is adjusted or deleted.
+- **Fix Pattern**:
+  1. `client/src/pages/plots/PlotClosingsPage.jsx`: Added `isSubmittingRef`, `lastPreviewKeyRef`, and `AbortController` request cancellation to abort in-flight previews upon submit and ignore late responses while `isSubmittingRef.current` is active.
+  2. `server/models/entry.js`: Added `'commission_closing'`, `'plot_payout'`, and `'investment'` to the `source` enum.
+  3. `server/services/plots.service.js`: Added explicit session propagation and safe `userId` ObjectId checks for `PlotAuditLog`.
 
 

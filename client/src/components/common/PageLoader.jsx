@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
 /**
@@ -20,73 +19,42 @@ const PageLoader = ({
     <div className={containerCls}>
       <div className="relative flex items-center justify-center w-24 h-24">
         {/* Symmetrical Outer Glow Pulse */}
-        <motion.div
-          animate={{ scale: [1, 1.25, 1], opacity: [0.15, 0.35, 0.15] }}
-          transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
-          className="absolute inset-0 bg-teal-500 rounded-full blur-xl"
-        />
+        <div className="absolute inset-0 bg-teal-500 rounded-full blur-xl opacity-25 animate-pulse" />
 
         {/* Concentric Outer Dashed Orbit Ring */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
-          className="absolute inset-0 rounded-full border-2 border-dashed border-teal-500/40"
+        <div
+          className="absolute inset-0 rounded-full border-2 border-dashed border-teal-500/40 animate-spin"
+          style={{ animationDuration: '4s' }}
         />
 
         {/* Concentric Counter-Rotating Accent Ring */}
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ repeat: Infinity, duration: 2.5, ease: 'linear' }}
-          className="absolute inset-2 rounded-full border-2 border-t-teal-600 border-r-transparent border-b-emerald-500 border-l-transparent shadow-xs"
+        <div
+          className="absolute inset-2 rounded-full border-2 border-t-teal-600 border-r-transparent border-b-emerald-500 border-l-transparent shadow-xs animate-spin"
+          style={{ animationDuration: '2.5s', animationDirection: 'reverse' }}
         />
 
-        {/* Center Symmetric Brand Orb */}
-        <motion.div
-          animate={{ scale: [0.95, 1.05, 0.95] }}
-          transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-          className="relative z-10 w-11 h-11 bg-gradient-to-tr from-teal-800 to-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-md ring-4 ring-white"
-        >
-          <Sparkles className="w-5 h-5 animate-pulse" />
-        </motion.div>
+        {/* Core Symmetrical Deep Teal Sphere */}
+        <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-teal-900 to-teal-700 shadow-md border border-teal-500/30">
+          <Sparkles className="w-5 h-5 text-emerald-300 animate-pulse" />
+        </div>
       </div>
 
-      {/* Typography & Staggered Indicator */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="mt-6 flex flex-col items-center text-center max-w-sm px-4"
-      >
-        <h3 className="text-sm font-bold text-slate-800 tracking-tight">
-          {title}
+      {/* Symmetrical Typography Block */}
+      <div className="mt-5 text-center space-y-1">
+        <h3 className="text-sm md:text-base font-bold text-slate-800 tracking-wide flex items-center justify-center gap-1.5">
+          <span>{title}</span>
+          <span className="flex space-x-1 ml-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </span>
         </h3>
         {subtitle && (
-          <p className="text-xs font-medium text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto truncate">
             {subtitle}
           </p>
         )}
-
-        {/* Symmetrical Animated Dot Track */}
-        <div className="mt-3 flex items-center gap-1.5">
-          {[0, 1, 2, 3].map((i) => (
-            <motion.div
-              key={i}
-              animate={{
-                scale: [1, 1.4, 1],
-                opacity: [0.35, 1, 0.35],
-                backgroundColor: ['#0f766e', '#10b981', '#0f766e'],
-              }}
-              transition={{
-                repeat: Infinity,
-                duration: 1.2,
-                delay: i * 0.18,
-                ease: 'easeInOut',
-              }}
-              className="w-1.5 h-1.5 rounded-full"
-            />
-          ))}
-        </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

@@ -267,19 +267,14 @@ const HolidayForm = () => {
   };
 
   // ── Download sample template ────────────────────────────────
-  const handleDownloadSample = () => {
+  const handleDownloadSample = async () => {
     const sample = [
       { Name: 'Saraswati Puja', 'From Date': '02-02-2026', 'To Date': '02-02-2026', Type: 'Religious', Description: 'Basant Panchami - Goddess of knowledge' },
       { Name: 'Holi', 'From Date': '14-03-2026', 'To Date': '14-03-2026', Type: 'Religious', Description: 'Festival of colours' },
       { Name: 'Diwali', 'From Date': '20-10-2026', 'To Date': '20-10-2026', Type: 'Religious', Description: 'Festival of lights' },
       { Name: 'Chhath Puja', 'From Date': '28-10-2026', 'To Date': '28-10-2026', Type: 'Religious', Description: 'Chhath Puja - worship of the Sun God' },
     ];
-    const ws = XLSX.utils.json_to_sheet(sample);
-    // Set column widths for readability
-    ws['!cols'] = [{ wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 30 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Holidays');
-    XLSX.writeFile(wb, 'holidays_sample.xlsx');
+    await exportJsonToExcel(sample, 'Holidays', 'holidays_sample.xlsx');
   };
 
   const handleSave = async (e) => {

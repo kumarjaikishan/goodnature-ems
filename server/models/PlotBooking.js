@@ -138,6 +138,56 @@ const plotBookingSchema = new mongoose.Schema(
       enum: ['AFTER_DISCOUNT', 'BEFORE_DISCOUNT'],
       default: 'BEFORE_DISCOUNT',
     },
+    // Land Stock Sourcing (from one or multiple Kisan Agreements / Registry Deeds)
+    landSourcing: [
+      {
+        sourceType: {
+          type: String,
+          enum: ['AGREEMENT', 'REGISTRY_DEED'],
+          required: true,
+        },
+        agreementId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'KisanLandAgreement',
+          required: true,
+        },
+        agreementNumber: { type: String, default: '' },
+        deedId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        deedNumber: { type: String, default: '' },
+        mauja: { type: String, default: '' },
+        khataNumber: { type: String, default: '' },
+        khesraNumber: { type: String, default: '' },
+        allocatedSqFt: { type: Number, required: true, min: 0 },
+        allocatedDismil: { type: Number, default: 0, min: 0 },
+      },
+    ],
+    revisionCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    refundStatus: {
+      type: String,
+      enum: ['NONE', 'REQUESTED', 'PROCESSED'],
+      default: 'NONE',
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+    refundDeduction: {
+      type: Number,
+      default: 0,
+    },
+    refundDate: {
+      type: Date,
+      default: null,
+    },
+    refundVoucherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Voucher',
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -1,42 +1,17 @@
 import React from 'react';
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { 
   Home, 
   ArrowLeft, 
   Search, 
   HelpCircle, 
   Compass, 
-  LayoutDashboard,
-  CalendarCheck,
-  Building2,
-  Sparkles,
-  MapPinOff
+  LayoutDashboard, 
+  CalendarCheck, 
+  Building2, 
+  Sparkles, 
+  MapPinOff 
 } from "lucide-react";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      type: "spring",
-      stiffness: 260,
-      damping: 20
-    }
-  }
-};
 
 const Errorpage = () => {
   const navigate = useNavigate();
@@ -59,32 +34,12 @@ const Errorpage = () => {
     <div className="relative min-h-screen w-full flex items-center justify-center bg-slate-50 overflow-hidden px-4 py-8 select-none">
       
       {/* Dynamic Animated Ambient Background Blobs */}
-      <motion.div 
-        animate={{
-          x: [0, 30, -20, 0],
-          y: [0, -40, 20, 0],
-          scale: [1, 1.1, 0.95, 1],
-        }}
-        transition={{
-          duration: 14,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="absolute -top-32 -left-32 w-96 h-96 bg-teal-300/30 rounded-full blur-3xl pointer-events-none" 
+      <div 
+        className="absolute -top-32 -left-32 w-96 h-96 bg-teal-300/30 rounded-full blur-3xl pointer-events-none animate-pulse [animation-duration:6s]" 
       />
       
-      <motion.div 
-        animate={{
-          x: [0, -35, 25, 0],
-          y: [0, 30, -30, 0],
-          scale: [1, 0.9, 1.15, 1],
-        }}
-        transition={{
-          duration: 16,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-300/30 rounded-full blur-3xl pointer-events-none" 
+      <div 
+        className="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-300/30 rounded-full blur-3xl pointer-events-none animate-pulse [animation-duration:8s]" 
       />
 
       {/* Subtle grid pattern */}
@@ -96,106 +51,83 @@ const Errorpage = () => {
         }}
       />
 
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="relative z-10 max-w-xl w-full text-center flex flex-col items-center"
+      <div 
+        className="relative z-10 max-w-xl w-full text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-500"
       >
         
         {/* Animated Badge */}
-        <motion.div 
-          variants={itemVariants}
+        <div 
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50/90 backdrop-blur-sm border border-teal-200/70 text-teal-800 text-xs font-semibold uppercase tracking-wider mb-6 shadow-sm"
         >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-          >
+          <div className="animate-spin [animation-duration:10s]">
             <Compass className="w-3.5 h-3.5 text-teal-600" />
-          </motion.div>
+          </div>
           <span>Page Not Found</span>
-        </motion.div>
+        </div>
 
         {/* 404 Large Interactive & Floating Graphics */}
-        <motion.div 
-          variants={itemVariants}
+        <div 
           className="relative mb-2 flex items-center justify-center"
         >
           {/* Floating decorative mini-icons */}
-          <motion.div
-            animate={{ y: [-6, 6, -6], rotate: [-8, 8, -8] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -left-6 sm:-left-12 top-2 p-2 rounded-xl bg-white shadow-md border border-slate-100 text-teal-600 hidden xs:flex"
+          <div
+            className="absolute -left-6 sm:-left-12 top-2 p-2 rounded-xl bg-white shadow-md border border-slate-100 text-teal-600 hidden xs:flex animate-bounce [animation-duration:3s]"
           >
             <MapPinOff className="w-5 h-5" />
-          </motion.div>
+          </div>
 
-          <motion.div
-            animate={{ y: [6, -6, 6], rotate: [8, -8, 8] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute -right-6 sm:-right-12 bottom-4 p-2 rounded-xl bg-white shadow-md border border-slate-100 text-amber-500 hidden xs:flex"
+          <div
+            className="absolute -right-6 sm:-right-12 bottom-4 p-2 rounded-xl bg-white shadow-md border border-slate-100 text-amber-500 hidden xs:flex animate-bounce [animation-duration:4s]"
           >
             <Sparkles className="w-5 h-5" />
-          </motion.div>
+          </div>
 
           {/* Floating & hovering 404 */}
-          <motion.h1 
-            animate={{ y: [-4, 4, -4] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="text-8xl sm:text-9xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 drop-shadow-sm leading-none"
+          <h1 
+            className="text-8xl sm:text-9xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 drop-shadow-sm leading-none animate-pulse [animation-duration:4s]"
           >
             404
-          </motion.h1>
-        </motion.div>
+          </h1>
+        </div>
 
         {/* Headline & Subtitle */}
-        <motion.h2 
-          variants={itemVariants}
+        <h2 
           className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight mb-3"
         >
           Lost in the workplace?
-        </motion.h2>
+        </h2>
 
-        <motion.p 
-          variants={itemVariants}
+        <p 
           className="text-slate-500 text-sm sm:text-base max-w-md mx-auto mb-8 leading-relaxed"
         >
           The page you're searching for doesn't exist, was moved, or you might not have access to view it.
-        </motion.p>
+        </p>
 
-        {/* Action Buttons with spring hover & tap effects */}
-        <motion.div 
-          variants={itemVariants}
+        {/* Action Buttons with hover & active effects */}
+        <div 
           className="flex flex-wrap items-center justify-center gap-3 w-full max-w-md mb-8"
         >
-          <motion.button
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={handleBack}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium text-sm shadow-sm cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all font-medium text-sm shadow-sm cursor-pointer hover:-translate-y-0.5"
           >
             <ArrowLeft className="w-4 h-4 text-slate-500" />
             <span>Go Back</span>
-          </motion.button>
+          </button>
 
-          <motion.div
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-          >
+          <div>
             <Link
               to="/"
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white bg-teal-700 hover:bg-teal-800 transition-colors font-medium text-sm shadow-md shadow-teal-700/20 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white bg-teal-700 hover:bg-teal-800 active:scale-95 transition-all font-medium text-sm shadow-md shadow-teal-700/20 cursor-pointer hover:-translate-y-0.5"
             >
               <Home className="w-4 h-4" />
               <span>Return Home</span>
             </Link>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Helpful quick jump destinations */}
-        <motion.div 
-          variants={itemVariants}
+        <div 
           className="w-full bg-white/70 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm"
         >
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 text-left px-1 flex items-center justify-between">
@@ -206,11 +138,9 @@ const Errorpage = () => {
             {quickLinks.map((link) => {
               const Icon = link.icon;
               return (
-                <motion.div
+                <div
                   key={link.title}
-                  whileHover={{ y: -3, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 350, damping: 20 }}
+                  className="transition-transform duration-200 hover:-translate-y-1"
                 >
                   <Link
                     to={link.path}
@@ -226,22 +156,21 @@ const Errorpage = () => {
                       {link.desc}
                     </span>
                   </Link>
-                </motion.div>
+                </div>
               );
             })}
           </div>
-        </motion.div>
+        </div>
 
         {/* Footer Support Info */}
-        <motion.div 
-          variants={itemVariants}
+        <div 
           className="mt-7 text-xs text-slate-400 flex items-center gap-1.5"
         >
           <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
           <span>Need assistance? Contact your system administrator.</span>
-        </motion.div>
+        </div>
 
-      </motion.div>
+      </div>
     </div>
   );
 };

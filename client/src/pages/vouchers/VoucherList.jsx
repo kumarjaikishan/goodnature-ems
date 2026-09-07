@@ -30,7 +30,6 @@ import { Edit2, Eye, Trash2, Plus, Search, Filter } from "lucide-react";
 import { toast } from "../../utils/toast";
 import { swal } from "../../utils/confirmDialog";
 import dayjs from "dayjs";
-import { motion } from "framer-motion";
 
 const VoucherList = () => {
   const navigate = useNavigate();
