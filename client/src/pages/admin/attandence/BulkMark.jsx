@@ -234,17 +234,17 @@ const BulkMark = ({
 
   return (
     <Modalbox open={openmodal} outside={false} onClose={() => setopenmodal(false)}>
-      <div className="w-full max-w-3xl p-6 space-y-4">
+      <div className="w-full max-w-4xl p-6 space-y-4 bg-white rounded-2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Bulk Mark Attendance</h3>
-              <p className="text-xs text-slate-500">Quickly apply check-in/out timestamps across multiple staff</p>
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">Bulk Mark Attendance</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Apply timestamps, status, and department filters in batch</p>
             </div>
             <button
               type="button"
               onClick={() => setopenmodal(false)}
-              className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
