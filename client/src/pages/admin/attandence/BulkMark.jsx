@@ -105,12 +105,12 @@ const BulkMark = ({
         if (!isMounted) return;
 
         if (res.success) {
-          const empList = res.employees || [];
+          const empList = res.data || res.employees || [];
           setApiEmployees(empList);
 
           const initialRowData = {};
           empList.forEach(emp => {
-            const att = emp.todayAttendance;
+            const att = emp.existingAttendance || emp.todayAttendance;
             initialRowData[emp._id] = {
               punchIn: att?.punchIn ? dayjs(att.punchIn).format('HH:mm') : '',
               punchOut: att?.punchOut ? dayjs(att.punchOut).format('HH:mm') : '',
