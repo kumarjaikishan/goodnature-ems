@@ -125,8 +125,11 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                             size="sm"
                             label="Attendance Date"
                             required
-                            value={inp?.date ? dayjs(inp.date).format('YYYY-MM-DD') : ''}
-                            onChange={(val) => setinp({ ...inp, date: val ? dayjs(val) : null })}
+                            value={inp?.date ? (dayjs.isDayjs(inp.date) ? (inp.date.isValid() ? inp.date.format('YYYY-MM-DD') : '') : dayjs(inp.date).isValid() ? dayjs(inp.date).format('YYYY-MM-DD') : '') : ''}
+                            onChange={(e) => {
+                                const val = e?.target?.value !== undefined ? e.target.value : e;
+                                setinp({ ...inp, date: val ? dayjs(val) : null });
+                            }}
                         />
 
                         {/* Custom Searchable Employee Picker */}

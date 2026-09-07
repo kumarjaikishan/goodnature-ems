@@ -287,8 +287,11 @@ const BulkMark = ({
                 size="sm"
                 label="Attendance Date"
                 disabled={isLoadingData}
-                value={attandenceDate ? attandenceDate.format('YYYY-MM-DD') : ''}
-                onChange={(val) => setattandenceDate(val ? dayjs(val) : dayjs())}
+                value={attandenceDate?.isValid() ? attandenceDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')}
+                onChange={(e) => {
+                  const val = e?.target?.value !== undefined ? e.target.value : e;
+                  setattandenceDate(val ? dayjs(val) : dayjs());
+                }}
               />
             </div>
 
