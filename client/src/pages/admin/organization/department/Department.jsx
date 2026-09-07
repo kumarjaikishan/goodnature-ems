@@ -1,32 +1,32 @@
-import TextField from '@mui/material/TextField';
-import { Button, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select } from '@mui/material';
-import './department.css'
+import './department.css';
 import { useEffect, useState } from 'react';
-import { Send, Filter, Edit2, Trash2 } from 'lucide-react';
+import { Send, Filter, Edit2, Trash2, Plus, Search } from 'lucide-react';
 import { swal } from '../../../../utils/confirmDialog';
 import DataTable from '@/components/common/DataTable';
 import { adddepartment, columns, delette, update } from './departmenthelper';
 import { useCustomStyles } from '../../attandence/attandencehelper';
 import { useDispatch, useSelector } from 'react-redux';
-import Modalbox from '../../../../components/custommodal/Modalbox';
+import Modal from '@/components/ui/Modal';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Button from '@/components/ui/Button';
 
 const Department = () => {
   const [openmodal, setopenmodal] = useState(false);
   const [isload, setisload] = useState(false);
   const [departmentlist, setdepartmentlist] = useState([]);
-  const [isupdate, setisupdate] = useState(false)
+  const [isupdate, setisupdate] = useState(false);
   const [filterattandence, setfilterattandence] = useState([]);
-  const { branch, department } = useSelector(e => e.user)
+  const { branch, department } = useSelector(e => e.user);
   const [filtere, setfiltere] = useState({
     branch: 'all',
-    department: " ",
-  })
+    department: "",
+  });
   const isFilterActive = (
     filtere.branch !== 'all' ||
     filtere.department.trim() !== ''
   );
   const dispatch = useDispatch();
-
 
   useEffect(() => {
     if (!departmentlist || departmentlist.length === 0) return;
@@ -45,17 +45,16 @@ const Department = () => {
     setfilterattandence(filtered);
   }, [filtere, departmentlist]);
 
-
   const init = {
     departmentId: '',
     branchId: '',
     department: "",
     description: ''
-  }
+  };
   const [inp, setInp] = useState(init);
 
   useEffect(() => {
-    if (department.length > 0) {
+    if (department && department.length > 0) {
       let sno = 1;
       const data = department.map((dep) => {
         return {
@@ -64,45 +63,58 @@ const Department = () => {
           branchid: dep?.branchId?._id,
           branch: dep?.branchId?.name,
           dep_name: dep?.department,
-          action: (<div className="action flex gap-2 items-center">
-            <span className="edit text-teal-600 hover:text-teal-700 cursor-pointer" title="Edit" onClick={() => edite(dep)}><Edit2 size={16} /></span>
-            <span className="delete text-red-500 hover:text-red-600 cursor-pointer" title="Delete" onClick={() => deletee(dep._id)}><Trash2 size={16} /></span>
-          </div>)
-        }
-      })
+          action: (
+            <div className="action flex gap-2 items-center">
+              <button
+                type="button"
+                className="edit text-teal-600 hover:text-teal-700 p-1 rounded hover:bg-teal-50 transition cursor-pointer"
+                title="Edit"
+                onClick={() => edite(dep)}
+              >
+                <Edit2 size={15} />
+              </button>
+              <button
+                type="button"
+                className="delete text-red-500 hover:text-red-600 p-1 rounded hover:bg-red-50 transition cursor-pointer"
+                title="Delete"
+                onClick={() => deletee(dep._id)}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          )
+        };
+      });
       setdepartmentlist(data);
     }
-  }, [department])
+  }, [department]);
 
   const handleChange = (e, name) => {
     setInp({
       ...inp, [name]: e.target.value
-    })
-  }
+    });
+  };
 
   const adddepartcall = (e) => {
     e.preventDefault();
-    adddepartment({ inp, setisload, setInp, setopenmodal, init, dispatch })
-  }
-
+    adddepartment({ inp, setisload, setInp, setopenmodal, init, dispatch });
+  };
 
   const edite = (depart) => {
-    console.log("edit", depart)
     setisupdate(true);
     setInp({
-      branchId: depart.branchId._id,
+      branchId: depart.branchId?._id || depart.branchId,
       departmentId: depart._id,
       department: depart.department,
-      description: depart.description
-    })
+      description: depart.description || ''
+    });
     setopenmodal(true);
-  }
+  };
 
   const deletee = (id) => {
-    console.log("delete", id);
     swal({
-      title: 'Are you sure?',
-      text: 'Once deleted, All empoyee of this department deleted',
+      title: 'Are you sure you want to delete this department?',
+      text: 'Warning: Deleting this department may affect linked employees.',
       icon: 'warning',
       buttons: true,
       dangerMode: true,
@@ -111,48 +123,57 @@ const Department = () => {
         delette({ departmentId: id, setisload, dispatch });
       }
     });
-  }
+  };
+
   const updatee = () => {
-    // console.log("updateee", inp)
-    update({ inp, setisload, setInp, setopenmodal, init, dispatch })
-  }
+    update({ inp, setisload, setInp, setopenmodal, init, dispatch });
+  };
+
+  const branchOptions = [
+    { label: 'All Branches', value: 'all' },
+    ...(branch || []).map(b => ({ label: b.name, value: b._id }))
+  ];
+
+  const modalBranchOptions = (branch || []).map(b => ({ label: b.name, value: b._id }));
 
   return (
-    <div className='department pt-3'>
-      <div className='head flex flex-wrap gap-1'>
-        <div className='flex gap-2 w-full justify-around md:w-auto'>
-          <FormControl className="w-[48%] md:w-[150px]" size="small">
-            <InputLabel id="demo-simple-select-helper-label">Branch</InputLabel>
+    <div className='department p-2 space-y-4'>
+      <div className='flex flex-wrap items-center justify-between gap-3'>
+        <div className='flex flex-wrap items-center gap-3 w-full md:w-auto'>
+          <div className="w-48">
             <Select
-
+              size="sm"
+              options={branchOptions}
               value={filtere.branch}
               onChange={(e) => setfiltere({ ...filtere, branch: e.target.value })}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} className="text-gray-400" />
-                    </InputAdornment>
-                  }
-                  label="branch"
-                />
-              }
-            // onChange={(e) => setfiltere({ ...filtere, departmente: e.target.value })}
-            >
-              <MenuItem selected value={'all'}>All</MenuItem>
-              {branch?.map((val) => {
-                return <MenuItem key={val._id} value={val._id}>{val.name}</MenuItem>
-              })}
-            </Select>
-          </FormControl>
-          <TextField size='small' id="outlined-basic"
-            value={filtere.department}
-            onChange={(e) => setfiltere({ ...filtere, department: e.target.value })}
-            variant="outlined" label="Search Department" />
+            />
+          </div>
+          <div className="w-64">
+            <Input
+              size="sm"
+              startIcon={Search}
+              placeholder="Search Department..."
+              value={filtere.department}
+              onChange={(e) => setfiltere({ ...filtere, department: e.target.value })}
+            />
+          </div>
         </div>
-        <Button className='w-full md:w-auto' variant='contained' onClick={() => setopenmodal(true)}>Add Department</Button>
+
+        <Button
+          variant="primary"
+          size="sm"
+          startIcon={Plus}
+          onClick={() => {
+            setisupdate(false);
+            setInp(init);
+            setopenmodal(true);
+          }}
+        >
+          Add Department
+        </Button>
       </div>
-      <div className="list">
+
+      <div className="rounded-xl border border-slate-200/80 overflow-hidden shadow-xs">
         <DataTable
           customStyles={useCustomStyles()}
           columns={columns}
@@ -162,64 +183,68 @@ const Department = () => {
         />
       </div>
 
-      <Modalbox open={openmodal} onClose={() => setopenmodal(false)}>
-        <div className="membermodal w-[650px]">
-          <div className='whole'>
-            <div className='modalhead'>Add Department</div>
-            <form onSubmit={adddepartcall}>
-              <span className="modalcontent ">
-                <div className='flex flex-col gap-3 w-full'>
-                  <FormControl sx={{ width: '98%' }} size="small">
-                    <InputLabel id="demo-simple-select-helper-label">Branch</InputLabel>
-                    <Select
-                      value={inp.branchId}
-                      label="branch"
-                      onChange={(e) => handleChange(e, 'branchId')}
-                    >
-                      {branch?.map((val) => {
-                        return <MenuItem key={val._id} value={val._id}>{val.name}</MenuItem>
-                      })}
-                    </Select>
-                  </FormControl>
-                  <TextField sx={{ width: '98%' }} required value={inp.department} onChange={(e) => handleChange(e, 'department')} label="Department" size="small" />
-                  <TextField multiline rows={4} onChange={(e) => handleChange(e, 'description')} value={inp.description} sx={{ width: '98%' }} label="Description" size="small" />
-                </div>
-              </span>
-            </form>
-            <div className='modalfooter'>
-              <Button size="small"
-                onClick={() => {
-                  setopenmodal(false); setisupdate(false); setInp(init)
-                }}
-                variant="outlined"> cancel</Button>
-              {!isupdate && <Button
-                sx={{ mr: 2 }}
-                loading={isload}
-                loadingPosition="end"
-                endIcon={<Send size={16} />}
-                onClick={adddepartcall}
-                variant="contained"
-                type="submit"
-              >
-                Add
-              </Button>}
+      {/* Add / Edit Department Modal */}
+      <Modal
+        open={openmodal}
+        onClose={() => setopenmodal(false)}
+        title={isupdate ? "Edit Department" : "Add Department"}
+        subtitle="Configure department name and branch association"
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={isupdate ? (e) => { e.preventDefault(); updatee(); } : adddepartcall} className="space-y-4">
+          <Select
+            label="Branch"
+            required
+            options={modalBranchOptions}
+            placeholder="Select Branch..."
+            value={inp.branchId}
+            onChange={(e) => handleChange(e, 'branchId')}
+          />
 
-              {isupdate && <Button
-                sx={{ mr: 2 }}
-                loading={isload}
-                loadingPosition="end"
-                endIcon={<Send size={16} />}
-                variant="contained"
-                onClick={updatee}
-              >
-                Update
-              </Button>}
-            </div>
+          <Input
+            label="Department Name"
+            required
+            placeholder="e.g. Sales, Human Resources"
+            value={inp.department}
+            onChange={(e) => handleChange(e, 'department')}
+          />
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-700 tracking-wide">Description</label>
+            <textarea
+              rows={3}
+              placeholder="Optional department description..."
+              className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
+              value={inp.description}
+              onChange={(e) => handleChange(e, 'description')}
+            />
           </div>
-        </div>
-      </Modalbox>
-    </div>
-  )
-}
 
-export default Department
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setopenmodal(false);
+                setisupdate(false);
+                setInp(init);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isload}
+              endIcon={Send}
+            >
+              {isupdate ? "Update Department" : "Add Department"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+};
+
+export default Department;

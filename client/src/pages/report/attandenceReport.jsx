@@ -1,27 +1,20 @@
-import { useEffect, useState, useMemo } from 'react';
-import {
-    Avatar, Box, Typography, TextField,
-    InputAdornment, FormControl, InputLabel, OutlinedInput,
-    Select, MenuItem,
-    Button,
-    IconButton
-} from '@mui/material';
-import DataTable from '@/components/common/DataTable';
+import { useEffect, useState } from 'react';
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
-import isBetween from 'dayjs/plugin/isBetween'
+import isBetween from 'dayjs/plugin/isBetween';
 import localeData from "dayjs/plugin/localeData";
-import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Filter, Download, X, FileText, MessageSquareWarning } from 'lucide-react';
+import { Search, Download, X } from 'lucide-react';
 import RegisterView from './registerView';
-import { cloudinaryUrl } from '../../utils/imageurlsetter';
 import { apiClient } from '../../utils/apiClient';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Button from '@/components/ui/Button';
+
 dayjs.extend(localeData);
 dayjs.extend(isBetween);
 
 const AttendanceReport = () => {
-    const [employeelist, setemployeelist] = useState([]);
     const [departmentlist, setdepartmentlist] = useState([]);
     const [theme, setTheme] = useState(true);
     const [csvcall, setcsvcall] = useState(false);
@@ -38,11 +31,8 @@ const AttendanceReport = () => {
         month: queryMonth ? parseInt(queryMonth, 10) : dayjs().month() + 1,
         year: queryYear ? parseInt(queryYear, 10) : dayjs().year()
     });
-    let navigate = useNavigate();
 
-
-    const { department, branch, employee, holidays, company, profile } = useSelector(e => e.user);
-    const employepic = 'https://res.cloudinary.com/dusxlxlvm/image/upload/v1753113610/ems/assets/employee_fi3g5p.webp';
+    const { department, branch, profile } = useSelector(e => e.user);
 
     // Fetch month & year specific attendance report from backend API
     useEffect(() => {
@@ -78,114 +68,6 @@ const AttendanceReport = () => {
         }
     }, [filters.branch, department]);
 
-    // build report data
-
-    const [basic, setbasic] = useState({
-        totalDays: 0,
-        holidaysCount: 0,
-        weeklyOff: 0,
-        workingDays: 0,
-    })
-
-    useEffect(() => {
-        if (employee?.length < 1) return;
-
-        const monthStart = dayjs(`${filters.year}-${filters.month}-01`);
-        const isCurrentMonth = monthStart.isSame(dayjs(), "month");
-        const monthEnd = isCurrentMonth ? dayjs() : monthStart.endOf("month");
-        const totalDays = monthEnd.date();
-
-        // ✅ Weekly off calculation
-        let weeklyOffCount = 0;
-        for (let i = 1; i <= totalDays; i++) {
-            const currentDate = monthStart.date(i);
-            if (company?.weeklyOffs?.includes(currentDate.day())) {
-                weeklyOffCount++;
-            }
-        }
-
-        // ✅ Holidays calculation
-        let holidayCount = 0;
-        holidays?.forEach(h => {
-            const holidayStart = dayjs(h.fromDate);
-            const holidayEnd = dayjs(h.toDate);
-
-            for (let i = 1; i <= totalDays; i++) {
-                const currentDate = monthStart.date(i);
-
-                // only count holidays till today if current month
-                if (isCurrentMonth && currentDate.isAfter(dayjs(), "day")) break;
-
-                if (currentDate.isBetween(holidayStart, holidayEnd, "day", "[]")) {
-                    holidayCount++;
-                }
-            }
-        });
-
-        const totalworkingdays = totalDays - (weeklyOffCount + holidayCount);
-
-        setbasic({
-            totalDays,
-            workingDays: totalworkingdays,
-            weeklyOff: weeklyOffCount,
-            holidaysCount: holidayCount,
-        });
-
-        // ✅ Pre-group attendance by employeeId
-        const attendanceByEmp = {};
-        (reportAttendance || []).forEach(a => {
-            const empId = a.employeeId?._id || a.employeeId;
-            if (!attendanceByEmp[empId]) {
-                attendanceByEmp[empId] = [];
-            }
-            attendanceByEmp[empId].push(a);
-        });
-        //   console.log(employee)
-        const data = employee.filter(e => e.status).map((emp, idx) => {
-            const empAttendance = attendanceByEmp[emp._id] || [];
-
-            const present = empAttendance.filter(a => a.status === "present").length;
-            const absent = empAttendance.filter(a => a.status === "absent").length;
-            const leave = empAttendance.filter(a => a.status === "leave").length;
-
-            return {
-                id: emp._id,
-                rawname: emp?.userid?.name,
-                branch: emp?.branchId,
-                department: emp?.department?._id,
-                name: (
-                    <div className="flex items-center capitalize gap-3">
-                        <Avatar
-                            src={cloudinaryUrl(emp.profileimage, {
-                                format: "webp",
-                                width: 100,
-                                height: 100,
-                            }) || employepic}
-                            alt={emp.employeename} />
-                        <Box>
-                            <Typography variant="body2">{emp?.userid?.name}</Typography>
-                            <p className="text-[10px] text-gray-600">({emp?.designation})</p>
-                        </Box>
-                    </div>
-                ),
-                totalDays: present + absent + leave + holidayCount + weeklyOffCount,
-                weeklyOff: weeklyOffCount,
-                holidayCount: holidayCount,
-                leave,
-                absent,
-                present,
-                action: (
-                    <div className="action flex gap-2.5">
-                        <span className="text-[18px] text-amber-500 cursor-pointer" title="Attandence Report" onClick={() => navigate(`/dashboard/performance/${emp.userid._id}?month=${filters.month - 1}&year=${filters.year}`)} ><FileText size={18} /></span>
-                    </div>
-                )
-            };
-        });
-
-        setemployeelist(data);
-    }, [employee, reportAttendance, holidays, filters.month, filters.year, company.weeklyoff]);
-
-
     useEffect(() => {
         if (!searchParams.get('month') || !searchParams.get('year')) {
             setSearchParams({ month: filters.month, year: filters.year });
@@ -204,168 +86,133 @@ const AttendanceReport = () => {
     };
 
     const exportCSV2call = () => {
-        setcsvcall(true)
+        setcsvcall(true);
     };
 
+    const branchOptions = [
+        { label: 'All Branches', value: 'all' },
+        ...(profile?.role === 'manager'
+            ? (branch || []).filter(e => profile?.branchIds?.includes(e._id))
+            : (branch || [])
+        ).map(b => ({ label: b.name, value: b._id }))
+    ];
+
+    const departmentOptions = [
+        { label: 'All Departments', value: 'all' },
+        ...departmentlist.map(d => ({ label: d.department, value: d._id }))
+    ];
+
+    const yearOptions = Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => ({
+        label: `${y}`,
+        value: y
+    }));
+
+    const monthOptions = dayjs.months().map((m, idx) => ({
+        label: m,
+        value: idx + 1
+    }));
 
     return (
-        <div className='employee p-2 '>
-            {/* Filters */}
-            <div className="flex  flex-wrap gap-3 items-center justify-between mb-3">
-                <div className="flex  flex-wrap gap-3 items-center">
-                    <TextField
-                        size="small"
-                        className='md:w-[160px] w-full'
-                        value={filters.searchText}
-                        onChange={(e) => handleFilterChange("searchText", e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start"><Search size={16} /></InputAdornment>
-                            ),
-                            endAdornment: filters.searchText && (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        onClick={() => handleFilterChange("searchText", '')}
-                                        edge="end"
-                                        size="small"
-                                    >
-                                        <X size={16} />
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                        label="Search Employee"
-                    />
+        <div className='p-2 md:p-6 space-y-4 max-w-full'>
+            {/* Filters Bar */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-wrap gap-3 items-center justify-between">
+                <div className="flex flex-wrap gap-3 items-center flex-1">
+                    <div className="w-full sm:w-56">
+                        <Input
+                            size="sm"
+                            startIcon={Search}
+                            placeholder="Search employee..."
+                            value={filters.searchText}
+                            onChange={(e) => handleFilterChange("searchText", e.target.value)}
+                        />
+                    </div>
 
-                    {/* Branch */}
-                    <FormControl size="small" className="md:w-[140px] w-[47%]">
-                        <InputLabel>Branch</InputLabel>
+                    <div className="w-full sm:w-44">
                         <Select
+                            size="sm"
+                            options={branchOptions}
                             value={filters.branch}
                             onChange={(e) => handleFilterChange("branch", e.target.value)}
-                            input={
-                                <OutlinedInput
-                                    startAdornment={
-                                        <InputAdornment position="start">
-                                            <Filter size={16} />
-                                        </InputAdornment>
-                                    }
-                                    label="Branch"
-                                />
-                            }
+                        />
+                    </div>
 
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {/* {branch?.map((list) => (
-                                <MenuItem key={list._id} value={list._id}>{list.name}</MenuItem>
-                            ))} */}
-
-                            {profile?.role === 'manager'
-                                ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                                    ?.map((list) => (
-                                        <MenuItem key={list._id} value={list._id}>
-                                            {list.name}
-                                        </MenuItem>
-                                    ))
-                                :
-                                branch?.map((list) => (
-                                    <MenuItem key={list._id} value={list._id}> {list.name} </MenuItem>
-                                ))
-                            }
-                        </Select>
-                    </FormControl>
-
-                    {/* Department */}
-                    <FormControl size="small" className="md:w-[140px] w-[47%]">
-                        <InputLabel>Department</InputLabel>
+                    <div className="w-full sm:w-44">
                         <Select
+                            size="sm"
                             disabled={filters.branch === "all"}
+                            options={departmentOptions}
                             value={filters.department}
-                            input={
-                                <OutlinedInput
-                                    startAdornment={
-                                        <InputAdornment position="start">
-                                            <Filter size={16} />
-                                        </InputAdornment>
-                                    }
-                                    label="Department"
-                                />
-                            }
                             onChange={(e) => handleFilterChange("department", e.target.value)}
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {departmentlist.length > 0 ? (
-                                departmentlist.map((list) => (
-                                    <MenuItem key={list._id} value={list._id}>{list.department}</MenuItem>
-                                ))
-                            ) : (
-                                <MenuItem disabled>No departments found</MenuItem>
-                            )}
-                        </Select>
-                    </FormControl>
+                        />
+                    </div>
 
-                    {/* Year */}
-                    <FormControl size="small" className="md:w-[100px] w-[47%]">
-                        <InputLabel>Year</InputLabel>
+                    <div className="w-full sm:w-28">
                         <Select
+                            size="sm"
+                            options={yearOptions}
                             value={filters.year}
-                            label="Year"
-                            onChange={(e) => handleFilterChange("year", e.target.value)}
-                        >
-                            {Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => (
-                                <MenuItem key={y} value={y}>{y}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                            onChange={(e) => handleFilterChange("year", Number(e.target.value))}
+                        />
+                    </div>
 
-                    {/* Month */}
-                    <FormControl size="small" className="md:w-[130px] w-[47%]">
-                        <InputLabel>Month</InputLabel>
+                    <div className="w-full sm:w-36">
                         <Select
+                            size="sm"
+                            options={monthOptions}
                             value={filters.month}
-                            label="Month"
-                            onChange={(e) => handleFilterChange("month", e.target.value)}
-                        >
-                            {dayjs.months().map((m, idx) => (
-                                <MenuItem key={idx + 1} value={idx + 1}>{m}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
+                            onChange={(e) => handleFilterChange("month", Number(e.target.value))}
+                        />
+                    </div>
                 </div>
-                <div className=" w-full md:w-fit">
-                    <Button onClick={exportCSV2call} className="flex-1" variant='outlined' startIcon={<Download size={16} />} >Export</Button>
+
+                <div>
+                    <Button
+                        onClick={exportCSV2call}
+                        variant="outline"
+                        size="sm"
+                        startIcon={Download}
+                    >
+                        Export Excel
+                    </Button>
                 </div>
             </div>
 
-            <div className="mt-4 bg-white rounded shadow p-1 md:p-3">
-                <div className="text-xl relative font-semibold flex justify-between mb-5">
-                    <p className="text-gray-700">
-                        Daily Attendance Report -{" "}
-                        {dayjs(`${filters.year}-${filters.month}-01`).format("MMMM YYYY")}
-                    </p>
+            {/* Attendance Matrix Register */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-4">
+                <div className="flex flex-wrap justify-between items-center mb-4 pb-3 border-b border-slate-100 gap-2">
+                    <div>
+                        <h3 className="text-base font-bold text-slate-800">
+                            Monthly Attendance Register
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                            Period: {dayjs(`${filters.year}-${filters.month}-01`).format("MMMM YYYY")}
+                        </p>
+                    </div>
 
                     {/* Toggle Switch */}
-                    <label className="inline-flex items-center cursor-pointer">
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-xs font-semibold text-slate-600">
+                            {theme ? "Executive Matrix" : "High Contrast"}
+                        </span>
                         <input
                             type="checkbox"
                             checked={theme}
                             onChange={() => setTheme(!theme)}
                             className="sr-only peer"
                         />
-                        <div className="w-12 h-6 bg-gray-200 rounded-full peer-checked:bg-blue-600 relative transition-colors">
-                            {/* <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 peer-checked:translate-x-6"></div> */}
-                        </div>
-                        <span className="ml-2 text-sm text-gray-600">
-                            {theme ? "Light Theme" : "Dark Theme"}
-                        </span>
+                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-700"></div>
                     </label>
-
                 </div>
 
-                <RegisterView csvcall={csvcall} filters={filters} setcsvcall={setcsvcall} theme={theme} reportAttendance={reportAttendance} reportLoading={reportLoading} />
+                <RegisterView
+                    csvcall={csvcall}
+                    filters={filters}
+                    setcsvcall={setcsvcall}
+                    theme={theme}
+                    reportAttendance={reportAttendance}
+                    reportLoading={reportLoading}
+                />
             </div>
-
         </div>
     );
 };

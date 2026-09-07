@@ -3,8 +3,6 @@ import { toast } from "../../../utils/toast";
 import { FirstFetch } from "../../../../store/userSlice";
 import { useSelector } from "react-redux";
 
-import Avatar from "@mui/material/Avatar";
-import Box from "@mui/material/Box";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { Clock, Edit2, Trash2, User, Info } from "lucide-react";
 
@@ -136,9 +134,9 @@ export const columns = ({
         return (
           <div className="flex items-center gap-3 py-1.5">
             {hasPhoto ? (
-              <Avatar
+              <img
                 alt={empName}
-                sx={{ width: 38, height: 38, fontSize: '0.9rem' }}
+                className="w-[38px] h-[38px] rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
                 src={cloudinaryUrl(row?.employeeId?.profileimage, {
                   format: "webp",
                   width: 90,

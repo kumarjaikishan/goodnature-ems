@@ -1,35 +1,26 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../../utils/apiClient';
-import {
-    Box, Button, FormControl, InputLabel, Select, MenuItem,
-    TextField, Avatar, OutlinedInput, InputAdornment, Paper, Divider, Typography
-} from '@mui/material';
-import { RotateCcw, Download, Wallet, Filter } from 'lucide-react';
+import { RotateCcw, Download, Wallet } from 'lucide-react';
 import DataTable from '@/components/common/DataTable';
 import { useSelector } from 'react-redux';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import dayjs from 'dayjs';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import Loader from '../../../utils/loader';
+import Select from '@/components/ui/Select';
+import DateInput from '@/components/ui/DateInput';
+import Button from '@/components/ui/Button';
 
 const SummaryBox = ({ label, value }) => {
     const isNegative = parseFloat(value) < 0;
     return (
-        <Paper elevation={0} sx={{ 
-            bgcolor: '#f0fdfa', 
-            border: '1px dashed #5eead4', 
-            borderRadius: 2, 
-            px: 3, 
-            py: 2, 
-            minWidth: '150px', 
-            textAlign: 'center' 
-        }}>
-            <Typography variant="body2" color="textSecondary">{label}</Typography>
-            <Divider sx={{ my: 1, borderColor: '#ccfbf1' }} />
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: isNegative ? '#dc2626' : '#111827' }}>
+        <div className="bg-teal-50/60 border border-teal-200 rounded-xl px-5 py-3.5 min-w-[150px] text-center shadow-2xs">
+            <span className="text-xs font-semibold text-slate-500 block uppercase tracking-wider">{label}</span>
+            <div className="h-px bg-teal-200/60 my-2" />
+            <span className={`text-xl font-bold font-mono block ${isNegative ? 'text-rose-600' : 'text-slate-800'}`}>
                 ₹ {Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </Typography>
-        </Paper>
+            </span>
+        </div>
     );
 };
 
@@ -58,29 +49,32 @@ const EmployeeFinancialLedger = () => {
         const filteredData = entries.filter(e => {
             const d = dayjs(e.date);
             const yearMatch = filterYear !== 'all' ? d.year() === Number(filterYear) : true;
-            const monthMatch = filterMonth !== "all" ? (d.month() + 1) === Number(filterMonth) : true;
-            const dateMatch = filterDate ? d.isSame(filterDate, "day") : true;
+            const monthMatch = filterMonth !== 'all' ? d.month() + 1 === Number(filterMonth) : true;
+            const dateMatch = filterDate ? d.format('YYYY-MM-DD') === filterDate : true;
             return yearMatch && monthMatch && dateMatch;
         });
 
         setFiltered(filteredData);
 
-        const debit = filteredData.reduce((sum, e) => sum + (e.debit || 0), 0);
-        const credit = filteredData.reduce((sum, e) => sum + (e.credit || 0), 0);
-        const balance = debit - credit;
+        const deb = filteredData.reduce((acc, curr) => acc + (parseFloat(curr.debit) || 0), 0);
+        const cred = filteredData.reduce((acc, curr) => acc + (parseFloat(curr.credit) || 0), 0);
+        setTotalDebit(deb);
+        setTotalCredit(cred);
 
-        setTotalDebit(debit);
-        setTotalCredit(credit);
-        setTotalBalance(balance);
+        const lastEntry = filteredData[filteredData.length - 1];
+        setTotalBalance(lastEntry?.balance ?? (cred - deb));
+
     }, [entries, filterYear, filterMonth, filterDate]);
 
     const fetchLedger = async () => {
-        setLoading(true);
         try {
+            setLoading(true);
             const data = await apiClient({ url: "my-ledger" });
-            setEntries(data || []);
+            const list = data?.entries || [];
+            setEntries(list);
+            setFiltered(list);
         } catch (err) {
-            console.error('Error fetching entries:', err);
+            console.error("Error fetching financial ledger:", err);
         } finally {
             setLoading(false);
         }
@@ -93,40 +87,41 @@ const EmployeeFinancialLedger = () => {
     };
 
     const exportCSV = () => {
-        const headers = ["S.No", "Date", "Particular", "Debit", "Credit", "Balance"];
-        const rows = filtered.map((e, idx) => [
-            idx + 1, dayjs(e.date).format('YYYY-MM-DD'), e.particular, e.debit, e.credit, e.balance
+        if (!filtered.length) return;
+        const headers = ["Date", "Particulars", "Credit", "Debit", "Balance"];
+        const rows = filtered.map(e => [
+            dayjs(e.date).format("YYYY-MM-DD"),
+            `"${e.particulars || ''}"`,
+            e.credit || 0,
+            e.debit || 0,
+            e.balance || 0
         ]);
-        const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `my_ledger_${dayjs().format('YYYY-MM-DD')}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `My_Financial_Ledger_${dayjs().format("YYYYMMDD")}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const columns = [
         {
-            name: "S.No",
-            selector: (row, index) => index + 1,
-            width: '70px',
-            sortable: false,
-        },
-        {
             name: "Date",
-            selector: (row) => dayjs(row.date).format('DD MMM, YYYY'),
+            selector: (row) => row.date,
             sortable: true,
+            width: "120px",
+            cell: (row) => dayjs(row.date).format("DD MMM YYYY")
         },
         {
-            name: "Particular",
-            selector: (row) => row.particular,
-            sortable: true,
-            grow: 2,
+            name: "Particulars",
+            selector: (row) => row.particulars,
+            wrap: true,
+            minWidth: "220px"
         },
         {
-            name: "Credit (₹)",
+            name: "Credit (+)",
             selector: (row) => row.credit || 0,
             sortable: true,
             right: true,
@@ -142,7 +137,7 @@ const EmployeeFinancialLedger = () => {
             }
         },
         {
-            name: "Debit (₹)",
+            name: "Debit (-)",
             selector: (row) => row.debit || 0,
             sortable: true,
             right: true,
@@ -176,112 +171,128 @@ const EmployeeFinancialLedger = () => {
         }
     ];
 
+    const yearOptions = [
+        { label: 'All Years', value: 'all' },
+        ...[...new Set(entries.map(e => dayjs(e.date).year()))].map(y => ({ label: `${y}`, value: y }))
+    ];
+
+    const monthOptions = [
+        { label: 'All Months', value: 'all' },
+        ...Array.from({ length: 12 }, (_, i) => ({
+            label: dayjs().month(i).format("MMMM"),
+            value: i + 1
+        }))
+    ];
+
     return (
-        <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: '1200px', margin: '0 auto', bgcolor: 'white', borderRadius: 2, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-            <Box sx={{ mb: 4, p: 3, border: '1px dashed #008080', borderRadius: 2, bgcolor: '#fdfdfd' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar 
-                          sx={{ bgcolor: '#008080', width: 70, height: 70 }}
-                          src={cloudinaryUrl(empProfile?.profileimage, {
-                              format: "webp",
-                              width: 100,
-                              height: 100,
-                          })}
-                        >
-                            <Wallet size={32} />
-                        </Avatar>
-                        <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#008080', textTransform: 'capitalize' }}>
-                            {empProfile?.employeeName || 'Account Ledger'}
-                        </Typography>
-                    </Box>
-                </Box>
-                
-                {loading ? <Loader /> : (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
+        <div className="p-2 md:p-6 max-w-7xl mx-auto space-y-6">
+            {/* Header / Summary Card */}
+            <div className="p-6 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-6">
+                <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                    {empProfile?.profileimage ? (
+                        <img
+                            src={cloudinaryUrl(empProfile?.profileimage, {
+                                format: "webp",
+                                width: 100,
+                                height: 100,
+                            })}
+                            alt="Profile"
+                            className="w-14 h-14 rounded-full object-cover border border-teal-200"
+                        />
+                    ) : (
+                        <div className="w-14 h-14 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center border border-teal-200">
+                            <Wallet size={24} />
+                        </div>
+                    )}
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 capitalize">
+                            {empProfile?.employeeName || 'Personal Account Ledger'}
+                        </h3>
+                        <p className="text-xs text-slate-500">Track salary credits, advances, and expense deductions</p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="py-6 flex justify-center">
+                        <Loader />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <SummaryBox label="Total Debit" value={totalDebit} />
                         <SummaryBox label="Total Credit" value={totalCredit} />
                         <SummaryBox label="Net Balance" value={totalBalance.toFixed(2)} />
-                    </Box>
+                    </div>
                 )}
-            </Box>
+            </div>
 
             {/* Filters Row */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 3, p: 2, borderRadius: 1, boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Year</InputLabel>
-                    <Select
-                        value={filterYear}
-                        label="Year"
-                        onChange={e => setFilterYear(e.target.value)}
-                        startAdornment={<Filter size={16} style={{ marginRight: 8 }} />}
+            <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-wrap gap-3 items-center justify-between">
+                <div className="flex flex-wrap gap-3 items-center">
+                    <div className="w-32">
+                        <Select
+                            size="sm"
+                            options={yearOptions}
+                            value={filterYear}
+                            onChange={e => setFilterYear(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="w-36">
+                        <Select
+                            size="sm"
+                            options={monthOptions}
+                            value={filterMonth}
+                            onChange={e => setFilterMonth(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="w-40">
+                        <DateInput
+                            size="sm"
+                            value={filterDate}
+                            onChange={e => setFilterDate(e.target.value)}
+                        />
+                    </div>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        startIcon={RotateCcw}
+                        onClick={resetFilters}
                     >
-                        <MenuItem value="all">All</MenuItem>
-                        {[...new Set(entries.map(e => dayjs(e.date).year()))].map(y => (
-                            <MenuItem key={y} value={y}>{y}</MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+                        Reset
+                    </Button>
+                </div>
 
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Month</InputLabel>
-                    <Select
-                        value={filterMonth}
-                        label="Month"
-                        onChange={e => setFilterMonth(e.target.value)}
-                        startAdornment={<Filter size={16} style={{ marginRight: 8 }} />}
-                    >
-                        <MenuItem value="all">All</MenuItem>
-                        {Array.from({ length: 12 }, (_, i) => (
-                            <MenuItem key={i} value={i + 1}>{dayjs().month(i).format("MMMM")}</MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-
-                <TextField
-                    size="small"
-                    type="date"
-                    label="Date"
-                    value={filterDate}
-                    onChange={e => setFilterDate(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ width: 160 }}
-                />
-
-                <Button
-                    variant="outlined"
-                    color="secondary"
-                    startIcon={<RotateCcw size={16} />}
-                    onClick={resetFilters}
-                    size="small"
-                >
-                    Reset
-                </Button>
-
-                <Box sx={{ ml: 'auto' }}>
+                <div>
                     <Button 
-                        variant="outlined" 
-                        startIcon={<Download size={16} />} 
+                        variant="outline"
+                        size="sm"
+                        startIcon={Download} 
                         onClick={exportCSV}
-                        sx={{ borderColor: '#008080', color: '#008080', '&:hover': { borderColor: '#006666', bgcolor: '#f0fdfa' } }}
                     >
                         Export CSV
                     </Button>
-                </Box>
-            </Box>
+                </div>
+            </div>
 
-            <Box sx={{ overflowX: 'auto' }}>
+            {/* Table */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <DataTable
                     columns={columns}
                     data={filtered}
                     pagination
                     customStyles={useCustomStyles()}
                     highlightOnHover
-                    noDataComponent={<Typography sx={{ py: 4 }}>No transactions found</Typography>}
+                    noDataComponent={
+                        <div className="py-12 text-center text-slate-500 font-medium text-sm">
+                            No transactions found
+                        </div>
+                    }
                     paginationPerPage={10}
                 />
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 };
 

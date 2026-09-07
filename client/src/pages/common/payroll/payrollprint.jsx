@@ -1,4 +1,3 @@
-import { Divider } from "@mui/material";
 import { apiClient } from "../../../utils/apiClient";
 import dayjs from "dayjs";
 import React, { useEffect, useRef, useState } from "react";

@@ -1,9 +1,13 @@
 import React from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
-import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
-import { Send } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
+
+// Custom UI Components
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
 
 const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, setopenmodal, setInp, init }) => {
 
@@ -19,7 +23,7 @@ const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, set
             let url = "leavehandle";
             let method = "POST";
             
-            // If approving, use the new specialized endpoint for policy balance deduction
+            // If approving, use specialized endpoint for policy balance deduction
             if (inp.status === 'approved') {
                 url = `approve-leave/${inp.leaveid}`;
                 method = "POST";
@@ -33,59 +37,113 @@ const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, set
             firstfetch();
             setopenmodal(false);
             setInp(init);
-            toast.success(data.message || "Updated successfully", { autoClose: 2000 })
+            toast.success(data.message || "Updated successfully", { autoClose: 2000 });
         } catch (err) {
             console.error('Error handling leave:', err);
             toast.error(err.message || "Failed to update leave");
         }
-    }
+    };
+
+    if (!openmodal) return null;
 
     return (
         <Modalbox open={openmodal} onClose={() => {
             setopenmodal(false); setInp(init);
         }}>
-            <div className="membermodal w-[600px]">
-                <form onSubmit={adddepartcall}>
-                    <div className='modalhead'> Leave Management</div>
-                    <span className="modalcontent ">
-                        <div className='flex flex-col gap-3 w-full'>
-                            <div className='flex  gap-2 justify-between'>
-                                <TextField fullWidth value={inp.branch} label="Branch" size="small" />
-                                <TextField fullWidth value={inp.employeename} label="Name" size="small" />
-                            </div>
+            <div className="w-full max-w-lg p-6 space-y-4">
+                <form onSubmit={adddepartcall} className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 className="text-base font-bold text-slate-900">Leave Management</h3>
+                        <button
+                            type="button"
+                            onClick={() => { setopenmodal(false); setInp(init); }}
+                            className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
 
-                            <div className='flex  gap-2 justify-between'>
-                                <TextField fullWidth value={inp.showfrom} label="From" size="small" />
-                                <TextField fullWidth value={inp.showto} label="To" size="small" />
-                            </div>
-                            <TextField fullWidth multiline minRows={2} value={inp.reason} onChange={(e) => handleChange(e, 'reason')} label="Reason" size="small" />
-
-                            <FormControl fullWidth required size="small">
-                                <InputLabel>Status</InputLabel>
-                                <Select
-                                    value={inp.status}
-                                    label="Status"
-                                    onChange={(e) => handleChange(e, 'status')}
-                                >
-                                    <MenuItem value={'approved'}>Approve</MenuItem>
-                                    <MenuItem value={'rejected'}>Reject</MenuItem>
-                                </Select>
-                            </FormControl>
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Input
+                                size="sm"
+                                label="Branch"
+                                value={inp.branch || ''}
+                                readOnly
+                            />
+                            <Input
+                                size="sm"
+                                label="Employee Name"
+                                value={inp.employeename || ''}
+                                readOnly
+                            />
                         </div>
-                    </span>
-                    <div className='modalfooter'>
-                        <Button size="small" onClick={() => {
-                            setopenmodal(false); setInp(init);
-                        }} variant="outlined">Cancel</Button>
 
-                        <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Input
+                                size="sm"
+                                label="From"
+                                value={inp.showfrom || ''}
+                                readOnly
+                            />
+                            <Input
+                                size="sm"
+                                label="To"
+                                value={inp.showto || ''}
+                                readOnly
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Reason</label>
+                            <textarea
+                                rows={2}
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 placeholder:text-slate-400 resize-none transition-colors"
+                                value={inp.reason || ''}
+                                onChange={(e) => handleChange(e, 'reason')}
+                            />
+                        </div>
+
+                        <Select
+                            size="sm"
+                            label="Status"
+                            required
+                            value={inp.status || ''}
+                            onChange={(e) => handleChange(e, 'status')}
+                            options={[
+                                { value: 'approved', label: 'Approve' },
+                                { value: 'rejected', label: 'Reject' }
+                            ]}
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                                setopenmodal(false);
+                                setInp(init);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+
+                        <Button
+                            size="sm"
+                            loading={isload}
+                            icon={<Send size={14} />}
+                            variant="primary"
+                            type="submit"
+                        >
                             Update
                         </Button>
                     </div>
                 </form>
             </div>
         </Modalbox>
-    )
-}
+    );
+};
 
-export default Adminleavemodal
+export default Adminleavemodal;

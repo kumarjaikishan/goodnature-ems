@@ -1,8 +1,6 @@
 import React, { memo } from 'react';
-import { Checkbox, Avatar, Typography, TableCell, TableRow } from '@mui/material';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 
-// STATUS_OPTIONS defined outside to be a stable reference (never recreated)
 const STATUS_OPTIONS = [
   { value: 'present', label: 'Present' },
   { value: 'leave', label: 'Leave' },
@@ -12,11 +10,6 @@ const STATUS_OPTIONS = [
   { value: 'half day', label: 'Half Day' },
 ];
 
-/**
- * A single row in the BulkMark attendance table.
- * Wrapped in React.memo so it ONLY re-renders when its own data changes.
- * Receives stable callbacks (useCallback in parent) to prevent spurious re-renders.
- */
 const BulkEmployeeRow = memo(({
   emp,
   isChecked,
@@ -28,47 +21,54 @@ const BulkEmployeeRow = memo(({
   onStatusChange,
 }) => {
   return (
-    <TableRow>
-      <TableCell padding="checkbox">
-        <Checkbox
+    <tr className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+      <td className="p-2.5 text-center">
+        <input
+          type="checkbox"
           checked={isChecked}
           onChange={() => onCheck(emp._id)}
+          className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300 cursor-pointer"
         />
-      </TableCell>
+      </td>
 
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <Avatar
-            alt={emp.userid?.name}
-            src={cloudinaryUrl(emp.profileimage, { format: 'webp', width: 60, height: 60 })}
-            sx={{ width: 30, height: 30 }}
-          />
-          <Typography variant="body2">{emp.userid?.name}</Typography>
+      <td className="p-2.5">
+        <div className="flex items-center gap-2.5">
+          {emp.profileimage ? (
+            <img
+              alt={emp.userid?.name}
+              src={cloudinaryUrl(emp.profileimage, { format: 'webp', width: 60, height: 60 })}
+              className="w-7 h-7 rounded-full object-cover border border-slate-200"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs">
+              {emp.userid?.name?.charAt(0) || 'E'}
+            </div>
+          )}
+          <span className="text-xs font-semibold text-slate-800">{emp.userid?.name}</span>
         </div>
-      </TableCell>
+      </td>
 
-      <TableCell>
+      <td className="p-2.5">
         <input
           type="time"
-          className="form-input outline-0 border border-primary border-dashed p-1 rounded text-sm"
+          className="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
           value={punchIn || ''}
           onChange={(e) => onTimeChange(emp._id, 'punchIn', e.target.value)}
         />
-      </TableCell>
+      </td>
 
-      <TableCell>
+      <td className="p-2.5">
         <input
           type="time"
-          className="form-input outline-0 border border-primary border-dashed p-1 rounded text-sm"
+          className="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
           value={punchOut || ''}
           onChange={(e) => onTimeChange(emp._id, 'punchOut', e.target.value)}
         />
-      </TableCell>
+      </td>
 
-      <TableCell>
-        {/* Native <select> is much faster than MUI Select (no portal + no floating layer) */}
+      <td className="p-2.5">
         <select
-          className="form-input outline-0 border border-primary border-dashed p-1.5 rounded text-sm w-full"
+          className="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white transition-colors cursor-pointer"
           value={status ?? 'absent'}
           onChange={(e) => onStatusChange(emp._id, e.target.value)}
         >
@@ -76,8 +76,8 @@ const BulkEmployeeRow = memo(({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-      </TableCell>
-    </TableRow>
+      </td>
+    </tr>
   );
 });
 

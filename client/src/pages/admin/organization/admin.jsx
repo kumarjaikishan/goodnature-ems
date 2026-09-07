@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Edit2, Trash2, ChevronUp, ChevronDown, KeyRound } from "lucide-react";
+import { Edit2, Trash2, ChevronUp, ChevronDown, KeyRound, User, Plus } from "lucide-react";
 import useImageUpload from "../../../utils/imageresizer";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
-import { Avatar, Button, TextField } from "@mui/material";
-import Modalbox from "../../../components/custommodal/Modalbox";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
 import { useDispatch } from "react-redux";
 import { FirstFetch } from "../../../../store/userSlice";
+import { swal } from "../../../utils/confirmDialog";
 
 // Permission labels
 const PERMISSION_LABELS = {
@@ -16,12 +20,14 @@ const PERMISSION_LABELS = {
     4: "Delete",
 };
 
-const AllPermissionNames = ["branch", "department", "employee", "attandence",
+const AllPermissionNames = [
+    "branch", "department", "employee", "attandence",
     "ledger", "ledger_entry", "holiday", "leave", "notification", "salary",
-    "plot_inventory", "plot_booking", "plot_collection", "plot_sponsor", "plot_customer", "plot_payout", "plot_reports"];
+    "plot_inventory", "plot_booking", "plot_collection", "plot_sponsor", "plot_customer", "plot_payout", "plot_reports"
+];
 
 const adminPermission = {
-    branch: [1, 2, 3, 4], // 1 = read, 2 =create, 3 =update, 4= delete
+    branch: [1, 2, 3, 4],
     department: [1, 2, 3, 4],
     employee: [1, 2, 3, 4],
     attandence: [1, 2, 3, 4],
@@ -38,7 +44,7 @@ const adminPermission = {
     plot_customer: [1, 2, 3, 4],
     plot_payout: [1, 2, 3, 4],
     plot_reports: [1, 2, 3, 4],
-}
+};
 
 const managerPermission = {
     department: [1, 2, 3],
@@ -61,7 +67,7 @@ const managerPermission = {
 
 export default function SuperAdminDashboard() {
     const [admins, setAdmins] = useState([]);
-    const [isload, setisload] = useState([]);
+    const [isload, setisload] = useState(false);
     const [form, setForm] = useState({
         name: "",
         email: "",
@@ -74,8 +80,8 @@ export default function SuperAdminDashboard() {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        fetech()
-    }, [])
+        fetech();
+    }, []);
     const inputref = useRef(null);
 
     const { handleImage } = useImageUpload();
@@ -107,12 +113,13 @@ export default function SuperAdminDashboard() {
     const [pass, setpass] = useState({
         userid: '',
         pass: ''
-    })
+    });
 
-    const handleSave = async () => {
+    const handleSave = async (e) => {
+        if (e) e.preventDefault();
         const newEntry = { ...form };
         const formData = new FormData();
-        setisload(true)
+        setisload(true);
         try {
             const resizedFile = newEntry.profileImage
                 ? await handleImage(240, newEntry.profileImage)
@@ -138,19 +145,19 @@ export default function SuperAdminDashboard() {
                 body: formData
             });
 
-            toast.success(data.message, { autoClose: 1200 });
+            toast.success(data.message || "Admin saved successfully!", { autoClose: 1200 });
 
             resetForm();
-            fetech(); // refresh list
-            dispatch(FirstFetch())
+            fetech();
+            dispatch(FirstFetch());
 
         } catch (error) {
             console.error('Error saving admin:', error);
+            toast.error(error.message || "Failed to save admin");
         } finally {
             setisload(false);
         }
     };
-
 
     const fetech = async () => {
         try {
@@ -158,21 +165,20 @@ export default function SuperAdminDashboard() {
             const data = await apiClient({
                 url: "getAdmin"
             });
-            setAdmins(data);
+            setAdmins(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching admins:', error);
         } finally {
             setisload(false);
         }
-    }
+    };
 
     const handleEdit = (index) => {
         const current = admins[index];
-        console.log(current)
         setForm({
             ...current,
             profilePreview: current.profileImage || "",
-            profileImage: null, // Don't persist File object
+            profileImage: null,
         });
         setEditingIndex(index);
         setShowForm(true);
@@ -189,17 +195,18 @@ export default function SuperAdminDashboard() {
             setpass({
                 userid: '',
                 pass: ''
-            })
+            });
             setpassmodal(false);
-            toast.success(data.message, { autoClose: 1200 });
+            toast.success(data.message || "Password updated successfully!", { autoClose: 1200 });
         } catch (error) {
             console.error('Error updating password:', error);
+            toast.error(error.message || "Failed to update password");
         }
-    }
+    };
 
     const handleDelete = async (id) => {
         swal({
-            title: `Are you sure to Delete?`,
+            title: `Are you sure you want to delete this administrator?`,
             icon: "warning",
             buttons: true,
             dangerMode: true,
@@ -216,17 +223,17 @@ export default function SuperAdminDashboard() {
                     });
 
                     toast.update(toastId, {
-                        render: data.message,
+                        render: data.message || "Deleted successfully",
                         type: "success",
                         isLoading: false,
                         autoClose: 1800,
                     });
                     fetech();
-                    dispatch(FirstFetch())
+                    dispatch(FirstFetch());
                 } catch (error) {
                     console.error('Error deleting admin:', error);
                     toast.update(toastId, {
-                        render: 'Error',
+                        render: error.message || 'Error deleting admin',
                         type: "warning",
                         isLoading: false,
                         autoClose: 2500,
@@ -298,235 +305,129 @@ export default function SuperAdminDashboard() {
     );
 
     return (
-        <div className="p-1 w-full">
-            {/* Admin List */}
-            <div className=" shadow-md rounded-lg">
-                <div className="flex justify-between flex-wrap items-center mb-4">
-                    {/* <h2 className="text-[16px] mb-2 md:mb-0 md:text-xl font-semibold">Admin/Manager Management</h2> */}
-
-                    <Button variant="contained"
-                        className='mr-2 w-full md:w-fit'
-                        onClick={() => {
-                            resetForm();
-                            setShowForm(true);
-                        }}
-                    >
-                        Add Admin/ Manager
-                    </Button>
-                </div>
-                {admins.length === 0 ? (
-                    <p className="text-gray-500">No admins added yet.</p>
-                ) : (
-                    <div className="space-y-3">
-                        {admins.map((admin, index) => (
-                            <div
-                                key={index}
-                                className="flex flex-col justify-between items-start border border-dashed p-2 rounded-md overflow-x-auto "
-                            >
-                                <div className="flex justify-between w-full  items-center  gap-4">
-                                    <div className="flex gap-2">
-                                        <Avatar
-                                            sx={{ width: 60, height: 60 }}
-                                            alt={admin.name} src={admin?.profileImage}
-                                        />
-
-                                        <div>
-                                            <p className=" capitalize text-[14px] md:text-[18px] font-medium">{admin.name} ({admin.role})</p>
-                                            <p className="text-[12px] md:text-sm text-gray-500">{admin.email}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-2 mt-2">
-                                        <button
-                                            title="Edit"
-                                            className="p-2 border rounded hover:bg-gray-100"
-                                            onClick={() => handleEdit(index)}
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-
-                                        <button
-                                            title="Password Reset"
-                                            className="p-2 border rounded hover:bg-gray-100 text-green-500"
-                                            onClick={() => { setpass({ ...pass, userid: admin._id }); setpassmodal(true) }}
-                                        >
-                                            <KeyRound size={16} />
-                                        </button>
-
-                                        <button
-                                            title="Delete"
-                                            className="p-2 border rounded text-red-600 hover:bg-red-50"
-                                            onClick={() => handleDelete(admin._id)}
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="w-full">
-                                    <div
-                                        className="flex mt-2 justify-between items-center cursor-pointer bg-teal-100 px-4 py-1 rounded-md"
-                                        onClick={() => toggleExpand(index)}
-                                    >
-                                        <span className="font-semibold text-[16px] md:text-lg text-left"> {expandedIndex === index ? "Hide Permissions" : `View Permissions `}</span>
-                                        {expandedIndex === index ? (
-                                            <ChevronUp size={20} />
-                                        ) : (
-                                            <ChevronDown size={20} />
-                                        )}
-                                    </div>
-
-                                    {expandedIndex === index && (
-                                        <div className="text-sm w-full  mt-2">
-                                            <span className="font-semibold">Permissions:</span>
-
-                                            <table className="table-auto border-collapse border border-gray-300 mt-2 text-xs w-full">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="border border-gray-300 px-2 py-1 text-left">Module</th>
-                                                        {Object.values(PERMISSION_LABELS).map((label) => (
-                                                            <th key={label} className="border border-gray-300 px-2 py-1">
-                                                                {label}
-                                                            </th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {Object.entries(admin.permissions).map(([module, levels]) => (
-                                                        <tr key={module}>
-                                                            <td className="border border-gray-300 px-2 py-1 font-semibold">
-                                                                {module}
-                                                            </td>
-                                                            {Object.keys(PERMISSION_LABELS).map((permKey) => {
-                                                                return <td
-                                                                    key={permKey}
-                                                                    className="border border-gray-300 px-2 py-1 text-center"
-                                                                >
-                                                                    {levels.includes(Number(permKey)) ? "✅" : "-"}
-                                                                </td>
-                                                            })}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+        <div className="p-2 w-full space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                    Administrators & Branch Managers
+                </h3>
+                <Button
+                    variant="primary"
+                    size="sm"
+                    startIcon={Plus}
+                    onClick={() => {
+                        resetForm();
+                        setShowForm(true);
+                    }}
+                >
+                    Add Admin / Manager
+                </Button>
             </div>
 
-            <Modalbox outside={false} open={showForm} onClose={() => setShowForm(false)}>
-                <div className="membermodal w-[660px]">
-                    <form onSubmit={handleSave}>
-                        <div className="modalhead"> {editingIndex !== null ? "Edit Admin" : "Add Admin"}</div>
-                        <span className="modalcontent">
-                            <div className="space-y-3 pt-1 flex items-center gap-4 flex-col w-[100%] md:w-full">
-                                <div className="mt-1 items-center  w-fit relative">
-                                    <input style={{ display: 'none' }} type="file" onChange={handleProfileImageChange} ref={inputref} accept="image/*" name="" id="fileInput" />
+            {admins.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 font-medium text-sm">
+                    No administrators or managers found.
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {admins.map((admin, index) => (
+                        <div
+                            key={admin._id || index}
+                            className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs space-y-3"
+                        >
+                            <div className="flex flex-wrap justify-between items-center gap-3">
+                                <div className="flex items-center gap-3">
+                                    {admin?.profileImage ? (
+                                        <img
+                                            src={admin.profileImage}
+                                            alt={admin.name}
+                                            className="w-12 h-12 rounded-full object-cover border border-slate-200"
+                                        />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-base border border-teal-200">
+                                            {admin.name ? admin.name.charAt(0).toUpperCase() : <User size={20} />}
+                                        </div>
+                                    )}
 
-                                    <Avatar
-                                        sx={{ width: 70, height: 70 }}
-                                        alt={form.name} src={form.profilePreview} />
-
-                                    <span onClick={() => inputref.current.click()}
-                                        className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
-                                    >
-                                        <Edit2 size={18} />
-                                    </span>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-800 text-sm">{admin.name}</span>
+                                            <Badge
+                                                size="sm"
+                                                variant={admin.role === 'admin' ? 'primary' : 'info'}
+                                            >
+                                                {admin.role}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-slate-500">{admin.email}</p>
+                                    </div>
                                 </div>
 
-                                <TextField fullWidth required
-                                    value={form.name}
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                    label="Name" size="small"
-                                />
+                                <div className="flex items-center gap-1.5">
+                                    <button
+                                        title="Edit Profile"
+                                        className="p-1.5 text-slate-500 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                                        onClick={() => handleEdit(index)}
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
 
-                                <TextField fullWidth required
-                                    value={form.email}
-                                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                                    label="Email" size="small"
-                                    helperText="*Note - you can also use companyname as mail handler, e.g. xyz@companyname.com"
-                                />
+                                    <button
+                                        title="Reset Password"
+                                        className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                                        onClick={() => {
+                                            setpass({ ...pass, userid: admin._id });
+                                            setpassmodal(true);
+                                        }}
+                                    >
+                                        <KeyRound size={16} />
+                                    </button>
 
+                                    <button
+                                        title="Delete Admin"
+                                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                                        onClick={() => handleDelete(admin._id)}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
 
+                            <div className="border-t border-slate-100 pt-2">
+                                <button
+                                    type="button"
+                                    className="flex w-full justify-between items-center text-xs font-bold text-teal-800 bg-teal-50/60 hover:bg-teal-50 py-2 px-3 rounded-lg transition cursor-pointer"
+                                    onClick={() => toggleExpand(index)}
+                                >
+                                    <span>{expandedIndex === index ? "Hide Role Permissions" : "View Assigned Permissions"}</span>
+                                    {expandedIndex === index ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </button>
 
-                                {editingIndex == null &&
-                                    <>
-                                        <TextField fullWidth required
-                                            value={form.password}
-                                            type="password"
-                                            onChange={(e) => setForm({ ...form, password: e.target.value })}
-                                            label="Password" size="small"
-                                        />
-                                        <div className="w-full">
-                                            <label className="font-semibold block mb-1">Role</label>
-                                            <select
-                                                className="w-full border p-2 rounded"
-                                                value={form.role}
-                                                onChange={(e) => handleRoleChange(e.target.value)}
-                                            >
-                                                <option value="admin">Admin</option>
-                                                <option value="manager">Manager</option>
-                                            </select>
-                                        </div>
-                                    </>
-                                }
-
-                                {/* Add Module (Manager only) */}
-                                {form.role === "manager" && (
-                                    <div className="flex w-full flex-wrap items-center gap-2">
-                                        <select
-                                            className="border p-2 flex-3 rounded "
-                                            value={newModule}
-                                            onChange={(e) => setNewModule(e.target.value)}
-                                        >
-                                            <option value="">-- Select Module to Add --</option>
-                                            {availableModulesToAdd.map((mod) => (
-                                                <option key={mod} value={mod}>
-                                                    {mod}
-                                                </option>
-                                            ))}
-                                        </select>
-
-                                        <Button variant="contained"
-                                            onClick={handleAddModule}
-                                            className="flex-1"
-                                        >
-                                            Add Module
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {/* Permissions Table */}
-                                <div className="w-full">
-                                    <p className="font-semibold mb-2">Permissions</p>
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full text-sm border">
-                                            <thead>
+                                {expandedIndex === index && (
+                                    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200/80">
+                                        <table className="w-full text-left text-xs border-collapse">
+                                            <thead className="bg-slate-50/80 text-slate-700 font-bold border-b border-slate-200">
                                                 <tr>
-                                                    <th className="border p-2 text-left">Module</th>
-                                                    {Object.entries(PERMISSION_LABELS).map(([code, label]) => (
-                                                        <th key={code} className="border p-2 text-center">{label}</th>
+                                                    <th className="py-2 px-3">Module</th>
+                                                    {Object.values(PERMISSION_LABELS).map((label) => (
+                                                        <th key={label} className="py-2 px-3 text-center">
+                                                            {label}
+                                                        </th>
                                                     ))}
                                                 </tr>
                                             </thead>
-                                            <tbody>
-                                                {currentModules.map((module) => (
-                                                    <tr key={module}>
-                                                        <td className="border p-2 capitalize">{module}</td>
-                                                        {Object.keys(PERMISSION_LABELS).map((level) => (
-                                                            <td key={level} className="border text-center">
-                                                                <input
-                                                                    className=" h-3 w-3 md:h-5 md:w-5 cursor-pointer rounded-md border-2 border-gray-400 
-                                                                       focus:ring-2 focus:ring-red-400 focus:outline-none 
-                                                                       transition duration-200 ease-in-out"
-                                                                    type="checkbox"
-                                                                    checked={form.permissions[module]?.includes(Number(level)) || false}
-                                                                    onChange={() => togglePermission(module, Number(level))}
-                                                                />
+                                            <tbody className="divide-y divide-slate-100">
+                                                {Object.entries(admin.permissions || {}).map(([module, levels]) => (
+                                                    <tr key={module} className="hover:bg-slate-50/60">
+                                                        <td className="py-2 px-3 font-semibold text-slate-800 capitalize">
+                                                            {module.replace('_', ' ')}
+                                                        </td>
+                                                        {Object.keys(PERMISSION_LABELS).map((permKey) => (
+                                                            <td key={permKey} className="py-2 px-3 text-center">
+                                                                {levels.includes(Number(permKey)) ? (
+                                                                    <span className="text-emerald-600 font-bold">✓</span>
+                                                                ) : (
+                                                                    <span className="text-slate-300">-</span>
+                                                                )}
                                                             </td>
                                                         ))}
                                                     </tr>
@@ -534,42 +435,209 @@ export default function SuperAdminDashboard() {
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        </span>
-                        <div className="modalfooter">
-                            <Button variant="outlined"
-                                onClick={resetForm}
-                            >
-                                Cancel
-                            </Button>
-                            <Button variant="contained"
-                                onClick={handleSave}
-                                loading={isload}
-                            >
-                                {editingIndex !== null ? "Update" : "Create"}
-                            </Button>
-
-
                         </div>
-                    </form>
+                    ))}
                 </div>
-            </Modalbox>
+            )}
 
-            <Modalbox open={passmodal} onClose={() => {
-                setpassmodal(false);
-            }}>
-                <div className="membermodal" >
-                    <form onSubmit={updatePassword}>
-                        <h2>Reset Passowrd</h2>
-                        <span className="modalcontent ">
-                            <TextField fullWidth inputProps={{ minLength: 3, maxLength: 10 }} required value={pass.pass} onChange={(e) => setpass({ ...pass, pass: e.target.value })} label="Passowrd" size="small" />
-                            <Button variant="contained" sx={{ mr: 2 }} type="submit" >Reset Password</Button>
-                        </span>
-                    </form>
-                </div>
-            </Modalbox>
+            {/* Add / Edit Admin Modal */}
+            <Modal
+                open={showForm}
+                onClose={() => setShowForm(false)}
+                title={editingIndex !== null ? "Edit Administrator" : "Add Administrator / Manager"}
+                subtitle="Configure user credentials and granular feature permissions"
+                maxWidth="max-w-2xl"
+            >
+                <form onSubmit={handleSave} className="space-y-4">
+                    <div className="flex justify-center">
+                        <div className="relative w-20 h-20">
+                            <input
+                                type="file"
+                                onChange={handleProfileImageChange}
+                                ref={inputref}
+                                accept="image/*"
+                                className="hidden"
+                            />
 
+                            {form.profilePreview ? (
+                                <img
+                                    src={form.profilePreview}
+                                    alt={form.name}
+                                    className="w-full h-full rounded-full object-cover border-2 border-teal-200"
+                                />
+                            ) : (
+                                <div className="w-full h-full rounded-full bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-xl border-2 border-dashed border-teal-300">
+                                    {form.name ? form.name.charAt(0).toUpperCase() : <User size={28} />}
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => inputref.current.click()}
+                                className="absolute bottom-0 right-0 p-1.5 bg-teal-700 text-white rounded-full shadow hover:bg-teal-800 transition cursor-pointer"
+                            >
+                                <Edit2 size={12} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                            label="Full Name"
+                            required
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        />
+
+                        <Input
+                            label="Email Address"
+                            type="email"
+                            required
+                            helperText="e.g. xyz@goodnature.com"
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        />
+                    </div>
+
+                    {editingIndex === null && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Initial Password"
+                                type="password"
+                                required
+                                value={form.password}
+                                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            />
+
+                            <Select
+                                label="Role Assignment"
+                                options={[
+                                    { label: 'Admin', value: 'admin' },
+                                    { label: 'Manager', value: 'manager' }
+                                ]}
+                                value={form.role}
+                                onChange={(e) => handleRoleChange(e.target.value)}
+                            />
+                        </div>
+                    )}
+
+                    {/* Add Module (Manager only) */}
+                    {form.role === "manager" && (
+                        <div className="flex items-end gap-2 pt-2">
+                            <div className="flex-1">
+                                <Select
+                                    label="Add Custom Module Permission"
+                                    placeholder="Select module to grant..."
+                                    options={availableModulesToAdd.map(m => ({ label: m.replace('_', ' '), value: m }))}
+                                    value={newModule}
+                                    onChange={(e) => setNewModule(e.target.value)}
+                                />
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleAddModule}
+                                disabled={!newModule}
+                            >
+                                Add Module
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Permissions Table */}
+                    <div className="space-y-2 pt-2">
+                        <label className="text-xs font-semibold text-slate-700 tracking-wide">Granular Permissions</label>
+                        <div className="overflow-x-auto rounded-xl border border-slate-200/80 max-h-60 overflow-y-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                                <thead className="bg-slate-50/80 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-50">
+                                    <tr>
+                                        <th className="py-2 px-3">Module</th>
+                                        {Object.entries(PERMISSION_LABELS).map(([code, label]) => (
+                                            <th key={code} className="py-2 px-3 text-center">{label}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {currentModules.map((module) => (
+                                        <tr key={module} className="hover:bg-slate-50/50">
+                                            <td className="py-2 px-3 capitalize font-medium text-slate-800">
+                                                {module.replace('_', ' ')}
+                                            </td>
+                                            {Object.keys(PERMISSION_LABELS).map((level) => (
+                                                <td key={level} className="py-2 px-3 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 border-slate-300 cursor-pointer"
+                                                        checked={form.permissions[module]?.includes(Number(level)) || false}
+                                                        onChange={() => togglePermission(module, Number(level))}
+                                                    />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={resetForm}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            loading={isload}
+                        >
+                            {editingIndex !== null ? "Update Admin" : "Create Admin"}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Password Reset Modal */}
+            <Modal
+                open={passmodal}
+                onClose={() => setpassmodal(false)}
+                title="Reset Administrator Password"
+                subtitle="Assign a new secure password for this user"
+                maxWidth="max-w-md"
+            >
+                <form onSubmit={updatePassword} className="space-y-4">
+                    <Input
+                        label="New Password"
+                        type="password"
+                        required
+                        minLength={3}
+                        maxLength={20}
+                        placeholder="Enter new password"
+                        value={pass.pass}
+                        onChange={(e) => setpass({ ...pass, pass: e.target.value })}
+                    />
+
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setpassmodal(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                        >
+                            Reset Password
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { FormControl, InputLabel, Select, MenuItem, TextField, Button } from '@mui/material';
 import { MessageSquareWarning, RotateCcw, Clock, Info } from 'lucide-react';
 import DataTable from '@/components/common/DataTable';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
+import Select from '@/components/ui/Select';
+import DateInput from '@/components/ui/DateInput';
+import Button from '@/components/ui/Button';
 
 dayjs.extend(isSameOrBefore);
 
@@ -45,12 +47,18 @@ const EmpAttenPerformance = () => {
     const [toDate, setToDate] = useState('');
 
     const currentYear = dayjs().year();
-    const yearOptions = useMemo(() => Array.from({ length: 8 }, (_, i) => currentYear + 1 - i), [currentYear]);
-    const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => ({
-        label: dayjs().month(i).format('MMMM'),
-        value: i,
-    })), []);
+    const yearOptions = useMemo(() => Array.from({ length: 8 }, (_, i) => ({
+        label: `${currentYear + 1 - i}`,
+        value: currentYear + 1 - i
+    })), [currentYear]);
 
+    const monthOptions = useMemo(() => [
+        { label: 'All Months', value: 'all' },
+        ...Array.from({ length: 12 }, (_, i) => ({
+            label: dayjs().month(i).format('MMMM'),
+            value: i,
+        }))
+    ], []);
 
     const normalizedAttendance = useMemo(() => {
         if (!attendance?.length) return [];
@@ -58,113 +66,92 @@ const EmpAttenPerformance = () => {
             const dateObj = dayjs(entry.date);
             const dateKey = dateObj.format('YYYY-MM-DD');
             const isSpecialDay = entry.dayType === 'holiday';
-            const isWeeklyOffWork = entry.dayType === 'weekoff' || (entry.weeklyOffMinutes && entry.weeklyOffMinutes > 0) || (entry.remarks && entry.remarks.includes("weekly off"));
 
             return {
                 ...entry,
-                dateObj,
                 dateKey,
-                isShort: isPresent && !isSpecialDay && !isWeeklyOffWork && (entry.shortMinutes || 0) > 0,
-                isOvertime: isPresent && !isWeeklyOffWork && ((entry.overtimeMinutes || 0) > 0 || isSpecialDay),
-                isWeeklyOffWork,
-                isEarlyArrival: entry.punchInStatus === 'early',
-                isLateArrival: entry.punchInStatus === 'late',
-                isEarlyLeave: entry.punchOutStatus === 'early',
-                isLateLeave: entry.punchOutStatus === 'late',
+                dayName: dateObj.format('dddd'),
+                rawDate: dateObj,
+                isSpecialDay,
             };
         });
     }, [attendance]);
 
     const periodFilteredAttendance = useMemo(() => {
+        if (!normalizedAttendance.length) return [];
+
         return normalizedAttendance.filter((entry) => {
-            const matchYear = entry.dateObj.year() === selectedYear;
-            const matchMonth = selectedMonth === 'all' || entry.dateObj.month() === selectedMonth;
-            return matchYear && matchMonth;
+            const entryDate = entry.rawDate;
+            const matchesYear = selectedYear === 'all' || entryDate.year() === Number(selectedYear);
+            const matchesMonth = selectedMonth === 'all' || entryDate.month() === Number(selectedMonth);
+            return matchesYear && matchesMonth;
         });
     }, [normalizedAttendance, selectedYear, selectedMonth]);
 
     const hell = useMemo(() => {
-        if (!periodFilteredAttendance.length) return initialHell;
-
-        const results = { ...initialHell, present: [], absent: [], leave: [], holiday: [], short: [], overtime: [], weeklyoffwork: [], latearrival: [], earlyarrival: [], earlyLeave: [], lateleave: [] };
-        let shorttimemin = 0;
-        let overtimemin = 0;
-        let weeklyoffworkmin = 0;
+        const stats = {
+            present: [],
+            absent: [],
+            leave: [],
+            holiday: [],
+            short: [],
+            overtime: [],
+            weeklyoffwork: [],
+            latearrival: [],
+            earlyarrival: [],
+            earlyLeave: [],
+            lateleave: [],
+            shorttimemin: 0,
+            overtimemin: 0,
+            weeklyoffworkmin: 0,
+            overtimesalary: 0,
+        };
 
         periodFilteredAttendance.forEach((entry) => {
-            if (entry.status === 'present' || entry.status === 'half day') {
-                results.present.push(entry.dateKey);
-            } else if (entry.status === 'absent') {
-                results.absent.push(entry.dateKey);
-            } else if (entry.status === 'leave') {
-                results.leave.push(entry.dateKey);
-            }
-            if (entry.status === 'holiday' || entry.dayType === 'holiday') {
-                results.holiday.push(entry.dateKey);
-            }
+            if (entry.status === 'present') stats.present.push(entry);
+            if (entry.status === 'absent') stats.absent.push(entry);
+            if (entry.status === 'leave') stats.leave.push(entry);
+            if (entry.status === 'holiday') stats.holiday.push(entry);
 
-            if (entry.isEarlyArrival) results.earlyarrival.push(entry.dateKey);
-            if (entry.isLateArrival) results.latearrival.push(entry.dateKey);
-            if (entry.isEarlyLeave) results.earlyLeave.push(entry.dateKey);
-            if (entry.isLateLeave) results.lateleave.push(entry.dateKey);
-
-            const isWO = entry.dayType === 'weekoff' || (entry.weeklyOffMinutes && entry.weeklyOffMinutes > 0) || (entry.remarks && entry.remarks.includes("weekly off")) || entry.isWeeklyOffWork;
-
-            if (isWO && (entry.workingMinutes > 0 || (entry.weeklyOffMinutes && entry.weeklyOffMinutes > 0))) {
-                const wMin = entry.weeklyOffMinutes || entry.workingMinutes || 0;
-                results.weeklyoffwork.push(entry.dateKey);
-                weeklyoffworkmin += wMin;
-            } else if (entry.status === 'present' || entry.status === 'half day') {
-                if (entry.shortMinutes > 0) {
-                    results.short.push(entry.dateKey);
-                    shorttimemin += entry.shortMinutes;
-                }
-                if (entry.overtimeMinutes > 0) {
-                    results.overtime.push(entry.dateKey);
-                    overtimemin += entry.overtimeMinutes;
-                }
+            if (entry.shortMinutes > 0) {
+                stats.short.push(entry);
+                stats.shorttimemin += entry.shortMinutes;
             }
+            if (entry.overtimeMinutes > 0) {
+                stats.overtime.push(entry);
+                stats.overtimemin += entry.overtimeMinutes;
+            }
+            if (entry.weeklyOffMinutes > 0) {
+                stats.weeklyoffwork.push(entry);
+                stats.weeklyoffworkmin += entry.weeklyOffMinutes;
+            }
+            if (entry.lateArrival) stats.latearrival.push(entry);
+            if (entry.earlyArrival) stats.earlyarrival.push(entry);
+            if (entry.earlyLeave) stats.earlyLeave.push(entry);
+            if (entry.lateLeave) stats.lateleave.push(entry);
         });
 
-        const salary = Number(profile?.salary || 0);
-        const overtimeAfterMinutes = Number(companysetting?.workingMinutes?.overtimeAfterMinutes || 0);
-        const daysInMonth = selectedMonth === 'all' ? 30 : dayjs(new Date(selectedYear, Number(selectedMonth), 1)).daysInMonth();
-
-        const netMins = overtimemin - shorttimemin;
-        const preciseRate = salary / daysInMonth / overtimeAfterMinutes;
-        const overtimesalary = (selectedMonth !== 'all' && salary > 0 && overtimeAfterMinutes > 0)
-            ? (netMins >= 0 ? Math.ceil(netMins * preciseRate) : -Math.ceil(Math.abs(netMins) * preciseRate))
-            : 0;
-
-        return { ...results, shorttimemin, overtimemin, weeklyoffworkmin, overtimesalary };
-    }, [periodFilteredAttendance, profile?.salary, companysetting, selectedMonth, selectedYear]);
+        return stats;
+    }, [periodFilteredAttendance]);
 
     const filteredData = useMemo(() => {
-        const from = fromDate ? dayjs(fromDate).startOf('day') : null;
-        const to = toDate ? dayjs(toDate).endOf('day') : null;
-
         return periodFilteredAttendance.filter((entry) => {
-            if (from && entry.dateObj.isBefore(from)) return false;
-            if (to && entry.dateObj.isAfter(to)) return false;
             if (statusFilter !== 'all' && entry.status !== statusFilter) return false;
 
-            if (typeFilter !== 'all') {
-                const typeMatch =
-                    (typeFilter === 'earlyLeave' && entry.isEarlyLeave) ||
-                    (typeFilter === 'lateleave' && entry.isLateLeave) ||
-                    (typeFilter === 'earlyarrival' && entry.isEarlyArrival) ||
-                    (typeFilter === 'latearrival' && entry.isLateArrival);
-                if (!typeMatch) return false;
-            }
+            if (typeFilter === 'earlyLeave' && !entry.earlyLeave) return false;
+            if (typeFilter === 'lateleave' && !entry.lateLeave) return false;
+            if (typeFilter === 'earlyarrival' && !entry.earlyArrival) return false;
+            if (typeFilter === 'latearrival' && !entry.lateArrival) return false;
 
-            if (timeFilter !== 'all') {
-                const timeMatch = (timeFilter === 'short' && entry.isShort) || (timeFilter === 'overtime' && entry.isOvertime);
-                if (!timeMatch) return false;
-            }
+            if (timeFilter === 'overtime' && !(entry.overtimeMinutes > 0)) return false;
+            if (timeFilter === 'short' && !(entry.shortMinutes > 0)) return false;
+
+            if (fromDate && entry.rawDate.isBefore(dayjs(fromDate), 'day')) return false;
+            if (toDate && entry.rawDate.isAfter(dayjs(toDate), 'day')) return false;
 
             return true;
         });
-    }, [periodFilteredAttendance, fromDate, toDate, statusFilter, typeFilter, timeFilter]);
+    }, [periodFilteredAttendance, statusFilter, typeFilter, timeFilter, fromDate, toDate]);
 
     const resetFilters = () => {
         setSelectedYear(dayjs().year());
@@ -177,27 +164,33 @@ const EmpAttenPerformance = () => {
     };
 
     return (
-        <div className="p-1 md:p-4 capitalize ">
-            <div className="p-1 py-3 md:p-3 flex flex-wrap gap-1 md:gap-3 items-center justify-between rounded shadow bg-white mb-4">
-                <div className="gap-3 md:gap-3 flex">
-                    <FormControl className="w-[90px] md:w-[120px]" size="small">
-                        <InputLabel>Year</InputLabel>
-                        <Select value={selectedYear} label="Year" onChange={(e) => setSelectedYear(e.target.value)}>
-                            {yearOptions.map((year) => <MenuItem key={year} value={year}>{year}</MenuItem>)}
-                        </Select>
-                    </FormControl>
+        <div className="p-2 md:p-6 space-y-4 max-w-7xl mx-auto">
+            <div className="p-4 flex flex-wrap gap-3 items-center justify-between rounded-xl shadow-xs border border-slate-200/80 bg-white">
+                <div className="flex flex-wrap gap-3 items-center">
+                    <div className="w-28">
+                        <Select
+                            size="sm"
+                            label="Year"
+                            options={yearOptions}
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        />
+                    </div>
 
-                    <FormControl size="small" className="w-[130px] md:w-[160px]">
-                        <InputLabel>Month</InputLabel>
-                        <Select value={selectedMonth} label="Month" onChange={(e) => setSelectedMonth(e.target.value)}>
-                            <MenuItem value="all">All</MenuItem>
-                            {monthOptions.map((month) => <MenuItem key={month.label} value={month.value}>{month.label}</MenuItem>)}
-                        </Select>
-                    </FormControl>
+                    <div className="w-40">
+                        <Select
+                            size="sm"
+                            label="Month"
+                            options={monthOptions}
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                        />
+                    </div>
                 </div>
-                <div className="text-end">
-                    <p className="font-semibold text-sm md:text-lg">{profile?.userid?.name}</p>
-                    <p className="text-[12px] md:text-sm text-gray-600">({profile?.branchId?.name})</p>
+
+                <div className="text-right">
+                    <p className="font-bold text-sm md:text-base text-slate-800">{profile?.userid?.name}</p>
+                    <p className="text-xs text-slate-500">{profile?.branchId?.name || 'Main Branch'}</p>
                 </div>
             </div>
 
@@ -207,64 +200,91 @@ const EmpAttenPerformance = () => {
                 hell={hell}
             />
 
-            <div className="p-1 py-4 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 rounded shadow bg-white my-4">
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Type</InputLabel>
-                    <Select value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="earlyLeave">Early Leave</MenuItem>
-                        <MenuItem value="lateleave">Late Leave</MenuItem>
-                        <MenuItem value="earlyarrival">Early Arrival</MenuItem>
-                        <MenuItem value="latearrival">Late Arrival</MenuItem>
-                    </Select>
-                </FormControl>
+            <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 rounded-xl shadow-xs border border-slate-200/80 bg-white">
+                <Select
+                    size="sm"
+                    label="Punch Type"
+                    options={[
+                        { label: 'All', value: 'all' },
+                        { label: 'Early Leave', value: 'earlyLeave' },
+                        { label: 'Late Leave', value: 'lateleave' },
+                        { label: 'Early Arrival', value: 'earlyarrival' },
+                        { label: 'Late Arrival', value: 'latearrival' }
+                    ]}
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                />
 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Status</InputLabel>
-                    <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="present">Present</MenuItem>
-                        <MenuItem value="leave">Leave</MenuItem>
-                        <MenuItem value="absent">Absent</MenuItem>
-                        <MenuItem value="weekly off">Weekly off</MenuItem>
-                        <MenuItem value="holiday">Holiday</MenuItem>
-                        <MenuItem value="half day">Half Day</MenuItem>
-                    </Select>
-                </FormControl>
+                <Select
+                    size="sm"
+                    label="Status"
+                    options={[
+                        { label: 'All', value: 'all' },
+                        { label: 'Present', value: 'present' },
+                        { label: 'Leave', value: 'leave' },
+                        { label: 'Absent', value: 'absent' },
+                        { label: 'Weekly Off', value: 'weekly off' },
+                        { label: 'Holiday', value: 'holiday' },
+                        { label: 'Half Day', value: 'half day' }
+                    ]}
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                />
 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Over/Short</InputLabel>
-                    <Select value={timeFilter} label="Over/Short" onChange={(e) => setTimeFilter(e.target.value)}>
-                        <MenuItem value="all">All</MenuItem>
-                        <MenuItem value="overtime">Overtime</MenuItem>
-                        <MenuItem value="short">Short Time</MenuItem>
-                    </Select>
-                </FormControl>
+                <Select
+                    size="sm"
+                    label="Over / Short"
+                    options={[
+                        { label: 'All', value: 'all' },
+                        { label: 'Overtime', value: 'overtime' },
+                        { label: 'Short Time', value: 'short' }
+                    ]}
+                    value={timeFilter}
+                    onChange={(e) => setTimeFilter(e.target.value)}
+                />
 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <TextField label="From Date" type="date" size="small" InputLabelProps={{ shrink: true }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-                </FormControl>
+                <DateInput
+                    size="sm"
+                    label="From Date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                />
 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <TextField label="To Date" type="date" size="small" InputLabelProps={{ shrink: true }} value={toDate} onChange={(e) => setToDate(e.target.value)} />
-                </FormControl>
+                <DateInput
+                    size="sm"
+                    label="To Date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                />
 
-                <Button variant="outlined" color="secondary" onClick={resetFilters} sx={{ alignSelf: 'flex-end', minWidth: 100 }} startIcon={<RotateCcw size={16} />}>Reset</Button>
+                <div className="flex items-end">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetFilters}
+                        startIcon={RotateCcw}
+                        className="w-full"
+                    >
+                        Reset
+                    </Button>
+                </div>
             </div>
 
-            <DataTable
-                columns={columns()}
-                data={filteredData}
-                pagination
-                customStyles={customStyles}
-                conditionalRowStyles={conditionalRowStyles}
-                highlightOnHover
-                noDataComponent={
-                    <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                        <MessageSquareWarning size={20} /> No records found matching your criteria.
-                    </div>
-                }
-            />
+            <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
+                <DataTable
+                    columns={columns()}
+                    data={filteredData}
+                    pagination
+                    customStyles={customStyles}
+                    conditionalRowStyles={conditionalRowStyles}
+                    highlightOnHover
+                    noDataComponent={
+                        <div className="flex items-center gap-2 py-8 justify-center text-slate-500 text-sm">
+                            <MessageSquareWarning size={18} /> No records found matching your criteria.
+                        </div>
+                    }
+                />
+            </div>
         </div>
     );
 };
@@ -279,15 +299,24 @@ const minutesinhours = (mins) => {
 
 const conditionalRowStyles = [
     {
-        when: (row) => row.dayType === 'holiday',
+        when: row => row.status === 'absent',
         style: {
-            backgroundColor: 'rgba(59, 130, 246, 0.08)', // Light blue for holiday
+            backgroundColor: '#fef2f2',
+            color: '#991b1b',
         },
     },
     {
-        when: (row) => row.dayType === 'weekoff',
+        when: row => row.status === 'holiday',
         style: {
-            backgroundColor: 'rgba(147, 51, 234, 0.08)', // Light purple for weekoff
+            backgroundColor: '#eff6ff',
+            color: '#1e40af',
+        },
+    },
+    {
+        when: row => row.status === 'weekly off',
+        style: {
+            backgroundColor: '#fefce8',
+            color: '#854d0e',
         },
     },
 ];
@@ -295,111 +324,53 @@ const conditionalRowStyles = [
 const columns = () => [
     {
         name: 'Date',
-        selector: (row) => dayjs(row.date).format('DD MMM, YYYY'),
+        selector: (row) => row.dateKey,
         sortable: true,
-        style: { minWidth: '100px' },
+        width: '120px',
+        cell: (row) => dayjs(row.date).format('DD MMM YYYY')
     },
     {
-        name: 'Punch In',
-        style: { minWidth: '140px' },
-        selector: (row) => row.punchIn,
-        cell: (emp) => {
-            if (!emp.punchIn) return '-';
-            return (
-                <span className="flex items-center gap-1">
-                    <Clock size={16} className="text-blue-700" />
-                    {dayjs(emp.punchIn).format('hh:mm A')}
-                    {emp.punchInStatus === 'early' && <span className="px-2 py-0.5 ml-2 rounded bg-sky-100 text-sky-800 text-xs">Early</span>}
-                    {emp.punchInStatus === 'late' && <span className="px-2 py-0.5 ml-2 rounded bg-amber-100 text-amber-800 text-xs">Late</span>}
-                </span>
-            );
-        },
+        name: 'Day',
+        selector: (row) => row.dayName,
+        width: '100px'
     },
     {
-        name: 'Punch Out',
-        style: { minWidth: '140px' },
-        selector: (row) => row.punchOut,
-        cell: (emp) => {
-            if (!emp.punchOut) return '-';
-            return (
-                <span className="flex items-center gap-1">
-                    <Clock size={16} className="text-blue-700" />
-                    {dayjs(emp.punchOut).format('hh:mm A')}
-                    {emp.punchOutStatus === 'early' && <span className="px-2 py-0.5 ml-2 rounded bg-amber-100 text-amber-800 text-xs">Early</span>}
-                    {emp.punchOutStatus === 'late' && <span className="px-2 py-0.5 ml-2 rounded bg-sky-100 text-sky-800 text-xs">Late</span>}
-                </span>
-            );
-        },
+        name: 'In Time',
+        selector: (row) => row.inTime || '-',
+        width: '100px'
+    },
+    {
+        name: 'Out Time',
+        selector: (row) => row.outTime || '-',
+        width: '100px'
+    },
+    {
+        name: 'Work Hours',
+        selector: (row) => minutesinhours(row.workingMinutes || 0),
+        width: '110px'
+    },
+    {
+        name: 'Overtime',
+        selector: (row) => row.overtimeMinutes > 0 ? `+${minutesinhours(row.overtimeMinutes)}` : '-',
+        width: '100px',
+        cell: (row) => row.overtimeMinutes > 0 ? (
+            <span className="text-emerald-700 font-bold">+{minutesinhours(row.overtimeMinutes)}</span>
+        ) : '-'
+    },
+    {
+        name: 'Short Time',
+        selector: (row) => row.shortMinutes > 0 ? `-${minutesinhours(row.shortMinutes)}` : '-',
+        width: '100px',
+        cell: (row) => row.shortMinutes > 0 ? (
+            <span className="text-red-700 font-bold">-{minutesinhours(row.shortMinutes)}</span>
+        ) : '-'
     },
     {
         name: 'Status',
-        selector: (emp) => emp.status,
-        cell: (emp) => {
-            const { status, leave } = emp;
-            const colorMap = { absent: 'bg-red-100 text-red-800', leave: 'bg-violet-100 text-violet-800', present: 'bg-green-100 text-green-800', holiday: 'bg-blue-100 text-blue-800' };
-            const classes = colorMap[status] || 'bg-gray-100 text-gray-800';
-            return (
-                <>
-                    <span className={`${classes} px-2 py-1 rounded text-xs`}>{status}</span>
-                    {leave?.reason && (
-                        <span title={leave.reason} className="ml-1 text-blue-600 text-lg font-bold">
-                            <Info size={16} />
-                        </span>
-                    )}
-                </>
-            );
-        },
-       width: "120px",
-    },
-    {
-        name: 'Working Hours',
-        style: { minWidth: '180px' },
-        selector: (emp) => emp.workingMinutes,
-        cell: (emp) => {
-            const wm = emp.workingMinutes;
-            const isSpecialDay = emp.dayType === 'holiday' || emp.dayType === 'weekoff';
-
-            if (!wm) {
-                return (
-                    <p className="text-[11px] mt-1 font-medium italic">
-                        {emp.dayType === 'holiday' ? (
-                            <span className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-100">Holiday</span>
-                        ) : emp.dayType === 'weekoff' ? (
-                            <span className="text-purple-600 bg-purple-50 px-1 py-0.5 rounded border border-purple-100">Weekly Off</span>
-                        ) : "-"}
-                    </p>
-                );
-            }
-            return (
-                <div className="flex flex-col">
-                    <span className="flex">
-                        <span className="block w-[60px]">{minutesinhours(wm)}</span>
-                        {emp.dayType === 'weekoff' || emp.isWeeklyOffWork || (emp.weeklyOffMinutes && emp.weeklyOffMinutes > 0) ? (
-                            <span className="ml-2 p-1 rounded bg-purple-100 text-purple-800 text-xs">WO Work {minutesinhours(emp.weeklyOffMinutes || wm)}</span>
-                        ) : (
-                            <>
-                                {emp.shortMinutes > 0 && !isSpecialDay && (
-                                    <span className="ml-2 px-1 py-1 rounded bg-amber-100 text-amber-800 text-xs">Short {emp.shortMinutes} min</span>
-                                )}
-                                {(emp.overtimeMinutes > 0 || isSpecialDay) && (
-                                    <span className="ml-2 p-1 rounded bg-green-100 text-green-800 text-xs">Overtime {emp.overtimeMinutes || emp.workingMinutes} min</span>
-                                )}
-                            </>
-                        )}
-                    </span>
-                    <p className="text-[11px] mt-1 font-medium italic">
-                        {emp.dayType === 'holiday' ? (
-                            <span className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-100">Holiday</span>
-                        ) : emp.dayType === 'weekoff' ? (
-                            <span className="text-purple-600 bg-purple-50 px-1 py-0.5 rounded border border-purple-100">Weekly Off</span>
-                        ) : ""}
-                    </p>
-                </div>
-            );
-        },
-    },
-    {
-        name: 'Remarks',
-        selector: (emp) => emp.remarks,
-    },
+        selector: (row) => row.status,
+        width: '120px',
+        cell: (row) => (
+            <span className="capitalize font-semibold text-xs">{row.status}</span>
+        )
+    }
 ];

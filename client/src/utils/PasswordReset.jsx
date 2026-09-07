@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save } from "lucide-react";
-import LoadingButton from '@mui/lab/LoadingButton';
-import TextField from '@mui/material/TextField';
+import { Save, Lock } from "lucide-react";
 import { useState } from 'react';
 import { toast } from "./toast";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 const PasswordReset = () => {
     const { token } = useParams();
@@ -38,48 +38,52 @@ const PasswordReset = () => {
         }
     };
 
+    const isMismatch = inp.cpass.length > 0 && inp.pass !== inp.cpass;
+
     return (
-        <div className="w-full p-2 md:p-4 h-[calc(100vh-64px)] bg-white grid place-items-center">
-            <div className=" w-full md:w-[300px] rounded-xl overflow-hidden shadow-md">
-                <h2 className="w-full h-10 leading-10 tracking-wide text-white pl-3 bg-teal-600">
-                    Reset Password
-                </h2>
-                <form
-                    onSubmit={handlesubmit}
-                    className="w-full flex flex-col items-center p-4"
-                >
-                    <TextField
+        <div className="w-full p-4 h-[calc(100vh-64px)] bg-slate-50 flex items-center justify-center">
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200/80 overflow-hidden">
+                <div className="px-6 py-4 bg-teal-800 text-white flex items-center gap-2.5">
+                    <Lock size={18} />
+                    <h2 className="text-base font-bold tracking-wide">
+                        Reset Password
+                    </h2>
+                </div>
+
+                <form onSubmit={handlesubmit} className="p-6 space-y-4">
+                    <Input
                         required
                         type='password'
                         name="pass"
+                        label="New Password"
+                        placeholder="Enter new password"
                         onChange={handlechange}
                         value={inp.pass}
-                        sx={{ width: '98%', mt: 2, mb: 2 }}
-                        label="Password"
-                        variant="outlined"
                     />
-                    <TextField
+
+                    <Input
                         required
+                        type='password'
                         name="cpass"
+                        label="Confirm Password"
+                        placeholder="Repeat new password"
                         onChange={handlechange}
                         value={inp.cpass}
-                        error={inp.cpass.length ? inp.pass !== inp.cpass : false}
-                        helperText={inp.cpass.length ? inp.pass !== inp.cpass ? "Password must be same" : "" :''}
-                        sx={{ width: '98%', mt: 2, mb: 2 }}
-                        label="Confirm Password"
-                        variant="outlined"
+                        error={isMismatch ? "Passwords must match" : undefined}
                     />
-                    <LoadingButton
-                        loading={isloading}
-                        disabled={inp.pass !== inp.cpass || !inp.pass.length}
-                        loadingPosition="start"
-                        sx={{ width: '98%', mt: 2, mb: 2 }}
-                        startIcon={<Save size={16} />}
-                        variant="outlined"
-                        type="submit"
-                    >
-                        Change Password
-                    </LoadingButton>
+
+                    <div className="pt-2">
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            loading={isloading}
+                            disabled={isMismatch || !inp.pass.length}
+                            startIcon={Save}
+                            className="w-full"
+                        >
+                            Change Password
+                        </Button>
+                    </div>
                 </form>
             </div>
         </div>

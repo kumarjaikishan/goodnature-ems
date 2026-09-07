@@ -1,27 +1,23 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { Autocomplete, Avatar, Box, Typography, CircularProgress, Chip } from '@mui/material';
-import { Button, OutlinedInput } from '@mui/material';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
-import { Send, User } from "lucide-react";
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import TextField from '@mui/material/TextField';
-import { useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
+import { Send, User, X, AlertCircle } from "lucide-react";
+import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import { getSingleEmployeeAttendanceApi } from '../../../api/attendance.api';
 
-const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle, setopenmodal, isUpdate, isload, inp, setinp, setisUpdate }) => {
+// Custom UI Components
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import DateInput from '../../../components/ui/DateInput';
+import Select from '../../../components/ui/Select';
 
+const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle, setopenmodal, isUpdate, isload, inp, setinp, setisUpdate }) => {
     const { department, employee } = useSelector((state) => state.user);
     const [fetchingAttendance, setFetchingAttendance] = useState(false);
     const [existingRecord, setExistingRecord] = useState(null);
+    const [employeeSearch, setEmployeeSearch] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
 
     // Fetch existing attendance record when modal is open, employeeId is selected, and date is present
     useEffect(() => {
@@ -44,11 +40,10 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                     const rec = res.data;
                     setExistingRecord(rec);
 
-                    // Auto-fill form state based on existing record and action
                     setinp(prev => ({
                         ...prev,
-                        punchIn: rec.punchIn ? dayjs(rec.punchIn) : (prev.punchIn || null),
-                        punchOut: rec.punchOut ? dayjs(rec.punchOut) : (prev.punchOut || null),
+                        punchIn: rec.punchIn ? dayjs(rec.punchIn).format('HH:mm') : (prev.punchIn || ''),
+                        punchOut: rec.punchOut ? dayjs(rec.punchOut).format('HH:mm') : (prev.punchOut || ''),
                         status: rec.status || prev.status || 'present',
                         reason: rec.remarks || prev.reason || '',
                     }));
@@ -78,220 +73,245 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
     useEffect(() => {
         if (!openmodal) {
             setExistingRecord(null);
+            setEmployeeSearch('');
+            setShowDropdown(false);
         }
     }, [openmodal]);
 
+    const activeEmployees = (employee || []).filter(e => e.status !== false);
+    const selectedEmp = activeEmployees.find(e => e._id === inp.employeeId);
+
+    const filteredEmployees = activeEmployees.filter(e => {
+        const name = e.userid?.name?.toLowerCase() || '';
+        const desig = e.designation?.toLowerCase() || '';
+        const search = employeeSearch.toLowerCase();
+        return name.includes(search) || desig.includes(search);
+    });
+
+    if (!openmodal) return null;
+
     return (
         <Modalbox open={openmodal} onClose={() => setopenmodal(false)}>
-            <div className="membermodal w-[500px]">
-                <form onSubmit={submitHandle}>
-                    <div className="flex items-center justify-between">
-                        <h2>Mark Attendance</h2>
-                        {fetchingAttendance && (
-                            <div className="flex items-center gap-1 text-xs text-blue-600 font-medium">
-                                <CircularProgress size={14} />
-                                <span>Checking attendance...</span>
-                            </div>
-                        )}
+            <div className="w-full max-w-lg p-6 space-y-4">
+                <form onSubmit={submitHandle} className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900">Mark Attendance</h3>
+                            <p className="text-xs text-slate-500">Record check-in or check-out timestamp</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setopenmodal(false)}
+                            className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
                     </div>
 
-                    <span className="modalcontent">
-                        <div className='flex flex-col gap-3'>
-                            <FormControl sx={{ width: '100%' }} size="small">
-                                <InputLabel id="demo-simple-select-helper-label">Action</InputLabel>
-                                <Select
-                                    labelId="demo-simple-select-helper-label"
-                                    id="demo-simple-select-helper"
-                                    value={isPunchIn}
-                                    label="Action"
-                                    required
-                                    onChange={(e) => {
-                                        setisPunchIn(e.target.value)
-                                    }}
-                                >
-                                    <MenuItem value={true}>Punch In</MenuItem>
-                                    <MenuItem value={false}>Punch Out</MenuItem>
-                                </Select>
-                            </FormControl>
+                    <div className="space-y-3">
+                        <Select
+                            size="sm"
+                            label="Action Type"
+                            required
+                            value={isPunchIn}
+                            onChange={(e) => setisPunchIn(e.target.value === 'true' || e.target.value === true)}
+                            options={[
+                                { value: true, label: "Punch In (Check-in)" },
+                                { value: false, label: "Punch Out (Check-out)" }
+                            ]}
+                        />
 
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                <DatePicker
-                                    slotProps={{
-                                        textField: {
-                                            size: 'small',
-                                        },
-                                    }}
-                                    onChange={(newValue) => {
-                                        setinp({
-                                            ...inp, ['date']: newValue
-                                        })
-                                    }}
-                                    format="DD-MM-YYYY"
-                                    value={inp?.date}
-                                    sx={{ width: '100%' }}
-                                    label="Select date"
-                                    maxDate={dayjs()}
-                                />
-                            </LocalizationProvider>
+                        <DateInput
+                            size="sm"
+                            label="Attendance Date"
+                            required
+                            value={inp?.date ? dayjs(inp.date).format('YYYY-MM-DD') : ''}
+                            onChange={(val) => setinp({ ...inp, date: val ? dayjs(val) : null })}
+                        />
 
-                            <Autocomplete
-                                size="small"
-                                fullWidth
-                                value={employee?.find(emp => emp._id === inp.employeeId) || null}
-                                options={employee?.filter(e => e.status !== false) || []}
-                                getOptionLabel={(option) => option.userid.name} // still needed for filtering
-                                onChange={(event, newValue) => {
-                                    setinp({
-                                        ...inp,
-                                        employeeId: newValue ? newValue._id : '',
-                                    })
-                                }}
-                                renderOption={(props, option) => {
-                                    const { key, ...rest } = props; // destructure key out
-
-                                    return (
-                                        <Box key={option._id} // pass key directly
-                                            component="li"
-                                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                                            {...rest} // spread the rest
-                                        >
-                                            <Avatar
-                                                src={cloudinaryUrl(option.profileimage, {
-                                                    format: "webp",
-                                                    width: 100,
-                                                    height: 100,
-                                                })}
-                                                alt={option.userid.name}>
-                                                {!option.profileimage && <User size={16} />}
-                                            </Avatar>
-                                            <Box className=' capitalize'>
-                                                <Typography variant="body2">{option.userid.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {(option.designation)}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                    );
-                                }}
-
-                                renderInput={(params) => (
-                                    <TextField {...params} label="Select Employee" required />
-                                )}
-                            />
-
-                            {/* Existing Record Info Card */}
-                            {existingRecord && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-md p-2.5 text-xs text-gray-700 flex flex-col gap-1">
-                                    <div className="font-semibold text-blue-800 flex items-center justify-between">
-                                        <span>Existing Attendance Found</span>
-                                        <span className="capitalize px-1.5 py-0.5 rounded bg-blue-200 text-blue-900 font-medium">
-                                            {existingRecord.status}
-                                        </span>
+                        {/* Custom Searchable Employee Picker */}
+                        <div className="relative">
+                            <label className="block text-xs font-medium text-slate-700 mb-1">
+                                Select Employee <span className="text-rose-500">*</span>
+                            </label>
+                            
+                            {selectedEmp ? (
+                                <div className="flex items-center justify-between p-2 rounded-lg border border-slate-300 bg-slate-50">
+                                    <div className="flex items-center gap-2.5">
+                                        {selectedEmp.profileimage ? (
+                                            <img
+                                                src={cloudinaryUrl(selectedEmp.profileimage, { format: "webp", width: 80, height: 80 })}
+                                                alt={selectedEmp.userid?.name}
+                                                className="w-7 h-7 rounded-full object-cover border border-slate-200"
+                                            />
+                                        ) : (
+                                            <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs">
+                                                {selectedEmp.userid?.name?.charAt(0) || 'E'}
+                                            </div>
+                                        )}
+                                        <div>
+                                            <p className="text-xs font-semibold text-slate-900">{selectedEmp.userid?.name}</p>
+                                            <p className="text-[10px] text-slate-500">{selectedEmp.designation || 'Staff'}</p>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-4 mt-0.5">
-                                        <span>Punch In: <strong>{existingRecord.punchIn ? dayjs(existingRecord.punchIn).format('hh:mm A') : 'Not marked'}</strong></span>
-                                        <span>Punch Out: <strong>{existingRecord.punchOut ? dayjs(existingRecord.punchOut).format('hh:mm A') : 'Not marked'}</strong></span>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setinp({ ...inp, employeeId: '' });
+                                            setEmployeeSearch('');
+                                        }}
+                                        className="text-xs text-rose-600 hover:underline font-medium"
+                                    >
+                                        Change
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <Input
+                                        size="sm"
+                                        placeholder="Search employee by name..."
+                                        value={employeeSearch}
+                                        onChange={(e) => {
+                                            setEmployeeSearch(e.target.value);
+                                            setShowDropdown(true);
+                                        }}
+                                        onFocus={() => setShowDropdown(true)}
+                                    />
+                                    {showDropdown && (
+                                        <div className="absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg z-30 divide-y divide-slate-100">
+                                            {filteredEmployees.length === 0 ? (
+                                                <div className="p-3 text-xs text-slate-400 text-center">No employee found</div>
+                                            ) : (
+                                                filteredEmployees.map(emp => (
+                                                    <button
+                                                        key={emp._id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setinp({ ...inp, employeeId: emp._id });
+                                                            setShowDropdown(false);
+                                                        }}
+                                                        className="w-full text-left p-2 hover:bg-teal-50/50 flex items-center gap-2.5 transition-colors"
+                                                    >
+                                                        {emp.profileimage ? (
+                                                            <img
+                                                                src={cloudinaryUrl(emp.profileimage, { format: "webp", width: 80, height: 80 })}
+                                                                alt={emp.userid?.name}
+                                                                className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs shrink-0">
+                                                                {emp.userid?.name?.charAt(0) || 'E'}
+                                                            </div>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-semibold text-slate-800 truncate">{emp.userid?.name}</p>
+                                                            <p className="text-[10px] text-slate-500 truncate">{emp.designation || 'Staff'}</p>
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-
-                            <div className='flex gap-2 justify-between'>
-                                {isPunchIn ?
-                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <TimePicker
-                                            disabled={["absent", 'leave'].includes(inp.status)}
-                                            value={inp.punchIn}
-                                            slotProps={{
-                                                textField: {
-                                                    size: 'small',
-
-                                                },
-                                            }}
-                                            onChange={(newValue) => {
-                                                setinp({
-                                                    ...inp,
-                                                    punchIn: newValue
-                                                })
-                                            }}
-                                            sx={{ width: '100%' }}
-                                            label="Punch In"
-                                        />
-                                    </LocalizationProvider> :
-                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <TimePicker
-                                            value={inp.punchOut}
-                                            slotProps={{
-                                                textField: {
-                                                    size: 'small',
-
-                                                },
-                                            }}
-                                            onChange={(newValue) => {
-                                                setinp({
-                                                    ...inp,
-                                                    punchOut: newValue
-                                                })
-                                            }} sx={{ width: '100%' }} label="Punch Out" />
-                                    </LocalizationProvider>
-                                }
-                                {isPunchIn &&
-                                    <FormControl sx={{ width: '100%' }} size="small">
-                                        <InputLabel id="demo-simple-select-helper-label">Status</InputLabel>
-                                        <Select
-                                            labelId="demo-simple-select-helper-label"
-                                            id="demo-simple-select-helper"
-                                            value={inp.status}
-                                            label="Status"
-                                            required
-                                            onChange={(e) => {
-                                                setinp({
-                                                    ...inp,
-                                                    status: e.target.value
-                                                });
-                                            }}
-                                        >
-                                            <MenuItem value={'present'}>Present</MenuItem>
-                                            <MenuItem value={'leave'}>Leave</MenuItem>
-                                            <MenuItem value={'absent'}>Absent</MenuItem>
-                                            <MenuItem value={'weekly off'}>Weekly off</MenuItem>
-                                            <MenuItem value={'holiday'}>Holiday</MenuItem>
-                                            <MenuItem value={'half day'}>Half Day</MenuItem>
-                                        </Select>
-                                    </FormControl>}
-                            </div>
-                            <TextField fullWidth multiline
-                                onChange={(e) => {
-                                    setinp({
-                                        ...inp,
-                                        reason: e.target.value
-                                    });
-                                }}
-                                minRows={2} value={inp.reason || ''} label="Reason / Notes (Optional)" size="small" />
-
-                            <div className='w-full flex gap-2'>
-                                <Button size="small"
-                                    onClick={() => {
-                                        setopenmodal(false); setisUpdate(false); setinp(init)
-                                    }}
-                                    variant="outlined"> cancel</Button>
-                                {!isUpdate && <Button
-
-                                    loading={isload}
-                                    loadingPosition="end"
-                                    endIcon={<Send size={16} />}
-                                    variant="contained"
-                                    type="submit"
-                                >
-                                    Add
-                                </Button>}
-                            </div>
                         </div>
-                    </span>
+
+                        {/* Existing Record Info Card */}
+                        {existingRecord && (
+                            <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs text-slate-700 flex flex-col gap-1">
+                                <div className="font-semibold text-sky-900 flex items-center justify-between">
+                                    <span>Existing Attendance Found</span>
+                                    <span className="capitalize px-2 py-0.5 rounded-full bg-sky-200 text-sky-900 font-bold text-[10px]">
+                                        {existingRecord.status}
+                                    </span>
+                                </div>
+                                <div className="flex gap-4 mt-1 text-[11px]">
+                                    <span>Punch In: <strong>{existingRecord.punchIn ? dayjs(existingRecord.punchIn).format('hh:mm A') : 'Not marked'}</strong></span>
+                                    <span>Punch Out: <strong>{existingRecord.punchOut ? dayjs(existingRecord.punchOut).format('hh:mm A') : 'Not marked'}</strong></span>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">
+                                    {isPunchIn ? "Punch In Time" : "Punch Out Time"}
+                                </label>
+                                <input
+                                    type="time"
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
+                                    value={isPunchIn ? (inp.punchIn ? (dayjs.isDayjs(inp.punchIn) ? inp.punchIn.format('HH:mm') : inp.punchIn) : '') : (inp.punchOut ? (dayjs.isDayjs(inp.punchOut) ? inp.punchOut.format('HH:mm') : inp.punchOut) : '')}
+                                    onChange={(e) => {
+                                        const timeStr = e.target.value;
+                                        if (isPunchIn) {
+                                            setinp({ ...inp, punchIn: timeStr ? dayjs(`${dayjs(inp.date).format('YYYY-MM-DD')}T${timeStr}`) : null });
+                                        } else {
+                                            setinp({ ...inp, punchOut: timeStr ? dayjs(`${dayjs(inp.date).format('YYYY-MM-DD')}T${timeStr}`) : null });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {isPunchIn && (
+                                <Select
+                                    size="sm"
+                                    label="Status"
+                                    required
+                                    value={inp.status || 'present'}
+                                    onChange={(e) => setinp({ ...inp, status: e.target.value })}
+                                    options={[
+                                        { value: 'present', label: 'Present' },
+                                        { value: 'leave', label: 'Leave' },
+                                        { value: 'absent', label: 'Absent' },
+                                        { value: 'weekly off', label: 'Weekly off' },
+                                        { value: 'holiday', label: 'Holiday' },
+                                        { value: 'half day', label: 'Half Day' }
+                                    ]}
+                                />
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Reason / Notes (Optional)</label>
+                            <textarea
+                                rows={2}
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 placeholder:text-slate-400 resize-none transition-colors"
+                                value={inp.reason || ''}
+                                onChange={(e) => setinp({ ...inp, reason: e.target.value })}
+                                placeholder="Any additional notes..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                                setopenmodal(false);
+                                setisUpdate(false);
+                                setinp(init);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        {!isUpdate && (
+                            <Button
+                                size="sm"
+                                variant="primary"
+                                loading={isload}
+                                icon={<Send size={14} />}
+                                type="submit"
+                            >
+                                Submit Attendance
+                            </Button>
+                        )}
+                    </div>
                 </form>
             </div>
         </Modalbox>
-    )
-}
+    );
+};
 
-export default MarkAttandence
-
+export default MarkAttandence;

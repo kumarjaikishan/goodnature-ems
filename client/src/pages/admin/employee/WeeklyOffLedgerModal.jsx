@@ -1,31 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Chip,
-  IconButton,
-  CircularProgress,
-  Avatar,
-  Box,
-  Typography,
-} from "@mui/material";
-import { Trash2, Clock, Plus, Minus, RotateCcw } from "lucide-react";
+import { Trash2, Clock, Plus, Minus, X, AlertCircle } from "lucide-react";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
 import dayjs from "dayjs";
+
+// Custom UI Components
+import Modalbox from "../../../components/custommodal/Modalbox";
+import Button from "../../../components/ui/Button";
+import Input from "../../../components/ui/Input";
+import NumberInput from "../../../components/ui/NumberInput";
+import Select from "../../../components/ui/Select";
 
 const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
   const [loading, setLoading] = useState(false);
@@ -58,24 +42,6 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
       setLoading(false);
     }
   }, [empId]);
-
-  const handleRebuildSync = async () => {
-    try {
-      setRebuilding(true);
-      const res = await apiClient({
-        url: "weekly-off-ledger-rebuild",
-        method: "POST",
-      });
-      if (res.success) {
-        toast.success(res.message || "Historical weekly off ledger rebuilt successfully!");
-        fetchLedger();
-      }
-    } catch (err) {
-      console.error("Failed to rebuild ledger:", err);
-    } finally {
-      setRebuilding(false);
-    }
-  };
 
   useEffect(() => {
     if (open && empId) {
@@ -140,15 +106,35 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
   const getTypeBadge = (type) => {
     switch (type) {
       case "EARNED":
-        return <Chip label="Earned (Attendance)" size="small" color="purple" className="!bg-purple-100 !text-purple-800 !font-bold" />;
+        return (
+          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+            Earned (Attendance)
+          </span>
+        );
       case "PAYROLL_PAID":
-        return <Chip label="Paid in Payroll" size="small" className="!bg-emerald-100 !text-emerald-800 !font-bold" />;
+        return (
+          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            Paid in Payroll
+          </span>
+        );
       case "MANUAL_ADD":
-        return <Chip label="Manual Addition" size="small" className="!bg-blue-100 !text-blue-800 !font-bold" />;
+        return (
+          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+            Manual Addition
+          </span>
+        );
       case "MANUAL_DEDUCT":
-        return <Chip label="Manual Deduction" size="small" className="!bg-rose-100 !text-rose-800 !font-bold" />;
+        return (
+          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+            Manual Deduction
+          </span>
+        );
       default:
-        return <Chip label={type} size="small" />;
+        return (
+          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700">
+            {type}
+          </span>
+        );
     }
   };
 
@@ -159,7 +145,6 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
 
     if (timeA !== timeB) return timeA - timeB;
 
-    // For the same period: EARNED / MANUAL_ADD first (+), then PAYROLL_PAID / MANUAL_DEDUCT (-)
     const rank = (type) => (type === "EARNED" || type === "MANUAL_ADD" ? 1 : 2);
     if (rank(a.type) !== rank(b.type)) return rank(a.type) - rank(b.type);
 
@@ -171,38 +156,37 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
     const isAdd = item.type === "EARNED" || item.type === "MANUAL_ADD";
     running = isAdd ? running + item.minutes : Math.max(0, running - item.minutes);
     return { ...item, closingBalance: running, isAdd };
-  }).reverse(); // Latest on top for UI
+  }).reverse();
+
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="!font-bold !text-slate-800 !text-base border-b border-slate-200 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <Avatar className="!bg-purple-600">
-            <Clock size={20} />
-          </Avatar>
-          <div>
-            <Typography variant="subtitle1" className="!font-bold !text-slate-900 leading-tight">
-              Weekly Off Work Ledger
-            </Typography>
-            <p className="text-xs text-slate-500 font-normal">
-              {employee?.userid?.name || employee?.rawname || employee?.name} ({employee?.empId || "EMP"})
-            </p>
+    <Modalbox open={open} onClose={onClose}>
+      <div className="w-full max-w-2xl p-6 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+              <Clock size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                Weekly Off Work Ledger
+              </h3>
+              <p className="text-xs text-slate-500 font-normal">
+                {employee?.userid?.name || employee?.rawname || employee?.name} ({employee?.empId || "EMP"})
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* <Button
-          size="small"
-          variant="outlined"
-          startIcon={<RotateCcw size={16} className={rebuilding ? "animate-spin" : ""} />}
-          onClick={handleRebuildSync}
-          disabled={rebuilding}
-          className="!text-purple-700 !border-purple-300 hover:!bg-purple-50 text-xs"
-        >
-          {rebuilding ? "Syncing..." : "Sync Past Attendance"}
-        </Button> */}
-      </DialogTitle>
-
-      <DialogContent className="!pt-4 !space-y-4">
         {/* Balance Overview Card */}
         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -219,56 +203,56 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
           </div>
         </div>
 
-        {/* Manual Add/Deduct Form */}
+        {/* Manual Adjustment Form */}
         <form onSubmit={handleSubmit} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
           <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Add Manual Ledger Adjustment</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
-            <FormControl size="small" className="sm:col-span-1 bg-white">
-              <InputLabel>Type</InputLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            <div className="sm:col-span-1">
               <Select
-                value={entryType}
+                size="sm"
                 label="Type"
+                value={entryType}
                 onChange={(e) => setEntryType(e.target.value)}
-              >
-                <MenuItem value="MANUAL_DEDUCT">Manual Deduct (-)</MenuItem>
-                <MenuItem value="MANUAL_ADD">Manual Add (+)</MenuItem>
-              </Select>
-            </FormControl>
+                options={[
+                  { value: "MANUAL_DEDUCT", label: "Manual Deduct (-)" },
+                  { value: "MANUAL_ADD", label: "Manual Add (+)" }
+                ]}
+              />
+            </div>
 
-            <TextField
-              type="tel"
-              size="small"
-              className="sm:col-span-1 bg-white"
-              label="Minutes"
-              placeholder="e.g. 480"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
-              inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-            />
+            <div className="sm:col-span-1">
+              <Input
+                size="sm"
+                label="Minutes"
+                placeholder="e.g. 480"
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
 
-            <TextField
-              size="small"
-              className="sm:col-span-2 bg-white"
-              label="Particulars / Reason"
-              placeholder="e.g. Comp-off taken for 12 Aug"
-              value={particulars}
-              onChange={(e) => setParticulars(e.target.value)}
-            />
+            <div className="sm:col-span-2">
+              <Input
+                size="sm"
+                label="Particulars / Reason"
+                placeholder="e.g. Comp-off taken for 12 Aug"
+                value={particulars}
+                onChange={(e) => setParticulars(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex justify-between items-center pt-1">
             <span className="text-[11px] text-slate-500 italic">
-              {minutes ? `= ${(Number(minutes) / 60).toFixed(1)} hrs` : "Specify minutes and particulars to record manual deduction or credit."}
+              {minutes ? `= ${(Number(minutes) / 60).toFixed(1)} hrs` : "Specify minutes and reason to record entry."}
             </span>
             <Button
               type="submit"
-              variant="contained"
-              color={entryType === "MANUAL_DEDUCT" ? "error" : "primary"}
-              size="small"
-              disabled={submitting}
-              startIcon={entryType === "MANUAL_DEDUCT" ? <Minus size={16} /> : <Plus size={16} />}
+              variant={entryType === "MANUAL_DEDUCT" ? "danger" : "primary"}
+              size="sm"
+              loading={submitting}
+              icon={entryType === "MANUAL_DEDUCT" ? <Minus size={14} /> : <Plus size={14} />}
             >
-              {submitting ? "Saving..." : entryType === "MANUAL_DEDUCT" ? "Deduct Minutes" : "Add Minutes"}
+              {entryType === "MANUAL_DEDUCT" ? "Deduct Minutes" : "Add Minutes"}
             </Button>
           </div>
         </form>
@@ -281,77 +265,79 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
           </div>
 
           {loading ? (
-            <div className="p-8 text-center">
-              <CircularProgress size={28} />
-              <p className="text-xs text-slate-500 mt-2">Loading ledger history...</p>
+            <div className="p-8 text-center text-slate-500 text-xs">
+              Loading ledger history...
             </div>
           ) : (
-            <div className="max-h-72 overflow-y-auto">
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell className="!font-bold !text-xs !bg-slate-50">Date</TableCell>
-                    <TableCell className="!font-bold !text-xs !bg-slate-50">Type</TableCell>
-                    <TableCell className="!font-bold !text-xs !bg-slate-50">Particulars / Reason</TableCell>
-                    <TableCell className="!font-bold !text-xs !bg-slate-50 !text-center">Minutes</TableCell>
-                    <TableCell className="!font-bold !text-xs !bg-slate-50 !text-right">Balance</TableCell>
-                    <TableCell className="!font-bold !text-xs !bg-slate-50 !text-center">Action</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-700 font-semibold sticky top-0 border-b border-slate-200">
+                  <tr>
+                    <th className="p-2.5">Date</th>
+                    <th className="p-2.5">Type</th>
+                    <th className="p-2.5">Particulars / Reason</th>
+                    <th className="p-2.5 text-center">Minutes</th>
+                    <th className="p-2.5 text-right">Balance</th>
+                    <th className="p-2.5 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
                   {ledgerWithRunning.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-slate-500 text-xs py-6">
+                    <tr>
+                      <td colSpan={6} className="text-center text-slate-500 py-6">
                         No ledger transactions found for this employee.
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ) : (
                     ledgerWithRunning.map((row) => (
-                      <TableRow key={row._id} hover>
-                        <TableCell className="!text-xs !whitespace-nowrap">
-                          {dayjs(row.date || row.createdAt).format("DD MMM YYYY")}
-                          <span className="text-[10px] text-slate-400 block">
-                            {dayjs(row.createdAt).format("hh:mm A")}
-                          </span>
-                        </TableCell>
-                        <TableCell className="!text-xs">
+                      <tr key={row._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-2.5 whitespace-nowrap">
+                          <span className="font-medium text-slate-800">{dayjs(row.date || row.createdAt).format("DD MMM YYYY")}</span>
+                          <span className="text-[10px] text-slate-400 block">{dayjs(row.createdAt).format("hh:mm A")}</span>
+                        </td>
+                        <td className="p-2.5">
                           {getTypeBadge(row.type)}
-                        </TableCell>
-                        <TableCell className="!text-xs !font-medium text-slate-700">
+                        </td>
+                        <td className="p-2.5 font-medium text-slate-700">
                           {row.particulars}
                           {row.createdBy && <span className="text-[10px] text-slate-400 block italic">by {row.createdBy}</span>}
-                        </TableCell>
-                        <TableCell className={`!text-xs !text-center !whitespace-nowrap !font-extrabold ${row.isAdd ? "text-emerald-700" : "text-rose-700"}`}>
+                        </td>
+                        <td className={`p-2.5 text-center whitespace-nowrap font-extrabold ${row.isAdd ? "text-emerald-700" : "text-rose-700"}`}>
                           {row.isAdd ? `+${row.minutes}` : `-${row.minutes}`} m
-                        </TableCell>
-                        <TableCell className="!text-xs !text-right !whitespace-nowrap !font-bold text-purple-800">
+                        </td>
+                        <td className="p-2.5 text-right whitespace-nowrap font-bold text-purple-800">
                           {row.closingBalance} m
-                        </TableCell>
-                        <TableCell className="!text-xs !text-center">
+                        </td>
+                        <td className="p-2.5 text-center">
                           {row.type.startsWith("MANUAL") ? (
-                            <IconButton size="small" color="error" onClick={() => handleDelete(row._id)}>
-                              <Trash2 size={16} />
-                            </IconButton>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(row._id)}
+                              className="text-rose-600 hover:text-rose-800 p-1 rounded hover:bg-rose-50 transition-colors"
+                            >
+                              <Trash2 size={15} />
+                            </button>
                           ) : (
                             <span className="text-[10px] text-slate-400">-</span>
                           )}
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-      </DialogContent>
 
-      <DialogActions className="!px-6 !pb-4">
-        <Button onClick={onClose} variant="outlined" size="small">
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
+        {/* Footer */}
+        <div className="flex justify-end pt-2">
+          <Button onClick={onClose} variant="outline" size="sm">
+            Close
+          </Button>
+        </div>
+      </div>
+    </Modalbox>
   );
 };
 

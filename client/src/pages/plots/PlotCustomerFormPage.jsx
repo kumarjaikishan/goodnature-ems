@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../utils/apiClient';
 import { useApi } from '../../utils/useApi';
 import { ArrowLeft, CheckCircle, UserPlus, Camera, PenTool, Trash2 } from 'lucide-react';
-import { CircularProgress } from '@mui/material';
 import { toast } from '../../utils/toast';
 import useImageUpload from '../../utils/imageresizer';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';

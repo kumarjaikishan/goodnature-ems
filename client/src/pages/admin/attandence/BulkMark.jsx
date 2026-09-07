@@ -2,26 +2,21 @@ import React, {
   useEffect, useMemo, useState, useCallback,
   useReducer,
 } from 'react';
-import {
-  Paper, Checkbox, Typography, FormControl, Select, MenuItem,
-  InputLabel, Button, Avatar, CircularProgress,
-} from '@mui/material';
-import {
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
-import { Send } from 'lucide-react';
+import { Send, X, AlertCircle } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import dayjs from 'dayjs';
 import { FirstFetch } from '../../../../store/userSlice';
 import { toast } from '../../../utils/toast';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { bulkMarkAttendanceApi, getBulkMarkDataApi } from '../../../api/attendance.api';
 import BulkEmployeeRow from './BulkEmployeeRow';
 
-// ─── Reducer for rowData ────────────────────────────────────────────────────
+// Custom UI Components
+import Button from '../../../components/ui/Button';
+import DateInput from '../../../components/ui/DateInput';
+import Select from '../../../components/ui/Select';
+
+// Reducer for rowData
 function rowDataReducer(state, action) {
   switch (action.type) {
     case 'INIT':
@@ -65,86 +60,87 @@ function rowDataReducer(state, action) {
   }
 }
 
-// ─── BulkMark ───────────────────────────────────────────────────────────────
 const BulkMark = ({
-  openmodal, init, setopenmodal,
-  isUpdate, isload, setisload, setinp, setisUpdate, dispatch, onSuccess,
+  openmodal,
+  init,
+  setopenmodal,
+  isUpdate,
+  isload,
+  setisload,
+  dispatch,
+  onSuccess,
 }) => {
-  const profile  = useSelector((state) => state.user.profile);
-  const branch     = useSelector((state) => state.user.branch);
-  const department = useSelector((state) => state.user.department);
+  const { branch, department, profile } = useSelector(state => state.user);
 
-  const [checkedemployee, setcheckedemployee] = useState([]);
-  const [rowData, rowDispatch] = useReducer(rowDataReducer, {});
+  const [toall, settoall] = useState({ punchIn: '', punchOut: '', status: '' });
   const [selectedBranch, setselectedBranch] = useState('all');
   const [selecteddepartment, setselecteddepartment] = useState('all');
   const [attandenceDate, setattandenceDate] = useState(dayjs());
+  const [checkedemployee, setcheckedemployee] = useState([]);
 
-  // Local state for fetched employees and loader
-  const [employees, setemployees] = useState([]);
-  const [isLoadingData, setisLoadingData] = useState(false);
+  const [apiEmployees, setApiEmployees] = useState([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [rowData, rowDispatch] = useReducer(rowDataReducer, {});
 
-  // "Apply to all" fields — separate from rowData
-  const [toall, settoall] = useState({ punchIn: '', punchOut: '', status: '' });
+  const employeeMap = useMemo(() => {
+    const map = new Map();
+    apiEmployees.forEach(emp => map.set(emp._id, emp));
+    return map;
+  }, [apiEmployees]);
 
-  // ── Fetch employee and attendance data from backend ───────────────────────
   useEffect(() => {
     if (!openmodal) return;
 
+    let isMounted = true;
     const fetchData = async () => {
+      setIsLoadingData(true);
       try {
-        setisLoadingData(true);
         const formattedDate = attandenceDate.format('YYYY-MM-DD');
-        const res = await getBulkMarkDataApi(formattedDate, selectedBranch, selecteddepartment);
+        const res = await getBulkMarkDataApi({
+          date: formattedDate,
+          branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+          departmentId: selecteddepartment !== 'all' ? selecteddepartment : undefined,
+        });
+
+        if (!isMounted) return;
+
         if (res.success) {
-          setemployees(res.data);
+          const empList = res.employees || [];
+          setApiEmployees(empList);
 
-          const newRowData = {};
-          const newChecked = [];
-
-          res.data.forEach(emp => {
-            const existing = emp.existingAttendance;
-            if (existing) {
-              newChecked.push(emp._id);
-              newRowData[emp._id] = {
-                punchIn:  existing.punchIn  ? dayjs(existing.punchIn).format('HH:mm')  : null,
-                punchOut: existing.punchOut ? dayjs(existing.punchOut).format('HH:mm') : null,
-                status: existing.status || 'absent',
-              };
-            } else {
-              newRowData[emp._id] = { punchIn: null, punchOut: null, status: 'absent' };
-            }
+          const initialRowData = {};
+          empList.forEach(emp => {
+            const att = emp.todayAttendance;
+            initialRowData[emp._id] = {
+              punchIn: att?.punchIn ? dayjs(att.punchIn).format('HH:mm') : '',
+              punchOut: att?.punchOut ? dayjs(att.punchOut).format('HH:mm') : '',
+              status: att?.status || 'absent',
+            };
           });
 
-          rowDispatch({ type: 'INIT', payload: newRowData });
-          setcheckedemployee(newChecked);
+          rowDispatch({ type: 'INIT', payload: initialRowData });
+          setcheckedemployee([]);
         }
       } catch (err) {
-        console.error("Failed to load bulk mark data:", err);
-        toast.error("Failed to load employee list");
+        console.error('Failed to fetch bulk mark data:', err);
+        if (isMounted) toast.error('Failed to load employee attendance data.');
       } finally {
-        setisLoadingData(false);
+        if (isMounted) setIsLoadingData(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [openmodal, attandenceDate, selectedBranch, selecteddepartment]);
 
-  // ── Employee Map (O(1) lookup) ─────────────────────────────────────────────
-  const employeeMap = useMemo(() => {
-    const map = new Map();
-    employees?.forEach(e => map.set(e._id, e));
-    return map;
-  }, [employees]);
+  const employees = apiEmployees;
 
-  // ── Apply-to-all: fires only when toall changes, uses useMemo empIds ───────
-  const filteredEmpIds = useMemo(
-    () => employees.map(e => e._id),
-    [employees]
-  );
+  const filteredEmpIds = useMemo(() => employees.map(e => e._id), [employees]);
 
   const applyToAll = useCallback(() => {
-    if (!toall.punchIn && !toall.punchOut && !toall.status) return;
     rowDispatch({
       type: 'APPLY_TO_ALL',
       payload: { empIds: filteredEmpIds, ...toall },
@@ -152,7 +148,6 @@ const BulkMark = ({
     setcheckedemployee(filteredEmpIds);
   }, [toall, filteredEmpIds]);
 
-  // ── Stable row-level callbacks (dispatch is always stable) ─────────────────
   const handleCheck = useCallback((empId) => {
     setcheckedemployee(prev =>
       prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
@@ -173,7 +168,6 @@ const BulkMark = ({
     setcheckedemployee(prev => prev.includes(empId) ? prev : [...prev, empId]);
   }, []);
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (checkedemployee.length === 0) {
@@ -215,10 +209,6 @@ const BulkMark = ({
     try {
       setisload(true);
       await bulkMarkAttendanceApi(selectedData);
-      // Refresh only the attendance view that's actually open, instead of
-      // the entire app state (employees, all-time attendance, leave
-      // balances, advances, ledger) - that full reload was the main cause
-      // of the modal feeling like it hangs on submit.
       if (onSuccess) onSuccess();
       else if (dispatch) dispatch(FirstFetch());
       setcheckedemployee([]);
@@ -233,107 +223,109 @@ const BulkMark = ({
     }
   }, [checkedemployee, rowData, employeeMap, attandenceDate, dispatch, onSuccess, setopenmodal, setisload]);
 
-  // ── Filtered departments for the selected branch ───────────────────────────
   const filteredDepartments = useMemo(() => {
     if (selectedBranch === 'all') return department;
     return department?.filter(d => d.branchId?._id === selectedBranch);
   }, [department, selectedBranch]);
 
-  // ── Checked set (O(1) lookup for row) ─────────────────────────────────────
   const checkedSet = useMemo(() => new Set(checkedemployee), [checkedemployee]);
+
+  if (!openmodal) return null;
 
   return (
     <Modalbox open={openmodal} outside={false} onClose={() => setopenmodal(false)}>
-      <div className="membermodal w-[600px] md:w-[800px]">
-        <form onSubmit={handleSubmit}>
-          <div className="modalhead">Bulk Mark Attendance</div>
+      <div className="w-full max-w-3xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Bulk Mark Attendance</h3>
+              <p className="text-xs text-slate-500">Quickly apply check-in/out timestamps across multiple staff</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setopenmodal(false)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-          <span className="modalcontent overflow-x-auto">
-            <div className='flex flex-col gap-4'>
+          <div className="space-y-3.5">
+            {/* Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select
+                size="sm"
+                label="Branch"
+                disabled={isLoadingData}
+                value={selectedBranch}
+                onChange={(e) => {
+                  setselectedBranch(e.target.value);
+                  setselecteddepartment('all');
+                }}
+                options={[
+                  { value: "all", label: "All Branches" },
+                  ...((profile?.role === 'manager'
+                    ? branch?.filter(b => profile?.branchIds?.includes(b._id))
+                    : branch
+                  ) || []).map(b => ({ value: b._id, label: b.name }))
+                ]}
+              />
 
-              {/* ── Filters ─────────────────────────────────────────────── */}
-              <div className='w-full flex justify-between gap-2'>
-                <FormControl size="small" fullWidth disabled={isLoadingData}>
-                  <InputLabel>Select Branch</InputLabel>
-                  <Select
-                    label="Select Branch"
-                    value={selectedBranch}
-                    onChange={(e) => {
-                      setselectedBranch(e.target.value);
-                      setselecteddepartment('all');
-                    }}
-                  >
-                    <MenuItem value="all"><em>All</em></MenuItem>
-                    {(profile?.role === 'manager'
-                      ? branch?.filter(b => profile?.branchIds?.includes(b._id))
-                      : branch
-                    )?.map(b => (
-                      <MenuItem key={b._id} value={b._id}>{b.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <Select
+                size="sm"
+                label="Department"
+                disabled={selectedBranch === 'all' || isLoadingData}
+                value={selecteddepartment}
+                onChange={(e) => setselecteddepartment(e.target.value)}
+                options={[
+                  { value: "all", label: "All Departments" },
+                  ...(filteredDepartments || []).map(d => ({ value: d._id, label: d.department }))
+                ]}
+              />
 
-                <FormControl size="small" disabled={selectedBranch === 'all' || isLoadingData} fullWidth>
-                  <InputLabel>Select Department</InputLabel>
-                  <Select
-                    label="Select Department"
-                    value={selecteddepartment}
-                    onChange={(e) => setselecteddepartment(e.target.value)}
-                  >
-                    <MenuItem value="all"><em>All</em></MenuItem>
-                    {filteredDepartments?.map(d => (
-                      <MenuItem key={d._id} value={d._id}>{d.department}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <DateInput
+                size="sm"
+                label="Attendance Date"
+                disabled={isLoadingData}
+                value={attandenceDate ? attandenceDate.format('YYYY-MM-DD') : ''}
+                onChange={(val) => setattandenceDate(val ? dayjs(val) : dayjs())}
+              />
+            </div>
 
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    slotProps={{ textField: { size: 'small' } }}
-                    onChange={(val) => setattandenceDate(val)}
-                    format="DD-MM-YYYY"
-                    value={attandenceDate}
-                    sx={{ width: '100%' }}
-                    label="Select date"
-                    maxDate={dayjs()}
-                    disabled={isLoadingData}
-                  />
-                </LocalizationProvider>
-              </div>
+            {/* Apply to All */}
+            <div className="relative border border-dashed border-teal-300 bg-teal-50/40 rounded-xl p-3.5 pt-4">
+              <span className="absolute top-0 left-3 -translate-y-1/2 bg-white border border-teal-200 px-2 py-0.5 rounded text-[11px] font-bold text-teal-800">
+                Apply To All Selected
+              </span>
 
-              {/* ── Apply to All ─────────────────────────────────────────── */}
-              <div className="relative border-dashed border border-primary rounded-md w-full grid grid-cols-1 md:grid-cols-3 gap-4 p-2 pt-4">
-                <span className="absolute top-0 left-3 -translate-y-1/2 bg-white px-2 text-sm font-medium text-primary">
-                  Apply To All Fields
-                </span>
-
-                <div className="flex flex-col w-full">
-                  <label className="text-sm font-medium text-gray-700 mb-1 text-left">Punch In</label>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Punch In</label>
                   <input
                     type="time"
                     disabled={isLoadingData}
-                    className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 bg-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
                     value={toall.punchIn}
                     onChange={(e) => settoall(prev => ({ ...prev, punchIn: e.target.value }))}
                   />
                 </div>
 
-                <div className="flex flex-col w-full">
-                  <label className="text-sm font-medium text-gray-700 mb-1 text-left">Punch Out</label>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Punch Out</label>
                   <input
                     type="time"
                     disabled={isLoadingData}
-                    className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 bg-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors"
                     value={toall.punchOut}
                     onChange={(e) => settoall(prev => ({ ...prev, punchOut: e.target.value }))}
                   />
                 </div>
 
-                <div className="flex flex-col w-full">
-                  <label className="text-sm font-medium text-gray-700 mb-1 text-left">Status</label>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Status</label>
                   <select
                     disabled={isLoadingData}
-                    className="w-full form-input outline-0 border border-primary border-dashed p-2 rounded text-sm"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 bg-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors cursor-pointer"
                     value={toall.status}
                     onChange={(e) => settoall(prev => ({ ...prev, status: e.target.value }))}
                   >
@@ -347,101 +339,98 @@ const BulkMark = ({
                   </select>
                 </div>
 
-                <div className="col-span-full flex justify-end">
-                  <Button size="small" variant="outlined" onClick={applyToAll} disabled={isLoadingData}>
-                    Apply
+                <div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    onClick={applyToAll}
+                    disabled={isLoadingData}
+                    className="w-full"
+                  >
+                    Apply All
                   </Button>
                 </div>
               </div>
-
-              {/* ── Employee Table ───────────────────────────────────────── */}
-              <div className='border border-dashed border-primary rounded w-full'>
-                <TableContainer component={Paper}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            onChange={handleAllSelect}
-                            checked={
-                              checkedemployee.length > 0 &&
-                              checkedemployee.length === employees.length
-                            }
-                            indeterminate={
-                              checkedemployee.length > 0 &&
-                              checkedemployee.length < employees.length
-                            }
-                            disabled={isLoadingData || employees.length === 0}
-                          />
-                        </TableCell>
-                        <TableCell>Employee Name</TableCell>
-                        <TableCell>Punch In</TableCell>
-                        <TableCell>Punch Out</TableCell>
-                        <TableCell>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-
-                    <TableBody>
-                      {isLoadingData ? (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center">
-                            <div className="flex flex-col items-center justify-center py-8 gap-2">
-                              <CircularProgress size={30} />
-                              <Typography variant="body2" color="textSecondary">
-                                Fetching employees and attendance...
-                              </Typography>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : employees.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center">
-                            <Typography variant="body2" color="textSecondary" className="py-4">
-                              No active employees found.
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        employees.map((emp) => (
-                          <BulkEmployeeRow
-                            key={emp._id}
-                            emp={emp}
-                            isChecked={checkedSet.has(emp._id)}
-                            punchIn={rowData[emp._id]?.punchIn}
-                            punchOut={rowData[emp._id]?.punchOut}
-                            status={rowData[emp._id]?.status}
-                            onCheck={handleCheck}
-                            onTimeChange={handleTimeChange}
-                            onStatusChange={handleStatusChange}
-                          />
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </div>
-
             </div>
-          </span>
 
-          <div className='modalfooter'>
+            {/* Employee Table */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+              <div className="max-h-72 overflow-y-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-700 font-semibold sticky top-0 border-b border-slate-200 z-10">
+                    <tr>
+                      <th className="p-2.5 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          onChange={handleAllSelect}
+                          checked={
+                            checkedemployee.length > 0 &&
+                            checkedemployee.length === employees.length
+                          }
+                          disabled={isLoadingData || employees.length === 0}
+                          className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300 cursor-pointer"
+                        />
+                      </th>
+                      <th className="p-2.5">Employee Name</th>
+                      <th className="p-2.5 w-32">Punch In</th>
+                      <th className="p-2.5 w-32">Punch Out</th>
+                      <th className="p-2.5 w-36">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoadingData ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-8 text-slate-400">
+                          Fetching employees and attendance...
+                        </td>
+                      </tr>
+                    ) : employees.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-8 text-slate-400">
+                          No active employees found.
+                        </td>
+                      </tr>
+                    ) : (
+                      employees.map((emp) => (
+                        <BulkEmployeeRow
+                          key={emp._id}
+                          emp={emp}
+                          isChecked={checkedSet.has(emp._id)}
+                          punchIn={rowData[emp._id]?.punchIn}
+                          punchOut={rowData[emp._id]?.punchOut}
+                          status={rowData[emp._id]?.status}
+                          onCheck={handleCheck}
+                          onTimeChange={handleTimeChange}
+                          onStatusChange={handleStatusChange}
+                        />
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
             <Button
-              size="small"
-              onClick={() => { setopenmodal(false); setisUpdate(false); setinp(init); }}
-              variant="outlined"
+              type="button"
+              size="sm"
+              onClick={() => { setopenmodal(false); }}
+              variant="outline"
               disabled={isLoadingData}
             >
               Cancel
             </Button>
             <Button
+              size="sm"
               loading={isload}
-              loadingPosition="end"
-              endIcon={<Send size={16} />}
-              variant="contained"
+              icon={<Send size={14} />}
+              variant="primary"
               type="submit"
               disabled={isLoadingData}
             >
-              {isUpdate ? 'Update' : 'Add'}
+              Save Bulk Attendance ({checkedemployee.length})
             </Button>
           </div>
         </form>

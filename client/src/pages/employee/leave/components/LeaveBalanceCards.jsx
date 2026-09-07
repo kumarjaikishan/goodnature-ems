@@ -1,68 +1,46 @@
 import React from "react";
-import { 
-    Box, 
-    Typography, 
-    Grid, 
-    Card, 
-    CardContent, 
-    Divider,
-    Paper
-} from "@mui/material";
 import { CalendarCheck } from "lucide-react";
 
 const LeaveBalanceCards = ({ balances = [] }) => {
     if (!balances || balances.length === 0) {
         return (
-            <Paper sx={{ p: 3, textAlign: 'center', bgcolor: '#f8fafc', border: '1px dashed #cbd5e0', mb: 3 }}>
-                <Typography color="textSecondary">No leave balances found.</Typography>
-            </Paper>
+            <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl mb-4 text-xs font-semibold text-slate-500">
+                No leave balance records configured yet.
+            </div>
         );
     }
 
     return (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {balances.map((bal) => (
-                <Grid item xs={12} sm={6} md={3} key={bal._id}>
-                    <Card sx={{ 
-                        borderRadius: 3, 
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                        border: '1px solid #edf2f7',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&::after': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '4px',
-                            height: '100%',
-                            bgcolor: '#3182ce'
-                        }
-                    }}>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4a5568', textTransform: 'uppercase' }}>
-                                    {bal.policyId?.name}
-                                </Typography>
-                                <CalendarCheck size={20} color="#3182ce" />
-                            </Box>
-                            <Typography variant="h4" sx={{ fontWeight: 800, color: '#2d3748' }}>
-                                {bal.remaining} <small style={{ fontSize: '0.5em', color: '#718096' }}>Days</small>
-                            </Typography>
-                            <Box sx={{ mt: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Typography variant="caption" sx={{ color: '#718096' }}>
-                                    Allotted: <b>{bal.totalAllocated}</b>
-                                </Typography>
-                                <Divider orientation="vertical" flexItem sx={{ height: '12px' }} />
-                                <Typography variant="caption" sx={{ color: '#718096' }}>
-                                    Used: <b>{bal.used}</b>
-                                </Typography>
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                <div
+                    key={bal._id}
+                    className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 relative overflow-hidden flex flex-col justify-between"
+                >
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-600"></div>
+
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                            {bal.policyId?.name || "General Leave"}
+                        </span>
+                        <CalendarCheck size={18} className="text-teal-600" />
+                    </div>
+
+                    <div className="my-2">
+                        <span className="text-3xl font-black text-slate-800 tracking-tight">
+                            {bal.remaining}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400 ml-1.5 uppercase">Days Available</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                        <span>Allotted: <strong className="text-slate-700">{bal.totalAllocated}</strong></span>
+                        <span className="text-slate-300">|</span>
+                        <span>Used: <strong className="text-slate-700">{bal.used}</strong></span>
+                    </div>
+                </div>
             ))}
-        </Grid>
+        </div>
     );
 };
 

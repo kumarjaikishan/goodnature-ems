@@ -1,18 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
-import {
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
-  Button,
-  Box,
-  Chip
-} from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
 import { ArrowLeft, Printer } from "lucide-react";
@@ -20,6 +8,7 @@ import { useReactToPrint } from "react-to-print";
 import numberToWords from "../../utils/numToWord";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import dayjs from "dayjs";
+import Button from "@/components/ui/Button";
 
 const VoucherDetails = () => {
   const { id } = useParams();
@@ -51,14 +40,13 @@ const VoucherDetails = () => {
     } catch (err) {
       console.error("Error fetching voucher details:", err);
     } finally {
-      loading && setLoading(false);
+      setLoading(false);
     }
   };
 
   // Auto trigger printing if URL has ?print=true parameter
   useEffect(() => {
     if (!loading && voucher && searchParams.get("print") === "true") {
-      // Small timeout to ensure DOM is fully rendered
       setTimeout(() => {
         handlePrint();
       }, 500);
@@ -66,7 +54,7 @@ const VoucherDetails = () => {
   }, [loading, voucher, searchParams]);
 
   if (loading) return <Loader />;
-  if (!voucher) return <Typography className="p-4 text-center">Voucher not found</Typography>;
+  if (!voucher) return <div className="p-8 text-center text-slate-500 font-medium">Voucher not found</div>;
 
   const formatLedgerName = (name) => {
     if (!name) return "N/A";
@@ -78,47 +66,49 @@ const VoucherDetails = () => {
   };
 
   const totalDebit = voucher.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
-  const totalCredit = voucher.entries?.filter(e => e.type === 'CREDIT').reduce((s, e) => s + e.amount, 0) || 0;
   const logoUrl = company?.logo ? cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 }) : null;
 
   return (
-    <Box className="p-1 md:p-4 max-w-4xl mx-auto flex flex-col items-center">
+    <div className="p-2 md:p-6 max-w-4xl mx-auto flex flex-col items-center">
       {/* Top action bar */}
-      <Box className="flex justify-between items-center w-full max-w-[794px] mb-6 print:hidden">
-        <Button startIcon={<ArrowLeft size={16} />} onClick={() => navigate(-1)} variant="outlined" color="inherit">
+      <div className="flex flex-wrap justify-between items-center w-full max-w-[794px] mb-6 gap-3 print:hidden">
+        <Button
+          startIcon={ArrowLeft}
+          onClick={() => navigate(-1)}
+          variant="outline"
+          size="sm"
+        >
           Back
         </Button>
-        <Box className="flex gap-2">
+        <div className="flex gap-2">
           <Button
             onClick={() => setActiveVariant("classic")}
-            variant={activeVariant === "classic" ? "contained" : "outlined"}
-            color="primary"
-            size="small"
+            variant={activeVariant === "classic" ? "primary" : "outline"}
+            size="sm"
           >
             Classic Look
           </Button>
           <Button
             onClick={() => setActiveVariant("modern")}
-            variant={activeVariant === "modern" ? "contained" : "outlined"}
-            color="primary"
-            size="small"
+            variant={activeVariant === "modern" ? "primary" : "outline"}
+            size="sm"
           >
             Modern Look
           </Button>
-        </Box>
+        </div>
         <Button
-          startIcon={<Printer size={16} />}
+          startIcon={Printer}
           onClick={handlePrint}
-          variant="contained"
-          color="primary"
-          className="shadow-md"
+          variant="primary"
+          size="sm"
+          className="shadow-xs"
         >
           Print Voucher
         </Button>
-      </Box>
+      </div>
 
       {/* Main voucher card display */}
-      <div className="print-area-wrapper w-full max-w-[794px] overflow-x-auto p-1 bg-slate-100 md:p-4 rounded-lg border border-slate-200 shadow-inner flex justify-center print:p-0 print:bg-transparent print:border-none print:shadow-none">
+      <div className="print-area-wrapper w-full max-w-[794px] overflow-x-auto p-1 bg-slate-100 md:p-4 rounded-xl border border-slate-200 shadow-inner flex justify-center print:p-0 print:bg-transparent print:border-none print:shadow-none">
         {/* Printable Area Wrapper */}
         <div
           ref={printRef}
@@ -209,8 +199,6 @@ const VoucherDetails = () => {
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", position: "relative", zIndex: 1 }}>
               {/* Letterhead Header */}
               <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden", background: "#E8F2E2", height: "80px", boxSizing: "border-box" }}>
-
-
                 <div style={{ width: "85px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", borderRight: "1px solid #cbd5e1", padding: "5px", boxSizing: "border-box" }}>
                   {company?.logo ? (
                     <img
@@ -245,7 +233,6 @@ const VoucherDetails = () => {
                     {company?.address || "Vimla Market - 1, Nala Road, Ramchandra Pur, Biharsharif, Bihar-803101"}
                   </p>
                 </div>
-
               </div>
 
               {/* Payment Voucher Title */}
@@ -304,7 +291,7 @@ const VoucherDetails = () => {
 
                 {/* Amount Right */}
                 <div style={{ width: "220px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <span style={{ display: "block", height: "18px" }}></span> {/* empty spacer to align with Narration label */}
+                  <span style={{ display: "block", height: "18px" }}></span>
                   <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", height: "85px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", fontWeight: "900", color: "#000", boxSizing: "border-box" }}>
                     ₹ {totalDebit.toFixed(2)}
                   </div>
@@ -467,7 +454,7 @@ const VoucherDetails = () => {
           )}
         </div>
       </div>
-    </Box>
+    </div>
   );
 };
 

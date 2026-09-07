@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from '../../utils/toast';
-import { CircularProgress } from '@mui/material';
+import PageLoader from '../../components/common/PageLoader';
 import {
   ArrowLeft,
   User,
@@ -104,11 +104,7 @@ const PlotBookingDetails = () => {
   }, [id]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <CircularProgress sx={{ color: 'var(--color-primary)' }} />
-      </div>
-    );
+    return <PageLoader text="Loading plot booking details..." />;
   }
 
   if (!booking) {

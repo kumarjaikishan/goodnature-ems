@@ -1,24 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, 
-    Typography, 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableContainer, 
-    TableHead, 
-    TableRow, 
-    Paper, 
-    Chip,
-    IconButton,
-    Tooltip,
-    CircularProgress,
-    Card,
-    CardContent
-} from '@mui/material';
 import { RotateCcw } from 'lucide-react';
 import { apiClient } from '../../../../utils/apiClient';
 import dayjs from 'dayjs';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 
 const EsslEventLog = ({ companyId }) => {
     const [events, setEvents] = useState([]);
@@ -31,7 +16,7 @@ const EsslEventLog = ({ companyId }) => {
             const data = await apiClient({
                 url: `getEsslEvents/${companyId}`
             });
-            setEvents(data);
+            setEvents(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching ESSL events:', error);
         } finally {
@@ -41,85 +26,83 @@ const EsslEventLog = ({ companyId }) => {
 
     useEffect(() => {
         fetchEvents();
-        // Polling every 30 seconds for live updates
         const interval = setInterval(fetchEvents, 30000);
         return () => clearInterval(interval);
     }, [companyId]);
 
-    const getTypeColor = (type) => {
+    const getBadgeVariant = (type) => {
         switch (type) {
             case 'Success': return 'success';
             case 'Warning': return 'warning';
-            case 'Error': return 'error';
-            case 'Ignored': return 'default';
+            case 'Error': return 'danger';
+            case 'Ignored': return 'neutral';
             default: return 'primary';
         }
     };
 
     return (
-        <Card variant="outlined" sx={{ mt: 4, borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-            <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="h6" sx={{ fontWeight: '600' }}>
-                        Live Machine Events (Last 20)
-                    </Typography>
-                    <Tooltip title="Refresh Logs">
-                        <IconButton size="small" onClick={fetchEvents} disabled={loading}>
-                            <RotateCcw size={16} className={loading ? "animate-spin" : ""} />
-                        </IconButton>
-                    </Tooltip>
-                </Box>
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-5 space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                        Recent Biometric Device Logs
+                    </h3>
+                    <p className="text-xs text-slate-500">Live sync stream received from eSSL biometric hardware</p>
+                </div>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    startIcon={RotateCcw}
+                    loading={loading}
+                    onClick={fetchEvents}
+                >
+                    Refresh
+                </Button>
+            </div>
 
-                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #eee', maxHeight: 400 }}>
-                    <Table stickyHeader size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9f9f9' }}>Time</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9f9f9' }}>Employee</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9f9f9' }}>ID</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9f9f9' }}>Event Description</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9f9f9' }}>Status</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {loading && events.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                                        <CircularProgress size={24} />
-                                    </TableCell>
-                                </TableRow>
-                            ) : events.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                                        No recent events found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                events.map((event) => (
-                                    <TableRow key={event._id} hover>
-                                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                                            {dayjs(event.timestamp).format('DD MMM, hh:mm A')}
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 500 }}>{event.employeeName || 'Unknown'}</TableCell>
-                                        <TableCell>{event.empId || 'N/A'}</TableCell>
-                                        <TableCell>{event.event}</TableCell>
-                                        <TableCell>
-                                            <Chip 
-                                                label={event.type} 
-                                                size="small" 
-                                                color={getTypeColor(event.type)}
-                                                variant="outlined"
-                                                sx={{ fontWeight: 'bold', borderWeight: 2 }}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </CardContent>
-        </Card>
+            <div className="overflow-x-auto rounded-lg border border-slate-200/80">
+                <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-50/80 text-slate-700 font-bold border-b border-slate-200">
+                        <tr>
+                            <th className="py-2.5 px-3">Device SN</th>
+                            <th className="py-2.5 px-3">User ID / PIN</th>
+                            <th className="py-2.5 px-3">Type</th>
+                            <th className="py-2.5 px-3">Message</th>
+                            <th className="py-2.5 px-3">Punch Time</th>
+                            <th className="py-2.5 px-3">Received At</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {events.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="py-8 text-center text-slate-500">
+                                    {loading ? 'Fetching logs...' : 'No biometric device events logged yet.'}
+                                </td>
+                            </tr>
+                        ) : (
+                            events.map((evt, idx) => (
+                                <tr key={evt._id || idx} className="hover:bg-slate-50/60 transition">
+                                    <td className="py-2.5 px-3 font-mono text-slate-800 font-semibold">{evt.deviceSN || '-'}</td>
+                                    <td className="py-2.5 px-3 font-medium text-slate-800">{evt.userId || '-'}</td>
+                                    <td className="py-2.5 px-3">
+                                        <Badge size="sm" variant={getBadgeVariant(evt.type)}>
+                                            {evt.type || 'Info'}
+                                        </Badge>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-slate-600">{evt.message || '-'}</td>
+                                    <td className="py-2.5 px-3 text-slate-700">
+                                        {evt.punchTime ? dayjs(evt.punchTime).format('DD/MM/YY, hh:mm A') : '-'}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-slate-500">
+                                        {evt.createdAt ? dayjs(evt.createdAt).format('DD/MM/YY, hh:mm:ss A') : '-'}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 };
 

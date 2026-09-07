@@ -1,41 +1,38 @@
 import React, { useEffect, useState } from "react";
 import DataTable from '@/components/common/DataTable';
-import {
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    TextField,
-    MenuItem,
-    IconButton,
-    Box,
-    FormControl,
-    InputLabel,
-    Select,
-    Avatar,
-    InputAdornment,
-    OutlinedInput,
-    Typography,
-    Tooltip
-} from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
-import { X, Trash2, Edit2, ExternalLink, History, Search, Filter } from "lucide-react";
+import { Trash2, Edit2, ExternalLink, History, Search, Plus, Filter, User } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "../../utils/toast";
-import Modalbox from "../../components/custommodal/Modalbox";
 import { useNavigate } from "react-router-dom";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import { FirstFetch } from "../../../store/userSlice";
 import LeaveHistoryModal from "./components/LeaveHistoryModal";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
+import Input from "@/components/ui/Input";
+import NumberInput from "@/components/ui/NumberInput";
+import Select from "@/components/ui/Select";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import Badge from "@/components/ui/Badge";
+
+const getInitialBg = (name) => {
+    const colors = [
+        'bg-teal-600', 'bg-emerald-600', 'bg-sky-600',
+        'bg-indigo-600', 'bg-violet-600', 'bg-amber-600'
+    ];
+    let hash = 0;
+    for (let i = 0; i < (name || '').length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+};
 
 const Leaveledger = () => {
     const [rows, setRows] = useState([]);
     const [open, setOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historyEmployee, setHistoryEmployee] = useState(null);
-    const [departmentlist, setdepartmentlist] = useState([]);
     const dispatch = useDispatch();
     const [form, setForm] = useState({
         employeeId: "",
@@ -49,16 +46,12 @@ const Leaveledger = () => {
     const [filters, setFilters] = useState({
         searchText: '',
         branch: 'all',
-        department: 'all'
     });
     const navigate = useNavigate();
     const [editingId, setEditingId] = useState(null);
     const [isBulk, setIsBulk] = useState(false);
-    const { company, employee, leaveBalance, branch, department, leavePolicies } = useSelector((state) => state.user);
-
-    useEffect(() => {
-        department.length > 0 && setdepartmentlist(department.filter((dep) => dep?.branchId?._id == filters.branch))
-    }, [filters.branch]);
+    const [loading, setLoading] = useState(false);
+    const { company, employee, leaveBalance, branch, leavePolicies } = useSelector((state) => state.user);
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({
@@ -68,13 +61,11 @@ const Leaveledger = () => {
     };
 
     useEffect(() => {
-        if (leaveBalance) setRows(leaveBalance)
-        // console.log(leaveBalance)
+        if (leaveBalance) setRows(leaveBalance);
     }, [leaveBalance]);
 
-    // ✅ Handle form change
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+    const handleChange = (field, value) => {
+        setForm(prev => ({ ...prev, [field]: value }));
     };
 
     const handleOpen = (row = null) => {
@@ -84,10 +75,10 @@ const Leaveledger = () => {
                 employeeId: row.employeeId?._id || "",
                 companyId: row.companyId || "",
                 branchId: row.branchId || "",
-                type: row.type,
-                amount: row.amount,
+                type: row.type || "credit",
+                amount: row.amount || 0,
                 policyId: row.policyId?._id || row.policyId || "",
-                remarks: row.remarks,
+                remarks: row.remarks || "",
             });
             setEditingId(row._id);
         } else {
@@ -123,22 +114,21 @@ const Leaveledger = () => {
     const filteredEmployees = rows?.filter(emp => {
         const name = emp.employeeId?.userid?.name?.toLowerCase() || '';
         const branchId = emp.branchId || '';
-        // const deptId = emp.departmentid || '';
 
         const nameMatch = filters.searchText.trim() === '' || name.includes(filters.searchText.toLowerCase());
         const branchMatch = filters.branch === 'all' || branchId === filters.branch;
-        // const deptMatch = filters.department === 'all' || deptId === filters.department;
 
         return nameMatch && branchMatch;
     });
 
     const handleClose = () => setOpen(false);
 
-    // ✅ Submit (Create or Update)
-    const handleSubmit = async () => {
-        if (!isBulk && !form.employeeId) return toast.warning("Please select Employee")
-        if (form.amount < 1) return toast.warning("Please enter No. of Leaves")
+    const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
+        if (!isBulk && !form.employeeId) return toast.warning("Please select Employee");
+        if (form.amount < 1) return toast.warning("Please enter No. of Leaves");
         try {
+            setLoading(true);
             if (isBulk) {
                 await apiClient({
                     url: `leave-balances/bulk`,
@@ -166,33 +156,34 @@ const Leaveledger = () => {
                 });
                 toast.success("Leave balance added");
             }
-            dispatch(FirstFetch())
+            dispatch(FirstFetch());
             handleClose();
         } catch (error) {
             console.error("Error saving leave balance:", error);
+            toast.error(error.message || "Failed to save leave balance");
+        } finally {
+            setLoading(false);
         }
     };
 
-    // ✅ Delete record
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this record?")) {
+        if (window.confirm("Are you sure you want to delete this summary record?")) {
             try {
                 await apiClient({
                     url: `leave-balances/${id}`,
                     method: "DELETE"
                 });
                 toast.success("Leave balance deleted");
-                dispatch(FirstFetch())
+                dispatch(FirstFetch());
             } catch (error) {
                 console.error("Error deleting leave balance:", error);
+                toast.error(error.message || "Failed to delete");
             }
         }
     };
 
-    // ✅ Set employee selection
-    const setEmployee = (e) => {
-        const empId = e.target.value;
-        const emp = employee.find((emp) => emp._id === empId);
+    const setEmployeeId = (empId) => {
+        const emp = employee?.find((e) => e._id === empId);
         if (emp) {
             setForm({
                 ...form,
@@ -202,196 +193,167 @@ const Leaveledger = () => {
             });
         }
     };
-    const employepic = 'https://res.cloudinary.com/dusxlxlvm/image/upload/v1753113610/ems/assets/employee_fi3g5p.webp'
 
-    // ✅ DataTable columns
     const columns = [
         { name: "S.no", selector: (row, ind) => ind + 1, width: '60px' },
         {
             name: "Employee",
             selector: (row) => row?.employeeId?.userid?.name || "",
             sortable: true,
-            minWidth: '160px',
-            cell: (row) => (<div className="flex items-center capitalize gap-2">
-                <Avatar
-                    // src={row?.employeeId?.profileimage || employepic} 
-                    src={cloudinaryUrl(row?.employeeId?.profileimage, {
-                        format: "webp",
-                        width: 100,
-                        height: 100,
-                    }) || employepic}
-                    alt={row?.employeeId?.userid?.name}
-                    sx={{ width: 32, height: 32 }}
-                >
-                    {!row?.employeeId?.profileimage && employepic}
-                </Avatar>
-                <Box>
-                    <Typography variant="body2" sx={{ fontSize: '0.825rem' }}>{row?.employeeId?.userid?.name}</Typography>
-                    <p className="text-[10px] text-gray-500">({row?.employeeId?.designation})</p>
-                </Box>
-            </div>),
+            minWidth: '200px',
+            cell: (row) => {
+                const name = row?.employeeId?.userid?.name || "N/A";
+                const profileImg = row?.employeeId?.profileimage;
+                return (
+                    <div className="flex items-center gap-2.5 py-1">
+                        {profileImg ? (
+                            <img
+                                src={cloudinaryUrl(profileImg, {
+                                    format: "webp",
+                                    width: 100,
+                                    height: 100,
+                                })}
+                                alt={name}
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                            />
+                        ) : (
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${getInitialBg(name)}`}>
+                                {name ? name.charAt(0).toUpperCase() : <User size={14} />}
+                            </div>
+                        )}
+                        <div>
+                            <span className="font-semibold text-xs text-slate-800 block capitalize">{name}</span>
+                            <span className="text-[10px] text-slate-500 block">({row?.employeeId?.designation || 'Staff'})</span>
+                        </div>
+                    </div>
+                );
+            },
         },
-        // { name: "Type", selector: (row) => row.type, sortable: true, width: '90px' },
-        { name: "Total Allotted", selector: (row) => row.totalAllocated, sortable: true },
-        { name: "Used", selector: (row) => row.used, sortable: true },
+        {
+            name: "Total Allotted",
+            selector: (row) => row.totalAllocated,
+            sortable: true,
+            cell: (row) => <span className="font-semibold text-slate-700">{row.totalAllocated}</span>
+        },
+        {
+            name: "Used",
+            selector: (row) => row.used,
+            sortable: true,
+            cell: (row) => <span className="font-semibold text-slate-600">{row.used}</span>
+        },
         { 
             name: "Remaining", 
             selector: (row) => row.remaining, 
             sortable: true, 
             cell: (row) => (
-                <Typography sx={{ fontWeight: 'bold', color: row.remaining < 0 ? 'red' : 'green' }}>
-                    {row.remaining}
-                </Typography>
+                <Badge
+                    size="sm"
+                    variant={row.remaining < 0 ? 'danger' : row.remaining === 0 ? 'warning' : 'success'}
+                >
+                    {row.remaining} days
+                </Badge>
             )
         },
         {
             name: "Actions",
             cell: (row) => (
-                <>
-                    {!row?.payrollId && <>
-                        <Tooltip title="View History">
-                            <IconButton color="info" onClick={() => {
-                                setHistoryEmployee(row.employeeId);
-                                setHistoryOpen(true);
-                            }}>
-                                <History size={18} />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Adjustment">
-                            <IconButton color="primary" onClick={() => handleOpen(row)}>
-                                <Edit2 size={18} />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Summary">
-                            <IconButton color="error" onClick={() => handleDelete(row._id)}>
-                                <Trash2 size={18} />
-                            </IconButton>
-                        </Tooltip>
-                    </>
-                    }
-                    {row.payrollId && <>
-                        <IconButton title="Open Payroll" color="primary" onClick={() => navigate(`/dashboard/payroll/print/${row.payrollId}`)}>
-                            <ExternalLink size={18} />
-                        </IconButton>
-                    </>}
-                </>
+                <div className="flex items-center gap-1.5">
+                    {!row?.payrollId && (
+                        <>
+                            <button
+                                title="View Leave History"
+                                className="p-1 rounded text-sky-600 hover:bg-sky-50 transition cursor-pointer"
+                                onClick={() => {
+                                    setHistoryEmployee(row.employeeId);
+                                    setHistoryOpen(true);
+                                }}
+                            >
+                                <History size={16} />
+                            </button>
+                            <button
+                                title="Adjust Balance"
+                                className="p-1 rounded text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+                                onClick={() => handleOpen(row)}
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                            <button
+                                title="Delete Summary"
+                                className="p-1 rounded text-red-500 hover:bg-red-50 transition cursor-pointer"
+                                onClick={() => handleDelete(row._id)}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </>
+                    )}
+                    {row.payrollId && (
+                        <button
+                            title="Open Payroll"
+                            className="p-1 rounded text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+                            onClick={() => navigate(`/dashboard/payroll/print/${row.payrollId}`)}
+                        >
+                            <ExternalLink size={16} />
+                        </button>
+                    )}
+                </div>
             ),
             width: '120px'
         },
     ];
 
+    const branchOptions = [
+        { label: 'All Branches', value: 'all' },
+        ...(branch || []).map(b => ({ label: b.name, value: b._id }))
+    ];
+
+    const employeeOptions = (employee || [])
+        .filter(emp => emp.status !== false)
+        .map(emp => ({
+            label: `${emp.userid?.name || 'Unknown'} (${emp.empId || 'No ID'})`,
+            value: emp._id
+        }));
+
+    const policyOptions = (leavePolicies || []).map(p => ({
+        label: `${p.name} (${p.allocationType})`,
+        value: p._id
+    }));
+
     return (
-        <div className="max-w-6xl mx-auto w-full min-w-0 md:p-3 p-1">
-            {/* <h2>Leave Balance Management</h2> */}
-            <div className="flex my-3 items-center flex-wrap justify-between gap-2 mt-1 w-full">
-                {/* Search (full on small, shrink on md+) */}
-                <div className="flex flex-wrap gap-3 justify-between w-full md:w-fit">
-                    <TextField
-                        size="small"
-                        className="w-[100%] md:w-[160px]"
-                        value={filters.searchText}
-                        onChange={(e) => handleFilterChange("searchText", e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <Search size={16} />
-                                </InputAdornment>
-                            ),
-                            endAdornment: filters.searchText && (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        onClick={() => handleFilterChange("searchText", '')}
-                                        edge="end"
-                                        size="small"
-                                    >
-                                        <X size={16} />
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                        label="Search Employee"
-                    />
+        <div className="max-w-7xl mx-auto w-full p-2 md:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <div className="w-full sm:w-64">
+                        <Input
+                            size="sm"
+                            startIcon={Search}
+                            placeholder="Search employee name..."
+                            value={filters.searchText}
+                            onChange={(e) => handleFilterChange("searchText", e.target.value)}
+                        />
+                    </div>
 
-                    {/* Branch (50% on small, shrink on md+) */}
-                    <FormControl
-                        size="small"
-                        className="w-[47%] md:w-[160px]"
-                    >
-                        <InputLabel>Branch</InputLabel>
+                    <div className="w-full sm:w-48">
                         <Select
-                            label="Branch"
+                            size="sm"
+                            options={branchOptions}
                             value={filters.branch}
-                            input={
-                                <OutlinedInput
-                                    startAdornment={
-                                        <InputAdornment position="start">
-                                            <Filter size={16} />
-                                        </InputAdornment>
-                                    }
-                                    label="Branch"
-                                />
-                            }
                             onChange={(e) => handleFilterChange("branch", e.target.value)}
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {branch?.map((list) => (
-                                <MenuItem key={list._id} value={list._id}>
-                                    {list.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    {/* Department (50% on small, shrink on md+) */}
-                    {/* <FormControl
-                        size="small"
-                        className="w-[47%] md:w-[160px]"
-                    >
-                        <InputLabel>Department</InputLabel>
-                        <Select
-                            label="Department"
-                            disabled={filters.branch === "all"}
-                            value={filters.department}
-                            input={
-                                <OutlinedInput
-                                    startAdornment={
-                                        <InputAdornment position="start">
-                                            <Filter size={18} />
-                                        </InputAdornment>
-                                    }
-                                    label="Department"
-                                />
-                            }
-                            onChange={(e) =>
-                                handleFilterChange("department", e.target.value)
-                            }
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {departmentlist.length > 0 ? (
-                                departmentlist.map((list) => (
-                                    <MenuItem key={list._id} value={list._id}>
-                                        {list.department}
-                                    </MenuItem>
-                                ))
-                            ) : (
-                                <MenuItem disabled>No departments found</MenuItem>
-                            )}
-                        </Select>
-                    </FormControl> */}
+                        />
+                    </div>
                 </div>
-                <div className="w-full md:w-fit flex flex-wrap gap-2">
+
+                <div className="w-full md:w-auto flex flex-wrap gap-2">
                     <Button
-                        className="w-full md:w-fit"
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => handleBulkOpen()}
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkOpen}
                     >
                         Bulk Add Leave
                     </Button>
                     <Button
-                        className="w-full md:w-fit"
-                        variant="contained"
-                        color="primary"
+                        variant="primary"
+                        size="sm"
+                        startIcon={Plus}
                         onClick={() => handleOpen()}
                     >
                         Add Leave Balance
@@ -399,135 +361,92 @@ const Leaveledger = () => {
                 </div>
             </div>
 
-            <div className="w-full rounded-lg shadow border border-gray-100 bg-white">
+            <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
                 <DataTable
                     columns={columns}
                     data={filteredEmployees}
                     pagination
                     highlightOnHover
-                    striped
-                    responsive
                     customStyles={useCustomStyles()}
                 />
             </div>
 
-            <Modalbox open={open} outside={false} onClose={handleClose}>
-                <div className="membermodal w-[500px]">
-                    <div className='whole'>
-                        <div className='modalhead'> {isBulk ? "Bulk Add Leave Balance" : editingId ? "Edit Leave Balance" : "Add Leave Balance"}</div>
-                        <form onSubmit={handleSubmit}>
-                            <span className="modalcontent ">
-                                <div className='flex flex-col gap-3 w-full'>
-                                    {isBulk ? (
-                                        <TextField
-                                            disabled
-                                            size="small"
-                                            label="Select Employee"
-                                            value="All Active Employees"
-                                            fullWidth
-                                            className="mt-4"
-                                        />
-                                    ) : (
-                                        <FormControl className="w-full mt-4" >
-                                            <InputLabel>Select Employee</InputLabel>
-                                            <Select
-                                                label="Select Employee"
-                                                value={form.employeeId}
-                                                onChange={setEmployee}
-                                                MenuProps={{
-                                                    PaperProps: {
-                                                        style: {
-                                                            maxHeight: 250,
-                                                        },
-                                                    },
-                                                }}
-                                            >
-                                                <MenuItem value="">Select Employee</MenuItem>
-                                                {employee?.filter(emp => emp.status !== false).map((emp) => (
-                                                    <MenuItem key={emp._id} value={emp._id}>
-                                                        <div className="flex items-center gap-2">
-                                                            <Avatar
-                                                                // src={emp?.profileimage}
-                                                                src={cloudinaryUrl(emp?.profileimage, {
-                                                                    format: "webp",
-                                                                    width: 100,
-                                                                    height: 100,
-                                                                })}
-                                                                sx={{ width: 24, height: 24 }}
-                                                            />
-                                                            {emp.userid?.name}
-                                                        </div>
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                        </FormControl>
-                                    )}
+            {/* Add / Edit / Bulk Modal */}
+            <Modal
+                open={open}
+                onClose={handleClose}
+                title={isBulk ? "Bulk Add Leave Balance" : editingId ? "Edit Leave Balance" : "Add Leave Balance"}
+                subtitle="Allot or debit employee leave balances"
+                maxWidth="max-w-lg"
+            >
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {isBulk ? (
+                        <Input
+                            label="Target Employees"
+                            disabled
+                            value="All Active Employees"
+                        />
+                    ) : (
+                        <Select
+                            label="Select Employee"
+                            required
+                            options={employeeOptions}
+                            placeholder="Select Employee..."
+                            value={form.employeeId}
+                            onChange={(e) => setEmployeeId(e.target.value)}
+                        />
+                    )}
 
-                                    <FormControl className="w-full" size="small">
-                                        <InputLabel>Leave Policy</InputLabel>
-                                        <Select
-                                            label="Leave Policy"
-                                            name="policyId"
-                                            value={form.policyId}
-                                            onChange={handleChange}
-                                        >
-                                            <MenuItem value="">Select Policy</MenuItem>
-                                            {leavePolicies?.map((policy) => (
-                                                <MenuItem key={policy._id} value={policy._id}>
-                                                    {policy.name} ({policy.allocationType})
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                    <div className="w-full flex justify-between gap-3">
-                                        <TextField
-                                            margin="dense"
-                                            select
-                                            size="small"
-                                            label="Type"
-                                            name="type"
-                                            fullWidth
-                                            value={form.type}
-                                            onChange={handleChange}
-                                        >
-                                            <MenuItem value="credit">Credit</MenuItem>
-                                            <MenuItem value="debit">Debit</MenuItem>
-                                        </TextField>
+                    <Select
+                        label="Leave Policy"
+                        options={policyOptions}
+                        placeholder="Select Policy..."
+                        value={form.policyId}
+                        onChange={(e) => handleChange('policyId', e.target.value)}
+                    />
 
-                                        <TextField
-                                            margin="dense"
-                                            label="No. of Allotted Leaves"
-                                            name="amount"
-                                            size="small"
-                                            type="number"
-                                            fullWidth
-                                            value={form.amount}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
-                                    <TextField
-                                        margin="dense"
-                                        label="Remarks"
-                                        name="remarks"
-                                        size="small"
-                                        multiline
-                                        minRows={2}
-                                        fullWidth
-                                        value={form.remarks}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </span>
-                        </form>
-                        <div className='modalfooter'>
-                            <Button variant="outlined" onClick={handleClose}>Cancel</Button>
-                            <Button onClick={handleSubmit} variant="contained" color="primary">
-                                {editingId ? "Update" : "Save"}
-                            </Button>
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Select
+                            label="Transaction Type"
+                            options={[
+                                { label: 'Credit (+)', value: 'credit' },
+                                { label: 'Debit (-)', value: 'debit' }
+                            ]}
+                            value={form.type}
+                            onChange={(e) => handleChange('type', e.target.value)}
+                        />
+
+                        <NumberInput
+                            label="No. of Leaves"
+                            required
+                            min="1"
+                            placeholder="e.g. 1"
+                            value={form.amount}
+                            onChange={(e) => handleChange('amount', Number(e.target.value))}
+                        />
                     </div>
-                </div>
-            </Modalbox>
+
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-slate-700 tracking-wide">Remarks</label>
+                        <textarea
+                            rows={2}
+                            placeholder="Reason for leave allotment or deduction..."
+                            className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
+                            value={form.remarks}
+                            onChange={(e) => handleChange('remarks', e.target.value)}
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                        <Button variant="outline" type="button" onClick={handleClose}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" type="submit" loading={loading}>
+                            {editingId ? "Update Balance" : "Save Balance"}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
             <LeaveHistoryModal 
                 open={historyOpen} 

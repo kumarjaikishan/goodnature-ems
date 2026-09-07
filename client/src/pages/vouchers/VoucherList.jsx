@@ -1,35 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  Button,
-  TextField,
-  InputAdornment,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  OutlinedInput,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Autocomplete,
-  CircularProgress,
-  Chip,
-  IconButton,
-  Tooltip,
-  Grid
-} from "@mui/material";
 import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
-import { Edit2, Eye, Trash2, Plus, Search, Filter } from "lucide-react";
+import { Edit2, Eye, Trash2, Plus, Search, X } from "lucide-react";
 import { toast } from "../../utils/toast";
 import { swal } from "../../utils/confirmDialog";
 import dayjs from "dayjs";
+import Input from "@/components/ui/Input";
+import NumberInput from "@/components/ui/NumberInput";
+import Select from "@/components/ui/Select";
+import DateInput from "@/components/ui/DateInput";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import Badge from "@/components/ui/Badge";
 
 const VoucherList = () => {
   const navigate = useNavigate();
@@ -46,7 +31,7 @@ const VoucherList = () => {
   const [searchText, setSearchText] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedFilterLedger, setSelectedFilterLedger] = useState(null);
+  const [selectedFilterLedgerId, setSelectedFilterLedgerId] = useState("");
   const [selectedReferenceType, setSelectedReferenceType] = useState("all");
 
   // Voucher Modal State
@@ -55,7 +40,7 @@ const VoucherList = () => {
   const [editingVoucher, setEditingVoucher] = useState(null);
 
   // Voucher Form State
-  const [selectedLedger, setSelectedLedger] = useState(null);
+  const [selectedLedgerId, setSelectedLedgerId] = useState("");
   const [voucherDate, setVoucherDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [voucherAmount, setVoucherAmount] = useState("");
   const [voucherNarration, setVoucherNarration] = useState("");
@@ -98,7 +83,7 @@ const VoucherList = () => {
   // ----------------------------------------------------
   const handleOpenCreate = () => {
     setEditingVoucher(null);
-    setSelectedLedger(null);
+    setSelectedLedgerId("");
     setVoucherDate(dayjs().format("YYYY-MM-DD"));
     setVoucherAmount("");
     setVoucherNarration("");
@@ -112,7 +97,7 @@ const VoucherList = () => {
     const ledgerName = debitEntry ? debitEntry.accountName : '';
     const matchingLedger = ledgers.find(l => l.name === ledgerName);
 
-    setSelectedLedger(matchingLedger || null);
+    setSelectedLedgerId(matchingLedger ? matchingLedger._id : "");
     setVoucherDate(dayjs(v.date).format("YYYY-MM-DD"));
 
     const totalAmount = v.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
@@ -148,7 +133,7 @@ const VoucherList = () => {
   const handleSubmitVoucher = async (e) => {
     e.preventDefault();
 
-    if (!selectedLedger) {
+    if (!selectedLedgerId) {
       return toast.warn("Please select a ledger");
     }
     if (!voucherAmount || parseFloat(voucherAmount) <= 0) {
@@ -161,7 +146,7 @@ const VoucherList = () => {
         date: voucherDate,
         amount: parseFloat(voucherAmount),
         narration: voucherNarration,
-        ledgerId: selectedLedger._id
+        ledgerId: selectedLedgerId
       };
 
       if (editingVoucher) {
@@ -222,7 +207,7 @@ const VoucherList = () => {
           });
           toast.success("Custom ledger deleted successfully");
           fetchLedgers();
-          fetchVouchers(); // Refresh in case vouchers list used it
+          fetchVouchers();
         } catch (error) {
           console.error(error);
           toast.error(error.message || "Failed to delete custom ledger");
@@ -270,6 +255,8 @@ const VoucherList = () => {
     }
   };
 
+  const selectedFilterLedger = ledgers.find(l => l._id === selectedFilterLedgerId);
+
   // Filter vouchers based on search text
   const filteredVouchers = (Array.isArray(vouchers) ? vouchers : []).filter((v) => {
     const debitEntry = v.entries?.find(e => e.type === 'DEBIT');
@@ -289,8 +276,8 @@ const VoucherList = () => {
 
     // Ledger filter
     const matchesLedger =
-      !selectedFilterLedger ||
-      ledgerName === selectedFilterLedger.name;
+      !selectedFilterLedgerId ||
+      ledgerName === selectedFilterLedger?.name;
 
     // Date Range filter
     let matchesDate = true;
@@ -322,13 +309,13 @@ const VoucherList = () => {
     {
       name: "S.No",
       selector: (row, index) => index + 1,
-      width: "50px",
+      width: "60px",
     },
     {
       name: "Voucher No",
       selector: (row) => row.voucherNo,
       cell: (row) => (
-        <span className="font-mono bg-slate-100 text-slate-800 px-2 py-1 rounded text-xs border border-slate-200">
+        <span className="font-mono bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold border border-slate-200">
           {row.voucherNo}
         </span>
       ),
@@ -340,7 +327,7 @@ const VoucherList = () => {
       selector: (row) => row.date,
       cell: (row) => dayjs(row.date).format("DD MMM YYYY"),
       sortable: true,
-      width: "100px"
+      width: "110px"
     },
     {
       name: "Ledger",
@@ -384,7 +371,7 @@ const VoucherList = () => {
         return <span className="font-bold text-slate-900">₹ {amt.toLocaleString()}</span>;
       },
       sortable: true,
-      width: "100px"
+      width: "110px"
     },
     {
       name: "Narration",
@@ -397,28 +384,34 @@ const VoucherList = () => {
       cell: (row) => {
         const isManual = row.referenceType === "MANUAL";
         return (
-          <div className="flex gap-1 items-center">
-            <Tooltip title="View Details">
-              <IconButton size="small" onClick={() => navigate(`/dashboard/vouchers/${row._id}`)}>
-                <Eye size={16} className="text-teal-600" />
-              </IconButton>
-            </Tooltip>
+          <div className="flex gap-1.5 items-center">
+            <button
+              title="View Details"
+              onClick={() => navigate(`/dashboard/vouchers/${row._id}`)}
+              className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+            >
+              <Eye size={15} />
+            </button>
 
             {isManual ? (
               <>
-                <Tooltip title="Edit Voucher">
-                  <IconButton size="small" onClick={() => handleOpenEdit(row)}>
-                    <Edit2 size={16} className="text-teal-700" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete Voucher">
-                  <IconButton size="small" onClick={() => handleDeleteVoucher(row._id)}>
-                    <Trash2 size={16} className="text-red-600" />
-                  </IconButton>
-                </Tooltip>
+                <button
+                  title="Edit Voucher"
+                  onClick={() => handleOpenEdit(row)}
+                  className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+                >
+                  <Edit2 size={15} />
+                </button>
+                <button
+                  title="Delete Voucher"
+                  onClick={() => handleDeleteVoucher(row._id)}
+                  className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
+                >
+                  <Trash2 size={15} />
+                </button>
               </>
             ) : (
-              <span className="text-xs text-gray-400 italic self-center px-2">System</span>
+              <Badge variant="neutral" size="sm">System</Badge>
             )}
           </div>
         );
@@ -443,391 +436,328 @@ const VoucherList = () => {
       name: "Actions",
       width: "120px",
       cell: (row) => (
-        <div className="flex gap-1 items-center">
-          <Tooltip title="Edit Ledger Name">
-            <IconButton size="small" onClick={() => handleOpenEditLedger(row)}>
-              <Edit2 size={16} className="text-teal-700" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete Ledger">
-            <IconButton size="small" onClick={() => handleDeleteLedger(row._id)}>
-              <Trash2 size={16} className="text-red-600" />
-            </IconButton>
-          </Tooltip>
+        <div className="flex gap-1.5 items-center">
+          <button
+            title="Edit Ledger Name"
+            onClick={() => handleOpenEditLedger(row)}
+            className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+          >
+            <Edit2 size={15} />
+          </button>
+          <button
+            title="Delete Ledger"
+            onClick={() => handleDeleteLedger(row._id)}
+            className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       )
     }
   ];
 
+  const ledgerSelectOptions = ledgers.map(l => {
+    const tag = l.ledgerType === 'sponsor'
+      ? ` [Sponsor${l.empId ? `: ${l.empId}` : ''}]`
+      : l.ledgerType === 'employee' && l.empId
+        ? ` [Emp: ${l.empId}]`
+        : ' [Custom]';
+    return {
+      label: `${l.name}${tag}`,
+      value: l._id
+    };
+  });
+
   return (
-    <div className="w-full max-w-7xl mx-auto p-1 md:p-4">
+    <div className="w-full max-w-7xl mx-auto p-2 md:p-6 space-y-6">
       {/* Header section with Stats Card */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between"
-        >
-          <span className="text-sm font-semibold text-slate-500 uppercase">Total Vouchers / Ledgers</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            {activeTab === "vouchers" ? "Total Vouchers" : "Total Custom Ledgers"}
+          </span>
           <span className="text-3xl font-black text-slate-800 mt-2">
             {activeTab === "vouchers" ? filteredVouchers.length : filteredCustomLedgers.length}
           </span>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between"
-        >
-          <span className="text-sm font-semibold text-slate-500 uppercase">Total Transaction Volume</span>
+        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Transaction Volume</span>
           <span className="text-3xl font-black text-teal-700 mt-2">₹ {totalAmountSum.toLocaleString()}</span>
-        </motion.div>
-      </div>
-
-      {/* Tabs System */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-200 bg-white px-4 pt-2 rounded-t-lg border-t border-x border-slate-200 gap-2">
-        <div className="flex">
-          <button
-            className={`py-3 px-6 font-bold border-b-2 text-sm transition-all outline-none ${activeTab === "vouchers"
-              ? "border-teal-600 text-teal-700"
-              : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            onClick={() => {
-              setActiveTab("vouchers");
-              setSearchText("");
-            }}
-          >
-            Vouchers
-          </button>
-          <button
-            className={`py-3 px-6 font-bold border-b-2 text-sm transition-all outline-none ${activeTab === "ledgers"
-              ? "border-teal-600 text-teal-700"
-              : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            onClick={() => {
-              setActiveTab("ledgers");
-              setSearchText("");
-            }}
-          >
-            Manage Custom Ledgers
-          </button>
-        </div>
-
-        <div className="pb-2">
-          {activeTab === "vouchers" ? (
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              startIcon={<Plus size={16} />}
-              onClick={handleOpenCreate}
-              className="font-bold py-1.5 px-4 shadow-sm"
-            >
-              Create Voucher
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              color="secondary"
-              size="small"
-              startIcon={<Plus size={16} />}
-              onClick={handleOpenCreateLedger}
-              className="font-bold py-1.5 px-4 shadow-sm"
-            >
-              Create Custom Ledger
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white p-4 border-x border-slate-200 flex flex-col gap-4">
-        {/* Row 1: Search & Tab Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <TextField
-            size="small"
-            placeholder={
-              activeTab === "vouchers"
-                ? "Search Voucher No, Ledger, Narration..."
-                : "Search Custom Ledgers..."
-            }
-            className="w-full md:w-[320px]"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search size={16} className="text-gray-400" />
-                </InputAdornment>
-              ),
-            }}
-          />
+      {/* Main Container */}
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+        {/* Tabs System */}
+        <div className="flex flex-wrap items-center justify-between border-b border-slate-200 px-6 pt-3 gap-3 bg-slate-50/50">
+          <div className="flex gap-2">
+            <button
+              className={`py-2.5 px-4 font-bold border-b-2 text-sm transition-all outline-none cursor-pointer ${activeTab === "vouchers"
+                ? "border-teal-700 text-teal-800"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              onClick={() => {
+                setActiveTab("vouchers");
+                setSearchText("");
+              }}
+            >
+              Vouchers
+            </button>
+            <button
+              className={`py-2.5 px-4 font-bold border-b-2 text-sm transition-all outline-none cursor-pointer ${activeTab === "ledgers"
+                ? "border-teal-700 text-teal-800"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              onClick={() => {
+                setActiveTab("ledgers");
+                setSearchText("");
+              }}
+            >
+              Manage Custom Ledgers
+            </button>
+          </div>
 
+          <div className="pb-2">
+            {activeTab === "vouchers" ? (
+              <Button
+                variant="primary"
+                size="sm"
+                startIcon={Plus}
+                onClick={handleOpenCreate}
+              >
+                Create Voucher
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                startIcon={Plus}
+                onClick={handleOpenCreateLedger}
+              >
+                Create Custom Ledger
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="w-full md:w-80">
+              <Input
+                size="sm"
+                startIcon={Search}
+                placeholder={
+                  activeTab === "vouchers"
+                    ? "Search Voucher No, Ledger, Narration..."
+                    : "Search Custom Ledgers..."
+                }
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+            </div>
+
+            {activeTab === "vouchers" && (
+              <div className="flex flex-wrap gap-2 items-center">
+                {(startDate || endDate || selectedFilterLedgerId || selectedReferenceType !== "all") && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    startIcon={X}
+                    onClick={() => {
+                      setStartDate("");
+                      setEndDate("");
+                      setSelectedFilterLedgerId("");
+                      setSelectedReferenceType("all");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Vouchers Specific Filters */}
           {activeTab === "vouchers" && (
-            <div className="flex flex-wrap gap-2 items-center">
-              {(startDate || endDate || selectedFilterLedger || selectedReferenceType !== "all") && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                    setSelectedFilterLedger(null);
-                    setSelectedReferenceType("all");
-                  }}
-                  className="font-bold"
-                >
-                  Clear Filters
-                </Button>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+              <DateInput
+                size="sm"
+                label="Start Date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <DateInput
+                size="sm"
+                label="End Date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+              <Select
+                size="sm"
+                label="Filter by Ledger"
+                options={ledgerSelectOptions}
+                placeholder="All Ledgers"
+                value={selectedFilterLedgerId}
+                onChange={(e) => setSelectedFilterLedgerId(e.target.value)}
+              />
+              <Select
+                size="sm"
+                label="Source Type"
+                options={[
+                  { label: "All Vouchers", value: "all" },
+                  { label: "Manual Receipts", value: "MANUAL" },
+                  { label: "System Generated", value: "SYSTEM" },
+                ]}
+                value={selectedReferenceType}
+                onChange={(e) => setSelectedReferenceType(e.target.value)}
+              />
             </div>
           )}
         </div>
 
-        {/* Row 2: Vouchers Specific Advanced Filters */}
-        {activeTab === "vouchers" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
-            {/* Start Date */}
-            <TextField
-              size="small"
-              type="date"
-              label="Start Date"
-              InputLabelProps={{ shrink: true }}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              fullWidth
+        {/* Data Table */}
+        <div className="overflow-hidden">
+          {activeTab === "vouchers" ? (
+            <DataTable
+              columns={voucherColumns}
+              data={filteredVouchers}
+              pagination
+              customStyles={themes}
+              highlightOnHover
+              progressPending={loading}
+              progressComponent={<Loader />}
+              noDataComponent={
+                <div className="py-12 text-center text-slate-500 font-medium text-sm">
+                  No financial vouchers found.
+                </div>
+              }
             />
-            {/* End Date */}
-            <TextField
-              size="small"
-              type="date"
-              label="End Date"
-              InputLabelProps={{ shrink: true }}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              fullWidth
+          ) : (
+            <DataTable
+              columns={ledgerColumns}
+              data={filteredCustomLedgers}
+              pagination
+              customStyles={themes}
+              highlightOnHover
+              progressPending={loading}
+              progressComponent={<Loader />}
+              noDataComponent={
+                <div className="py-12 text-center text-slate-500 font-medium text-sm">
+                  No custom ledgers found. Click "Create Custom Ledger" to start.
+                </div>
+              }
             />
-            {/* Ledger Select */}
-            <Autocomplete
-              options={ledgers}
-              getOptionLabel={(option) => {
-                const tag = option.ledgerType === 'sponsor' 
-                  ? ` [Sponsor${option.empId ? `: ${option.empId}` : ''}]` 
-                  : option.ledgerType === 'employee' && option.empId 
-                    ? ` [Emp: ${option.empId}]` 
-                    : ' [Custom]';
-                return `${option.name}${tag}`;
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Filter by Ledger"
-                  size="small"
-                  placeholder="Select ledger..."
-                />
-              )}
-              value={selectedFilterLedger}
-              onChange={(event, newValue) => setSelectedFilterLedger(newValue)}
-              isOptionEqualToValue={(option, value) => option._id === value._id}
-              fullWidth
-            />
-            {/* Reference Type */}
-            <FormControl size="small" fullWidth>
-              <InputLabel id="ref-type-filter-label">Source Type</InputLabel>
-              <Select
-                labelId="ref-type-filter-label"
-                value={selectedReferenceType}
-                label="Source Type"
-                onChange={(e) => setSelectedReferenceType(e.target.value)}
-              >
-                <MenuItem value="all">All Vouchers</MenuItem>
-                <MenuItem value="MANUAL">Manual Receipts</MenuItem>
-                <MenuItem value="SYSTEM">System Generated</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        )}
-      </div>
-
-      {/* Data Table */}
-      <div className="bg-white rounded-b-lg border border-slate-200 overflow-hidden shadow-sm">
-        {activeTab === "vouchers" ? (
-          <DataTable
-            columns={voucherColumns}
-            data={filteredVouchers}
-            pagination
-            customStyles={themes}
-            highlightOnHover
-            progressPending={loading}
-            progressComponent={<Loader />}
-            noDataComponent={
-              <div className="py-8 text-center text-slate-500 font-medium">
-                No financial vouchers found.
-              </div>
-            }
-          />
-        ) : (
-          <DataTable
-            columns={ledgerColumns}
-            data={filteredCustomLedgers}
-            pagination
-            customStyles={themes}
-            highlightOnHover
-            progressPending={loading}
-            progressComponent={<Loader />}
-            noDataComponent={
-              <div className="py-8 text-center text-slate-500 font-medium">
-                No custom ledgers found. Click "Create Custom Ledger" to start.
-              </div>
-            }
-          />
-        )}
+          )}
+        </div>
       </div>
 
       {/* Create / Edit Voucher Dialog Modal */}
-      <Dialog
+      <Modal
         open={openModal}
         onClose={() => !submitting && setOpenModal(false)}
-        maxWidth="sm"
-        fullWidth
+        title={editingVoucher ? `Edit Voucher [${editingVoucher.voucherNo}]` : "Create Financial Voucher"}
+        subtitle="Manage financial vouchers and manual debits"
+        maxWidth="max-w-lg"
       >
-        <DialogTitle className="font-bold border-b border-slate-100 text-slate-800">
-          {editingVoucher ? `Edit Voucher [${editingVoucher.voucherNo}]` : "Create Financial Voucher"}
-        </DialogTitle>
-        <form onSubmit={handleSubmitVoucher}>
-          <DialogContent className="space-y-4 pt-6">
-            <Autocomplete
-              options={ledgers}
-              getOptionLabel={(option) => {
-                const tag = option.ledgerType === 'sponsor' 
-                  ? ` [Sponsor${option.empId ? `: ${option.empId}` : ''}]` 
-                  : option.ledgerType === 'employee' && option.empId 
-                    ? ` [Emp: ${option.empId}]` 
-                    : ' [Custom]';
-                return `${option.name}${tag}`;
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select Ledger"
-                  size="small"
-                  required
-                  placeholder="Search ledgers (Employee, Sponsor or Custom)..."
-                />
-              )}
-              value={selectedLedger}
-              onChange={(event, newValue) => setSelectedLedger(newValue)}
-              disabled={Boolean(editingVoucher)}
-              isOptionEqualToValue={(option, value) => option._id === value._id}
+        <form onSubmit={handleSubmitVoucher} className="space-y-4">
+          <Select
+            label="Select Ledger"
+            required
+            options={ledgerSelectOptions}
+            placeholder="Select ledger (Employee, Sponsor or Custom)..."
+            value={selectedLedgerId}
+            onChange={(e) => setSelectedLedgerId(e.target.value)}
+            disabled={Boolean(editingVoucher)}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <DateInput
+              label="Voucher Date"
+              required
+              value={voucherDate}
+              onChange={(e) => setVoucherDate(e.target.value)}
             />
+            <NumberInput
+              label="Amount"
+              currency
+              required
+              min="1"
+              step="any"
+              placeholder="Enter amount"
+              value={voucherAmount}
+              onChange={(e) => setVoucherAmount(e.target.value)}
+            />
+          </div>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="Voucher Date"
-                  size="small"
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  value={voucherDate}
-                  onChange={(e) => setVoucherDate(e.target.value)}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Amount (₹)"
-                  placeholder="Enter amount"
-                  size="small"
-                  required
-                  inputProps={{ min: 1, step: "any" }}
-                  value={voucherAmount}
-                  onChange={(e) => setVoucherAmount(e.target.value)}
-                />
-              </Grid>
-            </Grid>
-
-            <TextField
-              fullWidth
-              multiline
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-700 tracking-wide">Narration / Remarks</label>
+            <textarea
               rows={3}
-              label="Narration / Remarks"
               placeholder="Enter transactional particulars or remarks..."
-              size="small"
               value={voucherNarration}
               onChange={(e) => setVoucherNarration(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
             />
-          </DialogContent>
-          <DialogActions className="border-t border-slate-100 p-4 gap-2">
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
             <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpenModal(false)}
-              variant="outlined"
-              color="inherit"
               disabled={submitting}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant="contained"
-              color="primary"
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+              variant="primary"
+              loading={submitting}
             >
-              {editingVoucher ? "Update" : "Create"}
+              {editingVoucher ? "Update Voucher" : "Create Voucher"}
             </Button>
-          </DialogActions>
+          </div>
         </form>
-      </Dialog>
+      </Modal>
 
       {/* Create / Edit Ledger Dialog Modal */}
-      <Dialog
-        open={openLedgerModal}
+      <Modal
+        open={openModal && false ? false : openLedgerModal}
         onClose={() => !submittingLedger && setOpenLedgerModal(false)}
-        maxWidth="xs"
-        fullWidth
+        title={editingLedger ? "Edit Custom Ledger" : "Create Custom Ledger"}
+        subtitle="Manage standalone custom ledger accounts"
+        maxWidth="max-w-md"
       >
-        <DialogTitle className="font-bold border-b border-slate-100 text-slate-800">
-          {editingLedger ? "Edit Custom Ledger" : "Create Custom Ledger"}
-        </DialogTitle>
-        <form onSubmit={handleSubmitLedger}>
-          <DialogContent className="space-y-4 pt-6">
-            <TextField
-              fullWidth
-              label="Ledger Name"
-              placeholder="Enter custom ledger name (e.g. Tea, Newspaper)"
-              size="small"
-              required
-              value={ledgerNameInput}
-              onChange={(e) => setLedgerNameInput(e.target.value)}
-            />
-          </DialogContent>
-          <DialogActions className="border-t border-slate-100 p-4 gap-2">
+        <form onSubmit={handleSubmitLedger} className="space-y-4">
+          <Input
+            label="Ledger Name"
+            placeholder="Enter custom ledger name (e.g. Tea, Newspaper)"
+            required
+            value={ledgerNameInput}
+            onChange={(e) => setLedgerNameInput(e.target.value)}
+          />
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
             <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpenLedgerModal(false)}
-              variant="outlined"
-              color="inherit"
               disabled={submittingLedger}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant="contained"
-              color="primary"
-              disabled={submittingLedger}
-              startIcon={submittingLedger ? <CircularProgress size={16} color="inherit" /> : null}
+              variant="primary"
+              loading={submittingLedger}
             >
               {editingLedger ? "Save Changes" : "Create"}
             </Button>
-          </DialogActions>
+          </div>
         </form>
-      </Dialog>
+      </Modal>
     </div>
   );
 };

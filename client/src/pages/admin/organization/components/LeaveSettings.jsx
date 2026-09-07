@@ -1,35 +1,37 @@
 import React from 'react';
-import { Box, FormControlLabel, Checkbox, Button, Typography, CircularProgress } from '@mui/material';
+import Button from '@/components/ui/Button';
 
 const LeaveSettings = ({ data, onChange, onSubmit, isload }) => {
     return (
-        <Box sx={{ p: 2 }}>
-            <Box sx={{ mb: 3 }}>
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={data?.leaveSettings?.allowEmployeeToSeeLedger || false}
-                            onChange={(e) => onChange('leaveSettings', 'allowEmployeeToSeeLedger', e.target.checked)}
-                        />
-                    }
-                    label="Allow Employees to see their Leave Ledger"
-                />
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
-                    When enabled, employees can view their full leave history and balance in their portal.
-                </Typography>
-            </Box>
+        <div className="p-6 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-6">
+            <div className="p-4 rounded-xl border border-slate-200/80 flex items-center justify-between bg-slate-50/50">
+                <div>
+                    <h4 className="text-sm font-bold text-slate-800">Employee Leave Ledger Visibility</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        When enabled, employees can view their full leave history and ledger balance in their self-service portal.
+                    </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={data?.leaveSettings?.allowEmployeeToSeeLedger || false}
+                        onChange={(e) => onChange('leaveSettings', 'allowEmployeeToSeeLedger', e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                </label>
+            </div>
 
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <div className="flex justify-end pt-2">
                 <Button
-                    variant="contained"
+                    variant="primary"
                     onClick={onSubmit}
-                    disabled={isload}
-                    sx={{ minWidth: 120 }}
+                    loading={isload}
                 >
-                    {isload ? <CircularProgress size={24} color="inherit" /> : 'Save Settings'}
+                    Save Settings
                 </Button>
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 };
 

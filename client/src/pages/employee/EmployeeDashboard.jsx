@@ -11,8 +11,8 @@ import {
   CalendarCheck,
   Calendar as CalendarIcon,
   Info,
+  User,
 } from 'lucide-react';
-import { Avatar, Tooltip } from '@mui/material';
 
 dayjs.extend(isSameOrBefore);
 
@@ -110,10 +110,17 @@ const EmployeeDashboard = () => {
         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
         <div className="flex items-center gap-5">
-          <Avatar
-            src={profile?.profileimage}
-            sx={{ width: 80, height: 80, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', border: '4px solid white' }}
-          />
+          {profile?.profileimage ? (
+            <img
+              src={profile.profileimage}
+              alt={profile?.userid?.name}
+              className="w-20 h-20 rounded-full object-cover shadow-md border-4 border-white"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-2xl shadow-md border-4 border-white">
+              {profile?.userid?.name ? profile.userid.name.charAt(0).toUpperCase() : <User size={32} />}
+            </div>
+          )}
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
               {greeting()}, {profile?.userid?.name?.split(' ')[0]} <Hand size={28} className="text-amber-400 animate-bounce" />

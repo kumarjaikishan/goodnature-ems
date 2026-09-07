@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import {
-    TextField, Button, IconButton, Box, Typography, Card,
-    CardContent, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, Paper, Tooltip, Chip, Divider
-} from '@mui/material';
+import React, { useEffect } from 'react';
 import { Wifi, WifiOff, Trash2, Monitor, PlusCircle, RotateCcw } from 'lucide-react';
 import dayjs from 'dayjs';
 import EsslEventLog from './EsslEventLog';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 
 const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refreshload, removeDevice, addDevice, handleSubmit, isload }) => {
-
     const updateDevice = (index, field, value) => {
         const newDevices = [...companyinp.devices];
         newDevices[index][field] = value;
@@ -17,142 +14,127 @@ const DeviceManager = ({ companyinp, setcompany, isOnline, deviceRefresh, refres
     };
 
     useEffect(() => {
-        companyinp?.devices?.forEach((elem) => deviceRefresh(elem?.SN))
+        companyinp?.devices?.forEach((elem) => deviceRefresh(elem?.SN));
     }, []);
 
     return (
-        <Box sx={{ spaceY: 4 }}>
-            <Card variant="outlined" sx={{ borderRadius: 2, mb: 4, pb: 1, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-                <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Monitor size={24} color="#1976d2" style={{ marginRight: '12px' }} />
-                            <Typography variant="h6" fontWeight="600">Registered Devices</Typography>
-                        </Box>
-                        <Button
-                            variant="outlined"
-                            startIcon={<PlusCircle size={16} />}
-                            onClick={addDevice}
-                            size="small"
-                        >
-                            Add Device
-                        </Button>
-                    </Box>
-
-                    <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #eee', mb: 3 }}>
-                        <Table size="small">
-                            <TableHead sx={{ bgcolor: '#f9f9f9' }}>
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>#</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Device Name</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Serial Number</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>Last Heartbeat</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }} align="right">Actions</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {companyinp?.devices?.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                                            No devices registered yet.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    companyinp?.devices?.map((device, index) => {
-                                        const online = isOnline(device?.lastHeartbeat);
-                                        return (
-                                            <TableRow key={index} hover>
-                                                <TableCell>{index + 1}</TableCell>
-                                                <TableCell>
-                                                    <TextField
-                                                        variant="standard"
-                                                        size="small"
-                                                        value={device.name}
-                                                        onChange={(e) => updateDevice(index, "name", e.target.value)}
-                                                        sx={{ width: 150 }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <TextField
-                                                        variant="standard"
-                                                        size="small"
-                                                        value={device.SN}
-                                                        onChange={(e) => updateDevice(index, "SN", e.target.value)}
-                                                        sx={{ width: 150 }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Tooltip title={online ? "Device Online" : "Device Offline"}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                            {online ? (
-                                                                <Chip
-                                                                    icon={<Wifi size={14} />}
-                                                                    label="Online"
-                                                                    size="small"
-                                                                    color="success"
-                                                                    variant="outlined"
-                                                                />
-                                                            ) : (
-                                                                <Chip
-                                                                    icon={<WifiOff size={14} />}
-                                                                    label="Offline"
-                                                                    size="small"
-                                                                    color="error"
-                                                                    variant="outlined"
-                                                                />
-                                                            )}
-                                                        </Box>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {!device?.lastHeartbeat ? 'Never' : dayjs(device?.lastHeartbeat).format("DD/MM/YY, hh:mm A")}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                                        <Tooltip title="Refresh Device">
-                                                            <IconButton
-                                                                size="small"
-                                                                color="primary"
-                                                                onClick={() => deviceRefresh(device?.SN)}
-                                                            >
-                                                                <RotateCcw size={16} className={refreshload ? "animate-spin" : ""} />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                        <Tooltip title="Delete Device">
-                                                            <IconButton
-                                                                size="small"
-                                                                color="error"
-                                                                onClick={() => removeDevice(index)}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    </Box>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-
+        <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-6 space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-teal-50 rounded-lg text-teal-700">
+                            <Monitor size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-bold text-slate-800">Registered Biometric Devices</h3>
+                            <p className="text-xs text-slate-500">Configure connected attendance machines</p>
+                        </div>
+                    </div>
                     <Button
-                        variant="contained"
+                        variant="outline"
+                        size="sm"
+                        startIcon={PlusCircle}
+                        onClick={addDevice}
+                    >
+                        Add Device
+                    </Button>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-200/80">
+                    <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-50/80 text-slate-700 font-bold border-b border-slate-200">
+                            <tr>
+                                <th className="py-2.5 px-3 w-12">#</th>
+                                <th className="py-2.5 px-3">Device Name</th>
+                                <th className="py-2.5 px-3">Serial Number (SN)</th>
+                                <th className="py-2.5 px-3">Status</th>
+                                <th className="py-2.5 px-3">Last Heartbeat</th>
+                                <th className="py-2.5 px-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {!companyinp?.devices || companyinp.devices.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                                        No devices registered yet. Click "Add Device" to configure your first attendance reader.
+                                    </td>
+                                </tr>
+                            ) : (
+                                companyinp.devices.map((device, index) => {
+                                    const online = isOnline(device?.lastHeartbeat);
+                                    return (
+                                        <tr key={index} className="hover:bg-slate-50/60 transition">
+                                            <td className="py-2.5 px-3 font-semibold text-slate-500">{index + 1}</td>
+                                            <td className="py-2.5 px-3">
+                                                <Input
+                                                    size="sm"
+                                                    placeholder="Main Office Gate"
+                                                    value={device.name}
+                                                    onChange={(e) => updateDevice(index, "name", e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="py-2.5 px-3">
+                                                <Input
+                                                    size="sm"
+                                                    placeholder="SN12345678"
+                                                    className="font-mono"
+                                                    value={device.SN}
+                                                    onChange={(e) => updateDevice(index, "SN", e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="py-2.5 px-3">
+                                                <Badge
+                                                    size="sm"
+                                                    variant={online ? 'success' : 'danger'}
+                                                    dot
+                                                >
+                                                    {online ? 'Online' : 'Offline'}
+                                                </Badge>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-600">
+                                                {!device?.lastHeartbeat ? 'Never' : dayjs(device?.lastHeartbeat).format("DD/MM/YY, hh:mm A")}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <button
+                                                        type="button"
+                                                        title="Ping / Refresh Device"
+                                                        className="p-1.5 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                                                        onClick={() => deviceRefresh(device?.SN)}
+                                                    >
+                                                        <RotateCcw size={15} className={refreshload ? "animate-spin" : ""} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        title="Delete Device"
+                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                                                        onClick={() => removeDevice(index)}
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                    <Button
+                        variant="primary"
                         loading={isload}
                         onClick={handleSubmit}
-                        sx={{ float: 'right', minWidth: 150 }}
                     >
                         Save Configuration
                     </Button>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             <EsslEventLog companyId={companyinp?._id} />
-        </Box>
+        </div>
     );
 };
 

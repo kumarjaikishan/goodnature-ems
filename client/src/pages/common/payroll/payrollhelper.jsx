@@ -1,7 +1,8 @@
-import { Avatar, Box, Button, Stack, Typography } from "@mui/material";
+import React from "react";
 import dayjs from "dayjs";
-import { Edit2, Trash2, Eye } from "lucide-react";
+import { Edit2, Trash2, Eye, Play } from "lucide-react";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
+import Button from "../../../components/ui/Button";
 
 export const payrollColumns = (
   handleGenerate,
@@ -25,58 +26,67 @@ export const payrollColumns = (
     {
       name: "Employee",
       selector: (row) => (
-        <div className="flex items-center capitalize gap-3">
-          <Avatar
-            src={
-              cloudinaryUrl(row?.profileimage, {
+        <div className="flex items-center capitalize gap-3 py-1">
+          {row?.profileimage ? (
+            <img
+              src={cloudinaryUrl(row?.profileimage, {
                 format: "webp",
                 width: 100,
                 height: 100,
-              })
-            }
-            alt={row?.userid?.name}
-          >
-
-          </Avatar>
-          <Box>
-            <Typography variant="body2">{row?.userid?.name}</Typography>
-            <p className="text-[10px] text-gray-600">
+              })}
+              alt={row?.userid?.name}
+              className="w-9 h-9 rounded-full object-cover border border-slate-200"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-800 font-semibold flex items-center justify-center text-xs border border-teal-200">
+              {row?.userid?.name?.charAt(0)?.toUpperCase() || 'E'}
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-semibold text-slate-900">{row?.userid?.name}</p>
+            <p className="text-[11px] text-slate-500 font-normal">
               ({row?.designation || "-"})
             </p>
-          </Box>
+          </div>
         </div>
       ),
       sortable: true,
     },
     {
       name: "Department",
-      selector: (row) => row.department?.department || "-", // <-- get the string
-      width: "120px",
+      selector: (row) => (
+        <span className="text-xs text-slate-700 font-medium">
+          {row.department?.department || "-"}
+        </span>
+      ),
+      width: "140px",
     },
-
     {
       name: "Actions",
       cell: (row) => {
         const key = `${row._id}-${selectedMonth}-${selectedYear}`;
-        const exists = payrollMap?.[key]; // check if payroll already generated
+        const exists = payrollMap?.[key];
 
         return (
-          <Stack direction="row" spacing={1}>
+          <div className="flex items-center gap-1.5 py-1">
             {canCreate && (
               <Button
-                size="small"
-                variant="contained"
+                size="sm"
+                variant={exists ? "ghost" : "primary"}
+                icon={<Play size={13} />}
                 disabled={exists}
+                title={exists ? 'Already Generated' : 'Generate Payroll'}
                 onClick={() => handleGenerate(row)}
               >
-                Generate
+                {exists ? 'Generated' : 'Generate'}
               </Button>
             )}
             {canView && (
               <Button
-                size="small"
-                variant="outlined"
-                startIcon={<Eye size={16} />}
+                size="sm"
+                disabled={!exists}
+                variant="outline"
+                icon={<Eye size={13} />}
                 onClick={() => handleView(row)}
               >
                 View
@@ -84,10 +94,10 @@ export const payrollColumns = (
             )}
             {canEdit && (
               <Button
-                size="small"
-                variant="outlined"
-                color="primary"
-                startIcon={<Edit2 size={16} />}
+                size="sm"
+                disabled={!exists}
+                variant="outline"
+                icon={<Edit2 size={13} />}
                 onClick={() => handleEdit(row)}
               >
                 Edit
@@ -95,19 +105,19 @@ export const payrollColumns = (
             )}
             {canDelete && (
               <Button
-                size="small"
-                variant="outlined"
-                color="error"
-                startIcon={<Trash2 size={16} />}
+                size="sm"
+                disabled={!exists}
+                variant="danger"
+                icon={<Trash2 size={13} />}
                 onClick={() => handleDelete(row._id)}
               >
                 Delete
               </Button>
             )}
-          </Stack>
+          </div>
         );
       },
-      width: "450px",
+      width: "360px",
     },
   ];
 };

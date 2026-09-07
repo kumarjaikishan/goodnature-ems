@@ -16,7 +16,6 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import PageLoader from '../../components/common/PageLoader';
-import { CircularProgress } from '@mui/material';
 
 const getTodayDateString = () => {
   const d = new Date();

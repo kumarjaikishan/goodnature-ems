@@ -1,62 +1,49 @@
-import { Box, Button, FormControl, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, TextField } from '@mui/material'
-import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers'
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
-import dayjs from 'dayjs'
-import React, { useEffect, useState } from 'react'
-import DataTable from '@/components/common/DataTable'
-import { toast } from '../../../utils/toast'
-import Modalbox from '../../../components/custommodal/Modalbox'
-import { Plus, History, Filter } from 'lucide-react'
-import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
-import { useCustomStyles } from '../../admin/attandence/attandencehelper'
-import { empFirstFetch } from '../../../../store/employee'
-import { useApi } from '../../../utils/useApi'
-import { apiClient } from '../../../utils/apiClient'
+import dayjs from 'dayjs';
+import React, { useEffect, useState } from 'react';
+import DataTable from '@/components/common/DataTable';
+import { toast } from '../../../utils/toast';
+import { Plus } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useCustomStyles } from '../../admin/attandence/attandencehelper';
+import { empFirstFetch } from '../../../../store/employee';
+import { useApi } from '../../../utils/useApi';
+import { apiClient } from '../../../utils/apiClient';
+import Modal from '@/components/ui/Modal';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import DateInput from '@/components/ui/DateInput';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 
 const EmpLeave = () => {
     const init = {
         policyId: '',
-        fromDate: null,
-        toDate: null,
+        fromDate: '',
+        toDate: '',
         reason: ''
-    }
+    };
     const dispatch = useDispatch();
-    const navigate = useNavigate();
     const [inp, setinp] = useState(init);
     const [leaverequest, setleaverequest] = useState([]);
     const [policies, setPolicies] = useState([]);
     const { leave } = useSelector((state) => state.employee);
-    const [openmodal, setopenmodal] = useState(false)
-    const [balances, setBalances] = useState([]);
-    const [balLoading, setBalLoading] = useState(false);
+    const [openmodal, setopenmodal] = useState(false);
     const { request, loading } = useApi();
+
     const changehandle = (value, field) => {
-        setinp({ ...inp, [field]: value })
-    }
+        setinp(prev => ({ ...prev, [field]: value }));
+    };
+
     useEffect(() => {
         if (leave) {
             setleaverequest(leave);
         }
         fetchPolicies();
-        fetchBalances();
-    }, [leave])
-
-    const fetchBalances = async () => {
-        try {
-            setBalLoading(true);
-            const data = await apiClient({ url: "my-leave-balances" });
-            setBalances(data || []);
-        } catch (err) {
-            console.error("Error fetching balances:", err);
-        } finally {
-            setBalLoading(false);
-        }
-    };
+    }, [leave]);
 
     const fetchPolicies = async () => {
         try {
-            const data = await apiClient({ url: "leave-policies" }); // Use apiClient directly or via useApi
+            const data = await apiClient({ url: "leave-policies" });
             setPolicies(data || []);
         } catch (err) {
             console.error("Error fetching policies:", err);
@@ -65,13 +52,12 @@ const EmpLeave = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!inp.fromDate) return toast.warn('From Date is required')
+        if (!inp.fromDate) return toast.warn('From Date is required');
         try {
-            // Format dates as YYYY-MM-DD strings to avoid UTC timezone shift
             const payload = {
                 ...inp,
-                fromDate: dayjs(inp.fromDate).format('YYYY-MM-DD'),
-                toDate: inp.toDate ? dayjs(inp.toDate).format('YYYY-MM-DD') : dayjs(inp.fromDate).format('YYYY-MM-DD'),
+                fromDate: inp.fromDate,
+                toDate: inp.toDate || inp.fromDate,
             };
             const data = await request({
                 url: "addleave",
@@ -79,147 +65,162 @@ const EmpLeave = () => {
                 body: payload
             });
 
-            setopenmodal(false)
+            setopenmodal(false);
             dispatch(empFirstFetch());
-            setinp(init)
-            toast.success(data.message, { autoClose: 2000 })
+            setinp(init);
+            toast.success(data.message || "Leave application submitted!", { autoClose: 2000 });
         } catch (err) {
             console.error("Error applying leave:", err);
+            toast.error(err.message || "Failed to apply for leave");
         }
-    }
+    };
+
+    const policyOptions = policies.map(p => ({
+        label: `${p.name} (${p.allocationType || 'Policy'})`,
+        value: p._id
+    }));
 
     return (
-        <div className='employee p-2.5'>
-            {/* <h2 className="text-2xl mb-4 font-bold text-slate-800">Manage Leaves</h2> */}
-            <div className='flex justify-end mb-2'>
-                <div className="flex gap-2">
-                    <Button variant='contained' startIcon={<Plus size={16} />} onClick={() => setopenmodal(true)}>Add Leave Request</Button>
+        <div className='p-2 md:p-6 space-y-4 max-w-7xl mx-auto'>
+            <div className='flex justify-between items-center pb-2 border-b border-slate-100'>
+                <div>
+                    <h3 className="text-base font-bold text-slate-800">My Leave Applications</h3>
+                    <p className="text-xs text-slate-500">Track and apply for annual, sick, or casual leaves</p>
                 </div>
+                <Button
+                    variant='primary'
+                    size="sm"
+                    startIcon={Plus}
+                    onClick={() => setopenmodal(true)}
+                >
+                    Apply Leave
+                </Button>
             </div>
-            <DataTable
-                customStyles={useCustomStyles()}
-                columns={columns}
-                data={leaverequest}
-                pagination
-                highlightOnHover
-            />
 
-            <Modalbox open={openmodal} onClose={() => {
-                setopenmodal(false); setinp(init);
-            }}>
-                <div className="membermodal w-[400px]">
-                    <form onSubmit={handleSubmit}>
-                        <h2>Add Leave Request</h2>
-                        <span className="modalcontent">
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                <Box className="flex flex-col gap-4 mt-2">
-                                    <FormControl required fullWidth size="small">
-                                        <InputLabel>Leave Policy</InputLabel>
-                                        <Select
-                                            label="Leave Policy"
-                                            value={inp.policyId}
-                                            onChange={(e) => changehandle(e.target.value, "policyId")}
-                                        >
-                                            {policies.map((p) => (
-                                                <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+            <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
+                <DataTable
+                    customStyles={useCustomStyles()}
+                    columns={columns}
+                    data={leaverequest}
+                    pagination
+                    highlightOnHover
+                />
+            </div>
 
-                                    <div className='flex flex-col md:flex-row gap-3'>
-                                        <DatePicker
-                                            label="From Date"
-                                            format='dd/MM/yyyy'
-                                            required
-                                            value={inp.fromDate}
-                                            onChange={(newValue) => changehandle(newValue, 'fromDate')}
-                                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
-                                        />
+            {/* Apply Leave Modal */}
+            <Modal
+                open={openmodal}
+                onClose={() => {
+                    setopenmodal(false);
+                    setinp(init);
+                }}
+                title="Apply for Leave"
+                subtitle="Submit your leave application for manager approval"
+                maxWidth="max-w-md"
+            >
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <Select
+                        label="Leave Policy"
+                        required
+                        placeholder="Select leave type..."
+                        options={policyOptions}
+                        value={inp.policyId}
+                        onChange={(e) => changehandle(e.target.value, "policyId")}
+                    />
 
-                                        <DatePicker
-                                            format='dd/MM/yyyy'
-                                            label="To Date"
-                                            value={inp.toDate}
-                                            onChange={(newValue) => changehandle(newValue, 'toDate')}
-                                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
-                                        />
-                                    </div>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                        <DateInput
+                            label="From Date"
+                            required
+                            value={inp.fromDate}
+                            onChange={(e) => changehandle(e.target.value, 'fromDate')}
+                        />
 
-                                    <TextField
-                                        label="Reason"
-                                        required
-                                        multiline
-                                        minRows={2}
-                                        maxRows={5}
-                                        value={inp.reason}
-                                        onChange={(e) => changehandle(e.target.value, 'reason')}
-                                        fullWidth
-                                        size="small"
-                                    />
-                                </Box>
+                        <DateInput
+                            label="To Date"
+                            value={inp.toDate}
+                            min={inp.fromDate}
+                            onChange={(e) => changehandle(e.target.value, 'toDate')}
+                        />
+                    </div>
 
-                                <div className='modalfooter'>
-                                    <Button onClick={() => { setopenmodal(false); setinp(init) }} variant="outlined" >
-                                        Cancel
-                                    </Button>
-                                    <Button type="submit" variant="contained" disabled={loading}>
-                                        {loading ? 'Submitting...' : 'Apply'}
-                                    </Button>
-                                </div>
-                            </LocalizationProvider>
-                        </span>
-                    </form>
-                </div>
-            </Modalbox>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-slate-700 tracking-wide">
+                            Reason for Leave <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <textarea
+                            required
+                            rows={3}
+                            placeholder="State reason for absence..."
+                            className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
+                            value={inp.reason}
+                            onChange={(e) => changehandle(e.target.value, 'reason')}
+                        />
+                    </div>
+
+                    <div className='flex justify-end gap-2 pt-4 border-t border-slate-100'>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => { setopenmodal(false); setinp(init); }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            loading={loading}
+                        >
+                            Submit Application
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
-    )
-}
+    );
+};
 
 export default EmpLeave;
+
 export const columns = [
-    // {
-    //     name: "S.no",
-    //     selector: (row) => row.sno,
-    //     width:'50px'
-    // },
-    {
-        name: "Date",
-        selector: (row) => dayjs(row.fromDate).format('DD MMM, YYYY')
-    },
     {
         name: "From",
-        selector: (row) => dayjs(row.fromDate).format('DD MMM, YYYY')
+        selector: (row) => dayjs(row.fromDate).format('DD MMM YYYY'),
+        sortable: true,
+        width: '130px'
     },
     {
-        name: "TO",
-        selector: (row) => dayjs(row.toDate).format('DD MMM, YYYY')
+        name: "To",
+        selector: (row) => dayjs(row.toDate).format('DD MMM YYYY'),
+        sortable: true,
+        width: '130px'
     },
     {
-        name: "Policy",
-        selector: (row) => row.policyId?.name || "N/A"
+        name: "Policy Type",
+        selector: (row) => row.policyId?.name || "General Leave",
+        sortable: true,
+        width: '150px'
     },
     {
         name: "Reason",
-        selector: (row) => row.reason
+        selector: (row) => row.reason,
+        wrap: true
     },
     {
         name: "Status",
-        selector: (row) => <span
-            className={`
-                  px-2 py-1 capitalize rounded-l relative overflow-hidden
-                  before:absolute before:content-[''] before:w-[2px] before:h-full before:left-0
-                  ${row.status === 'approved' && 'text-green-700 bg-green-100 before:bg-green-800'}
-                  ${row.status === 'pending' && 'text-yellow-700 bg-yellow-100 before:bg-yellow-600'}
-                  ${row.status === 'rejected' && 'text-red-700 bg-red-100 before:bg-red-800'}
-               `}
-        >
-            {row.status}
-        </span>
-
+        selector: (row) => row.status,
+        width: '120px',
+        cell: (row) => {
+            const variant = row.status === 'approved'
+                ? 'success'
+                : row.status === 'rejected'
+                    ? 'danger'
+                    : 'warning';
+            return (
+                <Badge variant={variant} size="sm">
+                    {row.status}
+                </Badge>
+            );
+        }
     },
-    // {
-    //     name: "Action",
-    //     selector: (row) => row.action,
-    //     width: '150px'
-    // }
-]
+];

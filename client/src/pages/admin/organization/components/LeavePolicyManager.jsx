@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Box, TextField, Button, Typography, Grid, IconButton,
-    Switch, FormControlLabel, Select, MenuItem, InputLabel, FormControl,
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-    Card, CardContent, Divider, Tooltip
-} from '@mui/material';
 import { Edit2, Trash2, PlusCircle, CheckCircle, X } from 'lucide-react';
 import { apiClient } from '../../../../utils/apiClient';
 import { toast } from '../../../../utils/toast';
 import { swal } from '../../../../utils/confirmDialog';
+
+// Custom UI Components
+import Button from '../../../../components/ui/Button';
+import Input from '../../../../components/ui/Input';
+import NumberInput from '../../../../components/ui/NumberInput';
+import Select from '../../../../components/ui/Select';
 
 const LeavePolicyManager = () => {
     const [policies, setPolicies] = useState([]);
@@ -35,7 +35,7 @@ const LeavePolicyManager = () => {
         setLoading(true);
         try {
             const data = await apiClient({ url: 'leave-policies' });
-            setPolicies(data);
+            setPolicies(data || []);
         } catch (error) {
             console.error('Error fetching policies:', error);
         } finally {
@@ -120,219 +120,227 @@ const LeavePolicyManager = () => {
     };
 
     return (
-        <Box sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">Leave Policies</Typography>
+        <div className="space-y-4">
+            <div className="flex justify-between items-center">
+                <h3 className="text-base font-bold text-slate-900">Leave Policies</h3>
                 {!showForm && (
                     <Button 
-                        variant="outlined" 
-                        startIcon={<PlusCircle size={16} />} 
+                        variant="outline" 
+                        size="sm"
+                        icon={<PlusCircle size={15} />} 
                         onClick={() => setShowForm(!showForm)}
                     >
-                        {showForm ? 'Close Form' : 'Add Policy'}
+                        Add Policy
                     </Button>
                 )}
-            </Box>
+            </div>
 
             {showForm && (
-                <Card variant="outlined" sx={{ mb: 4, borderRadius: 2 }}>
-                    <CardContent sx={{ p: 3 }}>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                            {editingPolicy ? 'Edit Leave Policy' : 'Create New Leave Policy'}
-                        </Typography>
-                        <form onSubmit={handleSubmit}>
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} md={6}>
-                                    <TextField 
-                                        fullWidth 
-                                        label="Policy Name" 
-                                        required 
-                                        size="small"
-                                        value={form.name}
-                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                        placeholder="e.g. Casual Leave, Sick Leave"
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                    <h4 className="text-sm font-bold text-slate-800">
+                        {editingPolicy ? 'Edit Leave Policy' : 'Create New Leave Policy'}
+                    </h4>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                            <div className="md:col-span-1">
+                                <Input 
+                                    label="Policy Name" 
+                                    required 
+                                    size="sm"
+                                    value={form.name}
+                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                    placeholder="e.g. Casual Leave, Sick Leave"
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <Select
+                                    size="sm"
+                                    label="Allocation Cycle"
+                                    value={form.allocationType}
+                                    onChange={(e) => setForm({ ...form, allocationType: e.target.value })}
+                                    options={[
+                                        { value: "monthly", label: "Monthly" },
+                                        { value: "quarterly", label: "Quarterly" },
+                                        { value: "annually", label: "Annually" },
+                                        { value: "biannually", label: "Bi-Annually" }
+                                    ]}
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <NumberInput 
+                                    label="Total Leaves / Allocation" 
+                                    required 
+                                    size="sm"
+                                    min={0}
+                                    value={form.totalLeaves}
+                                    onChange={(val) => setForm({ ...form, totalLeaves: val })}
+                                />
+                            </div>
+
+                            {/* Carry forward card */}
+                            <div className="md:col-span-1 border border-slate-200 bg-slate-50/70 p-3.5 rounded-xl space-y-2.5">
+                                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                                    <input 
+                                        type="checkbox"
+                                        checked={form.carryForward.enabled} 
+                                        onChange={(e) => setForm({ 
+                                            ...form, 
+                                            carryForward: { ...form.carryForward, enabled: e.target.checked } 
+                                        })} 
+                                        className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                                     />
-                                </Grid>
-                                <Grid item xs={12} md={3}>
-                                    <FormControl fullWidth size="small">
-                                        <InputLabel>Allocation Cycle</InputLabel>
-                                        <Select
-                                            value={form.allocationType}
-                                            label="Allocation Cycle"
-                                            onChange={(e) => setForm({ ...form, allocationType: e.target.value })}
-                                        >
-                                            <MenuItem value="monthly">Monthly</MenuItem>
-                                            <MenuItem value="quarterly">Quarterly</MenuItem>
-                                            <MenuItem value="annually">Annually</MenuItem>
-                                            <MenuItem value="biannually">Bi-Annually</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={12} md={3}>
-                                    <TextField 
-                                        fullWidth 
-                                        type="number"
-                                        label="Total Leaves / Allocation" 
-                                        required 
-                                        size="small"
-                                        value={form.totalLeaves}
-                                        onChange={(e) => setForm({ ...form, totalLeaves: Number(e.target.value) })}
+                                    <span>Enable Carry Forward</span>
+                                </label>
+                                {form.carryForward.enabled && (
+                                    <NumberInput
+                                        size="sm"
+                                        label="Max Carry Forward Limit"
+                                        min={0}
+                                        value={form.carryForward.maxLimit}
+                                        onChange={(val) => setForm({ 
+                                            ...form, 
+                                            carryForward: { ...form.carryForward, maxLimit: val } 
+                                        })}
                                     />
-                                </Grid>
+                                )}
+                            </div>
 
-                                <Grid item xs={12} md={6}>
-                                    <Card variant="outlined" sx={{ p: 1 }}>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch 
-                                                    checked={form.carryForward.enabled} 
-                                                    onChange={(e) => setForm({ 
-                                                        ...form, 
-                                                        carryForward: { ...form.carryForward, enabled: e.target.checked } 
-                                                    })} 
-                                                />
-                                            }
-                                            label="Enable Carry Forward"
-                                        />
-                                        {form.carryForward.enabled && (
-                                            <TextField
-                                                sx={{ mt: 1 }}
-                                                fullWidth
-                                                type="number"
-                                                label="Max Carry Forward Limit"
-                                                size="small"
-                                                value={form.carryForward.maxLimit}
-                                                onChange={(e) => setForm({ 
-                                                    ...form, 
-                                                    carryForward: { ...form.carryForward, maxLimit: Number(e.target.value) } 
-                                                })}
-                                            />
-                                        )}
-                                    </Card>
-                                </Grid>
-
-                                <Grid item xs={12} md={6}>
-                                    <Card variant="outlined" sx={{ p: 1 }}>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch 
-                                                    checked={form.probationRule.allowed} 
-                                                    onChange={(e) => setForm({ 
-                                                        ...form, 
-                                                        probationRule: { ...form.probationRule, allowed: e.target.checked } 
-                                                    })} 
-                                                />
-                                            }
-                                            label="Allowed during Probation"
-                                        />
-                                        {form.probationRule.allowed && (
-                                            <TextField
-                                                sx={{ mt: 1 }}
-                                                fullWidth
-                                                type="number"
-                                                label="Applicable After (Days)"
-                                                size="small"
-                                                value={form.probationRule.afterDays}
-                                                onChange={(e) => setForm({ 
-                                                    ...form, 
-                                                    probationRule: { ...form.probationRule, afterDays: Number(e.target.value) } 
-                                                })}
-                                            />
-                                        )}
-                                    </Card>
-                                </Grid>
-
-                                <Grid item xs={12} md={6}>
-                                    <FormControlLabel
-                                        control={
-                                            <Switch 
-                                                checked={form.encashable} 
-                                                onChange={(e) => setForm({ ...form, encashable: e.target.checked })} 
-                                            />
-                                        }
-                                        label="Encashable"
+                            {/* Probation rule card */}
+                            <div className="md:col-span-1 border border-slate-200 bg-slate-50/70 p-3.5 rounded-xl space-y-2.5">
+                                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                                    <input 
+                                        type="checkbox"
+                                        checked={form.probationRule.allowed} 
+                                        onChange={(e) => setForm({ 
+                                            ...form, 
+                                            probationRule: { ...form.probationRule, allowed: e.target.checked } 
+                                        })} 
+                                        className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                                     />
-                                </Grid>
+                                    <span>Allowed during Probation</span>
+                                </label>
+                                {form.probationRule.allowed && (
+                                    <NumberInput
+                                        size="sm"
+                                        label="Applicable After (Days)"
+                                        min={0}
+                                        value={form.probationRule.afterDays}
+                                        onChange={(val) => setForm({ 
+                                            ...form, 
+                                            probationRule: { ...form.probationRule, afterDays: val } 
+                                        })}
+                                    />
+                                )}
+                            </div>
 
-                                <Grid item xs={12} sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                                    <Button 
-                                        variant="outlined" 
-                                        color="error" 
-                                        startIcon={<X size={16} />} 
-                                        onClick={handleReset}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button 
-                                        type="submit" 
-                                        variant="contained" 
-                                        color="primary" 
-                                        disabled={loading}
-                                        startIcon={<CheckCircle size={16} />}
-                                    >
-                                        {editingPolicy ? 'Update Policy' : 'Create Policy'}
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </form>
-                    </CardContent>
-                </Card>
+                            {/* Encashable */}
+                            <div className="md:col-span-1 border border-slate-200 bg-slate-50/70 p-3.5 rounded-xl flex items-center">
+                                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                                    <input 
+                                        type="checkbox"
+                                        checked={form.encashable} 
+                                        onChange={(e) => setForm({ ...form, encashable: e.target.checked })} 
+                                        className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
+                                    />
+                                    <span>Encashable</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 justify-end pt-3 border-t border-slate-100">
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                                icon={<X size={14} />} 
+                                onClick={handleReset}
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                variant="primary" 
+                                size="sm"
+                                loading={loading}
+                                icon={<CheckCircle size={14} />}
+                            >
+                                {editingPolicy ? 'Update Policy' : 'Create Policy'}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
             )}
 
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #eee' }}>
-                <Table size="small">
-                    <TableHead sx={{ bgcolor: '#f9f9f9' }}>
-                        <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Policy Name</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Allocation</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Qty</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Carry Fwd</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Probation</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Encash</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }} align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
+            {/* Table */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                        <tr>
+                            <th className="p-3">Policy Name</th>
+                            <th className="p-3">Allocation</th>
+                            <th className="p-3">Qty</th>
+                            <th className="p-3">Carry Fwd</th>
+                            <th className="p-3">Probation</th>
+                            <th className="p-3">Encash</th>
+                            <th className="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
                         {policies.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} align="center" sx={{ py: 3, color: '#888' }}>
+                            <tr>
+                                <td colSpan={7} className="text-center py-6 text-slate-400">
                                     No leave policies defined.
-                                </TableCell>
-                            </TableRow>
+                                </td>
+                            </tr>
                         ) : (
                             policies.map((policy) => (
-                                <TableRow key={policy._id} hover>
-                                    <TableCell sx={{ fontWeight: 500 }}>{policy.name}</TableCell>
-                                    <TableCell sx={{ textTransform: 'capitalize' }}>{policy.allocationType}</TableCell>
-                                    <TableCell>{policy.totalLeaves}</TableCell>
-                                    <TableCell>
-                                        {policy.carryForward?.enabled ? `Yes (Max: ${policy.carryForward.maxLimit})` : 'No'}
-                                    </TableCell>
-                                    <TableCell>
+                                <tr key={policy._id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-3 font-semibold text-slate-800">{policy.name}</td>
+                                    <td className="p-3 capitalize text-slate-600">{policy.allocationType}</td>
+                                    <td className="p-3 font-bold text-slate-900">{policy.totalLeaves}</td>
+                                    <td className="p-3">
+                                        {policy.carryForward?.enabled ? (
+                                            <span className="text-emerald-700 font-medium">Yes (Max: {policy.carryForward.maxLimit})</span>
+                                        ) : (
+                                            <span className="text-slate-400">No</span>
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-slate-600">
                                         {policy.probationRule?.allowed ? `After ${policy.probationRule.afterDays}d` : 'Immediate'}
-                                    </TableCell>
-                                    <TableCell>{policy.encashable ? 'Yes' : 'No'}</TableCell>
-                                    <TableCell align="right">
-                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                            <Tooltip title="Edit">
-                                                <IconButton size="small" onClick={() => handleEdit(policy)} color="primary">
-                                                    <Edit2 size={16} />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Tooltip title="Delete">
-                                                <IconButton size="small" onClick={() => handleDelete(policy._id)} color="error">
-                                                    <Trash2 size={16} />
-                                                </IconButton>
-                                            </Tooltip>
-                                        </Box>
-                                    </TableCell>
-                                </TableRow>
+                                    </td>
+                                    <td className="p-3">
+                                        {policy.encashable ? (
+                                            <span className="text-emerald-700 font-medium">Yes</span>
+                                        ) : (
+                                            <span className="text-slate-400">No</span>
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        <div className="flex justify-end gap-1.5">
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleEdit(policy)} 
+                                                className="p-1 rounded text-teal-600 hover:text-teal-800 hover:bg-teal-50 transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Edit2 size={15} />
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleDelete(policy._id)} 
+                                                className="p-1 rounded text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
                             ))
                         )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Box>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 };
 

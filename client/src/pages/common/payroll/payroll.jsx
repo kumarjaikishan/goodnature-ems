@@ -1,35 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardActions,
-  Typography,
-  Divider,
-  Button,
-  Grid,
-  TextField,
-  InputAdornment,
-  Select,
-  OutlinedInput,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Avatar,
-  Box,
-} from "@mui/material";
 import { toast } from "../../../utils/toast";
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../../admin/attandence/attandencehelper";
-import { Eye, Edit2, Trash2, MessageSquareWarning, Search, Filter } from "lucide-react";
-import dayjs from "dayjs";
+import { Eye, Edit2, Trash2, MessageSquareWarning, Search, Filter, Play } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import CheckPermission from "../../../utils/CheckPermission";
 import { setpayroll, FirstFetch } from "../../../../store/userSlice";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { swal } from "../../../utils/confirmDialog";
+
+// Custom UI Components
+import Input from "../../../components/ui/Input";
+import Select from "../../../components/ui/Select";
+import Button from "../../../components/ui/Button";
 
 export default function PayrollPage() {
   const { employeeId } = useParams();
@@ -149,7 +134,6 @@ export default function PayrollPage() {
   };
 
   const handleDelete = async (empId) => {
-    // return console.log(empId)
     const existingPayroll = payroll.find(p => p.employeeId?._id === empId && p.month === filters.month && p.year === filters.year);
     if (!existingPayroll) return toast.info("No payroll to delete for this period");
 
@@ -169,12 +153,11 @@ export default function PayrollPage() {
             method: "DELETE"
           });
 
-          toast.success(result.message || 'Successfull deleted')
+          toast.success(result.message || 'Successfully deleted');
           fetchPayroll();
           dispatch(FirstFetch());
         } catch (error) {
           console.error(error);
-          setPayroll(employee); // fallback
         } finally {
           setDeletingId(null);
         }
@@ -192,7 +175,17 @@ export default function PayrollPage() {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  if (!employee) return <p className="p-4 text-gray-500">No employee data found</p>;
+  const branchOptions = [
+    { value: 'all', label: 'All Branches' },
+    ...((profile?.role === 'manager'
+      ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
+      : branch) || []).map((list) => ({ value: list._id, label: list.name }))
+  ];
+
+  const monthOptions = months.map((m, idx) => ({ value: idx + 1, label: m }));
+  const yearOptions = ["2024", "2025", "2026", "2027"].map(y => ({ value: y, label: y }));
+
+  if (!employee) return <p className="p-4 text-slate-500">No employee data found</p>;
 
   const columns = [
     {
@@ -203,63 +196,97 @@ export default function PayrollPage() {
     {
       name: "Employee",
       selector: (row) => (
-        <div className="flex items-center capitalize gap-3">
-          <Avatar
-            src={
-              cloudinaryUrl(row?.profileimage, {
+        <div className="flex items-center capitalize gap-3 py-1">
+          {row?.profileimage ? (
+            <img
+              src={cloudinaryUrl(row?.profileimage, {
                 format: "webp",
                 width: 100,
                 height: 100,
-              })
-            }
-            alt={row?.userid?.name}
-          >
-
-          </Avatar>
-          <Box>
-            <Typography variant="body2">{row?.userid?.name}</Typography>
-            <p className="text-[10px] text-gray-600">
-              ({row?.designation || "-"})
+              })}
+              alt={row?.userid?.name}
+              className="w-9 h-9 rounded-full object-cover border border-slate-200"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-800 font-semibold flex items-center justify-center text-xs border border-teal-200">
+              {row?.userid?.name?.charAt(0)?.toUpperCase() || 'E'}
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-semibold text-slate-900">{row?.userid?.name}</p>
+            <p className="text-[11px] text-slate-500 font-normal">
+              {row?.designation || "-"}
             </p>
-          </Box>
+          </div>
         </div>
       ),
       sortable: true,
     },
-    { name: 'Email', selector: row => row.userid?.email, width: "180px", },
+    {
+      name: 'Email',
+      selector: row => row.userid?.email || '-',
+      width: "200px"
+    },
     {
       name: "Department",
-      selector: (row) => row.department?.department || "-", // <-- get the string
-      width: "120px",
+      selector: (row) => (
+        <span className="text-xs text-slate-700 font-medium">
+          {row.department?.department || "-"}
+        </span>
+      ),
+      width: "140px",
     },
     {
       name: 'Actions',
-      width: "450px",
+      width: "360px",
       cell: (row) => {
         const key = `${row._id}-${filters.month}-${filters.year}`;
         const exists = payrollMap[key];
         return (
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1.5 py-1">
             {canGenerate && (
               <Button
-                size="small"
-                variant="contained"
-                startIcon={<Eye size={16} />}
+                size="sm"
+                variant={exists ? "ghost" : "primary"}
+                icon={<Play size={13} />}
                 disabled={exists}
                 title={exists ? 'Already Generated' : 'Generate Payroll'}
                 onClick={() => handleGenerate(row)}
               >
-                Generate
+                {exists ? 'Generated' : 'Generate'}
               </Button>
             )}
-            {/* {canView && ( */}
-            <Button size="small" disabled={!exists} variant="outlined" startIcon={<Eye size={16} />} onClick={() => handleView(row)}>View</Button>
-            {/* )} */}
+            <Button
+              size="sm"
+              disabled={!exists}
+              variant="outline"
+              icon={<Eye size={13} />}
+              onClick={() => handleView(row)}
+            >
+              View
+            </Button>
             {canEdit && (
-              <Button size="small" disabled={!exists} variant="outlined" startIcon={<Edit2 size={16} />} onClick={() => handleEdit(row)}>Edit</Button>
+              <Button
+                size="sm"
+                disabled={!exists}
+                variant="outline"
+                icon={<Edit2 size={13} />}
+                onClick={() => handleEdit(row)}
+              >
+                Edit
+              </Button>
             )}
             {canDelete && (
-              <Button size="small" loading={deletingId == row._id} disabled={!exists} color="error" variant="outlined" startIcon={<Trash2 size={16} />} onClick={() => handleDelete(row._id)}>Delete</Button>
+              <Button
+                size="sm"
+                loading={deletingId === row._id}
+                disabled={!exists}
+                variant="danger"
+                icon={<Trash2 size={13} />}
+                onClick={() => handleDelete(row._id)}
+              >
+                Delete
+              </Button>
             )}
           </div>
         );
@@ -268,96 +295,68 @@ export default function PayrollPage() {
   ];
 
   return (
-    <div className="w-full max-w-7xl  mx-auto p-1 md:p-4">
-      <div className="flex my-3 items-center flex-wrap justify-between gap-2 mt-1 w-full">
-        <div className="flex flex-wrap gap-3 justify-between w-full md:w-fit">
-          <TextField
-            size="small"
-            className="w-[100%] md:w-[160px]"
-            value={filters.searchText}
-            onChange={(e) => handleFilterChange("searchText", e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search size={16} />
-                </InputAdornment>
-              ),
-            }}
-            label="Search Employee"
-          />
+    <div className="w-full max-w-7xl mx-auto space-y-4">
+      {/* Filters Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <div className="w-full sm:w-[200px]">
+            <Input
+              size="sm"
+              icon={<Search size={14} className="text-slate-400" />}
+              value={filters.searchText}
+              onChange={(e) => handleFilterChange("searchText", e.target.value)}
+              placeholder="Search employee..."
+            />
+          </div>
 
-          <FormControl size="small" className="w-[47%] md:w-[160px]">
-            <InputLabel>Branch</InputLabel>
+          <div className="w-full sm:w-[160px]">
             <Select
-              label="Branch"
+              size="sm"
               value={filters.branch}
-              input={
-                <OutlinedInput
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Filter size={16} />
-                    </InputAdornment>
-                  }
-                  label="Branch"
-                />
-              }
               onChange={(e) => handleFilterChange("branch", e.target.value)}
-            >
-              <MenuItem value="all">All</MenuItem>
-              {profile?.role === 'manager'
-                ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                  ?.map((list) => (
-                    <MenuItem key={list._id} value={list._id}>{list.name}</MenuItem>
-                  ))
-                : branch?.map((list) => (
-                  <MenuItem key={list._id} value={list._id}>{list.name}</MenuItem>
-                ))
-              }
-            </Select>
-          </FormControl>
+              options={branchOptions}
+            />
+          </div>
 
-          <FormControl size="small">
-            <InputLabel>Month</InputLabel>
+          <div className="w-full sm:w-[140px]">
             <Select
-              label="Month"
+              size="sm"
               value={filters.month}
-              onChange={(e) => handleFilterChange("month", e.target.value)}
-            >
-              {months.map((month, ind) => (
-                <MenuItem key={ind} value={ind + 1}>{month}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              onChange={(e) => handleFilterChange("month", Number(e.target.value))}
+              options={monthOptions}
+            />
+          </div>
 
-          <FormControl size="small">
-            <InputLabel>Year</InputLabel>
+          <div className="w-full sm:w-[110px]">
             <Select
-              label="Year"
+              size="sm"
               value={filters.year}
-              onChange={(e) => handleFilterChange("year", e.target.value)}
-            >
-              {["2024", "2025", "2026"].map(year => (
-                <MenuItem key={year} value={year}>{year}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              onChange={(e) => handleFilterChange("year", Number(e.target.value))}
+              options={yearOptions}
+            />
+          </div>
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={filteredEmployees}
-        pagination
-        customStyles={themes}
-        highlightOnHover
-        paginationPerPage={20}
-        paginationRowsPerPageOptions={[20, 50, 100, 300]}
-        noDataComponent={
-          <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-            <MessageSquareWarning size={20} /> No Employee records found.
-          </div>
-        }
-      />
+      {/* Table Container */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={filteredEmployees}
+          pagination
+          customStyles={themes}
+          highlightOnHover
+          paginationPerPage={20}
+          paginationRowsPerPageOptions={[20, 50, 100, 300]}
+          noDataComponent={
+            <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
+              <MessageSquareWarning size={28} className="text-slate-400 mb-2" />
+              <p className="text-sm font-medium">No employee records found</p>
+              <p className="text-xs text-slate-400 mt-0.5">Try searching with a different keyword or filter.</p>
+            </div>
+          }
+        />
+      </div>
     </div>
   );
 }

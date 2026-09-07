@@ -2,37 +2,19 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  Typography,
-  Divider,
-  Button,
-  Grid,
-  TextField,
-  IconButton,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Avatar,
-  InputAdornment,
-  Checkbox,
-  FormControlLabel,
-  Box,
-  Chip,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-} from "@mui/material";
-import { Plus, Trash2, ArrowLeft, Calendar, User, Building2, Briefcase, Banknote, Clock, CheckCircle, AlertCircle } from "lucide-react";
+  Plus,
+  Trash2,
+  ArrowLeft,
+  Calendar,
+  User,
+  Building2,
+  Briefcase,
+  Banknote,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Check
+} from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
@@ -43,6 +25,13 @@ import numberToWords from "../../../utils/numToWord";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { FirstFetch } from "../../../../store/userSlice";
 import WeeklyOffLedgerModal from "../../admin/employee/WeeklyOffLedgerModal";
+
+// Custom UI Components
+import Button from "../../../components/ui/Button";
+import Input from "../../../components/ui/Input";
+import NumberInput from "../../../components/ui/NumberInput";
+import DateInput from "../../../components/ui/DateInput";
+import Select from "../../../components/ui/Select";
 
 dayjs.extend(localeData);
 dayjs.extend(isBetween);
@@ -70,8 +59,8 @@ export default function PayrollCreatePage() {
 
   const [selectedEmployee, setSelectedEmployee] = useState(stateEmployee?._id || employeeId || urlEmployeeId || "");
   const [selectedEmployeedetail, setSelectedEmployeedetail] = useState(stateEmployee || null);
-  const [perminuteRate, setminuteRate] = useState(0)
-  const [perDayRate, setPerDayRate] = useState(0)
+  const [perminuteRate, setminuteRate] = useState(0);
+  const [perDayRate, setPerDayRate] = useState(0);
   const [holidaydate, setholidaydate] = useState([]);
   const [taxrate, settaxrate] = useState(0);
   const [employeeleavebal, setemployeeleavebal] = useState(0);
@@ -88,11 +77,10 @@ export default function PayrollCreatePage() {
 
     const empIdStr = selectedEmployee.toString();
 
-    // 1. Fetch live ledger balance from server to get accurate accumulation (including manual adjustments)
+    // 1. Fetch live ledger balance from server to get accurate accumulation
     apiClient({ url: `weekly-off-ledger/${empIdStr}` })
       .then((res) => {
         if (res.success && res.ledger) {
-          // Calculate accumulation excluding the current month if not yet closed
           const prevEntries = res.ledger.filter((item) => {
             if (id && item.payrollId?.toString() === id.toString()) return false;
             const itemYear = item.year || (item.date ? new Date(item.date).getFullYear() : new Date(item.createdAt).getFullYear());
@@ -115,7 +103,6 @@ export default function PayrollCreatePage() {
         }
       })
       .catch(() => {
-        // Fallback to local payroll calculation if network fails
         if (!payroll || !month || !year) return;
         const prevPayrolls = payroll.filter((p) => {
           const pEmpId = p.employeeId?._id?.toString() || p.employeeId?.toString();
@@ -140,7 +127,7 @@ export default function PayrollCreatePage() {
       });
   }, [selectedEmployee, month, year, payroll, id]);
 
-  // Fetch existing payroll if in Edit mode (id is provided)
+  // Fetch existing payroll if in Edit mode
   useEffect(() => {
     if (!id) return;
     const fetchPayroll = async () => {
@@ -171,16 +158,6 @@ export default function PayrollCreatePage() {
       }
     }
   }, [selectedEmployee, employees, stateEmployee, urlEmployeeId]);
-
-  useEffect(() => {
-    if (!stateEmployee && !urlEmployeeId && !id) {
-      console.error("No employee data provided");
-    } else {
-      console.log(location.state || { id, employeeId: urlEmployeeId, month, year });
-    }
-  }, [stateEmployee, urlEmployeeId, id]);
-
-
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
@@ -255,7 +232,7 @@ export default function PayrollCreatePage() {
       deductions: form.deductions,
       taxRate: taxrate,
       name: selectedEmployeedetail?.userid?.name,
-    }
+    };
 
     try {
       setLoading(true);
@@ -268,7 +245,6 @@ export default function PayrollCreatePage() {
         body: fields
       });
 
-      // Post PAYROLL_PAID entry to WeeklyOffLedger if weekly off work was paid
       if (options.addWeeklyOffWork) {
         const paidMin = Number(options.adjustedWeeklyOffMin !== undefined ? options.adjustedWeeklyOffMin : totalAvailableWeeklyOffMin) || 0;
         if (paidMin > 0) {
@@ -316,20 +292,6 @@ export default function PayrollCreatePage() {
     setemployeeleavebal(totalRemaining);
   }, [leaveBalance, selectedEmployeedetail]);
 
-  const alredyPayroll = useMemo(() => {
-    let hey = {};
-    payroll.forEach((p) => {
-      let empId = p.employeeId._id;
-      if (hey.hasOwnProperty(empId)) {
-        hey[empId].push(`${p.month}-${p.year}`)
-      } else {
-        hey[empId] = [`${p.month}-${p.year}`]
-      }
-    })
-    // console.log(hey)
-    return hey;
-  }, [payroll])
-
   useEffect(() => {
     if (!selectedEmployeedetail) return;
     setpreviousAdvance(selectedEmployeedetail.advance || 0);
@@ -347,15 +309,15 @@ export default function PayrollCreatePage() {
   const [form, setForm] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    calculationBasis: "monthDays", // ✅ new: monthDays | workingDays
-    allowances: [], //{ name: "HRA", amount: 0, extraInfo: '', inputDisabled: false }
-    bonuses: [], //{ name: "Performance", amount: 0, extraInfo: '', inputDisabled: false }
-    deductions: [], // { name: "PF", amount: 0, extraInfo: '', inputDisabled: false }
+    calculationBasis: "monthDays",
+    allowances: [],
+    bonuses: [],
+    deductions: [],
     leaveDays: 0,
     absentDays: 0,
     presentDays: 0,
     paidDays: 0,
-    adjustPaidLeave: false, // ✅ toggle for paid leave adjustment
+    adjustPaidLeave: false,
   });
 
   const [basic, setBasic] = useState({
@@ -365,6 +327,7 @@ export default function PayrollCreatePage() {
     workingDays: 0,
     overtime: 0,
     shortmin: 0,
+    weeklyOffWork: 0,
   });
 
   const [showWOLedgerModal, setShowWOLedgerModal] = useState(false);
@@ -381,13 +344,13 @@ export default function PayrollCreatePage() {
   const optionsinit = {
     addOvertime: false,
     addWeeklyOffWork: false,
-    adjustedWeeklyOffMin: undefined, // custom minutes user wants to adjust/pay
+    adjustedWeeklyOffMin: undefined,
     deductShortTime: false,
     deductAbsent: false,
     adjustLeave: false,
     adjustAdvance: false,
-    adjustedLeaveCount: 0, // how many leaves user wants to adjust
-    adjustedAdvance: 0, // how many leaves user wants to adjust
+    adjustedLeaveCount: 0,
+    adjustedAdvance: 0,
   };
 
   const [options, setOptions] = useState(optionsinit);
@@ -427,8 +390,6 @@ export default function PayrollCreatePage() {
 
   useEffect(() => {
     if (!holidays) return;
-    // console.log(holidays)
-
     const dateObjects = [];
     holidays.forEach(holiday => {
       let current = dayjs(holiday.fromDate);
@@ -438,7 +399,6 @@ export default function PayrollCreatePage() {
         dateObjects.push(current.format('DD/MM/YYYY'));
         current = current.add(1, 'day');
       }
-
     });
     setholidaydate(dateObjects);
   }, [holidays]);
@@ -448,55 +408,46 @@ export default function PayrollCreatePage() {
 
   const targetUserId = selectedEmployeedetail?.userid?._id || selectedEmployeedetail?.userid || stateEmployee?.userid?._id || stateEmployee?.userid;
 
-  // Fetch target month attendance for the selected employee from API (strictly once per employee/month/year)
+  // Attendance fetch
   useEffect(() => {
-    if (!selectedEmployee || !targetUserId) return;
-
+    if (!targetUserId || !month || !year) return;
     const fetchTargetAttendance = async () => {
       try {
         setLoadingAtt(true);
         const res = await apiClient({
-          url: 'employeeAttandence',
-          params: {
-            userid: targetUserId,
-            month: month - 1, // backend accepts 0-indexed month
-            year: year
-          }
+          url: "getAttendanceByUserId",
+          params: { userId: targetUserId, month, year }
         });
-        setTargetAttendance(res?.attandence || res?.attendance || []);
+        setTargetAttendance(res.attendances || []);
       } catch (err) {
-        console.error("Error fetching target attendance for payroll:", err);
-        setTargetAttendance([]);
+        console.error("Error fetching targeted attendance:", err);
+        const local = (attandence || []).filter(
+          (a) =>
+            (a.userId?._id === targetUserId || a.userId === targetUserId) &&
+            dayjs(a.date).month() + 1 === Number(month) &&
+            dayjs(a.date).year() === Number(year)
+        );
+        setTargetAttendance(local);
       } finally {
         setLoadingAtt(false);
       }
     };
-
     fetchTargetAttendance();
-  }, [selectedEmployee, targetUserId, month, year]);
+  }, [targetUserId, month, year, attandence]);
 
-  // Compute attendance
+  // Attendance crunching
   useEffect(() => {
     if (!selectedEmployee) return;
-    setError(null)
 
-    if (!id && alredyPayroll[selectedEmployee] && alredyPayroll[selectedEmployee].includes(`${month}-${year}`)) {
-      return setError(`Payroll for this employee is already generated for: ${dayjs(`${year}-${month}-01`).format("MMM-YYYY")}`)
-    }
-
-    const selected = employees.find((e) => e._id === selectedEmployee);
-    if (!id) {
-      setOptions(optionsinit);
-    }
-    setSelectedEmployeedetail(selected);
-
-    const monthStart = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
+    const monthStart = dayjs(`${year}-${month}-01`);
+    const totalDays = monthStart.daysInMonth();
     const isCurrentMonth = monthStart.isSame(dayjs(), "month");
-    const monthEnd = monthStart.endOf("month");
-    const totalDays = monthEnd.date();
+    const daysUpToToday = isCurrentMonth ? dayjs().date() : totalDays;
 
-    // Use targetAttendance fetched from backend for this specific month & year
-    const filteredAttendance = targetAttendance;
+    const filteredAttendance = targetAttendance.filter((atten) => {
+      const d = dayjs(atten.date);
+      return d.month() + 1 === Number(month) && d.year() === Number(year);
+    });
 
     const { present, absent, leaves, overtime, shortmin, weeklyOffWork } = filteredAttendance.reduce(
       (acc, atten) => {
@@ -566,7 +517,6 @@ export default function PayrollCreatePage() {
     });
 
     setBasic({
-      // monthDays,
       totalDays,
       workingDays: totalDays - (weeklyOffCount + holidayCount),
       weeklyOff: weeklyOffCount,
@@ -577,10 +527,8 @@ export default function PayrollCreatePage() {
     });
   }, [selectedEmployee, targetAttendance, month, year, employees, company, holidays]);
 
-  // ✅ Leave deduction logic
   const effectiveLeaveDays = useMemo(() => {
     if (form.adjustPaidLeave) {
-      // Leaves covered by available paid leaves
       return Math.max(form.leaveDays - employeeleavebal, 0);
     }
     return form.leaveDays;
@@ -591,50 +539,31 @@ export default function PayrollCreatePage() {
   }, [effectiveLeaveDays, perDayRate]);
 
   const totalAllowances = useMemo(
-    () => form.allowances.reduce((acc, e) => acc + Number(e.amount), 0),
+    () => form.allowances.reduce((acc, e) => acc + Number(e.amount || 0), 0),
     [form.allowances]
   );
 
   const totalBonuses = useMemo(
-    () => form.bonuses.reduce((acc, e) => acc + Number(e.amount), 0),
+    () => form.bonuses.reduce((acc, e) => acc + Number(e.amount || 0), 0),
     [form.bonuses]
   );
 
   const totalDeductions = useMemo(
-    () => form.deductions.reduce((acc, e) => acc + Number(e.amount), 0),
+    () => form.deductions.reduce((acc, e) => acc + Number(e.amount || 0), 0),
     [form.deductions, leaveDeduction]
   );
 
   const grossSalary = useMemo(() => {
     return (
-      // perDayRate * form.paidDays || 0) +
-      selectedEmployeedetail?.salary +
+      (selectedEmployeedetail?.salary || 0) +
       totalAllowances +
       totalBonuses
     );
-  }, [perDayRate, form.paidDays, totalAllowances, totalBonuses]);
-
-  const tax = useMemo(() => {
-    return (
-      ((grossSalary * taxrate) / 100).toFixed(2)
-    );
-  }, [grossSalary, taxrate]);
-
-  const minutesinhours = useCallback((minutes) => {
-    const hour = Math.floor(minutes / 60);
-    const minute = minutes % 60;
-    return `${hour}h ${minute}m`;
-  }, []);
+  }, [selectedEmployeedetail?.salary, totalAllowances, totalBonuses]);
 
   const netSalary = useMemo(() => {
-    // return grossSalary - tax;
-    // return Math.floor(grossSalary - tax);
     return Math.round(grossSalary - totalDeductions);
   }, [grossSalary, totalDeductions]);
-
-  // const netSalary = useMemo(() => {
-  //   return selectedEmployeedetail?.salary - totalDeductions;
-  // }, [grossSalary, totalDeductions]);
 
   const handleArrayChange = (field, index, key, value) => {
     const updated = [...form[field]];
@@ -642,7 +571,6 @@ export default function PayrollCreatePage() {
     setForm((prev) => ({ ...prev, [field]: updated }));
   };
 
-  // ✅ Effect 1: Initialize policies when employee changes
   useEffect(() => {
     if (!selectedEmployeedetail) return;
 
@@ -680,20 +608,18 @@ export default function PayrollCreatePage() {
     }));
   }, [selectedEmployeedetail, company]);
 
-  // ✅ Effect 2: Inject/Update Adjustment rows without overwriting manual entries
   useEffect(() => {
     if (!selectedEmployeedetail) return;
 
     setForm(prev => {
-      // 1. Keep manual entries, remove all auto-generated ones
       let updatedBonuses = prev.bonuses.filter(b => !b.inputDisabled);
       let updatedDeductions = prev.deductions.filter(d => !d.inputDisabled);
 
-      // 2. Inject current Adjustments
       if (options.addOvertime && basic.overtime > basic.shortmin) {
         const netOvertime = basic.overtime - basic.shortmin;
         updatedBonuses.push({
-          name: "Net Overtime", amount: (netOvertime * perminuteRate).toFixed(2),
+          name: "Net Overtime",
+          amount: (netOvertime * perminuteRate).toFixed(2),
           extraInfo: `${netOvertime} Min @ ₹${Number(perminuteRate).toFixed(2)}/min (OT: ${basic.overtime}m, ST: ${basic.shortmin}m)`,
           inputDisabled: true
         });
@@ -716,7 +642,8 @@ export default function PayrollCreatePage() {
       if (options.deductShortTime && basic.shortmin > basic.overtime) {
         const netShortTime = basic.shortmin - basic.overtime;
         updatedDeductions.push({
-          name: "Net Short Time", amount: (netShortTime * perminuteRate).toFixed(2),
+          name: "Net Short Time",
+          amount: (netShortTime * perminuteRate).toFixed(2),
           extraInfo: `${netShortTime} Min @ ₹${Number(perminuteRate).toFixed(2)}/min (OT: ${basic.overtime}m, ST: ${basic.shortmin}m)`,
           inputDisabled: true
         });
@@ -724,7 +651,8 @@ export default function PayrollCreatePage() {
 
       if (options.deductAbsent && prev.absentDays > 0) {
         updatedDeductions.push({
-          name: "Absent", amount: (prev.absentDays * perDayRate).toFixed(2),
+          name: "Absent",
+          amount: (prev.absentDays * perDayRate).toFixed(2),
           extraInfo: `${prev.absentDays} Day(s) @ ₹${Number(perDayRate).toFixed(2)}/day`,
           inputDisabled: true
         });
@@ -732,7 +660,8 @@ export default function PayrollCreatePage() {
 
       if (options.adjustAdvance && previousAdvance > 0 && options.adjustedAdvance > 0) {
         updatedDeductions.push({
-          name: "Advance", amount: (options.adjustedAdvance).toFixed(2),
+          name: "Advance",
+          amount: (options.adjustedAdvance).toFixed(2),
           extraInfo: `Adj: ${options.adjustedAdvance}, Rem: ${previousAdvance - options.adjustedAdvance}`,
           inputDisabled: true
         });
@@ -743,14 +672,16 @@ export default function PayrollCreatePage() {
         const unadjusted = prev.leaveDays - adjusted;
         if (adjusted > 0) {
           updatedDeductions.push({
-            name: "Paid Leave Adjustment", amount: (adjusted * perDayRate).toFixed(2),
+            name: "Paid Leave Adjustment",
+            amount: (adjusted * perDayRate).toFixed(2),
             extraInfo: `${adjusted} Paid Leave(s) Adjusted`,
             inputDisabled: true
           });
         }
         if (unadjusted > 0) {
           updatedDeductions.push({
-            name: "Unpaid Leave", amount: (unadjusted * perDayRate).toFixed(2),
+            name: "Unpaid Leave",
+            amount: (unadjusted * perDayRate).toFixed(2),
             extraInfo: `${unadjusted} Unpaid Leave(s)`,
             inputDisabled: true
           });
@@ -759,8 +690,7 @@ export default function PayrollCreatePage() {
 
       return { ...prev, bonuses: updatedBonuses, deductions: updatedDeductions };
     });
-  }, [options, perDayRate, perminuteRate, basic.overtime, basic.shortmin, previousAdvance, employeeleavebal, form, company, selectedEmployeedetail, totalAvailableWeeklyOffMin]);
-
+  }, [options, perDayRate, perminuteRate, basic.overtime, basic.shortmin, previousAdvance, employeeleavebal, form.absentDays, form.leaveDays, company, selectedEmployeedetail, totalAvailableWeeklyOffMin]);
 
   const addArrayItem = (field, item) =>
     setForm((prev) => ({ ...prev, [field]: [...prev[field], item] }));
@@ -772,24 +702,21 @@ export default function PayrollCreatePage() {
       return { ...prev, [field]: updated };
     });
 
-
-
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4 text-slate-800">
       {/* Header Bar */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <Button
             onClick={() => navigate(-1)}
-            variant="outlined"
-            size="small"
-            startIcon={<ArrowLeft size={16} />}
-            className="!border-slate-300 !text-slate-700 hover:!bg-slate-50 text-xs"
+            variant="outline"
+            size="sm"
+            icon={<ArrowLeft size={15} />}
           >
             Back
           </Button>
           <div>
-            <h1 className="text-lg font-bold text-slate-800">{id ? "Edit Payroll" : "Generate Payroll"}</h1>
+            <h1 className="text-lg font-bold text-slate-900">{id ? "Edit Payroll" : "Generate Payroll"}</h1>
             <p className="text-xs text-slate-500">Period: {months[month - 1]} {year}</p>
           </div>
         </div>
@@ -800,68 +727,70 @@ export default function PayrollCreatePage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          <strong>Error:</strong> {error}
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm flex items-center gap-2">
+          <AlertCircle size={16} className="text-rose-500 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
       {/* 1. Employee Details Section */}
       {selectedEmployeedetail && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-          <h2 className="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider">Employee Details</h2>
-          <Divider className="!mb-4" />
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+          <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Employee Details</h2>
+          <div className="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Avatar
-                src={cloudinaryUrl(selectedEmployeedetail?.profileimage, {
-                  format: "webp",
-                  width: 100,
-                  height: 100,
-                })}
-                sx={{ width: 52, height: 52 }}
-              />
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-slate-800 text-base">
-                    {selectedEmployeedetail?.userid?.name || "Employee"}
-                  </h3>
-
+              {selectedEmployeedetail?.profileimage ? (
+                <img
+                  src={cloudinaryUrl(selectedEmployeedetail?.profileimage, {
+                    format: "webp",
+                    width: 100,
+                    height: 100,
+                  })}
+                  alt={selectedEmployeedetail?.userid?.name}
+                  className="w-13 h-13 rounded-full object-cover border border-slate-200"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-sm border border-teal-200">
+                  {selectedEmployeedetail?.userid?.name?.charAt(0)?.toUpperCase() || 'E'}
                 </div>
+              )}
+              <div className="space-y-0.5">
+                <h3 className="font-bold text-slate-900 text-base">
+                  {selectedEmployeedetail?.userid?.name || "Employee"}
+                </h3>
                 <p className="text-xs text-slate-600">
                   {selectedEmployeedetail?.designation || "N/A"} • {selectedEmployeedetail?.department?.department || selectedEmployeedetail?.department || "N/A"}
                 </p>
-                <p className="text-xs font-semibold text-slate-700 pt-0.5">
+                <p className="text-xs font-semibold text-teal-700 pt-0.5">
                   Base Salary: {formatRupee(selectedEmployeedetail?.salary || 0)} / month
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 pt-2 md:pt-0">
-              <TextField
-                size="small"
-                type="date"
-                label="Issue Date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                className="w-40"
-              />
-              <FormControl size="small" className="w-40">
-                <InputLabel>Calc. Basis</InputLabel>
+              <div className="w-36">
+                <DateInput
+                  size="sm"
+                  label="Issue Date"
+                  value={issueDate}
+                  onChange={(val) => setIssueDate(val)}
+                />
+              </div>
+              <div className="w-40">
                 <Select
+                  size="sm"
                   label="Calc. Basis"
                   value={form.calculationBasis}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, calculationBasis: e.target.value }))
                   }
-                >
-                  <MenuItem value="monthDays">Month Days</MenuItem>
-                  <MenuItem value="workingDays">Working Days</MenuItem>
-                </Select>
-              </FormControl>
+                  options={[
+                    { value: "monthDays", label: "Month Days" },
+                    { value: "workingDays", label: "Working Days" }
+                  ]}
+                />
+              </div>
             </div>
-
           </div>
         </div>
       )}
@@ -869,11 +798,10 @@ export default function PayrollCreatePage() {
       {/* 2. Attendance & Rate Summary */}
       {selectedEmployeedetail && !error && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Attendance Summary</h2>
-          <Divider />
+          <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Attendance Summary</h2>
 
           {/* Attendance Days Pills */}
-          <div className="grid p-1 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
               <span className="text-[11px] font-medium text-slate-500 block">Total Days</span>
               <span className="text-base font-bold text-slate-800">{basic.totalDays}</span>
@@ -904,29 +832,27 @@ export default function PayrollCreatePage() {
             </div>
           </div>
 
-          <Divider />
-
           {/* Financial Rates */}
-          <div className="grid grid-cols-2 p-1 mt-2 md:grid-cols-5 gap-3">
-            <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2 border-t border-slate-100">
+            <div className="p-3 bg-sky-50 rounded-xl border border-sky-100">
               <span className="text-xs text-slate-600 uppercase font-semibold block">Per Day Rate</span>
-              <span className="text-lg font-bold text-blue-700 block">{formatRupee(perDayRate)}</span>
-              <span className="text-[10px] text-blue-500 italic block">For Absent/Leave</span>
+              <span className="text-lg font-bold text-sky-700 block">{formatRupee(perDayRate)}</span>
+              <span className="text-[10px] text-sky-500 italic block">For Absent/Leave</span>
             </div>
             <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
               <span className="text-xs text-slate-600 uppercase font-semibold block">Per Minute Rate</span>
               <span className="text-lg font-bold text-indigo-700 block">{formatRupee(perminuteRate)}</span>
               <span className="text-[10px] text-indigo-500 italic block">For OT/Short-time</span>
             </div>
-            <div className="p-3 bg-green-50 rounded-xl border border-green-100">
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
               <span className="text-xs text-slate-600 uppercase font-semibold block">Overtime</span>
-              <span className="text-lg font-bold text-green-700 block">{basic.overtime || 0} min</span>
-              <span className="text-[10px] text-green-600 font-medium block">Est: +{formatRupee(basic.overtime * perminuteRate)}</span>
+              <span className="text-lg font-bold text-emerald-700 block">{basic.overtime || 0} min</span>
+              <span className="text-[10px] text-emerald-600 font-medium block">Est: +{formatRupee(basic.overtime * perminuteRate)}</span>
             </div>
-            <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+            <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
               <span className="text-xs text-slate-600 uppercase font-semibold block">Short-time</span>
-              <span className="text-lg font-bold text-red-700 block">{basic.shortmin || 0} min</span>
-              <span className="text-[10px] text-red-600 font-medium block">Est: -{formatRupee(basic.shortmin * perminuteRate)}</span>
+              <span className="text-lg font-bold text-rose-700 block">{basic.shortmin || 0} min</span>
+              <span className="text-[10px] text-rose-600 font-medium block">Est: -{formatRupee(basic.shortmin * perminuteRate)}</span>
             </div>
             <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 col-span-2 md:col-span-1">
               <span className="text-xs text-slate-600 uppercase font-semibold block">Weekly Off Work</span>
@@ -942,80 +868,71 @@ export default function PayrollCreatePage() {
       {/* 3. Adjustments */}
       {selectedEmployeedetail && !error && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Adjustments</h2>
-          <Divider />
+          <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adjustments</h2>
 
-          <div className="flex flex-col gap-2 pt-1">
+          <div className="flex flex-col gap-2.5 pt-1">
             {basic?.overtime > basic?.shortmin && (
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={options.addOvertime}
-                    onChange={(e) =>
-                      setOptions((p) => ({
-                        ...p,
-                        addOvertime: e.target.checked,
-                        deductShortTime: false,
-                      }))
-                    }
-                    size="small"
-                  />
-                }
-                label={<span className="text-xs font-medium text-slate-700">Add Net Overtime ({basic.overtime - basic.shortmin} min)</span>}
-              />
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={options.addOvertime}
+                  onChange={(e) =>
+                    setOptions((p) => ({
+                      ...p,
+                      addOvertime: e.target.checked,
+                      deductShortTime: false,
+                    }))
+                  }
+                  className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
+                />
+                <span>Add Net Overtime ({basic.overtime - basic.shortmin} min)</span>
+              </label>
             )}
 
             {totalAvailableWeeklyOffMin > 0 && (
               <div className="flex flex-col gap-1 border border-purple-200 bg-purple-50/60 p-3 rounded-xl">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={options.addWeeklyOffWork || false}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setOptions((p) => ({
-                            ...p,
-                            addWeeklyOffWork: checked,
-                            adjustedWeeklyOffMin: checked
-                              ? (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin)
-                              : (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin),
-                          }));
-                        }}
-                        size="small"
-                      />
-                    }
-                    label={
-                      <span className="text-xs font-bold text-slate-800">
-                        Add Work on Weekly Off
-                        <span className="text-purple-700 font-extrabold ml-1">
-                          (Total Available: {totalAvailableWeeklyOffMin} min / {(totalAvailableWeeklyOffMin / 60).toFixed(1)} hrs)
-                        </span>
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={options.addWeeklyOffWork || false}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setOptions((p) => ({
+                          ...p,
+                          addWeeklyOffWork: checked,
+                          adjustedWeeklyOffMin: checked
+                            ? (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin)
+                            : (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin),
+                        }));
+                      }}
+                      className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 border-slate-300"
+                    />
+                    <span>
+                      Add Work on Weekly Off
+                      <span className="text-purple-700 font-extrabold ml-1">
+                        (Total Available: {totalAvailableWeeklyOffMin} min / {(totalAvailableWeeklyOffMin / 60).toFixed(1)} hrs)
                       </span>
-                    }
-                  />
+                    </span>
+                  </label>
 
                   {options.addWeeklyOffWork && (
                     <div className="flex items-center gap-2">
-                      <TextField
-                        type="tel"
-                        size="small"
-                        className="w-32 bg-white"
-                        label="Min to Pay"
-                        value={options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin}
-                        onChange={(e) => {
-                          const sanitized = e.target.value.replace(/\D/g, "");
-                          const val = sanitized === "" ? 0 : Number(sanitized);
-                          setOptions((p) => ({
-                            ...p,
-                            adjustedWeeklyOffMin: val,
-                          }));
-                        }}
-                        inputProps={{
-                          inputMode: "numeric",
-                          pattern: "[0-9]*"
-                        }}
-                      />
+                      <div className="w-28">
+                        <Input
+                          size="sm"
+                          label="Min to Pay"
+                          value={options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin}
+                          onChange={(e) => {
+                            const sanitized = e.target.value.replace(/\D/g, "");
+                            const val = sanitized === "" ? 0 : Number(sanitized);
+                            setOptions((p) => ({
+                              ...p,
+                              adjustedWeeklyOffMin: val,
+                            }));
+                          }}
+                        />
+                      </div>
                       <span className="text-xs font-bold text-purple-800 whitespace-nowrap">
                         = {(((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0) / 60).toFixed(1)} hrs
                       </span>
@@ -1023,13 +940,13 @@ export default function PayrollCreatePage() {
                   )}
                 </div>
 
-                <div className="text-[11px] text-slate-600 pl-7 flex items-center justify-between flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-purple-100/60 mt-1">
+                <div className="text-[11px] text-slate-600 pl-6 flex items-center justify-between flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-purple-100/60 mt-1">
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
                     <span>This Month: <strong className="text-slate-800">{basic?.weeklyOffWork || 0} min</strong></span>
                     <span>Previous Carry Forward: <strong className="text-slate-800">{previousWeeklyOffAccumulated || 0} min</strong></span>
                     {options.addWeeklyOffWork && (
                       <span className="text-purple-700 font-semibold">
-                        Remaining Carry Forward: <strong>{Math.max(0, totalAvailableWeeklyOffMin - ((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0))} min</strong>
+                        Remaining: <strong>{Math.max(0, totalAvailableWeeklyOffMin - ((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0))} min</strong>
                       </span>
                     )}
                   </div>
@@ -1045,122 +962,112 @@ export default function PayrollCreatePage() {
             )}
 
             {basic?.shortmin > basic?.overtime && (
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={options.deductShortTime}
-                    onChange={(e) =>
-                      setOptions((p) => ({
-                        ...p,
-                        deductShortTime: e.target.checked,
-                        addOvertime: false,
-                      }))
-                    }
-                    size="small"
-                  />
-                }
-                label={<span className="text-xs font-medium text-slate-700">Deduct Net Short Time ({basic.shortmin - basic.overtime} min)</span>}
-              />
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={options.deductShortTime}
+                  onChange={(e) =>
+                    setOptions((p) => ({
+                      ...p,
+                      deductShortTime: e.target.checked,
+                      addOvertime: false,
+                    }))
+                  }
+                  className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 border-slate-300"
+                />
+                <span>Deduct Net Short Time ({basic.shortmin - basic.overtime} min)</span>
+              </label>
             )}
 
             {form?.absentDays > 0 && (
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={options.deductAbsent}
-                    onChange={(e) =>
-                      setOptions((p) => ({
-                        ...p,
-                        deductAbsent: e.target.checked,
-                      }))
-                    }
-                    size="small"
-                  />
-                }
-                label={<span className="text-xs font-medium text-slate-700">Deduct Absent Days ({form.absentDays} days)</span>}
-              />
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={options.deductAbsent}
+                  onChange={(e) =>
+                    setOptions((p) => ({
+                      ...p,
+                      deductAbsent: e.target.checked,
+                    }))
+                  }
+                  className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 border-slate-300"
+                />
+                <span>Deduct Absent Days ({form.absentDays} days)</span>
+              </label>
             )}
 
             {form?.leaveDays > 0 && (
               <div className="flex items-center flex-wrap gap-3 pt-1">
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={options.adjustLeave}
-                      onChange={(e) =>
-                        setOptions((p) => ({
-                          ...p,
-                          adjustLeave: e.target.checked,
-                        }))
-                      }
-                      size="small"
-                    />
-                  }
-                  label={<span className="text-xs font-medium text-slate-700">Adjust Paid Leaves (Available: {employeeleavebal})</span>}
-                />
-                {options.adjustLeave && (
-                  <TextField
-                    type="number"
-                    size="small"
-                    className="w-28"
-                    label="Count"
-                    inputProps={{
-                      min: 0,
-                      max: Math.min(employeeleavebal, form.leaveDays),
-                    }}
-                    value={options.adjustedLeaveCount}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      const max = Math.min(employeeleavebal, form.leaveDays);
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={options.adjustLeave}
+                    onChange={(e) =>
                       setOptions((p) => ({
                         ...p,
-                        adjustedLeaveCount: Math.max(0, Math.min(val, max)),
-                      }));
-                    }}
+                        adjustLeave: e.target.checked,
+                      }))
+                    }
+                    className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                   />
+                  <span>Adjust Paid Leaves (Available: {employeeleavebal})</span>
+                </label>
+                {options.adjustLeave && (
+                  <div className="w-24">
+                    <NumberInput
+                      size="sm"
+                      label="Count"
+                      min={0}
+                      max={Math.min(employeeleavebal, form.leaveDays)}
+                      value={options.adjustedLeaveCount}
+                      onChange={(val) => {
+                        const max = Math.min(employeeleavebal, form.leaveDays);
+                        setOptions((p) => ({
+                          ...p,
+                          adjustedLeaveCount: Math.max(0, Math.min(val, max)),
+                        }));
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             )}
 
             {previousAdvance > 0 && (
               <div className="flex items-center flex-wrap gap-3 pt-1">
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={options.adjustAdvance}
-                      onChange={(e) =>
-                        setOptions((p) => ({
-                          ...p,
-                          adjustAdvance: e.target.checked,
-                        }))
-                      }
-                      size="small"
-                    />
-                  }
-                  label={<span className="text-xs font-medium text-slate-700">Adjust Advance (Balance: {formatRupee(previousAdvance)})</span>}
-                />
-                {options.adjustAdvance && (
-                  <TextField
-                    type="number"
-                    size="small"
-                    className="w-32"
-                    label="Amount"
-                    inputProps={{
-                      min: 0,
-                      max: previousAdvance,
-                    }}
-                    value={options.adjustedAdvance}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      if (val < 0) {
-                        setOptions((p) => ({ ...p, adjustedAdvance: 0 }));
-                      } else if (val > previousAdvance) {
-                        setOptions((p) => ({ ...p, adjustedAdvance: previousAdvance }));
-                      } else {
-                        setOptions((p) => ({ ...p, adjustedAdvance: val }));
-                      }
-                    }}
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={options.adjustAdvance}
+                    onChange={(e) =>
+                      setOptions((p) => ({
+                        ...p,
+                        adjustAdvance: e.target.checked,
+                      }))
+                    }
+                    className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                   />
+                  <span>Adjust Advance (Balance: {formatRupee(previousAdvance)})</span>
+                </label>
+                {options.adjustAdvance && (
+                  <div className="w-32">
+                    <NumberInput
+                      size="sm"
+                      label="Amount"
+                      min={0}
+                      max={previousAdvance}
+                      value={options.adjustedAdvance}
+                      onChange={(val) => {
+                        if (val < 0) {
+                          setOptions((p) => ({ ...p, adjustedAdvance: 0 }));
+                        } else if (val > previousAdvance) {
+                          setOptions((p) => ({ ...p, adjustedAdvance: previousAdvance }));
+                        } else {
+                          setOptions((p) => ({ ...p, adjustedAdvance: val }));
+                        }
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -1168,50 +1075,52 @@ export default function PayrollCreatePage() {
         </div>
       )}
 
-      {/* 4 & 5. Allowances, Bonuses, Deductions & Salary Summary (2 sections per row) */}
+      {/* 4 & 5. Allowances, Bonuses, Deductions & Salary Summary */}
       {selectedEmployeedetail && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Allowances Card */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800 text-sm">Allowances</h3>
-                <span className="font-bold text-slate-700 text-xs">{formatRupee(totalAllowances)}</span>
+                <span className="font-bold text-teal-700 text-xs">{formatRupee(totalAllowances)}</span>
               </div>
-              <Divider />
               <div className="space-y-2 pt-3 max-h-64 overflow-y-auto">
                 {form?.allowances?.map((allowance, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <TextField
-                      size="small"
+                    <Input
+                      size="sm"
                       label="Name"
-                      className="flex-1"
                       value={allowance.name}
                       onChange={(e) => handleArrayChange("allowances", index, "name", e.target.value)}
                     />
-                    <TextField
-                      size="small"
-                      type="number"
-                      label="Amount"
-                      className="w-24"
-                      InputProps={{ readOnly: allowance.inputDisabled || false }}
-                      value={allowance.amount}
-                      onChange={(e) => handleArrayChange("allowances", index, "amount", e.target.value)}
-                    />
-                    <IconButton size="small" onClick={() => removeArrayItem("allowances", index)}>
-                      <Trash2 size={16} className="text-rose-600" />
-                    </IconButton>
+                    <div className="w-28">
+                      <NumberInput
+                        size="sm"
+                        label="Amount"
+                        disabled={allowance.inputDisabled || false}
+                        value={allowance.amount}
+                        onChange={(val) => handleArrayChange("allowances", index, "amount", val)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem("allowances", index)}
+                      className="text-rose-600 hover:text-rose-800 p-1.5 rounded hover:bg-rose-50 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
             <Button
-              startIcon={<Plus size={16} />}
-              variant="outlined"
-              size="small"
+              icon={<Plus size={14} />}
+              variant="outline"
+              size="sm"
               onClick={() => addArrayItem("allowances", { name: "", amount: 0, extraInfo: '', inputDisabled: false })}
-              className="w-full !mt-2"
+              className="w-full mt-2"
             >
               Add Allowance
             </Button>
@@ -1220,48 +1129,50 @@ export default function PayrollCreatePage() {
           {/* Bonuses Card */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800 text-sm">Bonuses</h3>
-                <span className="font-bold text-slate-700 text-xs">{formatRupee(totalBonuses)}</span>
+                <span className="font-bold text-emerald-700 text-xs">{formatRupee(totalBonuses)}</span>
               </div>
-              <Divider />
               <div className="space-y-2 pt-3 max-h-64 overflow-y-auto">
                 {form?.bonuses?.map((bonus, index) => (
-                  <div key={index} className="flex flex-col gap-1">
+                  <div key={index} className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
-                      <TextField
-                        size="small"
+                      <Input
+                        size="sm"
                         label="Name"
-                        className="flex-1"
                         value={bonus.name}
                         onChange={(e) => handleArrayChange("bonuses", index, "name", e.target.value)}
                       />
-                      <TextField
-                        size="small"
-                        type="number"
-                        label="Amount"
-                        className="w-24"
-                        InputProps={{ readOnly: bonus.inputDisabled || false }}
-                        value={bonus.amount}
-                        onChange={(e) => handleArrayChange("bonuses", index, "amount", e.target.value)}
-                      />
-                      <IconButton size="small" onClick={() => removeArrayItem("bonuses", index)}>
-                        <Trash2 size={16} className="text-rose-600" />
-                      </IconButton>
+                      <div className="w-28">
+                        <NumberInput
+                          size="sm"
+                          label="Amount"
+                          disabled={bonus.inputDisabled || false}
+                          value={bonus.amount}
+                          onChange={(val) => handleArrayChange("bonuses", index, "amount", val)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("bonuses", index)}
+                        className="text-rose-600 hover:text-rose-800 p-1.5 rounded hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                     {bonus.extraInfo && (
-                      <span className="text-[10px] text-slate-500">{bonus.extraInfo}</span>
+                      <span className="text-[10px] text-slate-500 pl-1">{bonus.extraInfo}</span>
                     )}
                   </div>
                 ))}
               </div>
             </div>
             <Button
-              startIcon={<Plus size={16} />}
-              variant="outlined"
-              size="small"
+              icon={<Plus size={14} />}
+              variant="outline"
+              size="sm"
               onClick={() => addArrayItem("bonuses", { name: "", amount: 0, extraInfo: '', inputDisabled: false })}
-              className="w-full !mt-2"
+              className="w-full mt-2"
             >
               Add Bonus
             </Button>
@@ -1270,48 +1181,50 @@ export default function PayrollCreatePage() {
           {/* Deductions Card */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800 text-sm">Deductions</h3>
-                <span className="font-bold text-slate-700 text-xs">{formatRupee(totalDeductions)}</span>
+                <span className="font-bold text-rose-700 text-xs">{formatRupee(totalDeductions)}</span>
               </div>
-              <Divider />
               <div className="space-y-2 pt-3 max-h-64 overflow-y-auto">
                 {form?.deductions?.map((deduction, index) => (
-                  <div key={index} className="flex flex-col gap-1">
+                  <div key={index} className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
-                      <TextField
-                        size="small"
+                      <Input
+                        size="sm"
                         label="Deduction"
-                        className="flex-1"
                         value={deduction.name}
                         onChange={(e) => handleArrayChange("deductions", index, "name", e.target.value)}
                       />
-                      <TextField
-                        size="small"
-                        type="number"
-                        label="Amount"
-                        className="w-24"
-                        InputProps={{ readOnly: deduction?.inputDisabled || false }}
-                        value={deduction.amount}
-                        onChange={(e) => handleArrayChange("deductions", index, "amount", e.target.value)}
-                      />
-                      <IconButton size="small" onClick={() => removeArrayItem("deductions", index)}>
-                        <Trash2 size={16} className="text-rose-600" />
-                      </IconButton>
+                      <div className="w-28">
+                        <NumberInput
+                          size="sm"
+                          label="Amount"
+                          disabled={deduction?.inputDisabled || false}
+                          value={deduction.amount}
+                          onChange={(val) => handleArrayChange("deductions", index, "amount", val)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem("deductions", index)}
+                        className="text-rose-600 hover:text-rose-800 p-1.5 rounded hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                     {deduction.extraInfo && (
-                      <span className="text-[10px] text-slate-500">{deduction.extraInfo}</span>
+                      <span className="text-[10px] text-slate-500 pl-1">{deduction.extraInfo}</span>
                     )}
                   </div>
                 ))}
               </div>
             </div>
             <Button
-              startIcon={<Plus size={16} />}
-              variant="outlined"
-              size="small"
+              icon={<Plus size={14} />}
+              variant="outline"
+              size="sm"
               onClick={() => addArrayItem("deductions", { name: "", amount: 0, extraInfo: '', inputDisabled: false })}
-              className="w-full !mt-2"
+              className="w-full mt-2"
             >
               Add Deduction
             </Button>
@@ -1320,10 +1233,9 @@ export default function PayrollCreatePage() {
           {/* Salary Summary Card */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800 text-sm">Salary Summary</h3>
               </div>
-              <Divider />
               <div className="space-y-2 pt-3 text-xs">
                 <div className="flex justify-between items-center text-slate-600">
                   <span>Base Salary :</span>
@@ -1337,7 +1249,7 @@ export default function PayrollCreatePage() {
                   <span>Bonuses :</span>
                   <span className="font-semibold text-slate-800">+{formatRupee(totalBonuses)}</span>
                 </div>
-                <Divider className="!my-1.5" />
+                <div className="border-t border-slate-100 my-1.5" />
                 <div className="flex justify-between items-center font-bold text-slate-800">
                   <span>Gross Salary :</span>
                   <span>{formatRupee(grossSalary)}</span>
@@ -1346,10 +1258,10 @@ export default function PayrollCreatePage() {
                   <span>Deductions :</span>
                   <span className="font-semibold text-rose-700">-{formatRupee(totalDeductions)}</span>
                 </div>
-                <Divider className="!my-1.5" />
+                <div className="border-t border-slate-100 my-1.5" />
                 <div className="flex justify-between items-center font-extrabold text-slate-900 text-sm pt-0.5">
                   <span>Net Salary :</span>
-                  <span className="text-base text-slate-900">{formatRupee(netSalary)}</span>
+                  <span className="text-base text-slate-900 font-black">{formatRupee(netSalary)}</span>
                 </div>
                 <div className="text-[11px] text-slate-500 italic capitalize pt-1">
                   In Words: {numberToWords(netSalary)}
@@ -1361,21 +1273,21 @@ export default function PayrollCreatePage() {
           {/* Save Action */}
           <div className="col-span-1 md:col-span-2 flex justify-start pt-2">
             <Button
-              variant="contained"
-              color="primary"
-              size="large"
+              variant="primary"
+              size="lg"
               onClick={handleSubmit}
+              loading={loading}
               disabled={loading || !selectedEmployee}
-              className="!px-8 !py-2.5 !rounded-lg"
+              className="px-8"
             >
-              {loading ? "Saving..." : id ? "Update Payroll" : "Save Payroll"}
+              {id ? "Update Payroll" : "Save Payroll"}
             </Button>
           </div>
 
         </div>
       )}
 
-      {/* Weekly Off Work Ledger History Modal (Shared Component) */}
+      {/* Weekly Off Work Ledger History Modal */}
       <WeeklyOffLedgerModal
         open={showWOLedgerModal}
         onClose={() => setShowWOLedgerModal(false)}

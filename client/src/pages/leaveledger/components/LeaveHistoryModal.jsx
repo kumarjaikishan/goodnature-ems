@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Dialog, DialogTitle, DialogContent, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, Paper,
-    Typography, Box, Chip, IconButton, CircularProgress
-} from '@mui/material';
 import { X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { apiClient } from '../../../utils/apiClient';
+import Modal from '@/components/ui/Modal';
+import Badge from '@/components/ui/Badge';
+import Loader from '@/utils/loader';
 
 const LeaveHistoryModal = ({ open, onClose, employee }) => {
     const [transactions, setTransactions] = useState([]);
@@ -24,7 +22,7 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
             const data = await apiClient({ 
                 url: `leave-transactions/${employee._id}` 
             });
-            setTransactions(data);
+            setTransactions(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching leave history:', error);
         } finally {
@@ -32,89 +30,81 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
         }
     };
 
-    const getTypeColor = (type) => {
+    const getBadgeVariant = (type) => {
         switch (type) {
             case 'credit': return 'success';
-            case 'debit': return 'error';
+            case 'debit': return 'danger';
             case 'adjustment': return 'warning';
-            default: return 'default';
+            default: return 'neutral';
         }
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f8fafd' }}>
-                <Box>
-                    <Typography variant="h6" component="span" sx={{ fontWeight: 'bold', color: '#1a3353' }}>
-                        Leave Audit Log
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                        History for {employee?.userid?.name}
-                    </Typography>
-                </Box>
-                <IconButton onClick={onClose} size="small">
-                    <X size={18} />
-                </IconButton>
-            </DialogTitle>
-            <DialogContent dividers sx={{ p: 0 }}>
+        <Modal
+            open={open}
+            onClose={onClose}
+            title="Leave Audit Log"
+            subtitle={`Transaction history for ${employee?.userid?.name || 'employee'}`}
+            maxWidth="max-w-3xl"
+        >
+            <div className="space-y-4">
                 {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-                        <CircularProgress />
-                    </Box>
+                    <div className="py-12 flex justify-center">
+                        <Loader />
+                    </div>
+                ) : transactions.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500 font-medium text-sm">
+                        No transactions recorded for this employee.
+                    </div>
                 ) : (
-                    <TableContainer component={Paper} elevation={0}>
-                        <Table stickyHeader size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }}>Date</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }}>Type</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }}>Policy</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }} align="right">Amount</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }} align="right">Balance Before</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }} align="right">Balance After</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }}>Source</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f0f4f8' }}>Remarks</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {transactions.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8} align="center" sx={{ py: 3, color: '#888' }}>
-                                            No transaction history found.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    transactions.map((tx) => (
-                                        <TableRow key={tx._id} hover>
-                                            <TableCell>{dayjs(tx.createdAt).format('DD MMM YYYY')}</TableCell>
-                                            <TableCell>
-                                                <Chip 
-                                                    label={tx.type} 
-                                                    size="small" 
-                                                    color={getTypeColor(tx.type)}
-                                                    variant="outlined"
-                                                    sx={{ textTransform: 'capitalize', fontWeight: 'bold', fontSize: '10px' }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>{tx.policyId?.name || '-'}</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                                {tx.type === 'debit' ? `-${tx.days}` : tx.days}
-                                            </TableCell>
-                                            <TableCell align="right" color="textSecondary">{tx.balanceBefore}</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>{tx.balanceAfter}</TableCell>
-                                            <TableCell sx={{ textTransform: 'capitalize', fontSize: '11px' }}>{tx.source}</TableCell>
-                                            <TableCell sx={{ maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '11px' }}>
-                                                {tx.remarks || '-'}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200/80 max-h-[60vh] overflow-y-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                            <thead className="bg-slate-50/80 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-50">
+                                <tr>
+                                    <th className="py-2.5 px-3">Date</th>
+                                    <th className="py-2.5 px-3">Type</th>
+                                    <th className="py-2.5 px-3">Leaves</th>
+                                    <th className="py-2.5 px-3">Policy / Reason</th>
+                                    <th className="py-2.5 px-3">Source</th>
+                                    <th className="py-2.5 px-3">Logged By</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {transactions.map((t) => (
+                                    <tr key={t._id} className="hover:bg-slate-50/60">
+                                        <td className="py-2.5 px-3 text-slate-700 font-medium whitespace-nowrap">
+                                            {dayjs(t.createdAt).format('DD MMM YYYY, hh:mm A')}
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                            <Badge size="sm" variant={getBadgeVariant(t.type)}>
+                                                {t.type}
+                                            </Badge>
+                                        </td>
+                                        <td className="py-2.5 px-3 font-bold text-slate-900">
+                                            {t.type === 'credit' ? `+${t.amount}` : `-${t.amount}`}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-slate-700">
+                                            <span className="font-semibold block">{t.policyId?.name || t.remarks || 'General'}</span>
+                                            {t.remarks && t.policyId && (
+                                                <span className="text-[11px] text-slate-400 block">{t.remarks}</span>
+                                            )}
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                            <Badge size="sm" variant="neutral">
+                                                {t.source || 'MANUAL'}
+                                            </Badge>
+                                        </td>
+                                        <td className="py-2.5 px-3 text-slate-600">
+                                            {t.actionBy?.name || 'System Auto'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
-            </DialogContent>
-        </Dialog>
+            </div>
+        </Modal>
     );
 };
 
