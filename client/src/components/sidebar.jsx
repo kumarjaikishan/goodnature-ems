@@ -154,30 +154,37 @@ const Sidebar = () => {
   }, [showText]);
 
   return (
-    <div className="w-full h-full scrollbar-hide overflow-y-auto px-1 md:px-2">
-      {/* Logo */}
-      <div className="h-[60px] flex items-center gap-4">
-        <span className="text-3xl">
+    <div className="w-full h-full scrollbar-hide overflow-y-auto px-1.5 md:px-2 py-2">
+      {/* Brand Header */}
+      <div className="h-[60px] flex items-center gap-3 px-1 mb-2 border-b border-slate-100">
+        <span className="shrink-0">
           {company?.logo ? (
-            <div className="rounded-full overflow-hidden w-10 h-10 md:h-14 md:w-14">
+            <div className="rounded-xl overflow-hidden w-9 h-9 md:h-10 md:w-10 border border-teal-100 shadow-xs">
               <img
-                className="w-full h-full object-fill"
+                className="w-full h-full object-cover"
                 src={cloudinaryUrl(company?.logo, { format: "webp", width: 100, height: 100 })}
                 alt="Company Logo"
               />
             </div>
           ) : (
-            <Building2 className="text-teal-700" size={32} />
+            <div className="w-9 h-9 md:h-10 md:w-10 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shadow-xs">
+              <Building2 size={22} />
+            </div>
           )}
         </span>
         {showText && (
-          <span className="capitalize font-semibold text-gray-700">
-            {company?.name || "Company"}
-          </span>
+          <div className="min-w-0">
+            <h2 className="capitalize font-bold text-sm text-slate-800 truncate tracking-tight">
+              {company?.name || "Good Nature"}
+            </h2>
+            <p className="text-[10px] font-semibold text-teal-700 uppercase tracking-wider">
+              Management Portal
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Menu */}
+      {/* Navigation Sections */}
       {menu.map((section, sIndex) => {
         const filteredItems = section.items.filter((item) =>
           item.roles.includes(role)
@@ -185,135 +192,167 @@ const Sidebar = () => {
         if (!filteredItems.length) return null;
 
         return (
-          <div key={sIndex} className="mt-2">
-            {filteredItems.map((item, iIndex) => {
-              const menuId = `${sIndex}-${iIndex}`;
-              const isOpen = showText
-                ? openSubmenu === menuId
-                : hoveredMenu === menuId;
+          <div key={sIndex} className="mb-3">
+            {showText && section.title && (
+              <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                {section.title}
+              </div>
+            )}
 
-              if (item.children) {
-                return (
-                  <div
-                    key={item.menu}
-                    className="relative"
-                    onMouseEnter={(e) => {
-                      if (!showText) {
-                        setHoveredMenu(menuId);
-                        setAnchorEl(e.currentTarget);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      if (!showText) {
-                        setHoveredMenu(null);
-                        setAnchorEl(null);
-                      }
-                    }}
-                  >
-                    {/* Parent Button */}
-                    <button
-                      onClick={() => {
-                        if (showText) setOpenSubmenu(openSubmenu === menuId ? null : menuId);
+            <div className="space-y-1">
+              {filteredItems.map((item, iIndex) => {
+                const menuId = `${sIndex}-${iIndex}`;
+                const isOpen = showText
+                  ? openSubmenu === menuId
+                  : hoveredMenu === menuId;
+
+                if (item.children) {
+                  return (
+                    <div
+                      key={item.menu}
+                      className="relative"
+                      onMouseEnter={(e) => {
+                        if (!showText) {
+                          setHoveredMenu(menuId);
+                          setAnchorEl(e.currentTarget);
+                        }
                       }}
-                      className={`relative flex w-full gap-3 items-center px-2 py-2 text-gray-600 hover:bg-teal-50 rounded transition-all ${showText ? "justify-start gap-2" : "justify-center"
-                        }`}
+                      onMouseLeave={() => {
+                        if (!showText) {
+                          setHoveredMenu(null);
+                          setAnchorEl(null);
+                        }
+                      }}
                     >
-                      <span className="text-[18px]">{item.icon}</span>
-                      {showText && <span className="text-[14px] md:text-[16px]">{item.menu}</span>}
-                      {showText && (
-                        <span className="absolute right-2 text-gray-600">
-                          {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Expanded submenu (sidebar open) */}
-                    {showText && (
-                      <div
-                        className="ml-1 mt-1 space-y-1 overflow-hidden transition-all duration-300"
-                        style={{ maxHeight: isOpen ? `${item.children.length * 45}px` : "0px" }}
+                      {/* Parent Group Button */}
+                      <button
+                        onClick={() => {
+                          if (showText) setOpenSubmenu(openSubmenu === menuId ? null : menuId);
+                        }}
+                        className={`relative flex w-full items-center rounded-xl font-medium text-xs transition-all cursor-pointer ${
+                          showText
+                            ? "justify-between px-3 py-2 text-slate-700 hover:text-teal-900 hover:bg-teal-50/80"
+                            : "justify-center h-10 w-full text-slate-600 hover:text-teal-800 hover:bg-teal-50"
+                        } ${isOpen && showText ? "bg-teal-50/60 text-teal-900 font-semibold" : ""}`}
                       >
-                        {item.children.map((child) => {
-                          if (!child.roles.includes(role)) return null;
-                          return (
-                            <NavLink
-                              to={child.link}
-                              key={child.menu}
-                              onClick={() => setOpenSubmenu(menuId)}
-                              className={({ isActive }) =>
-                                `relative flex items-center gap-2 px-3 py-2 ml-6 text-sm rounded text-gray-600
-                                  before:content-[''] before:absolute before:-left-4 before:top-1/2  before:h-[1px] before:w-3  before:bg-gray-700  
-                                  after:content-[''] after:absolute after:-left-4 after:top-0 after:h-full after:w-[1px]  after:bg-gray-700
-                                  ${isActive ? "bg-primary text-white after:bg-teal-700 before:bg-teal-700 " : "hover:bg-teal-50"}`
-                              }
-                            >
-                              {child.menu}
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Collapsed sidebar pure Tailwind floating flyout on hover */}
-                    {!showText && isOpen && (
-                      <div
-                        onMouseEnter={() => setHoveredMenu(menuId)}
-                        onMouseLeave={() => setHoveredMenu(null)}
-                        className="absolute left-full top-0 ml-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 min-w-[180px] py-1.5 animate-in fade-in zoom-in-95 duration-100"
-                      >
-                        <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                          {item.menu}
+                        <div className="flex items-center gap-2.5">
+                          <span className={`text-[17px] transition-colors ${isOpen ? "text-teal-700" : "text-slate-500"}`}>
+                            {item.icon}
+                          </span>
+                          {showText && <span className="truncate">{item.menu}</span>}
                         </div>
-                        {item.children.map((child) => {
-                          if (!child.roles.includes(role)) return null;
-                          return (
-                            <NavLink
-                              to={child.link}
-                              key={child.menu}
-                              onClick={() => setHoveredMenu(null)}
-                              className={({ isActive }) =>
-                                `block px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
-                                  isActive ? "bg-teal-700 text-white" : "text-slate-700 hover:bg-slate-50"
-                                }`
-                              }
-                            >
-                              {child.menu}
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
+                        {showText && (
+                          <span className="text-slate-400">
+                            {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                          </span>
+                        )}
+                      </button>
 
-              // Single item
-              return item.isLogout ? (
-                <button
-                  key={item.menu}
-                  onClick={handleLogout}
-                  className={`flex cursor-pointer w-full mb-1 items-center rounded text-gray-600 hover:bg-teal-50 ${showText ? "justify-start gap-3 px-2 py-2" : "justify-center h-10"
+                      {/* Expanded Submenu (Open Sidebar) */}
+                      {showText && (
+                        <div
+                          className="ml-4 pl-2.5 mt-0.5 space-y-0.5 border-l-2 border-teal-100 overflow-hidden transition-all duration-200"
+                          style={{ maxHeight: isOpen ? `${item.children.length * 42}px` : "0px" }}
+                        >
+                          {item.children.map((child) => {
+                            if (!child.roles.includes(role)) return null;
+                            return (
+                              <NavLink
+                                to={child.link}
+                                key={child.menu}
+                                onClick={() => setOpenSubmenu(menuId)}
+                                className={({ isActive }) =>
+                                  `block px-2.5 py-1.5 text-xs rounded-lg transition-all ${
+                                    isActive
+                                      ? "bg-teal-700 text-white font-semibold shadow-xs"
+                                      : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
+                                  }`
+                                }
+                              >
+                                {child.menu}
+                              </NavLink>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Collapsed Flyout Popover */}
+                      {!showText && isOpen && (
+                        <div
+                          onMouseEnter={() => setHoveredMenu(menuId)}
+                          onMouseLeave={() => setHoveredMenu(null)}
+                          className="absolute left-full top-0 ml-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 min-w-[200px] py-1.5 animate-in fade-in zoom-in-95 duration-100"
+                        >
+                          <div className="px-3 py-1.5 text-[10px] font-extrabold text-teal-800 uppercase tracking-wider border-b border-slate-100 bg-teal-50/50">
+                            {item.menu}
+                          </div>
+                          <div className="p-1 space-y-0.5">
+                            {item.children.map((child) => {
+                              if (!child.roles.includes(role)) return null;
+                              return (
+                                <NavLink
+                                  to={child.link}
+                                  key={child.menu}
+                                  onClick={() => setHoveredMenu(null)}
+                                  className={({ isActive }) =>
+                                    `block px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${
+                                      isActive
+                                        ? "bg-teal-700 text-white font-semibold shadow-xs"
+                                        : "text-slate-700 hover:text-teal-900 hover:bg-teal-50"
+                                    }`
+                                  }
+                                >
+                                  {child.menu}
+                                </NavLink>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Single Navigation Item or Logout Button
+                return item.isLogout ? (
+                  <button
+                    key={item.menu}
+                    onClick={handleLogout}
+                    className={`flex cursor-pointer w-full items-center rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors ${
+                      showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
                     }`}
-                >
-                  <span className="text-[18px]">{item.icon}</span>
-                  {showText && <span>{item.menu}</span>}
-                </button>
-              ) : (
-                <NavLink
-                  to={item.link}
-                  end={item.link === "/dashboard"}
-                  key={item.link}
-                  onClick={() => setOpenSubmenu(null)}
-                  className={({ isActive }) =>
-                    `flex text-nowrap w-full mb-1 text-[14px] md:text-[16px] items-center rounded text-gray-600 ${showText ? "justify-start gap-3 px-2 py-2" : "justify-center h-10"
-                    } ${isActive ? "bg-primary text-white" : ""}`
-                  }
-                >
-                  <span className="text-[18px]">{item.icon}</span>
-                  {showText && <span>{item.menu}</span>}
-                </NavLink>
-              );
-            })}
+                  >
+                    <span className="text-[17px] text-rose-500">{item.icon}</span>
+                    {showText && <span>{item.menu}</span>}
+                  </button>
+                ) : (
+                  <NavLink
+                    to={item.link}
+                    end={item.link === "/dashboard"}
+                    key={item.link}
+                    onClick={() => setOpenSubmenu(null)}
+                    className={({ isActive }) =>
+                      `flex items-center rounded-xl text-xs transition-all ${
+                        showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
+                      } ${
+                        isActive
+                          ? "bg-teal-700 text-white font-semibold shadow-xs"
+                          : "text-slate-700 hover:text-teal-900 hover:bg-teal-50 font-medium"
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span className={`text-[17px] ${isActive ? "text-white" : "text-slate-500"}`}>
+                          {item.icon}
+                        </span>
+                        {showText && <span className="truncate">{item.menu}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
           </div>
         );
       })}
