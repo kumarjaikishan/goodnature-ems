@@ -1,24 +1,17 @@
-import { Mail, Settings, ChevronUp, ChevronDown, Edit2 } from "lucide-react";
+import { Mail, Settings, Edit2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Avatar, Button, TextField } from "@mui/material";
 import { toast } from "../../utils/toast";
 import { swal } from "../../utils/confirmDialog";
 import useImageUpload from "../../utils/imageresizer";
 import { FirstFetch } from "../../../store/userSlice";
 import Modalbox from "../../components/custommodal/Modalbox";
 import { apiClient } from "../../utils/apiClient";
-
-const PERMISSION_LABELS = {
-  1: "Read",
-  2: "Write",
-  3: "Update",
-  4: "Delete",
-};
+import Input from "../../components/ui/Input";
+import Button from "../../components/ui/Button";
 
 const AdminManagerProfile = () => {
-  const [isload, setisload] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [isload] = useState(false);
   const { profile } = useSelector((state) => state.user);
   const [profilee, setprofile] = useState(null);
   const [isLoading, setisloading] = useState(false);
@@ -31,7 +24,6 @@ const AdminManagerProfile = () => {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    // console.log(profile)
     if (profile) setprofile(profile);
   }, [profile]);
 
@@ -40,8 +32,6 @@ const AdminManagerProfile = () => {
     if (!file) return;
 
     setSelectedFile(file);
-
-    // Show preview immediately
     const previewUrl = URL.createObjectURL(file);
     setprofile((prev) => ({ ...prev, profileImage: previewUrl }));
   };
@@ -75,6 +65,7 @@ const AdminManagerProfile = () => {
       });
     }
   };
+
   const handlesave = async () => {
     try {
       setisloading(true);
@@ -83,7 +74,7 @@ const AdminManagerProfile = () => {
       formData.append("name", name);
 
       if (selectedFile) {
-        const resizedFile = await handleImage(200, selectedFile); // resize if needed
+        const resizedFile = await handleImage(200, selectedFile);
         formData.append("profileImage", resizedFile);
       }
 
@@ -94,7 +85,7 @@ const AdminManagerProfile = () => {
       });
 
       toast.success(data.message);
-      dispatch(FirstFetch()); // Refresh profile
+      dispatch(FirstFetch());
       setSelectedFile(null);
       setEditOpen(false);
     } catch (err) {
@@ -105,132 +96,62 @@ const AdminManagerProfile = () => {
   };
 
   return (
-    <div className="p-0 md:p-4 max-w-6xl mx-auto ">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
       {isload ? (
-        <div className="w-full h-[300px] flex gap-5 flex-col justify-center items-center overflow-auto bg-white">
-          <div className="relative">
-            <Settings
-              className="animate-spin"
-              style={{ animationDuration: "2.5s" }}
-              size={50}
-              color="teal"
-            />
-            <Settings
-              className="absolute -bottom-4 left-0 animate-spin"
-              style={{ animationDuration: "3s" }}
-              size={20}
-              color="teal"
-            />
-          </div>
-          <p className="text-teal-600">loading...</p>
+        <div className="w-full h-64 flex flex-col justify-center items-center bg-white rounded-2xl border border-slate-200 shadow-xs">
+          <Settings className="animate-spin text-teal-700" size={40} />
+          <p className="text-xs font-semibold text-teal-800 mt-3">Loading profile details...</p>
         </div>
       ) : (
-        <div className="w-full mx-auto bg-white overflow-auto shadow rounded-lg p-1 py-2 md:p-4">
-          <div className="flex gap-3 items-start">
-            {/* Avatar with edit overlay */}
+        <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            {/* Avatar */}
             <div className="relative">
-              <Avatar
-                sx={{ width: 72, height: 72 }}
-                alt={profilee?.name}
-                src={profilee?.profileImage}
-              />
-            </div>
-
-            {/* Details */}
-            <div>
-              <h3 className="text-xl capitalize font-bold text-gray-800 break-words">
-                {profilee?.name}
-              </h3>
-              <p className="text-sm text-gray-600">{profilee?.role}</p>
-              <div className="mt-3 space-y-1 text-sm text-gray-600">
-                <div className="flex items-center gap-2 break-words">
-                  <Mail size={16} className="text-gray-500" />
-                  {profilee?.email || "N/A"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Permissions for non-superadmin/developer */}
-          {/* {profile?.role !== "superadmin" && profile?.role !== "developer" && (
-            <div className="mt-2">
-              <div
-                className="flex justify-between items-center cursor-pointer bg-teal-100 px-4 py-1 md:py-2 rounded-md"
-                onClick={() => setExpanded(!expanded)}
-              >
-                <span className="font-semibold text-[16px] md:text-lg text-left">
-                  {expanded ? "Hide Permissions" : "View Permissions"}
-                </span>
-                {expanded ? (
-                  <ChevronUp className="text-xl" />
-                ) : (
-                  <ChevronDown className="text-xl" />
-                )}
-              </div>
-              {expanded && (
-                <div className="text-sm mt-3 overflow-x-auto">
-                  <span className="font-semibold">Permissions:</span>
-                  <table className="table-auto border-collapse border border-gray-300 mt-2 text-xs w-full">
-                    <thead>
-                      <tr>
-                        <th className="border border-gray-300 px-2 py-1 text-left">
-                          Module
-                        </th>
-                        {Object.values(PERMISSION_LABELS).map((label) => (
-                          <th
-                            key={label}
-                            className="border border-gray-300 px-2 py-1"
-                          >
-                            {label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(profilee?.permissions || {}).map(
-                        ([module, levels]) => (
-                          <tr key={module}>
-                            <td className="border border-gray-300 px-2 py-1 font-semibold">
-                              {module}
-                            </td>
-                            {Object.keys(PERMISSION_LABELS).map((permKey) => (
-                              <td
-                                key={permKey}
-                                className="border border-gray-300 px-2 py-1 text-center"
-                              >
-                                {levels.includes(Number(permKey)) ? "✅" : "-"}
-                              </td>
-                            ))}
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
+              {profilee?.profileImage ? (
+                <img
+                  src={profilee?.profileImage}
+                  alt={profilee?.name}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-teal-600 shadow-sm"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-2xl">
+                  {profilee?.name?.charAt(0)?.toUpperCase()}
                 </div>
               )}
             </div>
-          )} */}
 
-          {/* Reset password for superadmin */}
+            {/* Profile Details */}
+            <div className="space-y-1 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900 capitalize">
+                  {profilee?.name}
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
+                  {profilee?.role}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                <Mail size={14} className="text-slate-400" />
+                <span>{profilee?.email || "N/A"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
           {profile?.role === "superadmin" && (
-            <div className="my-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
               <Button
-
-                onClick={() => { setname(profilee?.name); setEditOpen(true) }}
+                onClick={() => { setname(profilee?.name || ''); setEditOpen(true); }}
                 disabled={isLoading}
-                title="Send Password Reset Link"
-                variant="contained"
-                className="w-full md:w-fit"
+                variant="primary"
               >
-                Edit profile
+                <Edit2 size={14} /> Edit Profile
               </Button>
 
               <Button
                 onClick={resetpassword}
                 disabled={isLoading}
-                title="Send Password Reset Link"
-                variant="outlined"
-                className="w-full md:w-fit"
+                variant="secondary"
               >
                 Send Password Reset Link
               </Button>
@@ -239,55 +160,59 @@ const AdminManagerProfile = () => {
         </div>
       )}
 
-      <Modalbox open={EditOpen} onClose={() => {
-        setEditOpen(false);
-      }}>
-        <div className="membermodal w-[300px]">
-          <div className="whole" >
-            <div className="modalhead">Edit Profile</div>
-            <span className="modalcontent ">
-              <TextField
-                autoFocus
-                size="small"
-                fullWidth
-                margin="dense"
-                label="Profile Name"
-                value={name}
-                onChange={(e) => setname(e.target.value)}
-              />
+      {/* Edit Profile Modal */}
+      <Modalbox open={EditOpen} onClose={() => setEditOpen(false)}>
+        <div className="w-[380px] max-w-[92vw] p-6 bg-white rounded-2xl space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h2 className="text-base font-bold text-slate-800">Edit Profile</h2>
+            <button type="button" onClick={() => setEditOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+          </div>
 
-              {/* Avatar + file input */}
-              <div className=" flex justify-center">
-                <div className="relative ">
-                  <Avatar
-                    sx={{ width: 72, height: 72 }}
-                    alt={profilee?.name}
+          <div className="space-y-4">
+            <Input
+              label="Full Name"
+              value={name}
+              onChange={(e) => setname(e.target.value)}
+              placeholder="Your name"
+            />
+
+            {/* Avatar file upload */}
+            <div className="flex justify-center">
+              <div className="relative group">
+                {profilee?.profileImage ? (
+                  <img
                     src={profilee?.profileImage}
+                    alt={profilee?.name}
+                    className="w-20 h-20 rounded-full object-cover border-2 border-teal-600"
                   />
-                  <input
-                    type="file"
-                    ref={inputRef}
-                    style={{ display: "none" }}
-                    onChange={handlePhotoChange}
-                    accept="image/*"
-                  />
-                  <span
-                    onClick={() => inputRef.current.click()}
-                    className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
-                  >
-                    <Edit2 size={18} />
-                  </span>
-                </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-2xl">
+                    {profilee?.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                )}
+                <input
+                  type="file"
+                  ref={inputRef}
+                  className="hidden"
+                  onChange={handlePhotoChange}
+                  accept="image/*"
+                />
+                <button
+                  type="button"
+                  onClick={() => inputRef.current && inputRef.current.click()}
+                  className="absolute bottom-0 right-0 rounded-full bg-teal-800 hover:bg-teal-900 text-white p-1.5 shadow cursor-pointer transition"
+                >
+                  <Edit2 size={14} />
+                </button>
               </div>
-
-
-            </span>
-            <div className="modalfooter">
-              <Button variant="outlined" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button variant="contained" onClick={handlesave}>
-                Save Changes
-              </Button>
             </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="primary" loading={isLoading} onClick={handlesave}>
+              Save Changes
+            </Button>
           </div>
         </div>
       </Modalbox>

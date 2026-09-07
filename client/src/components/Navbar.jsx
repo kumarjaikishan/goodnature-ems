@@ -1,4 +1,4 @@
-import { Avatar, Button } from '@mui/material'
+
 import { useSelector, useDispatch } from 'react-redux';
 import { Menu, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -187,11 +187,23 @@ const Navbar = () => {
           <span className='text-[10px] md:text-xs font-medium leading-4 capitalize'>{user?.profile?.name}</span>
           <p className='text-[8px] md:text-[10px] text-gray-500 text-right capitalize'>{user?.profile?.role == 'grant' ? 'User' : user?.profile?.role}</p>
         </div>
-        {user?.profile?.role == 'employee' ?
-          <Avatar src={profile?.profileimage} alt={profile?.employeeName}>
-          </Avatar> :
-          <Avatar src={user?.profile?.profileImage} alt={user?.profile?.name}>
-          </Avatar>}
+        {user?.profile?.role === 'employee' ? (
+          profile?.profileimage ? (
+            <img src={profile.profileimage} alt={profile.employeeName} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-xs">
+              {profile?.employeeName?.charAt(0) || <User size={14} />}
+            </div>
+          )
+        ) : (
+          user?.profile?.profileImage ? (
+            <img src={user.profile.profileImage} alt={user.profile.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-xs">
+              {user?.profile?.name?.charAt(0) || <User size={14} />}
+            </div>
+          )
+        )}
       </div>
     </div>
   )

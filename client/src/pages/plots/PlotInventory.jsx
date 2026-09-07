@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from '../../utils/toast';
-import { Search, Edit2 } from 'lucide-react';
+import { Search, Edit2, Loader2 } from 'lucide-react';
 import Modalbox from '../../components/custommodal/Modalbox';
-import { CircularProgress } from '@mui/material';
 
 const PlotInventory = () => {
   const [plots, setPlots] = useState([]);
@@ -158,7 +157,7 @@ const PlotInventory = () => {
       {/* Inventory Map */}
       {loading ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 flex justify-center items-center">
-          <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+          <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
         </div>
       ) : plots.length === 0 ? (
         <div className="text-center p-12 bg-white border border-slate-200 rounded-2xl text-xs text-slate-500 font-medium">

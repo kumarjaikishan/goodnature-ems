@@ -1,7 +1,6 @@
 import { apiClient } from "../../../utils/apiClient";
 import { FirstFetch } from "../../../../store/userSlice";
 import { toast } from "../../../utils/toast";
-import Avatar from "@mui/material/Avatar";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { Eye, FileSpreadsheet, Clock, Edit2, KeyRound, Trash2 } from "lucide-react";
 
@@ -64,9 +63,9 @@ export const getEmployeeColumns = ({
             return (
                 <div className="flex items-center gap-2.5 py-0.5">
                     {hasPhoto ? (
-                        <Avatar
+                        <img
                             alt={empName}
-                            sx={{ width: 32, height: 32, fontSize: '0.8rem' }}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
                             src={cloudinaryUrl(row?.profileimage, {
                                 format: "webp",
                                 width: 80,

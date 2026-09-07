@@ -1,10 +1,9 @@
-// src/components/OfficialNoticeBoard.jsx
 import React, { useState } from 'react';
-import { Edit2, Trash2, Pin, Bell, Calendar, FileText, Info } from 'lucide-react';
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, MenuItem, IconButton, Tooltip
-} from '@mui/material';
+import { Edit2, Trash2, Pin, Bell, Calendar, FileText } from 'lucide-react';
+import Modalbox from './custommodal/Modalbox';
+import Input from './ui/Input';
+import Select from './ui/Select';
+import Button from './ui/Button';
 import dayjs from 'dayjs';
 
 const employeeTypes = ['All', 'Staff', 'Manager', 'HR', 'Individual'];
@@ -62,190 +61,161 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
     handleClose();
   };
 
-  const getNoticeIcon = (type) => {
-    switch (type) {
-      case 'Urgent': return <Bell size={18} className="text-rose-500" />;
-      case 'Holiday': return <Calendar size={18} className="text-sky-500" />;
-      case 'Policy': return <FileText size={18} className="text-indigo-500" />;
-      default: return <Info size={18} className="text-emerald-500" />;
-    }
-  };
-
-  const getNoticeTheme = (type) => {
-    switch (type) {
-      case 'Urgent': return 'bg-rose-50 border-rose-200 text-rose-900 icon-rose';
-      case 'Holiday': return 'bg-sky-50 border-sky-200 text-sky-900 icon-sky';
-      case 'Policy': return 'bg-indigo-50 border-indigo-200 text-indigo-900 icon-indigo';
-      default: return 'bg-emerald-50 border-emerald-200 text-emerald-900 icon-emerald';
-    }
-  };
-
   return (
-    <div className="bg-white/80 backdrop-blur-md h-full shadow-xl rounded-2xl p-5 w-full flex flex-col border border-white/20">
-      <div className="flex items-center justify-between mb-5 border-b border-gray-100 pb-3">
+    <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <div className="bg-amber-100 p-2 rounded-xl text-amber-600 shadow-sm">
-            <Pin size={18} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-800">Official Notices</h3>
-            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Stay updated with latest news</p>
-          </div>
+          <Pin className="text-teal-700" size={18} />
+          <h2 className="text-sm font-bold text-slate-800">Notice Board</h2>
         </div>
         {isAdmin && (
-          <Button 
-            size="small" 
-            variant="contained" 
-            onClick={() => handleOpen()}
-            sx={{ borderRadius: '10px', textTransform: 'none', px: 2 }}
-          >
-            New Notice
+          <Button variant="primary" size="sm" onClick={() => handleOpen()}>
+            + Compose Notice
           </Button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 space-y-4 custom-scrollbar max-h-[500px]">
-        {notices?.length ? (
-          notices.map((notice, idx) => (
-            <div 
-              key={idx} 
-              className={`group relative p-4 rounded-xl border transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${getNoticeTheme(notice.noticeType)}`}
+      <div className="space-y-2.5 max-h-96 overflow-y-auto">
+        {notices.length > 0 ? (
+          notices.map((notice) => (
+            <div
+              key={notice._id}
+              className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition flex justify-between items-start gap-3"
             >
-              <div className="flex justify-between items-start mb-1">
+              <div className="space-y-1 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg opacity-80">{getNoticeIcon(notice.noticeType)}</span>
-                  <p className="font-bold text-[14px] leading-tight">{notice.title}</p>
-                </div>
-                <p className="text-[10px] font-medium opacity-60 bg-white/50 px-2 py-0.5 rounded-full">
-                  {dayjs(notice.date).format('DD MMM')}
-                </p>
-              </div>
-
-              <div className="pl-6">
-                <p className="text-xs opacity-80 line-clamp-2 mb-2 leading-relaxed">
-                  {notice.message || 'No additional details provided.'}
-                </p>
-                
-                <div className="flex items-center justify-between mt-1">
-                  {notice.employeeType === 'Individual' && (
-                    <p className="text-[10px] font-semibold flex items-center gap-1 opacity-70">
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      Directly for you
-                    </p>
-                  )}
-                  <span className="text-[9px] font-bold uppercase tracking-tighter opacity-40">
-                    {notice.noticeType}
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    notice.noticeType === 'Urgent' ? 'bg-rose-100 text-rose-800' :
+                    notice.noticeType === 'Policy' ? 'bg-amber-100 text-amber-800' :
+                    notice.noticeType === 'Holiday' ? 'bg-emerald-100 text-emerald-800' :
+                    'bg-teal-100 text-teal-800'
+                  }`}>
+                    {notice.noticeType || 'Notice'}
                   </span>
+                  <p className="text-xs font-bold text-slate-800">{notice.title}</p>
+                </div>
+                {notice.message && (
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">{notice.message}</p>
+                )}
+                <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} /> {notice.date ? dayjs(notice.date).format('DD MMM YYYY') : '-'}
+                  </span>
+                  <span>• Target: {notice.employeeType}</span>
                 </div>
               </div>
 
               {isAdmin && (
-                <div className="absolute right-2 bottom-2 hidden group-hover:flex gap-1 bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-gray-100 shadow-sm transition-all animate-in fade-in zoom-in duration-200">
-                  <Tooltip title="Edit">
-                    <IconButton size="small" onClick={() => handleOpen(notice)}>
-                      <Edit2 size={16} className="text-blue-500" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete">
-                    <IconButton size="small" onClick={() => onDelete && onDelete(notice._id)}>
-                      <Trash2 size={16} className="text-red-500" />
-                    </IconButton>
-                  </Tooltip>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleOpen(notice)}
+                    className="p-1 text-slate-400 hover:text-teal-700 cursor-pointer"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete && onDelete(notice._id)}
+                    className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               )}
             </div>
           ))
         ) : (
-          <div className="flex flex-col items-center justify-center py-10 text-center opacity-40">
-             <Bell size={40} className="mb-2" />
-             <p className="text-sm font-medium italic">No active notices</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+            <Bell size={32} className="mb-2 opacity-30" />
+            <p className="text-xs font-medium">No active notices</p>
           </div>
         )}
       </div>
 
       {isAdmin && (
-        <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: '20px', p: 1 } }}>
-          <DialogTitle sx={{ pb: 1, fontWeight: 'bold' }}>{editingNotice ? "Edit Official Notice" : "Compose New Notice"}</DialogTitle>
-          <DialogContent className="flex flex-col gap-4 mt-2">
-            <TextField
-              label="Notice Title"
-              fullWidth
-              required
-              size="small"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-            <TextField
-              label="Important Message"
-              fullWidth
-              multiline
-              rows={3}
-              size="small"
-              value={form.message}
-              onChange={(e) => setForm({ ...form, message: e.target.value })}
-              placeholder="Provide more context here..."
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <TextField
-                label="Post Date"
-                type="date"
-                fullWidth
-                size="small"
-                InputLabelProps={{ shrink: true }}
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-              />
-               <TextField
-                select
-                label="Priority/Type"
-                fullWidth
-                size="small"
-                value={form.noticeType}
-                onChange={(e) => setForm({ ...form, noticeType: e.target.value })}
-              >
-                {noticeTypes.map((type) => (
-                  <MenuItem key={type} value={type}>{type}</MenuItem>
-                ))}
-              </TextField>
+        <Modalbox open={open} onClose={handleClose}>
+          <div className="w-[420px] max-w-[92vw] p-6 bg-white rounded-2xl space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-800">
+                {editingNotice ? "Edit Notice" : "Compose New Notice"}
+              </h3>
+              <button type="button" onClick={handleClose} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
-            
-            <TextField
-              select
-              label="Visibility Level"
-              fullWidth
-              size="small"
-              value={form.employeeType}
-              onChange={(e) => setForm({ ...form, employeeType: e.target.value })}
-            >
-              {employeeTypes.map((type) => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </TextField>
 
-            {form.employeeType === 'Individual' && (
-              <TextField
-                select
-                label="Target Recipient"
-                fullWidth
-                size="small"
-                value={form.targetEmployeeId}
-                onChange={(e) => setForm({ ...form, targetEmployeeId: e.target.value })}
+            <div className="space-y-3">
+              <Input
+                label="Notice Title"
+                required
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Office holiday announcement"
+              />
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Message Context</label>
+                <textarea
+                  rows={3}
+                  value={form.message}
+                  onChange={(e) => setForm({ ...form, message: e.target.value })}
+                  placeholder="Provide more context here..."
+                  className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 outline-none focus:border-teal-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Post Date"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                />
+
+                <Select
+                  label="Priority / Type"
+                  value={form.noticeType}
+                  onChange={(e) => setForm({ ...form, noticeType: e.target.value })}
+                >
+                  {noticeTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </Select>
+              </div>
+
+              <Select
+                label="Visibility Level"
+                value={form.employeeType}
+                onChange={(e) => setForm({ ...form, employeeType: e.target.value })}
               >
-                {employees.map((emp) => (
-                  <MenuItem key={emp._id} value={emp._id}>
-                    {emp.userid?.name} ({emp.empId})
-                  </MenuItem>
+                {employeeTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
                 ))}
-              </TextField>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Button onClick={handleClose} sx={{ color: 'gray', textTransform: 'none' }}>Discard</Button>
-            <Button variant="contained" onClick={handleSave} sx={{ borderRadius: '10px', px: 4, textTransform: 'none' }}>
-              {editingNotice ? "Apply Changes" : "Publish Notice"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+              </Select>
+
+              {form.employeeType === 'Individual' && (
+                <Select
+                  label="Target Recipient"
+                  value={form.targetEmployeeId}
+                  onChange={(e) => setForm({ ...form, targetEmployeeId: e.target.value })}
+                >
+                  <option value="">Select Employee</option>
+                  {employees.map((emp) => (
+                    <option key={emp._id} value={emp._id}>
+                      {emp.userid?.name} ({emp.empId})
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button variant="secondary" onClick={handleClose}>Cancel</Button>
+              <Button variant="primary" onClick={handleSave}>
+                {editingNotice ? "Apply Changes" : "Publish Notice"}
+              </Button>
+            </div>
+          </div>
+        </Modalbox>
       )}
     </div>
   );

@@ -1,21 +1,9 @@
 import React, { useState } from 'react';
 import { parseExcelFile } from '../../../utils/excelHelper';
-import {
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Box,
-  CircularProgress
-} from '@mui/material';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
-import { CloudUpload } from 'lucide-react';
+import { CloudUpload, Loader2 } from 'lucide-react';
+import Button from '../../../components/ui/Button';
 import dayjs from 'dayjs';
 
 const AttendanceExcelImport = () => {
@@ -25,16 +13,10 @@ const AttendanceExcelImport = () => {
 
   const formatExcelDate = (excelDate) => {
     if (!excelDate) return null;
-    
-    // If it's already a JS Date
     if (excelDate instanceof Date) return excelDate;
-    
-    // Handle Excel numeric date format
     if (typeof excelDate === 'number') {
       return new Date((excelDate - 25569) * 86400 * 1000);
     }
-    
-    // Handle string date
     const d = dayjs(excelDate);
     return d.isValid() ? d.toDate() : null;
   };
@@ -46,9 +28,6 @@ const AttendanceExcelImport = () => {
     setLoading(true);
     try {
       const rawData = await parseExcelFile(file, { cellDates: true });
-      console.log("Raw Excel Data:", rawData);
-
-      // Map data to expected format with smart column matching
       const formattedData = rawData.map(row => {
         const empId = row['Employee ID'] || row['empid'] || row['Emp ID'] || row['EmployeeID'] || row['ID'];
         const date = formatExcelDate(row['Date'] || row['date'] || row['Attendance Date']);
@@ -92,114 +71,109 @@ const AttendanceExcelImport = () => {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: '1200px', mx: 'auto' }}>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-          Attendance Excel Import
-        </Typography>
-      </Box>
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
+      <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+        <div>
+          <h1 className="text-xl font-bold text-teal-900">Attendance Excel Import</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Upload .xlsx or .xls biometric export files directly</p>
+        </div>
+      </div>
 
-      <Paper sx={{ p: 5, mb: 4, border: '2px dashed #115e59', borderRadius: 4, textAlign: 'center', bgcolor: 'rgba(17, 94, 89, 0.05)' }}>
+      <div className="p-8 border-2 border-dashed border-teal-600/40 rounded-2xl text-center bg-teal-50/30 flex flex-col items-center justify-center">
         <input
           accept=".xlsx, .xls"
-          style={{ display: 'none' }}
+          className="hidden"
           id="excel-upload"
           type="file"
           onChange={handleFileUpload}
         />
-        <label htmlFor="excel-upload">
-          <Button
-            variant="contained"
-            component="span"
-            size="large"
-            startIcon={<CloudUpload size={20} />}
-            sx={{ mb: 2, px: 4, py: 1.5, borderRadius: 2, bgcolor: '#115e59', '&:hover': { bgcolor: '#0d4a46' } }}
-          >
-            Choose Excel File
-          </Button>
+        <label htmlFor="excel-upload" className="cursor-pointer">
+          <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs shadow-xs transition">
+            <CloudUpload size={16} /> Choose Excel File
+          </span>
         </label>
-        <Typography variant="body1" sx={{ mt: 1, color: 'text.secondary' }}>
+        <p className="text-xs text-slate-600 mt-3 font-medium">
           Select an attendance sheet to upload and process.
-        </Typography>
-        <Typography variant="caption" display="block" sx={{ mt: 2, color: 'text.disabled' }}>
+        </p>
+        <p className="text-[11px] text-slate-400 mt-1">
           Supported Columns: Employee ID, Date, Punch In, Punch Out, Status
-        </Typography>
-      </Paper>
+        </p>
+      </div>
 
       {loading && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 8 }}>
-          <CircularProgress sx={{ color: '#115e59' }} />
-          <Typography sx={{ mt: 2, color: 'text.secondary' }}>Processing file...</Typography>
-        </Box>
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <Loader2 className="w-8 h-8 text-teal-700 animate-spin" />
+          <p className="text-xs font-semibold text-slate-500">Processing file...</p>
+        </div>
       )}
 
       {data.length > 0 && !loading && (
-        <Box sx={{ animation: 'fadeIn 0.5s ease-in' }}>
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
-              Preview <Box component="span" sx={{ color: 'text.secondary', fontWeight: 'normal', ml: 1 }}>({data.length} records found)</Box>
-            </Typography>
-            <Button variant="outlined" color="error" onClick={() => setData([])} size="small">Clear</Button>
-          </Box>
-          
-          <TableContainer component={Paper} sx={{ maxHeight: 450, mb: 4, borderRadius: 3, boxShadow: 3 }}>
-            <Table stickyHeader size="medium">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ bgcolor: '#f4f7f6', fontWeight: 'bold' }}>Employee ID</TableCell>
-                  <TableCell sx={{ bgcolor: '#f4f7f6', fontWeight: 'bold' }}>Date</TableCell>
-                  <TableCell sx={{ bgcolor: '#f4f7f6', fontWeight: 'bold' }}>Punch In</TableCell>
-                  <TableCell sx={{ bgcolor: '#f4f7f6', fontWeight: 'bold' }}>Punch Out</TableCell>
-                  <TableCell sx={{ bgcolor: '#f4f7f6', fontWeight: 'bold' }}>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-sm font-bold text-slate-800">
+              Preview <span className="text-xs font-normal text-slate-500">({data.length} records found)</span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setData([])}
+              className="px-3 py-1 rounded-lg border border-rose-200 text-rose-600 text-xs font-bold hover:bg-rose-50 transition cursor-pointer"
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="max-h-[450px] overflow-y-auto rounded-2xl border border-slate-200 shadow-xs bg-white">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50 sticky top-0 border-b border-slate-200">
+                <tr>
+                  <th className="p-3 font-bold text-slate-700">Employee ID</th>
+                  <th className="p-3 font-bold text-slate-700">Date</th>
+                  <th className="p-3 font-bold text-slate-700">Punch In</th>
+                  <th className="p-3 font-bold text-slate-700">Punch Out</th>
+                  <th className="p-3 font-bold text-slate-700">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {data.slice(0, 100).map((row, index) => (
-                  <TableRow key={index} hover>
-                    <TableCell sx={{ fontWeight: 'medium' }}>{row.empId}</TableCell>
-                    <TableCell>{row.date ? dayjs(row.date).format('DD MMM YYYY') : '-'}</TableCell>
-                    <TableCell>{row.punchIn ? dayjs(row.punchIn).format('hh:mm A') : '-'}</TableCell>
-                    <TableCell>{row.punchOut ? dayjs(row.punchOut).format('hh:mm A') : '-'}</TableCell>
-                    <TableCell>
-                      <Box component="span" sx={{ 
-                        px: 1.5, py: 0.5, borderRadius: 10, fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase',
-                        bgcolor: row.status === 'present' ? '#e6fffa' : row.status === 'absent' ? '#fff5f5' : '#f0f4f8',
-                        color: row.status === 'present' ? '#2c7a7b' : row.status === 'absent' ? '#c53030' : '#4a5568'
-                      }}>
+                  <tr key={index} className="hover:bg-slate-50 transition">
+                    <td className="p-3 font-bold text-slate-900">{row.empId}</td>
+                    <td className="p-3">{row.date ? dayjs(row.date).format('DD MMM YYYY') : '-'}</td>
+                    <td className="p-3">{row.punchIn ? dayjs(row.punchIn).format('hh:mm A') : '-'}</td>
+                    <td className="p-3">{row.punchOut ? dayjs(row.punchOut).format('hh:mm A') : '-'}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                        row.status === 'present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        row.status === 'absent' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
                         {row.status || 'Auto'}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
+                      </span>
+                    </td>
+                  </tr>
                 ))}
                 {data.length > 100 && (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                  <tr>
+                    <td colSpan={5} className="p-3 text-center text-slate-400 italic text-xs">
                       Showing first 100 records...
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              </tbody>
+            </table>
+          </div>
 
           <Button
-            variant="contained"
-            color="primary"
-            size="large"
+            variant="primary"
+            size="lg"
             onClick={handleImport}
-            disabled={uploading}
-            startIcon={uploading ? <CircularProgress size={24} color="inherit" /> : null}
-            sx={{ 
-                py: 2, borderRadius: 3, fontSize: '1.1rem', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                boxShadow: '0 4px 14px 0 rgba(17, 94, 89, 0.39)', bgcolor: '#115e59', '&:hover': { bgcolor: '#0d4a46' }
-            }}
-            fullWidth
+            loading={uploading}
+            className="w-full"
           >
             {uploading ? 'Processing Data...' : 'Confirm and Import Attendance'}
           </Button>
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 

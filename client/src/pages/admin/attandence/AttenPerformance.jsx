@@ -3,7 +3,6 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { FormControl, InputLabel, Select, MenuItem, TextField, Button, Avatar } from '@mui/material';
 import DataTable from '@/components/common/DataTable';
 import { useSelector } from 'react-redux';
 import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
@@ -315,65 +314,58 @@ const AttenPerformance = () => {
         <div className="p-1 md:p-4 capitalize bg-gray-200">
             {loading && <p>Loading performance data...</p>}
 
-            <div className="p-1 py-3 md:p-3 flex flex-wrap gap-1 md:gap-3 items-center justify-between rounded shadow bg-white mb-4">
-                <div className="gap-3 md:gap-3 flex">
-                    <FormControl className="w-[90px] md:w-[120px]" size="small">
-                        <InputLabel>Year</InputLabel>
-                        <Select
-                            value={selectedYear}
-                            label="Year"
-                            onChange={(e) => setSelectedYear(e.target.value)}
-                        >
-                            {yearOptions.map((year) => (
-                                <MenuItem key={year} value={year}>
-                                    {year}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+            <div className="p-3 md:p-4 flex flex-wrap gap-3 items-center justify-between rounded-xl border border-slate-200 shadow-xs bg-white mb-4">
+                <div className="gap-3 flex items-center">
+                    <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                    >
+                        {yearOptions.map((year) => (
+                            <option key={year} value={year}>
+                                {year}
+                            </option>
+                        ))}
+                    </select>
 
-                    <FormControl size="small" className="w-[130px] md:w-[160px]">
-                        <InputLabel>Month</InputLabel>
-                        <Select
-                            value={selectedMonth}
-                            label="Month"
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                        >
-                            <MenuItem value="all">All</MenuItem>
-                            {monthOptions.map((month) => (
-                                <MenuItem key={month.label} value={month.value}>
-                                    {month.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                        className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                    >
+                        <option value="all">All Months</option>
+                        {monthOptions.map((month) => (
+                            <option key={month.label} value={month.value}>
+                                {month.label}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-3">
                     {/* Avatar Image */}
-                    <Avatar
-                        src={
-                            employee?.profileimage
-                                ? cloudinaryUrl(employee?.profileimage, {
-                                    format: "webp",
-                                    width: 100,
-                                    height: 100,
-                                })
-                                : undefined
-                        }
-                        alt={employee?.name || employee?.userid?.name || "Employee"}
-                        className="w-10 h-10"
-                    >
-                        {!employee?.profileimage && <User size={18} />}
-                    </Avatar>
+                    {employee?.profileimage ? (
+                        <img
+                            src={cloudinaryUrl(employee?.profileimage, {
+                                format: "webp",
+                                width: 100,
+                                height: 100,
+                            })}
+                            alt={employee?.name || employee?.userid?.name || "Employee"}
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                        />
+                    ) : (
+                        <div className="w-10 h-10 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-sm">
+                            {user?.name?.charAt(0) || <User size={18} />}
+                        </div>
+                    )}
 
                     {/* Employee Info */}
                     <div className="text-end">
-                        <p className="font-semibold text-sm md:text-lg">
+                        <p className="font-bold text-sm md:text-base text-slate-800">
                             {user?.name}
                         </p>
-
-                        <p className="text-[12px] md:text-sm text-gray-600">
+                        <p className="text-xs text-slate-500 font-medium">
                             {employee?.designation ? `${employee.designation} • ` : ''}({employee?.branchId?.name})
                         </p>
                     </div>
@@ -389,71 +381,81 @@ const AttenPerformance = () => {
                         hell={hell}
                     />
 
-                    <div className="p-1 print:hidden py-4 md:p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 rounded shadow bg-white my-4">
-                        <FormControl size="small" sx={{ minWidth: 120 }}>
-                            <InputLabel>Type</InputLabel>
-                            <Select value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
-                                <MenuItem value="all">All</MenuItem>
-                                <MenuItem value="earlyLeave">Early Leave</MenuItem>
-                                <MenuItem value="lateleave">Late Leave</MenuItem>
-                                <MenuItem value="earlyarrival">Early Arrival</MenuItem>
-                                <MenuItem value="latearrival">Late Arrival</MenuItem>
-                            </Select>
-                        </FormControl>
+                    <div className="p-4 print:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 rounded-xl border border-slate-200 shadow-xs bg-white my-4">
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Type</label>
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="earlyLeave">Early Leave</option>
+                                <option value="lateleave">Late Leave</option>
+                                <option value="earlyarrival">Early Arrival</option>
+                                <option value="latearrival">Late Arrival</option>
+                            </select>
+                        </div>
 
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <InputLabel>Status</InputLabel>
-                            <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
-                                <MenuItem value="all">All</MenuItem>
-                                <MenuItem value="present">Present</MenuItem>
-                                <MenuItem value="leave">Leave</MenuItem>
-                                <MenuItem value="absent">Absent</MenuItem>
-                                <MenuItem value="weekly off">Weekly off</MenuItem>
-                                <MenuItem value="holiday">Holiday</MenuItem>
-                                <MenuItem value="half day">Half Day</MenuItem>
-                            </Select>
-                        </FormControl>
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="present">Present</option>
+                                <option value="leave">Leave</option>
+                                <option value="absent">Absent</option>
+                                <option value="weekly off">Weekly off</option>
+                                <option value="holiday">Holiday</option>
+                                <option value="half day">Half Day</option>
+                            </select>
+                        </div>
 
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <InputLabel>Over/Short</InputLabel>
-                            <Select value={timeFilter} label="Over/Short" onChange={(e) => setTimeFilter(e.target.value)}>
-                                <MenuItem value="all">All</MenuItem>
-                                <MenuItem value="overtime">Overtime</MenuItem>
-                                <MenuItem value="short">Short Time</MenuItem>
-                            </Select>
-                        </FormControl>
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Over/Short</label>
+                            <select
+                                value={timeFilter}
+                                onChange={(e) => setTimeFilter(e.target.value)}
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                            >
+                                <option value="all">All</option>
+                                <option value="overtime">Overtime</option>
+                                <option value="short">Short Time</option>
+                            </select>
+                        </div>
 
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <TextField
-                                label="From Date"
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
+                            <input
                                 type="date"
-                                size="small"
-                                InputLabelProps={{ shrink: true }}
                                 value={fromDate}
                                 onChange={(e) => setFromDate(e.target.value)}
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
                             />
-                        </FormControl>
+                        </div>
 
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <TextField
-                                label="To Date"
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
+                            <input
                                 type="date"
-                                size="small"
-                                InputLabelProps={{ shrink: true }}
                                 value={toDate}
                                 onChange={(e) => setToDate(e.target.value)}
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
                             />
-                        </FormControl>
+                        </div>
 
-                        <Button
-                            variant="outlined"
-                            color="secondary"
-                            onClick={resetFilters}
-                            sx={{ alignSelf: 'flex-end', minWidth: 100 }}
-                            startIcon={<RotateCcw size={16} />}
-                        >
-                            Reset
-                        </Button>
+                        <div className="flex items-end">
+                            <button
+                                type="button"
+                                onClick={resetFilters}
+                                className="w-full h-10 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            >
+                                <RotateCcw size={14} /> Reset
+                            </button>
+                        </div>
                     </div>
 
                     <div className='print:hidden'>

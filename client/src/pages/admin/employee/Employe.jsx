@@ -1,6 +1,6 @@
 import { getEmployeeColumns, addemployee, employeedelette, employeeupdate } from "./employeehelper";
-import TextField from '@mui/material/TextField';
-import { Button } from '@mui/material';
+import Input from "../../../components/ui/Input";
+import Button from "../../../components/ui/Button";
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Search,
@@ -560,12 +560,20 @@ const Employe = () => {
 
       {/* Password Reset Modal */}
       <Modalbox open={passmodal} onClose={() => setpassmodal(false)}>
-        <div className="membermodal w-[350px]">
-          <form onSubmit={updatePassword}>
-            <h2 className="text-sm font-bold text-slate-800 mb-3">Reset Password</h2>
-            <div className="modalcontent flex flex-col gap-3">
-              <TextField fullWidth required value={pass.pass} onChange={(e) => setpass({ ...pass, pass: e.target.value })} label="Password" size="small" />
-              <Button variant="contained" sx={{ mt: 2 }} type="submit">Reset Password</Button>
+        <div className="w-[360px] max-w-[90vw] p-5 bg-white rounded-2xl">
+          <form onSubmit={updatePassword} className="space-y-4">
+            <h2 className="text-sm font-bold text-slate-800">Reset Employee Password</h2>
+            <Input
+              type="password"
+              required
+              value={pass.pass}
+              onChange={(e) => setpass({ ...pass, pass: e.target.value })}
+              label="New Password"
+              placeholder="Enter new password"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setpassmodal(false)}>Cancel</Button>
+              <Button type="submit" variant="primary">Reset Password</Button>
             </div>
           </form>
         </div>

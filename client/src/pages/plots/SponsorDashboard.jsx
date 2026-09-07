@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   ChevronRight
 } from 'lucide-react';
-import { Avatar } from '@mui/material';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 
 const SponsorDashboard = () => {
@@ -79,20 +78,17 @@ const SponsorDashboard = () => {
       {/* ── 1. Clean Official Header & Sponsor Profile ────────────────── */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Avatar
-            src={sponsor.profileImage ? cloudinaryUrl(sponsor.profileImage) : undefined}
-            alt={sponsor.name}
-            sx={{
-              width: 52,
-              height: 52,
-              bgcolor: '#0f766e',
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              border: '1px solid #e2e8f0'
-            }}
-          >
-            {sponsor.name?.charAt(0)?.toUpperCase()}
-          </Avatar>
+          {sponsor.profileImage ? (
+            <img
+              src={cloudinaryUrl(sponsor.profileImage)}
+              alt={sponsor.name}
+              className="w-[52px] h-[52px] rounded-full object-cover border border-slate-200"
+            />
+          ) : (
+            <div className="w-[52px] h-[52px] rounded-full bg-teal-700 text-white flex items-center justify-center text-lg font-bold border border-slate-200">
+              {sponsor.name?.charAt(0)?.toUpperCase()}
+            </div>
+          )}
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -316,12 +312,17 @@ const SponsorDashboard = () => {
                     className="p-2.5 bg-slate-50 border border-slate-200/60 rounded-lg flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2.5">
-                      <Avatar
-                        src={sub.profileImage ? cloudinaryUrl(sub.profileImage) : undefined}
-                        sx={{ width: 28, height: 28, bgcolor: '#0f766e', fontSize: '0.75rem', fontWeight: 600 }}
-                      >
-                        {sub.name?.charAt(0)}
-                      </Avatar>
+                      {sub.profileImage ? (
+                        <img
+                          src={cloudinaryUrl(sub.profileImage)}
+                          alt={sub.name}
+                          className="w-7 h-7 rounded-full object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-teal-700 text-white flex items-center justify-center text-xs font-semibold">
+                          {sub.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                      )}
                       <div>
                         <p className="text-xs font-semibold text-slate-800 leading-tight">{sub.name}</p>
                         <p className="text-[10px] text-slate-500 font-mono">{sub.sponsorCode || sub.mobile || 'Sponsor'}</p>

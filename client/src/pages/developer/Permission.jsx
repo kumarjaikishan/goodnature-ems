@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../../utils/apiClient";
-import { Button, IconButton, TextField, MenuItem } from "@mui/material";
-import { ChevronUp, ChevronDown, Trash2, Edit2 } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Edit2, Plus } from "lucide-react";
 import Modalbox from "../../components/custommodal/Modalbox";
 import { toast } from "../../utils/toast";
+import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
 
 const Permission = () => {
     const [permission, setPermission] = useState([]);
@@ -14,33 +15,26 @@ const Permission = () => {
         roleid: "",
         modules: {},
     });
-    // Final allowed modules (whitelist)
-    // const AllPermissionNames = ["branch", "department", "employee", "attandence",
-    //     "ledger", "ledger_entry", "holiday", "leave", "notification", "salary",
-    // ];
+
     const [moduleToAdd, setModuleToAdd] = useState("");
-    const [modules, setModules] = useState(null);
+    const [modules, setModules] = useState([]);
     const [newModule, setNewModule] = useState("");
     const [editingIndex, setEditingIndex] = useState(null);
     const [editValue, setEditValue] = useState("");
     
     const AllPermissionNames = modules;
 
-
     const PERMISSION_LABELS = {
         1: "Read", 2: "Create", 3: "Update", 4: "Delete",
     };
-
-    const colors = ["teal",  "blue", "yellow", "red"];
 
     const fetche = async () => {
         try {
             const data = await apiClient({
                 url: "permission"
             });
-            // console.log(data)
-            setPermission(data?.permission);
-            setModules(data.permissionnames?.AllPermissionNames);
+            setPermission(data?.permission || []);
+            setModules(data.permissionnames?.AllPermissionNames || []);
         } catch (error) {
             console.error('Error fetching permissions:', error);
         }
@@ -56,7 +50,6 @@ const Permission = () => {
 
     const edite = (per) => {
         setSelectedRole(per);
-        // clone only modules that are in the allowed list (defensive)
         const sanitized = Object.fromEntries(
             Object.entries(per.modules || {}).filter(([m]) =>
                 AllPermissionNames?.includes(m)
@@ -87,7 +80,6 @@ const Permission = () => {
         });
     };
 
-    // Only allow adding modules from whitelist and not already present
     const availableModules = AllPermissionNames?.filter(
         (m) => !Object.prototype.hasOwnProperty.call(form.modules, m)
     );
@@ -154,7 +146,7 @@ const Permission = () => {
 
     const addModulee = () => {
         if (!newModule.trim()) return;
-        if (modules.includes(newModule)) return alert("Already exists!");
+        if (modules.includes(newModule.trim())) return toast.warn("Already exists!");
         setModules([...modules, newModule.trim()]);
         setNewModule("");
     };
@@ -173,6 +165,7 @@ const Permission = () => {
         setEditingIndex(null);
         setEditValue("");
     };
+
     const saveModule = async () => {
         try {
             const result = await apiClient({
@@ -187,235 +180,234 @@ const Permission = () => {
         } catch (error) {
             console.error('Error saving module:', error);
         }
-    }
+    };
 
     return (
-        <div>
-            <div >
-                <div
-                    className={`flex w-full my-2 justify-between items-center cursor-pointer border border-amber-400 bg-amber-100 px-4 py-2 rounded-md`}
+        <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4">
+            {/* Permission Modules accordion */}
+            <div className="border border-amber-300 bg-amber-50/50 rounded-2xl overflow-hidden shadow-xs">
+                <button
+                    type="button"
+                    className="w-full flex justify-between items-center px-4 py-3 bg-amber-500 text-white font-bold text-xs tracking-wider cursor-pointer"
                     onClick={() => toggleSection('module')}
                 >
-                    <span className="font-semibold text-[16px] md:text-lg text-left">
-                        Permission Modules
-                    </span>
-                    {openSection === `module` ? (
-                        <ChevronUp size={20} />
-                    ) : (
-                        <ChevronDown size={20} />
-                    )}
-                </div>
-                {openSection === `module` && <>
-                    {/* Add new */}
-                    <div className="flex gap-2 mb-4">
-                        <TextField
-                            size="small"
-                            label="New Module"
-                            value={newModule}
-                            onChange={(e) => setNewModule(e.target.value)}
-                        />
-                        <Button variant="contained" onClick={addModulee}>
-                            Add
-                        </Button>
+                    <span>PERMISSION MODULES DIRECTORY</span>
+                    {openSection === 'module' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
 
-                        <Button variant="contained" onClick={saveModule}>
-                            Save Module
-                        </Button>
-                    </div>
-
-                    {/* List */}
-                    <table className="min-w-full border text-sm">
-                        <thead>
-                            <tr>
-                                <th className="border p-2 text-left">Module</th>
-                                <th className="border p-2 text-center">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {modules.map((mod, i) => (
-                                <tr key={i}>
-                                    <td className="border p-1 capitalize">
-                                        {editingIndex === i ? (
-                                            <TextField
-                                                size="small"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                            />
-                                        ) : (
-                                            mod
-                                        )}
-                                    </td>
-                                    <td className="border p-1 text-center">
-                                        {editingIndex === i ? (
-                                            <Button variant="contained" size="small" onClick={() => saveEdit(i)}>
-                                                Save
-                                            </Button>
-                                        ) : (
-                                            <>
-                                                <IconButton color="primary" onClick={() => { setEditingIndex(i); setEditValue(mod); }}>
-                                                    <Edit2 size={16} />
-                                                </IconButton>
-                                                <IconButton color="error" onClick={() => deleteModule(i)}>
-                                                    <Trash2 size={16} />
-                                                </IconButton>
-                                            </>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </>}
-            </div>
-
-            <div className="flex flex-col">
-                {permission?.map((per, ind) => (
-                    <div key={per._id}>
-                        <div
-                            className={`flex w-full my-2 justify-between items-center cursor-pointer border-dashed border border-${colors[ind]}-600 bg-${colors[ind]}-100 px-4 py-2 rounded-md`}
-                            onClick={() => toggleSection(per.role)}
-                        >
-                            <span className="font-semibold capitalize text-[16px] md:text-lg text-left">
-                                {per.role}
-                            </span>
-                            {openSection === `${per.role}` ? (
-                                <ChevronUp size={20} />
-                            ) : (
-                                <ChevronDown size={20} />
-                            )}
+                {openSection === 'module' && (
+                    <div className="p-4 space-y-4 bg-white">
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <input
+                                placeholder="New Module Name"
+                                value={newModule}
+                                onChange={(e) => setNewModule(e.target.value)}
+                                className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium outline-none focus:border-teal-600"
+                            />
+                            <Button variant="secondary" onClick={addModulee}>
+                                <Plus size={16} /> Add
+                            </Button>
+                            <Button variant="primary" onClick={saveModule}>
+                                Save Directory
+                            </Button>
                         </div>
 
-                        {openSection === `${per.role}` && (
-                            <div className="p-1 rounded border-teal-300 border-2 border-dashed mt-2">
-                                <div className="flex w-full justify-end">
-                                    <Button variant="contained" onClick={() => edite(per)} sx={{ mr: 2 }}>
-                                        Edit
+                        <div className="overflow-x-auto rounded-xl border border-slate-200">
+                            <table className="w-full text-left text-xs border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="p-3 font-bold text-slate-700">Module Name</th>
+                                        <th className="p-3 font-bold text-slate-700 text-center w-28">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {modules?.map((mod, i) => (
+                                        <tr key={i} className="hover:bg-slate-50">
+                                            <td className="p-3 capitalize font-semibold text-slate-800">
+                                                {editingIndex === i ? (
+                                                    <input
+                                                        className="h-8 px-2 rounded-lg border border-slate-200 text-xs font-medium outline-none"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                    />
+                                                ) : (
+                                                    mod
+                                                )}
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                {editingIndex === i ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => saveEdit(i)}
+                                                        className="px-2.5 py-1 bg-teal-700 text-white font-bold text-xs rounded-lg hover:bg-teal-800 cursor-pointer"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                ) : (
+                                                    <div className="flex justify-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            className="text-teal-600 hover:text-teal-800 p-1 cursor-pointer"
+                                                            onClick={() => { setEditingIndex(i); setEditValue(mod); }}
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                                                            onClick={() => deleteModule(i)}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Role List */}
+            <div className="space-y-3">
+                {permission?.map((per) => (
+                    <div key={per._id} className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white">
+                        <div
+                            className="flex justify-between items-center px-4 py-3 bg-slate-800 text-white font-bold text-xs tracking-wider cursor-pointer capitalize"
+                            onClick={() => toggleSection(per.role)}
+                        >
+                            <span>{per.role} Role Permissions</span>
+                            {openSection === per.role ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </div>
+
+                        {openSection === per.role && (
+                            <div className="p-4 space-y-3">
+                                <div className="flex justify-end">
+                                    <Button variant="primary" onClick={() => edite(per)}>
+                                        <Edit2 size={14} /> Edit Permissions
                                     </Button>
                                 </div>
-                                <table className="table-auto border-collapse border border-gray-300 mt-2 text-xs w-full">
-                                    <thead>
-                                        <tr>
-                                            <th className="border border-gray-300 px-2 py-1 text-left">Module</th>
-                                            {Object.values(PERMISSION_LABELS).map((label) => (
-                                                <th key={label} className="border border-gray-300 px-2 py-1">
-                                                    {label}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Object.entries(per.modules).map(([module, levels]) => (
-                                            <tr key={module}>
-                                                <td className="border border-gray-300 px-2 py-1 font-semibold">
-                                                    {module}
-                                                </td>
-                                                {Object.keys(PERMISSION_LABELS).map((permKey) => (
-                                                    <td key={permKey} className="border border-gray-300 px-2 py-1 text-center">
-                                                        {levels.includes(Number(permKey)) ? "✅" : "-"}
-                                                    </td>
+
+                                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                    <table className="w-full text-xs text-left border-collapse">
+                                        <thead className="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th className="p-2.5 font-bold text-slate-700">Module</th>
+                                                {Object.values(PERMISSION_LABELS).map((label) => (
+                                                    <th key={label} className="p-2.5 font-bold text-slate-700 text-center">
+                                                        {label}
+                                                    </th>
                                                 ))}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 font-medium">
+                                            {Object.entries(per.modules || {}).map(([module, levels]) => (
+                                                <tr key={module} className="hover:bg-slate-50">
+                                                    <td className="p-2.5 font-semibold capitalize text-slate-800">
+                                                        {module}
+                                                    </td>
+                                                    {Object.keys(PERMISSION_LABELS).map((permKey) => (
+                                                        <td key={permKey} className="p-2.5 text-center">
+                                                            {levels.includes(Number(permKey)) ? "✅" : "—"}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
                     </div>
                 ))}
             </div>
 
-            {/* Modal */}
-            <Modalbox open={passmodal} onClose={() => setPassmodal(false)}>
-                <div className="membermodal w-[680px]">
-                    <form action="">
-                        <h2 className="font-bold text-lg mb-3">Edit Permission - {selectedRole?.role}</h2>
-                        <span className="modalcontent">
-                            {/* Add module from whitelist */}
-                            <div className="flex gap-2 mb-3 items-center">
-                                <TextField
-                                    select
-                                    size="small"
-                                    label="Add Module"
-                                    value={moduleToAdd}
-                                    onChange={(e) => setModuleToAdd(e.target.value)}
-                                    sx={{ minWidth: 200 }}
-                                >
-                                    {availableModules?.length === 0 ? (
-                                        <MenuItem disabled value="">
-                                            No modules available
-                                        </MenuItem>
-                                    ) : (
-                                        availableModules?.map((m) => (
-                                             <MenuItem key={m} value={m} className="capitalize">
-                                                {m}
-                                            </MenuItem>
-                                        ))
-                                    )}
-                                </TextField>
-                                <Button variant="contained" onClick={addModule} disabled={!moduleToAdd}>
-                                    Add
-                                </Button>
-                            </div>
+            {/* Modal - Edit Role Permissions */}
+            <Modalbox open={passmodal} onClose={cancel}>
+                <div className="w-[680px] max-w-[92vw] p-6 bg-white rounded-2xl space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                        <h2 className="text-base font-bold text-slate-800">Edit Permission — {selectedRole?.role}</h2>
+                        <button type="button" onClick={cancel} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+                    </div>
 
-                            <div className="overflow-x-auto w-full">
-                                <table className="min-w-full text-sm border">
-                                    <thead>
-                                        <tr>
-                                            <th className="border p-2 text-left">Module</th>
-                                            {Object.entries(PERMISSION_LABELS).map(([code, label]) => (
-                                                <th key={code} className="border p-2 text-center">
-                                                    {label}
-                                                </th>
-                                            ))}
-                                            <th className="border p-2 text-center">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Object.keys(form.modules)
-                                            .sort(
-                                                (a, b) =>
-                                                    AllPermissionNames?.indexOf(a) - AllPermissionNames?.indexOf(b)
-                                            )
-                                            .map((module) => {
-                                                const levels = form.modules[module] || [];
-                                                return (
-                                                    <tr key={module}>
-                                                        <td className="border p-2 capitalize">{module}</td>
-                                                        {Object.keys(PERMISSION_LABELS).map((level) => (
-                                                            <td key={level} className="border text-center">
-                                                                <input
-                                                                    className="h-3 w-3 md:h-5 md:w-5 cursor-pointer"
-                                                                    type="checkbox"
-                                                                    checked={levels.includes(Number(level))}
-                                                                    onChange={() => togglePermission(module, Number(level))}
-                                                                />
-                                                            </td>
-                                                        ))}
-                                                        <td className="border text-center">
-                                                            <IconButton color="error" size="small" onClick={() => removeModule(module)}>
-                                                                <Trash2 size={16} />
-                                                            </IconButton>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                    </tbody>
-                                </table>
-                            </div>
+                    <div className="flex flex-wrap gap-2 items-center">
+                        <select
+                            className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                            value={moduleToAdd}
+                            onChange={(e) => setModuleToAdd(e.target.value)}
+                        >
+                            <option value="">Select Module to Add</option>
+                            {availableModules?.map((m) => (
+                                <option key={m} value={m}>
+                                    {m}
+                                </option>
+                            ))}
+                        </select>
+                        <Button variant="secondary" onClick={addModule} disabled={!moduleToAdd}>
+                            + Add Module
+                        </Button>
+                    </div>
 
-                            <div className="flex justify-end gap-3 mt-4">
-                                <Button variant="outlined" onClick={cancel}>
-                                    Cancel
-                                </Button>
-                                <Button variant="contained" onClick={saveedit}>
-                                    Save
-                                </Button>
-                            </div>
-                        </span>
-                    </form>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-96">
+                        <table className="w-full text-xs text-left border-collapse">
+                            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                <tr>
+                                    <th className="p-2.5 font-bold text-slate-700">Module</th>
+                                    {Object.entries(PERMISSION_LABELS).map(([code, label]) => (
+                                        <th key={code} className="p-2.5 font-bold text-slate-700 text-center">
+                                            {label}
+                                        </th>
+                                    ))}
+                                    <th className="p-2.5 font-bold text-slate-700 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {Object.keys(form.modules || {})
+                                    .sort(
+                                        (a, b) =>
+                                            AllPermissionNames?.indexOf(a) - AllPermissionNames?.indexOf(b)
+                                    )
+                                    .map((module) => {
+                                        const levels = form.modules[module] || [];
+                                        return (
+                                            <tr key={module} className="hover:bg-slate-50">
+                                                <td className="p-2.5 capitalize font-semibold text-slate-800">{module}</td>
+                                                {Object.keys(PERMISSION_LABELS).map((level) => (
+                                                    <td key={level} className="p-2.5 text-center">
+                                                        <input
+                                                            className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+                                                            type="checkbox"
+                                                            checked={levels.includes(Number(level))}
+                                                            onChange={() => togglePermission(module, Number(level))}
+                                                        />
+                                                    </td>
+                                                ))}
+                                                <td className="p-2.5 text-center">
+                                                    <button
+                                                        type="button"
+                                                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                                                        onClick={() => removeModule(module)}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                        <Button variant="secondary" onClick={cancel}>Cancel</Button>
+                        <Button variant="primary" onClick={saveedit}>Save Permissions</Button>
+                    </div>
                 </div>
             </Modalbox>
-        </div >
+        </div>
     );
 };
 

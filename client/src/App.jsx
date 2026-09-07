@@ -8,7 +8,6 @@ import { setlogin } from '../store/authSlice';
 import ProtectedRoutes from './utils/protectedRoute';
 import { Settings, User } from 'lucide-react';
 import { connectSSE, closeSSE } from "./utils/sse";
-import { Avatar } from '@mui/material';
 import dayjs from 'dayjs';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -497,12 +496,16 @@ function App() {
           if (data.payload.action === "checkin") {
             toast.info(
               <div className="flex items-center gap-2 pr-1">
-                <Avatar src={emp.profileimage} alt={emp.employeename}>
-                  {!emp.profileimage && <User size={16} />}
-                </Avatar>
-                <span className="text-[14px] ">
+                {emp.profileimage ? (
+                  <img src={emp.profileimage} alt={emp.employeename} className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+                    {emp.userid?.name?.charAt(0) || <User size={14} />}
+                  </div>
+                )}
+                <span className="text-[14px]">
                   <span className="text-green-700 capitalize font-semibold">
-                    {emp.userid.name}
+                    {emp.userid?.name}
                   </span>{" "}
                   has Punched In at{" "}
                   <span className="text-green-700">
@@ -519,12 +522,16 @@ function App() {
           if (data.payload.action === "checkOut") {
             toast.info(
               <div className="flex items-center gap-2 pr-1">
-                <Avatar src={emp.profileimage} alt={emp.employeename}>
-                  {!emp.profileimage && <User size={16} />}
-                </Avatar>
-                <span className="text-[14px] ">
+                {emp.profileimage ? (
+                  <img src={emp.profileimage} alt={emp.employeename} className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
+                    {emp.userid?.name?.charAt(0) || <User size={14} />}
+                  </div>
+                )}
+                <span className="text-[14px]">
                   <span className="text-amber-700 capitalize font-semibold">
-                    {emp.userid.name}
+                    {emp.userid?.name}
                   </span>{" "}
                   has Punched Out at{" "}
                   <span className="text-amber-700">

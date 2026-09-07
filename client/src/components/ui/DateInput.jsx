@@ -2,8 +2,7 @@ import React, { forwardRef } from 'react';
 import { Calendar } from 'lucide-react';
 
 /**
- * Standard Native Date Input Component
- * Replaces MUI @mui/x-date-pickers (DatePicker, LocalizationProvider, AdapterDayjs)
+ * Standard Native Date Input Component with Executive styling
  */
 export const DateInput = forwardRef(({
   label,

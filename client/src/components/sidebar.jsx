@@ -23,7 +23,6 @@ import {
   Coins,
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
-import Popover from "@mui/material/Popover";
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -255,41 +254,34 @@ const Sidebar = () => {
                       </div>
                     )}
 
-                    {/* Collapsed sidebar Popover on hover */}
-                    {!showText && isOpen && anchorEl && (
-                      <Popover
-                        open
-                        anchorEl={anchorEl}
-                        onClose={() => setHoveredMenu(null)}
-                        anchorOrigin={{ vertical: "center", horizontal: "right" }}
-                        transformOrigin={{ vertical: "center", horizontal: "left" }}
-                        disableAutoFocus
-                        disableEnforceFocus
-                        disableRestoreFocus
-                        PaperProps={{
-                          onMouseEnter: () => setHoveredMenu(menuId),
-                          onMouseLeave: () => setHoveredMenu(null),
-                        }}
+                    {/* Collapsed sidebar pure Tailwind floating flyout on hover */}
+                    {!showText && isOpen && (
+                      <div
+                        onMouseEnter={() => setHoveredMenu(menuId)}
+                        onMouseLeave={() => setHoveredMenu(null)}
+                        className="absolute left-full top-0 ml-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 min-w-[180px] py-1.5 animate-in fade-in zoom-in-95 duration-100"
                       >
-                        <div className="bg-white rounded-md shadow-lg min-w-[160px] py-2">
-                          {item.children.map((child) => {
-                            if (!child.roles.includes(role)) return null;
-                            return (
-                              <NavLink
-                                to={child.link}
-                                key={child.menu}
-                                onClick={() => setHoveredMenu(null)}
-                                className={({ isActive }) =>
-                                  `block px-4 py-2 text-sm text-gray-600 whitespace-nowrap ${isActive ? "bg-primary text-white" : "hover:bg-gray-100"
-                                  }`
-                                }
-                              >
-                                {child.menu}
-                              </NavLink>
-                            );
-                          })}
+                        <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                          {item.menu}
                         </div>
-                      </Popover>
+                        {item.children.map((child) => {
+                          if (!child.roles.includes(role)) return null;
+                          return (
+                            <NavLink
+                              to={child.link}
+                              key={child.menu}
+                              onClick={() => setHoveredMenu(null)}
+                              className={({ isActive }) =>
+                                `block px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
+                                  isActive ? "bg-teal-700 text-white" : "text-slate-700 hover:bg-slate-50"
+                                }`
+                              }
+                            >
+                              {child.menu}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 );

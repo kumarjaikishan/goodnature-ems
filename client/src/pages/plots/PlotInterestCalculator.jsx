@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from '../../utils/toast';
-import { CircularProgress } from '@mui/material';
 import {
   Search,
   Calendar,
@@ -17,6 +16,7 @@ import {
   IndianRupee,
   Clock,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 const PlotInterestCalculator = () => {
@@ -311,7 +311,7 @@ const PlotInterestCalculator = () => {
                 type="submit"
                 className="ml-2 px-5 h-11 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1 cursor-pointer shrink-0"
               >
-                {loading ? <CircularProgress size={16} color="inherit" /> : 'Search'}
+                {loading ? <Loader2 size={16} className="animate-spin text-white" /> : 'Search'}
               </button>
             </form>
 
@@ -385,7 +385,7 @@ const PlotInterestCalculator = () => {
       {/* Loading state */}
       {loading && (
         <div className="flex flex-col items-center justify-center min-h-[300px] gap-3">
-          <CircularProgress sx={{ color: 'var(--color-primary)' }} />
+          <Loader2 className="w-8 h-8 text-teal-700 animate-spin" />
           <p className="text-xs font-bold text-slate-500 animate-pulse">Calculating deposited amounts & accrued interest...</p>
         </div>
       )}

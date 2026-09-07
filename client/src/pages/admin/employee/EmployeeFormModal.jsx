@@ -1,10 +1,9 @@
 import React from 'react';
-import {
-  Box, Button, FormControl, FormControlLabel, InputAdornment,
-  InputLabel, MenuItem, Select, Switch, TextField, Typography, Avatar
-} from '@mui/material';
-import { Send, Edit2, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { Send, Edit2, ChevronUp, ChevronDown, Trash2, User } from 'lucide-react';
 import Modalbox from '../../../components/custommodal/Modalbox';
+import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
+import Button from '../../../components/ui/Button';
 
 const EmployeeFormModal = ({
   open,
@@ -31,104 +30,147 @@ const EmployeeFormModal = ({
 }) => {
   return (
     <Modalbox open={open} onClose={onClose}>
-      <div className="membermodal w-[680px]">
-        <div className="whole">
-          <form onSubmit={adddepartcall}>
-            <div className="modalhead">{isupdate ? "Update Employee" : "Add Employee"}</div>
-            <span className="modalcontent">
-              <div className='flex flex-col gap-3 w-full'>
-                <FormControl fullWidth required size="small">
-                  <InputLabel>Branch</InputLabel>
-                  <Select
-                    value={inp.branchId}
-                    label="branch"
-                    onChange={(e) => handleChange(e, 'branchId')}
-                  >
-                    {profile?.role === 'manager'
-                      ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                        ?.map((list) => (
-                          <MenuItem key={list._id} value={list._id}>
-                            {list.name}
-                          </MenuItem>
-                        ))
-                      : branch?.map((list) => (
-                        <MenuItem key={list._id} value={list._id}>
-                          {list.name}
-                        </MenuItem>
-                      ))
+      <div className="w-[680px] max-w-[92vw] bg-white rounded-2xl p-6">
+        <form onSubmit={adddepartcall} className="space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-base font-bold text-slate-800">
+              {isupdate ? "Update Employee" : "Add Employee"}
+            </h3>
+            <button
+              type="button"
+              className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
+              onClick={onClose}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 w-full">
+            <Select
+              label="Branch"
+              required
+              value={inp.branchId || ''}
+              onChange={(e) => handleChange(e, 'branchId')}
+            >
+              <option value="">Select Branch</option>
+              {profile?.role === 'manager'
+                ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
+                  ?.map((list) => (
+                    <option key={list._id} value={list._id}>
+                      {list.name}
+                    </option>
+                  ))
+                : branch?.map((list) => (
+                  <option key={list._id} value={list._id}>
+                    {list.name}
+                  </option>
+                ))
+              }
+            </Select>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Select
+                label="Department"
+                required
+                disabled={!inp.branchId}
+                value={inp.department || ''}
+                onChange={(e) => handleChange(e, 'department')}
+              >
+                <option value="">Select Department</option>
+                {department?.filter(e => (e.branchId?._id || e.branchId) === inp.branchId).map((list) => (
+                  <option key={list._id} value={list._id}>
+                    {list.department}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                label="Status"
+                required
+                disabled={!inp.branchId}
+                value={inp?.status !== undefined ? String(inp?.status) : 'true'}
+                onChange={(e) => handleChange({ ...e, target: { ...e.target, value: e.target.value === 'true' } }, 'status')}
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Full Name"
+                required
+                value={inp.employeeName || ''}
+                onChange={(e) => handleChange(e, 'employeeName')}
+                placeholder="e.g. Rahul Sharma"
+              />
+              <Input
+                label="Email Address"
+                type="email"
+                required
+                value={inp.email || ''}
+                onChange={(e) => handleChange(e, 'email')}
+                placeholder="rahul@example.com"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Designation"
+                value={inp.designation || ''}
+                onChange={(e) => handleChange(e, 'designation')}
+                placeholder="e.g. Sales Executive"
+              />
+              <Input
+                label="Base Salary (₹)"
+                type="number"
+                value={inp.salary || ''}
+                onChange={(e) => handleChange(e, 'salary')}
+                placeholder="e.g. 25000"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Input
+                  label="Employee ID (3 digits)"
+                  type="number"
+                  value={inp.empId || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.length <= 3) {
+                      handleChange(e, "empId");
                     }
-                  </Select>
-                </FormControl>
+                  }}
+                  placeholder="e.g. 001"
+                />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Generated ID: EMP{String(inp?.empId || '').padStart(3, '0')}
+                </span>
+              </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Guardian Details</label>
                 <div className="flex gap-2">
-                  <FormControl disabled={!inp.branchId} fullWidth required size="small">
-                    <InputLabel>Department</InputLabel>
-                    <Select
-                      value={inp.department}
-                      label="Department"
-                      onChange={(e) => handleChange(e, 'department')}
-                    >
-                      {department?.filter(e => (e.branchId?._id || e.branchId) === inp.branchId).length > 0 ? (
-                        department
-                          .filter(e => (e.branchId?._id || e.branchId) === inp.branchId)
-                          .map((list) => (
-                            <MenuItem key={list._id} value={list._id}>
-                              {list.department}
-                            </MenuItem>
-                          ))
-                      ) : (
-                        <MenuItem disabled>No departments found</MenuItem>
-                      )}
-                    </Select>
-                  </FormControl>
-
-                  <FormControl disabled={!inp.branchId} fullWidth required size="small">
-                    <InputLabel>Status</InputLabel>
-                    <Select
-                      value={inp?.status}
-                      label="Status"
-                      onChange={(e) => handleChange(e, 'status')}
-                    >
-                      <MenuItem value={true}>Active</MenuItem>
-                      <MenuItem value={false}>Inactive</MenuItem>
-                    </Select>
-                  </FormControl>
-                </div>
-
-                <div className="flex gap-2">
-                  <TextField fullWidth required value={inp.employeeName || ''} onChange={(e) => handleChange(e, 'employeeName')} label="Name" size="small" />
-                  <TextField fullWidth required value={inp.email || ''} onChange={(e) => handleChange(e, 'email')} label="Email" size="small" />
-                </div>
-
-                <div className="flex gap-2">
-                  <TextField fullWidth value={inp.designation || ''} onChange={(e) => handleChange(e, 'designation')} label="Designation" size="small" />
-                  <TextField fullWidth value={inp.salary || ''} onChange={(e) => handleChange(e, 'salary')} label="Salary" size="small" />
-                </div>
-
-                <div className="flex gap-2">
-                  <TextField
-                    fullWidth
-                    type="number"
-                    value={inp.empId || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.length <= 3) {
-                        handleChange(e, "empId");
-                      }
-                    }}
-                    label="Employee ID"
-                    size="small"
-                    helperText={`ID - EMP${String(inp?.empId || '').padStart(3, '0')}`}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">EMP</InputAdornment>,
-                    }}
-                    inputProps={{
-                      maxLength: 3,
-                    }}
-                  />
-
-                  <TextField
-                    fullWidth
+                  <select
+                    className="w-24 h-10 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition"
+                    value={inp?.guardian?.relation || "S/o"}
+                    onChange={(e) =>
+                      setInp((prev) => ({
+                        ...prev,
+                        guardian: { ...prev.guardian, relation: e.target.value },
+                      }))
+                    }
+                  >
+                    <option value="S/o">S/o</option>
+                    <option value="D/o">D/o</option>
+                    <option value="H/o">H/o</option>
+                    <option value="W/o">W/o</option>
+                  </select>
+                  <input
+                    type="text"
+                    className="flex-1 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition"
+                    placeholder="Guardian Name"
                     value={inp?.guardian?.name || ''}
                     onChange={(e) =>
                       setInp((prev) => ({
@@ -136,387 +178,349 @@ const EmployeeFormModal = ({
                         guardian: { ...prev.guardian, name: e.target.value },
                       }))
                     }
-                    label="Guardian Name"
-                    size="small"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ minWidth: 45 }}>
-                          <Select
-                            variant="standard"
-                            disableUnderline
-                            value={inp?.guardian?.relation || "S/o"}
-                            onChange={(e) =>
-                              setInp((prev) => ({
-                                ...prev,
-                                guardian: { ...prev.guardian, relation: e.target.value },
-                              }))
-                            }
-                          >
-                            <MenuItem value="S/o">S/o</MenuItem>
-                            <MenuItem value="D/o">D/o</MenuItem>
-                            <MenuItem value="H/o">H/o</MenuItem>
-                            <MenuItem value="W/o">W/o</MenuItem>
-                          </Select>
-                        </InputAdornment>
-                      ),
-                    }}
                   />
                 </div>
+              </div>
+            </div>
 
-                <div className="flex gap-2">
-                  <TextField
-                    fullWidth
-                    type="tel"
-                    value={inp.deviceUserId || ''}
-                    inputProps={{ maxLength: 1000, inputMode: 'numeric', pattern: '[0-9]*' }}
-                    onChange={(e) => {
-                      const onlyNums = e.target.value.replace(/\D/g, '');
-                      handleChange({ ...e, target: { ...e.target, value: onlyNums } }, 'deviceUserId');
-                    }}
-                    label="deviceUserId"
-                    size="small"
-                  />
-                  <TextField
-                    fullWidth
-                    value={inp.telegramId || ''}
-                    onChange={(e) => handleChange(e, 'telegramId')}
-                    label="Telegram Chat ID"
-                    size="small"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Biometric / Device User ID"
+                type="tel"
+                value={inp.deviceUserId || ''}
+                onChange={(e) => {
+                  const onlyNums = e.target.value.replace(/\D/g, '');
+                  handleChange({ ...e, target: { ...e.target, value: onlyNums } }, 'deviceUserId');
+                }}
+                placeholder="e.g. 101"
+              />
+              <Input
+                label="Telegram Chat ID"
+                value={inp.telegramId || ''}
+                onChange={(e) => handleChange(e, 'telegramId')}
+                placeholder="e.g. 987654321"
+              />
+            </div>
 
-                <div className="w-full flex justify-center">
-                  <div className="mt-1 w-fit text-center gap-2 relative">
-                    <input style={{ display: 'none' }} type="file" onChange={handlePhotoChange} ref={inputref} accept="image/*" id="fileInput" />
-                    {photoPreview ? (
-                      <img src={photoPreview} alt="Preview" className="mt-2 w-[100px] h-[100px] rounded-full object-cover" />
-                    ) : (
-                      <Avatar sx={{ width: 100, height: 100 }} alt={inp.employeeName} src="/static/images/avatar/1.jpg" />
-                    )}
-                    <span
-                      onClick={() => inputref.current && inputref.current.click()}
-                      className="absolute -bottom-1 -right-1 rounded-full bg-teal-900 text-white p-1 cursor-pointer"
-                    >
-                      <Edit2 size={16} />
-                    </span>
-                  </div>
-                </div>
-
-                {/* Personal Details (Accordion) */}
-                {isupdate && (
-                  <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                    <div
-                      className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                      onClick={() => toggleSection('personal')}
-                    >
-                      <span className="md:font-semibold text-[12px] md:text-sm text-left">Personal Details (Optional)</span>
-                      {openSection === 'personal' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </div>
-
-                    <div
-                      className={`
-                        rounded overflow-hidden transition-all duration-300 ease-linear
-                        ${openSection === 'personal' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                      `}
-                    >
-                      <Box sx={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: 2,
-                      }}>
-                        <TextField fullWidth value={inp.phone || ''} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'phone')} label="Phone" size="small" />
-                        <TextField fullWidth value={inp.Emergencyphone || ''} inputProps={{ maxLength: 10 }} onChange={(e) => handleChange(e, 'Emergencyphone')} label="Emergency/ Relative Phone" size="small" />
-                        <TextField fullWidth value={inp.address || ''} onChange={(e) => handleChange(e, 'address')} label="Address" size="small" />
-                        <TextField fullWidth value={inp.bloodGroup || ''} onChange={(e) => handleChange(e, 'bloodGroup')} label="Blood Group" size="small" />
-                        <TextField fullWidth inputProps={{ maxLength: 12 }} value={inp.adhaar || ''} onChange={(e) => handleChange(e, 'adhaar')} label="Adhaar No." size="small" />
-                        <TextField fullWidth inputProps={{ maxLength: 10 }} value={inp.pan || ''} onChange={(e) => handleChange(e, 'pan')} label="Pan No." size="small" />
-                        <TextField InputLabelProps={{ shrink: true }} fullWidth value={inp.dob || ''} type="date" onChange={(e) => handleChange(e, 'dob')} label="Date of Birth" size="small" />
-                        <FormControl size="small">
-                          <InputLabel>Marital Status</InputLabel>
-                          <Select
-                            label="maritalStatus"
-                            value={inp.maritalStatus}
-                            onChange={(e) => handleChange(e, 'maritalStatus')}
-                          >
-                            <MenuItem value={true}>Married</MenuItem>
-                            <MenuItem value={false}>Unmarried</MenuItem>
-                          </Select>
-                        </FormControl>
-                        <FormControl size="small">
-                          <InputLabel>Gender</InputLabel>
-                          <Select
-                            label="Gender"
-                            value={inp.gender}
-                            onChange={(e) => handleChange(e, 'gender')}
-                          >
-                            <MenuItem value='male'>Male</MenuItem>
-                            <MenuItem value='female'>Female</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </Box>
-                    </div>
+            {/* Profile Photo */}
+            <div className="w-full flex justify-center my-2">
+              <div className="w-fit text-center relative group">
+                <input style={{ display: 'none' }} type="file" onChange={handlePhotoChange} ref={inputref} accept="image/*" id="fileInput" />
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" className="w-24 h-24 rounded-full object-cover border-2 border-teal-600 shadow-sm" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+                    <User size={36} />
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => inputref.current && inputref.current.click()}
+                  className="absolute bottom-0 right-0 rounded-full bg-teal-800 hover:bg-teal-900 text-white p-2 shadow cursor-pointer transition"
+                >
+                  <Edit2 size={14} />
+                </button>
+              </div>
+            </div>
 
-                {/* Banking Details */}
-                {isupdate && (
-                  <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                    <div
-                      className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                      onClick={() => toggleSection('banking')}
-                    >
-                      <span className="md:font-semibold text-[12px] md:text-sm text-left">Banking Details (optional)</span>
-                      {openSection === 'banking' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </div>
+            {/* Personal Details Accordion */}
+            {isupdate && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-slate-50">
+                <button
+                  type="button"
+                  className="w-full flex justify-between items-center px-4 py-3 bg-teal-800 text-white font-semibold text-xs tracking-wider cursor-pointer"
+                  onClick={() => toggleSection('personal')}
+                >
+                  <span>PERSONAL DETAILS (OPTIONAL)</span>
+                  {openSection === 'personal' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
 
-                    <div
-                      className={`
-                        rounded overflow-hidden transition-all duration-300 ease-linear
-                        ${openSection === 'banking' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                      `}
+                {openSection === 'personal' && (
+                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white">
+                    <Input label="Phone" value={inp.phone || ''} maxLength={10} onChange={(e) => handleChange(e, 'phone')} />
+                    <Input label="Emergency Phone" value={inp.Emergencyphone || ''} maxLength={10} onChange={(e) => handleChange(e, 'Emergencyphone')} />
+                    <Input label="Address" value={inp.address || ''} onChange={(e) => handleChange(e, 'address')} />
+                    <Input label="Blood Group" value={inp.bloodGroup || ''} onChange={(e) => handleChange(e, 'bloodGroup')} />
+                    <Input label="Aadhaar No." value={inp.adhaar || ''} maxLength={12} onChange={(e) => handleChange(e, 'adhaar')} />
+                    <Input label="PAN No." value={inp.pan || ''} maxLength={10} onChange={(e) => handleChange(e, 'pan')} />
+                    <Input label="Date of Birth" type="date" value={inp.dob || ''} onChange={(e) => handleChange(e, 'dob')} />
+                    
+                    <Select
+                      label="Marital Status"
+                      value={inp.maritalStatus !== undefined ? String(inp.maritalStatus) : 'false'}
+                      onChange={(e) => handleChange({ ...e, target: { ...e.target, value: e.target.value === 'true' } }, 'maritalStatus')}
                     >
-                      <Box sx={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: 2,
-                      }}>
-                        <TextField fullWidth value={inp.acHolderName || ''} onChange={(e) => handleChange(e, 'acHolderName')} label="A/C Holder Name" size="small" />
-                        <TextField fullWidth value={inp.bankName || ''} onChange={(e) => handleChange(e, 'bankName')} label="Bank Name" size="small" />
-                        <TextField fullWidth value={inp.bankbranch || ''} onChange={(e) => handleChange(e, 'bankbranch')} label="Branch" size="small" />
-                        <TextField fullWidth value={inp.acnumber || ''} onChange={(e) => handleChange(e, 'acnumber')} label="A/C No." size="small" />
-                        <TextField fullWidth value={inp.ifscCode || ''} onChange={(e) => handleChange(e, 'ifscCode')} label="IFSC Code" size="small" />
-                        <TextField fullWidth value={inp.upi || ''} onChange={(e) => handleChange(e, 'upi')} label="Upi Id/No." size="small" />
-                      </Box>
-                    </div>
+                      <option value="true">Married</option>
+                      <option value="false">Unmarried</option>
+                    </Select>
+
+                    <Select
+                      label="Gender"
+                      value={inp.gender || 'male'}
+                      onChange={(e) => handleChange(e, 'gender')}
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </Select>
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Achievements and Education */}
-                {isupdate && (
-                  <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                    <div
-                      className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                      onClick={() => toggleSection('document')}
-                    >
-                      <span className="md:font-semibold text-[12px] md:text-sm text-left">Document & Skills (optional)</span>
-                      {openSection === 'document' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </div>
+            {/* Banking Details */}
+            {isupdate && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-slate-50">
+                <button
+                  type="button"
+                  className="w-full flex justify-between items-center px-4 py-3 bg-teal-800 text-white font-semibold text-xs tracking-wider cursor-pointer"
+                  onClick={() => toggleSection('banking')}
+                >
+                  <span>BANKING DETAILS (OPTIONAL)</span>
+                  {openSection === 'banking' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
 
-                    <div
-                      className={`
-                        rounded overflow-hidden transition-all duration-300 ease-linear flex gap-6 flex-col
-                        ${openSection === 'document' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                      `}
-                    >
-                      <div className="flex flex-col gap-2">
-                        <Typography fontWeight="bold">Achievements</Typography>
-                        {inp?.achievements?.map((ach, idx) => (
-                          <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 2, alignItems: 'center' }}>
-                            <TextField
-                              label="Title"
-                              size="small"
-                              value={ach.title || ''}
-                              onChange={(e) => handleNestedChange(e, 'achievements', idx, 'title')}
-                            />
-                            <TextField
-                              label="Description"
-                              size="small"
-                              value={ach.description || ''}
-                              onChange={(e) => handleNestedChange(e, 'achievements', idx, 'description')}
-                            />
-                            <TextField
-                              type="date"
-                              size="small"
-                              label="Date"
-                              InputLabelProps={{ shrink: true }}
-                              value={ach.date || ''}
-                              onChange={(e) => handleNestedChange(e, 'achievements', idx, 'date')}
-                            />
-                            <Trash2 size={20} className="text-red-500 hover:text-red-600 cursor-pointer" title="Delete this" onClick={() => removeItem('achievements', idx)} />
-                          </Box>
-                        ))}
-                        <Button onClick={() => addItem('achievements')} variant="outlined">Add Achievement</Button>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <Typography fontWeight="bold">Education</Typography>
-                        {inp?.education?.map((edu, idx) => (
-                          <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 2, alignItems: 'center' }}>
-                            <TextField
-                              label="Degree"
-                              size="small"
-                              value={edu.degree || ''}
-                              onChange={(e) => handleNestedChange(e, 'education', idx, 'degree')}
-                            />
-                            <TextField
-                              label="Institution"
-                              size="small"
-                              value={edu.institution || ''}
-                              onChange={(e) => handleNestedChange(e, 'education', idx, 'institution')}
-                            />
-                            <TextField
-                              type="date"
-                              size="small"
-                              label="Date"
-                              InputLabelProps={{ shrink: true }}
-                              value={edu.date || ''}
-                              onChange={(e) => handleNestedChange(e, 'education', idx, 'date')}
-                            />
-                            <Trash2 size={20} className="text-red-500 hover:text-red-600 cursor-pointer" title="Delete this" onClick={() => removeItem('education', idx)} />
-                          </Box>
-                        ))}
-                        <Button onClick={() => addItem('education')} variant="outlined">Add Education</Button>
-                      </div>
-                    </div>
+                {openSection === 'banking' && (
+                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white">
+                    <Input label="A/C Holder Name" value={inp.acHolderName || ''} onChange={(e) => handleChange(e, 'acHolderName')} />
+                    <Input label="Bank Name" value={inp.bankName || ''} onChange={(e) => handleChange(e, 'bankName')} />
+                    <Input label="Branch" value={inp.bankbranch || ''} onChange={(e) => handleChange(e, 'bankbranch')} />
+                    <Input label="A/C No." value={inp.acnumber || ''} onChange={(e) => handleChange(e, 'acnumber')} />
+                    <Input label="IFSC Code" value={inp.ifscCode || ''} onChange={(e) => handleChange(e, 'ifscCode')} />
+                    <Input label="UPI ID / Number" value={inp.upi || ''} onChange={(e) => handleChange(e, 'upi')} />
                   </div>
                 )}
+              </div>
+            )}
 
-                <div className="flex items-center gap-2">
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={inp.allowSeeLedger}
-                        onChange={(e) => setInp({ ...inp, allowSeeLedger: e.target.checked })}
-                        color="primary"
-                      />
-                    }
-                    label="Allow to see Ledger"
-                  />
-                </div>
+            {/* Achievements and Education */}
+            {isupdate && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-slate-50">
+                <button
+                  type="button"
+                  className="w-full flex justify-between items-center px-4 py-3 bg-teal-800 text-white font-semibold text-xs tracking-wider cursor-pointer"
+                  onClick={() => toggleSection('document')}
+                >
+                  <span>DOCUMENTS & SKILLS (OPTIONAL)</span>
+                  {openSection === 'document' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
 
-                <FormControlLabel
-                  label="Override Payroll Policies"
-                  control={
-                    <Switch
-                      checked={inp.overridedefaultPolicies}
-                      onChange={() =>
-                        setInp(prev => ({
-                          ...prev,
-                          overridedefaultPolicies: !inp.overridedefaultPolicies,
-                        }))
-                      }
-                      color="primary"
-                    />
-                  }
-                  sx={{ mt: 2 }}
-                />
-
-                {/* Payroll Policies */}
-                {isupdate && inp.overridedefaultPolicies && (
-                  <div className='border flex flex-col w-full shadow-lg bg-slate-50 border-dashed border-slate-400 rounded-md'>
-                    <div
-                      className="flex justify-between items-center cursor-pointer bg-primary text-white px-4 py-2 rounded-md"
-                      onClick={() => toggleSection('policy')}
-                    >
-                      <span className="md:font-semibold text-[12px] md:text-sm text-left">Payroll Policies</span>
-                      {openSection === 'policy' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                {openSection === 'document' && (
+                  <div className="p-4 flex flex-col gap-5 bg-white">
+                    <div className="flex flex-col gap-2">
+                      <p className="font-bold text-xs text-slate-800 uppercase tracking-wider">Achievements</p>
+                      {inp?.achievements?.map((ach, idx) => (
+                        <div key={idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-center border p-2.5 rounded-xl border-slate-200 bg-slate-50">
+                          <input
+                            placeholder="Title"
+                            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                            value={ach.title || ''}
+                            onChange={(e) => handleNestedChange(e, 'achievements', idx, 'title')}
+                          />
+                          <input
+                            placeholder="Description"
+                            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                            value={ach.description || ''}
+                            onChange={(e) => handleNestedChange(e, 'achievements', idx, 'description')}
+                          />
+                          <input
+                            type="date"
+                            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                            value={ach.date || ''}
+                            onChange={(e) => handleNestedChange(e, 'achievements', idx, 'date')}
+                          />
+                          <button
+                            type="button"
+                            className="p-2 text-rose-500 hover:text-rose-700 justify-self-center cursor-pointer"
+                            onClick={() => removeItem('achievements', idx)}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => addItem('achievements')}
+                        className="px-3 py-1.5 rounded-lg border border-teal-600 text-teal-800 text-xs font-bold hover:bg-teal-50 transition w-fit cursor-pointer"
+                      >
+                        + Add Achievement
+                      </button>
                     </div>
 
-                    <div
-                      className={`
-                        rounded overflow-hidden transition-all duration-300 ease-linear flex gap-6 flex-col
-                        ${openSection === 'policy' ? 'max-h-[500px] p-2 my-2' : 'max-h-0 p-0 my-0'}
-                      `}
-                    >
-                      <div className="flex flex-col gap-3">
-                        {['allowances', 'bonuses', 'deductions'].map((type) => {
-                          const policies = inp?.[type] || [];
-                          return (
-                            <div className="flex flex-col shadow-lg gap-2 px-2 pb-2 my-2 border rounded border-dashed relative border-primary" key={type}>
-                              <p className="capitalize absolute t-0 -translate-y-1/2 l-2 bg-white px-2">{type}</p>
-                              <div className="mt-6 flex flex-col gap-2">
-                                {policies.map((item, idx) => (
-                                  <div key={idx} className="flex items-center gap-2 mb-2">
-                                    <TextField
-                                      label="Name"
-                                      size="small"
-                                      required
-                                      className="flex-1"
-                                      value={item.name || ''}
-                                      onChange={(e) => {
-                                        const updated = policies.map((policy, i) =>
-                                          i === idx ? { ...policy, name: e.target.value } : policy
-                                        );
-                                        setInp({ ...inp, [type]: updated });
-                                      }}
-                                    />
-                                    <Select
-                                      size="small"
-                                      className="w-[120px]"
-                                      value={item.type}
-                                      onChange={(e) => {
-                                        const updated = policies.map((policy, i) =>
-                                          i === idx ? { ...policy, type: e.target.value } : policy
-                                        );
-                                        setInp({ ...inp, [type]: updated });
-                                      }}
-                                    >
-                                      <MenuItem value="amount">Amount</MenuItem>
-                                    </Select>
-                                    <TextField
-                                      label={item.type === 'amount' ? '₹' : '%'}
-                                      type="number"
-                                      size="small"
-                                      value={item.value || ''}
-                                      required
-                                      className="w-[90px]"
-                                      onChange={(e) => {
-                                        const updated = policies.map((policy, i) =>
-                                          i === idx ? { ...policy, value: Number(e.target.value) } : policy
-                                        );
-                                        setInp({ ...inp, [type]: updated });
-                                      }}
-                                    />
-                                    <Trash2
-                                      size={18}
-                                      className="text-red-500 hover:text-red-600 cursor-pointer"
-                                      onClick={() => {
-                                        const updated = policies.filter((_, i) => i !== idx);
-                                        setInp({ ...inp, [type]: updated });
-                                      }}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() =>
-                                  setInp({
-                                    ...inp,
-                                    [type]: [
-                                      ...policies,
-                                      { name: '', type: 'amount', value: 0 }
-                                    ]
-                                  })
-                                }
-                              >
-                                + Add more {type.slice(0, -1)}
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div className="flex flex-col gap-2">
+                      <p className="font-bold text-xs text-slate-800 uppercase tracking-wider">Education</p>
+                      {inp?.education?.map((edu, idx) => (
+                        <div key={idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-center border p-2.5 rounded-xl border-slate-200 bg-slate-50">
+                          <input
+                            placeholder="Degree"
+                            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                            value={edu.degree || ''}
+                            onChange={(e) => handleNestedChange(e, 'education', idx, 'degree')}
+                          />
+                          <input
+                            placeholder="Institution"
+                            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                            value={edu.institution || ''}
+                            onChange={(e) => handleNestedChange(e, 'education', idx, 'institution')}
+                          />
+                          <input
+                            type="date"
+                            className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                            value={edu.date || ''}
+                            onChange={(e) => handleNestedChange(e, 'education', idx, 'date')}
+                          />
+                          <button
+                            type="button"
+                            className="p-2 text-rose-500 hover:text-rose-700 justify-self-center cursor-pointer"
+                            onClick={() => removeItem('education', idx)}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => addItem('education')}
+                        className="px-3 py-1.5 rounded-lg border border-teal-600 text-teal-800 text-xs font-bold hover:bg-teal-50 transition w-fit cursor-pointer"
+                      >
+                        + Add Education
+                      </button>
                     </div>
                   </div>
                 )}
               </div>
-            </span>
+            )}
 
-            <div className="modalfooter">
-              <Button size="small" onClick={onClose} variant="outlined">Cancel</Button>
-              {!isupdate ? (
-                <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit">
-                  Add
-                </Button>
-              ) : (
-                <Button sx={{ mr: 2 }} loading={isload} loadingPosition="end" endIcon={<Send size={16} />} variant="contained" type="submit">
-                  Update
-                </Button>
-              )}
+            {/* Toggle Switches */}
+            <div className="flex flex-col gap-2.5 pt-2">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={inp.allowSeeLedger || false}
+                  onChange={(e) => setInp({ ...inp, allowSeeLedger: e.target.checked })}
+                  className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                />
+                <span className="text-xs font-semibold text-slate-700">Allow employee to view personal Ledger</span>
+              </label>
+
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={inp.overridedefaultPolicies || false}
+                  onChange={() =>
+                    setInp(prev => ({
+                      ...prev,
+                      overridedefaultPolicies: !inp.overridedefaultPolicies,
+                    }))
+                  }
+                  className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                />
+                <span className="text-xs font-semibold text-slate-700">Override Default Payroll Policies</span>
+              </label>
             </div>
-          </form>
-        </div>
+
+            {/* Override Payroll Policies */}
+            {isupdate && inp.overridedefaultPolicies && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-slate-50">
+                <button
+                  type="button"
+                  className="w-full flex justify-between items-center px-4 py-3 bg-teal-800 text-white font-semibold text-xs tracking-wider cursor-pointer"
+                  onClick={() => toggleSection('policy')}
+                >
+                  <span>CUSTOM PAYROLL POLICIES</span>
+                  {openSection === 'policy' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+
+                {openSection === 'policy' && (
+                  <div className="p-4 flex flex-col gap-4 bg-white">
+                    {['allowances', 'bonuses', 'deductions'].map((type) => {
+                      const policies = inp?.[type] || [];
+                      return (
+                        <div key={type} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2.5">
+                          <p className="text-xs font-bold text-teal-900 uppercase tracking-wider">{type}</p>
+                          <div className="space-y-2">
+                            {policies.map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <input
+                                  placeholder="Component Name"
+                                  className="flex-1 h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                                  value={item.name || ''}
+                                  onChange={(e) => {
+                                    const updated = policies.map((policy, i) =>
+                                      i === idx ? { ...policy, name: e.target.value } : policy
+                                    );
+                                    setInp({ ...inp, [type]: updated });
+                                  }}
+                                  required
+                                />
+                                <select
+                                  className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none"
+                                  value={item.type || 'amount'}
+                                  onChange={(e) => {
+                                    const updated = policies.map((policy, i) =>
+                                      i === idx ? { ...policy, type: e.target.value } : policy
+                                    );
+                                    setInp({ ...inp, [type]: updated });
+                                  }}
+                                >
+                                  <option value="amount">₹ (Fixed)</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  placeholder="Value"
+                                  className="w-24 h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                                  value={item.value || ''}
+                                  onChange={(e) => {
+                                    const updated = policies.map((policy, i) =>
+                                      i === idx ? { ...policy, value: Number(e.target.value) } : policy
+                                    );
+                                    setInp({ ...inp, [type]: updated });
+                                  }}
+                                  required
+                                />
+                                <button
+                                  type="button"
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 cursor-pointer"
+                                  onClick={() => {
+                                    const updated = policies.filter((_, i) => i !== idx);
+                                    setInp({ ...inp, [type]: updated });
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            className="text-xs font-bold text-teal-800 hover:text-teal-950 cursor-pointer"
+                            onClick={() =>
+                              setInp({
+                                ...inp,
+                                [type]: [
+                                  ...policies,
+                                  { name: '', type: 'amount', value: 0 }
+                                ]
+                              })
+                            }
+                          >
+                            + Add {type.slice(0, -1)}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" loading={isload} type="submit">
+              {isupdate ? "Update Employee" : "Add Employee"}
+            </Button>
+          </div>
+        </form>
       </div>
     </Modalbox>
   );
