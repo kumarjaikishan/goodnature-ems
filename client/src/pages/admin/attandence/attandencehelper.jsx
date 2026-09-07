@@ -132,21 +132,21 @@ export const columns = ({
         const hasPhoto = Boolean(row?.employeeId?.profileimage);
 
         return (
-          <div className="flex items-center gap-3 py-1.5">
+          <div className="flex items-center gap-2.5 py-0.5">
             {hasPhoto ? (
               <img
                 alt={empName}
-                className="w-[38px] h-[38px] rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
+                className="w-[30px] h-[30px] rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
                 src={cloudinaryUrl(row?.employeeId?.profileimage, {
                   format: "webp",
-                  width: 90,
-                  height: 90,
+                  width: 70,
+                  height: 70,
                 })}
               />
             ) : (
               <div
                 style={{ backgroundColor: palette.bg, color: palette.text }}
-                className="w-[38px] h-[38px] rounded-full flex items-center justify-center font-bold text-xs tracking-wider shrink-0 select-none shadow-2xs"
+                className="w-[30px] h-[30px] rounded-full flex items-center justify-center font-bold text-[11px] tracking-wider shrink-0 select-none shadow-2xs"
               >
                 {initials}
               </div>
@@ -156,7 +156,7 @@ export const columns = ({
                 {empName}
               </span>
               {deptName ? (
-                <span className="text-[11px] text-slate-400 font-medium truncate leading-tight mt-0.5">
+                <span className="text-[10px] text-slate-400 font-medium truncate leading-tight">
                   {deptName}
                 </span>
               ) : null}
@@ -363,13 +363,13 @@ export const useCustomStyles = () => {
       style: {
         backgroundColor: "#134e4a", // Deep Teal 900
         fontWeight: "600",
-        fontSize: "12px",
+        fontSize: "11px",
         letterSpacing: "0.03em",
         textTransform: "uppercase",
         color: "#ffffff",
-        paddingLeft: "14px",
-        paddingRight: "14px",
-        minHeight: "44px",
+        paddingLeft: "12px",
+        paddingRight: "12px",
+        minHeight: "38px",
       },
     },
     headRow: {
@@ -379,7 +379,7 @@ export const useCustomStyles = () => {
     },
     rows: {
       style: {
-        minHeight: "42px",
+        minHeight: "36px",
         borderBottom: "1px solid #f1f5f9",
         "&:hover": {
           backgroundColor: "#f8fafc",
@@ -388,10 +388,10 @@ export const useCustomStyles = () => {
     },
     cells: {
       style: {
-        paddingLeft: "14px",
-        paddingRight: "14px",
-        paddingTop: "4px",
-        paddingBottom: "4px",
+        paddingLeft: "12px",
+        paddingRight: "12px",
+        paddingTop: "2px",
+        paddingBottom: "2px",
       },
     },
   };
