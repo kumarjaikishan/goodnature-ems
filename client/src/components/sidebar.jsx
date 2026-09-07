@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { swal } from "../utils/confirmDialog";
 import {
@@ -26,6 +26,7 @@ import { cloudinaryUrl } from "../utils/imageurlsetter";
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { company: adminCompany, profile: adminProfile } = useSelector((state) => state.user);
   const { companysetting: empCompany, profile: empProfile } = useSelector((state) => state.employee);
 
@@ -147,8 +148,31 @@ const Sidebar = () => {
 
   const showText = isMobile ? sidebarOpen && extended : sidebarOpen;
 
+  // Auto-expand parent submenu if current route matches any child link
   useEffect(() => {
-    setOpenSubmenu(null);
+    let activeId = null;
+    menu.forEach((section, sIndex) => {
+      section.items.forEach((item, iIndex) => {
+        if (item.children) {
+          const hasActiveChild = item.children.some((child) => {
+            if (!child.link) return false;
+            if (location.pathname === child.link) return true;
+            if (child.link !== '/dashboard' && location.pathname.startsWith(child.link)) return true;
+            return false;
+          });
+          if (hasActiveChild) {
+            activeId = `${sIndex}-${iIndex}`;
+          }
+        }
+      });
+    });
+
+    if (activeId) {
+      setOpenSubmenu(activeId);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
     setHoveredMenu(null);
     setAnchorEl(null);
   }, [showText]);
@@ -207,6 +231,13 @@ const Sidebar = () => {
                   : hoveredMenu === menuId;
 
                 if (item.children) {
+                  const isChildActive = item.children.some((child) => {
+                    if (!child.link) return false;
+                    if (location.pathname === child.link) return true;
+                    if (child.link !== '/dashboard' && location.pathname.startsWith(child.link)) return true;
+                    return false;
+                  });
+
                   return (
                     <div
                       key={item.menu}
@@ -233,16 +264,22 @@ const Sidebar = () => {
                           showText
                             ? "justify-between px-3 py-2 text-slate-700 hover:text-teal-900 hover:bg-teal-50/80"
                             : "justify-center h-10 w-full text-slate-600 hover:text-teal-800 hover:bg-teal-50"
-                        } ${isOpen && showText ? "bg-teal-50/60 text-teal-900 font-semibold" : ""}`}
+                        } ${
+                          isChildActive
+                            ? "bg-teal-50/90 text-teal-900 font-semibold border border-teal-200/80"
+                            : isOpen && showText
+                            ? "bg-teal-50/50 text-teal-900 font-semibold"
+                            : ""
+                        }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <span className={`text-[17px] transition-colors ${isOpen ? "text-teal-700" : "text-slate-500"}`}>
+                          <span className={`text-[17px] transition-colors ${isChildActive ? "text-teal-700" : isOpen ? "text-teal-600" : "text-slate-500"}`}>
                             {item.icon}
                           </span>
                           {showText && <span className="truncate">{item.menu}</span>}
                         </div>
                         {showText && (
-                          <span className="text-slate-400">
+                          <span className={`${isChildActive ? "text-teal-700" : "text-slate-400"}`}>
                             {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                           </span>
                         )}
