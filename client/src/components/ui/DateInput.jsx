@@ -23,6 +23,7 @@ export const DateInput = forwardRef(({
   min,
   max,
   id,
+  align = 'left', // 'left' | 'right'
   placeholder = 'Select date',
   ...props
 }, ref) => {
@@ -184,8 +185,8 @@ export const DateInput = forwardRef(({
       {/* Custom Popup DatePicker Modal / Card */}
       {isOpen && (
         <div
-          className="absolute left-0 top-full mt-1 z-50 w-[270px] sm:w-[285px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in fade-in zoom-in-95 duration-150"
-          style={{ transformOrigin: 'top left' }}
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 z-50 w-[270px] sm:w-[285px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in fade-in zoom-in-95 duration-150`}
+          style={{ transformOrigin: align === 'right' ? 'top right' : 'top left' }}
         >
           {/* Header Month / Year Navigation */}
           <div className="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-100">

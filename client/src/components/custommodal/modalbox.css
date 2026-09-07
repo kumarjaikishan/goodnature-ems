@@ -17,7 +17,7 @@
         width: fit-content;
         max-width: 95vw;
         max-height: 90vh;
-        overflow-y: auto;
+        overflow: visible;
         border-radius: 1rem;
         background: #ffffff;
         border: 1px solid #e2e8f0;

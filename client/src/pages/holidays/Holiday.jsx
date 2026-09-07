@@ -602,7 +602,7 @@ const HolidayForm = () => {
 
       {/* Add / Edit Holiday Modal */}
       <Modalbox open={open} onClose={() => setopen(false)}>
-        <div className="w-full max-w-xl p-6 bg-white rounded-2xl">
+        <div className="w-[92vw] sm:w-[480px] md:w-[520px] p-6 bg-white rounded-2xl">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
               <h3 className="text-base font-semibold text-slate-900">
@@ -637,6 +637,7 @@ const HolidayForm = () => {
                 <DateInput
                   label="To Date"
                   required
+                  align="right"
                   value={form.toDate}
                   onChange={(val) => setForm(prev => ({ ...prev, toDate: val }))}
                 />
