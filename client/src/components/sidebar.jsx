@@ -150,9 +150,10 @@ const Sidebar = () => {
 
   // Auto-expand parent submenu if current route matches any child link
   useEffect(() => {
-    let activeId = null;
-    menu.forEach((section, sIndex) => {
-      section.items.forEach((item, iIndex) => {
+    let activeMenuKey = null;
+    menu.forEach((section) => {
+      const allowedItems = section.items.filter((item) => item.roles.includes(role));
+      allowedItems.forEach((item) => {
         if (item.children) {
           const hasActiveChild = item.children.some((child) => {
             if (!child.link) return false;
@@ -161,16 +162,16 @@ const Sidebar = () => {
             return false;
           });
           if (hasActiveChild) {
-            activeId = `${sIndex}-${iIndex}`;
+            activeMenuKey = item.menu;
           }
         }
       });
     });
 
-    if (activeId) {
-      setOpenSubmenu(activeId);
+    if (activeMenuKey) {
+      setOpenSubmenu(activeMenuKey);
     }
-  }, [location.pathname]);
+  }, [location.pathname, role]);
 
   useEffect(() => {
     setHoveredMenu(null);
@@ -224,8 +225,8 @@ const Sidebar = () => {
             )}
 
             <div className="space-y-1">
-              {filteredItems.map((item, iIndex) => {
-                const menuId = `${sIndex}-${iIndex}`;
+              {filteredItems.map((item) => {
+                const menuId = item.menu;
                 const isOpen = showText
                   ? openSubmenu === menuId
                   : hoveredMenu === menuId;
