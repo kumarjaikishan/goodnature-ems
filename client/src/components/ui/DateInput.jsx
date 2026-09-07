@@ -184,27 +184,27 @@ export const DateInput = forwardRef(({
       {/* Custom Popup DatePicker Modal / Card */}
       {isOpen && (
         <div
-          className="absolute left-0 top-full mt-1.5 z-50 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-3.5 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute left-0 top-full mt-1 z-50 w-[270px] sm:w-[285px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in fade-in zoom-in-95 duration-150"
           style={{ transformOrigin: 'top left' }}
         >
           {/* Header Month / Year Navigation */}
-          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-100">
             <div className="flex items-center gap-0.5">
               <button
                 type="button"
                 title="Previous Year"
                 onClick={() => setViewDate(viewDate.subtract(1, 'year'))}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <ChevronsLeft size={16} />
+                <ChevronsLeft size={15} />
               </button>
               <button
                 type="button"
                 title="Previous Month"
                 onClick={() => setViewDate(viewDate.subtract(1, 'month'))}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={15} />
               </button>
             </div>
 
@@ -217,27 +217,27 @@ export const DateInput = forwardRef(({
                 type="button"
                 title="Next Month"
                 onClick={() => setViewDate(viewDate.add(1, 'month'))}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={15} />
               </button>
               <button
                 type="button"
                 title="Next Year"
                 onClick={() => setViewDate(viewDate.add(1, 'year'))}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <ChevronsRight size={16} />
+                <ChevronsRight size={15} />
               </button>
             </div>
           </div>
 
           {/* Days of Week Header */}
-          <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+          <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
             {daysHeader.map((d, i) => (
               <span
                 key={i}
-                className={`text-[11px] font-bold py-0.5 ${
+                className={`text-[10px] font-bold py-0.5 ${
                   d.isWeekend ? 'text-rose-500' : 'text-slate-500'
                 }`}
               >
@@ -247,7 +247,7 @@ export const DateInput = forwardRef(({
           </div>
 
           {/* Day Numbers Grid */}
-          <div className="grid grid-cols-7 gap-1 text-center">
+          <div className="grid grid-cols-7 gap-0.5 text-center">
             {allCalendarDays.map((item, idx) => {
               const isSelected =
                 isValidDate &&
@@ -260,7 +260,7 @@ export const DateInput = forwardRef(({
                   type="button"
                   onClick={() => handleSelectDate(item.date)}
                   className={`
-                    h-8 w-8 mx-auto flex items-center justify-center text-xs font-semibold rounded-full transition-all cursor-pointer
+                    h-7 w-7 mx-auto flex items-center justify-center text-[11px] font-semibold rounded-full transition-all cursor-pointer
                     ${
                       isSelected
                         ? 'bg-teal-700 text-white shadow-md font-bold scale-105 ring-2 ring-teal-200'
@@ -279,20 +279,20 @@ export const DateInput = forwardRef(({
           </div>
 
           {/* Footer with Shortcuts */}
-          <div className="flex items-center justify-between pt-3 mt-2.5 border-t border-slate-100 text-xs">
+          <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 text-xs">
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={handleYesterday}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:bg-teal-50 hover:text-teal-800 transition-colors cursor-pointer flex items-center gap-1"
+                className="px-2 py-0.5 rounded-md text-[10px] font-semibold text-slate-600 hover:bg-teal-50 hover:text-teal-800 transition-colors cursor-pointer flex items-center gap-1"
               >
-                <RotateCcw size={11} className="text-slate-400" />
+                <RotateCcw size={10} className="text-slate-400" />
                 Yesterday
               </button>
               <button
                 type="button"
                 onClick={handleToday}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-700 hover:text-white transition-all cursor-pointer shadow-2xs"
+                className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-700 hover:text-white transition-all cursor-pointer shadow-2xs"
               >
                 Today
               </button>
@@ -301,7 +301,7 @@ export const DateInput = forwardRef(({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-[11px] font-semibold text-slate-400 hover:text-slate-700 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+              className="text-[10px] font-semibold text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded-md transition-colors cursor-pointer"
             >
               Close
             </button>
