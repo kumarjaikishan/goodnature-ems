@@ -302,7 +302,9 @@ const PlotSponsors = () => {
             )}
           </div>
           <div>
-            <span className="font-semibold text-slate-900 block leading-tight">{row.name}</span>
+            <span className="font-semibold text-slate-900 block leading-tight">
+              {row.name?.replace(/\s*\([^)]*\)/g, '') || row.name}
+            </span>
           </div>
         </div>
       ),
@@ -314,12 +316,32 @@ const PlotSponsors = () => {
       width: '140px',
     },
     {
-      name: 'Referring Sponsor',
-      selector: (row) => row.sponsorId?.name ? `${row.sponsorId.name} (${row.sponsorId.sponsorCode || ''})` : 'Company (Direct)',
+      name: 'Designation / Role',
+      selector: (row) => row.sponsorId ? 'Business Associate' : 'Business Partner',
+      cell: (row) => (
+        <span
+          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+            !row.sponsorId
+              ? 'bg-amber-50 text-amber-800 border border-amber-200'
+              : 'bg-blue-50 text-blue-800 border border-blue-200'
+          }`}
+        >
+          {!row.sponsorId ? '👑 Business Partner' : '👥 Business Associate'}
+        </span>
+      ),
+      sortable: true,
+      width: '160px',
+    },
+    {
+      name: 'Parent Partner',
+      selector: (row) => row.sponsorId?.name ? `${row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')} (${row.sponsorId.sponsorCode || ''})` : 'Company Direct',
       cell: (row) => (
         <span className="text-xs font-medium text-slate-700">
           {row.sponsorId?.name ? (
-            <span className="font-semibold text-slate-900">{row.sponsorId.name} <span className="font-mono text-slate-500">({row.sponsorId.sponsorCode || ''})</span></span>
+            <span className="font-semibold text-slate-900">
+              {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}{' '}
+              <span className="font-mono text-slate-500">({row.sponsorId.sponsorCode || ''})</span>
+            </span>
           ) : (
             <span className="text-emerald-700 font-bold">🏢 Company Direct</span>
           )}
@@ -481,24 +503,24 @@ const PlotSponsors = () => {
             <h2>{editingSponsor ? 'Edit Sponsor' : 'Add New Sponsor'}</h2>
             <div className="modalcontent space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Referring Sponsor / Direct Company *</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Hierarchy Level / Referring Partner *</label>
                 <select
                   required
                   value={formData.sponsorId}
                   onChange={(e) => setFormData({ ...formData, sponsorId: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none bg-white font-medium text-slate-800"
                 >
-                  <option value="direct">🏢 Company Direct (Becomes a Developer Sponsor)</option>
+                  <option value="direct">🏢 Company Direct (Becomes a Business Partner)</option>
                   {sponsors
                     .filter((s) => s._id !== editingSponsor?._id && !s.sponsorId)
                     .map((sp) => (
                       <option key={sp._id} value={sp._id}>
-                        👑 {sp.name} ({sp.sponsorCode || 'Developer Sponsor'})
+                        👑 {sp.name} ({sp.sponsorCode || 'Business Partner'})
                       </option>
                     ))}
                 </select>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  2-Level Hierarchy: Selecting <strong>Company Direct</strong> creates a <strong>Developer Sponsor</strong>. Selecting an existing Developer Sponsor creates a <strong>Sub-Sponsor</strong>.
+                  2-Level Hierarchy: Selecting <strong>Company Direct</strong> creates a <strong>Business Partner</strong>. Selecting an existing Business Partner creates a <strong>Business Associate</strong> under them.
                 </p>
               </div>
 
@@ -840,11 +862,11 @@ const PlotSponsors = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Referring Sponsor</p>
-                    <p className="font-bold text-purple-700">
+                    <p className="text-xs text-slate-400 font-semibold uppercase">Hierarchy Role</p>
+                    <p className="font-bold text-teal-800">
                       {viewingSponsor.sponsorId?.name
-                        ? `${viewingSponsor.sponsorId.name} (${viewingSponsor.sponsorId.sponsorCode || ''})`
-                        : '🏢 Company (Direct)'}
+                        ? `👥 Business Associate (under ${viewingSponsor.sponsorId.name})`
+                        : '👑 Business Partner (Direct Company)'}
                     </p>
                   </div>
                 </div>

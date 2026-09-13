@@ -319,9 +319,9 @@ const CreateAgreementModal = ({
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
               <div className="flex items-center gap-2">
-                <Layers className="text-teal-700" size={18} />
-                <h4 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
-                  Land Parcels & Plot Breakdown ({parcels.length})
+                <h4 className="text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers size={16} className="text-teal-700" />
+                  <span>1. Land & Plot Particulars (जमीन एवं खेसरा विवरण) *</span>
                 </h4>
               </div>
               <button
@@ -330,15 +330,15 @@ const CreateAgreementModal = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer self-start sm:self-auto"
               >
                 <Plus size={14} />
-                <span>Add Land Parcel / Khesra</span>
+                <span>Add Land / Plot Row</span>
               </button>
             </div>
 
             {/* Live Aggregate KPI Banner */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-teal-50/60 p-3 rounded-2xl border border-teal-200/80">
               <div className="bg-white p-2.5 rounded-xl border border-teal-100 shadow-2xs">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Total Parcels</div>
-                <div className="text-sm font-black text-slate-800 mt-0.5">{parcels.length} Plot(s)</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Total Plots / Land</div>
+                <div className="text-sm font-black text-slate-800 mt-0.5">{parcels.length} Detail(s)</div>
               </div>
               <div className="bg-white p-2.5 rounded-xl border border-teal-100 shadow-2xs">
                 <div className="text-[10px] uppercase font-bold text-teal-800">Total Arazi (Dismil)</div>
@@ -372,7 +372,7 @@ const CreateAgreementModal = ({
                       <span className="w-5 h-5 bg-teal-700 text-white rounded-full flex items-center justify-center text-[10px]">
                         {idx + 1}
                       </span>
-                      <span>Parcel #{idx + 1} Particulars</span>
+                      <span>Land Detail #{idx + 1}</span>
                     </span>
                     <div className="flex items-center gap-2">
                       <button

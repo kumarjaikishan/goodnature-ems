@@ -42,9 +42,9 @@ const KisanLedgersDrawer = ({
 
   return (
     <Modalbox open={open} onClose={onClose} outside={true} maxWidth="max-w-5xl" showClose={false}>
-      <div className="p-5 md:p-6 space-y-5">
-        {/* Modal Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
+      <div className="flex flex-col max-h-[88vh] overflow-hidden">
+        {/* Sticky Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 p-5 md:p-6 pb-4 gap-3 bg-white shrink-0">
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-lg font-black text-teal-900">
@@ -75,21 +75,21 @@ const KisanLedgersDrawer = ({
                   </strong>
                 </span>
               )}
-              {' '}• Total Parcels: <strong className="text-teal-800">{parcels.length} Plot(s)</strong> • Total Area:{' '}
+              {' '}• Total Plots: <strong className="text-teal-800">{parcels.length} Plot(s)</strong> • Total Area:{' '}
               <strong className="text-slate-800">{agr.araziDismil} Dismil ({agr.totalSqFt?.toLocaleString('en-IN')} Sq.Ft.)</strong>
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 cursor-pointer text-base self-end sm:self-center"
+            className="p-2 text-slate-400 hover:text-slate-600 cursor-pointer text-base self-end sm:self-center rounded-lg hover:bg-slate-100 transition-colors"
           >
             ✕
           </button>
         </div>
 
-        {/* ── AGREEMENT DETAILS BODY ── */}
-        <div className="space-y-5 text-xs">
+        {/* ── AGREEMENT DETAILS BODY (SCROLLABLE) ── */}
+        <div className="p-5 md:p-6 pt-4 space-y-5 text-xs overflow-y-auto flex-1">
           {/* Top Summary Banner */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             <div>
@@ -111,9 +111,9 @@ const KisanLedgersDrawer = ({
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block uppercase font-bold">Total Land Parcels</span>
+              <span className="text-[10px] text-slate-400 block uppercase font-bold">Total Land / Plots</span>
               <span className="font-bold text-slate-800 text-sm">
-                {parcels.length} Parcel / Plot(s)
+                {parcels.length} Land Detail(s)
               </span>
             </div>
             <div>
@@ -136,11 +136,11 @@ const KisanLedgersDrawer = ({
             </div>
           )}
 
-          {/* Section 1: Multi-Parcel Land Particulars */}
+          {/* Section 1: Land Particulars */}
           <div className="space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
               <Layers size={16} className="text-teal-700" />
-              <span>Land Parcels & Plot Particulars ({parcels.length})</span>
+              <span>Land & Plot Details ({parcels.length})</span>
             </div>
 
             <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">

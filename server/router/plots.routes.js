@@ -16,6 +16,10 @@ router.post('/upload-media', upload.single('file'), ctrl.uploadMedia);
 router.get('/rate-config', checkPermission('plot_inventory', 1), ctrl.getRateConfig);
 router.put('/rate-config', checkPermission('plot_inventory', 3), ctrl.updateRateConfig);
 
+// ── Commission Policy Config (Quarterly Target & Fixed Slabs) ──
+router.get('/commission-policy', checkPermission('plot_inventory', 1), ctrl.getCommissionPolicy);
+router.put('/commission-policy', checkPermission('plot_inventory', 3), ctrl.updateCommissionPolicy);
+
 // ── Series Master (inventory setup) ──
 router.post('/series', checkPermission('plot_inventory', 2), ctrl.createSeries);
 router.get('/series', checkPermission('plot_inventory', 1), ctrl.getSeriesList);

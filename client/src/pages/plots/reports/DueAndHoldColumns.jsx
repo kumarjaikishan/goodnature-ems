@@ -96,14 +96,55 @@ export const getDueColumns = ({ navigate }) => [
   },
   {
     name: 'EMIs Paid',
-    selector: (row) => row.paidInstallmentsCount || 0,
-    cell: (row) => (
-      <span className="font-semibold text-slate-800 whitespace-nowrap text-xs">
-        {row.totalInstallmentsCount > 0 ? `${row.paidInstallmentsCount} / ${row.totalInstallmentsCount}` : '1 / 1'}
-      </span>
-    ),
+    selector: (row) => row.paidEmisCount !== undefined ? row.paidEmisCount : (row.paidInstallmentsCount || 0),
+    cell: (row) => {
+      if (row.scheme === 'FULL_PAYMENT') {
+        return (
+          <div className="flex flex-col text-xs">
+            <span className="font-semibold text-slate-800 whitespace-nowrap">
+              {row.dueStatus === 'COMPLETED' ? '1 / 1 Paid' : '0 / 1 Paid'}
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">One Time</span>
+          </div>
+        );
+      }
+
+      const totalEmis = row.totalEmisCount !== undefined
+        ? row.totalEmisCount
+        : (row.totalInstallmentsCount > 0 ? (row.hasDownpayment ? row.totalInstallmentsCount - 1 : row.totalInstallmentsCount) : (row.tenureMonths || 0));
+      const paidEmis = row.paidEmisCount !== undefined
+        ? row.paidEmisCount
+        : (row.paidInstallmentsCount || 0);
+
+      const dpBadge = row.hasDownpayment ? (
+        <span
+          className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+            row.downpaymentPaid
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-amber-50 text-amber-700 border border-amber-200'
+          }`}
+          title={row.downpaymentPaid ? 'Down Payment Received' : 'Down Payment Due'}
+        >
+          {row.downpaymentPaid ? 'DP: Paid' : 'DP: Due'}
+        </span>
+      ) : null;
+
+      return (
+        <div className="flex flex-col gap-0.5 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-900 font-mono">
+              {totalEmis > 0 ? `${paidEmis} / ${totalEmis}` : '-'}
+            </span>
+            {dpBadge}
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">
+            {totalEmis > 0 ? `${paidEmis} of ${totalEmis} EMIs` : 'EMI Scheme'}
+          </span>
+        </div>
+      );
+    },
     sortable: true,
-    minWidth: '85px',
+    minWidth: '120px',
   },
   {
     name: 'Status',

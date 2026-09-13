@@ -12,8 +12,8 @@ const DeleteBookingModal = ({ bookingToDelete, onClose, onConfirm, deletingId })
   const hasCollections = paidAmt > 0;
 
   return (
-    <Modalbox open={Boolean(bookingToDelete)} onClose={onClose}>
-      <div className="bg-white rounded-2xl w-[92vw] max-w-md p-6 flex flex-col gap-4">
+    <Modalbox open={Boolean(bookingToDelete)} onClose={onClose} size="md">
+      <div className="p-6 flex flex-col gap-4 w-full">
         <div className="flex items-center gap-3">
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${

@@ -55,7 +55,7 @@ const InvestmentNewAccount = () => {
         if (confRes.data.data) {
           setConfig(confRes.data.data);
           const defaultTenure = confRes.data.data.slabs?.[0]?.tenureMonths || 24;
-          const defaultDeposit = confRes.data.data.minRdAmount || 1000;
+          const defaultDeposit = confRes.data.data.minRdAmount || 2000;
           setForm((prev) => ({
             ...prev,
             tenureMonths: defaultTenure,
@@ -299,8 +299,8 @@ const InvestmentNewAccount = () => {
                 </label>
                 <input
                   type="number"
-                  step={form.accountType === 'RD' ? config?.rdStepAmount || 1000 : config?.fdStepAmount || 10000}
-                  min={form.accountType === 'RD' ? config?.minRdAmount || 1000 : config?.minFdAmount || 10000}
+                  step={form.accountType === 'RD' ? config?.rdStepAmount || 1000 : config?.fdStepAmount || 1000}
+                  min={form.accountType === 'RD' ? config?.minRdAmount || 2000 : config?.minFdAmount || 50000}
                   className={inputCls}
                   value={form.depositAmount}
                   onChange={(e) => setForm({ ...form, depositAmount: Number(e.target.value) })}
@@ -308,8 +308,8 @@ const InvestmentNewAccount = () => {
                 />
                 <span className="text-[10px] text-slate-400">
                   {form.accountType === 'RD'
-                    ? `Min ₹${config?.minRdAmount} (Steps of ₹${config?.rdStepAmount})`
-                    : `Min ₹${config?.minFdAmount} (Steps of ₹${config?.fdStepAmount})`}
+                    ? `Min ₹${config?.minRdAmount || 2000} (Steps of ₹${config?.rdStepAmount || 1000})`
+                    : `Min ₹${config?.minFdAmount || 50000} (Steps of ₹${config?.fdStepAmount || 1000})`}
                 </span>
               </div>
 

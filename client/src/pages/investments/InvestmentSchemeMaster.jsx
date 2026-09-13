@@ -15,15 +15,17 @@ import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import { toast } from '../../utils/toast';
 
+import CommissionPolicyMatrix from '../plots/seriesMaster/CommissionPolicyMatrix';
+
 const InvestmentSchemeMaster = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [config, setConfig] = useState({
-    minRdAmount: 1000,
+    minRdAmount: 2000,
     rdStepAmount: 1000,
-    minFdAmount: 10000,
-    fdStepAmount: 10000,
+    minFdAmount: 50000,
+    fdStepAmount: 1000,
     prematureAnnualInterestPercent: 6.0,
     rdPrematureAnnualInterestPercent: 6.0,
     fdPrematureAnnualInterestPercent: 6.0,
@@ -50,17 +52,16 @@ const InvestmentSchemeMaster = () => {
   }, []);
 
   const handleAddSlab = () => {
+    const lastSlab = config.slabs[config.slabs.length - 1];
+    const newTenure = lastSlab ? Number(lastSlab.tenureMonths) + 12 : 12;
     setConfig({
       ...config,
       slabs: [
         ...config.slabs,
         {
-          tenureMonths: 12,
-          rdMaturityPercent: 106,
-          fdMaturityPercent: 110,
-          rdPromoterCommissionPercent: 3.0,
-          fdPromoterCommissionPercent: 4.0,
-          developerCommissionPercent: 1.0,
+          tenureMonths: newTenure,
+          rdMaturityPercent: lastSlab ? Number(lastSlab.rdMaturityPercent) + 10 : 106,
+          fdMaturityPercent: lastSlab ? Number(lastSlab.fdMaturityPercent) + 15 : 110,
         },
       ],
     });
@@ -130,6 +131,7 @@ const InvestmentSchemeMaster = () => {
                 <label className={labelCls}>Min. Monthly (₹)</label>
                 <input
                   type="number"
+                  step="100"
                   className={inputCls}
                   value={config.minRdAmount}
                   onChange={(e) => setConfig({ ...config, minRdAmount: Number(e.target.value) })}
@@ -140,6 +142,7 @@ const InvestmentSchemeMaster = () => {
                 <label className={labelCls}>Multiple Step (₹)</label>
                 <input
                   type="number"
+                  step="100"
                   className={inputCls}
                   value={config.rdStepAmount}
                   onChange={(e) => setConfig({ ...config, rdStepAmount: Number(e.target.value) })}
@@ -147,7 +150,7 @@ const InvestmentSchemeMaster = () => {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">e.g. ₹1,000, ₹2,000, ₹5,000/mo.</p>
+            <p className="text-[11px] text-slate-400">e.g. Min ₹2,000 with ₹1,000 steps (₹2,000, ₹3,000, ₹4,000/mo).</p>
           </div>
 
           <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-xs">
@@ -160,6 +163,7 @@ const InvestmentSchemeMaster = () => {
                 <label className={labelCls}>Min. Principal (₹)</label>
                 <input
                   type="number"
+                  step="500"
                   className={inputCls}
                   value={config.minFdAmount}
                   onChange={(e) => setConfig({ ...config, minFdAmount: Number(e.target.value) })}
@@ -170,6 +174,7 @@ const InvestmentSchemeMaster = () => {
                 <label className={labelCls}>Multiple Step (₹)</label>
                 <input
                   type="number"
+                  step="100"
                   className={inputCls}
                   value={config.fdStepAmount}
                   onChange={(e) => setConfig({ ...config, fdStepAmount: Number(e.target.value) })}
@@ -177,7 +182,7 @@ const InvestmentSchemeMaster = () => {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">e.g. ₹10,000, ₹20,000, ₹1,00,000.</p>
+            <p className="text-[11px] text-slate-400">e.g. Min ₹50,000 with ₹1,000 steps (₹50,000, ₹51,000, ₹52,000...).</p>
           </div>
 
           <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-xs">
@@ -223,13 +228,13 @@ const InvestmentSchemeMaster = () => {
           </div>
         </div>
 
-        {/* Matrix Table */}
+        {/* Customer Maturity Returns Matrix Table */}
         <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Tenure Returns & Sponsor Commission Matrix</h3>
+              <h3 className="text-base font-bold text-slate-800">Customer Tenure Maturity Returns Matrix</h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Exact payout percentages promised on maturity alongside promoter and developer commission schedule.
+                Exact payout percentages promised on maturity to customers for Recurring Deposit (R.D.) and Fixed Deposit (F.D.).
               </p>
             </div>
             <button
@@ -245,12 +250,9 @@ const InvestmentSchemeMaster = () => {
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
-                  <th className="p-3">Tenure (Months)</th>
+                  <th className="p-3">Tenure (अवधि)</th>
                   <th className="p-3">R.D. Maturity Return (%)</th>
                   <th className="p-3">F.D. Maturity Return (%)</th>
-                  <th className="p-3 bg-teal-50/50">Promoter Comm. % (R.D.)</th>
-                  <th className="p-3 bg-teal-50/50">Promoter Comm. % (F.D.)</th>
-                  <th className="p-3 bg-indigo-50/50">Business Dev Override (%)</th>
                   <th className="p-3 text-center">Action</th>
                 </tr>
               </thead>
@@ -266,7 +268,7 @@ const InvestmentSchemeMaster = () => {
                           onChange={(e) => handleSlabChange(idx, 'tenureMonths', e.target.value)}
                           required
                         />
-                        <span className="text-slate-500 font-semibold">Mos</span>
+                        <span className="text-slate-500 font-semibold">Months</span>
                       </div>
                     </td>
                     <td className="p-3">
@@ -290,45 +292,6 @@ const InvestmentSchemeMaster = () => {
                           className="w-24 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-emerald-800"
                           value={s.fdMaturityPercent}
                           onChange={(e) => handleSlabChange(idx, 'fdMaturityPercent', e.target.value)}
-                          required
-                        />
-                        <span className="font-bold text-slate-600">%</span>
-                      </div>
-                    </td>
-                    <td className="p-3 bg-teal-50/20">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-teal-800"
-                          value={s.rdPromoterCommissionPercent}
-                          onChange={(e) => handleSlabChange(idx, 'rdPromoterCommissionPercent', e.target.value)}
-                          required
-                        />
-                        <span className="font-bold text-slate-600">%</span>
-                      </div>
-                    </td>
-                    <td className="p-3 bg-teal-50/20">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-teal-800"
-                          value={s.fdPromoterCommissionPercent}
-                          onChange={(e) => handleSlabChange(idx, 'fdPromoterCommissionPercent', e.target.value)}
-                          required
-                        />
-                        <span className="font-bold text-slate-600">%</span>
-                      </div>
-                    </td>
-                    <td className="p-3 bg-indigo-50/20">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-indigo-800"
-                          value={s.developerCommissionPercent}
-                          onChange={(e) => handleSlabChange(idx, 'developerCommissionPercent', e.target.value)}
                           required
                         />
                         <span className="font-bold text-slate-600">%</span>
@@ -363,6 +326,16 @@ const InvestmentSchemeMaster = () => {
           </div>
         </div>
       </form>
+
+      {/* R.D. & F.D. Target Incentive & Fixed Commission Policy Matrix */}
+      <div className="pt-2">
+        <CommissionPolicyMatrix
+          initialBusinessType="INVESTMENT_RD_FD"
+          showTypeToggle={false}
+          title="R.D. & F.D. Target Incentive & Fixed Commission Policy"
+          subtitle="Configure monthly deposit collection target slabs, base fix commissions (2.5% BA / 1.0% BP), and tiered performance incentives."
+        />
+      </div>
     </div>
   );
 };

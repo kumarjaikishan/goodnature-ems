@@ -215,15 +215,15 @@ const CreateDeedModal = ({
             </div>
           </div>
 
-          {/* ── PARCEL-WISE SELECTIVE REGISTRY TABLE ── */}
+          {/* ── LAND DETAILS SELECTIVE REGISTRY TABLE ── */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Select Land Parcel(s) to Register ({parcelRows.length} total)
+                  Select Land / Plot(s) to Register ({parcelRows.length} total)
                 </h4>
                 <p className="text-[11px] text-slate-500">
-                  You can register all parcels at once or custom Dismil per parcel. Remaining Dismil stays in agreement stock.
+                  You can register all plots at once or custom Dismil per row. Remaining Dismil stays in agreement stock.
                 </p>
               </div>
 

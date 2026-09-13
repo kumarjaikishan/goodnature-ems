@@ -18,8 +18,8 @@ const RevisionsAuditModal = ({
   if (!booking) return null;
 
   return (
-    <Modalbox open={Boolean(booking)} onClose={onClose} outside={true}>
-      <div className="bg-white rounded-3xl p-6 max-w-3xl w-full space-y-4 max-h-[85vh] flex flex-col">
+    <Modalbox open={Boolean(booking)} onClose={onClose} outside={true} size="3xl">
+      <div className="p-6 w-full space-y-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-teal-50 text-teal-700 rounded-xl">

@@ -22,6 +22,8 @@ const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
 const accountingService = require('./accountingService');
 const ApiError = require('../utils/apiError');
+const CommissionPolicyConfig = require('../models/CommissionPolicyConfig');
+const InvestmentCommission = require('../models/InvestmentCommission');
 
 class PlotsService {
   // ── RATE CONFIGURATION ──────────────────────────────────────────
@@ -82,6 +84,33 @@ class PlotsService {
     }
     await config.save();
     return config;
+  }
+
+  // ── COMMISSION POLICY CONFIGURATION ─────────────────────────────
+  async getCommissionPolicy(businessType = 'PLOT_SALE') {
+    let policy = await CommissionPolicyConfig.findOne({ businessType, status: 'active' });
+    if (!policy) {
+      const defaultData = businessType === 'PLOT_SALE'
+        ? CommissionPolicyConfig.getDefaultPlotPolicy()
+        : CommissionPolicyConfig.getDefaultInvestmentPolicy();
+      policy = new CommissionPolicyConfig(defaultData);
+      await policy.save();
+    }
+    return policy;
+  }
+
+  async updateCommissionPolicy(businessType = 'PLOT_SALE', data) {
+    let policy = await CommissionPolicyConfig.findOne({ businessType, status: 'active' });
+    if (!policy) {
+      policy = new CommissionPolicyConfig({ ...data, businessType, status: 'active' });
+    } else {
+      if (data.policyName) policy.policyName = data.policyName;
+      if (data.validFrom !== undefined) policy.validFrom = data.validFrom;
+      if (data.validTo !== undefined) policy.validTo = data.validTo;
+      if (data.roles) policy.roles = data.roles;
+    }
+    await policy.save();
+    return policy;
   }
 
   // ── SERIES MASTER & BULK PLOT GENERATION ────────────────────────
@@ -584,7 +613,8 @@ class PlotsService {
         bookingDate, // Custom bookingDate support
         oneTimeMonths = 1,
         tenureMonths,
-        downpaymentMonths = 1,
+        downpaymentMonths = 3,
+        downpaymentDays = 90,
         landSourcing = [],
       } = data;
 
@@ -704,13 +734,19 @@ class PlotsService {
       // 3. Rate Slab Lookup & Dynamic Plot Pricing
       const resolvedTenure = tenureMonths !== undefined
         ? Number(tenureMonths)
-        : (scheme === 'FULL_PAYMENT' ? 0 : (Number(installmentCount) || 3));
+        : (scheme === 'FULL_PAYMENT' ? 0 : (Number(installmentCount) || 6));
 
       const rateConfig = await this.getRateConfig();
       const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
       const slab = slabs.find(s => Number(s.tenureMonths) === resolvedTenure) || slabs[0];
 
-      const basePlotRate = slab.plotRate || rateConfig.baseSqFtRate || 1000;
+      // Support dynamic custom Plot Rate per Sq.Ft. if provided at booking time
+      const basePlotRate = data.customSqFtRate !== undefined && Number(data.customSqFtRate) > 0
+        ? Number(data.customSqFtRate)
+        : (data.basePlotRate !== undefined && Number(data.basePlotRate) > 0
+          ? Number(data.basePlotRate)
+          : (slab.plotRate || rateConfig.baseSqFtRate || 1000));
+
       const cornerExtraPercent = plot.plotType === 'CORNER' ? (rateConfig.cornerExtraPercent || 20) : 0;
       const effectiveSqFtRate = basePlotRate * (1 + cornerExtraPercent / 100);
       const plotValue = Math.round(plot.plotSize * effectiveSqFtRate);
@@ -737,32 +773,44 @@ class PlotsService {
       );
       const bookingNumber = `${fyStr}${String(counter.sequence).padStart(3, '0')}`;
 
-      // Calculate Downpayment & EMI Breakdown
+      // Calculate Downpayment (customizable per sqft) & EMI Breakdown (Discount deducted strictly from EMI)
       const discountVal = Number(discount) || 0;
-      const remainingAmount = Math.max(0, plotValue - discountVal);
       const resolvedScheme = resolvedTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT';
-      const resolvedDpBase = data.downpaymentCalculationBase === 'AFTER_DISCOUNT' ? 'AFTER_DISCOUNT' : 'BEFORE_DISCOUNT';
+      const resolvedDpDays = Number(downpaymentDays) || (Number(downpaymentMonths) ? Number(downpaymentMonths) * 30 : 90);
+      const resolvedDpMonths = Math.max(1, Math.round(resolvedDpDays / 30));
 
+      let resolvedDpRate = 0;
       let downpaymentAmt = 0;
       let emiPrincipalAmt = 0;
       let emiMonthlyAmt = 0;
+      let emiRatePerSqFt = 0;
+      let remainingAmount = 0;
 
       if (resolvedTenure === 0) {
-        downpaymentAmt = remainingAmount;
+        // Full Payment: 100% due within downpayment/one-time window minus any discount
+        resolvedDpRate = basePlotRate;
+        downpaymentAmt = Math.max(0, plotValue - discountVal);
         emiPrincipalAmt = 0;
         emiMonthlyAmt = 0;
+        emiRatePerSqFt = 0;
+        remainingAmount = downpaymentAmt;
       } else {
-        const dpPercent = slab.downpaymentPercent ? slab.downpaymentPercent / 100 : 0.40;
-        if (resolvedDpBase === 'BEFORE_DISCOUNT') {
-          // 40% computed on Gross Plot Value (before discount)
-          downpaymentAmt = Math.round(plotValue * dpPercent);
-          emiPrincipalAmt = Math.max(0, remainingAmount - downpaymentAmt);
-        } else {
-          // 40% computed on Net Remaining Value (after discount)
-          downpaymentAmt = Math.round(remainingAmount * dpPercent);
-          emiPrincipalAmt = remainingAmount - downpaymentAmt;
-        }
+        // EMI Scheme: Customizable Downpayment rate per sqft (default from slab, e.g. ₹500/sqft)
+        resolvedDpRate = data.customDownpaymentRate !== undefined && Number(data.customDownpaymentRate) >= 0
+          ? Number(data.customDownpaymentRate)
+          : (data.downpaymentRate !== undefined && Number(data.downpaymentRate) >= 0
+            ? Number(data.downpaymentRate)
+            : (Number(slab.downpaymentRate) || 500));
+
+        downpaymentAmt = Math.round(plot.plotSize * resolvedDpRate);
+
+        // Gross EMI balance is remaining plot value after custom downpayment
+        const grossEmiBalance = Math.max(0, plotValue - downpaymentAmt);
+        // Discount is deducted EXCLUSIVELY from the EMI balance
+        emiPrincipalAmt = Math.max(0, grossEmiBalance - discountVal);
+        remainingAmount = downpaymentAmt + emiPrincipalAmt;
         emiMonthlyAmt = resolvedTenure > 0 ? Math.round(emiPrincipalAmt / resolvedTenure) : 0;
+        emiRatePerSqFt = plot.plotSize > 0 ? Math.round((emiPrincipalAmt / plot.plotSize) * 100) / 100 : 0;
       }
 
       const booking = new PlotBooking({
@@ -782,13 +830,16 @@ class PlotsService {
         oneTimeMonths: resolvedTenure === 0 ? Number(oneTimeMonths) || 1 : undefined,
         tenureMonths: resolvedTenure,
         basePlotRate,
-        promoterCommissionPercent: slab.promoterCommissionPercent,
-        developerCommissionPercent: slab.developerCommissionPercent,
-        downpaymentMonths: Number(downpaymentMonths) || 1,
+        downpaymentRate: resolvedDpRate,
+        emiRate: emiRatePerSqFt,
+        promoterCommissionPercent: 5.0,
+        developerCommissionPercent: 2.0,
+        downpaymentMonths: resolvedDpMonths,
+        downpaymentDays: resolvedDpDays,
         downpaymentAmount: downpaymentAmt,
         emiPrincipalAmount: emiPrincipalAmt,
         emiMonthlyAmount: emiMonthlyAmt,
-        downpaymentCalculationBase: resolvedDpBase,
+        downpaymentCalculationBase: 'AFTER_DISCOUNT_EMI',
         landSourcing: processedSourcing,
       });
       await booking.save({ session });
@@ -823,9 +874,8 @@ class PlotsService {
       // ── SCHEME ENGINE & INSTALLMENT SCHEDULE LOGIC ──
       if (bookingType === 'BOOKING') {
         if (resolvedTenure === 0) {
-          // One-Time / Full Payment: single installment for full amount due after oneTimeMonths
-          const dueDate = new Date(bookingDateObj);
-          dueDate.setMonth(dueDate.getMonth() + (Number(oneTimeMonths) || 1));
+          // One-Time / Full Payment: single installment for full amount due after resolvedDpDays (default 90 days)
+          const dueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
 
           const installments = [{
             installmentNumber: 1,
@@ -837,14 +887,12 @@ class PlotsService {
           }];
           await PlotInstallment.insertMany(installments, { session });
         } else {
-          // EMI Scheme: 40% Downpayment (Inst #0) + 60% Monthly EMIs (Inst #1..N)
+          // EMI Scheme: Downpayment (Inst #0, due within 90 days) + Monthly EMIs (Inst #1..N)
           const installments = [];
 
-          // Installment #0: Down Payment (40%)
+          // Installment #0: Down Payment (₹500 / sqft)
+          const dpDueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
           if (downpaymentAmt > 0) {
-            const dpDueDate = new Date(bookingDateObj);
-            dpDueDate.setMonth(dpDueDate.getMonth() + (Number(downpaymentMonths) || 1));
-
             installments.push({
               installmentNumber: 0,
               bookingId: booking._id,
@@ -855,16 +903,14 @@ class PlotsService {
             });
           }
 
-          // Monthly EMIs for the remaining 60%
+          // Monthly EMIs for the remaining principal after discount
           let principalToDistribute = emiPrincipalAmt;
           const count = resolvedTenure;
-          const dpMonths = Number(downpaymentMonths) || 1;
 
           for (let i = 1; i <= count; i++) {
-            // Downpayment ends after dpMonths (e.g. 3 Sep + 2 months = 3 Nov in Nov).
-            // First EMI (i=1) starts on the 1st of the next month (e.g. 1 Dec).
-            const dueDate = new Date(bookingDateObj);
-            dueDate.setMonth(dueDate.getMonth() + dpMonths + (i - 1) + 1);
+            // First EMI begins on the 1st of the month following the downpayment due date
+            const dueDate = new Date(dpDueDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
             dueDate.setDate(1);
             dueDate.setHours(0, 0, 0, 0);
 
@@ -916,6 +962,50 @@ class PlotsService {
     }
   }
 
+  // ── SPONSOR PERIOD BUSINESS VOLUME CALCULATOR ──────────────────
+  async getSponsorPeriodVolume(sponsorId, date = new Date(), isTeam = false, session = null) {
+    if (!sponsorId) return 0;
+    const d = new Date(date);
+    const startOfMonth = new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999));
+
+    let sponsorIds = [new mongoose.Types.ObjectId(sponsorId.toString())];
+    if (isTeam) {
+      const subQuery = User.find({
+        role: 'sponsor',
+        sponsorId: sponsorId,
+      }).select('_id');
+      if (session) subQuery.session(session);
+      const subSponsors = await subQuery.lean();
+      sponsorIds = [...sponsorIds, ...subSponsors.map(s => s._id)];
+    }
+
+    const bookingQuery = PlotBooking.find({
+      sponsorId: { $in: sponsorIds },
+      status: { $ne: 'CANCELLED' }
+    }).select('_id');
+    if (session) bookingQuery.session(session);
+    const bookings = await bookingQuery.lean();
+
+    if (!bookings.length) return 0;
+    const bookingIds = bookings.map(b => b._id);
+
+    const receiptQuery = PlotReceipt.find({
+      bookingId: { $in: bookingIds },
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+      status: { $ne: 'CANCELLED' }
+    }).select('amount lateFinePaid');
+    if (session) receiptQuery.session(session);
+    const receipts = await receiptQuery.lean();
+
+    const total = receipts.reduce((acc, r) => {
+      const principal = Math.max(0, Number(r.amount || 0) - Number(r.lateFinePaid || 0));
+      return acc + principal;
+    }, 0);
+
+    return Math.round(total * 100) / 100;
+  }
+
   // ── SPONSOR COMMISSION SYNCHRONIZATION ENGINE ────────────────────
   async syncBookingSponsorCommissions(bookingId, session = null) {
     if (!bookingId) return;
@@ -953,24 +1043,8 @@ class PlotsService {
     if (session) delQuery.session(session);
     await delQuery;
 
-    const plotValue = Number(booking.plotValue) || 0;
-    let promoterPct = Number(booking.promoterCommissionPercent) || 0;
-    let developerPct = Number(booking.developerCommissionPercent) || 0;
-    const resolvedTenure = Number(booking.tenureMonths) || 0;
-
-    // If commission percentages were not stored on the booking, resolve from rate config
-    if (promoterPct === 0 && developerPct === 0) {
-      const rateConfig = await this.getRateConfig();
-      const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
-      const slab = slabs.find(s => Number(s.tenureMonths) === resolvedTenure) || slabs[0];
-      promoterPct = slab.promoterCommissionPercent !== undefined ? slab.promoterCommissionPercent : (resolvedTenure === 9 ? 11.5 : 10);
-      developerPct = slab.developerCommissionPercent !== undefined ? slab.developerCommissionPercent : 2.0;
-
-      booking.promoterCommissionPercent = promoterPct;
-      booking.developerCommissionPercent = developerPct;
-      if (session) await booking.save({ session });
-      else await booking.save();
-    }
+    // Load Active Plot Policy (Dynamic from database)
+    const policyConfig = await this.getCommissionPolicy('PLOT_SALE');
 
     // Fetch all receipts for this booking to calculate commission on collection basis
     const receiptQuery = PlotReceipt.find({ bookingId: booking._id }).sort({ createdAt: 1 });
@@ -984,9 +1058,24 @@ class PlotsService {
       const receiptDate = receipt.createdAt ? new Date(receipt.createdAt) : new Date();
 
       if (!sponsorDoc.sponsorId) {
-        // Developer Sponsor direct to company -> gets Promoter % + Developer %
-        const totalPct = +(promoterPct + developerPct).toFixed(2);
-        const totalAmt = Math.round(collectionPrincipal * (totalPct / 100) * 100) / 100;
+        // ── BUSINESS PARTNER DIRECT SALE ───────────────────────────────
+        // Direct company ID closing a booking directly gets:
+        // 1. Upper BA Rate (5% Fix + BA Target Incentive on personal volume)
+        // 2. Lower BP Rate (2% Fix + BP Target Incentive on total volume)
+        const directVol = await this.getSponsorPeriodVolume(sponsorDoc._id, receiptDate, false, session);
+        const totalTeamVol = await this.getSponsorPeriodVolume(sponsorDoc._id, receiptDate, true, session);
+
+        const baSlab = CommissionPolicyConfig.resolveSlab(policyConfig, 'BUSINESS_ASSOCIATE', directVol);
+        const bpSlab = CommissionPolicyConfig.resolveSlab(policyConfig, 'BUSINESS_PARTNER', totalTeamVol);
+
+        const combinedFixedPct = +(baSlab.fixedPercent + bpSlab.fixedPercent).toFixed(3); // 5% + 2% = 7%
+        const combinedIncentivePct = +(baSlab.incentivePercent + bpSlab.incentivePercent).toFixed(3);
+        const combinedTotalPct = +(combinedFixedPct + combinedIncentivePct).toFixed(3);
+
+        const fixedAmt = Math.round(collectionPrincipal * (combinedFixedPct / 100) * 100) / 100;
+        const incentiveAmt = Math.round(collectionPrincipal * (combinedIncentivePct / 100) * 100) / 100;
+        const totalAmt = Math.round((fixedAmt + incentiveAmt) * 100) / 100;
+
         const key = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_DIRECT_DEVELOPER`;
 
         const commDoc = new PlotSponsorCommission({
@@ -997,9 +1086,16 @@ class PlotsService {
           collectionAmount: collectionPrincipal,
           plotValue: collectionPrincipal,
           amount: totalAmt,
-          commissionPercent: totalPct,
+          commissionPercent: combinedTotalPct,
           commissionRole: 'DIRECT_DEVELOPER',
-          tierTenureMonths: resolvedTenure,
+          fixedPercent: combinedFixedPct,
+          incentivePercent: combinedIncentivePct,
+          fixedAmount: fixedAmt,
+          incentiveAmount: incentiveAmt,
+          businessType: 'PLOT_SALE',
+          periodVolume: directVol,
+          slabLabel: `${baSlab.slabLabel} (BA: ${baSlab.totalPercent}%) + ${bpSlab.slabLabel} (BP: ${bpSlab.totalPercent}%)`,
+          tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: closingTagMap[key] || null,
           createdAt: receiptDate,
@@ -1007,8 +1103,15 @@ class PlotsService {
         if (session) await commDoc.save({ session });
         else await commDoc.save();
       } else {
-        // Sub-Sponsor -> gets Promoter % (e.g. 11.5%), Developer Sponsor gets Developer % (2.0%)
-        const promoterAmt = Math.round(collectionPrincipal * (promoterPct / 100) * 100) / 100;
+        // ── BUSINESS ASSOCIATE + PARENT PARTNER OVERRIDE ──────────────
+        // 1. Business Associate gets 5% Fix + BA Target Incentive
+        const baVol = await this.getSponsorPeriodVolume(sponsorDoc._id, receiptDate, false, session);
+        const baSlab = CommissionPolicyConfig.resolveSlab(policyConfig, 'BUSINESS_ASSOCIATE', baVol);
+
+        const baFixedAmt = Math.round(collectionPrincipal * (baSlab.fixedPercent / 100) * 100) / 100;
+        const baIncentiveAmt = Math.round(collectionPrincipal * (baSlab.incentivePercent / 100) * 100) / 100;
+        const baTotalAmt = Math.round((baFixedAmt + baIncentiveAmt) * 100) / 100;
+
         const promoterKey = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_PROMOTER`;
         const subCommission = new PlotSponsorCommission({
           bookingId: booking._id,
@@ -1017,10 +1120,17 @@ class PlotsService {
           customerId: booking.customerId,
           collectionAmount: collectionPrincipal,
           plotValue: collectionPrincipal,
-          amount: promoterAmt,
-          commissionPercent: promoterPct,
+          amount: baTotalAmt,
+          commissionPercent: baSlab.totalPercent,
           commissionRole: 'PROMOTER',
-          tierTenureMonths: resolvedTenure,
+          fixedPercent: baSlab.fixedPercent,
+          incentivePercent: baSlab.incentivePercent,
+          fixedAmount: baFixedAmt,
+          incentiveAmount: baIncentiveAmt,
+          businessType: 'PLOT_SALE',
+          periodVolume: baVol,
+          slabLabel: baSlab.slabLabel,
+          tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: closingTagMap[promoterKey] || null,
           createdAt: receiptDate,
@@ -1028,9 +1138,16 @@ class PlotsService {
         if (session) await subCommission.save({ session });
         else await subCommission.save();
 
-        if (developerPct > 0 && sponsorDoc.sponsorId) {
-          const devAmt = Math.round(collectionPrincipal * (developerPct / 100) * 100) / 100;
-          const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
+        // 2. Parent Business Partner gets 2% Fix + BP Target Incentive on cumulative team volume
+        const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
+        if (parentDevId) {
+          const bpTeamVol = await this.getSponsorPeriodVolume(parentDevId, receiptDate, true, session);
+          const bpSlab = CommissionPolicyConfig.resolveSlab(policyConfig, 'BUSINESS_PARTNER', bpTeamVol);
+
+          const bpFixedAmt = Math.round(collectionPrincipal * (bpSlab.fixedPercent / 100) * 100) / 100;
+          const bpIncentiveAmt = Math.round(collectionPrincipal * (bpSlab.incentivePercent / 100) * 100) / 100;
+          const bpTotalAmt = Math.round((bpFixedAmt + bpIncentiveAmt) * 100) / 100;
+
           const devKey = `${receipt._id.toString()}_${parentDevId.toString()}_DEVELOPER_OVERRIDE`;
           const devCommission = new PlotSponsorCommission({
             bookingId: booking._id,
@@ -1039,10 +1156,17 @@ class PlotsService {
             customerId: booking.customerId,
             collectionAmount: collectionPrincipal,
             plotValue: collectionPrincipal,
-            amount: devAmt,
-            commissionPercent: developerPct,
+            amount: bpTotalAmt,
+            commissionPercent: bpSlab.totalPercent,
             commissionRole: 'DEVELOPER_OVERRIDE',
-            tierTenureMonths: resolvedTenure,
+            fixedPercent: bpSlab.fixedPercent,
+            incentivePercent: bpSlab.incentivePercent,
+            fixedAmount: bpFixedAmt,
+            incentiveAmount: bpIncentiveAmt,
+            businessType: 'PLOT_SALE',
+            periodVolume: bpTeamVol,
+            slabLabel: bpSlab.slabLabel,
+            tierTenureMonths: Number(booking.tenureMonths) || 0,
             status: 'active',
             closingId: closingTagMap[devKey] || null,
             createdAt: receiptDate,
@@ -2291,12 +2415,10 @@ class PlotsService {
     if (installments.length === 0 && booking.status !== 'HOLD') {
       const bookingDateObj = booking.bookingDate || new Date();
       const remainingAmount = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
-      const resolvedDpMonths = Number(booking.downpaymentMonths) || 1;
+      const resolvedDpDays = Number(booking.downpaymentDays) || (Number(booking.downpaymentMonths) ? Number(booking.downpaymentMonths) * 30 : 90);
 
       if (booking.scheme === 'FULL_PAYMENT') {
-        const dueDate = new Date(bookingDateObj);
-        const otMonths = Number(booking.oneTimeMonths) || 1;
-        dueDate.setMonth(dueDate.getMonth() + otMonths);
+        const dueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
 
         installments = [{
           installmentNumber: 1,
@@ -2314,11 +2436,9 @@ class PlotsService {
       } else {
         const newInsts = [];
         const downpaymentAmount = booking.bookingAmount || booking.downpaymentAmount || 0;
+        const dpDueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
 
         if (downpaymentAmount > 0) {
-          const dpDueDate = new Date(bookingDateObj);
-          dpDueDate.setMonth(dpDueDate.getMonth() + resolvedDpMonths);
-
           newInsts.push({
             installmentNumber: 0,
             bookingId: booking._id,
@@ -2329,12 +2449,12 @@ class PlotsService {
           });
         }
 
-        const count = Number(booking.tenureMonths) || (Number(booking.installmentCount) || 3);
-        let principalToDistribute = Math.max(0, remainingAmount - downpaymentAmount);
+        const count = Number(booking.tenureMonths) || (Number(booking.installmentCount) || 6);
+        let principalToDistribute = booking.emiPrincipalAmount !== undefined ? booking.emiPrincipalAmount : Math.max(0, remainingAmount - downpaymentAmount);
 
         for (let i = 1; i <= count; i++) {
-          const dueDate = new Date(bookingDateObj);
-          dueDate.setMonth(dueDate.getMonth() + resolvedDpMonths + (i - 1) + 1);
+          const dueDate = new Date(dpDueDate);
+          dueDate.setMonth(dueDate.getMonth() + i);
           dueDate.setDate(1);
           dueDate.setHours(0, 0, 0, 0);
 
@@ -2342,7 +2462,7 @@ class PlotsService {
           if (i === count) {
             dueForThisInst = Math.round(principalToDistribute * 100) / 100;
           } else {
-            dueForThisInst = booking.emiMonthlyAmount ? booking.emiMonthlyAmount : Math.floor((remainingAmount - downpaymentAmount) / count);
+            dueForThisInst = booking.emiMonthlyAmount ? booking.emiMonthlyAmount : Math.floor(principalToDistribute / count);
             dueForThisInst = Math.min(dueForThisInst, principalToDistribute);
           }
           dueForThisInst = Math.round(dueForThisInst * 100) / 100;
@@ -2822,8 +2942,10 @@ class PlotsService {
       bookings.forEach(b => {
         const bId = b._id.toString();
         const insts = installmentsMap[bId] || [];
-        const paidInsts = insts.filter(i => i.status === 'PAID');
-        const unpaidInsts = insts.filter(i => i.status !== 'PAID');
+        const dpInst = insts.find(i => i.installmentNumber === 0);
+        const emiInsts = insts.filter(i => i.installmentNumber > 0);
+        const paidEmiInsts = emiInsts.filter(i => i.status === 'PAID');
+        const unpaidEmiInsts = emiInsts.filter(i => i.status !== 'PAID');
 
         const totalPlotValue = Number(b.plotValue || 0);
         const discountAmt = Number(b.discount || 0);
@@ -2843,9 +2965,21 @@ class PlotsService {
         b.totalPaid = totalPaid;
         b.totalDue = totalDue;
         b.dueStatus = isCompleted ? 'COMPLETED' : 'DUE';
+
+        // Downpayment tracking
+        b.hasDownpayment = !!dpInst;
+        b.downpaymentPaid = dpInst ? dpInst.status === 'PAID' : (Number(b.bookingAmount || 0) > 0);
+        b.downpaymentAmount = dpInst ? (dpInst.dueAmount || dpInst.paidAmount || 0) : Number(b.bookingAmount || 0);
+
+        // EMI tracking (only monthly EMIs: inst #1..N)
+        b.totalEmisCount = emiInsts.length;
+        b.paidEmisCount = paidEmiInsts.length;
+        b.unpaidEmisCount = unpaidEmiInsts.length;
+
+        // Legacy compatibility
         b.totalInstallmentsCount = insts.length;
-        b.paidInstallmentsCount = paidInsts.length;
-        b.unpaidInstallmentsCount = unpaidInsts.length;
+        b.paidInstallmentsCount = paidEmiInsts.length;
+        b.unpaidInstallmentsCount = unpaidEmiInsts.length;
       });
 
       return bookings;
@@ -2934,7 +3068,8 @@ class PlotsService {
         discount: booking.discount || 0,
         remainingAmount: booking.remainingAmount,
         downpaymentAmount: booking.bookingAmount || booking.downpaymentAmount || 0,
-        downpaymentMonths: booking.downpaymentMonths || 1,
+        downpaymentMonths: booking.downpaymentMonths || 3,
+        downpaymentDays: booking.downpaymentDays || 90,
         oneTimeMonths: booking.oneTimeMonths || 1,
         emiMonthlyAmount: booking.emiMonthlyAmount || 0,
         promoterCommissionPercent: booking.promoterCommissionPercent || 0,
@@ -2953,16 +3088,24 @@ class PlotsService {
       const {
         notes, discount, bookingAmount, bookingDate, sponsorId, status, scheme,
         tenureMonths, downpaymentCalculationBase, govtRate,
-        installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, agreementNumber,
+        installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, downpaymentDays, agreementNumber,
         bookingType, holdExpiryDays, customerId, plotId, paymentMode, transactionReference,
-        landSourcing, reason
+        landSourcing, reason,
+        customSqFtRate, basePlotRate, customDownpaymentRate, downpaymentRate, emiRate
       } = data;
 
       if (notes !== undefined) booking.notes = notes;
       if (agreementNumber !== undefined) booking.agreementNumber = agreementNumber;
       if (paymentMode !== undefined) booking.paymentMode = paymentMode;
       if (transactionReference !== undefined) booking.transactionReference = transactionReference;
-      if (downpaymentMonths !== undefined) booking.downpaymentMonths = Number(downpaymentMonths) || 1;
+      if (govtRate !== undefined) booking.govtRate = Number(govtRate) || 100;
+      if (downpaymentDays !== undefined) {
+        booking.downpaymentDays = Number(downpaymentDays) || 90;
+        booking.downpaymentMonths = Math.max(1, Math.round(booking.downpaymentDays / 30));
+      } else if (downpaymentMonths !== undefined) {
+        booking.downpaymentMonths = Number(downpaymentMonths) || 3;
+        booking.downpaymentDays = booking.downpaymentMonths * 30;
+      }
       // Land Stock Sourcing Adjustment & Reconciliation
       if (Array.isArray(landSourcing) && landSourcing.length > 0) {
         const oldSourcing = Array.isArray(booking.landSourcing) ? booking.landSourcing : [];
@@ -3128,13 +3271,18 @@ class PlotsService {
 
       let installmentParamsChanged = false;
 
-      // Handle tenure change with rate slab snapshot updates
-      if (tenureMonths !== undefined && Number(tenureMonths) !== booking.tenureMonths) {
-        const resolvedTenure = Number(tenureMonths) || 0;
+      // Handle custom or tenure rate updates
+      const newBaseRate = customSqFtRate !== undefined ? Number(customSqFtRate) : basePlotRate !== undefined ? Number(basePlotRate) : undefined;
+      const newDpRate = customDownpaymentRate !== undefined ? Number(customDownpaymentRate) : downpaymentRate !== undefined ? Number(downpaymentRate) : undefined;
+
+      // Handle tenure change or custom rate snapshot updates
+      if (tenureMonths !== undefined || newBaseRate !== undefined) {
+        const resolvedTenure = tenureMonths !== undefined ? Number(tenureMonths) : booking.tenureMonths;
+        const tenureChanged = Number(resolvedTenure) !== Number(booking.tenureMonths);
         booking.tenureMonths = resolvedTenure;
         booking.scheme = resolvedTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT';
         
-        // Find matching slab from rate config to snapshot locked rates
+        // Find matching slab from rate config
         const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session);
         const slabs = rateConfig?.rateSlabs?.length > 0 ? rateConfig.rateSlabs : PlotRateConfiguration.getDefaultRateSlabs();
         const slab = slabs.find(s => Number(s.tenureMonths) === resolvedTenure) || slabs[0];
@@ -3143,12 +3291,23 @@ class PlotsService {
         const plotArea = plot ? (plot.plotSize || plot.area || plot.areaSqFt || 0) : 0;
         const isCorner = plot?.plotType === 'CORNER';
         const cornerExtra = isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0;
-        const baseRate = slab.plotRate || rateConfig?.baseSqFtRate || 1000;
-        const effectiveRate = baseRate * (1 + cornerExtra / 100);
+        
+        const finalBaseRate = newBaseRate !== undefined ? newBaseRate : (tenureChanged ? (slab.plotRate || rateConfig?.baseSqFtRate || 1000) : (booking.basePlotRate || 1000));
+        const effectiveRate = finalBaseRate * (1 + cornerExtra / 100);
 
-        booking.basePlotRate = baseRate;
-        booking.promoterCommissionPercent = slab.promoterCommissionPercent ?? 10.0;
-        booking.developerCommissionPercent = slab.developerCommissionPercent ?? 2.0;
+        booking.basePlotRate = finalBaseRate;
+        if (newDpRate !== undefined) {
+          booking.downpaymentRate = newDpRate;
+        } else if (tenureChanged) {
+          booking.downpaymentRate = slab.downpaymentRate || (resolvedTenure === 0 ? finalBaseRate : 500);
+        }
+
+        if (emiRate !== undefined) {
+          booking.emiRate = Number(emiRate) || 0;
+        }
+
+        booking.promoterCommissionPercent = 5.0;
+        booking.developerCommissionPercent = 2.0;
         if (plotArea > 0) {
           booking.plotValue = Math.round(plotArea * effectiveRate);
         }
@@ -3156,6 +3315,11 @@ class PlotsService {
         installmentParamsChanged = true;
       } else if (scheme !== undefined && scheme !== booking.scheme) {
         booking.scheme = scheme;
+        installmentParamsChanged = true;
+      }
+
+      if (newDpRate !== undefined && newDpRate !== booking.downpaymentRate) {
+        booking.downpaymentRate = newDpRate;
         installmentParamsChanged = true;
       }
 
@@ -3207,9 +3371,30 @@ class PlotsService {
         installmentParamsChanged = true;
       }
 
-      if (amountChanged) {
-        booking.remainingAmount = booking.plotValue - booking.discount - booking.bookingAmount;
+      // Recalculate Downpayment and EMI balance (discount deducted strictly from EMI)
+      const currentPlot = await Plot.findById(booking.plotId).session(session);
+      const currentArea = currentPlot ? (currentPlot.plotSize || currentPlot.area || currentPlot.areaSqFt || 0) : 0;
+      const discountVal = Number(booking.discount) || 0;
 
+      if (booking.tenureMonths === 0 || booking.scheme === 'FULL_PAYMENT') {
+        booking.downpaymentAmount = Math.max(0, (booking.plotValue || 0) - discountVal);
+        booking.emiPrincipalAmount = 0;
+        booking.emiMonthlyAmount = 0;
+        booking.remainingAmount = booking.downpaymentAmount;
+      } else {
+        const dpPerSqFt = booking.downpaymentRate || 500;
+        booking.downpaymentAmount = currentArea > 0 ? Math.round(currentArea * dpPerSqFt) : (booking.downpaymentAmount || 0);
+        const grossEmi = Math.max(0, (booking.plotValue || 0) - booking.downpaymentAmount);
+        // Discount strictly deducted from EMI portion
+        booking.emiPrincipalAmount = Math.max(0, grossEmi - discountVal);
+        booking.emiMonthlyAmount = booking.tenureMonths > 0 ? Math.round(booking.emiPrincipalAmount / booking.tenureMonths) : 0;
+        booking.remainingAmount = booking.downpaymentAmount + booking.emiPrincipalAmount;
+        if (!booking.emiRate && currentArea > 0) {
+          booking.emiRate = Math.round((booking.emiPrincipalAmount / currentArea) * 100) / 100;
+        }
+      }
+
+      if (amountChanged) {
         // Also update initial payment amount and receipt if they exist
         const initialPayment = await PlotPayment.findOne({ bookingId: id, status: 'active' }).sort({ createdAt: 1 }).session(session);
         if (initialPayment) {
@@ -3232,50 +3417,43 @@ class PlotsService {
         await PlotInstallment.deleteMany({ bookingId: id }).session(session);
 
         const bookingDateObj = booking.bookingDate || new Date();
-        const remainingAmount = booking.plotValue - booking.discount;
-        const resolvedDpMonths = Number(booking.downpaymentMonths) || 1;
+        const resolvedDpDays = Number(booking.downpaymentDays) || (Number(booking.downpaymentMonths) ? Number(booking.downpaymentMonths) * 30 : 90);
 
         if (booking.scheme === 'FULL_PAYMENT') {
           // Re-create single installment for full payment
-          const dueDate = new Date(bookingDateObj);
-          const otMonths = Number(booking.oneTimeMonths) || 1;
-          dueDate.setMonth(dueDate.getMonth() + otMonths);
+          const dueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
 
           const installments = [{
             installmentNumber: 1,
             bookingId: booking._id,
             dueDate,
-            dueAmount: remainingAmount,
+            dueAmount: booking.remainingAmount,
             paidAmount: 0,
             status: 'PENDING',
           }];
           await PlotInstallment.insertMany(installments, { session });
         } else if (booking.scheme === 'MONTHLY_INSTALLMENT') {
-          // Re-create monthly installments
+          // Re-create installments: Downpayment Inst #0 (due in 90 days) + EMI Inst #1..N
           const installments = [];
-          const downpaymentAmount = booking.bookingAmount || booking.downpaymentAmount || 0;
+          const dpDueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
 
-          if (downpaymentAmount > 0) {
-            const dpDueDate = new Date(bookingDateObj);
-            dpDueDate.setMonth(dpDueDate.getMonth() + resolvedDpMonths);
-
+          if (booking.downpaymentAmount > 0) {
             installments.push({
               installmentNumber: 0,
               bookingId: booking._id,
               dueDate: dpDueDate,
-              dueAmount: downpaymentAmount,
+              dueAmount: booking.downpaymentAmount,
               paidAmount: 0,
               status: 'PENDING',
             });
           }
 
-          const count = targetCount !== undefined ? targetCount : (Number(booking.tenureMonths) || 3);
-          let principalToDistribute = Math.max(0, remainingAmount - downpaymentAmount);
+          const count = targetCount !== undefined ? targetCount : (Number(booking.tenureMonths) || 6);
+          let principalToDistribute = booking.emiPrincipalAmount;
 
           for (let i = 1; i <= count; i++) {
-            // Downpayment ends after resolvedDpMonths. First EMI starts 1st of next month.
-            const dueDate = new Date(bookingDateObj);
-            dueDate.setMonth(dueDate.getMonth() + resolvedDpMonths + (i - 1) + 1);
+            const dueDate = new Date(dpDueDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
             dueDate.setDate(1);
             dueDate.setHours(0, 0, 0, 0);
 
@@ -3283,7 +3461,7 @@ class PlotsService {
             if (i === count) {
               dueForThisInst = Math.round(principalToDistribute * 100) / 100;
             } else {
-              dueForThisInst = targetAmount ? targetAmount : Math.floor((remainingAmount - downpaymentAmount) / count);
+              dueForThisInst = targetAmount ? targetAmount : Math.floor(booking.emiPrincipalAmount / count);
               dueForThisInst = Math.min(dueForThisInst, principalToDistribute);
             }
             dueForThisInst = Math.round(dueForThisInst * 100) / 100;
@@ -3310,9 +3488,7 @@ class PlotsService {
 
       // If we just deleted and recreated the installment schedule, the new
       // installments start at paidAmount=0/PENDING - replay every existing
-      // receipt against them so payment history isn't lost. Without this,
-      // the booking would show as unpaid until something else happened to
-      // trigger a rebuild.
+      // receipt against them so payment history isn't lost.
       if (installmentParamsChanged || targetCount !== undefined || targetAmount !== undefined) {
         await this.rebuildBookingInstallmentsState(id, session);
       }
@@ -3352,7 +3528,8 @@ class PlotsService {
         discount: booking.discount || 0,
         remainingAmount: booking.remainingAmount,
         downpaymentAmount: booking.bookingAmount || booking.downpaymentAmount || 0,
-        downpaymentMonths: booking.downpaymentMonths || 1,
+        downpaymentMonths: booking.downpaymentMonths || 3,
+        downpaymentDays: booking.downpaymentDays || 90,
         oneTimeMonths: booking.oneTimeMonths || 1,
         emiMonthlyAmount: booking.emiMonthlyAmount || 0,
         promoterCommissionPercent: booking.promoterCommissionPercent || 0,
@@ -4083,6 +4260,8 @@ class PlotsService {
     let totalCollectionVolume = 0;
     let closedCommission = 0;
     let unclosedCommission = 0;
+    let fixedCommissionEarned = 0;
+    let incentiveEarned = 0;
 
     const monthlyTrendsMap = {};
     const recentCommissions = [];
@@ -4091,9 +4270,13 @@ class PlotsService {
       const colAmt = Number(c.collectionAmount || 0);
       const earnAmt = Number(c.amount || 0);
       const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
+      const fAmt = Number(c.fixedAmount || 0) || Math.round(earnAmt * (c.fixedPercent && c.commissionPercent ? (c.fixedPercent / c.commissionPercent) : 0.7));
+      const iAmt = Number(c.incentiveAmount || 0) || Math.max(0, earnAmt - fAmt);
 
       totalCollectionVolume += colAmt;
       totalCommissionEarned += earnAmt;
+      fixedCommissionEarned += fAmt;
+      incentiveEarned += iAmt;
 
       if (isDirect) {
         directCommissionEarned += earnAmt;
@@ -4133,6 +4316,9 @@ class PlotsService {
           customerName: c.customerId?.name || '-',
           collectionAmount: colAmt,
           commissionPercent: c.commissionPercent,
+          fixedPercent: c.fixedPercent || 0,
+          incentivePercent: c.incentivePercent || 0,
+          slabLabel: c.slabLabel || '',
           commissionEarned: earnAmt,
           commissionRole: c.commissionRole,
           isClosed: Boolean(c.closingId),
@@ -4157,6 +4343,31 @@ class PlotsService {
     // Sort Monthly trends
     const monthlyTrends = Object.values(monthlyTrendsMap).sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
 
+    // Target Tier & Performance Calculation for Current Month
+    const now = new Date();
+    const currentMonthDirectVol = await this.getSponsorPeriodVolume(sponsor._id, now, false);
+    const currentMonthTeamVol = await this.getSponsorPeriodVolume(sponsor._id, now, true);
+    const plotPolicy = CommissionPolicyConfig.getDefaultPlotPolicy();
+    const roleName = sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
+    const evalVolume = sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol;
+    const slabInfo = CommissionPolicyConfig.resolveSlab(plotPolicy, roleName, evalVolume);
+
+    const targetTierInfo = {
+      roleName,
+      roleDisplay: sponsor.sponsorId ? 'Business Associate' : 'Business Partner',
+      periodLabel: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      currentMonthVolume: evalVolume,
+      directVolume: currentMonthDirectVol,
+      teamVolume: currentMonthTeamVol,
+      currentSlab: slabInfo.slabLabel,
+      fixedPercent: slabInfo.fixedPercent,
+      incentivePercent: slabInfo.incentivePercent,
+      totalPercent: slabInfo.totalPercent,
+      nextSlabLabel: slabInfo.nextSlab ? slabInfo.nextSlab.label : null,
+      nextSlabIncentive: slabInfo.nextSlab ? slabInfo.nextSlab.targetIncentivePercent : null,
+      distanceToNextSlab: slabInfo.distanceToNextSlab,
+    };
+
     return {
       sponsor: {
         _id: sponsor._id,
@@ -4173,6 +4384,8 @@ class PlotsService {
         totalCommissionEarned: Math.round(totalCommissionEarned * 100) / 100,
         directCommissionEarned: Math.round(directCommissionEarned * 100) / 100,
         teamCommissionEarned: Math.round(teamCommissionEarned * 100) / 100,
+        fixedCommissionEarned: Math.round(fixedCommissionEarned * 100) / 100,
+        incentiveEarned: Math.round(incentiveEarned * 100) / 100,
         closedCommission: Math.round(closedCommission * 100) / 100,
         unclosedCommission: Math.round(unclosedCommission * 100) / 100,
         totalDisbursedPayouts: Math.round(totalDisbursedPayouts * 100) / 100,
@@ -4186,7 +4399,8 @@ class PlotsService {
         totalBusinessValue: directPlotValue + teamPlotValue,
         directPlotValue,
         teamPlotValue,
-        subordinatesCount: subordinates.length
+        subordinatesCount: subordinates.length,
+        targetTierInfo
       },
       subordinates: subordinates.slice(0, 10),
       monthlyTrends,
@@ -4289,12 +4503,18 @@ class PlotsService {
     let selfCommission = 0;
     let subCollection = 0;
     let subCommission = 0;
+    let fixedCommissionTotal = 0;
+    let incentiveCommissionTotal = 0;
+    let plotCollectionTotal = 0;
+    let plotCommissionTotal = 0;
 
     // Group items by transaction rows
     const items = filteredCommissions.map(c => {
       const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
       const colAmt = Number(c.collectionAmount || 0);
       const earnAmt = Number(c.amount || 0);
+      const fAmt = Number(c.fixedAmount || 0) || Math.round(earnAmt * (c.fixedPercent && c.commissionPercent ? (c.fixedPercent / c.commissionPercent) : 0.7));
+      const iAmt = Number(c.incentiveAmount || 0) || Math.max(0, earnAmt - fAmt);
 
       if (isDirect) {
         selfCollection += colAmt;
@@ -4304,12 +4524,19 @@ class PlotsService {
         subCommission += earnAmt;
       }
 
+      fixedCommissionTotal += fAmt;
+      incentiveCommissionTotal += iAmt;
+      plotCollectionTotal += colAmt;
+      plotCommissionTotal += earnAmt;
+
       const bookingSponsor = c.bookingId?.sponsorId;
       const isSubordinateSale = c.commissionRole === 'DEVELOPER_OVERRIDE';
       const isDirectDeveloper = c.commissionRole === 'DIRECT_DEVELOPER';
 
       let percentFormula = `${c.commissionPercent}%`;
-      if (isDirectDeveloper) {
+      if (c.fixedPercent && c.incentivePercent) {
+        percentFormula = `${c.fixedPercent}% Fix + ${c.incentivePercent}% Incentive`;
+      } else if (isDirectDeveloper) {
         const promoterPart = +(c.commissionPercent - 2).toFixed(2);
         percentFormula = `${promoterPart}% + 2%`;
       }
@@ -4331,6 +4558,12 @@ class PlotsService {
         commissionRole: c.commissionRole,
         collectionAmount: colAmt,
         commissionPercent: c.commissionPercent,
+        fixedPercent: c.fixedPercent || 0,
+        incentivePercent: c.incentivePercent || 0,
+        fixedAmount: fAmt,
+        incentiveAmount: iAmt,
+        slabLabel: c.slabLabel || '',
+        businessType: c.businessType || 'PLOT_SALE',
         percentFormula,
         commissionEarned: earnAmt,
         isClosed: Boolean(c.closingId),
@@ -4339,8 +4572,110 @@ class PlotsService {
       };
     });
 
+    // Also fetch Investment Commissions (RD / FD) for this sponsor
+    let investmentCollectionTotal = 0;
+    let investmentCommissionTotal = 0;
+    try {
+      const invComms = await InvestmentCommission.find({
+        sponsorId: sponsor._id,
+        status: { $ne: 'CANCELLED' }
+      })
+        .populate('accountId', 'accountNumber customerName customerMobile schemeType')
+        .populate('receiptId', 'receiptNumber paymentMode paymentDate amount')
+        .lean();
+
+      invComms.forEach(ic => {
+        const iDate = ic.earnedDate || ic.createdAt;
+        const dStr = new Date(iDate).toISOString().slice(0, 10);
+        if (fromDate && dStr < fromDate) return;
+        if (toDate && dStr > toDate) return;
+
+        const isDirect = ic.sponsorRole === 'DIRECT_DEVELOPER' || ic.sponsorRole === 'PROMOTER';
+        if (typeFilter === 'SELF' && !isDirect) return;
+        if (typeFilter === 'SUBORDINATE' && isDirect) return;
+
+        const col = Number(ic.collectedAmount || 0);
+        const comm = Number(ic.commissionAmount || 0);
+        const fAmt = Number(ic.fixedAmount || 0) || Math.round(comm * 0.7);
+        const iAmt = Number(ic.incentiveAmount || 0) || Math.max(0, comm - fAmt);
+
+        investmentCollectionTotal += col;
+        investmentCommissionTotal += comm;
+        fixedCommissionTotal += fAmt;
+        incentiveCommissionTotal += iAmt;
+
+        if (isDirect) {
+          selfCollection += col;
+          selfCommission += comm;
+        } else {
+          subCollection += col;
+          subCommission += comm;
+        }
+
+        items.push({
+          _id: ic._id,
+          date: iDate,
+          receiptNumber: ic.receiptId?.receiptNumber || '-',
+          receiptType: 'INVESTMENT',
+          paymentMode: ic.receiptId?.paymentMode || 'cash',
+          bookingNumber: ic.accountId?.accountNumber || '-',
+          plotNumber: `RD/FD (${ic.accountId?.schemeType || 'Deposit'})`,
+          customerName: ic.accountId?.customerName || '-',
+          customerCode: '-',
+          customerMobile: ic.accountId?.customerMobile || '-',
+          sourceType: isDirect ? 'SELF' : 'SUBORDINATE',
+          subordinateName: null,
+          subordinateCode: null,
+          commissionRole: ic.sponsorRole,
+          collectionAmount: col,
+          commissionPercent: ic.commissionPercent,
+          fixedPercent: ic.fixedPercent || 0,
+          incentivePercent: ic.incentivePercent || 0,
+          fixedAmount: fAmt,
+          incentiveAmount: iAmt,
+          slabLabel: ic.slabLabel || 'RD/FD Policy',
+          businessType: 'INVESTMENT_RD_FD',
+          percentFormula: `${ic.commissionPercent}% (RD/FD)`,
+          commissionEarned: comm,
+          isClosed: Boolean(ic.closingId),
+          closingNumber: null,
+          closingName: null
+        });
+      });
+    } catch (e) {
+      // Ignore if investment collection fails
+    }
+
+    // Sort all combined items by date descending
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     const totalCollection = selfCollection + subCollection;
     const totalCommission = selfCommission + subCommission;
+
+    // Current Target Tier for report header
+    const now = new Date();
+    const currentMonthDirectVol = await this.getSponsorPeriodVolume(sponsor._id, now, false);
+    const currentMonthTeamVol = await this.getSponsorPeriodVolume(sponsor._id, now, true);
+    const plotPolicy = CommissionPolicyConfig.getDefaultPlotPolicy();
+    const roleName = sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
+    const evalVolume = sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol;
+    const slabInfo = CommissionPolicyConfig.resolveSlab(plotPolicy, roleName, evalVolume);
+
+    const targetTierInfo = {
+      roleName,
+      roleDisplay: sponsor.sponsorId ? 'Business Associate' : 'Business Partner',
+      periodLabel: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      currentMonthVolume: evalVolume,
+      directVolume: currentMonthDirectVol,
+      teamVolume: currentMonthTeamVol,
+      currentSlab: slabInfo.slabLabel,
+      fixedPercent: slabInfo.fixedPercent,
+      incentivePercent: slabInfo.incentivePercent,
+      totalPercent: slabInfo.totalPercent,
+      nextSlabLabel: slabInfo.nextSlab ? slabInfo.nextSlab.label : null,
+      nextSlabIncentive: slabInfo.nextSlab ? slabInfo.nextSlab.targetIncentivePercent : null,
+      distanceToNextSlab: slabInfo.distanceToNextSlab,
+    };
 
     return {
       sponsor: {
@@ -4355,13 +4690,20 @@ class PlotsService {
       subordinatesCount: subordinates.length,
       subordinatesList: subordinates,
       summary: {
-        totalCollection,
-        totalCommission,
-        selfCollection,
-        selfCommission,
-        subordinateCollection: subCollection,
-        subordinateCommission: subCommission,
-        transactionsCount: items.length
+        totalCollection: Math.round(totalCollection * 100) / 100,
+        totalCommission: Math.round(totalCommission * 100) / 100,
+        selfCollection: Math.round(selfCollection * 100) / 100,
+        selfCommission: Math.round(selfCommission * 100) / 100,
+        subordinateCollection: Math.round(subCollection * 100) / 100,
+        subordinateCommission: Math.round(subCommission * 100) / 100,
+        fixedCommissionTotal: Math.round(fixedCommissionTotal * 100) / 100,
+        incentiveCommissionTotal: Math.round(incentiveCommissionTotal * 100) / 100,
+        plotCollectionTotal: Math.round(plotCollectionTotal * 100) / 100,
+        plotCommissionTotal: Math.round(plotCommissionTotal * 100) / 100,
+        investmentCollectionTotal: Math.round(investmentCollectionTotal * 100) / 100,
+        investmentCommissionTotal: Math.round(investmentCommissionTotal * 100) / 100,
+        transactionsCount: items.length,
+        targetTierInfo
       },
       items
     };
@@ -4941,18 +5283,6 @@ class PlotsService {
     }
     const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
 
-    // Sync all active bookings to ensure commission records exist for all collections
-    const activeBookingQuery = PlotBooking.find({
-      status: { $in: ['ACTIVE', 'COMPLETED'] },
-      sponsorId: { $ne: null }
-    }).select('_id');
-    if (session) activeBookingQuery.session(session);
-    const activeBookings = await activeBookingQuery.lean();
-
-    for (const b of activeBookings) {
-      await this.syncBookingSponsorCommissions(b._id, session);
-    }
-
     const query = {
       status: 'active',
       createdAt: { $gte: start, $lte: end },
@@ -4966,17 +5296,22 @@ class PlotsService {
     }
 
     const commQuery = PlotSponsorCommission.find(query)
+      .select('sponsorId customerId receiptId bookingId collectionAmount amount commissionPercent commissionRole fixedPercent incentivePercent status createdAt')
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
       .populate({
         path: 'bookingId',
-        select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
-        populate: { path: 'plotId', select: 'plotNumber seriesId' }
+        select: 'bookingNumber tenureMonths plotValue netValue discount plotId sponsorId',
+        populate: [
+          { path: 'plotId', select: 'plotNumber seriesId' },
+          { path: 'sponsorId', select: 'name sponsorCode customerId' }
+        ]
       })
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: 1 })
+      .lean();
     if (session) commQuery.session(session);
-    const commissions = await commQuery.lean();
+    const commissions = await commQuery;
 
     let totalCollection = 0;
     let totalCommission = 0;
@@ -5022,20 +5357,38 @@ class PlotsService {
       }
 
       const ratePct = Number(c.commissionPercent || 0);
+      let fixPct = Number(c.fixedPercent || 0);
+      let incPct = Number(c.incentivePercent || 0);
+
+      if (fixPct === 0 && incPct === 0 && ratePct > 0) {
+        if (isDirect) {
+          // BA Direct Sale: 5% base fix
+          fixPct = 5;
+          incPct = +(ratePct - 5).toFixed(3);
+        } else if (isIndirect) {
+          // BP Override: 2% base fix
+          fixPct = 2;
+          incPct = +(ratePct - 2).toFixed(3);
+        }
+      }
+
+      const formattedRate = (fixPct > 0 || incPct > 0)
+        ? `${ratePct}% (${fixPct}% + ${incPct}%)`
+        : `${ratePct}%`;
 
       if (isDirect) {
         sponsorMap[spId].directBusiness += colAmt;
         sponsorMap[spId].directCommission += commAmt;
-        if (ratePct > 0 && !sponsorMap[spId].directRates.includes(ratePct)) {
-          sponsorMap[spId].directRates.push(ratePct);
+        if (ratePct > 0 && !sponsorMap[spId].directRates.includes(formattedRate)) {
+          sponsorMap[spId].directRates.push(formattedRate);
         }
         directBusinessTotal += colAmt;
         directCommissionTotal += commAmt;
       } else if (isIndirect) {
         sponsorMap[spId].indirectBusiness += colAmt;
         sponsorMap[spId].indirectCommission += commAmt;
-        if (ratePct > 0 && !sponsorMap[spId].indirectRates.includes(ratePct)) {
-          sponsorMap[spId].indirectRates.push(ratePct);
+        if (ratePct > 0 && !sponsorMap[spId].indirectRates.includes(formattedRate)) {
+          sponsorMap[spId].indirectRates.push(formattedRate);
         }
         indirectBusinessTotal += colAmt;
         indirectCommissionTotal += commAmt;
@@ -5049,15 +5402,28 @@ class PlotsService {
 
     const sponsors = Object.values(sponsorMap).map(sp => {
       const directEffectivePct = sp.directBusiness > 0 ? +((sp.directCommission / sp.directBusiness) * 100).toFixed(2) : 0;
-      const indirectEffectivePct = sp.indirectBusiness > 0 ? +((sp.indirectCommission / sp.indirectBusiness) * 100).toFixed(2) : 0;
+      const indirectEffectivePct = sp.indirectBusiness > 0 ? +((sp.indirectCommission / sp.indirectBusiness) * 100).toFixed(3) : 0;
       const totalEffectivePct = sp.totalBusiness > 0 ? +((sp.totalCommission / sp.totalBusiness) * 100).toFixed(2) : 0;
+
+      let defaultDirectStr = `${directEffectivePct}%`;
+      if (directEffectivePct > 0) {
+        const dInc = +(directEffectivePct - 5).toFixed(2);
+        defaultDirectStr = dInc > 0 ? `${directEffectivePct}% (5% + ${dInc}%)` : `${directEffectivePct}% (5%)`;
+      }
+
+      let defaultIndirectStr = `${indirectEffectivePct}%`;
+      if (indirectEffectivePct > 0) {
+        const iInc = +(indirectEffectivePct - 2).toFixed(3);
+        defaultIndirectStr = iInc > 0 ? `${indirectEffectivePct}% (2% + ${iInc}%)` : `${indirectEffectivePct}% (2%)`;
+      }
+
       return {
         ...sp,
         directEffectivePct,
         indirectEffectivePct,
         totalEffectivePct,
-        directRatesStr: sp.directRates.length > 0 ? sp.directRates.map(r => `${r}%`).join(', ') : (directEffectivePct > 0 ? `${directEffectivePct}%` : '0%'),
-        indirectRatesStr: sp.indirectRates.length > 0 ? sp.indirectRates.map(r => `${r}%`).join(', ') : (indirectEffectivePct > 0 ? `${indirectEffectivePct}%` : '2%'),
+        directRatesStr: sp.directRates.length > 0 ? sp.directRates.join(', ') : (directEffectivePct > 0 ? defaultDirectStr : '0%'),
+        indirectRatesStr: sp.indirectRates.length > 0 ? sp.indirectRates.join(', ') : (indirectEffectivePct > 0 ? defaultIndirectStr : '0%'),
       };
     }).sort((a, b) => b.totalCommission - a.totalCommission);
 
@@ -5241,14 +5607,31 @@ class PlotsService {
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
       .populate({
         path: 'bookingId',
-        select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
-        populate: { path: 'plotId', select: 'plotNumber seriesId' }
+        select: 'bookingNumber tenureMonths plotValue netValue discount plotId sponsorId',
+        populate: [
+          { path: 'plotId', select: 'plotNumber seriesId' },
+          { path: 'sponsorId', select: 'name sponsorCode customerId' }
+        ]
       })
       .sort({ createdAt: 1 })
       .lean();
 
+    // Map entries to each sponsor in closing.sponsors
+    const sponsorsWithEntries = (closing.sponsors || []).map(sp => {
+      const spId = (sp.sponsorId?._id || sp.sponsorId || '').toString();
+      const entries = commissions.filter(c => {
+        const cSpId = (c.sponsorId?._id || c.sponsorId || '').toString();
+        return cSpId === spId;
+      });
+      return {
+        ...sp,
+        entries,
+      };
+    });
+
     return {
       ...closing,
+      sponsors: sponsorsWithEntries,
       transactions: commissions,
     };
   }

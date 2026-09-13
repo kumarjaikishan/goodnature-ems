@@ -60,6 +60,40 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       enum: ['active', 'reversed'],
       default: 'active',
     },
+    fixedPercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    incentivePercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    fixedAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    incentiveAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    businessType: {
+      type: String,
+      enum: ['PLOT_SALE', 'INVESTMENT_RD_FD'],
+      default: 'PLOT_SALE',
+    },
+    periodVolume: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    slabLabel: {
+      type: String,
+      default: '',
+    },
     closingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotClosing',
@@ -74,6 +108,7 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
 plotSponsorCommissionSchema.index({ sponsorId: 1 });
 plotSponsorCommissionSchema.index({ bookingId: 1 });
 plotSponsorCommissionSchema.index({ closingId: 1, createdAt: -1 });
+plotSponsorCommissionSchema.index({ status: 1, closingId: 1, createdAt: 1 });
 // Commission report sorts by createdAt and filters by status.
 plotSponsorCommissionSchema.index({ status: 1, createdAt: -1 });
 

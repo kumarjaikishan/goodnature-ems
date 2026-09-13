@@ -337,7 +337,7 @@ const ReceivePaymentForm = ({
             className="mt-2 w-full py-3"
           >
             {form.paymentMode === 'cash'
-              ? 'Collect Payment (Realize Immediately)'
+              ? 'Collect Payment'
               : 'Submit Collection for Admin Approval'}
           </Button>
         </form>

@@ -59,85 +59,65 @@ export const StepPlot = ({
                 <span className="text-xs font-bold text-slate-800 tracking-tight uppercase">
                   {s.prefix}-Plot Series ({s.name})
                 </span>
-                <span className="text-xs bg-teal-50 text-teal-800 border border-teal-100 px-2 py-0.5 rounded-md font-bold">
-                  Plots: {seriesPlots.length}
+                <span className="text-[11px] font-semibold text-slate-500">
+                  {seriesPlots.filter((p) => p.status === 'AVAILABLE').length} Available
                 </span>
               </div>
 
-              {seriesPlots.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">No plots generated for this series.</p>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                  {seriesPlots.map((p) => {
-                    const isAvailable = p.status === 'AVAILABLE';
-                    const isCorner = p.plotType === 'CORNER';
-                    const isHold = p.status === 'HOLD';
-                    const isBooked = p.status === 'BOOKED' || p.status === 'REGISTERED';
-                    const isSelected = form.plotId === p._id;
+              {seriesPlots.length > 0 ? (
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                  {seriesPlots.map((plot) => {
+                    const isSelected = form.plotId === plot._id;
+                    const isAvail = plot.status === 'AVAILABLE';
+                    const isHold = plot.status === 'HOLD';
+                    const isBooked = ['BOOKED', 'SOLD', 'REGISTRY_DONE'].includes(plot.status);
 
-                    let colorCls = '';
-                    if (isSelected) {
-                      colorCls = 'bg-teal-700 border-teal-800 text-white shadow-xs ring-2 ring-teal-600/20';
+                    let bgClass = 'bg-slate-100 border-slate-300 text-slate-400 opacity-60 cursor-not-allowed';
+                    if (isAvail) {
+                      bgClass = 'bg-white border-emerald-300 text-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50 cursor-pointer shadow-2xs';
                     } else if (isHold) {
-                      colorCls = 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100';
-                    } else if (isBooked) {
-                      colorCls = 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60';
-                    } else {
-                      colorCls = 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100';
+                      bgClass = 'bg-amber-50 border-amber-300 text-amber-900 cursor-not-allowed';
+                    }
+
+                    if (isSelected) {
+                      bgClass = 'bg-teal-700 border-teal-800 text-white font-bold ring-2 ring-teal-500/50 shadow-sm';
                     }
 
                     return (
                       <button
+                        key={plot._id}
                         type="button"
-                        key={p._id}
-                        disabled={isBooked}
                         onClick={() => {
-                          if (isAvailable) {
-                            handlePlotSelect(p._id);
+                          if (isAvail) {
+                            handlePlotSelect(plot._id);
                           } else {
-                            toast.error(`Plot ${p.plotNumber} is already ${p.status.toLowerCase()}`);
+                            toast.error(`Plot #${plot.plotNumber} is currently ${plot.status}`);
                           }
                         }}
-                        className={`p-2 border rounded-xl flex flex-col justify-between transition cursor-pointer select-none h-12 ${colorCls}`}
+                        disabled={!isAvail}
+                        className={`p-2 rounded-xl border text-center flex flex-col items-center justify-center transition ${bgClass}`}
                       >
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-xs font-bold tracking-wider">{p.plotNumber}</span>
-                          {isCorner && (
-                            <span
-                              className={`text-[0.6rem] font-bold px-1 rounded ${
-                                isSelected ? 'bg-white text-teal-800' : 'bg-teal-700 text-white'
-                              }`}
-                            >
-                              CORNER
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex justify-between items-end w-full">
+                        <span className="text-xs font-bold leading-none">#{plot.plotNumber}</span>
+                        <span className="text-[9px] mt-1 opacity-80">{plot.plotSize} sqft</span>
+                        {plot.plotType === 'CORNER' && (
                           <span
-                            className={`text-[0.6rem] uppercase font-semibold ${
-                              isSelected ? 'text-teal-100' : 'opacity-80'
+                            className={`text-[8px] px-1 rounded-sm mt-0.5 font-bold uppercase ${
+                              isSelected ? 'bg-teal-800 text-teal-100' : 'bg-amber-100 text-amber-800'
                             }`}
                           >
-                            {isSelected ? 'Selected' : isAvailable ? 'Available' : p.status}
+                            Corner
                           </span>
-                        </div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic py-2">No plots added in this series yet.</p>
               )}
             </div>
           );
         })}
-      </div>
-
-      <div className="flex justify-between pt-4 border-t border-slate-100">
-        <Button variant="secondary" size="md" onClick={prevStep} startIcon={ChevronLeft}>
-          Back
-        </Button>
-        <Button variant="primary" size="md" onClick={nextStep} endIcon={ChevronRight}>
-          Next: Payment Details
-        </Button>
       </div>
     </div>
   );

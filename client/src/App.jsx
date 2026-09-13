@@ -95,8 +95,10 @@ const SponsorDashboard = lazy(() => import('./pages/plots/SponsorDashboard'));
 const SponsorBusinessReportPage = lazy(() => import('./pages/plots/SponsorBusinessReportPage'));
 const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
 const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
+const PlotClosingProcessPage = lazy(() => import('./pages/plots/PlotClosingProcessPage'));
 const PlotKisanLandPage = lazy(() => import('./pages/plots/PlotKisanLandPage'));
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/PlotKisanLedgerPage'));
+const PlotBookingEditPage = lazy(() => import('./pages/plots/PlotBookingEditPage'));
 
 // Investments (RD / FD)
 const InvestmentDashboard = lazy(() => import('./pages/investments/InvestmentDashboard'));
@@ -163,6 +165,8 @@ const routesByRole = {
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
+      <Route path="plots/bookings/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
@@ -240,6 +244,8 @@ const routesByRole = {
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
+      <Route path="plots/bookings/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
@@ -250,6 +256,8 @@ const routesByRole = {
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="plots/closings" element={<PlotClosingsPage />} />
+      <Route path="plots/closings/new" element={<PlotClosingProcessPage />} />
+      <Route path="plots/closings/edit/:id" element={<PlotClosingProcessPage />} />
       {/* Investments (RD / FD) */}
       <Route path="investments/dashboard" element={<InvestmentDashboard />} />
       <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
@@ -317,6 +325,8 @@ const routesByRole = {
       <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+      <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
+      <Route path="plots/bookings/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
@@ -327,6 +337,8 @@ const routesByRole = {
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
       <Route path="plots/closings" element={<PlotClosingsPage />} />
+      <Route path="plots/closings/new" element={<PlotClosingProcessPage />} />
+      <Route path="plots/closings/edit/:id" element={<PlotClosingProcessPage />} />
 
       {/* Investments (RD / FD) */}
       <Route path="investments/dashboard" element={<InvestmentDashboard />} />

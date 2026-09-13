@@ -24,6 +24,7 @@ require('./conn/conn');
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
+  "https://local.battlefiesta.in",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
@@ -134,6 +135,6 @@ app.use(errorHandle);
 // ----------------------
 // Start server
 // ----------------------
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running at port: ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server is running at http://localhost:${PORT} and http://127.0.0.1:${PORT}`);
 });

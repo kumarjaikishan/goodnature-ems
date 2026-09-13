@@ -7,6 +7,7 @@ const InvestmentCommission = require('../models/InvestmentCommission');
 const PlotCustomer = require('../models/PlotCustomer');
 const User = require('../models/user');
 const Counter = require('../models/Counter');
+const CommissionPolicyConfig = require('../models/CommissionPolicyConfig');
 
 class InvestmentService {
   /**
@@ -465,6 +466,45 @@ class InvestmentService {
   }
 
   /**
+   * Internal helper to calculate period RD/FD investment collection volume for a sponsor
+   */
+  async getSponsorPeriodInvestmentVolume(sponsorId, date = new Date(), isTeam = false, session = null) {
+    if (!sponsorId) return 0;
+    const d = new Date(date);
+    const startOfMonth = new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999));
+
+    let sponsorIds = [new mongoose.Types.ObjectId(sponsorId.toString())];
+    if (isTeam) {
+      const subQuery = User.find({ role: 'sponsor', sponsorId });
+      if (session) subQuery.session(session);
+      const subSponsors = await subQuery.select('_id').lean();
+      sponsorIds = [...sponsorIds, ...subSponsors.map(s => s._id)];
+    }
+
+    const accQuery = InvestmentAccount.find({
+      sponsorId: { $in: sponsorIds },
+      status: { $ne: 'CANCELLED' }
+    }).select('_id');
+    if (session) accQuery.session(session);
+    const accounts = await accQuery.lean();
+
+    if (!accounts.length) return 0;
+    const accountIds = accounts.map(a => a._id);
+
+    const receiptQuery = InvestmentReceipt.find({
+      accountId: { $in: accountIds },
+      paymentDate: { $gte: startOfMonth, $lte: endOfMonth },
+      status: { $in: ['APPROVED', 'COMPLETED', 'CLEARED'] }
+    }).select('amount');
+    if (session) receiptQuery.session(session);
+    const receipts = await receiptQuery.lean();
+
+    const total = receipts.reduce((acc, r) => acc + Number(r.amount || 0), 0);
+    return Math.round(total * 100) / 100;
+  }
+
+  /**
    * Internal helper to calculate sponsor commissions
    */
   async _generateCommissions(account, receipt, session) {
@@ -474,13 +514,26 @@ class InvestmentService {
     if (!sponsor) return;
 
     const isDeveloper = !sponsor.sponsorId || sponsor.sponsorId === 'direct';
-    const promoterPct = account.promoterCommissionPercent || 0;
-    const devPct = account.developerCommissionPercent || 1.0;
+    const policy = CommissionPolicyConfig.getDefaultInvestmentPolicy();
+    const receiptDate = receipt.paymentDate || receipt.createdAt || new Date();
 
     if (isDeveloper) {
-      // Direct Developer gets Promoter % + 1.0%
-      const totalPct = promoterPct + devPct;
-      const commAmt = Math.round((receipt.amount * totalPct) / 100);
+      // ── BUSINESS PARTNER DIRECT RD/FD SALE ─────────────────────────
+      // Upper BA: 2.50% Fix + Target Incentive on direct volume
+      // Lower BP: 1.00% Fix + Target Incentive on total team volume
+      const directVol = await this.getSponsorPeriodInvestmentVolume(sponsor._id, receiptDate, false, session);
+      const teamVol = await this.getSponsorPeriodInvestmentVolume(sponsor._id, receiptDate, true, session);
+
+      const baSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_ASSOCIATE', directVol);
+      const bpSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_PARTNER', teamVol);
+
+      const combinedFixed = +(baSlab.fixedPercent + bpSlab.fixedPercent).toFixed(3); // 2.50% + 1.00% = 3.50%
+      const combinedIncentive = +(baSlab.incentivePercent + bpSlab.incentivePercent).toFixed(3);
+      const combinedTotal = +(combinedFixed + combinedIncentive).toFixed(3);
+
+      const fAmt = Math.round(receipt.amount * (combinedFixed / 100));
+      const iAmt = Math.round(receipt.amount * (combinedIncentive / 100));
+      const totAmt = fAmt + iAmt;
 
       await new InvestmentCommission({
         receiptId: receipt._id,
@@ -488,39 +541,67 @@ class InvestmentService {
         sponsorId: sponsor._id,
         sponsorRole: 'DIRECT_DEVELOPER',
         collectedAmount: receipt.amount,
-        commissionPercent: totalPct,
-        commissionAmount: commAmt,
+        commissionPercent: combinedTotal,
+        commissionAmount: totAmt,
+        fixedPercent: combinedFixed,
+        incentivePercent: combinedIncentive,
+        fixedAmount: fAmt,
+        incentiveAmount: iAmt,
+        slabLabel: `${baSlab.slabLabel} (BA: ${baSlab.totalPercent}%) + ${bpSlab.slabLabel} (BP: ${bpSlab.totalPercent}%)`,
         status: 'EARNED',
         earnedDate: receipt.paymentDate,
       }).save({ session });
     } else {
-      // Sub-sponsor gets Promoter %
-      const subCommAmt = Math.round((receipt.amount * promoterPct) / 100);
+      // ── BUSINESS ASSOCIATE + PARENT PARTNER OVERRIDE ──────────────
+      // 1. Business Associate gets 2.50% Fix + BA Target Incentive
+      const baVol = await this.getSponsorPeriodInvestmentVolume(sponsor._id, receiptDate, false, session);
+      const baSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_ASSOCIATE', baVol);
+
+      const subFAmt = Math.round(receipt.amount * (baSlab.fixedPercent / 100));
+      const subIAmt = Math.round(receipt.amount * (baSlab.incentivePercent / 100));
+      const subTot = subFAmt + subIAmt;
+
       await new InvestmentCommission({
         receiptId: receipt._id,
         accountId: account._id,
         sponsorId: sponsor._id,
         sponsorRole: 'PROMOTER',
         collectedAmount: receipt.amount,
-        commissionPercent: promoterPct,
-        commissionAmount: subCommAmt,
+        commissionPercent: baSlab.totalPercent,
+        commissionAmount: subTot,
+        fixedPercent: baSlab.fixedPercent,
+        incentivePercent: baSlab.incentivePercent,
+        fixedAmount: subFAmt,
+        incentiveAmount: subIAmt,
+        slabLabel: baSlab.slabLabel,
         status: 'EARNED',
         earnedDate: receipt.paymentDate,
       }).save({ session });
 
-      // Parent Developer Sponsor gets 1.0% override
+      // 2. Parent Developer Sponsor gets 1.00% Fix + BP Target Incentive on cumulative team volume
       if (sponsor.sponsorId && sponsor.sponsorId !== 'direct') {
         const parentDev = await User.findById(sponsor.sponsorId).session(session);
         if (parentDev) {
-          const devCommAmt = Math.round((receipt.amount * devPct) / 100);
+          const bpTeamVol = await this.getSponsorPeriodInvestmentVolume(parentDev._id, receiptDate, true, session);
+          const bpSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_PARTNER', bpTeamVol);
+
+          const bpFAmt = Math.round(receipt.amount * (bpSlab.fixedPercent / 100));
+          const bpIAmt = Math.round(receipt.amount * (bpSlab.incentivePercent / 100));
+          const bpTot = bpFAmt + bpIAmt;
+
           await new InvestmentCommission({
             receiptId: receipt._id,
             accountId: account._id,
             sponsorId: parentDev._id,
             sponsorRole: 'DEVELOPER',
             collectedAmount: receipt.amount,
-            commissionPercent: devPct,
-            commissionAmount: devCommAmt,
+            commissionPercent: bpSlab.totalPercent,
+            commissionAmount: bpTot,
+            fixedPercent: bpSlab.fixedPercent,
+            incentivePercent: bpSlab.incentivePercent,
+            fixedAmount: bpFAmt,
+            incentiveAmount: bpIAmt,
+            slabLabel: bpSlab.slabLabel,
             status: 'EARNED',
             earnedDate: receipt.paymentDate,
           }).save({ session });

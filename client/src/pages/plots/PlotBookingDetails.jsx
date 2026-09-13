@@ -20,6 +20,7 @@ import {
   Building2,
   CheckCircle2,
   AlertTriangle,
+  Edit3,
 } from 'lucide-react';
 import { cloudinaryUrl } from '../../utils/imageurlsetter';
 import Modalbox from '../../components/custommodal/Modalbox';
@@ -140,7 +141,7 @@ const PlotBookingDetails = () => {
   // For MONTHLY_INSTALLMENT: Initial booking/downpayment amount must be completed
   const downpaymentRequired = booking.scheme === 'FULL_PAYMENT'
     ? netPlotValue
-    : (booking.bookingAmount || booking.downpaymentAmount || Math.round(netPlotValue * 0.40));
+    : (booking.downpaymentAmount || booking.bookingAmount || (booking.downpaymentRate && plotAreaSize > 0 ? booking.downpaymentRate * plotAreaSize : Math.round(netPlotValue * 0.40)));
   const isDownpaymentCompleted = paidAmount >= (downpaymentRequired - 1); // 1 rupee margin for rounding
 
   // Determine scheme display label
@@ -206,6 +207,12 @@ const PlotBookingDetails = () => {
           )}
           {booking.status !== 'CANCELLED' && (
             <>
+              <button
+                onClick={() => navigate(`/dashboard/plots/booking/edit/${booking._id}`)}
+                className="flex items-center gap-1.5 px-3.5 py-2 border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
+              >
+                <Edit3 size={15} className="text-indigo-700" /> Edit Contract
+              </button>
               <button
                 onClick={() => setRestructureOpen(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
@@ -852,22 +859,22 @@ const PlotBookingDetails = () => {
                   onChange={(e) => setRestructureForm({ ...restructureForm, tenureMonths: Number(e.target.value) })}
                 >
                   {(rateConfig?.rateSlabs || [
-                    { tenureMonths: 0, plotRate: 1000 },
-                    { tenureMonths: 3, plotRate: 1050 },
-                    { tenureMonths: 6, plotRate: 1100 },
-                    { tenureMonths: 9, plotRate: 1150 },
-                    { tenureMonths: 12, plotRate: 1200 },
-                    { tenureMonths: 15, plotRate: 1250 },
-                    { tenureMonths: 18, plotRate: 1300 },
-                    { tenureMonths: 21, plotRate: 1350 },
-                    { tenureMonths: 24, plotRate: 1400 },
-                    { tenureMonths: 27, plotRate: 1450 },
-                    { tenureMonths: 30, plotRate: 1500 },
+                    { tenureMonths: 0, plotRate: 1000, downpaymentRate: 1000, emiRate: 0 },
+                    { tenureMonths: 6, plotRate: 1050, downpaymentRate: 500, emiRate: 550 },
+                    { tenureMonths: 12, plotRate: 1100, downpaymentRate: 500, emiRate: 600 },
+                    { tenureMonths: 18, plotRate: 1150, downpaymentRate: 500, emiRate: 650 },
+                    { tenureMonths: 24, plotRate: 1200, downpaymentRate: 500, emiRate: 700 },
+                    { tenureMonths: 30, plotRate: 1250, downpaymentRate: 500, emiRate: 750 },
+                    { tenureMonths: 36, plotRate: 1300, downpaymentRate: 500, emiRate: 800 },
+                    { tenureMonths: 42, plotRate: 1350, downpaymentRate: 500, emiRate: 850 },
+                    { tenureMonths: 48, plotRate: 1400, downpaymentRate: 500, emiRate: 900 },
+                    { tenureMonths: 54, plotRate: 1450, downpaymentRate: 500, emiRate: 950 },
+                    { tenureMonths: 60, plotRate: 1500, downpaymentRate: 500, emiRate: 1000 },
                   ]).map((s) => (
                     <option key={s.tenureMonths} value={s.tenureMonths}>
                       {s.tenureMonths === 0
-                        ? `0 Months (One-Time Payment) — ₹${s.plotRate}/sqft`
-                        : `${s.tenureMonths} Months EMI — ₹${s.plotRate}/sqft`}
+                        ? `0 Months (One-Time Payment) — ₹${s.plotRate}/sqft [100% DP]`
+                        : `${s.tenureMonths} Months EMI — ₹${s.plotRate}/sqft [DP: ₹${s.downpaymentRate || 500}/sqft | EMI: ₹${s.emiRate || (s.plotRate - 500)}/sqft]`}
                     </option>
                   ))}
                 </select>

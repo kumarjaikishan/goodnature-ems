@@ -46,7 +46,7 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
     },
     minRdAmount: {
       type: Number,
-      default: 1000,
+      default: 2000,
     },
     rdStepAmount: {
       type: Number,
@@ -54,11 +54,11 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
     },
     minFdAmount: {
       type: Number,
-      default: 10000,
+      default: 50000,
     },
     fdStepAmount: {
       type: Number,
-      default: 10000,
+      default: 1000,
     },
     prematureAnnualInterestPercent: {
       type: Number,

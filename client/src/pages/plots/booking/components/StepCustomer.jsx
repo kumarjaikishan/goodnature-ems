@@ -58,12 +58,12 @@ export const StepCustomer = ({
               >
                 <div className="flex flex-col">
                   <span className="font-bold text-slate-800">{cust.name}</span>
-                  <span className="text-slate-400">{cust.mobile}</span>
+                  <span className="text-slate-500 font-mono text-[11px]">{cust.customerCode || cust.customerId}</span>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className="font-mono font-bold text-teal-800">{cust.customerCode || cust.customerId}</span>
-                  <span className="text-[11px] text-slate-500">
-                    Sponsor: {cust.sponsorId?.name || 'Direct / Company'}
+                <div className="text-right">
+                  <span className="text-slate-600 block">{cust.mobile}</span>
+                  <span className="text-[10px] text-teal-700 font-bold uppercase">
+                    {cust.sponsorId?.name ? `Sponsor: ${cust.sponsorId.name}` : 'Direct Customer'}
                   </span>
                 </div>
               </div>
@@ -72,50 +72,54 @@ export const StepCustomer = ({
         )}
       </div>
 
-      {/* Selected Customer Card */}
-      {selectedCustomer && (
-        <div className="bg-teal-50/50 border border-teal-200 p-4 rounded-xl flex items-center justify-between text-xs">
+      {/* Selected Customer Card Preview */}
+      {selectedCustomer ? (
+        <div className="bg-teal-50/50 border border-teal-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-sm">
+            <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-sm">
               {selectedCustomer.name.charAt(0).toUpperCase()}
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-slate-800 text-sm">{selectedCustomer.name}</span>
-              <span className="text-slate-500">
-                {selectedCustomer.mobile} | ID:{' '}
-                <strong className="font-mono text-teal-800">
-                  {selectedCustomer.customerCode || selectedCustomer.customerId}
-                </strong>
-              </span>
-              <span className="text-slate-500 mt-0.5">
-                Sponsor: <strong>{selectedCustomer.sponsorId?.name || '🏢 Company (Direct)'}</strong>
-                {selectedCustomer.sponsorId && (
-                  <span className="ml-1 text-[11px] text-teal-700 font-semibold">
-                    ({!selectedCustomer.sponsorId.sponsorId ? '👑 Developer Sponsor' : '👤 Sub Sponsor'})
-                  </span>
-                )}
-              </span>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">{selectedCustomer.name}</h4>
+              <p className="text-xs text-teal-700 font-mono font-bold">
+                {selectedCustomer.customerCode || selectedCustomer.customerId}
+              </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomer(null);
-              setSearchQuery('');
-              setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
-            }}
-            className="text-xs text-rose-600 font-bold hover:underline cursor-pointer"
-          >
-            Change
-          </button>
+
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-600 font-medium">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase">Mobile</span>
+              <span className="font-semibold text-slate-800">{selectedCustomer.mobile}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase">Sponsor / Agent</span>
+              <span className="font-semibold text-slate-800">
+                {selectedCustomer.sponsorId
+                  ? `${selectedCustomer.sponsorId.name} (${selectedCustomer.sponsorId.sponsorCode || ''})`
+                  : 'Direct (Company)'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCustomer(null);
+                setSearchQuery('');
+                setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
+              }}
+              className="text-xs text-rose-600 hover:text-rose-700 font-bold ml-auto cursor-pointer"
+            >
+              Change
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-slate-50 border border-dashed border-slate-300 p-8 rounded-xl text-center">
+          <p className="text-xs text-slate-500 font-medium">
+            No customer selected. Search and select a registered customer above, or click "+ Register Customer".
+          </p>
         </div>
       )}
-
-      <div className="flex justify-end pt-4 border-t border-slate-100">
-        <Button variant="primary" size="md" onClick={nextStep} endIcon={ChevronRight}>
-          Next: Choose Plot
-        </Button>
-      </div>
     </div>
   );
 };

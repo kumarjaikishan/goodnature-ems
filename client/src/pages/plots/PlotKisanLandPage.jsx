@@ -488,7 +488,7 @@ const PlotKisanLandPage = () => {
             Agreements & Registry Master
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Manage land acquisition agreements, multi-parcel details, registry deeds, payment ledgers, and plot stock allocations.
+            Manage land acquisition agreements, land & plot details, registry deeds, payment ledgers, and stock allocations.
           </p>
         </div>
 

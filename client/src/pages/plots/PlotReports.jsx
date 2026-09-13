@@ -14,7 +14,6 @@ import DeleteBookingModal from './reports/DeleteBookingModal';
 import SetupPayoutModal from './reports/SetupPayoutModal';
 import SponsorLedgerModal from './reports/SponsorLedgerModal';
 import RevisionsAuditModal from './reports/RevisionsAuditModal';
-import EditBookingModal from './reports/EditBookingModal';
 import ReportFilterBar from './reports/ReportFilterBar';
 
 const PlotReports = () => {
@@ -71,175 +70,14 @@ const PlotReports = () => {
     return `${hours}h ${mins}m`;
   };
 
-  // Edit Contract State
-  const [editingBooking, setEditingBooking] = useState(null);
-  const [rateConfig, setRateConfig] = useState(null);
-  const [editForm, setEditForm] = useState({
-    plotId: '',
-    customerId: '',
-    sponsorId: '',
-    tenureMonths: 0,
-    scheme: 'FULL_PAYMENT',
-    bookingAmount: 0,
-    paymentMode: 'cash',
-    transactionReference: '',
-    notes: '',
-    bookingType: 'BOOKING',
-    holdExpiryDays: '7',
-    discount: 0,
-    bookingDate: '',
-    oneTimeMonths: 1,
-    downpaymentMonths: 1,
-    status: 'ACTIVE',
-    agreementNumber: '',
-    landSourcing: [],
-  });
+  // Navigation to full-page edit booking contract
+  const handleEditClick = (booking) => {
+    if (booking?._id) {
+      navigate(`/dashboard/plots/booking/edit/${booking._id}`);
+    }
+  };
 
-  const [availableLandSources, setAvailableLandSources] = useState([]);
-  const [discountType, setDiscountType] = useState('RUPEE');
-  const [discountVal, setDiscountVal] = useState('');
-  const [downpaymentBase, setDownpaymentBase] = useState('BEFORE_DISCOUNT');
-  const [govtRate, setGovtRate] = useState('100');
-  const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [customerSearchResults, setCustomerSearchResults] = useState([]);
-  const [plotsList, setPlotsList] = useState([]);
-
-  // Fetch customer search options dynamically inside Modal
-  useEffect(() => {
-    const q = customerSearch.trim();
-    if (!q) {
-      setCustomerSearchResults([]);
-      return;
-    }
-    const delayDebounce = setTimeout(() => {
-      api
-        .get('/plots/customers', {
-          params: { search: q, limit: 20 },
-        })
-        .then((res) => {
-          const list = res.data.data?.customers || res.data.customers || res.data.data || [];
-          setCustomerSearchResults(list);
-        })
-        .catch(() => {});
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
-  }, [customerSearch]);
-
-  const slabs =
-    rateConfig?.rateSlabs?.length > 0
-      ? rateConfig.rateSlabs
-      : [
-          { tenureMonths: 0, plotRate: 1000, promoterCommissionPercent: 10.0, developerCommissionPercent: 2.0, downpaymentPercent: 100, emiPercent: 0 },
-          { tenureMonths: 3, plotRate: 1050, promoterCommissionPercent: 10.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 6, plotRate: 1100, promoterCommissionPercent: 11.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 9, plotRate: 1150, promoterCommissionPercent: 11.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 12, plotRate: 1200, promoterCommissionPercent: 12.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 15, plotRate: 1250, promoterCommissionPercent: 12.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 18, plotRate: 1300, promoterCommissionPercent: 13.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 21, plotRate: 1350, promoterCommissionPercent: 13.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 24, plotRate: 1400, promoterCommissionPercent: 14.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 27, plotRate: 1450, promoterCommissionPercent: 14.5, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-          { tenureMonths: 30, plotRate: 1500, promoterCommissionPercent: 15.0, developerCommissionPercent: 2.0, downpaymentPercent: 40, emiPercent: 60 },
-        ];
-
-  const currentSlab = slabs.find((s) => Number(s.tenureMonths) === Number(editForm.tenureMonths)) || slabs[0];
-
-  const selectedPlotObj = plotsList.find((p) => p._id === editForm.plotId) || editingBooking?.plotId || {};
-  const plotArea = selectedPlotObj?.plotSize || selectedPlotObj?.area || selectedPlotObj?.areaSqFt || 0;
-  const isCorner = selectedPlotObj?.plotType === 'CORNER';
-  const cornerExtra = isCorner ? rateConfig?.cornerExtraPercent || 20 : 0;
-  const baseRate = currentSlab.plotRate || rateConfig?.baseSqFtRate || 1000;
-  const effectiveRate = baseRate * (1 + cornerExtra / 100);
-  const calculatedPlotValue = plotArea > 0 ? Math.round(plotArea * effectiveRate) : editingBooking?.plotValue || 0;
-
-  const calculateDiscountAmount = (type, val) => {
-    const num = Number(val) || 0;
-    if (num <= 0 || !plotArea) return 0;
-    if (type === 'PERCENT') {
-      return Math.round((calculatedPlotValue * num) / 100);
-    } else if (type === 'SQFT_RATE') {
-      return Math.round(plotArea * num);
-    }
-    return num;
-  };
-
-  const calculatedDiscount = calculateDiscountAmount(discountType, discountVal);
-  const netContractValue = Math.max(0, calculatedPlotValue - calculatedDiscount);
-  const isOneTime = Number(editForm.tenureMonths) === 0;
-  const dpPercent = currentSlab.downpaymentPercent ? currentSlab.downpaymentPercent / 100 : isOneTime ? 1.0 : 0.4;
-
-  let downpaymentAmt = 0;
-  let emiPrincipalAmt = 0;
-
-  if (isOneTime) {
-    downpaymentAmt = netContractValue;
-    emiPrincipalAmt = 0;
-  } else {
-    downpaymentAmt = Math.round(calculatedPlotValue * dpPercent);
-    emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
-  }
-
-  const emiMonthlyAmt = !isOneTime && editForm.tenureMonths > 0 ? Math.round(emiPrincipalAmt / editForm.tenureMonths) : 0;
-
-  const handleEditClick = async (booking) => {
-    setEditingBooking(booking);
-
-    try {
-      const [plotsRes, rateRes] = await Promise.all([
-        plotsList.length === 0 ? api.get('/plots?limit=5000') : Promise.resolve({ data: { data: plotsList } }),
-        rateConfig ? Promise.resolve({ data: { data: rateConfig } }) : api.get('/plots/rate-config'),
-      ]);
-      setPlotsList(plotsRes.data.data || []);
-      setRateConfig(rateRes.data.data || null);
-    } catch {}
-
-    const custObj = booking.customerId;
-    const custName = custObj?.name || booking.customerName || '';
-    const custCode = custObj?.customerCode || custObj?.mobile || '';
-    setCustomerSearch(custName ? `${custName} (${custCode})` : '');
-
-    const bookingTenure = booking.tenureMonths !== undefined ? Number(booking.tenureMonths) : booking.scheme === 'FULL_PAYMENT' ? 0 : 3;
-    const bookingDiscount = booking.discount || 0;
-
-    setDiscountType('RUPEE');
-    setDiscountVal(bookingDiscount ? String(bookingDiscount) : '');
-    setDownpaymentBase(booking.downpaymentCalculationBase || 'BEFORE_DISCOUNT');
-    setGovtRate(booking.govtRate ? String(booking.govtRate) : '100');
-
-    const initialForm = {
-      bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
-      holdExpiryDays: '7',
-      customerId: custObj?._id || booking.customerId || '',
-      plotId: booking.plotId?._id || booking.plotId || '',
-      status: booking.status || 'ACTIVE',
-      agreementNumber: booking.agreementNumber || '',
-      bookingDate: booking.bookingDate
-        ? new Date(booking.bookingDate).toISOString().split('T')[0]
-        : new Date(booking.createdAt).toISOString().split('T')[0],
-      scheme: booking.scheme || (bookingTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT'),
-      tenureMonths: bookingTenure,
-      discount: bookingDiscount,
-      bookingAmount: booking.bookingAmount || 0,
-      downpaymentMonths: booking.downpaymentMonths || 1,
-      oneTimeMonths: booking.oneTimeMonths || 1,
-      paymentMode: booking.paymentMode || 'cash',
-      transactionReference: booking.transactionReference || '',
-      sponsorId: booking.sponsorId?._id || booking.sponsorId || '',
-      notes: booking.notes || '',
-      landSourcing: Array.isArray(booking.landSourcing) ? JSON.parse(JSON.stringify(booking.landSourcing)) : [],
-    };
-    setEditForm(initialForm);
-
-    api
-      .get('/plots/kisan-agreements/sources')
-      .then((res) => setAvailableLandSources(res.data.data || []))
-      .catch(() => setAvailableLandSources([]));
-  };
 
   // Sponsor Ledger Modal state
   const [selectedSponsorLedger, setSelectedSponsorLedger] = useState(null);
@@ -313,46 +151,6 @@ const PlotReports = () => {
       toast.error(error.response?.data?.message || 'Failed to initialize payouts');
     } finally {
       setSetupPayoutSaving(false);
-    }
-  };
-
-  const handleUpdateBooking = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const payload = {
-        notes: editForm.notes,
-        discount: calculatedDiscount,
-        bookingAmount: downpaymentAmt,
-        bookingDate: editForm.bookingDate,
-        sponsorId: editForm.sponsorId || null,
-        status: editForm.status,
-        scheme: isOneTime ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT',
-        tenureMonths: Number(editForm.tenureMonths),
-        agreementNumber: editForm.agreementNumber,
-        bookingType: editForm.bookingType,
-        holdExpiryDays: Number(editForm.holdExpiryDays) || 7,
-        customerId: editForm.customerId,
-        plotId: editForm.plotId,
-        paymentMode: editForm.paymentMode,
-        transactionReference: editForm.transactionReference,
-        oneTimeMonths: isOneTime ? Number(editForm.oneTimeMonths || 1) : undefined,
-        downpaymentMonths: !isOneTime ? Number(editForm.downpaymentMonths || 1) : undefined,
-        downpaymentCalculationBase: downpaymentBase,
-        govtRate: Number(govtRate) || 100,
-        landSourcing: editForm.landSourcing || [],
-        reason: (editForm.reason || '').trim(),
-        adminNarration: (editForm.reason || '').trim(),
-      };
-
-      await api.put(`/plots/bookings/${editingBooking._id}`, payload);
-      toast.success('Booking details updated successfully');
-      setEditingBooking(null);
-      fetchReport(activeTab);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update booking');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -607,37 +405,6 @@ const PlotReports = () => {
       </div>
 
       {/* Modals */}
-      <EditBookingModal
-        editingBooking={editingBooking}
-        onClose={() => setEditingBooking(null)}
-        onSubmit={handleUpdateBooking}
-        editForm={editForm}
-        setEditForm={setEditForm}
-        saving={saving}
-        customerSearch={customerSearch}
-        setCustomerSearch={setCustomerSearch}
-        showCustomerDropdown={showCustomerDropdown}
-        setShowCustomerDropdown={setShowCustomerDropdown}
-        customerSearchResults={customerSearchResults}
-        plotsList={plotsList}
-        slabs={slabs}
-        currentSlab={currentSlab}
-        discountType={discountType}
-        setDiscountType={setDiscountType}
-        discountVal={discountVal}
-        setDiscountVal={setDiscountVal}
-        calculatedDiscount={calculatedDiscount}
-        govtRate={govtRate}
-        setGovtRate={setGovtRate}
-        isOneTime={isOneTime}
-        netContractValue={netContractValue}
-        downpaymentAmt={downpaymentAmt}
-        emiPrincipalAmt={emiPrincipalAmt}
-        emiMonthlyAmt={emiMonthlyAmt}
-        availableLandSources={availableLandSources}
-        plotArea={plotArea}
-      />
-
       <SetupPayoutModal
         booking={setupPayoutBooking}
         onClose={() => setSetupPayoutBooking(null)}

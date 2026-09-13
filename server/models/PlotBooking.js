@@ -103,6 +103,16 @@ const plotBookingSchema = new mongoose.Schema(
       default: 1000,
       min: 0,
     },
+    downpaymentRate: {
+      type: Number,
+      default: 500,
+      min: 0,
+    },
+    emiRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     promoterCommissionPercent: {
       type: Number,
       default: 10.0,
@@ -115,7 +125,12 @@ const plotBookingSchema = new mongoose.Schema(
     },
     downpaymentMonths: {
       type: Number,
-      default: 1,
+      default: 3,
+      min: 1,
+    },
+    downpaymentDays: {
+      type: Number,
+      default: 90,
       min: 1,
     },
     downpaymentAmount: {
@@ -135,7 +150,7 @@ const plotBookingSchema = new mongoose.Schema(
     },
     downpaymentCalculationBase: {
       type: String,
-      enum: ['AFTER_DISCOUNT', 'BEFORE_DISCOUNT'],
+      enum: ['AFTER_DISCOUNT', 'BEFORE_DISCOUNT', 'AFTER_DISCOUNT_EMI'],
       default: 'BEFORE_DISCOUNT',
     },
     // Land Stock Sourcing (from one or multiple Kisan Agreements / Registry Deeds)

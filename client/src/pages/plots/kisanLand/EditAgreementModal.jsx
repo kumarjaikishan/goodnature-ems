@@ -243,7 +243,7 @@ const EditAgreementModal = ({
                 Edit Land Agreement #{editAgrTarget?.agreementNumber}
               </h3>
               <p className="text-xs text-slate-500">
-                Update parcel breakdown, rates, chaudhi boundaries, Kisan owners, and attachments.
+                Update land & plot details, rates, chaudhi boundaries, Kisan owners, and attachments.
               </p>
             </div>
           </div>
@@ -283,24 +283,24 @@ const EditAgreementModal = ({
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">General Remarks / Notes</label>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Remarks / Legal Notes</label>
               <input
                 type="text"
-                placeholder="e.g. Sourced via circle, updated notes..."
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-medium text-slate-800"
+                placeholder="Optional remarks about this agreement..."
+                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
                 value={editAgrForm.remarks || ''}
                 onChange={(e) => setEditAgrForm({ ...editAgrForm, remarks: e.target.value })}
               />
             </div>
           </div>
 
-          {/* ── SECTION 1: MULTI-PARCEL LAND PARTICULARS ── */}
+          {/* ── SECTION 1: LAND & PLOT PARTICULARS ── */}
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
               <div className="flex items-center gap-2">
                 <Layers className="text-teal-700" size={18} />
                 <h4 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
-                  Land Parcels & Plot Breakdown ({parcels.length})
+                  Land & Plot Details ({parcels.length})
                 </h4>
               </div>
               <button
@@ -309,15 +309,15 @@ const EditAgreementModal = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer self-start sm:self-auto"
               >
                 <Plus size={14} />
-                <span>Add Land Parcel / Khesra</span>
+                <span>Add Land / Plot Row</span>
               </button>
             </div>
 
             {/* Live Aggregate KPI Banner */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-teal-50/60 p-3 rounded-2xl border border-teal-200/80">
               <div className="bg-white p-2.5 rounded-xl border border-teal-100 shadow-2xs">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Total Parcels</div>
-                <div className="text-sm font-black text-slate-800 mt-0.5">{parcels.length} Plot(s)</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Total Plots / Land</div>
+                <div className="text-sm font-black text-slate-800 mt-0.5">{parcels.length} Detail(s)</div>
               </div>
               <div className="bg-white p-2.5 rounded-xl border border-teal-100 shadow-2xs">
                 <div className="text-[10px] uppercase font-bold text-teal-800">Total Arazi (Dismil)</div>
@@ -351,7 +351,7 @@ const EditAgreementModal = ({
                       <span className="w-5 h-5 bg-teal-700 text-white rounded-full flex items-center justify-center text-[10px]">
                         {idx + 1}
                       </span>
-                      <span>Parcel #{idx + 1} Particulars</span>
+                      <span>Land Detail #{idx + 1}</span>
                     </span>
                     <div className="flex items-center gap-2">
                       <button

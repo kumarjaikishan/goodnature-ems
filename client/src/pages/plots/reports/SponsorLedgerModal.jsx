@@ -6,8 +6,8 @@ const SponsorLedgerModal = ({ sponsor, onClose, loading, ledgerData }) => {
   if (!sponsor) return null;
 
   return (
-    <Modalbox open={Boolean(sponsor)} onClose={onClose}>
-      <div className="p-6 bg-white rounded-2xl w-[800px] max-w-[90vw] space-y-4 max-h-[85vh] flex flex-col">
+    <Modalbox open={Boolean(sponsor)} onClose={onClose} size="4xl">
+      <div className="p-6 w-full space-y-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
           <div>
             <h3 className="text-base font-bold text-slate-800">

@@ -137,17 +137,17 @@ const SponsorBusinessReportPage = () => {
               <span
                 className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${
                   isDeveloperSponsor
-                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                    : 'bg-blue-50 text-blue-800 border border-blue-200'
                 }`}
               >
-                {isDeveloperSponsor ? '👑 Developer Sponsor' : '👤 Sub-Sponsor'}
+                {isDeveloperSponsor ? '👑 Business Partner' : '👥 Business Associate'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               Code: <span className="font-mono font-bold text-slate-700">{sponsor.sponsorCode}</span>
               {sponsor.mobile ? ` | Mobile: ${sponsor.mobile}` : ''}
-              {sponsor.parentSponsor ? ` | Parent Developer: ${sponsor.parentSponsor.name} (${sponsor.parentSponsor.sponsorCode || ''})` : ''}
+              {sponsor.parentSponsor ? ` | Parent Partner: ${sponsor.parentSponsor.name} (${sponsor.parentSponsor.sponsorCode || ''})` : ''}
             </p>
           </div>
         </div>
@@ -168,6 +168,86 @@ const SponsorBusinessReportPage = () => {
         </div>
       </div>
 
+      {/* ── Top Performance & Target Incentive Banner ── */}
+      {summary.targetTierInfo && (
+        <div className="bg-gradient-to-br from-white via-teal-50/30 to-emerald-50/40 border border-teal-200 p-5 rounded-2xl shadow-xs print:border-slate-300 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-teal-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-teal-800 text-white rounded-xl shadow-xs">
+                <Award size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Policy Performance Tier & Target Incentive (Oct – Dec 2026)
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800 border border-teal-300">
+                    {summary.targetTierInfo.roleDisplay}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Month: <strong className="text-slate-800">{summary.targetTierInfo.periodLabel}</strong> | Qualifying Slab: <strong className="text-teal-800">{summary.targetTierInfo.currentSlab}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-600">Active Commission:</span>
+              <span className="px-3 py-1 bg-teal-800 text-white font-mono font-bold text-xs rounded-xl shadow-2xs">
+                {summary.targetTierInfo.fixedPercent}% Fix + {summary.targetTierInfo.incentivePercent}% Incentive = {summary.targetTierInfo.totalPercent}% Total
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="bg-white/90 border border-slate-200/80 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Volume</span>
+              <p className="text-base font-extrabold font-mono text-slate-800 mt-1">
+                ₹{(summary.targetTierInfo.currentMonthVolume || 0).toLocaleString('en-IN')}
+              </p>
+              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                Direct: ₹{(summary.targetTierInfo.directVolume || 0).toLocaleString('en-IN')} | Team: ₹{(summary.targetTierInfo.teamVolume || 0).toLocaleString('en-IN')}
+              </p>
+            </div>
+
+            <div className="bg-white/90 border border-slate-200/80 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Earnings Composition</span>
+              <div className="mt-1 flex flex-col gap-0.5 font-mono">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-500">Base Fixed:</span>
+                  <span className="font-bold text-slate-700">₹{(summary.fixedCommissionTotal || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-teal-700 font-medium">Target Incentive:</span>
+                  <span className="font-black text-teal-800">₹{(summary.incentiveCommissionTotal || 0).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/90 border border-slate-200/80 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Next Target Milestone</span>
+              <div className="mt-1">
+                {summary.targetTierInfo.nextSlabLabel ? (
+                  <>
+                    <div className="flex justify-between font-semibold text-[11px]">
+                      <span className="text-slate-700">{summary.targetTierInfo.nextSlabLabel}</span>
+                      <span className="text-emerald-700 font-bold">+{summary.targetTierInfo.nextSlabIncentive}%</span>
+                    </div>
+                    <p className="text-[10px] text-amber-700 font-medium mt-0.5">
+                      ₹{(summary.targetTierInfo.distanceToNextSlab || 0).toLocaleString('en-IN')} remaining to reach next tier
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                    ✓ Maximum Target Tier Unlocked!
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Summary Stats Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Collections */}
@@ -184,8 +264,8 @@ const SponsorBusinessReportPage = () => {
             <p className="text-2xl font-black text-slate-900">
               ₹{(summary.totalCollection || 0).toLocaleString('en-IN')}
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              Across {summary.transactionsCount || 0} receipt collections
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
+              Plots: ₹{(summary.plotCollectionTotal || 0).toLocaleString('en-IN')} {summary.investmentCollectionTotal ? `| RD/FD: ₹${(summary.investmentCollectionTotal).toLocaleString('en-IN')}` : ''}
             </p>
           </div>
         </div>
@@ -204,8 +284,8 @@ const SponsorBusinessReportPage = () => {
             <p className="text-2xl font-black text-emerald-700">
               ₹{(summary.totalCommission || 0).toLocaleString('en-IN')}
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              Direct & indirect earnings combined
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
+              Fix: ₹{(summary.fixedCommissionTotal || 0).toLocaleString('en-IN')} | Incentive: ₹{(summary.incentiveCommissionTotal || 0).toLocaleString('en-IN')}
             </p>
           </div>
         </div>
@@ -237,7 +317,7 @@ const SponsorBusinessReportPage = () => {
               Subordinates Downline
             </span>
             <span className="text-[10px] bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
-              {reportData.subordinatesCount || 0} Sub-Sponsors
+              {reportData.subordinatesCount || 0} Business Associates
             </span>
           </div>
           <div className="mt-3">
@@ -245,7 +325,7 @@ const SponsorBusinessReportPage = () => {
               ₹{(summary.subordinateCollection || 0).toLocaleString('en-IN')}
             </p>
             <p className="text-[11px] text-amber-800 font-semibold mt-0.5">
-              Override Earned: ₹{(summary.subordinateCommission || 0).toLocaleString('en-IN')} (2%)
+              Team Comm. Earned: ₹{(summary.subordinateCommission || 0).toLocaleString('en-IN')}
             </p>
           </div>
         </div>
@@ -385,10 +465,25 @@ const SponsorBusinessReportPage = () => {
                         </span>
                       </td>
                       <td className="p-3">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800 text-[12px]">{row.customerName}</span>
-                          <span className="text-[11px] text-slate-600 font-medium mt-0.5">
-                            Plot: <strong className="text-teal-800 font-bold">#{row.plotNumber}</strong> | Booking: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-800 text-[12px]">{row.customerName}</span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
+                                row.businessType === 'INVESTMENT_RD_FD'
+                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                  : 'bg-teal-50 text-teal-800 border border-teal-200'
+                              }`}
+                            >
+                              {row.businessType === 'INVESTMENT_RD_FD' ? 'RD / FD' : 'Plot Sale'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-600 font-medium">
+                            {row.businessType === 'INVESTMENT_RD_FD' ? (
+                              <>Account: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong></>
+                            ) : (
+                              <>Plot: <strong className="text-teal-800 font-bold">#{row.plotNumber}</strong> | Booking: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong></>
+                            )}
                           </span>
                         </div>
                       </td>
@@ -403,6 +498,11 @@ const SponsorBusinessReportPage = () => {
                                 {row.percentFormula || `${row.commissionPercent}%`}
                               </span>
                             </div>
+                            {row.slabLabel && (
+                              <span className="text-[10px] text-teal-800 font-semibold">
+                                Slab: {row.slabLabel}
+                              </span>
+                            )}
                             <span className="text-[10px] text-slate-500 font-medium">
                               {isDirectDev ? 'Promoter + Developer Commission' : 'Direct Promoter Sale'}
                             </span>
@@ -414,12 +514,19 @@ const SponsorBusinessReportPage = () => {
                                 Subordinate
                               </span>
                               <span className="font-black text-amber-900 bg-amber-100/70 border border-amber-300/80 rounded px-2 py-0.5 text-[11px]">
-                                {row.commissionPercent}% Override
+                                {row.percentFormula || `${row.commissionPercent}% Team Comm.`}
                               </span>
                             </div>
-                            <span className="text-[11px] font-semibold text-slate-700">
-                              {row.subordinateName} <span className="font-mono text-slate-500 text-[10px]">({row.subordinateCode})</span>
-                            </span>
+                            {row.slabLabel && (
+                              <span className="text-[10px] text-amber-800 font-semibold">
+                                Team Slab: {row.slabLabel}
+                              </span>
+                            )}
+                            {row.subordinateName && (
+                              <span className="text-[11px] font-semibold text-slate-700">
+                                {row.subordinateName} <span className="font-mono text-slate-500 text-[10px]">({row.subordinateCode})</span>
+                              </span>
+                            )}
                           </div>
                         )}
                       </td>
@@ -429,9 +536,16 @@ const SponsorBusinessReportPage = () => {
                         </span>
                       </td>
                       <td className="p-3 text-right">
-                        <span className="font-black font-mono text-emerald-700 text-[13px]">
-                          ₹{row.commissionEarned.toLocaleString('en-IN')}
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="font-black font-mono text-emerald-700 text-[13px]">
+                            ₹{row.commissionEarned.toLocaleString('en-IN')}
+                          </span>
+                          {(row.fixedAmount > 0 || row.incentiveAmount > 0) && (
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Fix: ₹{row.fixedAmount.toLocaleString('en-IN')} | Inc: ₹{row.incentiveAmount.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 text-center">
                         {row.isClosed ? (

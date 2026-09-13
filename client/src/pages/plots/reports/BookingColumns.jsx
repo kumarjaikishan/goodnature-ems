@@ -155,10 +155,13 @@ export const getBookingColumns = ({
         {(() => {
           const netVal = Math.max(0, (b.plotValue || 0) - (b.discount || 0));
           const paid = Math.max(0, netVal - (b.remainingAmount || 0));
+          const plotArea = Number(b.plotId?.plotSize || b.plotId?.area || 0);
           const dpReq =
             b.scheme === 'FULL_PAYMENT'
               ? netVal
-              : b.bookingAmount || b.downpaymentAmount || Math.round(netVal * 0.4);
+              : b.downpaymentAmount ||
+                b.bookingAmount ||
+                (b.downpaymentRate && plotArea > 0 ? b.downpaymentRate * plotArea : Math.round(netVal * 0.4));
           const isDpComplete = paid >= dpReq - 1;
 
           return (
@@ -210,7 +213,13 @@ export const getBookingColumns = ({
 
         {/* 5. Edit Booking Contract */}
         <button
-          onClick={() => handleEditClick(b)}
+          onClick={() => {
+            if (handleEditClick) {
+              handleEditClick(b);
+            } else if (navigate) {
+              navigate(`/dashboard/plots/booking/edit/${b._id}`);
+            }
+          }}
           title="Edit Booking Contract"
           className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
         >

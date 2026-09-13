@@ -23,9 +23,255 @@ import {
   Sparkles,
   ArrowRight,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { swal } from '../../utils/confirmDialog';
+
+const getEntryRateLabel = (entry) => {
+  const rate = Number(entry.commissionPercent || 0);
+  let fix = Number(entry.fixedPercent || 0);
+  let inc = Number(entry.incentivePercent || 0);
+  if (fix === 0 && inc === 0 && rate > 0) {
+    if (entry.commissionRole === 'DEVELOPER_OVERRIDE') {
+      fix = 2;
+      inc = +(rate - 2).toFixed(3);
+    } else {
+      fix = 5;
+      inc = +(rate - 5).toFixed(2);
+    }
+  }
+  if (fix > 0 || inc > 0) {
+    return `${rate}% (${fix}% + ${inc}%)`;
+  }
+  return `${rate}%`;
+};
+
+const renderSponsorTransactions = (entries) => {
+  if (!entries || entries.length === 0) {
+    return (
+      <div className="p-4 text-center text-xs text-slate-400 italic bg-slate-50/50 rounded-xl border border-slate-100">
+        No individual collection details recorded for this sponsor in this period.
+      </div>
+    );
+  }
+
+  const directEntries = entries.filter(
+    (e) => e.commissionRole === 'DIRECT_DEVELOPER' || e.commissionRole === 'PROMOTER'
+  );
+  const teamEntries = entries.filter(
+    (e) => e.commissionRole === 'DEVELOPER_OVERRIDE'
+  );
+
+  const directBusinessTotal = directEntries.reduce((sum, e) => sum + Number(e.collectionAmount || 0), 0);
+  const directCommTotal = directEntries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const teamBusinessTotal = teamEntries.reduce((sum, e) => sum + Number(e.collectionAmount || 0), 0);
+  const teamCommTotal = teamEntries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  return (
+    <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200 shadow-inner my-2 space-y-4">
+      {/* SECTION 1: DIRECT BUSINESS */}
+      {directEntries.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+                <Receipt size={13} />
+              </span>
+              <span className="text-xs font-bold text-slate-800">
+                Direct Business Collections
+              </span>
+              <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                {directEntries.length} {directEntries.length === 1 ? 'Receipt' : 'Receipts'}
+              </span>
+            </div>
+            <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
+              <span>Direct Business: <strong className="text-slate-800">₹{directBusinessTotal.toLocaleString('en-IN')}</strong></span>
+              <span className="text-slate-300">|</span>
+              <span>Direct Comm: <strong className="text-emerald-700 font-bold">₹{directCommTotal.toLocaleString('en-IN')}</strong></span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-emerald-100 bg-white shadow-2xs">
+            <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+              <thead className="bg-emerald-50/60 border-b border-emerald-100 text-slate-700 font-semibold">
+                <tr>
+                  <th className="p-2.5">Receipt & Date</th>
+                  <th className="p-2.5">Booking / Plot</th>
+                  <th className="p-2.5">Direct Customer</th>
+                  <th className="p-2.5 text-center">Type</th>
+                  <th className="p-2.5 text-right">Collection Amt</th>
+                  <th className="p-2.5 text-center">Applied Slab Rate</th>
+                  <th className="p-2.5 text-right">Commission</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {directEntries.map((entry, idx) => {
+                  const rcp = entry.receiptId;
+                  const rcpNo = rcp?.receiptNumber || 'N/A';
+                  const rcpDate = (rcp?.createdAt || entry.createdAt)
+                    ? new Date(rcp?.createdAt || entry.createdAt).toLocaleDateString('en-IN')
+                    : '-';
+                  const bkgNo = entry.bookingId?.bookingNumber || 'Direct';
+                  const plotNo = entry.bookingId?.plotId?.plotNumber || '';
+                  const custName = entry.customerId?.name || 'Unknown';
+                  const rateStr = getEntryRateLabel(entry);
+
+                  return (
+                    <tr key={entry._id || idx} className="hover:bg-emerald-50/20 transition">
+                      <td className="p-2.5 font-mono text-slate-700">
+                        <div className="font-bold text-slate-800">{rcpNo}</div>
+                        <div className="text-[11px] text-slate-400">{rcpDate}</div>
+                      </td>
+                      <td className="p-2.5 text-slate-700">
+                        <div className="font-semibold text-slate-800">{bkgNo}</div>
+                        {plotNo && <div className="text-[11px] text-slate-500 font-medium">Plot #{plotNo}</div>}
+                      </td>
+                      <td className="p-2.5 text-slate-700">
+                        <div className="font-medium text-slate-800">{custName}</div>
+                        {entry.customerId?.customerCode && (
+                          <div className="text-[11px] text-slate-400 font-mono">{entry.customerId.customerCode}</div>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Direct
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-right font-semibold text-slate-700">
+                        ₹{Number(entry.collectionAmount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className="inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] bg-emerald-100/80 text-emerald-800">
+                          {rateStr}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-right font-bold text-emerald-700">
+                        ₹{Number(entry.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 2: TEAM BUSINESS */}
+      {teamEntries.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-indigo-100 text-indigo-800">
+                <Users size={13} />
+              </span>
+              <span className="text-xs font-bold text-slate-800">
+                Team Business Collections
+              </span>
+              <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">
+                {teamEntries.length} {teamEntries.length === 1 ? 'Receipt' : 'Receipts'}
+              </span>
+            </div>
+            <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
+              <span>Team Business: <strong className="text-slate-800">₹{teamBusinessTotal.toLocaleString('en-IN')}</strong></span>
+              <span className="text-slate-300">|</span>
+              <span>Team Comm: <strong className="text-indigo-700 font-bold">₹{teamCommTotal.toLocaleString('en-IN')}</strong></span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-indigo-100 bg-white shadow-2xs">
+            <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+              <thead className="bg-indigo-50/60 border-b border-indigo-100 text-slate-700 font-semibold">
+                <tr>
+                  <th className="p-2.5">Receipt & Date</th>
+                  <th className="p-2.5">Booking / Plot</th>
+                  <th className="p-2.5">Associate / Customer</th>
+                  <th className="p-2.5 text-center">Type</th>
+                  <th className="p-2.5 text-right">Collection Amt</th>
+                  <th className="p-2.5 text-center">Applied Slab Rate</th>
+                  <th className="p-2.5 text-right">Commission</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {teamEntries.map((entry, idx) => {
+                  const rcp = entry.receiptId;
+                  const rcpNo = rcp?.receiptNumber || 'N/A';
+                  const rcpDate = (rcp?.createdAt || entry.createdAt)
+                    ? new Date(rcp?.createdAt || entry.createdAt).toLocaleDateString('en-IN')
+                    : '-';
+                  const bkgNo = entry.bookingId?.bookingNumber || 'Direct';
+                  const plotNo = entry.bookingId?.plotId?.plotNumber || '';
+                  const bookingSponsor = entry.bookingId?.sponsorId;
+                  const custName = entry.customerId?.name || 'Unknown';
+                  const rateStr = getEntryRateLabel(entry);
+
+                  return (
+                    <tr key={entry._id || idx} className="hover:bg-indigo-50/20 transition">
+                      <td className="p-2.5 font-mono text-slate-700">
+                        <div className="font-bold text-slate-800">{rcpNo}</div>
+                        <div className="text-[11px] text-slate-400">{rcpDate}</div>
+                      </td>
+                      <td className="p-2.5 text-slate-700">
+                        <div className="font-semibold text-slate-800">{bkgNo}</div>
+                        {plotNo && <div className="text-[11px] text-slate-500 font-medium">Plot #{plotNo}</div>}
+                      </td>
+                      <td className="p-2.5 text-slate-700">
+                        {bookingSponsor && (
+                          <div className="text-[11px] font-semibold text-indigo-900">
+                            Associate: {bookingSponsor.name || 'Team Associate'} <span className="font-mono text-indigo-600 font-normal">({bookingSponsor.sponsorCode || ''})</span>
+                          </div>
+                        )}
+                        <div className="text-xs text-slate-600 font-medium">
+                          Customer: {custName}
+                        </div>
+                        {entry.customerId?.customerCode && (
+                          <div className="text-[11px] text-slate-400 font-mono">{entry.customerId.customerCode}</div>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          Team
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-right font-semibold text-slate-700">
+                        ₹{Number(entry.collectionAmount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className="inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] bg-indigo-100/80 text-indigo-800">
+                          {rateStr}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-right font-bold text-indigo-700">
+                        ₹{Number(entry.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const formatRateBreakdown = (rateStr, effectivePct, isOverride = false) => {
+  if (rateStr && String(rateStr).includes('(')) return rateStr;
+  const num = Number(effectivePct || (rateStr ? parseFloat(rateStr) : 0)) || 0;
+  if (num <= 0) return '0%';
+  if (isOverride) {
+    const inc = +(num - 2).toFixed(3);
+    return inc > 0 ? `${num}% (2% + ${inc}%)` : `${num}% (2%)`;
+  } else {
+    const inc = +(num - 5).toFixed(2);
+    return inc > 0 ? `${num}% (5% + ${inc}%)` : `${num}% (5%)`;
+  }
+};
 
 const PlotClosingsPage = () => {
   const navigate = useNavigate();
@@ -35,33 +281,18 @@ const PlotClosingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Modal States
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  // Details Modal States
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-
-  // Form States for New / Edit Closing
-  const [formData, setFormData] = useState({
-    closingName: '',
-    startDate: '',
-    endDate: '',
-    remarks: '',
-  });
-
-  const [editingClosing, setEditingClosing] = useState(null);
   const [selectedClosingDetails, setSelectedClosingDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [expandedDetailsSponsors, setExpandedDetailsSponsors] = useState({});
 
-  // Live Preview State inside Create / Edit Modal
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewData, setPreviewData] = useState(null);
-  const [previewError, setPreviewError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  // Refs to prevent submit / preview race conditions
-  const isSubmittingRef = useRef(false);
-  const lastPreviewKeyRef = useRef('');
-  const previewAbortControllerRef = useRef(null);
+  const toggleDetailsSponsorExpand = (spId) => {
+    setExpandedDetailsSponsors((prev) => ({
+      ...prev,
+      [spId]: !prev[spId],
+    }));
+  };
 
   // Fetch all closings list
   const fetchClosings = async () => {
@@ -82,95 +313,14 @@ const PlotClosingsPage = () => {
     fetchClosings();
   }, [search]);
 
-  // Load preview when date range changes
-  const fetchPreview = async (startDate, endDate, excludeClosingId = null, force = false) => {
-    if (isSubmittingRef.current) return;
-
-    if (!startDate || !endDate) {
-      setPreviewData(null);
-      setPreviewError('');
-      return;
-    }
-
-    const key = `${startDate}_${endDate}_${excludeClosingId || ''}`;
-    if (!force && lastPreviewKeyRef.current === key) {
-      return;
-    }
-
-    if (new Date(startDate) > new Date(endDate)) {
-      setPreviewError('Start Date cannot be after End Date.');
-      setPreviewData(null);
-      return;
-    }
-
-    if (previewAbortControllerRef.current) {
-      previewAbortControllerRef.current.abort();
-    }
-    const abortController = new AbortController();
-    previewAbortControllerRef.current = abortController;
-
-    setPreviewLoading(true);
-    setPreviewError('');
-    try {
-      const res = await api.get('/plots/closings/preview', {
-        params: { startDate, endDate, excludeClosingId },
-        signal: abortController.signal,
-      });
-      if (isSubmittingRef.current) return;
-      setPreviewData(res.data.data);
-      lastPreviewKeyRef.current = key;
-    } catch (err) {
-      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED' || isSubmittingRef.current) {
-        return;
-      }
-      setPreviewError(err.response?.data?.message || 'Failed to calculate preview for this date range');
-      setPreviewData(null);
-    } finally {
-      if (!isSubmittingRef.current) {
-        setPreviewLoading(false);
-      }
-    }
-  };
-
-  // Open Create Modal
+  // Navigate to New Closing Page
   const handleOpenCreateModal = () => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const formatDate = (d) => d.toISOString().split('T')[0];
-
-    const monthName = today.toLocaleString('default', { month: 'long' });
-    const year = today.getFullYear();
-
-    setFormData({
-      closingName: `${monthName} ${year} Commission Closing`,
-      startDate: formatDate(firstDay),
-      endDate: formatDate(today),
-      remarks: '',
-    });
-    setPreviewData(null);
-    setPreviewError('');
-    lastPreviewKeyRef.current = '';
-    setShowCreateModal(true);
-
-    // Initial preview trigger
-    fetchPreview(formatDate(firstDay), formatDate(today), null, true);
+    navigate('/dashboard/plots/closings/new');
   };
 
-  // Open Edit Modal
+  // Navigate to Edit Closing Page
   const handleOpenEditModal = (closing) => {
-    setEditingClosing(closing);
-    const start = new Date(closing.startDate).toISOString().split('T')[0];
-    const end = new Date(closing.endDate).toISOString().split('T')[0];
-
-    setFormData({
-      closingName: closing.closingName,
-      startDate: start,
-      endDate: end,
-      remarks: closing.remarks || '',
-    });
-    lastPreviewKeyRef.current = '';
-    setShowEditModal(true);
-    fetchPreview(start, end, closing._id, true);
+    navigate(`/dashboard/plots/closings/edit/${closing._id}`);
   };
 
   // Open Details Modal
@@ -185,63 +335,6 @@ const PlotClosingsPage = () => {
       setShowDetailsModal(false);
     } finally {
       setDetailsLoading(false);
-    }
-  };
-
-  // Handle Create Closing Submit
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.closingName.trim()) {
-      toast.error('Please enter a name for this closing.');
-      return;
-    }
-    if (!formData.startDate || !formData.endDate) {
-      toast.error('Please select both start and end dates.');
-      return;
-    }
-    if (!previewData || previewData.transactionCount === 0) {
-      toast.error('No unclosed collection or commission records in this period.');
-      return;
-    }
-
-    if (previewAbortControllerRef.current) {
-      previewAbortControllerRef.current.abort();
-    }
-    isSubmittingRef.current = true;
-    setSubmitting(true);
-    try {
-      const res = await api.post('/plots/closings', formData);
-      toast.success(res.data.message || 'Closing batch created successfully');
-      setShowCreateModal(false);
-      fetchClosings();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create closing');
-    } finally {
-      setSubmitting(false);
-      isSubmittingRef.current = false;
-    }
-  };
-
-  // Handle Edit Closing Submit
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (!editingClosing) return;
-
-    if (previewAbortControllerRef.current) {
-      previewAbortControllerRef.current.abort();
-    }
-    isSubmittingRef.current = true;
-    setSubmitting(true);
-    try {
-      const res = await api.put(`/plots/closings/${editingClosing._id}`, formData);
-      toast.success(res.data.message || 'Closing batch updated successfully');
-      setShowEditModal(false);
-      fetchClosings();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update closing');
-    } finally {
-      setSubmitting(false);
-      isSubmittingRef.current = false;
     }
   };
 
@@ -401,7 +494,7 @@ const PlotClosingsPage = () => {
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Receipt className="text-teal-700" size={26} />
-            Commission Closing System
+            Closing System
           </h1>
           <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
             Process bi-weekly/monthly period closings, aggregate direct & indirect sponsor collections, and generate audit-locked statements.
@@ -503,7 +596,7 @@ const PlotClosingsPage = () => {
             noDataComponent={
               <div className="py-16 text-center text-slate-400 space-y-2">
                 <Receipt className="mx-auto text-slate-300" size={36} />
-                <p className="text-sm font-semibold text-slate-600">No commission closing batches recorded yet.</p>
+                <p className="text-sm font-semibold text-slate-600">No closing batches recorded yet.</p>
                 <p className="text-xs text-slate-400">Click "New Period Closing" above to close collection commissions for a date range.</p>
               </div>
             }
@@ -511,386 +604,32 @@ const PlotClosingsPage = () => {
         )}
       </div>
 
-      {/* ── CREATE CLOSING MODAL ── */}
-      <Modalbox open={showCreateModal} onClose={() => setShowCreateModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[900px] max-w-[95vw] space-y-5 max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
-                <Receipt size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-800">Process New Commission Closing</h3>
-                <p className="text-xs text-slate-500">Define closing period and review per-sponsor business & commission breakdown</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="text-slate-400 hover:text-slate-600 font-bold text-base cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto space-y-5 pr-1">
-            {/* Input fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-3">
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Closing Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. August 2026 Bi-Weekly Closing"
-                  value={formData.closingName}
-                  onChange={(e) => setFormData({ ...formData, closingName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none transition"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Start Date <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  onBlur={() => fetchPreview(formData.startDate, formData.endDate)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  End Date <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  onBlur={() => fetchPreview(formData.startDate, formData.endDate)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Remarks / Note</label>
-                <input
-                  type="text"
-                  placeholder="Optional internal remark"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Live Calculation Preview Section */}
-            <div className="border border-slate-200/90 rounded-2xl p-4 bg-slate-50/70 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-teal-600" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Live Period Breakdown Preview
-                  </h4>
-                </div>
-                {previewLoading && (
-                  <span className="text-xs font-semibold text-teal-700 animate-pulse">Calculating collections...</span>
-                )}
-              </div>
-
-              {previewError ? (
-                <div className="p-3 bg-rose-50 border border-rose-200/80 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-                  <AlertCircle size={15} />
-                  <span>{previewError}</span>
-                </div>
-              ) : previewData ? (
-                <div className="space-y-4">
-                  {/* Summary Metric Chips */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-                    <div className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">Total Business (Collection)</div>
-                      <div className="text-base font-black text-slate-900 mt-0.5">
-                        ₹{Number(previewData.totalCollection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">Direct Collections</div>
-                      <div className="text-base font-black text-slate-800 mt-0.5">
-                        ₹{Number(previewData.directBusinessTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">Indirect Downline (2%)</div>
-                      <div className="text-base font-black text-indigo-700 mt-0.5">
-                        ₹{Number(previewData.indirectBusinessTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-emerald-200/70 bg-emerald-50/40 shadow-2xs">
-                      <div className="text-[10px] uppercase font-bold text-emerald-800">Total Net Commission</div>
-                      <div className="text-base font-black text-emerald-700 mt-0.5">
-                        ₹{Number(previewData.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sponsor Table in Preview */}
-                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white max-h-56 overflow-y-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-100/80 sticky top-0 border-b border-slate-200 text-slate-600 font-bold select-none">
-                        <tr>
-                          <th className="p-2.5">Sponsor</th>
-                          <th className="p-2.5 text-right">Direct Business</th>
-                          <th className="p-2.5 text-right">Direct Comm. (%)</th>
-                          <th className="p-2.5 text-right">Indirect Business</th>
-                          <th className="p-2.5 text-right">Indirect Override (%)</th>
-                          <th className="p-2.5 text-right">Total Comm.</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {previewData.sponsors.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-6 text-center text-slate-400 italic">
-                              No unclosed collections found in this period.
-                            </td>
-                          </tr>
-                        ) : (
-                          previewData.sponsors.map((sp) => (
-                            <tr key={sp.sponsorId} className="hover:bg-slate-50 transition">
-                              <td className="p-2.5 font-bold text-slate-800">
-                                <div>{sp.sponsorName}</div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  {sp.sponsorCode || sp.customerId} {sp.isDeveloper ? '• Developer' : '• Promoter'}
-                                </div>
-                              </td>
-                              <td className="p-2.5 text-right font-medium text-slate-700">
-                                ₹{Number(sp.directBusiness || 0).toLocaleString('en-IN')}
-                              </td>
-                              <td className="p-2.5 text-right">
-                                <div className="font-bold text-emerald-700">
-                                  ₹{Number(sp.directCommission || 0).toLocaleString('en-IN')}
-                                </div>
-                                {sp.directBusiness > 0 && (
-                                  <div className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.2 rounded inline-block">
-                                    {sp.directRatesStr || `${sp.directEffectivePct}%`}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="p-2.5 text-right font-medium text-slate-700">
-                                ₹{Number(sp.indirectBusiness || 0).toLocaleString('en-IN')}
-                              </td>
-                              <td className="p-2.5 text-right">
-                                <div className="font-bold text-indigo-600">
-                                  ₹{Number(sp.indirectCommission || 0).toLocaleString('en-IN')}
-                                </div>
-                                {sp.indirectBusiness > 0 && (
-                                  <div className="text-[10px] font-semibold text-indigo-800 bg-indigo-100/70 px-1.5 py-0.2 rounded inline-block">
-                                    {sp.indirectRatesStr || `${sp.indirectEffectivePct}%`}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="p-2.5 text-right font-black text-emerald-800 bg-emerald-50/30">
-                                ₹{Number(sp.totalCommission || 0).toLocaleString('en-IN')}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-6 text-center text-slate-400 text-xs italic">
-                  Select start and end dates above to preview closing financials.
-                </div>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0}
-                className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {submitting ? 'Processing Closing...' : 'Confirm & Close Period'}
-                <ArrowRight size={15} />
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modalbox>
-
-      {/* ── EDIT CLOSING MODAL (EXPAND / REDUCE PERIOD OR RENAME) ── */}
-      <Modalbox open={showEditModal} onClose={() => setShowEditModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[900px] max-w-[95vw] space-y-5 max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-200/60">
-                <Edit2 size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-800">Edit Closing Period</h3>
-                <p className="text-xs text-slate-500">Expand or reduce date range. Commissions will be auto-reattributed.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowEditModal(false)}
-              className="text-slate-400 hover:text-slate-600 font-bold text-base cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto space-y-5 pr-1">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-3">
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Closing Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.closingName}
-                  onChange={(e) => setFormData({ ...formData, closingName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Start Date <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  onBlur={() => fetchPreview(formData.startDate, formData.endDate, editingClosing?._id)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  End Date <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  onBlur={() => fetchPreview(formData.startDate, formData.endDate, editingClosing?._id)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Remarks</label>
-                <input
-                  type="text"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Live Re-calculation preview */}
-            <div className="border border-slate-200/90 rounded-2xl p-4 bg-slate-50/70 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                  <Sparkles size={16} className="text-blue-600" />
-                  Adjusted Period Live Breakdown
-                </h4>
-                {previewLoading && <span className="text-xs text-blue-600 animate-pulse font-semibold">Updating...</span>}
-              </div>
-
-              {previewData && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-                  <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Total Business</div>
-                    <div className="text-base font-black text-slate-900 mt-0.5">
-                      ₹{Number(previewData.totalCollection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Direct Business</div>
-                    <div className="text-base font-black text-slate-800 mt-0.5">
-                      ₹{Number(previewData.directBusinessTotal || 0).toLocaleString('en-IN')}
-                    </div>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Indirect Downline (2%)</div>
-                    <div className="text-base font-black text-indigo-700 mt-0.5">
-                      ₹{Number(previewData.indirectBusinessTotal || 0).toLocaleString('en-IN')}
-                    </div>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-emerald-200 bg-emerald-50/40">
-                    <div className="text-[10px] uppercase font-bold text-emerald-800">Net Commission</div>
-                    <div className="text-base font-black text-emerald-700 mt-0.5">
-                      ₹{Number(previewData.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || previewLoading || !previewData}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50"
-              >
-                {submitting ? 'Saving Changes...' : 'Save & Update Closing'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modalbox>
-
-      {/* ── CLOSING DETAILS & PRINTABLE REPORT MODAL ── */}
-      <Modalbox open={showDetailsModal} onClose={() => setShowDetailsModal(false)}>
-        <div className="p-6 bg-white rounded-2xl w-[950px] max-w-[95vw] space-y-5 max-h-[92vh] flex flex-col">
+      {/* ── CLOSING DETAILS MODAL ── */}
+      <Modalbox open={showDetailsModal} onClose={() => setShowDetailsModal(false)} size="6xl">
+        <div className="p-6 bg-white rounded-2xl w-full max-h-[92vh] flex flex-col space-y-4">
           {detailsLoading || !selectedClosingDetails ? (
             <div className="py-16">
-              <PageLoader title="Loading Closing Report..." subtitle="Fetching sponsor breakdown and receipts" />
+              <PageLoader title="Loading Closing Details..." subtitle="Fetching comprehensive settlement breakdown" />
             </div>
           ) : (
             <>
-              {/* Header & Print Action */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-black text-slate-800">{selectedClosingDetails.closingName}</h3>
-                    <span className="bg-teal-50 text-teal-800 border border-teal-200/70 font-mono font-bold text-xs px-2 py-0.5 rounded-md">
-                      {selectedClosingDetails.closingNumber}
-                    </span>
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
+                    <Receipt size={20} />
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Period: <strong>{new Date(selectedClosingDetails.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong> to <strong>{new Date(selectedClosingDetails.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-900">{selectedClosingDetails.closingName}</h3>
+                      <span className="font-mono text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
+                        {selectedClosingDetails.closingNumber}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Period: {new Date(selectedClosingDetails.startDate).toLocaleDateString('en-IN')} — {new Date(selectedClosingDetails.endDate).toLocaleDateString('en-IN')}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -930,7 +669,7 @@ const PlotClosingsPage = () => {
                 </div>
 
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <div className="text-[10px] uppercase font-bold text-slate-400">Indirect Downline (2%)</div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Team / Associate Business</div>
                   <div className="text-base font-black text-indigo-700 mt-0.5">
                     ₹{Number(selectedClosingDetails.indirectBusinessTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
@@ -951,63 +690,105 @@ const PlotClosingsPage = () => {
               </div>
 
               {/* Per Sponsor Breakdown Table */}
-              <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs border-collapse">
+              <div className="flex-1 overflow-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse min-w-[700px]">
                   <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-slate-700 font-bold select-none">
                     <tr>
                       <th className="p-3">Sponsor Info</th>
                       <th className="p-3 text-right">Direct Business</th>
                       <th className="p-3 text-right">Direct Comm. (%)</th>
-                      <th className="p-3 text-right">Indirect Business</th>
-                      <th className="p-3 text-right">Indirect Override (%)</th>
+                      <th className="p-3 text-right">Team / Associate Business</th>
+                      <th className="p-3 text-right">Team Comm. (%)</th>
                       <th className="p-3 text-right">Total Business</th>
                       <th className="p-3 text-right font-black">Net Commission</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {(selectedClosingDetails.sponsors || []).map((sp) => (
-                      <tr key={sp.sponsorId} className="hover:bg-slate-50 transition">
-                        <td className="p-3 font-bold text-slate-800">
-                          <div className="text-sm">{sp.sponsorName}</div>
-                          <div className="text-[11px] text-slate-400 font-normal">
-                            Code: <span className="font-mono text-slate-600 font-bold">{sp.sponsorCode || sp.customerId}</span>
-                            {sp.isDeveloper ? ' • Developer Sponsor' : ' • Promoter'}
-                          </div>
-                        </td>
-                        <td className="p-3 text-right font-semibold text-slate-700">
-                          ₹{Number(sp.directBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="p-3 text-right">
-                          <div className="font-bold text-emerald-700">
-                            ₹{Number(sp.directCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </div>
-                          {sp.directBusiness > 0 && (
-                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                              {sp.directRatesStr || `${sp.directEffectivePct || 0}%`}
-                            </span>
+                    {(selectedClosingDetails.sponsors || []).map((sp) => {
+                      const isExpanded = !!expandedDetailsSponsors[sp.sponsorId];
+                      const entriesCount = sp.entries?.length || sp.transactionCount || 0;
+                      return (
+                        <React.Fragment key={sp.sponsorId}>
+                          <tr
+                            onClick={() => toggleDetailsSponsorExpand(sp.sponsorId)}
+                            className={`hover:bg-teal-50/20 transition cursor-pointer ${isExpanded ? 'bg-teal-50/40 font-semibold' : ''}`}
+                          >
+                            <td className="p-3 font-bold text-slate-800">
+                              <div className="flex items-start gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleDetailsSponsorExpand(sp.sponsorId);
+                                  }}
+                                  className="mt-0.5 p-1 rounded-md hover:bg-teal-100/60 text-slate-500 hover:text-teal-800 transition"
+                                  title={isExpanded ? 'Collapse collection transactions' : 'Expand collection transactions'}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown size={15} className="text-teal-700" />
+                                  ) : (
+                                    <ChevronRight size={15} />
+                                  )}
+                                </button>
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-sm">{sp.sponsorName?.replace(/\s*\([^)]*\)/g, '') || sp.sponsorName}</span>
+                                    {entriesCount > 0 && (
+                                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full border border-slate-200/60">
+                                        {entriesCount} {entriesCount === 1 ? 'collection' : 'collections'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 font-normal">
+                                    Code: <span className="font-mono text-slate-600 font-bold">{sp.sponsorCode || sp.customerId}</span>
+                                    {sp.isDeveloper ? ' • Business Partner' : ' • Business Associate'}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right font-semibold text-slate-700">
+                              ₹{Number(sp.directBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="font-bold text-emerald-700">
+                                ₹{Number(sp.directCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </div>
+                              {sp.directBusiness > 0 && (
+                                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                  {formatRateBreakdown(sp.directRatesStr, sp.directEffectivePct, false)}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-semibold text-slate-700">
+                              ₹{Number(sp.indirectBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="font-bold text-indigo-600">
+                                ₹{Number(sp.indirectCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </div>
+                              {sp.indirectBusiness > 0 && (
+                                <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100/80 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                  {formatRateBreakdown(sp.indirectRatesStr, sp.indirectEffectivePct, true)}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-bold text-slate-900">
+                              ₹{Number(sp.totalBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-3 text-right font-black text-emerald-800 bg-emerald-50/40 text-sm">
+                              ₹{Number(sp.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-slate-50/70 border-b border-slate-200">
+                              <td colSpan={7} className="p-3">
+                                {renderSponsorTransactions(sp.entries)}
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="p-3 text-right font-semibold text-slate-700">
-                          ₹{Number(sp.indirectBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="p-3 text-right">
-                          <div className="font-bold text-indigo-600">
-                            ₹{Number(sp.indirectCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </div>
-                          {sp.indirectBusiness > 0 && (
-                            <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100/80 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                              {sp.indirectRatesStr || `${sp.indirectEffectivePct || 2}%`}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right font-bold text-slate-900">
-                          ₹{Number(sp.totalBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="p-3 text-right font-black text-emerald-800 bg-emerald-50/40 text-sm">
-                          ₹{Number(sp.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

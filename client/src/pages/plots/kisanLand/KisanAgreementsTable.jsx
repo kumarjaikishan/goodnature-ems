@@ -175,7 +175,7 @@ const KisanAgreementsTable = ({
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5">
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                                <Layers size={11} /> {parcels.length} Land Parcels
+                                <Layers size={11} /> {parcels.length} Land Details
                               </span>
                               <span className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
                                 {[...new Set(parcels.map((p) => p.mauja))].join(', ')}
@@ -313,7 +313,7 @@ const KisanAgreementsTable = ({
                             <button
                               onClick={() => loadAgreementDetails(agr._id, 'overview')}
                               className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                              title="View Agreement Details, Land Parcels & Full Audit"
+                              title="View Agreement Details, Land & Plot Details & Full Audit"
                             >
                               <Eye size={12} /> View
                             </button>

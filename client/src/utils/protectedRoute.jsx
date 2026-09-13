@@ -1,8 +1,7 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { toast } from './toast';
 import Navbar from '../components/Navbar';
-import { useEffect, useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Sidebar from '../components/sidebar';
 import ContentLoader from '../components/ContentLoader';
 
@@ -10,24 +9,49 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
   const { islogin } = useSelector((state) => state.auth);
   const user = useSelector((state) => state.user);
 
-  const role = user?.profile?.role;
+  const getRoleFromToken = () => {
+    try {
+      const token = localStorage.getItem('emstoken');
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload?.role || null;
+    } catch {
+      return null;
+    }
+  };
 
-  const isAuthenticated = islogin;
-  const isAuthorized = allowedRoles.includes(role);
+  const tokenRole = getRoleFromToken();
+  const role = user?.profile?.role || user?.role || tokenRole;
+  const tokenExists = Boolean(localStorage.getItem('emstoken'));
+  const isAuthenticated = islogin || tokenExists;
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
 
   useEffect(() => {
-    // ✅ Only show toast if logged in but not authorized
-    if (isAuthenticated && !isAuthorized) {
-      toast.warn('Access denied. You are not authorized.', { autoClose: 1900 });
-    }
-
     const handleResize = () => setIsMobile(window.innerWidth < 600);
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
-  }, [isAuthenticated, isAuthorized]);
+  }, []);
+
+  // ❌ Not logged in → go to login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // ⏳ Logged in but role is still resolving
+  if (!role) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+        <ContentLoader />
+      </div>
+    );
+  }
+
+  // ❌ Logged in but not in allowed roles → go to login (clears loop)
+  const isAuthorized = allowedRoles.length === 0 || allowedRoles.includes(role);
+  if (!isAuthorized) {
+    return <Navigate to="/login" replace />;
+  }
 
   // Sidebar logic
   const sidebarOpen = Boolean(user?.sidebar);
@@ -41,19 +65,9 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
       ? "w-[220px]"
       : "w-[70px]";
 
-  // ❌ Not logged in → go to login
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // ❌ Logged in but wrong role → go home (or dashboard)
-  if (!isAuthorized) {
-    return <Navigate to="/" replace />;
-  }
-
   // ✅ Allowed
   return (
-    <div className="h-screen w-full flex bg-amber-200 print:h-auto print:bg-white print:block">
+    <div className="h-screen w-full flex bg-slate-100 print:h-auto print:bg-white print:block">
       <div className={`${sidebarWidth} no-print bg-white shadow-xl transition-all duration-300 overflow-hidden`}>
         <Sidebar />
       </div>

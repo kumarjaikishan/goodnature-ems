@@ -1,7 +1,13 @@
 /**
- * Database Seed Script for Good Nature EMS (Plots, Series, Kisan Land Agreements, Ledgers, & Bookings)
+ * Database Seed Script for Good Nature EMS
  * ─────────────────────────────────────────────────────────────────────────────
- * Usage: node server/scripts/seed.js  (or npm run seed from server/)
+ * • 6 Multi-Parcel Kisan Land Agreements & Ledgers
+ * • 2 Direct Company Sponsors (Business Partners) & 5 Sub-Sponsors (Promoters)
+ * • 10 Customers (2 Direct Company Customers, 8 under Sub-Sponsors)
+ * • 4 Plot Series Masters (E, A, D, C) with all plots AVAILABLE
+ * • ZERO bookings or collections (cleans up any existing bookings/receipts/closings)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Usage: node server/scripts/seed.js (or npm run seed from server/)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -25,20 +31,19 @@ const PlotPayoutVoucher = require('../models/PlotPayoutVoucher');
 const PlotSponsorCommission = require('../models/PlotSponsorCommission');
 const PlotClosing = require('../models/PlotClosing');
 const Counter = require('../models/Counter');
-const plotsService = require('../services/plots.service');
 
 const DB_URI = process.env.db;
 
 async function seed() {
-  console.log('🚀 Starting Good Nature EMS Seed Script...');
+  console.log('🚀 Starting Good Nature EMS Clean Seed Script...');
   console.log('📡 Connecting to MongoDB:', DB_URI);
   await mongoose.connect(DB_URI);
   console.log('✅ Connected to MongoDB successfully.\n');
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STEP 1: DROP / CLEAN OLD RELEVANT TEST DATA
+  // STEP 1: DROP / CLEAN OLD RELEVANT TEST DATA (INCLUDING ALL BOOKINGS & COLLECTIONS)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log('🧹 Cleaning previous plot, kisan land, and booking test collections...');
+  console.log('🧹 Cleaning previous plots, kisan agreements, bookings, collections, receipts, and closings...');
   await Promise.all([
     PlotSeriesMaster.deleteMany({}),
     Plot.deleteMany({}),
@@ -54,6 +59,20 @@ async function seed() {
     PlotPayoutVoucher.deleteMany({}),
     PlotSponsorCommission.deleteMany({}),
     PlotClosing.deleteMany({}),
+    // Clean old seed sponsor users to avoid duplicates
+    User.deleteMany({
+      email: {
+        $in: [
+          'sponsor.ravi@goodnature.com',
+          'sponsor.priya@goodnature.com',
+          'sponsor.manoj@goodnature.com',
+          'sponsor.amit@goodnature.com',
+          'sponsor.sneha@goodnature.com',
+          'sponsor.vikash@goodnature.com',
+          'sponsor.pooja@goodnature.com',
+        ],
+      },
+    }),
     Counter.deleteMany({
       _id: {
         $in: [
@@ -68,67 +87,102 @@ async function seed() {
       },
     }),
   ]);
-  console.log('✅ Previous collections cleared.\n');
+  console.log('✅ Previous collections and booking data completely cleared.\n');
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STEP 2: CREATE SPONSORS / PROMOTERS & CUSTOMERS
+  // STEP 2: CREATE SPONSORS (2 DIRECT BUSINESS PARTNERS & 5 BUSINESS ASSOCIATES)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log('👥 Creating Sponsors / Promoters & Customers...');
+  console.log('👥 Creating Sponsors (2 Business Partners & 5 Business Associates)...');
 
-  const promotersData = [
-    {
-      name: 'Ravi Kumar (Senior Promoter)',
-      email: 'sponsor.ravi@goodnature.com',
-      password: 'password123',
-      role: 'sponsor',
-      sponsorCode: 'SP-1001',
-      mobile: '9876543201',
-    },
-    {
-      name: 'Priya Singh (Executive Promoter)',
-      email: 'sponsor.priya@goodnature.com',
-      password: 'password123',
-      role: 'sponsor',
-      sponsorCode: 'SP-1002',
-      mobile: '9876543202',
-    },
-    {
-      name: 'Manoj Gupta (Star Promoter)',
-      email: 'sponsor.manoj@goodnature.com',
-      password: 'password123',
-      role: 'sponsor',
-      sponsorCode: 'SP-1003',
-      mobile: '9876543203',
-    },
-    {
-      name: 'Amit Sinha (Regional Promoter)',
-      email: 'sponsor.amit@goodnature.com',
-      password: 'password123',
-      role: 'sponsor',
-      sponsorCode: 'SP-1004',
-      mobile: '9876543204',
-    },
-    {
-      name: 'Sneha Raj (Promoter Lead)',
-      email: 'sponsor.sneha@goodnature.com',
-      password: 'password123',
-      role: 'sponsor',
-      sponsorCode: 'SP-1005',
-      mobile: '9876543205',
-    },
-  ];
+  // 2 Direct Company Sponsors (Business Partners - sponsorId: null)
+  const directSponsor1 = await User.create({
+    name: 'Ravi Kumar',
+    email: 'sponsor.ravi@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-1001',
+    mobile: '9876543201',
+    sponsorId: null, // Direct Company Partner
+  });
 
-  const sponsorUsers = [];
-  for (const pData of promotersData) {
-    let existingUser = await User.findOne({ email: pData.email });
-    if (!existingUser) {
-      existingUser = await User.create(pData);
-    }
-    sponsorUsers.push(existingUser);
-  }
-  console.log(`  ✓ Created / Verified ${sponsorUsers.length} Promoters/Sponsors (${sponsorUsers.map(s => s.name.split(' ')[0]).join(', ')}).`);
+  const directSponsor2 = await User.create({
+    name: 'Priya Singh',
+    email: 'sponsor.priya@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-1002',
+    mobile: '9876543202',
+    sponsorId: null, // Direct Company Partner
+  });
 
-  const rawCustomers = [
+  // 5 Sub Sponsors (Business Associates under the 2 Business Partners)
+  const subSponsor1 = await User.create({
+    name: 'Manoj Gupta',
+    email: 'sponsor.manoj@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-2001',
+    mobile: '9876543203',
+    sponsorId: directSponsor1._id, // Under Ravi Kumar
+  });
+
+  const subSponsor2 = await User.create({
+    name: 'Amit Sinha',
+    email: 'sponsor.amit@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-2002',
+    mobile: '9876543204',
+    sponsorId: directSponsor1._id, // Under Ravi Kumar
+  });
+
+  const subSponsor3 = await User.create({
+    name: 'Sneha Raj',
+    email: 'sponsor.sneha@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-2003',
+    mobile: '9876543205',
+    sponsorId: directSponsor1._id, // Under Ravi Kumar
+  });
+
+  const subSponsor4 = await User.create({
+    name: 'Vikash Sharma',
+    email: 'sponsor.vikash@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-2004',
+    mobile: '9876543206',
+    sponsorId: directSponsor2._id, // Under Priya Singh
+  });
+
+  const subSponsor5 = await User.create({
+    name: 'Pooja Verma',
+    email: 'sponsor.pooja@goodnature.com',
+    password: 'password123',
+    role: 'sponsor',
+    sponsorCode: 'SP-2005',
+    mobile: '9876543207',
+    sponsorId: directSponsor2._id, // Under Priya Singh
+  });
+
+  console.log('  ✓ 2 Business Partners created:');
+  console.log(`    1. ${directSponsor1.name} (Business Partner) (${directSponsor1.sponsorCode})`);
+  console.log(`    2. ${directSponsor2.name} (Business Partner) (${directSponsor2.sponsorCode})`);
+  console.log('  ✓ 5 Business Associates created:');
+  console.log(`    1. ${subSponsor1.name} (Business Associate) (${subSponsor1.sponsorCode}) -> under ${directSponsor1.name}`);
+  console.log(`    2. ${subSponsor2.name} (Business Associate) (${subSponsor2.sponsorCode}) -> under ${directSponsor1.name}`);
+  console.log(`    3. ${subSponsor3.name} (Business Associate) (${subSponsor3.sponsorCode}) -> under ${directSponsor1.name}`);
+  console.log(`    4. ${subSponsor4.name} (Business Associate) (${subSponsor4.sponsorCode}) -> under ${directSponsor2.name}`);
+  console.log(`    5. ${subSponsor5.name} (Business Associate) (${subSponsor5.sponsorCode}) -> under ${directSponsor2.name}\n`);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // STEP 3: CREATE EXACTLY 10 CUSTOMERS (2 DIRECT, 8 UNDER SUB-SPONSORS)
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log('👤 Creating Exactly 10 Customers (2 Direct, 8 under Sub-Sponsors)...');
+
+  const customersData = [
+    // 2 Direct Company Customers (sponsorId: null)
     {
       customerId: 'CUST-001',
       name: 'Suresh Verma',
@@ -143,6 +197,7 @@ async function seed() {
       occupation: 'Government Employee',
       nomineeName: 'Poonam Verma',
       nomineeRelation: 'Wife',
+      sponsorId: null, // Direct Company Customer
     },
     {
       customerId: 'CUST-002',
@@ -158,7 +213,10 @@ async function seed() {
       occupation: 'Business',
       nomineeName: 'Pooja Mishra',
       nomineeRelation: 'Wife',
+      sponsorId: null, // Direct Company Customer
     },
+
+    // 8 Sub-Sponsor Customers
     {
       customerId: 'CUST-003',
       name: 'Sunita Devi',
@@ -173,6 +231,7 @@ async function seed() {
       occupation: 'Housewife',
       nomineeName: 'Mahendra Prasad',
       nomineeRelation: 'Husband',
+      sponsorId: subSponsor1._id, // under Manoj Gupta (SP-2001)
     },
     {
       customerId: 'CUST-004',
@@ -188,6 +247,7 @@ async function seed() {
       occupation: 'Doctor',
       nomineeName: 'Geeta Patel',
       nomineeRelation: 'Wife',
+      sponsorId: subSponsor1._id, // under Manoj Gupta (SP-2001)
     },
     {
       customerId: 'CUST-005',
@@ -203,6 +263,7 @@ async function seed() {
       occupation: 'Teacher',
       nomineeName: 'Rohit Sharma',
       nomineeRelation: 'Husband',
+      sponsorId: subSponsor2._id, // under Amit Sinha (SP-2002)
     },
     {
       customerId: 'CUST-006',
@@ -218,6 +279,7 @@ async function seed() {
       occupation: 'IT Professional',
       nomineeName: 'Shalini Singh',
       nomineeRelation: 'Wife',
+      sponsorId: subSponsor2._id, // under Amit Sinha (SP-2002)
     },
     {
       customerId: 'CUST-007',
@@ -233,6 +295,7 @@ async function seed() {
       occupation: 'Banker',
       nomineeName: 'Kavita Jha',
       nomineeRelation: 'Wife',
+      sponsorId: subSponsor3._id, // under Sneha Raj (SP-2003)
     },
     {
       customerId: 'CUST-008',
@@ -248,6 +311,7 @@ async function seed() {
       occupation: 'Chartered Accountant',
       nomineeName: 'Vinod Kumar',
       nomineeRelation: 'Father',
+      sponsorId: subSponsor4._id, // under Vikash Sharma (SP-2004)
     },
     {
       customerId: 'CUST-009',
@@ -263,6 +327,7 @@ async function seed() {
       occupation: 'Civil Contractor',
       nomineeName: 'Anita Choudhary',
       nomineeRelation: 'Wife',
+      sponsorId: subSponsor4._id, // under Vikash Sharma (SP-2004)
     },
     {
       customerId: 'CUST-010',
@@ -278,147 +343,19 @@ async function seed() {
       occupation: 'Lawyer',
       nomineeName: 'Hemant Raj',
       nomineeRelation: 'Husband',
-    },
-    {
-      customerId: 'CUST-011',
-      name: 'Santosh Kumar Tiwary',
-      mobile: '9431876543',
-      email: 'santosh.tiwary@example.com',
-      address: 'Saguna More, Bailey Road, Patna',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '801503',
-      fatherOrHusbandName: 'B. N. Tiwary',
-      gender: 'Male',
-      occupation: 'Senior Engineer',
-      nomineeName: 'Rekha Tiwary',
-      nomineeRelation: 'Wife',
-    },
-    {
-      customerId: 'CUST-012',
-      name: 'Neha Roy',
-      mobile: '9835765432',
-      email: 'neha.roy@example.com',
-      address: 'Rajendra Nagar, Road No 5, Patna',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '800016',
-      fatherOrHusbandName: 'Arvind Roy',
-      gender: 'Female',
-      occupation: 'Software Engineer',
-      nomineeName: 'Arvind Roy',
-      nomineeRelation: 'Father',
-    },
-    {
-      customerId: 'CUST-013',
-      name: 'Alok Ranjan',
-      mobile: '9128012345',
-      email: 'alok.ranjan@example.com',
-      address: 'Shivala More, Danapur-Khagaul Road',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '801105',
-      fatherOrHusbandName: 'M. P. Ranjan',
-      gender: 'Male',
-      occupation: 'Real Estate Investor',
-      nomineeName: 'Madhu Ranjan',
-      nomineeRelation: 'Wife',
-    },
-    {
-      customerId: 'CUST-014',
-      name: 'Pankaj Kumar Gupta',
-      mobile: '9334198765',
-      email: 'pankaj.gupta@example.com',
-      address: 'Bihta IIT Main Gate Road',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '801106',
-      fatherOrHusbandName: 'R. K. Gupta',
-      gender: 'Male',
-      occupation: 'Trader & Distributor',
-      nomineeName: 'Sarita Gupta',
-      nomineeRelation: 'Wife',
-    },
-    {
-      customerId: 'CUST-015',
-      name: 'Dr. Sanjay Kumar Sinha',
-      mobile: '9431012399',
-      email: 'dr.sanjaysinha@example.com',
-      address: 'Kankarbagh Main Road, Doctor Colony',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '800020',
-      fatherOrHusbandName: 'Late Dr. B. K. Sinha',
-      gender: 'Male',
-      occupation: 'Surgeon',
-      nomineeName: 'Dr. Rashmi Sinha',
-      nomineeRelation: 'Wife',
-    },
-    {
-      customerId: 'CUST-016',
-      name: 'Meena Kumari',
-      mobile: '9835889900',
-      email: 'meena.kumari@example.com',
-      address: 'Digha Ghat Road, Patna',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '800011',
-      fatherOrHusbandName: 'Sitaram Prasad',
-      gender: 'Female',
-      occupation: 'Govt School Principal',
-      nomineeName: 'Sitaram Prasad',
-      nomineeRelation: 'Husband',
-    },
-    {
-      customerId: 'CUST-017',
-      name: 'Rameshwar Pandey',
-      mobile: '9934112233',
-      email: 'rameshwar.pandey@example.com',
-      address: 'Maner Dargah Road, Maner',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '801180',
-      fatherOrHusbandName: 'Late Kashi Pandey',
-      gender: 'Male',
-      occupation: 'Agriculturist & Landowner',
-      nomineeName: 'Devaki Pandey',
-      nomineeRelation: 'Wife',
-    },
-    {
-      customerId: 'CUST-018',
-      name: 'Kavita Singh',
-      mobile: '9708114455',
-      email: 'kavita.singh@example.com',
-      address: 'Anandpuri, West Boring Canal Road',
-      city: 'Patna',
-      state: 'Bihar',
-      pincode: '800001',
-      fatherOrHusbandName: 'Ajay Kumar Singh',
-      gender: 'Female',
-      occupation: 'Architect',
-      nomineeName: 'Ajay Kumar Singh',
-      nomineeRelation: 'Husband',
+      sponsorId: subSponsor5._id, // under Pooja Verma (SP-2005)
     },
   ];
 
-  // Distribute customers across the 5 promoters randomly and evenly
-  const customersData = rawCustomers.map((cust, idx) => {
-    const assignedSponsor = sponsorUsers[idx % sponsorUsers.length];
-    return {
-      ...cust,
-      sponsorId: assignedSponsor._id,
-    };
-  });
-
   const createdCustomers = await PlotCustomer.insertMany(customersData);
-  console.log(`  ✓ Created ${createdCustomers.length} Customers distributed across ${sponsorUsers.length} Promoters.\n`);
+  console.log(`  ✓ Successfully created ${createdCustomers.length} Customers (2 Direct, 8 under Sub-Sponsors).\n`);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STEP 3: CREATE PLOT SERIES MASTERS & PLOTS
+  // STEP 4: CREATE PLOT SERIES MASTERS & PLOTS (ALL INITIALIZED AS AVAILABLE)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log('🏗️ Creating Plot Series Masters and Plots...');
+  console.log('🏗️ Creating Plot Series Masters and Plots (All status = AVAILABLE)...');
 
-  // 1. E Series: 1 to 11 plots, 800 sqft (20 x 40)
+  // 1. E Series: 11 plots, 800 sqft (20 x 40)
   const seriesE = await PlotSeriesMaster.create({
     name: 'E-Block (Residential Plots)',
     prefix: 'E',
@@ -462,9 +399,9 @@ async function seed() {
     });
   }
   const createdPlotsE = await Plot.insertMany(plotsE);
-  console.log(`  ✓ Created Series E (800 SqFt 20x40) with ${createdPlotsE.length} plots (E-001 to E-011).`);
+  console.log(`  ✓ Created Series E with ${createdPlotsE.length} plots (E-001 to E-011, AVAILABLE).`);
 
-  // 2. A Series: 40 x 60 (2400 sqft)
+  // 2. A Series: 10 plots, 2400 sqft (40 x 60)
   const seriesA = await PlotSeriesMaster.create({
     name: 'A-Block (Luxury Villa Plots)',
     prefix: 'A',
@@ -508,9 +445,9 @@ async function seed() {
     });
   }
   const createdPlotsA = await Plot.insertMany(plotsA);
-  console.log(`  ✓ Created Series A (2400 SqFt 40x60) with ${createdPlotsA.length} plots (A-001 to A-010).`);
+  console.log(`  ✓ Created Series A with ${createdPlotsA.length} plots (A-001 to A-010, AVAILABLE).`);
 
-  // 3. D Series: 40 x 40 (1600 sqft)
+  // 3. D Series: 10 plots, 1600 sqft (40 x 40)
   const seriesD = await PlotSeriesMaster.create({
     name: 'D-Block (Commercial / Premium Plots)',
     prefix: 'D',
@@ -554,9 +491,9 @@ async function seed() {
     });
   }
   const createdPlotsD = await Plot.insertMany(plotsD);
-  console.log(`  ✓ Created Series D (1600 SqFt 40x40) with ${createdPlotsD.length} plots (D-001 to D-010).`);
+  console.log(`  ✓ Created Series D with ${createdPlotsD.length} plots (D-001 to D-010, AVAILABLE).`);
 
-  // 4. C Series: 30 x 40 (1200 sqft)
+  // 4. C Series: 10 plots, 1200 sqft (30 x 40)
   const seriesC = await PlotSeriesMaster.create({
     name: 'C-Block (Standard Residential Plots)',
     prefix: 'C',
@@ -600,14 +537,14 @@ async function seed() {
     });
   }
   const createdPlotsC = await Plot.insertMany(plotsC);
-  console.log(`  ✓ Created Series C (1200 SqFt 30x40) with ${createdPlotsC.length} plots (C-001 to C-010).\n`);
+  console.log(`  ✓ Created Series C with ${createdPlotsC.length} plots (C-001 to C-010, AVAILABLE).\n`);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STEP 4: CREATE MULTI-PARCEL KISAN LAND AGREEMENTS, DEEDS & LEDGERS
+  // STEP 5: CREATE EXACTLY 6 KISAN LAND AGREEMENTS, DEEDS & LEDGERS
   // ───────────────────────────────────────────────────────────────────────────
-  console.log('🌾 Creating Multi-Parcel Kisan Land Agreements & Ledgers...');
+  console.log('🌾 Creating Exactly 6 Multi-Parcel Kisan Land Agreements & Ledgers...');
 
-  // Agreement 1: Danapur & Bihta Multi-Parcel
+  // Agreement 1: Danapur & Bihta Multi-Parcel (AGR-2425-001)
   const p1_dismil = 15.5;
   const p1_sqft = Math.round(p1_dismil * 435.6 * 100) / 100;
   const p1_reg_dismil = 10.0;
@@ -624,15 +561,15 @@ async function seed() {
   const agr1_total_cost = 775000 + 500000 + 1125000; // 2400000
 
   const agr1 = new KisanLandAgreement({
-    agreementNumber: 'AGR-2627-001',
-    agreementDate: new Date('2026-04-10'),
-    agreementEndDate: new Date('2026-10-10'),
+    agreementNumber: 'AGR-2425-001',
+    agreementDate: new Date('2024-04-10'),
+    agreementEndDate: new Date('2024-10-10'),
     araziDismil: agr1_total_dismil,
     totalSqFt: agr1_total_sqft,
     ratePerDismil: 47524,
     ratePerSqFt: 109.1,
     totalAgreementAmount: agr1_total_cost,
-    remarks: 'Acquired via Danapur circle. 3 parcels with 1 converted registry deed.',
+    remarks: 'Acquired via Danapur circle. 3 land parcels with 1 converted registry deed.',
     status: 'PARTIALLY_REGISTERED',
     landParcels: [
       {
@@ -658,7 +595,7 @@ async function seed() {
         unregisteredAvailableSqFt: p1_sqft - p1_reg_sqft,
         allocatedSqFt: 0,
         availableSqFt: p1_reg_sqft,
-        remarks: '10 Dismil registered under DEED-2026-9812; 5.5 Dismil remains in agreement pool.',
+        remarks: '10 Dismil registered under DEED-2024-9812; 5.5 Dismil remains in agreement pool.',
       },
       {
         mauja: 'Rampur',
@@ -739,20 +676,6 @@ async function seed() {
         fileSize: 1048576,
         description: 'Original signed stamp agreement copy',
       },
-      {
-        fileName: 'Khatiyan_7_12_Rampur_582',
-        fileType: 'Khatiyan (7/12)',
-        fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample_khatiyan.pdf',
-        fileSize: 524288,
-        description: 'Revenue Khatiyan extract',
-      },
-      {
-        fileName: 'Naksha_Rampur_Plot582',
-        fileType: 'Naksha / Map',
-        fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample_map.png',
-        fileSize: 819200,
-        description: 'Cadastral land map showing road alignment',
-      },
     ],
     totalRegisteredDismil: p1_reg_dismil,
     totalRegisteredSqFt: p1_reg_sqft,
@@ -769,8 +692,8 @@ async function seed() {
 
   const p1Doc = agr1.landParcels[0];
   agr1.registryDeeds.push({
-    deedNumber: 'AGR-2627-001/DEED-2026-9812',
-    deedDate: new Date('2026-05-15'),
+    deedNumber: 'AGR-2425-001/DEED-2024-9812',
+    deedDate: new Date('2024-05-15'),
     subRegistrarOffice: 'Sadar Registry Office, Danapur',
     registeredDismil: p1_reg_dismil,
     registeredSqFt: p1_reg_sqft,
@@ -798,7 +721,7 @@ async function seed() {
     {
       agreementId: agr1._id,
       agreementNumber: agr1.agreementNumber,
-      date: new Date('2026-04-10'),
+      date: new Date('2024-04-10'),
       type: 'CREDIT',
       amount: agr1_total_cost,
       runningBalance: agr1_total_cost,
@@ -809,28 +732,28 @@ async function seed() {
     {
       agreementId: agr1._id,
       agreementNumber: agr1.agreementNumber,
-      date: new Date('2026-04-12'),
+      date: new Date('2024-04-12'),
       type: 'DEBIT',
       amount: 500000,
       runningBalance: agr1_total_cost - 500000,
       farmerName: 'Ram Prasad Yadav',
       paymentMode: 'BANK_TRANSFER',
-      receiptNumber: 'KREC-2627-001',
+      receiptNumber: 'KREC-2425-001',
       transactionReference: 'NEFT/UTIB000123/98124',
       remarks: 'Advance token payment paid via bank transfer',
     },
     {
       agreementId: agr1._id,
       agreementNumber: agr1.agreementNumber,
-      date: new Date('2026-05-16'),
+      date: new Date('2024-05-16'),
       type: 'DEBIT',
       amount: 300000,
       runningBalance: agr1_total_cost - 800000,
       farmerName: 'Ram Prasad Yadav',
       paymentMode: 'CHEQUE',
-      receiptNumber: 'KREC-2627-002',
+      receiptNumber: 'KREC-2425-002',
       transactionReference: 'CHQ-881204',
-      remarks: 'Part payment upon registry deed DEED-2026-9812 execution',
+      remarks: 'Part payment upon registry deed DEED-2024-9812 execution',
     },
   ]);
 
@@ -839,7 +762,7 @@ async function seed() {
     {
       agreementId: agr1._id,
       sourceType: 'AGREEMENT',
-      date: new Date('2026-04-10'),
+      date: new Date('2024-04-10'),
       entryType: 'CREDIT',
       sqFt: agr1_total_sqft,
       dismil: agr1_total_dismil,
@@ -851,8 +774,8 @@ async function seed() {
       agreementId: agr1._id,
       sourceType: 'REGISTRY_DEED',
       deedId: agr1.registryDeeds[0]._id,
-      deedNumber: 'AGR-2627-001/DEED-2026-9812',
-      date: new Date('2026-05-15'),
+      deedNumber: 'AGR-2425-001/DEED-2024-9812',
+      date: new Date('2024-05-15'),
       entryType: 'CREDIT',
       sqFt: p1_reg_sqft,
       dismil: p1_reg_dismil,
@@ -862,9 +785,9 @@ async function seed() {
     },
   ]);
 
-  console.log(`  ✓ Created Agreement 1 (${agr1.agreementNumber}) with 3 parcels, 1 deed, and active Kisan Ledger.`);
+  console.log(`  ✓ Created Agreement 1 (${agr1.agreementNumber}) with 3 land parcels and 1 registered deed.`);
 
-  // Agreement 2: Neora Bihta Multi-Parcel
+  // Agreement 2: Neora Bihta Multi-Parcel (AGR-2425-002)
   const agr2_p1_d = 20.0;
   const agr2_p1_sqft = Math.round(agr2_p1_d * 435.6 * 100) / 100;
   const agr2_p2_d = 18.0;
@@ -877,9 +800,9 @@ async function seed() {
   const agr2_reg_sqft = Math.round(agr2_reg_d * 435.6 * 100) / 100;
 
   const agr2 = new KisanLandAgreement({
-    agreementNumber: 'AGR-2627-002',
-    agreementDate: new Date('2026-05-01'),
-    agreementEndDate: new Date('2026-11-01'),
+    agreementNumber: 'AGR-2425-002',
+    agreementDate: new Date('2024-05-01'),
+    agreementEndDate: new Date('2024-11-01'),
     araziDismil: agr2_total_dismil,
     totalSqFt: agr2_total_sqft,
     ratePerDismil: 57631,
@@ -911,7 +834,7 @@ async function seed() {
         unregisteredAvailableSqFt: 0,
         allocatedSqFt: 0,
         availableSqFt: agr2_p1_sqft,
-        remarks: 'Fully registered via AGR-2627-002/DEED-2026-4401',
+        remarks: 'Fully registered via AGR-2425-002/DEED-2024-4401',
       },
       {
         mauja: 'Neora',
@@ -959,13 +882,6 @@ async function seed() {
         fileSize: 419430,
         description: 'Land Possession Certificate issued by Circle Officer',
       },
-      {
-        fileName: 'Lagan_Receipt_2025_26',
-        fileType: 'Revenue Receipt',
-        fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample_receipt.pdf',
-        fileSize: 209715,
-        description: 'Updated revenue lagan receipt',
-      },
     ],
     totalRegisteredDismil: agr2_reg_d,
     totalRegisteredSqFt: agr2_reg_sqft,
@@ -983,8 +899,8 @@ async function seed() {
   const agr2_p1 = agr2.landParcels[0];
   const agr2_p2 = agr2.landParcels[1];
   agr2.registryDeeds.push({
-    deedNumber: 'AGR-2627-002/DEED-2026-4401',
-    deedDate: new Date('2026-06-01'),
+    deedNumber: 'AGR-2425-002/DEED-2024-4401',
+    deedDate: new Date('2024-06-01'),
     subRegistrarOffice: 'Bihta Sub-Registry Office',
     registeredDismil: agr2_reg_d,
     registeredSqFt: agr2_reg_sqft,
@@ -1021,7 +937,7 @@ async function seed() {
     {
       agreementId: agr2._id,
       agreementNumber: agr2.agreementNumber,
-      date: new Date('2026-05-01'),
+      date: new Date('2024-05-01'),
       type: 'CREDIT',
       amount: agr2_total_cost,
       runningBalance: agr2_total_cost,
@@ -1032,13 +948,13 @@ async function seed() {
     {
       agreementId: agr2._id,
       agreementNumber: agr2.agreementNumber,
-      date: new Date('2026-05-05'),
+      date: new Date('2024-05-05'),
       type: 'DEBIT',
       amount: 1000000,
       runningBalance: agr2_total_cost - 1000000,
       farmerName: 'Shyam Sundar Singh',
       paymentMode: 'NEFT_RTGS',
-      receiptNumber: 'KREC-2627-003',
+      receiptNumber: 'KREC-2425-003',
       transactionReference: 'RTGS/SBIN00045/8819',
       remarks: 'Advance payment paid directly via RTGS',
     },
@@ -1049,7 +965,7 @@ async function seed() {
     {
       agreementId: agr2._id,
       sourceType: 'AGREEMENT',
-      date: new Date('2026-05-01'),
+      date: new Date('2024-05-01'),
       entryType: 'CREDIT',
       sqFt: agr2_total_sqft,
       dismil: agr2_total_dismil,
@@ -1061,8 +977,8 @@ async function seed() {
       agreementId: agr2._id,
       sourceType: 'REGISTRY_DEED',
       deedId: agr2.registryDeeds[0]._id,
-      deedNumber: 'AGR-2627-002/DEED-2026-4401',
-      date: new Date('2026-06-01'),
+      deedNumber: 'AGR-2425-002/DEED-2024-4401',
+      date: new Date('2024-06-01'),
       entryType: 'CREDIT',
       sqFt: agr2_reg_sqft,
       dismil: agr2_reg_d,
@@ -1072,9 +988,9 @@ async function seed() {
     },
   ]);
 
-  console.log(`  ✓ Created Agreement 2 (${agr2.agreementNumber}) with 2 parcels, 1 deed, and active Kisan Ledger.`);
+  console.log(`  ✓ Created Agreement 2 (${agr2.agreementNumber}) with 2 land parcels and 1 registered deed.`);
 
-  // Helper function to build clean un-registered multi-parcel agreements
+  // Helper function to build agreements 3 to 6
   const createUnregisteredAgreement = async ({
     agreementNumber,
     agreementDate,
@@ -1082,7 +998,7 @@ async function seed() {
     remarks,
     farmers,
     parcelsRaw,
-    paidAmount = 150000,
+    paidAmount = 250000,
   }) => {
     let totalDismil = 0;
     let totalCost = 0;
@@ -1118,7 +1034,7 @@ async function seed() {
         unregisteredAvailableSqFt: p_sqft,
         allocatedSqFt: 0,
         availableSqFt: 0,
-        remarks: p.remarks || 'Available for Registry Deed conversion',
+        remarks: p.remarks || 'Available in agreement pool',
       };
     });
 
@@ -1130,7 +1046,7 @@ async function seed() {
     const agrDoc = new KisanLandAgreement({
       agreementNumber,
       agreementDate: new Date(agreementDate),
-      agreementEndDate: agreementEndDate ? new Date(agreementEndDate) : new Date('2026-12-31'),
+      agreementEndDate: agreementEndDate ? new Date(agreementEndDate) : new Date('2024-12-31'),
       araziDismil: totalDismil,
       totalSqFt,
       ratePerDismil,
@@ -1207,15 +1123,15 @@ async function seed() {
       },
     ]);
 
-    console.log(`  ✓ Created Agreement (${agreementNumber}) with ${landParcels.length} parcels (0 deeds) & Kisan Ledger.`);
+    console.log(`  ✓ Created Agreement ${agreementNumber} with ${landParcels.length} land parcels.`);
     return agrDoc;
   };
 
-  // 10 Multi-Parcel, 0-Deed Agreements (AGR-2627-003 to AGR-2627-012)
+  // Agreement 3 (AGR-2425-003)
   await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-003',
-    agreementDate: '2026-05-10',
-    agreementEndDate: '2026-11-10',
+    agreementNumber: 'AGR-2425-003',
+    agreementDate: '2024-05-10',
+    agreementEndDate: '2024-11-10',
     remarks: 'Phulwari Sharif prime expansion. 3 parcels across Khata 515 & 516.',
     farmers: [
       {
@@ -1237,10 +1153,11 @@ async function seed() {
     paidAmount: 350000,
   });
 
+  // Agreement 4 (AGR-2425-004)
   await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-004',
-    agreementDate: '2026-05-18',
-    agreementEndDate: '2026-12-15',
+    agreementNumber: 'AGR-2425-004',
+    agreementDate: '2024-05-18',
+    agreementEndDate: '2024-12-15',
     remarks: 'Bihta Kanhauli ring road belt. 3 parcels across 2 distinct Maujas.',
     farmers: [
       {
@@ -1272,10 +1189,11 @@ async function seed() {
     paidAmount: 500000,
   });
 
+  // Agreement 5 (AGR-2425-005)
   await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-005',
-    agreementDate: '2026-05-25',
-    agreementEndDate: '2026-11-25',
+    agreementNumber: 'AGR-2425-005',
+    agreementDate: '2024-05-25',
+    agreementEndDate: '2024-11-25',
     remarks: 'Danapur-Khagaul connector land. 2 high-value commercial parcels.',
     farmers: [
       {
@@ -1296,10 +1214,11 @@ async function seed() {
     paidAmount: 600000,
   });
 
+  // Agreement 6 (AGR-2425-006)
   await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-006',
-    agreementDate: '2026-06-02',
-    agreementEndDate: '2026-12-02',
+    agreementNumber: 'AGR-2425-006',
+    agreementDate: '2024-06-02',
+    agreementEndDate: '2024-12-02',
     remarks: 'Naubatpur Lakhna agricultural corridor. 4 multi-khesra parcels.',
     farmers: [
       {
@@ -1322,489 +1241,22 @@ async function seed() {
     paidAmount: 400000,
   });
 
-  await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-007',
-    agreementDate: '2026-06-08',
-    agreementEndDate: '2026-12-20',
-    remarks: 'Shivala-Parbatpur bypass expansion. 3 parcels on main bypass link.',
-    farmers: [
-      {
-        name: 'Gajendra Prasad',
-        guardianName: 'Late Bindeshwari Prasad',
-        relation: 'Father',
-        mobile: '9708112244',
-        aadhaarNumber: '998811223344',
-        panNumber: 'CPGPP4455R',
-        sharePercent: 100,
-        address: 'Shivala Chowk, Patna',
-      },
-    ],
-    parcelsRaw: [
-      { mauja: 'Shivala', khataNumber: '612', khesraNumber: '802', dismil: 16.0, ratePerDismil: 52000, thanaNumber: '11', jamabandiNumber: 'JB-612' },
-      { mauja: 'Shivala', khataNumber: '612', khesraNumber: '805', dismil: 14.0, ratePerDismil: 52000, thanaNumber: '11', jamabandiNumber: 'JB-613' },
-      { mauja: 'Parbatpur', khataNumber: '340', khesraNumber: '550', dismil: 25.0, ratePerDismil: 48000, thanaNumber: '12', jamabandiNumber: 'JB-901' },
-    ],
-    paidAmount: 450000,
-  });
-
-  await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-008',
-    agreementDate: '2026-06-15',
-    agreementEndDate: '2027-01-15',
-    remarks: 'Maner riverview township sector. 3 fertile parcels.',
-    farmers: [
-      {
-        name: 'Harendra Rai',
-        guardianName: 'Babulal Rai',
-        relation: 'Father',
-        mobile: '9122334455',
-        aadhaarNumber: '445566778899',
-        panNumber: 'BIPHR6677T',
-        sharePercent: 50,
-        address: 'Maner Bazar, Patna',
-      },
-      {
-        name: 'Jitendra Rai',
-        guardianName: 'Babulal Rai',
-        relation: 'Father',
-        mobile: '9122334456',
-        aadhaarNumber: '445566778890',
-        panNumber: 'BIPJR6678U',
-        sharePercent: 50,
-        address: 'Maner Bazar, Patna',
-      },
-    ],
-    parcelsRaw: [
-      { mauja: 'Maner', khataNumber: '730', khesraNumber: '1205', dismil: 30.0, ratePerDismil: 40000, thanaNumber: '29', jamabandiNumber: 'JB-730' },
-      { mauja: 'Maner', khataNumber: '730', khesraNumber: '1208', dismil: 22.0, ratePerDismil: 40000, thanaNumber: '29', jamabandiNumber: 'JB-731' },
-      { mauja: 'Sadisopur', khataNumber: '144', khesraNumber: '310', dismil: 18.0, ratePerDismil: 46000, thanaNumber: '30', jamabandiNumber: 'JB-144' },
-    ],
-    paidAmount: 550000,
-  });
-
-  await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-009',
-    agreementDate: '2026-06-22',
-    agreementEndDate: '2027-01-20',
-    remarks: 'Bikram agricultural node with future highway interchange.',
-    farmers: [
-      {
-        name: 'Chandreshwar Pandey',
-        guardianName: 'Late Shivnath Pandey',
-        relation: 'Father',
-        mobile: '9835778899',
-        aadhaarNumber: '887766554433',
-        panNumber: 'AYPCP9900M',
-        sharePercent: 100,
-        address: 'Bikram, Patna',
-      },
-    ],
-    parcelsRaw: [
-      { mauja: 'Bikram', khataNumber: '522', khesraNumber: '710', dismil: 24.0, ratePerDismil: 38000, thanaNumber: '41', jamabandiNumber: 'JB-522' },
-      { mauja: 'Bikram', khataNumber: '522', khesraNumber: '715', dismil: 26.0, ratePerDismil: 38000, thanaNumber: '41', jamabandiNumber: 'JB-523' },
-      { mauja: 'Gorakhri', khataNumber: '89', khesraNumber: '215', dismil: 15.0, ratePerDismil: 35000, thanaNumber: '42', jamabandiNumber: 'JB-215' },
-    ],
-    paidAmount: 300000,
-  });
-
-  await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-010',
-    agreementDate: '2026-06-28',
-    agreementEndDate: '2027-02-15',
-    remarks: 'Sarmera-Bihta four-lane frontage land. 3 wide frontage parcels.',
-    farmers: [
-      {
-        name: 'Umeshwar Prasad Sah',
-        guardianName: 'Late Jaglal Sah',
-        relation: 'Father',
-        mobile: '9470998811',
-        aadhaarNumber: '223344556677',
-        panNumber: 'BVUPS1122P',
-        sharePercent: 100,
-        address: 'Neora Colony, Patna',
-      },
-    ],
-    parcelsRaw: [
-      { mauja: 'Neora', khataNumber: '415', khesraNumber: '1330', dismil: 20.0, ratePerDismil: 56000, thanaNumber: '18', jamabandiNumber: 'JB-415' },
-      { mauja: 'Neora', khataNumber: '415', khesraNumber: '1335', dismil: 18.0, ratePerDismil: 56000, thanaNumber: '18', jamabandiNumber: 'JB-416' },
-      { mauja: 'Rampur', khataNumber: '110', khesraNumber: '610', dismil: 12.0, ratePerDismil: 52000, thanaNumber: '12', jamabandiNumber: 'JB-610' },
-    ],
-    paidAmount: 420000,
-  });
-
-  await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-011',
-    agreementDate: '2026-07-04',
-    agreementEndDate: '2027-02-28',
-    remarks: 'Paijawa Green Meadows township parcel group.',
-    farmers: [
-      {
-        name: 'Dharmendra Kumar Gupta',
-        guardianName: 'Ramanand Gupta',
-        relation: 'Father',
-        mobile: '9835889900',
-        aadhaarNumber: '667788990011',
-        panNumber: 'AKPGP3344R',
-        sharePercent: 100,
-        address: 'Paijawa, Bihta, Patna',
-      },
-    ],
-    parcelsRaw: [
-      { mauja: 'Paijawa', khataNumber: '120', khesraNumber: '340', dismil: 17.5, ratePerDismil: 48000, thanaNumber: '16', jamabandiNumber: 'JB-120' },
-      { mauja: 'Paijawa', khataNumber: '120', khesraNumber: '344', dismil: 15.0, ratePerDismil: 48000, thanaNumber: '16', jamabandiNumber: 'JB-121' },
-      { mauja: 'Kanhauli', khataNumber: '215', khesraNumber: '702', dismil: 21.0, ratePerDismil: 60000, thanaNumber: '15', jamabandiNumber: 'JB-702' },
-    ],
-    paidAmount: 380000,
-  });
-
-  await createUnregisteredAgreement({
-    agreementNumber: 'AGR-2627-012',
-    agreementDate: '2026-07-10',
-    agreementEndDate: '2027-03-10',
-    remarks: 'Danapur West residential extension zone. 3 high potential plots.',
-    farmers: [
-      {
-        name: 'Kailash Nath Tiwary',
-        guardianName: 'Late B. N. Tiwary',
-        relation: 'Father',
-        mobile: '9123889900',
-        aadhaarNumber: '119988776655',
-        panNumber: 'ABTPT5566S',
-        sharePercent: 100,
-        address: 'Danapur Cantt, Patna',
-      },
-    ],
-    parcelsRaw: [
-      { mauja: 'Danapur', khataNumber: '601', khesraNumber: '1410', dismil: 14.0, ratePerDismil: 88000, thanaNumber: '14', jamabandiNumber: 'JB-601' },
-      { mauja: 'Danapur', khataNumber: '601', khesraNumber: '1415', dismil: 16.5, ratePerDismil: 88000, thanaNumber: '14', jamabandiNumber: 'JB-602' },
-      { mauja: 'Khagaul', khataNumber: '420', khesraNumber: '960', dismil: 11.5, ratePerDismil: 90000, thanaNumber: '8', jamabandiNumber: 'JB-960' },
-    ],
-    paidAmount: 480000,
-  });
-
-  console.log(`  ✓ Successfully seeded all 12 Kisan Land Agreements (AGR-2627-001 to AGR-2627-012).\n`);
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // STEP 5: SEED SAMPLE BOOKINGS ACROSS E, A, D, AND C SERIES PLOTS
-  // ───────────────────────────────────────────────────────────────────────────
-  console.log('📑 Seeding Sample Plot Bookings & Allocating Land Stock...');
-
-  // 1. Booking 1: Plot E-001 (800 sqft, EMI scheme, sourced from Deed DEED-2026-9812)
-  const plotE1 = createdPlotsE[0];
-  const deed1 = agr1.registryDeeds[0];
-
-  const booking1 = await PlotBooking.create({
-    bookingNumber: 'PB-2627-001',
-    bookingDate: new Date('2026-06-15'),
-    customerId: createdCustomers[0]._id,
-    sponsorId: createdCustomers[0].sponsorId || sponsorUsers[0]._id,
-    plotId: plotE1._id,
-    plotValue: 800000,
-    scheme: 'MONTHLY_INSTALLMENT',
-    tenureMonths: 60,
-    downpaymentMonths: 1,
-    downpaymentAmount: 160000,
-    bookingAmount: 160000,
-    remainingAmount: 640000,
-    emiMonthlyAmount: 10667,
-    status: 'ACTIVE',
-    agreementNumber: 'PAGR-2627-001',
-    landSourcing: [
-      {
-        sourceType: 'REGISTRY_DEED',
-        agreementId: agr1._id,
-        agreementNumber: agr1.agreementNumber,
-        deedId: deed1._id,
-        deedNumber: deed1.deedNumber,
-        mauja: deed1.parcels[0]?.mauja || 'Rampur',
-        khataNumber: deed1.parcels[0]?.khataNumber || '104',
-        khesraNumber: deed1.parcels[0]?.khesraNumber || '582',
-        allocatedSqFt: 800,
-        allocatedDismil: Math.round((800 / 435.6) * 100) / 100,
-      },
-    ],
-    notes: 'Booked by Suresh Verma with 20% downpayment on Plot E-001 (20x40).',
-  });
-
-  plotE1.status = 'BOOKED';
-  await plotE1.save();
-
-  // Deduct stock in deed1 & agreement1
-  deed1.allocatedSqFt = (deed1.allocatedSqFt || 0) + 800;
-  deed1.availableSqFt = Math.max(0, deed1.registeredSqFt - deed1.allocatedSqFt);
-  agr1.totalAllocatedSqFt = (agr1.totalAllocatedSqFt || 0) + 800;
-  agr1.totalAvailableSqFt = Math.max(0, agr1.totalSqFt - agr1.totalAllocatedSqFt);
-  await agr1.save();
-
-  // Write Stock Ledger Debit
-  await LandStockLedger.create({
-    agreementId: agr1._id,
-    sourceType: 'REGISTRY_DEED',
-    deedId: deed1._id,
-    deedNumber: deed1.deedNumber,
-    bookingId: booking1._id,
-    bookingNumber: booking1.bookingNumber,
-    customerName: createdCustomers[0].name,
-    plotNumber: plotE1.plotNumber,
-    date: new Date('2026-06-15'),
-    entryType: 'DEBIT',
-    sqFt: 800,
-    dismil: 800 / 435.6,
-    transactionType: 'BOOKING_ALLOCATION',
-    runningAvailableSqFt: agr1.totalAvailableSqFt,
-    remarks: `Allocated to Booking ${booking1.bookingNumber} for Plot ${plotE1.plotNumber}`,
-  });
-
-  // Create initial downpayment receipt for booking 1
-  await PlotReceipt.create({
-    receiptType: 'DOWNPAYMENT',
-    bookingId: booking1._id,
-    receiptNumber: 'RCPT-2627-001',
-    amount: 160000,
-    paymentMode: 'BANK_TRANSFER',
-    transactionReference: 'IMPS/9981240/SURESH',
-    status: 'APPROVED',
-    remarks: 'Booking downpayment received',
-  });
-
-  await plotsService.rebuildBookingInstallmentsState(booking1._id).catch(() => {});
-  console.log(`  ✓ Seeded Booking 1 (${booking1.bookingNumber}) on Plot ${plotE1.plotNumber} (E-Series 800 SqFt).`);
-
-  // 2. Booking 2: Plot A-001 (2400 sqft, 40x60, Full Payment, Sourced from DEED-2026-4401)
-  const plotA1 = createdPlotsA[0];
-  const deed2 = agr2.registryDeeds[0];
-
-  const booking2 = await PlotBooking.create({
-    bookingNumber: 'PB-2627-002',
-    bookingDate: new Date('2026-06-20'),
-    customerId: createdCustomers[1]._id,
-    sponsorId: createdCustomers[1].sponsorId || sponsorUsers[1]._id,
-    plotId: plotA1._id,
-    plotValue: 2880000,
-    scheme: 'FULL_PAYMENT',
-    bookingAmount: 2880000,
-    remainingAmount: 0,
-    status: 'COMPLETED',
-    agreementNumber: 'PAGR-2627-002',
-    landSourcing: [
-      {
-        sourceType: 'REGISTRY_DEED',
-        agreementId: agr2._id,
-        agreementNumber: agr2.agreementNumber,
-        deedId: deed2._id,
-        deedNumber: deed2.deedNumber,
-        mauja: deed2.parcels[0]?.mauja || 'Neora',
-        khataNumber: deed2.parcels[0]?.khataNumber || '312',
-        khesraNumber: deed2.parcels[0]?.khesraNumber || '1102',
-        allocatedSqFt: 2400,
-        allocatedDismil: Math.round((2400 / 435.6) * 100) / 100,
-      },
-    ],
-    notes: 'Booked by Rajesh Mishra on Plot A-001 (40x60 Villa Plot) with full upfront payment.',
-  });
-
-  plotA1.status = 'BOOKED';
-  await plotA1.save();
-
-  deed2.allocatedSqFt = (deed2.allocatedSqFt || 0) + 2400;
-  deed2.availableSqFt = Math.max(0, deed2.registeredSqFt - deed2.allocatedSqFt);
-  agr2.totalAllocatedSqFt = (agr2.totalAllocatedSqFt || 0) + 2400;
-  agr2.totalAvailableSqFt = Math.max(0, agr2.totalSqFt - agr2.totalAllocatedSqFt);
-  await agr2.save();
-
-  await LandStockLedger.create({
-    agreementId: agr2._id,
-    sourceType: 'REGISTRY_DEED',
-    deedId: deed2._id,
-    deedNumber: deed2.deedNumber,
-    bookingId: booking2._id,
-    bookingNumber: booking2.bookingNumber,
-    customerName: createdCustomers[1].name,
-    plotNumber: plotA1.plotNumber,
-    date: new Date('2026-06-20'),
-    entryType: 'DEBIT',
-    sqFt: 2400,
-    dismil: 2400 / 435.6,
-    transactionType: 'BOOKING_ALLOCATION',
-    runningAvailableSqFt: agr2.totalAvailableSqFt,
-    remarks: `Allocated to Booking ${booking2.bookingNumber} for Plot ${plotA1.plotNumber}`,
-  });
-
-  await PlotReceipt.create({
-    receiptType: 'FULL_PAYMENT',
-    bookingId: booking2._id,
-    receiptNumber: 'RCPT-2627-002',
-    amount: 2880000,
-    paymentMode: 'CHEQUE',
-    transactionReference: 'CHQ-551029',
-    status: 'APPROVED',
-    remarks: 'Full payment received upfront for Plot A-001',
-  });
-
-  await plotsService.rebuildBookingInstallmentsState(booking2._id).catch(() => {});
-  console.log(`  ✓ Seeded Booking 2 (${booking2.bookingNumber}) on Plot ${plotA1.plotNumber} (A-Series 2400 SqFt).`);
-
-  // 3. Booking 3: Plot D-001 (1600 sqft, 40x40, Sourced from DEED-2026-4401)
-  const plotD1 = createdPlotsD[0];
-  const booking3 = await PlotBooking.create({
-    bookingNumber: 'PB-2627-003',
-    bookingDate: new Date('2026-07-05'),
-    customerId: createdCustomers[2]._id,
-    sponsorId: createdCustomers[2].sponsorId || sponsorUsers[2]._id,
-    plotId: plotD1._id,
-    plotValue: 1760000,
-    scheme: 'MONTHLY_INSTALLMENT',
-    tenureMonths: 36,
-    downpaymentMonths: 1,
-    downpaymentAmount: 352000,
-    bookingAmount: 352000,
-    remainingAmount: 1408000,
-    emiMonthlyAmount: 39111,
-    status: 'ACTIVE',
-    agreementNumber: 'PAGR-2627-003',
-    landSourcing: [
-      {
-        sourceType: 'REGISTRY_DEED',
-        agreementId: agr2._id,
-        agreementNumber: agr2.agreementNumber,
-        deedId: deed2._id,
-        deedNumber: deed2.deedNumber,
-        mauja: deed2.parcels[0]?.mauja || 'Neora',
-        khataNumber: deed2.parcels[0]?.khataNumber || '312',
-        khesraNumber: deed2.parcels[0]?.khesraNumber || '1102',
-        allocatedSqFt: 1600,
-        allocatedDismil: Math.round((1600 / 435.6) * 100) / 100,
-      },
-    ],
-    notes: 'Booked by Sunita Devi on Plot D-001 (40x40 Commercial).',
-  });
-
-  plotD1.status = 'BOOKED';
-  await plotD1.save();
-
-  deed2.allocatedSqFt = (deed2.allocatedSqFt || 0) + 1600;
-  deed2.availableSqFt = Math.max(0, deed2.registeredSqFt - deed2.allocatedSqFt);
-  agr2.totalAllocatedSqFt = (agr2.totalAllocatedSqFt || 0) + 1600;
-  agr2.totalAvailableSqFt = Math.max(0, agr2.totalSqFt - agr2.totalAllocatedSqFt);
-  await agr2.save();
-
-  await LandStockLedger.create({
-    agreementId: agr2._id,
-    sourceType: 'REGISTRY_DEED',
-    deedId: deed2._id,
-    deedNumber: deed2.deedNumber,
-    bookingId: booking3._id,
-    bookingNumber: booking3.bookingNumber,
-    customerName: createdCustomers[2].name,
-    plotNumber: plotD1.plotNumber,
-    date: new Date('2026-07-05'),
-    entryType: 'DEBIT',
-    sqFt: 1600,
-    dismil: 1600 / 435.6,
-    transactionType: 'BOOKING_ALLOCATION',
-    runningAvailableSqFt: agr2.totalAvailableSqFt,
-    remarks: `Allocated to Booking ${booking3.bookingNumber} for Plot ${plotD1.plotNumber}`,
-  });
-
-  await PlotReceipt.create({
-    receiptType: 'DOWNPAYMENT',
-    bookingId: booking3._id,
-    receiptNumber: 'RCPT-2627-003',
-    amount: 352000,
-    paymentMode: 'BANK_TRANSFER',
-    transactionReference: 'NEFT/HDFC00019/3310',
-    status: 'APPROVED',
-    remarks: 'Booking downpayment received',
-  });
-
-  await plotsService.rebuildBookingInstallmentsState(booking3._id).catch(() => {});
-  console.log(`  ✓ Seeded Booking 3 (${booking3.bookingNumber}) on Plot ${plotD1.plotNumber} (D-Series 1600 SqFt).`);
-
-  // 4. Booking 4: Plot C-001 (1200 sqft, 30x40, Sourced from Agreement Pool AGR-2627-001)
-  const plotC1 = createdPlotsC[0];
-  const booking4 = await PlotBooking.create({
-    bookingNumber: 'PB-2627-004',
-    bookingDate: new Date('2026-07-12'),
-    customerId: createdCustomers[3]._id,
-    sponsorId: createdCustomers[3].sponsorId || sponsorUsers[3]._id,
-    plotId: plotC1._id,
-    plotValue: 1200000,
-    scheme: 'MONTHLY_INSTALLMENT',
-    tenureMonths: 48,
-    downpaymentMonths: 1,
-    downpaymentAmount: 240000,
-    bookingAmount: 240000,
-    remainingAmount: 960000,
-    emiMonthlyAmount: 20000,
-    status: 'ACTIVE',
-    agreementNumber: 'PAGR-2627-004',
-    landSourcing: [
-      {
-        sourceType: 'AGREEMENT',
-        agreementId: agr1._id,
-        agreementNumber: agr1.agreementNumber,
-        mauja: agr1.landParcels[1]?.mauja || 'Rampur',
-        khataNumber: agr1.landParcels[1]?.khataNumber || '104',
-        khesraNumber: agr1.landParcels[1]?.khesraNumber || '585',
-        allocatedSqFt: 1200,
-        allocatedDismil: Math.round((1200 / 435.6) * 100) / 100,
-      },
-    ],
-    notes: 'Booked by Vikram Patel on Plot C-001 (30x40 Standard Residential).',
-  });
-
-  plotC1.status = 'BOOKED';
-  await plotC1.save();
-
-  agr1.totalAllocatedSqFt = (agr1.totalAllocatedSqFt || 0) + 1200;
-  agr1.totalAvailableSqFt = Math.max(0, agr1.totalSqFt - agr1.totalAllocatedSqFt);
-  await agr1.save();
-
-  await LandStockLedger.create({
-    agreementId: agr1._id,
-    sourceType: 'AGREEMENT',
-    bookingId: booking4._id,
-    bookingNumber: booking4.bookingNumber,
-    customerName: createdCustomers[3].name,
-    plotNumber: plotC1.plotNumber,
-    date: new Date('2026-07-12'),
-    entryType: 'DEBIT',
-    sqFt: 1200,
-    dismil: 1200 / 435.6,
-    transactionType: 'BOOKING_ALLOCATION',
-    runningAvailableSqFt: agr1.totalAvailableSqFt,
-    remarks: `Allocated to Booking ${booking4.bookingNumber} from Agreement Pool for Plot ${plotC1.plotNumber}`,
-  });
-
-  await PlotReceipt.create({
-    receiptType: 'DOWNPAYMENT',
-    bookingId: booking4._id,
-    receiptNumber: 'RCPT-2627-004',
-    amount: 240000,
-    paymentMode: 'BANK_TRANSFER',
-    transactionReference: 'UPI/98123401/VIKRAM',
-    status: 'APPROVED',
-    remarks: 'Booking downpayment received',
-  });
-
-  await plotsService.rebuildBookingInstallmentsState(booking4._id).catch(() => {});
-  console.log(`  ✓ Seeded Booking 4 (${booking4.bookingNumber}) on Plot ${plotC1.plotNumber} (C-Series 1200 SqFt).\n`);
+  console.log(`  ✓ Successfully seeded exactly 6 Kisan Land Agreements (AGR-2425-001 to AGR-2425-006).\n`);
 
   console.log('════════════════════════════════════════════════════════════════');
-  console.log('🎉 GOOD NATURE EMS SEEDING COMPLETED SUCCESSFULLY!');
+  console.log('🎉 GOOD NATURE EMS CLEAN SEEDING COMPLETED SUCCESSFULLY!');
   console.log('════════════════════════════════════════════════════════════════');
-  console.log('📊 Summary of Seeded Records:');
-  console.log(`  • Customers: ${createdCustomers.length}`);
-  console.log(`  • Series Masters: 4 (E-Series 800sqft, A-Series 2400sqft, D-Series 1600sqft, C-Series 1200sqft)`);
-  console.log(`  • Plots Generated: ${createdPlotsE.length + createdPlotsA.length + createdPlotsD.length + createdPlotsC.length}`);
-  console.log(`    - E Series: 11 Plots (E-001 to E-011, 20x40)`);
-  console.log(`    - A Series: 10 Plots (A-001 to A-010, 40x60)`);
-  console.log(`    - D Series: 10 Plots (D-001 to D-010, 40x40)`);
-  console.log(`    - C Series: 10 Plots (C-001 to C-010, 30x40)`);
-  console.log(`  • Multi-Parcel Kisan Agreements: 12 (AGR-2627-001 to AGR-2627-012, 10 without deeds)
-  • Registry Deeds: 2 (DEED-2026-9812, DEED-2026-4401)
-  • Kisan Financial Ledger Entries: 24 (with complete Credit/Debit balance reconciliation)`);
-  console.log(`  • Sample Plot Bookings: 4 (allocated across E, A, D, C series)`);
+  console.log('📊 Summary of Seeded Database State:');
+  console.log(`  • Sponsors: 7 Total`);
+  console.log(`    - 2 Direct Company Partners (SP-1001 Ravi Kumar, SP-1002 Priya Singh)`);
+  console.log(`    - 5 Sub-Sponsors / Promoters (SP-2001 to SP-2005)`);
+  console.log(`  • Customers: 10 Total`);
+  console.log(`    - 2 Direct Company Customers (CUST-001 Suresh Verma, CUST-002 Rajesh Mishra)`);
+  console.log(`    - 8 Sub-Sponsor Customers (CUST-003 to CUST-010)`);
+  console.log(`  • Kisan Land Agreements: Exactly 6 (AGR-2425-001 to AGR-2425-006)`);
+  console.log(`  • Registry Deeds: 2 Active Deeds (under Agreements 1 & 2)`);
+  console.log(`  • Plot Series Masters: 4 (E, A, D, C) with ${createdPlotsE.length + createdPlotsA.length + createdPlotsD.length + createdPlotsC.length} total plots (ALL AVAILABLE)`);
+  console.log(`  • Bookings / Collections / Receipts: ZERO (Clean database ready for fresh testing)`);
   console.log('════════════════════════════════════════════════════════════════\n');
 
   await mongoose.disconnect();

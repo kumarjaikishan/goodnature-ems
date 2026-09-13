@@ -6,8 +6,8 @@ const SetupPayoutModal = ({ booking, onClose, onSubmit, form, setForm, saving })
   if (!booking) return null;
 
   return (
-    <Modalbox open={Boolean(booking)} onClose={onClose}>
-      <div className="p-6 bg-white rounded-2xl w-[480px] max-w-[90vw] space-y-4">
+    <Modalbox open={Boolean(booking)} onClose={onClose} size="lg">
+      <div className="p-6 w-full space-y-4">
         <div className="flex justify-between items-center pb-3 border-b border-slate-100">
           <div>
             <h3 className="text-base font-bold text-slate-800">Setup Weekly Payouts</h3>

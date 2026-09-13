@@ -115,9 +115,10 @@ const PlotAgreementViewer = () => {
   const netPlotValue = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
   const paidAmount = Math.max(0, netPlotValue - (booking.remainingAmount || 0));
   const downpaymentInst = (installments || []).find(i => i.installmentNumber === 0);
+  const plotAreaSize = Number(plot.plotSize || plot.area || 0);
   const downpaymentRequired = booking.scheme === 'FULL_PAYMENT'
     ? netPlotValue
-    : (booking.bookingAmount || booking.downpaymentAmount || downpaymentInst?.dueAmount || Math.round(netPlotValue * 0.40));
+    : (booking.downpaymentAmount || booking.bookingAmount || downpaymentInst?.dueAmount || (booking.downpaymentRate && plotAreaSize > 0 ? booking.downpaymentRate * plotAreaSize : Math.round(netPlotValue * 0.40)));
   const isDownpaymentCompleted = paidAmount >= (downpaymentRequired - 1);
 
   if (!isDownpaymentCompleted) {

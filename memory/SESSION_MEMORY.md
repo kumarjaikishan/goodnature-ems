@@ -33,33 +33,96 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - The page includes 3 interconnected tabs: **Series Blocks & Layout Grid**, **All Plots Inventory List (Cards & Table with live filters & pagination)**, and **Global Pricing & Commission Matrix**.
 - Both `/dashboard/plots/series-master` and `/dashboard/plots/inventory` route to this unified component.
 
-### S. Frontend Route Conflict Resolution
-- **Gotcha**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
-- **Fix**: Removed the conflicting route and let `{roleRoute}` handle all `/dashboard` nested views through `<ProtectedRoutes />`, with fallback redirecting unauthenticated users to `/login`.
+### S. Frontend Route Conflict Resolution & Authorization Loop Prevention
+- **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
+- **Gotcha 2**: In `ProtectedRoutes.jsx`, when `role` was undefined during initial profile fetch, `!isAuthorized` redirected to `/`. But in `App.jsx`, `<Route path="/" element={<Navigate to="/dashboard" replace />} />` immediately bounced back to `/dashboard`, causing an infinite redirect loop (`/` <-> `/dashboard`) and rapid toast spam.
+- **Fix Pattern**: In `ProtectedRoutes.jsx`, resolve `role` from JWT token payload immediately if profile is pending, render `<ContentLoader />` while determining authentication, and navigate to `/login` if unauthenticated/unauthorized instead of bouncing to `/`.
 
 ### T. Standalone MongoDB vs Replica Set Transactions
 - **Gotcha**: Calling `session.startTransaction()` on a standalone local MongoDB instance throws `"Transaction numbers are only allowed on a replica set member or mongos"`.
 - **Fix Pattern**: [server/conn/conn.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/conn/conn.js) patches `mongoose.startSession()` globally on boot. If the active MongoDB connection is standalone, `startTransaction()`, `commitTransaction()`, and `abortTransaction()` are safely handled as no-ops while passing standard operations through to MongoDB without transaction headers, while full multi-document ACID transactions remain active for replica sets / MongoDB Atlas.
 
-### G. Tiered Sponsor Commission Hierarchy & 40/60 Plot Booking Engine
-- **Hierarchy Standard**: 2-level maximum hierarchy: `Company -> Developer Sponsor (direct) -> Sub-Sponsor`. Sub-sponsors cannot have children; referring sponsors must be Developer Sponsors (`sponsorId: null`).
-- **Commission Split**:
-  - Direct under Developer Sponsor: Developer Sponsor earns `(Promoter % + Developer %)`.
-  - Under Sub-Sponsor: Sub-Sponsor earns `Promoter %`, parent Developer Sponsor earns `Developer %` (2% override).
-  - Commission rates are snapshot/locked permanently at the moment of plot booking.
-- **Plot Booking Breakdown**:
-  - 0-Month: 100% Downpayment with time limit (1, 2, or 3 months).
-  - \>0 Months: 40% Downpayment + remaining balance in EMIs distributed across chosen $N$ tenure months.
-  - **Downpayment Calculation Basis**: Defaults to `BEFORE_DISCOUNT` (40% of Gross Plot Value, with discount reducing the EMI balance), with an option to toggle to `AFTER_DISCOUNT` (40% of Net Contract Value).
-- **Rate Matrix Storage**: Configured in `PlotRateConfiguration.rateSlabs` and editable in [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) Pricing & Rates tab.
+### U. Modalbox Default Sizing & Custom Width Handling
+- **Gotcha**: `Modalbox.jsx` defaults to `maxWidth = 'max-w-xl'` (576px) and applies `overflow-hidden` to its container. If an inner component uses fixed or large widths like `w-[900px]`, the modal container clips the right side.
+- **Fix Pattern**: Always pass `size="5xl"` or `maxWidth="max-w-5xl"` (or `max-w-6xl` / `max-w-4xl`) on `<Modalbox>` and use responsive `w-full` on child containers with horizontal scroll wrappers (`overflow-x-auto`) for wide data tables.
 
-### V. Comprehensive Database Seeding Script (`npm run seed`)
-- **Script**: `server/scripts/seed.js` (executable via `npm run seed` in `server/`).
+### V. Plot Closings Architecture & Real-Time Preview
+- **Default Naming & Date Range**: Default closing name is generated for the previous month (e.g. `August 2026 Closing` when current month is September 2026) with dates defaulting from 1st to last day of that previous month.
+- **Terminology**: The word "Commission" is simplified to "Closing" (e.g., `Process New Closing`, `Closing System`).
+- **Query Optimization**: `previewPlotClosing` queries indexed collection records directly via `PlotSponsorCommission.find({ status: 'active', closingId: null, createdAt: { $gte: start, $lte: end } })` with a compound index on `{ status: 1, closingId: 1, createdAt: 1 }` and no redundant booking loops, making date switching instant (<20ms).
+- **Dedicated Full-Page Workflow**: Process New Closing and Edit Closing are hosted on a dedicated full page [PlotClosingProcessPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotClosingProcessPage.jsx) (`/dashboard/plots/closings/new` and `/dashboard/plots/closings/edit/:id`), providing maximum viewport width for large financial data tables, KPI cards, and sticky action bars.
+- **Explicit Period Search / Fetch**: Date inputs do not trigger preview recalculations on every keystroke/change; an explicit **"Fetch Period"** button calculates collections and commissions on demand.
+- **Expandable Per-Collection Breakdown**: Both the Live Preview table and the View Closing Details modal feature collapsible dropdown rows per sponsor. Clicking on a sponsor expands a nested table listing each collection receipt with its date, receipt #, booking/plot #, customer name, collection amount, individual applied slab rate (e.g., `7% (5% + 2%)` vs `8% (5% + 3%)`), and calculated commission.
+
+### W. Plot Booking Wizard Structure Cleanup
+- **Active Booking Components**: Stored in `client/src/pages/plots/booking/components/` (`BookingProgressBar`, `BookingSummarySidebar`, `StepCustomer`, `StepPlot`, `StepTermsAndPayment`). Used by `client/src/pages/plots/PlotBooking.jsx` mounted on route `/plots/addbooking`.
+- **Removed Duplicate Code**: The legacy duplicate directory `client/src/pages/plots/bookingWizard/` and unused wrapper `client/src/pages/plots/booking/PlotBookingPage.jsx` were safely deleted.
+
+### G. Target Incentive & Fixed Commission Architecture (Oct – Dec 2026 Policy)
+- **Hierarchy & Roles**:
+  - `BUSINESS_PARTNER` (Business Partner): Direct sponsor ID with company (`sponsorId: null`).
+  - `BUSINESS_ASSOCIATE` (Business Associate): Subordinate sponsor ID enrolled under a Business Partner (`sponsorId: ObjectId`).
+- **Commission Split**:
+  - **RIGHT SIDE (Plot Sales)**:
+    - **Business Associate**: Base Fix `5.00%` + Target Incentive (`2.00% to 10.00%` based on individual period volume).
+    - **Business Partner (Team Commission)**: Base Fix `2.00%` + Target Incentive (`0.10% to 1.00%` based on team cumulative volume).
+    - **Business Partner (Direct Sale)**: Receives BOTH Upper BA rate (`5% + BA Incentive`) AND Lower BP rate (`2% + BP Incentive`).
+  - **LEFT SIDE (RD / FD Investments)**:
+    - **Business Associate**: Base Fix `2.50%` + Target Incentive (`1.00% to 5.00%`).
+    - **Business Partner (Team Commission)**: Base Fix `1.00%` + Target Incentive (`0.050% to 0.500%`).
+    - **Business Partner (Direct Sale)**: Receives BOTH Upper BA rate (`2.5% + BA Incentive`) AND Lower BP rate (`1.0% + BP Incentive`).
+- **RD & FD Commission Policy Relocation & Tenure Matrix Simplification**:
+  - Relocated the RD/FD Target Incentive & Fixed Commission Matrix (`INVESTMENT_RD_FD`) directly to [InvestmentSchemeMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/investments/InvestmentSchemeMaster.jsx) (`/dashboard/investments/schemes`) under the bounds & premature interest settings.
+  - Removed RD/FD commission policy controls from [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx), keeping Plot Series Master exclusively dedicated to Plot Sales policies.
+  - Cleaned up the Tenure table on the Investment Scheme page into `Customer Tenure Maturity Returns Matrix`, removing legacy per-tenure commission inputs (`Promoter Comm. % (R.D.)`, `Promoter Comm. % (F.D.)`, `Business Dev Override (%)`) and retaining purely customer maturity returns (`Tenure`, `R.D. Maturity Return %`, `F.D. Maturity Return %`).
+
+### H. Dynamic Rate Editing & Modular Architecture in Plot Booking
+- **Dynamic Rate Support**:
+  - At the time of booking, the **Plot Sq.Ft. Rate** and **Downpayment Sq.Ft. Rate** are pre-filled based on the selected tenure slab, but are completely **editable** in real time.
+  - Balance EMI Rate (`EMI/sqft = Balance EMI Principal / Plot Area`) and monthly EMI are dynamically recomputed based on the edited rates: `Gross Plot Value = Area * (Effective Plot SqFt Rate)`, `Downpayment Amount = Area * (DP SqFt Rate)`, `EMI Principal = Gross Plot Value - Downpayment Amount - Discount`.
+  - `PlotBooking` and `PlotBookingRevision` schemas store both `downpaymentRate` and `emiRate` alongside `basePlotRate`.
+- **Modular Directory Structure**:
+  - `client/src/pages/plots/booking/` holds the page container `PlotBookingPage.jsx` and its subfolder `components/` contains:
+    - `BookingProgressBar.jsx` (Step stepper)
+    - `StepCustomer.jsx` (Customer selector and creation)
+    - `StepPlot.jsx` (Project/Sector/Block/Plot selector)
+    - `StepTermsAndPayment.jsx` (Tenure slab selector, editable Plot SqFt rate, editable DP SqFt rate, EMI breakdown, and Land Stock allocation)
+    - `BookingSummarySidebar.jsx` (Real-time dynamic financial breakdown card)
+  - `client/src/pages/plots/PlotBooking.jsx` delegates cleanly to `booking/PlotBookingPage.jsx`.
+- **Plot Booking Decoupling**:
+  - Plot booking tenure duration (0, 6, 12, ... 60 months) now **strictly** defines customer pricing and installments.
+  - Slabs and target milestones are resolved dynamically by `CommissionPolicyConfig.resolveSlab` based on monthly collection volumes.
+
+### H. 90-Day Downpayment Grace Period & ₹500/Sq.Ft. Fixed Downpayment Model
+- **Downpayment Due Window**:
+  - All plot bookings default to **90 days** for the downpayment completion window (`downpaymentDays: 90`).
+  - This period is editable during plot booking or editing.
+  - EMI #1 starts on the 1st of the month following the downpayment due date.
+- **Fixed ₹500 / Sq.Ft. Downpayment**:
+  - Replaced the legacy 40% plot value downpayment rule.
+  - For all installment plans (tenure > 0), downpayment amount is strictly computed as `Plot Area (Sq.Ft.) × ₹500`.
+  - For 1-time full payment (tenure = 0), downpayment amount is `Plot Area × ₹1000`.
+- **Discount Deduction Rule**:
+  - Any discount given to the customer MUST be deducted **strictly and exclusively from the EMI balance** (`emiPrincipalAmount`), leaving the downpayment amount unchanged.
+  - Formula:
+    - Gross Plot Value = `Plot Area × Effective Rate`
+    - Downpayment Amount = `Plot Area × 500`
+    - Gross EMI Balance = `Gross Plot Value - Downpayment Amount`
+    - Net EMI Balance = `Math.max(0, Gross EMI Balance - Discount)`
+    - Total Contract Value = `Downpayment Amount + Net EMI Balance`
+    - Monthly EMI = `Math.round(Net EMI Balance / Tenure Months)`
+- **Sponsor Portal & Business Report**:
+  - Shows Direct Business vs. Team Business, Current Qualifying Slabs, Base Fixed vs. Target Incentive Earned, and Next Milestone Progress.
+
+### V. Database Seeding Script (`npm run seed`)
+- **Script**: `server/scripts/seed.js` (executable via `node server/scripts/seed.js` or `npm run seed` in `server/`).
 - **Features**:
-  - Automatically clears previous test data for Plot Series, Plots, Customers, Kisan Agreements, Deeds, Kisan Ledgers, Stock Ledgers, Bookings, and Receipts.
-  - Generates Series: **E Series** (11 plots, 800 sqft, 20x40), **A Series** (10 plots, 2400 sqft, 40x60), **D Series** (10 plots, 1600 sqft, 40x40), **C Series** (10 plots, 1200 sqft, 30x40).
-  - Generates **Multi-Parcel Kisan Agreements** with Chaudhi, Dismil rates, document attachments, selective Registry Deeds, and fully balanced Kisan Financial Ledgers.
-  - Seeds sample bookings with live downpayments and land stock allocation tracking.
+  - Automatically clears previous test data for Plot Series, Plots, Customers, Kisan Agreements, Deeds, Kisan Ledgers, Stock Ledgers, Bookings, Receipts, Installments, Payouts, Commissions, and Closings.
+  - **Sponsors**: 2 Direct Company IDs (`SP-1001`, `SP-1002`, `sponsorId: null`) and 5 Sub IDs (`SP-2001` to `SP-2005` under direct sponsors).
+  - **Customers**: Exactly 10 Customers (2 Direct Company Customers `CUST-001` & `CUST-002`, 8 Sub-Sponsor Customers `CUST-003` to `CUST-010`).
+  - **Agreements**: Exactly 6 Multi-Parcel Kisan Agreements (`AGR-2627-001` to `AGR-2627-006`) with complete Chaudhi, parcels, and balanced Kisan Financial Ledgers.
+  - **Plot Series**: 4 Series (**E Series** 11 plots, **A Series** 10 plots, **D Series** 10 plots, **C Series** 10 plots) with all 41 plots in `status: 'AVAILABLE'`.
+  - **Bookings & Collections**: ZERO bookings or collections, providing a clean database state.
 
 ### I. Sponsor Integration with Unified Ledger & Voucher System
 - **Ledger Types**: `Ledger` collection supports `ledgerType: ['employee', 'custom', 'sponsor']`.
@@ -240,3 +303,19 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Backend Endpoints**: `GET /api/developer/errors` and `DELETE /api/developer/errors` (restricted strictly to `developer` role).
 - **Frontend Page**: [`client/src/pages/developer/ErrorLogs.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/developer/ErrorLogs.jsx) features real-time 5s auto-refresh, status breakdown cards (500, 400, 404), keyword search, expandable details (User, IP, ISO time, sanitized request body payload, and 1-click stack trace copy).
 - **Navigation**: Visible in [sidebar.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx) under the Developer menu (`/dashboard/error-logs`).
+
+### BB. Modularization of Plot Series Master & Commission Policy Matrix (`/dashboard/plots/series-master`)
+- **Problem**: `PlotSeriesMaster.jsx` previously contained over 2,330 lines of code with all layouts, tables, pricing matrix, and 4 large modals in a single file. Furthermore, the newly implemented Target Incentive & Fixed Commission system (Valid 1/10/2026 to 31/12/2026) needed an interactive UI for administrators to view, edit, add, or delete commission slabs.
+- **Modular Component Breakdown (`client/src/pages/plots/seriesMaster/`)**:
+  1. `SeriesFilterBar.jsx`: Series selector, status filter, and keyword search bar.
+  2. `SeriesLayoutGrid.jsx`: Series blocks configuration table and responsive plot status card maps.
+  3. `CommissionPolicyMatrix.jsx`: Interactive UI to view and edit target incentive slabs for Business Associates (Fixed 5% + target incentive slabs) and Business Partners (Fixed 2% + target incentive slabs) for Plot Sales and RD/FD investments, with instant save via `PUT /api/plots/commission-policy?type=...`.
+  4. `TenurePlotRatesMatrix.jsx`: Corner extra %, settlement rate %, grace days, daily fine, and customer plot pricing / 40% downpayment / 60% EMI breakdown matrix (legacy commission columns completely removed).
+  5. `CreateSeriesModal.jsx`: Modal for generating series blocks with prefix and range.
+  6. `EditSeriesModal.jsx`: Modal for editing series block parameters.
+  7. `ConfigurePlotModal.jsx`: Modal for adjusting plot dimensions, boundaries (Chaudhi), and inspecting linked Kisan land agreements or registry deeds.
+  8. `CreatePlotModal.jsx`: Modal for creating individual standalone or series plots.
+- **Coordinator Pattern**: [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) reduced from 2,330 lines down to ~415 lines, cleanly orchestrating 3 tabs:
+  - `Series Blocks & Layout Grid`
+  - `Target Incentive Policy & Slabs` (The exclusive place for managing sponsor commissions)
+  - `Plot Pricing & Customer EMI Plans` (Strictly for customer plot prices & payment terms)

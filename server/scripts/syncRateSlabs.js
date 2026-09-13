@@ -1,61 +1,5 @@
 const mongoose = require('mongoose');
 
-const rateSlabSchema = new mongoose.Schema({
-  tenureMonths: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  plotRate: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  promoterCommissionPercent: {
-    type: Number,
-    required: false,
-    default: 0,
-    min: 0,
-  },
-  developerCommissionPercent: {
-    type: Number,
-    required: false,
-    default: 0,
-    min: 0,
-  },
-  downpaymentPercent: {
-    type: Number,
-    default: 40,
-    min: 0,
-    max: 100,
-  },
-  emiPercent: {
-    type: Number,
-    default: 60,
-    min: 0,
-    max: 100,
-  },
-  downpaymentRate: {
-    type: Number,
-    default: 500,
-    min: 0,
-  },
-  emiRate: {
-    type: Number,
-    default: 0,
-    min: 0,
-  },
-  downpaymentDays: {
-    type: Number,
-    default: 90,
-    min: 1,
-  },
-  effectiveLabel: {
-    type: String,
-    default: '',
-  },
-}, { _id: true });
-
 const defaultRateSlabs = [
   { tenureMonths: 0, plotRate: 1000, downpaymentRate: 1000, emiRate: 0, downpaymentDays: 90, downpaymentPercent: 100, emiPercent: 0, effectiveLabel: 'Full Payment' },
   { tenureMonths: 6, plotRate: 1050, downpaymentRate: 500, emiRate: 550, downpaymentDays: 90, downpaymentPercent: 47.6, emiPercent: 52.4, effectiveLabel: '6 Months EMI' },
@@ -70,52 +14,20 @@ const defaultRateSlabs = [
   { tenureMonths: 60, plotRate: 1500, downpaymentRate: 500, emiRate: 1000, downpaymentDays: 90, downpaymentPercent: 33.3, emiPercent: 66.7, effectiveLabel: '60 Months EMI' },
 ];
 
-const plotRateConfigurationSchema = new mongoose.Schema(
-  {
-    baseSqFtRate: {
-      type: Number,
-      required: true,
-      default: 1000,
-      min: 0,
-    },
-    cornerExtraPercent: {
-      type: Number,
-      required: true,
-      default: 20,
-      min: 0,
-    },
-    interestRatePercent: {
-      type: Number,
-      default: 10.88,
-      min: 0,
-    },
-    lateFineGraceDays: {
-      type: Number,
-      default: 15,
-      min: 0,
-    },
-    lateFineDailyPercent: {
-      type: Number,
-      default: 0.05,
-      min: 0,
-    },
-    rateSlabs: {
-      type: [rateSlabSchema],
-      default: defaultRateSlabs,
-    },
-    status: {
-      type: String,
-      enum: ['active', 'inactive'],
-      default: 'active',
-    },
-  },
-  {
-    timestamps: true,
+async function run() {
+  try {
+    await mongoose.connect('mongodb://127.0.0.1:27017/emscopy');
+    console.log('Connected to MongoDB');
+    const res = await mongoose.connection.db.collection('plotrateconfigurations').updateMany(
+      {},
+      { $set: { rateSlabs: defaultRateSlabs } }
+    );
+    console.log('Updated plotrateconfigurations count:', res.modifiedCount);
+    process.exit(0);
+  } catch (err) {
+    console.error('Error updating rate slabs:', err);
+    process.exit(1);
   }
-);
+}
 
-plotRateConfigurationSchema.statics.getDefaultRateSlabs = function () {
-  return defaultRateSlabs;
-};
-
-module.exports = mongoose.model('PlotRateConfiguration', plotRateConfigurationSchema);
+run();

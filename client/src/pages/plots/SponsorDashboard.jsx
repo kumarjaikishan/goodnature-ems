@@ -94,7 +94,7 @@ const SponsorDashboard = () => {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-slate-800">{sponsor.name}</h1>
               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-800 border border-teal-200">
-                {isDeveloperSponsor ? 'Developer Sponsor' : 'Sub-Sponsor'}
+                {isDeveloperSponsor ? 'Business Partner' : 'Business Associate'}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-1 font-medium">
@@ -111,7 +111,7 @@ const SponsorDashboard = () => {
               {sponsor.parentSponsor && (
                 <span className="flex items-center gap-1">
                   <Users size={13} className="text-slate-400" />
-                  Developer: <strong className="text-slate-700">{sponsor.parentSponsor.name}</strong>
+                  Partner: <strong className="text-slate-700">{sponsor.parentSponsor.name}</strong>
                 </span>
               )}
             </div>
@@ -136,6 +136,102 @@ const SponsorDashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* ── 1.5 Target Incentive & Performance Tier Status ────────────── */}
+      {metrics.targetTierInfo && (
+        <div className="bg-gradient-to-br from-white via-teal-50/25 to-emerald-50/30 border border-teal-200/80 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-teal-100/80 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-teal-700 text-white rounded-xl shadow-xs">
+                <Award size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-800">
+                    Monthly Performance & Target Incentive Status
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800 border border-teal-300">
+                    {metrics.targetTierInfo.roleDisplay}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Policy: <strong className="text-slate-700">Oct – Dec 2026</strong> | Period: <strong className="text-teal-800">{metrics.targetTierInfo.periodLabel}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-600">Active Rate:</span>
+              <span className="px-2.5 py-1 bg-teal-800 text-white font-mono font-bold text-xs rounded-lg shadow-2xs">
+                {metrics.targetTierInfo.fixedPercent}% Fix + {metrics.targetTierInfo.incentivePercent}% Incentive = {metrics.targetTierInfo.totalPercent}%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Current Target Slab */}
+            <div className="bg-white/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Qualifying Slab</span>
+              <div className="mt-1">
+                <h4 className="text-sm font-extrabold text-slate-800">{metrics.targetTierInfo.currentSlab}</h4>
+                <p className="text-[11px] text-teal-700 font-bold mt-0.5">
+                  +{metrics.targetTierInfo.incentivePercent}% Target Incentive Unlocked
+                </p>
+              </div>
+            </div>
+
+            {/* Current Period Business */}
+            <div className="bg-white/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Period Volume</span>
+              <div className="mt-1">
+                <h4 className="text-sm font-extrabold font-mono text-slate-800">
+                  ₹{(metrics.targetTierInfo.currentMonthVolume || 0).toLocaleString('en-IN')}
+                </h4>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
+                  Direct: ₹{(metrics.targetTierInfo.directVolume || 0).toLocaleString('en-IN')} | Team: ₹{(metrics.targetTierInfo.teamVolume || 0).toLocaleString('en-IN')}
+                </p>
+              </div>
+            </div>
+
+            {/* Fixed vs Incentive Commission Earned */}
+            <div className="bg-white/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Earned Composition</span>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500">Base Fixed:</span>
+                  <span className="font-bold font-mono text-slate-700">₹{(metrics.fixedCommissionEarned || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-teal-700 font-medium">Target Incentive:</span>
+                  <span className="font-extrabold font-mono text-teal-800">₹{(metrics.incentiveEarned || 0).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Next Target Slab Progress */}
+            <div className="bg-white/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Next Target Milestone</span>
+              <div className="mt-1">
+                {metrics.targetTierInfo.nextSlabLabel ? (
+                  <>
+                    <div className="flex items-center justify-between text-[11px] font-semibold">
+                      <span className="text-slate-700">{metrics.targetTierInfo.nextSlabLabel}</span>
+                      <span className="text-emerald-700 font-bold">+{metrics.targetTierInfo.nextSlabIncentive}%</span>
+                    </div>
+                    <p className="text-[10px] text-amber-700 font-medium mt-0.5">
+                      Need ₹{(metrics.targetTierInfo.distanceToNextSlab || 0).toLocaleString('en-IN')} more to unlock
+                    </p>
+                  </>
+                ) : (
+                  <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 size={14} /> Highest Target Tier Achieved!
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 2. Standard Metric Summary Cards ──────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -294,7 +390,7 @@ const SponsorDashboard = () => {
                 Downline Team
               </h2>
               <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 font-mono">
-                {subordinates.length} Sub-Sponsors
+                {subordinates.length} Business Associates
               </span>
             </div>
 
@@ -302,8 +398,8 @@ const SponsorDashboard = () => {
               {subordinates.length === 0 ? (
                 <div className="py-8 text-center text-slate-400 text-xs">
                   {isDeveloperSponsor
-                    ? 'No sub-sponsors enrolled under your network.'
-                    : 'You are enrolled directly under your Developer Sponsor.'}
+                    ? 'No Business Associates enrolled under your network.'
+                    : 'You are enrolled under your Business Partner.'}
                 </div>
               ) : (
                 subordinates.slice(0, 6).map((sub) => (

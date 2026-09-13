@@ -94,6 +94,26 @@ const updateRateConfig = async (req, res, next) => {
   }
 };
 
+const getCommissionPolicy = async (req, res, next) => {
+  try {
+    const businessType = req.query.type || req.params.type || 'PLOT_SALE';
+    const policy = await plotsService.getCommissionPolicy(businessType);
+    ApiResponse.success(res, policy);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateCommissionPolicy = async (req, res, next) => {
+  try {
+    const businessType = req.query.type || req.body.businessType || 'PLOT_SALE';
+    const policy = await plotsService.updateCommissionPolicy(businessType, req.body);
+    ApiResponse.success(res, policy, 'Commission policy and target slabs updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createSeries = async (req, res, next) => {
   try {
     const series = await plotsService.createSeries(req.body, req.user?._id || req.user?.id || null);
@@ -719,6 +739,8 @@ const updateBookingRevisionNarration = async (req, res, next) => {
 module.exports = {
   getRateConfig,
   updateRateConfig,
+  getCommissionPolicy,
+  updateCommissionPolicy,
   createSeries,
   getSeriesList,
   getSeriesById,

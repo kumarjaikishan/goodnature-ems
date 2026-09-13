@@ -40,6 +40,30 @@ const investmentCommissionSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    fixedPercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    incentivePercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    fixedAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    incentiveAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    slabLabel: {
+      type: String,
+      default: '',
+    },
     status: {
       type: String,
       enum: ['EARNED', 'HOLD', 'PAID', 'CANCELLED'],
