@@ -70,6 +70,13 @@ const defaultRateSlabs = [
   { tenureMonths: 60, plotRate: 1500, downpaymentRate: 500, emiRate: 1000, downpaymentDays: 90, downpaymentPercent: 33.3, emiPercent: 66.7, effectiveLabel: '60 Months EMI' },
 ];
 
+const defaultPremiumHeads = [
+  { name: 'Corner Plot', extraPercent: 20, description: 'Plot located at corner with two-side open access' },
+  { name: 'Park Facing', extraPercent: 10, description: 'Plot directly facing park or green belt' },
+  { name: 'Main Road Facing', extraPercent: 15, description: 'Plot situated on wide main sector road' },
+  { name: 'East Facing', extraPercent: 5, description: 'Vastu compliant east facing plot orientation' },
+];
+
 const plotRateConfigurationSchema = new mongoose.Schema(
   {
     baseSqFtRate: {
@@ -84,6 +91,25 @@ const plotRateConfigurationSchema = new mongoose.Schema(
       default: 20,
       min: 0,
     },
+    premiumHeads: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        extraPercent: {
+          type: Number,
+          required: true,
+          default: 0,
+          min: 0,
+        },
+        description: {
+          type: String,
+          default: '',
+        },
+      },
+    ],
     interestRatePercent: {
       type: Number,
       default: 10.88,
@@ -116,6 +142,10 @@ const plotRateConfigurationSchema = new mongoose.Schema(
 
 plotRateConfigurationSchema.statics.getDefaultRateSlabs = function () {
   return defaultRateSlabs;
+};
+
+plotRateConfigurationSchema.statics.getDefaultPremiumHeads = function () {
+  return defaultPremiumHeads;
 };
 
 module.exports = mongoose.model('PlotRateConfiguration', plotRateConfigurationSchema);

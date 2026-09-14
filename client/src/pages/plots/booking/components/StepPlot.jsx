@@ -67,7 +67,7 @@ export const StepPlot = ({
               {seriesPlots.length > 0 ? (
                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
                   {seriesPlots.map((plot) => {
-                    const isSelected = form.plotId === plot._id;
+                    const isSelected = selectedPlot?._id === plot._id || form?.plotId === plot._id;
                     const isAvail = plot.status === 'AVAILABLE';
                     const isHold = plot.status === 'HOLD';
                     const isBooked = ['BOOKED', 'SOLD', 'REGISTRY_DONE'].includes(plot.status);

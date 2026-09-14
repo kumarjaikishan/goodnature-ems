@@ -736,6 +736,89 @@ const updateBookingRevisionNarration = async (req, res, next) => {
   }
 };
 
+// ── KISAN / SELLER DIRECTORY CONTROLLERS ────────────────────────────
+const getKisanSellers = async (req, res, next) => {
+  try {
+    const sellers = await kisanLandService.getKisanSellers(req.query);
+    ApiResponse.success(res, sellers);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createKisanSeller = async (req, res, next) => {
+  try {
+    const seller = await kisanLandService.createKisanSeller(req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, seller, 'Kisan / Seller added successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateKisanSeller = async (req, res, next) => {
+  try {
+    const seller = await kisanLandService.updateKisanSeller(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, seller, 'Kisan / Seller updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteKisanSeller = async (req, res, next) => {
+  try {
+    const result = await kisanLandService.deleteKisanSeller(req.params.id);
+    ApiResponse.success(res, result, 'Kisan / Seller deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── PURCHASER / BUYER DIRECTORY CONTROLLERS ─────────────────────────
+const getPurchasers = async (req, res, next) => {
+  try {
+    const purchasers = await kisanLandService.getPurchasers(req.query);
+    ApiResponse.success(res, purchasers);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createPurchaser = async (req, res, next) => {
+  try {
+    const purchaser = await kisanLandService.createPurchaser(req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, purchaser, 'Purchaser / Buyer added successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePurchaser = async (req, res, next) => {
+  try {
+    const purchaser = await kisanLandService.updatePurchaser(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, purchaser, 'Purchaser / Buyer updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const setDefaultPurchaser = async (req, res, next) => {
+  try {
+    const purchaser = await kisanLandService.setDefaultPurchaser(req.params.id);
+    ApiResponse.success(res, purchaser, 'Default Purchaser updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deletePurchaser = async (req, res, next) => {
+  try {
+    const result = await kisanLandService.deletePurchaser(req.params.id);
+    ApiResponse.success(res, result, 'Purchaser / Buyer deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
@@ -805,6 +888,16 @@ module.exports = {
   deleteRegistryDeed,
   recordKisanPayment,
   getAvailableLandStockSources,
+  // Kisan & Purchaser Directory Exports
+  getKisanSellers,
+  createKisanSeller,
+  updateKisanSeller,
+  deleteKisanSeller,
+  getPurchasers,
+  createPurchaser,
+  updatePurchaser,
+  setDefaultPurchaser,
+  deletePurchaser,
   // Restructuring & Refund Exports
   restructureBooking,
   processCustomerRefund,

@@ -2,16 +2,16 @@ import React from 'react';
 
 export const BookingProgressBar = ({ step, setStep }) => {
   return (
-    <div className="bg-white border border-slate-200 shadow-2xs p-5 sm:p-6 rounded-2xl w-full">
+    <div className="bg-white border border-slate-200 shadow-2xs py-4 px-6 sm:px-12 rounded-2xl w-full">
       <div className="relative flex items-center justify-between w-full">
         {/* Background Track Line */}
-        <div className="absolute left-[12%] right-[12%] top-5 -translate-y-1/2 h-1 bg-slate-100 z-0 rounded-full" />
+        <div className="absolute left-[10%] right-[10%] top-5 -translate-y-1/2 h-1 bg-slate-100 z-0 rounded-full" />
 
         {/* Active Filled Progress Line */}
         <div
-          className="absolute left-[12%] top-5 -translate-y-1/2 h-1 transition-all duration-500 ease-out z-0 rounded-full bg-teal-700"
+          className="absolute left-[10%] top-5 -translate-y-1/2 h-1 transition-all duration-500 ease-out z-0 rounded-full bg-teal-700"
           style={{
-            width: step === 1 ? '0%' : step === 2 ? '38%' : '76%',
+            width: step === 1 ? '0%' : step === 2 ? '40%' : '80%',
           }}
         />
 

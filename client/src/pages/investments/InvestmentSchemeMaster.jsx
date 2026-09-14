@@ -15,7 +15,7 @@ import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import { toast } from '../../utils/toast';
 
-import CommissionPolicyMatrix from '../plots/seriesMaster/CommissionPolicyMatrix';
+import CommissionPolicyMatrix from '../plots/seriesMaster/components/CommissionPolicyMatrix';
 
 const InvestmentSchemeMaster = () => {
   const navigate = useNavigate();

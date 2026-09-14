@@ -58,6 +58,16 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Active Booking Components**: Stored in `client/src/pages/plots/booking/components/` (`BookingProgressBar`, `BookingSummarySidebar`, `StepCustomer`, `StepPlot`, `StepTermsAndPayment`). Used by `client/src/pages/plots/PlotBooking.jsx` mounted on route `/plots/addbooking`.
 - **Removed Duplicate Code**: The legacy duplicate directory `client/src/pages/plots/bookingWizard/` and unused wrapper `client/src/pages/plots/booking/PlotBookingPage.jsx` were safely deleted.
 
+### X. Business Developer Module & Nomenclature Renaming
+- **Terminology**: The submenu and module formerly named "Sponsors" under Plot Management has been renamed to **"Business Developer"** (`Business Developers` in header/titles).
+- **Files and Directories**:
+  - `client/src/pages/plots/businessDevelopers/PlotBusinessDevelopers.jsx`
+  - `client/src/pages/plots/businessDevelopers/BusinessDeveloperDashboard.jsx`
+  - `client/src/pages/plots/businessDevelopers/BusinessDeveloperReportPage.jsx`
+  - `client/src/pages/plots/businessDevelopers/BusinessDeveloperBookingsPage.jsx`
+  - `client/src/pages/plots/businessDevelopers/BusinessDeveloperLedgerPage.jsx`
+- **Routing**: Mounted on `/dashboard/plots/business-developer` and `/dashboard/plots/business-developers` while retaining old `/dashboard/plots/sponsors*` alias routes for full backward compatibility without breaking existing backend APIs or bookmarks.
+
 ### G. Target Incentive & Fixed Commission Architecture (Oct – Dec 2026 Policy)
 - **Hierarchy & Roles**:
   - `BUSINESS_PARTNER` (Business Partner): Direct sponsor ID with company (`sponsorId: null`).
@@ -77,16 +87,20 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - Cleaned up the Tenure table on the Investment Scheme page into `Customer Tenure Maturity Returns Matrix`, removing legacy per-tenure commission inputs (`Promoter Comm. % (R.D.)`, `Promoter Comm. % (F.D.)`, `Business Dev Override (%)`) and retaining purely customer maturity returns (`Tenure`, `R.D. Maturity Return %`, `F.D. Maturity Return %`).
 
 ### H. Dynamic Rate Editing & Modular Architecture in Plot Booking
-- **Dynamic Rate Support**:
-  - At the time of booking, the **Plot Sq.Ft. Rate** and **Downpayment Sq.Ft. Rate** are pre-filled based on the selected tenure slab, but are completely **editable** in real time.
-  - Balance EMI Rate (`EMI/sqft = Balance EMI Principal / Plot Area`) and monthly EMI are dynamically recomputed based on the edited rates: `Gross Plot Value = Area * (Effective Plot SqFt Rate)`, `Downpayment Amount = Area * (DP SqFt Rate)`, `EMI Principal = Gross Plot Value - Downpayment Amount - Discount`.
-  - `PlotBooking` and `PlotBookingRevision` schemas store both `downpaymentRate` and `emiRate` alongside `basePlotRate`.
+- **Dynamic Rate Support & Downpayment Modes**:
+  - At the time of booking, the **Plot Selling Rate** defaults to `₹1000/sqft` and is editable inline.
+  - The **Downpayment** supports three dynamic modes: `₹ / Sq.Ft.`, `% (Percentage)`, and `₹ (Flat)`.
+  - The **Govt. Base Rate** and **Discount** (Flat ₹, %, or ₹/Sq.Ft.) are sequenced directly before downpayment.
+- **Flexible EMI Frequency & Installment Periodicity**:
+  - When a remaining balance exists (`remainingBalance > 0`), an **EMI Frequency** selector (`MONTHLY`, `QUARTERLY`, `HALF_YEARLY`, `YEARLY`) paired with an **Installment Count** input allows configuring customizable payment schedules.
+  - Total tenure in months is calculated as `installmentCount * frequencyMultiplier` (e.g. 6 quarterly installments = 18 months tenure).
+  - Installments are generated in `PlotInstallment` on booking creation with dates incremented by `i * frequencyMultiplier` months.
 - **Modular Directory Structure**:
-  - `client/src/pages/plots/booking/` holds the page container `PlotBookingPage.jsx` and its subfolder `components/` contains:
+  - `client/src/pages/plots/booking/` holds the page container `PlotBooking.jsx` and its subfolder `components/` contains:
     - `BookingProgressBar.jsx` (Step stepper)
     - `StepCustomer.jsx` (Customer selector and creation)
     - `StepPlot.jsx` (Project/Sector/Block/Plot selector)
-    - `StepTermsAndPayment.jsx` (Tenure slab selector, editable Plot SqFt rate, editable DP SqFt rate, EMI breakdown, and Land Stock allocation)
+    - `StepTermsAndPayment.jsx` (Dynamic rates, Downpayment, EMI Frequency & Installments, and Land Stock allocation)
     - `BookingSummarySidebar.jsx` (Real-time dynamic financial breakdown card)
   - `client/src/pages/plots/PlotBooking.jsx` delegates cleanly to `booking/PlotBookingPage.jsx`.
 - **Plot Booking Decoupling**:
@@ -113,6 +127,25 @@ This file records crucial patterns, bugs solved, and architectural caveats found
     - Monthly EMI = `Math.round(Net EMI Balance / Tenure Months)`
 - **Sponsor Portal & Business Report**:
   - Shows Direct Business vs. Team Business, Current Qualifying Slabs, Base Fixed vs. Target Incentive Earned, and Next Milestone Progress.
+
+### J. Deferred EMI Schedule & Dedicated Downpayment vs EMI Collection Pages
+- **Deferred EMI Activation Engine**:
+  - When an EMI plot booking is created, EMI installments (Inst #1..N) are created with `dueDate: null`.
+  - In `PlotBookingDetails.jsx`, EMI rows render an `"Awaiting DP Completion"` status badge until the full downpayment is cleared.
+  - When Downpayment (Inst #0) is 100% paid (`paidAmount >= dueAmount`), `rebuildBookingInstallmentsState` calculates the exact completion date and sets each EMI's `dueDate` starting from `dpPaidDate + (inst.installmentNumber * freqMultiplier)` months.
+  - Late fines (standardized at **24% P.A. / 2% monthly**) apply to both Downpayment (if past 90-day due date + grace) and EMIs (if past due date + grace).
+- **Waterfall Payment Distribution Rule**:
+  - Step 1: Any Late Fine Rebate entered reduces unpaid late fine first.
+  - Step 2: Collected payment is applied **FIRST to clear outstanding late fine**.
+  - Step 3: Remaining collected payment is applied **SECOND to reduce principal due**.
+  - From the next day, late fine levies only on the remaining unpaid principal balance.
+- **Account Menu Navigation & Dedicated UI**:
+  - Under **Account** in `sidebar.jsx`:
+    - **Downpayment Collections** (`/dashboard/plots/collections/downpayment`): Automatically renders a dedicated Downpayment Summary Panel (Booking Date, Last Due Date, Total DP, Paid So Far, Principal Due, Late Fine, Total Payable) without requiring manual installment picker.
+    - **EMI Collections** (`/dashboard/plots/collections/emi`): Exclusively manages and collects EMI installments for bookings whose downpayments are 100% completed.
+    - **Payroll** (`/dashboard/payroll`): Employee salary, advances, and payroll processing.
+    - **Vouchers** (`/dashboard/vouchers`): Debit vouchers and financial payout tracking.
+    - `/dashboard/plots/installments` remains available for backward compatibility.
 
 ### V. Database Seeding Script (`npm run seed`)
 - **Script**: `server/scripts/seed.js` (executable via `node server/scripts/seed.js` or `npm run seed` in `server/`).
@@ -319,3 +352,261 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `Series Blocks & Layout Grid`
   - `Target Incentive Policy & Slabs` (The exclusive place for managing sponsor commissions)
   - `Plot Pricing & Customer EMI Plans` (Strictly for customer plot prices & payment terms)
+
+### CC. Form Identity & Formatting Input Components (`PhoneInput`, `AadhaarInput`, `PanInput`)
+- **Auto-Sync**: `createLedgerForSponsors()` syncs active users with role `sponsor` into the `Ledger` collection with `isVoucherLedger: true`.
+- **Voucher Debits**: When an admin creates a manual voucher selecting a Sponsor Ledger, a `DEBIT` entry is recorded in `Entry` and the sponsor's outstanding ledger balance (`advance`) is reduced immediately.
+- **Reference**: `Voucher` documents store `sponsorId` alongside `employeeId` to maintain clear relational links.
+- **Reports Sync**: `getReportsData('commissions')` automatically auto-syncs active bookings so all sponsor ledgers reflect exact collection-based commissions in real-time.
+
+### I. Unified Good Nature Theme & Symmetrical Loading States
+- **Theme**: Good Nature Deep Teal (`#0f766e` / `teal-700` / `teal-800` / `emerald-600`) across all buttons, inputs, tabs, and headers. Avoid ad-hoc `indigo-600` or `purple-600`.
+- **Loading Standard**: Standardized symmetrical `<PageLoader />` (`client/src/components/common/PageLoader.jsx`) replaces ad-hoc spinners. Default is `fullScreen: false` so that loading animations render strictly in the content area, preserving the sidebar and navbar without viewport-blocking overlays.
+- **Branding**: Dynamic Redux company selector and uppercase watermark across all printouts, receipts, vouchers, and certificates.
+
+### J. Dedicated Sponsor Ledger Page (`/dashboard/plots/sponsors/:id/ledger`)
+- **Action Button in Sponsors Page**: In [PlotSponsors.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx), clicking the ledger icon in the action column navigates to `/dashboard/plots/sponsors/:id/ledger`.
+- **Credit, Debit & Running Balance Columns**: Calculates exact collection-based credits (e.g. `Downpayment Commission` or `EMI Collection Commission` with % and receipt number), payout debits, and running wallet balances chronologically.
+- **Closing Batch Tagging**: Each ledger credit entry displays the associated `closingNumber` badge if the commission was settled in a closing period.
+
+### K. Plot Dimensions & Chaudhi (Directional Boundaries)
+- **Geometry & Auto Calculation**: Plots support directional dimensions `{ north, south, east, west }` (in feet). When entering values (e.g., N: 30, S: 30, E: 40, W: 40), the UI automatically computes and populates Plot Area in Sq Ft via $\text{Area} = \frac{N+S}{2} \times \frac{E+W}{2}$ ($30 \times 40 = 1200\text{ Sq Ft}$).
+- **Chaudhi (Boundaries)**: Plots and Series Masters support `{ north, south, east, west }` strings representing surrounding roads, adjoining plots, parks, or boundaries.
+- **Integration Points**:
+  - `PlotSeriesMaster.jsx`: Series generator modal, individual plot creation modal, and configure/adjust plot modal.
+  - `PlotBookingDetails.jsx`: Specifications card displays directional dimensions and Chaudhi grid.
+  - Printable Agreements & Certificates: [PlotAgreementEnglish.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotAgreementEnglish.jsx), [BookingCertificateViewer.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/BookingCertificateViewer.jsx), and [PlotBookingFormPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotBookingFormPage.jsx).
+
+### L. Plot Commission Closing System & Closing-Driven Sponsor Ledger (`/dashboard/plots/closings`)
+- **Period Selection**: Admins select customizable period dates (e.g. `01-Aug-2026` to `28-Aug-2026`) and assign a unique closing batch name.
+- **Closing-Driven Ledger Credit**: When collections are received, commissions are calculated in the background but are **NOT** immediately credited to the sponsor's ledger balance. Commissions are strictly credited to the sponsor's ledger **upon closing** as a consolidated entry titled by the closing name and number (e.g. `July 2026 Commission Closing [CLS-202607-001]`).
+- **Granular Breakdown & Multi-Slab Percentages**: Each sponsor statement and ledger entry itemizes the entire closing period's collections, including:
+  - Direct collections with exact slab commission percentages (e.g., `10.5%`, `13%`).
+  - Indirect downline collections with developer override percentage (`2%`).
+  - Total business collections and net commission credited.
+- **Date Adjustment**: Expanding or reducing closing dates in the edit modal automatically recalculates and updates the credited ledger amount.
+- **Reversal on Deletion**: Deleting a closing immediately reverses the ledger credit, resets the sponsor's available balance, and disassociates all commissions (`closingId = null`) back to unclosed status.
+- **Printable**: Fully formatted for printing with Good Nature header, audit stamps, and accounts/sponsor signature blocks.
+
+### L. Downpayment & Installment Due Date Scheduling
+- When booking or editing a plot with downpayment grace period (`downpaymentMonths`: 1, 2, 3, etc.), Downpayment (Inst #0) due date is calculated as `bookingDate + downpaymentMonths`.
+- Subsequent monthly EMI installments (Inst #1..N) begin after the downpayment grace period: `bookingDate + downpaymentMonths + i`.
+- Both `createBooking` and `updateBooking` in [`plots.service.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots.service.js) respect this calculation consistently.
+
+### U. Land Acquisition Sourcing & Plot Booking Sourcing Ledger
+- **Validation**: When creating a plot booking (`POST /api/plots/bookings`), `landSourcing` is mandatory. The sum of allocated Sq Ft across selected Kisan Agreements / Registry Deeds must equal the plot area.
+- **Stock Ledger**: Every booking writes a `DEBIT` entry to `LandStockLedger` for each allocated Kisan Agreement or Registry Deed with `allocatedSqFt`, `allocatedDismil`, `bookingNumber`, `customerName`, and `plotNumber`.
+- **Plot Master & Booking Integration**:
+  - `PlotBookingDetails.jsx` renders Card 6 ("Land Acquisition & Sourcing (किसान एग्रीमेंट / रजिस्ट्री डीड विवरण)") showing linked Agreement # / Deed #, Mauja, Khata, Khesra, and allocated area.
+  - `getPlots` in `plots.service.js` attaches `activeBooking` with `landSourcing` for booked/held/registered plots.
+  - `PlotSeriesMaster.jsx` renders badges with Agreement/Deed tags and customer names on plot cards, plus a dedicated Land Acquisition & Agreement Details card in the Plot Configuration modal.
+
+- **Role Isolation**: Logged-in sponsors land on their dedicated **Commission Ledger & Wallet Statement** (`/dashboard`), with sidebar access strictly scoped to their own ledger and profile.
+
+### O. Sponsor Date-Wise Business Breakdown Report (`/dashboard/plots/sponsors/:id/business-report`)
+- **Action Button in Sponsors Page**: Clicking the blue **TrendingUp (`📈`)** icon on [`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx) opens the date-wise business breakdown.
+- **Printable**: Fully formatted for printing and statement audits.
+
+### Q. Kisan Land Acquisition, Registry Conversion & Multi-Source Stock Allocation
+- **Models**:
+  - `KisanLandAgreement`: Master agreement record storing Mauja, Thana, Khata, Khesra, Jamabandi, Arazi Dismil, multi-farmer subdocs (`farmers` array with share %, guardian, mobile, Aadhaar, PAN), `registryDeeds` subdocs array, and stock counters (`totalSqFt`, `totalRegisteredSqFt`, `unregisteredAllocatedSqFt`, `totalAllocatedSqFt`, `totalAvailableSqFt`). Standard: $1\text{ Dismil} = 435.6\text{ Sq. Ft.}$.
+  - `LandStockLedger`: Granular land stock tracking (`INITIAL_AGREEMENT`, `REGISTRY_CONVERSION`, `BOOKING_ALLOCATION`, `BOOKING_RESTRUCTURING_DELTA`, `BOOKING_CANCELLATION_RESTORE`).
+  - `KisanLedger`: Financial ledger for land acquisition recording debits/credits (token, advances, registry disbursement) with running balance payable to farmers.
+  - `PlotBookingRevision`: Immutable snapshot audit trail recording previous vs new parameters, deltas, and user modification reasons.
+- **Mandatory Land Sourcing Enforcement**:
+  - Every plot booking requires 100% of its plot area (e.g. $1200\text{ Sq. Ft.}$) to be allocated from an active `KisanLandAgreement` (unregistered stock) or `registryDeeds` (registered stock).
+  - Validated strictly on backend in `plotsService.createBooking` and frontend in `PlotBooking.jsx` (with one-click auto-allocation).
+  - Every booking immediately creates a `BOOKING_ALLOCATION` DEBIT entry in `LandStockLedger` and reduces available stock on the respective agreement/deed.
+  - Sourcing stock adjustment: If plot size increased, $+ \Delta\text{SqFt}$ is deducted from source agreement stock and logged as `DEBIT` in `LandStockLedger`; if reduced, $+ |\Delta\text{SqFt}|$ is credited back to source agreement.
+- **Customer Cancellation & Refund Engine (`plotsService.processCustomerRefund`)**:
+  - Calculates total paid collections, applies deduction fee, generates refund voucher, sets plot status back to `AVAILABLE`, and restores all sourced land stock chunks back to their respective agreement/registry deed pools.
+- **Routes & UI**:
+  - Main management page: `/dashboard/plots/kisan-land` (`PlotKisanLandPage.jsx`).
+  - Sourcing selector added to Step 3 of Plot Booking (`PlotBooking.jsx`).
+  - Restructure modal, Customer Refund modal, and Revision History table mounted in `PlotBookingDetails.jsx`.
+
+### P. Account Ledger Detail Redesign (`/dashboard/ledger/:id`)
+- **Theme**: Unified Good Nature deep teal styling with white cards, subtle borders, and smooth shadows.
+- **Header Profile Card**: Displays account avatar, name, account type tag (`Employee Account`, `Sponsor Account`, or `Custom Ledger`), and employee ID.
+- **Key Metrics Summary**: Three clear summary metric cards displaying Total Credit (`+₹...` in green), Total Debit (`-₹...` in red), and Net Balance (`₹...` with receivable/payable status).
+- **Modern Filter Bar**: Year, Month, Date pickers with instant reset action.
+- **Polished Modal**: Clean modal for adding/editing transaction entries with validated credit/debit inputs.
+
+### Q. Unified Sponsor Financial Ledger & Closing Auto-Sync
+- **Sponsor Ledgers in General Ledger**: Every sponsor automatically has an official account ledger registered in [`Ledger`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/models/ledger.js) (`ledgerType: 'sponsor'`), accessible directly from the main `/dashboard/ledger` page.
+- **Commission Closing Credit Auto-Posting**: When a Plot Commission Closing batch is created or updated in [`plots.service.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots.service.js), every eligible sponsor with earned commissions is automatically posted a `CREDIT` transaction to their financial ledger account (`source: 'commission_closing'`).
+- **Seamless Deletion & Reversal**: Reversing/deleting a closing batch automatically deletes and reverses all associated ledger entries.
+- **Direct Sponsor Page Navigation**: In [`PlotSponsors.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSponsors.jsx), clicking the **Ledger icon (`Banknote`)** navigates directly to the universal ledger detail page: `/dashboard/ledger/:id?name=...&empid=...&ledgertype=sponsor`.
+
+### R. Sonner Confirmation Dialog System (`confirmDialog` / `swal`)
+- **Complete Replacement of Legacy SweetAlert**: Uninstalled `sweetalert` package and replaced it with a modern, lightweight, themed confirmation utility in [`client/src/utils/confirmDialog.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/utils/confirmDialog.jsx) powered by `sonner`.
+- **Zero Extra Bundle Size**: Uses existing `sonner` and Tailwind CSS to render clean, animated confirmation modals with native promise support (`const proceed = await confirmDialog({ title, text, isDanger })` or `swal({ title, text }).then(proceed => ...)`).
+- **Universal Drop-in Compatibility**: Provides named exports `{ confirmDialog, swal }` so all existing code works with zero refactoring.
+- **Pages Updated**:
+  - `VoucherList.jsx`
+  - `PlotClosingsPage.jsx`
+  - `ledgerdetailpage.jsx`
+  - `ledgerpagelist.jsx`
+  - `payroll.jsx`
+  - `Employe.jsx`
+  - `Department.jsx`
+  - `TelegramIntegrationPage.jsx`
+  - `useOrganization.js`
+  - `organization.jsx`
+  - `LeavePolicyManager.jsx`
+  - `Holiday.jsx`
+  - `DeveloperEsslMonitor.jsx`
+  - `Dashboard.jsx` (developer)
+  - `adminManagerProfile.jsx`
+  - `sidebar.jsx`
+  - `logout.jsx`
+
+### T. Dedicated Sponsor Portal Dashboard (`/dashboard`)
+- **Landing Experience**: When a user with role `sponsor` logs in, `/dashboard` renders [`SponsorDashboard.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/SponsorDashboard.jsx).
+- **Hero Profile Card**: Greets the sponsor with their profile image, role designation (`Developer Sponsor` vs `Sub-Sponsor`), Sponsor ID, contact info, and fast-action shortcuts to their **Official Ledger** and **Business Report**.
+- **Financial & Portfolio Metrics**: 4 dynamic metric tiles displaying:
+  - **Available Balance** (closed earnings net of disbursed vouchers, ready for withdrawal).
+  - **Total Commission Earned** (with granular direct vs downline team breakdown).
+  - **Bookings Portfolio Count** (direct vs team booked plot count).
+  - **Total Sales & Collection Volume** (total contract value & collection amounts).
+- **Monthly Performance Bar Chart**: 6-month visual volume tracker illustrating collection volume and credited commission trends with interactive tooltips.
+- **Team Hierarchy Widget**: Displays enrolled sub-sponsors in the sponsor's downline network with active status and quick links.
+- **Recent Plot Bookings & Latest Commission Credits**: Live feeds of recent plot purchases and collection commission entries.
+
+### U. Recurring & Fixed Deposit (R.D. / F.D.) Investment Module
+- **Dual Scheme Support**: Supports Recurring Deposit (R.D.) monthly installments (minimum ₹1,000 in multiples of ₹1,000) and Fixed Deposit (F.D.) one-time lump sum deposits (minimum ₹10,000 in multiples of ₹10,000).
+- **Guaranteed Returns Schedule**: 24M (112% RD / 121% FD), 36M (120% RD / 135% FD), 48M (130% RD / 150% FD), 60M (140% RD / 175% FD), 72M (150% RD / 200% FD), 120M (200% RD / 350% FD).
+- **Unified Customer & Sponsor Hierarchy**: Customers (`PlotCustomer`) and Sponsors (`User`) are shared with the Plot Management module. Sub-Sponsors receive Promoter commission % (4% - 15%), Developer Sponsors receive a 1.0% override.
+- **Document & Print Generation**:
+  - Official Certificate of Deposit / Bond with company logo watermark (`/dashboard/investments/certificates/:id`).
+  - Customer Passbook & Installment Statement (`/dashboard/investments/passbook/:id`).
+- **Settlement & Cancellation**: Supports premature closure with configurable simple interest rate calculations and audit notes.
+
+### W. Kisan Land Agreements & Registry Deeds Architecture
+- **Tabbed Interface Standard**: [PlotKisanLandPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotKisanLandPage.jsx) features 2 top-level tabs:
+  1. **Kisan Land Agreements**: Lists all farmer land acquisitions with land particulars (Mauja, Khata, Khesra, Thana, Jamabandi), farmers breakdown, agreed area, registered area, free stock, and farmer payment balance. Rows feature direct actions: `+ Deed` (convert to registry deed), `Pay` (record farmer payment), `Kisan Ledger` (direct financial ledger), `Full Audit`, `Edit`, and `Delete`.
+  2. **Registry Deeds Master**: Aggregated/flattened registry deeds view with search by Deed #, Mauja, Khata, Khesra, SRO Office, and Farmer name. Rows feature `Ledgers`, `Edit`, and `Delete`.
+- **Modular Component Breakdown (`client/src/pages/plots/kisanLand/`)**:
+  - `KisanSummaryMetrics.jsx`: Top 4 metric tiles.
+  - `KisanAgreementsTable.jsx`: Filterable agreements table with 2-row left-aligned actions.
+  - `RegistryDeedsTable.jsx`: Filterable registry deeds master table.
+  - `CreateAgreementModal.jsx` & `EditAgreementModal.jsx`: Agreement creation/editing with live calculations and dynamic farmer rows.
+  - `CreateDeedModal.jsx` & `EditDeedModal.jsx`: Registry deed creation and editing.
+  - `RecordPaymentModal.jsx`: Farmer payment recording.
+  - `KisanLedgersDrawer.jsx`: Full 4-tab modal drawer featuring Debit, Credit, and Balance columns for both financial and stock allocation ledgers.
+- **Backend Service & Route Endpoints**:
+  - `PUT /api/plots/kisan-agreements/:id`: Updates Mauja, Khata, Khesra, Thana, Jamabandi, Rate, Total Amount, Remarks, and Farmers array.
+  - `DELETE /api/plots/kisan-agreements/:id`: Safely deletes agreement only if no plot bookings are actively allocated, no registry deeds exist, and no payments have been recorded.
+  - `PUT /api/plots/kisan-agreements/:agreementId/deeds/:deedId`: Updates Deed number, date, Sub-Registrar Office, and remarks.
+  - `DELETE /api/plots/kisan-agreements/:agreementId/deeds/:deedId`: Reverts converted stock back to unregistered agreement stock and removes deed stock ledger entries (blocked if deed area is actively allocated to plot bookings).
+
+### V. Plot Booking Deletion & Plot Status Synchronization
+- **Gotcha**: When a `PlotBooking` was permanently deleted via `DELETE /api/plots/bookings/:id`, child schedules and land sourcing were cleaned up, but `Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' })` was omitted. This caused plots to remain permanently stuck in `status: 'BOOKED'` across the Add Booking screen (`/dashboard/plots/addbooking`) and Series Master (`/dashboard/plots/series-master`).
+- **Fix Pattern**:
+  1. `plotsService.deleteBooking()` now explicitly deletes all child documents (`PlotInstallment`, `PlotPayoutSchedule`, `PlotSponsorCommission`, `PlotBookingRevision`) and resets the associated `Plot` status back to `'AVAILABLE'`.
+  2. `plotsService.getPlots()` includes active self-healing: if any plot is flagged as `BOOKED` or `HOLD` but lacks an active `PlotBooking` record in MongoDB, it automatically falls back to `'AVAILABLE'` in the response and updates MongoDB in the background.
+  3. Reconciled existing stuck plots via `server/scripts/syncPlotStatuses.js`.
+
+### X. Plot Commission Closing Submit-Preview Race Condition & Ledger Entry Validation
+- **Gotcha 1 (Submit Race Condition)**: Clicking "Confirm & Close Period" while a date input was focused triggered `onBlur` -> `fetchPreview()` immediately followed by `onSubmit` -> `handleCreateSubmit()`. `POST /plots/closings` completed quickly, tagging all unclosed commissions with `closingId`. The in-flight `fetchPreview` resolved right after, found 0 unclosed transactions, and set `previewError`, displaying an error message despite the closing succeeding in MongoDB.
+- **Gotcha 2 (Entry Schema Enum Failure)**: When `createPlotClosing` or `updatePlotClosing` recorded ledger entries with `source: 'commission_closing'`, Mongoose failed with `ValidationError: Entry validation failed: source: commission_closing is not a valid enum value for path source`.
+- **Gotcha 3 (Overlapping Closing Ranges)**: If an earlier closing batch covers multiple months (e.g. `01-Jun-2026` to `30-Sep-2026`), all receipts in July/August/September are tagged to that closing and will not show up as "unclosed" in subsequent monthly previews unless the earlier closing is adjusted or deleted.
+- **Fix Pattern**:
+  1. `client/src/pages/plots/PlotClosingsPage.jsx`: Added `isSubmittingRef`, `lastPreviewKeyRef`, and `AbortController` request cancellation to abort in-flight previews upon submit and ignore late responses while `isSubmittingRef.current` is active.
+  2. `server/models/entry.js`: Added `'commission_closing'`, `'plot_payout'`, and `'investment'` to the `source` enum.
+### Y. SearchableSelect Combobox Component Adoption
+- **Component**: [`client/src/components/ui/SearchableSelect.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/SearchableSelect.jsx)
+- **Features**: Live search filter, clear button (`allowClear`), keyboard navigation (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`), custom option rendering with subtitles, and size variants (`sm`, `md`, `lg`).
+- **Applied Locations**:
+  - [VoucherList.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/vouchers/VoucherList.jsx): Ledger filter dropdown & Create/Edit Voucher dialog modal ledger picker.
+  - [advance.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/advance/advance.jsx): Employee selector toolbar filter.
+  - [leaveledger.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/leaveledger/leaveledger.jsx): Individual Employee selection in Add/Adjust Leave Balance modal.
+### Z. Backend Security & Performance Hardening
+- **CORS Allowlist**: [server/index.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/index.js) now explicitly validates incoming origins against `allowedOrigins` (`localhost:5173`, `localhost:5174`, `CLIENT_URL`), `*.vercel.app` preview deployments, and blocks rogue cross-origin callers.
+- **Login Rate Limiting**: Added `express-rate-limit` to `/api/signin` and `/api/setpassword` (15 attempts / 15 minutes per IP) in [server/router/route.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/router/route.js).
+- **Error Observability**: Centralized error middleware in [server/utils/error_util.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/utils/error_util.js) logs formatted error codes, HTTP methods, route paths, and stack traces.
+- **Attendance Bulk Excel Import Optimization**: In `bulkMarkAttendanceExcel` ([server/controllers/attandence.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/controllers/attandence.js)), replaced per-row `findOne`/`findById` roundtrips with batch `$in` fetches for all employees, branches, and holidays upfront.
+### AA. Developer Portal Error Logging Page (`/dashboard/error-logs`)
+- **Backend Ring Buffer**: [`server/utils/errorLogger.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/utils/errorLogger.js) maintains the last 100 runtime errors in-memory with automatic payload sanitization (passwords, tokens, and secrets redacted).
+- **Backend Endpoints**: `GET /api/developer/errors` and `DELETE /api/developer/errors` (restricted strictly to `developer` role).
+- **Frontend Page**: [`client/src/pages/developer/ErrorLogs.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/developer/ErrorLogs.jsx) features real-time 5s auto-refresh, status breakdown cards (500, 400, 404), keyword search, expandable details (User, IP, ISO time, sanitized request body payload, and 1-click stack trace copy).
+- **Navigation**: Visible in [sidebar.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx) under the Developer menu (`/dashboard/error-logs`).
+
+### BB. Modularization of Plot Series Master & Commission Policy Matrix (`/dashboard/plots/series-master`)
+- **Problem**: `PlotSeriesMaster.jsx` previously contained over 2,330 lines of code with all layouts, tables, pricing matrix, and 4 large modals in a single file. Furthermore, the newly implemented Target Incentive & Fixed Commission system (Valid 1/10/2026 to 31/12/2026) needed an interactive UI for administrators to view, edit, add, or delete commission slabs.
+- **Modular Component Breakdown (`client/src/pages/plots/seriesMaster/`)**:
+  1. `SeriesFilterBar.jsx`: Series selector, status filter, and keyword search bar.
+  2. `SeriesLayoutGrid.jsx`: Series blocks configuration table and responsive plot status card maps.
+  3. `CommissionPolicyMatrix.jsx`: Interactive UI to view and edit target incentive slabs for Business Associates (Fixed 5% + target incentive slabs) and Business Partners (Fixed 2% + target incentive slabs) for Plot Sales and RD/FD investments, with instant save via `PUT /api/plots/commission-policy?type=...`.
+  4. `TenurePlotRatesMatrix.jsx`: Corner extra %, settlement rate %, grace days, daily fine, and customer plot pricing / 40% downpayment / 60% EMI breakdown matrix (legacy commission columns completely removed).
+  5. `CreateSeriesModal.jsx`: Modal for generating series blocks with prefix and range.
+  6. `EditSeriesModal.jsx`: Modal for editing series block parameters.
+  7. `ConfigurePlotModal.jsx`: Modal for adjusting plot dimensions, boundaries (Chaudhi), and inspecting linked Kisan land agreements or registry deeds.
+  8. `CreatePlotModal.jsx`: Modal for creating individual standalone or series plots.
+- **Coordinator Pattern**: [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) reduced from 2,330 lines down to ~415 lines, cleanly orchestrating 3 tabs:
+  - `Series Blocks & Layout Grid`
+  - `Target Incentive Policy & Slabs` (The exclusive place for managing sponsor commissions)
+  - `Plot Pricing & Customer EMI Plans` (Strictly for customer plot prices & payment terms)
+
+### CC. Form Identity & Formatting Input Components (`PhoneInput`, `AadhaarInput`, `PanInput`)
+- **Location**: [`client/src/components/ui/`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/) (`PhoneInput.jsx`, `AadhaarInput.jsx`, `PanInput.jsx`, `index.js`).
+- **Features**:
+  - `PhoneInput`: Strict numeric digits only, max 10 digits, mobile numeric keypad trigger (`inputMode="numeric"`, `type="tel"`, `pattern="[0-9]*"`).
+  - `AadhaarInput`: Strict numeric digits, max 12 digits raw, automatically formatted with space separation after every 4 digits (`XXXX XXXX XXXX`), mobile numeric keypad (`inputMode="numeric"`).
+  - `PanInput`: Alphanumeric only, auto-uppercase, max 10 chars, validates standard Indian PAN format (`/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/`), displays inline validation error message below input when invalid.
+- **Adoption**:
+  - `CreateAgreementModal.jsx` and `EditAgreementModal.jsx` updated to use `PhoneInput`, `AadhaarInput`, and `PanInput` across Kisan / Farmer and Purchaser / Buyer form grids.
+  - Removed legacy `Share % in Land` input from Farmer rows.
+
+### DD. Kisan / Seller & Purchaser Master Directories in Plot Purchase
+- **Models**:
+  - `KisanSeller.js`: Master directory for all farmers/sellers (Name, Guardian/Father Name, Mobile, Aadhaar, PAN, Address, Bank details).
+  - `LandPurchaser.js`: Master directory for buyer entities and company profiles with `isDefault` flag.
+- **Auto-Sync & Default Behavior**:
+  - Automatically seeds default company buyer (`Good Nature Developers Pvt Ltd`) and auto-populates existing farmers on first boot/query.
+  - In `CreateAgreementModal.jsx`, automatically sets purchaser to the default buyer.
+  - Both `CreateAgreementModal.jsx` and `EditAgreementModal.jsx` feature 1-click **"Choose Registered Kisan"** and **"Choose from Buyer Directory"** dropdown selectors on each card.
+- **UI Tabs on `/dashboard/plots/purchase`**:
+  - Tab 1: `Plot Purchase Agreements`
+  - Tab 2: `Registry Deeds Master`
+  - Tab 3: `Land Sellers Directory` (`KisanSellersTable.jsx`)
+  - Tab 4: `Purchasers / Buyers Master` (`PurchasersTable.jsx`)
+
+### EE. Plot Premium & PLC (Preferential Location Charges) Heads System
+- **Context & Purpose**: Expanded single hardcoded Corner (+20%) extra pricing into a dynamic, multi-head Plot Premium & PLC system.
+- **Model Schema (`PlotRateConfiguration.js`)**:
+  - `premiumHeads`: `[{ name: String, extraPercent: Number, description: String }]`
+  - Initialized with default location heads: `Corner Plot` (+20%), `Park Facing` (+10%), `Main Road Facing` (+15%), `East Facing` (+5%).
+- **Plot Model (`Plot.js`)**:
+  - `premiumHeads`: `[{ name: String, extraPercent: Number }]`
+  - Allows assigning zero, one, or multiple location premium heads to any plot.
+  - Multiplier formula: $\text{Total Extra \%} = \sum \text{head.extraPercent}$; $\text{Effective SqFt Rate} = \text{Base Rate} \times (1 + \text{Total Extra \%} / 100)$.
+- **Series Block Defaults (`PlotSeriesMaster.js`)**:
+  - `defaultPremiumHeads`: Array of default heads attached to all plots generated in a series block.
+- **UI Enhancements (`/dashboard/plots/series-master`)**:
+  - `TenurePlotRatesMatrix.jsx`: Dedicated table for creating, editing, and deleting custom premium charge heads with extra percentage rates.
+  - `ConfigurePlotModal.jsx`: Multi-selectable interactive badge toggles for attaching one or more premium heads, real-time live preview of Base Rate, Multiplier, Effective Rate, and Plot Total Value, with a fixed non-clipped layout and sticky footer.
+  - `CreatePlotModal.jsx`, `CreateSeriesModal.jsx`, `EditSeriesModal.jsx`: Updated with multi-select premium heads group.
+  - `SeriesLayoutGrid.jsx`: Displays attached premium head badges (e.g. `CORNER`, `PARK`, `+30% PLC`) on plot map cards.
+  - `PlotBooking.jsx`, `PlotBookingEditPage.jsx`, `PlotBookingDetails.jsx`: Effective rates dynamically sum all attached `plot.premiumHeads`.
+
+### FF. Downpayment & EMI Collections System & Deferred Schedule Architecture
+- **Navigation & Menu Reorganization**:
+  - Created a dedicated **Account** menu in [`client/src/components/sidebar.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx) containing:
+    - **Downpayment** (`/dashboard/plots/collections/downpayment`)
+    - **EMI** (`/dashboard/plots/collections/emi`)
+    - **Payroll** (`/dashboard/payroll`)
+    - **Vouchers** (`/dashboard/vouchers`)
+- **No Checkbox Selection Pattern**:
+  - Removed interactive checkbox selection from both **Downpayment** and **EMI** collection pages.
+  - When a booking contract is selected:
+    - **Downpayment**: Displays a dedicated Downpayment Summary Panel (Booking Date, DP Last Due Date, Total DP, Paid So Far, Principal Due, Late Fine at 24% P.A., and Total Payable Today).
+    - **EMI**: Displays an EMI Active Installment Details Card (Active Inst #, EMI Due Date, Monthly EMI, Principal Due, Late Fine at 24% P.A., and Total Payable Today) along with a clean read-only schedule table.
+    - The collection amount field auto-populates with `Total Payable Today` (Principal Due + Late Fine).
+- **Waterfall Payment Allocation & 24% Late Fine**:
+  - Late fine is standardized to 24% yearly ($\approx 0.06575\%$ daily rate).
+  - Waterfall priority: Late Fine First $\rightarrow$ Principal Due Second.
+  - If a partial payment is collected against principal and late fine, late fine is cleared to ₹0 till the collection date, and from the next day late fine resumes only on the remaining unpaid principal balance.
+- **Deferred EMI Activation**:
+  - In `PlotInstallment`, EMI installments (`installmentNumber > 0`) retain `dueDate: null` until 100% of the Downpayment target is cleared.
+  - Once downpayment is paid in full on date $D$, EMIs automatically calculate `dueDate = D + (i * frequencyMultiplier)` months.

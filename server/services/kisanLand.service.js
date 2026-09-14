@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const KisanLandAgreement = require('../models/KisanLandAgreement');
 const LandStockLedger = require('../models/LandStockLedger');
 const KisanLedger = require('../models/KisanLedger');
+const KisanSeller = require('../models/KisanSeller');
+const LandPurchaser = require('../models/LandPurchaser');
 const Counter = require('../models/Counter');
 const ApiError = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
@@ -1145,6 +1147,230 @@ class KisanLandService {
     });
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── KISAN / SELLER DIRECTORY MASTER ──────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * Get all Kisan / Sellers (auto-syncs from existing agreements if empty)
+   */
+  async getKisanSellers(query = {}) {
+    const count = await KisanSeller.countDocuments();
+    if (count === 0) {
+      // Auto-populate from existing Kisan agreements
+      const agreements = await KisanLandAgreement.find().lean();
+      const seen = new Set();
+      const docsToInsert = [];
+      for (const agr of agreements) {
+        for (const f of agr.farmers || []) {
+          if (!f.name || seen.has(f.name.trim().toLowerCase())) continue;
+          seen.add(f.name.trim().toLowerCase());
+          docsToInsert.push({
+            name: f.name.trim(),
+            guardianName: f.guardianName || '',
+            relation: f.relation || 'Father',
+            mobile: f.mobile || '',
+            aadhaarNumber: f.aadhaarNumber || '',
+            panNumber: f.panNumber || '',
+            address: f.address || '',
+            bankDetails: f.bankDetails || {},
+          });
+        }
+      }
+      if (docsToInsert.length > 0) {
+        await KisanSeller.insertMany(docsToInsert);
+      }
+    }
+
+    const filter = {};
+    if (query.search) {
+      const regex = new RegExp(query.search.trim(), 'i');
+      filter.$or = [
+        { name: regex },
+        { mobile: regex },
+        { aadhaarNumber: regex },
+        { panNumber: regex },
+        { guardianName: regex },
+        { address: regex },
+      ];
+    }
+
+    return await KisanSeller.find(filter).sort({ name: 1, createdAt: -1 }).lean();
+  }
+
+  /**
+   * Create a new Kisan / Seller
+   */
+  async createKisanSeller(data, userId = null) {
+    if (!data.name || !data.name.trim()) {
+      throw new ApiError(400, 'Farmer / Seller name is required');
+    }
+
+    const doc = new KisanSeller({
+      name: data.name.trim(),
+      guardianName: data.guardianName ? data.guardianName.trim() : '',
+      relation: data.relation || 'Father',
+      mobile: data.mobile ? data.mobile.trim() : '',
+      aadhaarNumber: data.aadhaarNumber ? data.aadhaarNumber.trim() : '',
+      panNumber: data.panNumber ? data.panNumber.trim().toUpperCase() : '',
+      address: data.address ? data.address.trim() : '',
+      bankDetails: data.bankDetails || {},
+      remarks: data.remarks || '',
+      createdBy: userId,
+    });
+
+    return await doc.save();
+  }
+
+  /**
+   * Update a Kisan / Seller
+   */
+  async updateKisanSeller(id, data, userId = null) {
+    const doc = await KisanSeller.findById(id);
+    if (!doc) {
+      throw new ApiError(404, 'Kisan / Seller not found');
+    }
+
+    if (data.name) doc.name = data.name.trim();
+    if (data.guardianName !== undefined) doc.guardianName = data.guardianName ? data.guardianName.trim() : '';
+    if (data.relation !== undefined) doc.relation = data.relation || 'Father';
+    if (data.mobile !== undefined) doc.mobile = data.mobile ? data.mobile.trim() : '';
+    if (data.aadhaarNumber !== undefined) doc.aadhaarNumber = data.aadhaarNumber ? data.aadhaarNumber.trim() : '';
+    if (data.panNumber !== undefined) doc.panNumber = data.panNumber ? data.panNumber.trim().toUpperCase() : '';
+    if (data.address !== undefined) doc.address = data.address ? data.address.trim() : '';
+    if (data.bankDetails !== undefined) doc.bankDetails = data.bankDetails;
+    if (data.remarks !== undefined) doc.remarks = data.remarks;
+    doc.updatedBy = userId;
+
+    return await doc.save();
+  }
+
+  /**
+   * Delete a Kisan / Seller
+   */
+  async deleteKisanSeller(id) {
+    const doc = await KisanSeller.findByIdAndDelete(id);
+    if (!doc) {
+      throw new ApiError(404, 'Kisan / Seller not found');
+    }
+    return { message: 'Kisan / Seller deleted successfully' };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── PURCHASER / BUYER DIRECTORY MASTER ──────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * Get all Purchasers (auto-creates default Company buyer if empty)
+   */
+  async getPurchasers(query = {}) {
+    const count = await LandPurchaser.countDocuments();
+    if (count === 0) {
+      // Auto-create default Good Nature company purchaser
+      await LandPurchaser.create({
+        name: 'Good Nature Developers Pvt Ltd',
+        contact: 'Head Office',
+        mobile: '',
+        aadhaarNumber: '',
+        panNumber: '',
+        address: 'Patna, Bihar',
+        isDefault: true,
+      });
+    }
+
+    const filter = {};
+    if (query.search) {
+      const regex = new RegExp(query.search.trim(), 'i');
+      filter.$or = [
+        { name: regex },
+        { contact: regex },
+        { mobile: regex },
+        { aadhaarNumber: regex },
+        { panNumber: regex },
+      ];
+    }
+
+    return await LandPurchaser.find(filter).sort({ isDefault: -1, name: 1, createdAt: -1 }).lean();
+  }
+
+  /**
+   * Create a new Purchaser / Buyer
+   */
+  async createPurchaser(data, userId = null) {
+    if (!data.name || !data.name.trim()) {
+      throw new ApiError(400, 'Purchaser / Buyer name is required');
+    }
+
+    if (data.isDefault) {
+      await LandPurchaser.updateMany({}, { isDefault: false });
+    }
+
+    const doc = new LandPurchaser({
+      name: data.name.trim(),
+      contact: data.contact ? data.contact.trim() : '',
+      mobile: data.mobile ? data.mobile.trim() : '',
+      aadhaarNumber: data.aadhaarNumber ? data.aadhaarNumber.trim() : '',
+      panNumber: data.panNumber ? data.panNumber.trim().toUpperCase() : '',
+      address: data.address ? data.address.trim() : '',
+      isDefault: Boolean(data.isDefault),
+      remarks: data.remarks || '',
+      createdBy: userId,
+    });
+
+    return await doc.save();
+  }
+
+  /**
+   * Update a Purchaser / Buyer
+   */
+  async updatePurchaser(id, data, userId = null) {
+    const doc = await LandPurchaser.findById(id);
+    if (!doc) {
+      throw new ApiError(404, 'Purchaser / Buyer not found');
+    }
+
+    if (data.isDefault) {
+      await LandPurchaser.updateMany({ _id: { $ne: id } }, { isDefault: false });
+      doc.isDefault = true;
+    } else if (data.isDefault === false) {
+      doc.isDefault = false;
+    }
+
+    if (data.name) doc.name = data.name.trim();
+    if (data.contact !== undefined) doc.contact = data.contact ? data.contact.trim() : '';
+    if (data.mobile !== undefined) doc.mobile = data.mobile ? data.mobile.trim() : '';
+    if (data.aadhaarNumber !== undefined) doc.aadhaarNumber = data.aadhaarNumber ? data.aadhaarNumber.trim() : '';
+    if (data.panNumber !== undefined) doc.panNumber = data.panNumber ? data.panNumber.trim().toUpperCase() : '';
+    if (data.address !== undefined) doc.address = data.address ? data.address.trim() : '';
+    if (data.remarks !== undefined) doc.remarks = data.remarks;
+    doc.updatedBy = userId;
+
+    return await doc.save();
+  }
+
+  /**
+   * Set a purchaser as default
+   */
+  async setDefaultPurchaser(id) {
+    await LandPurchaser.updateMany({}, { isDefault: false });
+    const doc = await LandPurchaser.findByIdAndUpdate(id, { isDefault: true }, { new: true });
+    if (!doc) {
+      throw new ApiError(404, 'Purchaser not found');
+    }
+    return doc;
+  }
+
+  /**
+   * Delete a Purchaser / Buyer
+   */
+  async deletePurchaser(id) {
+    const doc = await LandPurchaser.findById(id);
+    if (!doc) {
+      throw new ApiError(404, 'Purchaser not found');
+    }
+    await doc.deleteOne();
+    return { message: 'Purchaser deleted successfully' };
+  }
 }
 
 module.exports = new KisanLandService();

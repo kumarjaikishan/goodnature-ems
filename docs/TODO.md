@@ -37,8 +37,10 @@ This document tracks known tasks, technical debt, and pending improvements ident
 - [x] Complete brand replacement to Good Nature Projects across printouts, vouchers, receipts, and watermarks.
 - [x] eSSL biometric raw body parsing and heartbeat ping tracking.
 - [x] Real-time Server-Sent Events (SSE) for attendance punch broadcasts.
-- [x] In-memory developer API performance monitor (`/api/api-monitor/stats`).
 - [x] Plot booking deletion child cascade cleanup and auto-healing plot availability sync.
 - [x] Enhanced numeric input UX with mobile numeric keypad support and dynamic 1st EMI helper text.
 - [x] Commission closing submission race condition resolution and transaction session pass-through.
+- [x] Dynamic multi-head Plot Premium & PLC (Preferential Location Charges) system on Series Master and plot configuration.
+- [x] Deferred EMI schedule calculation dynamically activated from 100% Downpayment completion date.
+- [x] Dedicated Downpayment Collections and EMI Collections pages in Sidebar and Router.
 

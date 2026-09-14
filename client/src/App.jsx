@@ -73,32 +73,32 @@ const EmployeeProfile = lazy(() => import('./pages/profile/profile'));
 const AdminManagerProfile = lazy(() => import('./pages/profile/adminManagerProfile'));
 
 // Plots
-const PlotDashboard = lazy(() => import('./pages/plots/PlotDashboard'));
-const PlotInventory = lazy(() => import('./pages/plots/PlotInventory'));
-const PlotSponsors = lazy(() => import('./pages/plots/PlotSponsors'));
-const PlotCustomers = lazy(() => import('./pages/plots/PlotCustomers'));
-const PlotCustomerFormPage = lazy(() => import('./pages/plots/PlotCustomerFormPage'));
-const PlotBooking = lazy(() => import('./pages/plots/PlotBooking'));
-const PlotBookingFormPage = lazy(() => import('./pages/plots/PlotBookingFormPage'));
-const PlotBookingDetails = lazy(() => import('./pages/plots/PlotBookingDetails'));
-const InstallmentCollection = lazy(() => import('./pages/plots/InstallmentCollection'));
-const PlotSeriesMaster = lazy(() => import('./pages/plots/PlotSeriesMaster'));
-const PlotReports = lazy(() => import('./pages/plots/PlotReports'));
-const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/PlotPayoutLedgerPage'));
-const PlotAgreementViewer = lazy(() => import('./pages/plots/PlotAgreementViewer'));
-const BookingCertificateViewer = lazy(() => import('./pages/plots/BookingCertificateViewer'));
-const ReceiptViewer = lazy(() => import('./pages/plots/ReceiptViewer'));
-const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/PlotPayoutVoucherPrint'));
-const PlotInterestCalculator = lazy(() => import('./pages/plots/PlotInterestCalculator'));
-const SponsorLedgerPage = lazy(() => import('./pages/plots/SponsorLedgerPage'));
-const SponsorDashboard = lazy(() => import('./pages/plots/SponsorDashboard'));
-const SponsorBusinessReportPage = lazy(() => import('./pages/plots/SponsorBusinessReportPage'));
-const SponsorBookingsPage = lazy(() => import('./pages/plots/SponsorBookingsPage'));
-const PlotClosingsPage = lazy(() => import('./pages/plots/PlotClosingsPage'));
-const PlotClosingProcessPage = lazy(() => import('./pages/plots/PlotClosingProcessPage'));
-const PlotKisanLandPage = lazy(() => import('./pages/plots/PlotKisanLandPage'));
-const PlotKisanLedgerPage = lazy(() => import('./pages/plots/PlotKisanLedgerPage'));
-const PlotBookingEditPage = lazy(() => import('./pages/plots/PlotBookingEditPage'));
+const PlotDashboard = lazy(() => import('./pages/plots/dashboard/PlotDashboard'));
+const PlotInventory = lazy(() => import('./pages/plots/seriesMaster/PlotInventory'));
+const PlotBusinessDevelopers = lazy(() => import('./pages/plots/businessDevelopers/PlotBusinessDevelopers'));
+const PlotCustomers = lazy(() => import('./pages/plots/customers/PlotCustomers'));
+const PlotCustomerFormPage = lazy(() => import('./pages/plots/customers/PlotCustomerFormPage'));
+const PlotBooking = lazy(() => import('./pages/plots/booking/PlotBooking'));
+const PlotBookingFormPage = lazy(() => import('./pages/plots/booking/PlotBookingFormPage'));
+const PlotBookingDetails = lazy(() => import('./pages/plots/booking/PlotBookingDetails'));
+const InstallmentCollection = lazy(() => import('./pages/plots/installments/InstallmentCollection'));
+const PlotSeriesMaster = lazy(() => import('./pages/plots/seriesMaster/PlotSeriesMaster'));
+const PlotReports = lazy(() => import('./pages/plots/reports/PlotReports'));
+const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/closings/PlotPayoutLedgerPage'));
+const PlotAgreementViewer = lazy(() => import('./pages/plots/printViewers/PlotAgreementViewer'));
+const BookingCertificateViewer = lazy(() => import('./pages/plots/printViewers/BookingCertificateViewer'));
+const ReceiptViewer = lazy(() => import('./pages/plots/printViewers/ReceiptViewer'));
+const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/closings/PlotPayoutVoucherPrint'));
+const PlotInterestCalculator = lazy(() => import('./pages/plots/calculator/PlotInterestCalculator'));
+const BusinessDeveloperLedgerPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperLedgerPage'));
+const BusinessDeveloperDashboard = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperDashboard'));
+const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperReportPage'));
+const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
+const PlotClosingsPage = lazy(() => import('./pages/plots/closings/PlotClosingsPage'));
+const PlotClosingProcessPage = lazy(() => import('./pages/plots/closings/PlotClosingProcessPage'));
+const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
+const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
+const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
 
 // Investments (RD / FD)
 const InvestmentDashboard = lazy(() => import('./pages/investments/InvestmentDashboard'));
@@ -148,15 +148,24 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/agreements" element={<PlotKisanLandPage />} />
-      <Route path="plots/kisan-land" element={<PlotKisanLandPage />} />
+      <Route path="plots/purchase" element={<PlotPurchasePage />} />
+      <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/agreements" element={<PlotPurchasePage />} />
+      <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
       <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
       <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-      <Route path="plots/sponsors" element={<PlotSponsors />} />
-      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
+      <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
       <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
@@ -166,8 +175,9 @@ const routesByRole = {
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-      <Route path="plots/bookings/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
+      <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+      <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
@@ -226,16 +236,24 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/agreements" element={<PlotKisanLandPage />} />
-      <Route path="plots/kisan-land" element={<PlotKisanLandPage />} />
+      <Route path="plots/purchase" element={<PlotPurchasePage />} />
+      <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/agreements" element={<PlotPurchasePage />} />
+      <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
       <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
       <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-      <Route path="plots/sponsors" element={<PlotSponsors />} />
-      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
+      <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
       <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
@@ -245,8 +263,9 @@ const routesByRole = {
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-      <Route path="plots/bookings/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
+      <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+      <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
@@ -307,16 +326,24 @@ const routesByRole = {
       <Route path="vouchers/:id" element={<VoucherDetails />} />
       <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/agreements" element={<PlotKisanLandPage />} />
-      <Route path="plots/kisan-land" element={<PlotKisanLandPage />} />
+      <Route path="plots/purchase" element={<PlotPurchasePage />} />
+      <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
+      <Route path="plots/agreements" element={<PlotPurchasePage />} />
+      <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
       <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
       <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
       <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-      <Route path="plots/sponsors" element={<PlotSponsors />} />
-      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
+      <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
+      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
       <Route path="plots/customers" element={<PlotCustomers />} />
       <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
       <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
@@ -326,8 +353,9 @@ const routesByRole = {
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-      <Route path="plots/bookings/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
+      <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+      <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
@@ -390,16 +418,21 @@ const routesByRole = {
   ),
   sponsor: (
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['sponsor']} />}>
-      <Route index element={<SponsorDashboard />} />
-      <Route path="sponsor-dashboard" element={<SponsorDashboard />} />
-      <Route path="ledger" element={<SponsorLedgerPage />} />
+      <Route index element={<BusinessDeveloperDashboard />} />
+      <Route path="sponsor-dashboard" element={<BusinessDeveloperDashboard />} />
+      <Route path="business-developer-dashboard" element={<BusinessDeveloperDashboard />} />
+      <Route path="ledger" element={<BusinessDeveloperLedgerPage />} />
       <Route path="ledger/:id" element={<LedgerDetailPage />} />
-      <Route path="plots/sponsors/:id/ledger" element={<SponsorLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<SponsorBusinessReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<SponsorLedgerPage />} />
-      <Route path="my-business" element={<SponsorBusinessReportPage />} />
-      <Route path="my-bookings" element={<SponsorBookingsPage />} />
-      <Route path="plots/bookings" element={<SponsorBookingsPage />} />
+      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
+      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
+      <Route path="my-business" element={<BusinessDeveloperReportPage />} />
+      <Route path="my-bookings" element={<BusinessDeveloperBookingsPage />} />
+      <Route path="plots/bookings" element={<BusinessDeveloperBookingsPage />} />
       <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
       <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
       <Route path="profile" element={<AdminManagerProfile />} />

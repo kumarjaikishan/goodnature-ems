@@ -28,6 +28,12 @@ const plotSchema = new mongoose.Schema(
       enum: ['NORMAL', 'CORNER'],
       default: 'NORMAL',
     },
+    premiumHeads: [
+      {
+        name: { type: String, required: true },
+        extraPercent: { type: Number, required: true, default: 0 },
+      },
+    ],
     baseRate: {
       type: Number,
       required: true,

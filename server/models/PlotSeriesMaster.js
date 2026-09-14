@@ -33,6 +33,12 @@ const plotSeriesMasterSchema = new mongoose.Schema(
       enum: ['NORMAL', 'CORNER'],
       default: 'NORMAL',
     },
+    defaultPremiumHeads: [
+      {
+        name: { type: String, required: true },
+        extraPercent: { type: Number, required: true, default: 0 },
+      },
+    ],
     numberFormat: {
       type: String,
       default: 'A000', // e.g. A001, A002

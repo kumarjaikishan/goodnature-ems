@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Gauge,
   KeyRound,
+  Wallet,
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 
@@ -90,19 +91,28 @@ const Sidebar = () => {
             { menu: "Report", link: "/dashboard/attandence_Report", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
-        { menu: "Payroll", link: "/dashboard/payroll", icon: <Banknote size={20} />, roles: ["admin", "superadmin", "manager", "demo"] },
+        {
+          menu: "Account",
+          icon: <Wallet size={20} />,
+          roles: ["admin", "superadmin", "manager", "demo"],
+          children: [
+            { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"] },
+          ],
+        },
         {
           menu: "Plot Management",
           icon: <Building2 size={20} />,
           roles: ["admin", "superadmin", "manager", "demo"],
           children: [
             { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Agreements", link: "/dashboard/plots/agreements", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Sponsors", link: "/dashboard/plots/sponsors", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Collections", link: "/dashboard/plots/installments", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Commission Closings", link: "/dashboard/plots/closings", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
@@ -123,7 +133,6 @@ const Sidebar = () => {
         },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
         { menu: "Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["admin", "superadmin", "manager"] },
-        { menu: "Vouchers", link: "/dashboard/vouchers", icon: <Receipt size={20} />, roles: ["admin", "superadmin", "manager", "demo"] },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },

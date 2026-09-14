@@ -38,7 +38,7 @@ const Login = () => {
             dispatch(setuser(data.user));
 
             if (data.user?.role === "sponsor") {
-                return navigate(`/dashboard/plots/sponsors/${data.user.id}/ledger`);
+                return navigate(`/dashboard/plots/business-developer/${data.user.id}/ledger`);
             }
             return navigate("/dashboard");
         } catch (error) {

@@ -29,9 +29,12 @@ export const BookingSummarySidebar = ({
   emiMonthlyAmt,
   emiRatePerSqFt,
   customDpRate,
+  emiFrequency = 'MONTHLY',
+  installmentCount = 8,
+  totalTenureMonths = 8,
 }) => {
   const plotArea = selectedPlot?.plotSize || selectedPlot?.area || 0;
-  const tenureMonths = Number(form.tenureMonths) || 0;
+  const resolvedTenure = totalTenureMonths || Number(form.tenureMonths) || 0;
 
   return (
     <div className="flex flex-col gap-6 sticky top-6">
@@ -110,12 +113,21 @@ export const BookingSummarySidebar = ({
                   <span className="text-slate-400 uppercase text-[10px]">Plot Type</span>
                   <span className="text-slate-800 font-semibold">{selectedPlot.plotType || 'REGULAR'}</span>
                 </div>
-                {selectedPlot.plotType === 'CORNER' && (
+                {Array.isArray(selectedPlot.premiumHeads) && selectedPlot.premiumHeads.length > 0 ? (
+                  <div className="space-y-1">
+                    {selectedPlot.premiumHeads.map((h, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-amber-800 bg-amber-50/70 border border-amber-200/60 px-2 py-1 rounded text-xs">
+                        <span>✨ {h.name}</span>
+                        <span className="font-bold font-mono">+{h.extraPercent}%</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (selectedPlot.plotType === 'CORNER' || cornerExtra > 0) ? (
                   <div className="flex justify-between items-center text-amber-700 bg-amber-50/60 px-2 py-1 rounded">
                     <span>Corner Premium</span>
-                    <span className="font-bold">+{cornerExtra}%</span>
+                    <span className="font-bold">+{cornerExtra || 20}%</span>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           ) : (
@@ -168,7 +180,9 @@ export const BookingSummarySidebar = ({
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400 font-semibold uppercase text-[10px]">Payment Plan:</span>
               <span className="font-bold text-slate-800">
-                {isOneTime ? '0 Months (Full Payment)' : `${tenureMonths} Months EMI Plan`}
+                {isOneTime
+                  ? 'Full Payment'
+                  : `${installmentCount} × ${emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'} (${resolvedTenure} Mos Total)`}
               </span>
             </div>
           </div>
@@ -248,22 +262,24 @@ export const BookingSummarySidebar = ({
               </tbody>
             </table>
 
-            {/* 6. Monthly Installment Card */}
+            {/* 6. Installment Breakdown Card */}
             {!isOneTime && (
               <div className="p-3 bg-gradient-to-r from-teal-50 via-teal-100/50 to-emerald-50 border-t border-teal-200 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold text-teal-950 uppercase tracking-wider block">
-                    Monthly Installment ({tenureMonths} EMIs)
+                    Installment ({installmentCount} × {emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'})
                   </span>
                   <span className="text-[11px] text-teal-700 font-medium">
-                    ₹{emiPrincipalAmt.toLocaleString('en-IN')} / {tenureMonths} months
+                    Total {resolvedTenure} mos tenure
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-base font-black font-mono text-teal-950">
                     ₹{emiMonthlyAmt.toLocaleString('en-IN')}
                   </span>
-                  <span className="text-[10px] text-teal-700 block font-bold">/ Month</span>
+                  <span className="text-[10px] text-teal-700 block font-bold">
+                    / {emiFrequency === 'MONTHLY' ? 'Month' : emiFrequency === 'QUARTERLY' ? 'Quarter' : emiFrequency === 'HALF_YEARLY' ? '6 Mos' : 'Year'}
+                  </span>
                 </div>
               </div>
             )}

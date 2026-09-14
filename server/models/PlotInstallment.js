@@ -13,7 +13,7 @@ const plotInstallmentSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date,
-      required: true,
+      required: false,
     },
     dueAmount: {
       type: Number,

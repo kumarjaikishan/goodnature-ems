@@ -98,6 +98,16 @@ const plotBookingSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    emiFrequency: {
+      type: String,
+      enum: ['MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'],
+      default: 'MONTHLY',
+    },
+    installmentCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     basePlotRate: {
       type: Number,
       default: 1000,

@@ -127,6 +127,19 @@ router.put('/kisan-agreements/:agreementId/deeds/:deedId', checkPermission('plot
 router.delete('/kisan-agreements/:agreementId/deeds/:deedId', checkPermission('plot_inventory', 4), ctrl.deleteRegistryDeed);
 router.post('/kisan-agreements/:id/payments', checkPermission('plot_inventory', 2), ctrl.recordKisanPayment);
 
+// ── Kisan / Seller Directory Master ──
+router.get('/kisan-sellers', checkPermission('plot_inventory', 1), ctrl.getKisanSellers);
+router.post('/kisan-sellers', checkPermission('plot_inventory', 2), ctrl.createKisanSeller);
+router.put('/kisan-sellers/:id', checkPermission('plot_inventory', 3), ctrl.updateKisanSeller);
+router.delete('/kisan-sellers/:id', checkPermission('plot_inventory', 4), ctrl.deleteKisanSeller);
+
+// ── Purchaser / Buyer Directory Master ──
+router.get('/purchasers', checkPermission('plot_inventory', 1), ctrl.getPurchasers);
+router.post('/purchasers', checkPermission('plot_inventory', 2), ctrl.createPurchaser);
+router.put('/purchasers/:id', checkPermission('plot_inventory', 3), ctrl.updatePurchaser);
+router.put('/purchasers/:id/set-default', checkPermission('plot_inventory', 3), ctrl.setDefaultPurchaser);
+router.delete('/purchasers/:id', checkPermission('plot_inventory', 4), ctrl.deletePurchaser);
+
 // ── Booking Restructuring, Customer Refund & Revisions ──
 router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctrl.restructureBooking);
 router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);

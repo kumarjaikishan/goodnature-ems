@@ -123,7 +123,7 @@ const Modalbox = ({
           </div>
         ) : (
           /* Backward compatibility mode for custom internal modal structures */
-          <div className={`max-h-[88vh] flex flex-col ${bodyClassName}`}>
+          <div className={`max-h-[88vh] flex flex-col overflow-y-auto scrollbar-thin ${bodyClassName}`}>
             {children}
           </div>
         )}

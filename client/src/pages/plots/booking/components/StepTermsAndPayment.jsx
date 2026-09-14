@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
 const inputCls =
-  'w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none font-medium';
+  'w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none font-medium shadow-2xs';
 
 export const StepTermsAndPayment = ({
   handleSubmit,
@@ -12,8 +12,6 @@ export const StepTermsAndPayment = ({
   submitLoading,
   form,
   setForm,
-  slabs,
-  currentSlab,
   discountType,
   setDiscountType,
   discountVal,
@@ -23,22 +21,29 @@ export const StepTermsAndPayment = ({
   setGovtRate,
   isOneTime,
   netContractValue,
-  getDynamicOneTimeHelper,
   downpaymentAmt,
-  getDynamicEmiHelper,
-  emiPrincipalAmt,
-  emiMonthlyAmt,
+  dpType,
+  setDpType,
+  dpVal,
+  setDpVal,
+  customDpRate,
+  remainingBalance,
+  emiFrequency,
+  setEmiFrequency,
+  installmentCount,
+  setInstallmentCount,
+  totalTenureMonths,
+  emiPerInstallmentAmt,
+  emiRatePerSqFt,
+  getDynamicDueHelper,
   plotArea,
   availableLandSources,
   landSourcing,
   setLandSourcing,
   customSqFtRate,
   setCustomSqFtRate,
-  customDpRate,
-  setCustomDpRate,
   effectiveSqFtRate,
   calculatedPlotValue,
-  emiRatePerSqFt,
 }) => {
   // Compute land stock allocation validity
   const totalAllocatedArea = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
@@ -50,8 +55,11 @@ export const StepTermsAndPayment = ({
   const isFormValid =
     Boolean(form.bookingDate) &&
     Number(customSqFtRate) > 0 &&
-    (isOneTime || (Number(customDpRate) > 0 && Number(customDpRate) <= Number(customSqFtRate))) &&
+    Number(downpaymentAmt) > 0 &&
     isLandStockValid;
+
+  // Filter to show ONLY Kisan Land Agreements (excluding Registry Deeds)
+  const agreementOnlySources = (availableLandSources || []).filter((s) => s.sourceType === 'AGREEMENT');
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -79,119 +87,98 @@ export const StepTermsAndPayment = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Booking Date */}
-        <div className="flex flex-col gap-1">
-          <label className={labelCls}>Booking Date *</label>
+        {/* 1. Booking Date */}
+        <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-800">Booking Date *</label>
+            <span className="text-[10px] text-slate-400 font-semibold">Start Date</span>
+          </div>
           <input
-            className={inputCls}
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
             type="date"
             value={form.bookingDate}
             onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
             required
           />
-        </div>
-
-        {/* Tenure / Scheme Matrix Dropdown */}
-        <div className="flex flex-col gap-1">
-          <label className={labelCls}>Tenure & Master Plan (समय / बिक्री प्लान) *</label>
-          <select
-            className={`${inputCls} bg-teal-50/40 border-teal-300 text-teal-950 font-bold`}
-            value={form.tenureMonths}
-            onChange={(e) => {
-              const newTenure = Number(e.target.value);
-              const selectedSlab = slabs.find((s) => Number(s.tenureMonths) === newTenure) || slabs[0];
-              setForm({ ...form, tenureMonths: newTenure });
-              // Auto-sync custom rate inputs to the new slab defaults
-              setCustomSqFtRate(selectedSlab.plotRate || 1000);
-              setCustomDpRate(selectedSlab.downpaymentRate || (newTenure === 0 ? selectedSlab.plotRate || 1000 : 500));
-            }}
-          >
-            {slabs.map((s) => (
-              <option key={s.tenureMonths} value={s.tenureMonths}>
-                {s.tenureMonths === 0
-                  ? `0 Months (One-Time Payment) — ₹${s.plotRate}/sqft [100% Downpayment]`
-                  : `${s.tenureMonths} Months EMI — ₹${s.plotRate}/sqft [DP: ₹${s.downpaymentRate || 500}/sqft | EMI: ₹${s.emiRate || (s.plotRate - 500)}/sqft]`}
-              </option>
-            ))}
-          </select>
-          <span className="text-[11px] text-teal-700 font-semibold px-1">
-            Master Plan: ₹{currentSlab.plotRate}/sqft | DP: ₹{currentSlab.downpaymentRate || (currentSlab.tenureMonths === 0 ? 1000 : 500)}/sqft | Duration: {currentSlab.tenureMonths === 0 ? 'Full Payment' : `${currentSlab.tenureMonths} Months`}
+          <span className="text-[11px] text-slate-400 font-medium truncate">
+            Initial contract booking agreement date
           </span>
         </div>
 
-        {/* Editable Plot Rate per SqFt */}
-        <div className="flex flex-col gap-1 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-          <div className="flex items-center justify-between mb-0.5">
+        {/* 2. Plot Selling Rate (₹ / Sq.Ft.) */}
+        <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Edit3 size={14} className="text-teal-700" />
-              Plot Selling Rate (₹ / Sq.Ft.) *
+              Plot Selling Rate *
             </label>
+            <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+              ₹{customSqFtRate || 1000}/sqft
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₹</span>
-              <input
-                className={`${inputCls} pl-7 font-mono font-bold text-slate-900 bg-white`}
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={customSqFtRate ?? ''}
-                onChange={(e) => setCustomSqFtRate(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="Rate per sqft"
-                required
-              />
-            </div>
-            <span className="text-xs font-semibold text-slate-500">/ Sq.Ft.</span>
+          <div className="relative flex items-center">
+            <span className="absolute left-3.5 text-slate-400 font-bold text-sm">₹</span>
+            <input
+              className="w-full h-11 pl-7 pr-16 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={customSqFtRate ?? 1000}
+              onChange={(e) => setCustomSqFtRate(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="1000"
+              required
+            />
+            <span className="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">/ Sq.Ft.</span>
           </div>
-          <span className="text-[11px] text-slate-500 font-medium">
-            Effective Total Value: ₹{calculatedPlotValue.toLocaleString('en-IN')} ({plotArea} sqft @ ₹{effectiveSqFtRate}/sqft)
+          <span className="text-[11px] text-slate-500 font-medium truncate">
+            Gross: ₹{calculatedPlotValue.toLocaleString('en-IN')} ({plotArea} sqft @ ₹{effectiveSqFtRate}/sqft)
           </span>
         </div>
 
-        {/* Editable Downpayment Rate per SqFt */}
-        <div className="flex flex-col gap-1 p-3.5 bg-teal-50/50 border border-teal-200 rounded-xl">
-          <div className="flex items-center justify-between mb-0.5">
-            <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
-              <Calculator size={14} className="text-teal-700" />
-              Downpayment Rate (₹ / Sq.Ft.) *
-            </label>
+        {/* 3. Govt. Base Rate (₹ / Sq.Ft.) */}
+        <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-800">Govt. Base Rate</label>
+            <span className="text-[10px] text-slate-400 font-semibold">Circle Rate</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-2.5 text-teal-700 font-bold text-sm">₹</span>
-              <input
-                className={`${inputCls} pl-7 font-mono font-bold text-teal-950 bg-white border-teal-300 focus:ring-teal-700`}
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={customDpRate ?? ''}
-                onChange={(e) => setCustomDpRate(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="Downpayment rate per sqft"
-                required
-              />
-            </div>
-            <span className="text-xs font-semibold text-teal-800">/ Sq.Ft.</span>
+          <div className="relative flex items-center">
+            <span className="absolute left-3.5 text-slate-400 font-bold text-sm">₹</span>
+            <input
+              className="w-full h-11 pl-7 pr-16 bg-white border border-slate-300 rounded-xl text-sm font-mono text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={govtRate}
+              onChange={(e) => setGovtRate(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="100"
+            />
+            <span className="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">/ Sq.Ft.</span>
           </div>
-          <span className="text-[11px] text-teal-800 font-bold">
-            Total DP Amount: ₹{downpaymentAmt.toLocaleString('en-IN')} (₹{customDpRate || 0} × {plotArea} sqft)
+          <span className="text-[11px] text-slate-400 font-medium truncate">
+            Official government circle base rate
           </span>
         </div>
 
-        {/* Discount Input */}
-        <div className="flex flex-col gap-1">
-          <label className={labelCls}>Discount (Deducted Strictly from EMI)</label>
-          <div className="flex rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 bg-white">
+        {/* 4. Discount Input */}
+        <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-800">Discount</label>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${calculatedDiscount > 0 ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-slate-400'}`}>
+              {calculatedDiscount > 0 ? `-₹${calculatedDiscount.toLocaleString('en-IN')}` : 'Optional'}
+            </span>
+          </div>
+          <div className="flex h-11 rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 bg-white shadow-2xs">
             <select
               value={discountType}
               onChange={(e) => setDiscountType(e.target.value)}
-              className="px-3 py-2.5 bg-slate-100 text-xs font-bold text-slate-700 border-r border-slate-300 outline-none cursor-pointer"
+              className="px-3 bg-slate-100 text-xs font-bold text-slate-700 border-r border-slate-300 outline-none cursor-pointer shrink-0"
             >
               <option value="RUPEE">₹ (Flat)</option>
               <option value="PERCENT">% (Percentage)</option>
               <option value="SQFT_RATE">₹ / Sq.Ft.</option>
             </select>
             <input
-              className="w-full px-3.5 py-2.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
+              className="w-full px-3.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
               type="tel"
               inputMode="numeric"
               pattern="[0-9]*"
@@ -199,128 +186,202 @@ export const StepTermsAndPayment = ({
               onChange={(e) => setDiscountVal(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder={
                 discountType === 'PERCENT'
-                  ? 'e.g. 10%'
+                  ? 'e.g. 10 (%)'
                   : discountType === 'SQFT_RATE'
-                    ? 'e.g. 50 (₹/Sq.Ft.)'
-                    : 'e.g. 5000 (Flat ₹)'
+                  ? 'e.g. 50 (₹/sqft)'
+                  : 'e.g. 25000 (Flat ₹)'
               }
             />
           </div>
-          {calculatedDiscount > 0 ? (
-            <span className="text-[0.68rem] text-emerald-700 font-semibold px-1">
-              Calculated Discount: ₹{calculatedDiscount.toLocaleString('en-IN')} (deducted exclusively from EMI balance)
-            </span>
-          ) : (
-            <span className="text-[0.65rem] text-slate-400 px-1">
-              Any discount given will reduce the EMI balance without affecting the custom downpayment.
-            </span>
-          )}
+          <span className="text-[11px] font-medium truncate text-emerald-700">
+            {calculatedDiscount > 0
+              ? `Discount: ₹${calculatedDiscount.toLocaleString('en-IN')} (Net: ₹${netContractValue.toLocaleString('en-IN')})`
+              : 'Deducted from total gross plot value'}
+          </span>
         </div>
 
-        {/* Govt Rate */}
-        <div className="flex flex-col gap-1">
-          <label className={labelCls}>Govt. Base Rate (₹ / Sq.Ft.)</label>
+        {/* 5. Downpayment */}
+        <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-teal-50/50 border border-teal-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
+              <Calculator size={14} className="text-teal-700" />
+              Downpayment *
+            </label>
+            <span className="text-[10px] text-teal-800 font-bold bg-teal-100/80 px-2 py-0.5 rounded-full border border-teal-300">
+              {dpType === 'SQFT_RATE'
+                ? `₹${dpVal || 0}/sqft`
+                : dpType === 'PERCENT'
+                ? `${dpVal || 0}%`
+                : `Flat ₹`}
+            </span>
+          </div>
+          <div className="flex h-11 rounded-xl border border-teal-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-700 bg-white shadow-2xs">
+            <select
+              value={dpType}
+              onChange={(e) => {
+                const newType = e.target.value;
+                setDpType(newType);
+                if (newType === 'FLAT') {
+                  setDpVal(downpaymentAmt || Math.round(plotArea * (parseFloat(dpVal) || 500)));
+                } else if (newType === 'PERCENT') {
+                  setDpVal(
+                    netContractValue > 0
+                      ? Math.min(100, Math.round(((downpaymentAmt || 0) / netContractValue) * 100)) || 50
+                      : 50
+                  );
+                } else if (newType === 'SQFT_RATE') {
+                  setDpVal(plotArea > 0 ? Math.round((downpaymentAmt || 0) / plotArea) || 500 : 500);
+                }
+              }}
+              className="px-3 bg-teal-50 text-xs font-bold text-teal-900 border-r border-teal-200 outline-none cursor-pointer shrink-0"
+            >
+              <option value="SQFT_RATE">₹ / Sq.Ft.</option>
+              <option value="PERCENT">% (Percentage)</option>
+              <option value="FLAT">₹ (Flat)</option>
+            </select>
+            <input
+              className="w-full px-3.5 text-sm bg-transparent outline-none text-teal-950 font-bold font-mono"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={dpVal}
+              onChange={(e) => setDpVal(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder={
+                dpType === 'PERCENT'
+                  ? 'e.g. 25 (%)'
+                  : dpType === 'SQFT_RATE'
+                  ? 'e.g. 500 (₹/sqft)'
+                  : 'e.g. 200000 (Flat ₹)'
+              }
+              required
+            />
+          </div>
+          <span className="text-[11px] text-teal-800 font-bold truncate">
+            Total DP: ₹{downpaymentAmt.toLocaleString('en-IN')} (₹{customDpRate}/sqft eq.)
+          </span>
+        </div>
+
+        {/* 6. Payment / Downpayment Due Period */}
+        <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-800">Due Period (Days) *</label>
+            <span className="text-[10px] text-slate-400 font-semibold">Standard 90 Days</span>
+          </div>
           <input
-            className={inputCls}
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-mono font-medium text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
             type="tel"
             inputMode="numeric"
             pattern="[0-9]*"
-            value={govtRate}
-            onChange={(e) => setGovtRate(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="Govt rate per sqft (Default 100)"
+            value={form.downpaymentDays ?? 90}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, '');
+              setForm({ ...form, downpaymentDays: val, oneTimeDays: val });
+            }}
+            placeholder="90"
+            required
           />
+          <span className="text-[11px] text-teal-700 font-medium truncate">
+            {getDynamicDueHelper(form.bookingDate, form.downpaymentDays ?? 90)}
+          </span>
         </div>
 
-        {/* One Time vs EMI Breakdown */}
-        {isOneTime ? (
-          <>
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Total Final Payment (100%)</label>
-              <input
-                className={`${inputCls} bg-emerald-50 border-emerald-200 text-emerald-800 font-bold font-mono cursor-not-allowed`}
-                type="text"
-                value={`₹${netContractValue.toLocaleString('en-IN')}`}
-                disabled
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Payment Due Period (Days) *</label>
-              <input
-                className={inputCls}
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={form.oneTimeDays ?? 90}
-                onChange={(e) => setForm({ ...form, oneTimeDays: e.target.value.replace(/[^0-9]/g, '') })}
-                placeholder="Default 90 days"
-                required
-              />
-              <span className="text-[10px] text-teal-700 font-medium px-1">
-                {getDynamicOneTimeHelper(form.bookingDate, form.oneTimeDays ?? 90)}
-              </span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Downpayment Due Period (Days) *</label>
-              <input
-                className={inputCls}
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={form.downpaymentDays ?? 90}
-                onChange={(e) => setForm({ ...form, downpaymentDays: e.target.value.replace(/[^0-9]/g, '') })}
-                placeholder="Default 90 days (editable)"
-                required
-              />
-              <span className="text-[10px] text-teal-700 font-medium px-1">
-                {getDynamicEmiHelper(form.bookingDate, form.downpaymentDays ?? 90)}
+        {/* 7. EMI Frequency & Installments Schedule (when remaining balance > 0) */}
+        {remainingBalance > 0 ? (
+          <div className="md:col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-col gap-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Calculator size={15} className="text-teal-700" />
+                EMI Frequency & Installments Schedule
+              </label>
+              <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
+                Total Tenure: {totalTenureMonths} Months
               </span>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Remaining Balance EMI (Gross Plot Value - DP - Discount)</label>
-              <input
-                className={`${inputCls} bg-blue-50/70 border-blue-200 text-blue-900 font-bold font-mono cursor-not-allowed`}
-                type="text"
-                value={`₹${emiPrincipalAmt.toLocaleString('en-IN')} (Rate: ₹${emiRatePerSqFt}/sqft)`}
-                disabled
-              />
-            </div>
-
-            <div className="flex flex-col gap-1 md:col-span-2 p-3 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <div>
-                  <span className="text-xs font-bold text-teal-950 uppercase tracking-wide">
-                    Monthly Installment Schedule ({form.tenureMonths} Months)
-                  </span>
-                  <p className="text-[11px] text-teal-700">
-                    Remaining principal ₹{emiPrincipalAmt.toLocaleString('en-IN')} divided evenly into {form.tenureMonths} monthly payments.
-                  </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Frequency Dropdown */}
+              <div className="flex flex-col justify-between gap-1.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">EMI Frequency *</label>
+                  <span className="text-[10px] text-slate-400 font-semibold">Periodicity</span>
                 </div>
-                <span className="text-base font-black font-mono text-teal-950">
-                  ₹{emiMonthlyAmt.toLocaleString('en-IN')} / month
+                <select
+                  value={emiFrequency}
+                  onChange={(e) => setEmiFrequency(e.target.value)}
+                  className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs cursor-pointer"
+                >
+                  <option value="MONTHLY">Monthly (Every 1 Month)</option>
+                  <option value="QUARTERLY">Quarterly (Every 3 Months)</option>
+                  <option value="HALF_YEARLY">Half-Yearly (Every 6 Months)</option>
+                  <option value="YEARLY">Yearly (Every 12 Months)</option>
+                </select>
+                <span className="text-[11px] text-slate-500 font-medium truncate">
+                  Installments due {emiFrequency === 'MONTHLY' ? 'every month' : emiFrequency === 'QUARTERLY' ? 'every 3 months' : emiFrequency === 'HALF_YEARLY' ? 'every 6 months' : 'every 12 months'}
+                </span>
+              </div>
+
+              {/* Installment Count Input */}
+              <div className="flex flex-col justify-between gap-1.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Number of Installments *</label>
+                  <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                    {installmentCount || 0} installments
+                  </span>
+                </div>
+                <input
+                  className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={installmentCount}
+                  onChange={(e) => setInstallmentCount(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="8"
+                  required
+                />
+                <span className="text-[11px] text-slate-500 font-medium truncate">
+                  {totalTenureMonths} Months total duration
                 </span>
               </div>
             </div>
-          </>
+
+            {/* Installment Amount Breakdown */}
+            <div className="p-3 bg-teal-50/60 border border-teal-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-teal-600" />
+                <span className="text-teal-950 font-semibold">
+                  Installment Amount:{' '}
+                  <strong className="text-teal-950 font-black font-mono text-sm">
+                    ₹{emiPerInstallmentAmt.toLocaleString('en-IN')}
+                  </strong>{' '}
+                  / {emiFrequency === 'MONTHLY' ? 'month' : emiFrequency === 'QUARTERLY' ? 'quarter (3 mos)' : emiFrequency === 'HALF_YEARLY' ? 'half-year (6 mos)' : 'year'}
+                </span>
+              </div>
+              <span className="text-teal-800 font-medium font-mono text-[11px]">
+                Remaining ₹{remainingBalance.toLocaleString('en-IN')} divided across {installmentCount || 1} installments
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="md:col-span-2 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+            <span>Full Payment (100% Downpayment) — Remaining Balance is ₹0. No EMI installments required.</span>
+          </div>
         )}
 
-        {/* Land Acquisition Stock Allocation */}
+        {/* 8. Land Acquisition Stock Allocation (Agreements Only) */}
         <div className="flex flex-col gap-2 md:col-span-2 p-4 bg-teal-50/70 border border-teal-300 rounded-2xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h4 className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 size={16} className="text-teal-700" />
-                Land Acquisition Sourcing (किसान एग्रीमेंट / डीड स्टॉक){' '}
+                Land Acquisition Sourcing (किसान एग्रीमेंट स्टॉक){' '}
                 <span className="text-rose-600 font-black">*</span>
               </h4>
               <p className="text-[11px] text-teal-700 mt-0.5">
-                Required: Allocate the entire plot area ({plotArea} Sq.Ft.) from an active Kisan Agreement or Registry Deed.
+                Required: Allocate the entire plot area ({plotArea} Sq.Ft.) from an active Kisan Agreement.
               </p>
             </div>
-            {availableLandSources.length > 0 && (
+            {agreementOnlySources.length > 0 && (
               <Button
                 type="button"
                 variant="primary"
@@ -331,7 +392,7 @@ export const StepTermsAndPayment = ({
                   setLandSourcing([
                     ...landSourcing,
                     {
-                      sourceType: '',
+                      sourceType: 'AGREEMENT',
                       agreementId: '',
                       agreementNumber: '',
                       deedId: null,
@@ -350,9 +411,9 @@ export const StepTermsAndPayment = ({
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>No agreement selected. Click &quot;+ Add Land Source&quot; or choose from available deeds.</span>
+                <span>No agreement selected. Click &quot;+ Add Land Source&quot; or choose from available agreements.</span>
               </div>
-              {availableLandSources.length > 0 && (
+              {agreementOnlySources.length > 0 && (
                 <Button
                   type="button"
                   variant="primary"
@@ -360,7 +421,7 @@ export const StepTermsAndPayment = ({
                   onClick={() => {
                     setLandSourcing([
                       {
-                        sourceType: '',
+                        sourceType: 'AGREEMENT',
                         agreementId: '',
                         agreementNumber: '',
                         deedId: null,
@@ -377,17 +438,14 @@ export const StepTermsAndPayment = ({
           ) : (
             <div className="space-y-3 mt-2">
               {landSourcing.map((src, idx) => {
-                const selectedSourceObj = availableLandSources.find((s) =>
-                  src.deedNumber
-                    ? s.deedNumber === src.deedNumber
-                    : String(s.agreementId) === String(src.agreementId)
+                const selectedSourceObj = agreementOnlySources.find((s) =>
+                  String(s.agreementId) === String(src.agreementId) &&
+                  (!src.parcelId || String(s.parcelId) === String(src.parcelId))
                 );
 
-                const selectValue = src.deedNumber
-                  ? `DEED_${src.deedNumber}`
-                  : src.agreementId
-                    ? (src.parcelId ? `AGR_${src.agreementId}_${src.parcelId}` : `AGR_${src.agreementId}`)
-                    : '';
+                const selectValue = src.agreementId
+                  ? (src.parcelId ? `AGR_${src.agreementId}_${src.parcelId}` : `AGR_${src.agreementId}`)
+                  : '';
 
                 return (
                   <div
@@ -403,7 +461,7 @@ export const StepTermsAndPayment = ({
                           if (!val) {
                             const updated = [...landSourcing];
                             updated[idx] = {
-                              sourceType: '',
+                              sourceType: 'AGREEMENT',
                               agreementId: '',
                               agreementNumber: '',
                               deedId: null,
@@ -413,39 +471,31 @@ export const StepTermsAndPayment = ({
                             setLandSourcing(updated);
                             return;
                           }
-                          const chosen = availableLandSources.find((s) => {
-                            const sVal = s.deedNumber
-                              ? `DEED_${s.deedNumber}`
-                              : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
+                          const chosen = agreementOnlySources.find((s) => {
+                            const sVal = `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
                             return sVal === val || String(s.agreementId) === val;
                           });
                           if (!chosen) return;
                           const updated = [...landSourcing];
                           updated[idx] = {
                             ...updated[idx],
-                            sourceType: chosen.sourceType,
+                            sourceType: 'AGREEMENT',
                             agreementId: chosen.agreementId,
                             agreementNumber: chosen.agreementNumber,
                             parcelId: chosen.parcelId || null,
-                            deedId: chosen.deedId || null,
-                            deedNumber: chosen.deedNumber || '',
+                            deedId: null,
+                            deedNumber: '',
                           };
                           setLandSourcing(updated);
                         }}
                       >
-                        <option value="">-- Select Agreement / Deed No. --</option>
-                        {availableLandSources.map((s, sIdx) => {
-                          const optKey = s.deedNumber
-                            ? `DEED_${s.deedId || s.deedNumber}_${sIdx}`
-                            : `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
-                          const optVal = s.deedNumber
-                            ? `DEED_${s.deedNumber}`
-                            : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
+                        <option value="">-- Select Kisan Land Agreement --</option>
+                        {agreementOnlySources.map((s, sIdx) => {
+                          const optKey = `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
+                          const optVal = `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
                           return (
                             <option key={optKey} value={optVal}>
-                              {s.sourceType === 'REGISTRY_DEED'
-                                ? `Registry Deed #${s.deedNumber} (under Agr #${s.agreementNumber})`
-                                : `Agreement #${s.agreementNumber}${s.mauja ? ` — ${s.mauja}` : ''}`}
+                              Agreement #{s.agreementNumber}
                             </option>
                           );
                         })}
@@ -476,7 +526,7 @@ export const StepTermsAndPayment = ({
                       </div>
                     </div>
 
-                    {/* Show details card when an agreement/deed is selected */}
+                    {/* Show details card when an agreement is selected */}
                     {selectedSourceObj && (
                       <div className="bg-teal-50/60 border border-teal-100 rounded-lg p-2.5 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700 font-medium">
                         <div>
@@ -540,7 +590,7 @@ export const StepTermsAndPayment = ({
           )}
         </div>
 
-        {/* Notes */}
+        {/* 9. Internal Notes */}
         <div className="flex flex-col gap-1 md:col-span-2">
           <label className={labelCls}>Internal Remarks / Terms Note</label>
           <textarea

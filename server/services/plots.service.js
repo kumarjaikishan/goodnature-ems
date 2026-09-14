@@ -26,6 +26,35 @@ const CommissionPolicyConfig = require('../models/CommissionPolicyConfig');
 const InvestmentCommission = require('../models/InvestmentCommission');
 
 class PlotsService {
+  calculatePlotMultiplier(plotOrData, rateConfig) {
+    if (plotOrData?.premiumHeads && Array.isArray(plotOrData.premiumHeads) && plotOrData.premiumHeads.length > 0) {
+      const totalExtra = plotOrData.premiumHeads.reduce((sum, h) => sum + (Math.max(0, Number(h.extraPercent)) || 0), 0);
+      return 1 + (totalExtra / 100);
+    }
+    if (plotOrData?.defaultPremiumHeads && Array.isArray(plotOrData.defaultPremiumHeads) && plotOrData.defaultPremiumHeads.length > 0) {
+      const totalExtra = plotOrData.defaultPremiumHeads.reduce((sum, h) => sum + (Math.max(0, Number(h.extraPercent)) || 0), 0);
+      return 1 + (totalExtra / 100);
+    }
+    if (plotOrData?.plotType === 'CORNER' || plotOrData?.defaultPlotType === 'CORNER') {
+      const cornerExtra = rateConfig?.cornerExtraPercent !== undefined ? rateConfig.cornerExtraPercent : 20;
+      return 1 + (cornerExtra / 100);
+    }
+    return 1;
+  }
+
+  calculatePlotTotalPremiumPercent(plotOrData, rateConfig) {
+    if (plotOrData?.premiumHeads && Array.isArray(plotOrData.premiumHeads) && plotOrData.premiumHeads.length > 0) {
+      return plotOrData.premiumHeads.reduce((sum, h) => sum + (Math.max(0, Number(h.extraPercent)) || 0), 0);
+    }
+    if (plotOrData?.defaultPremiumHeads && Array.isArray(plotOrData.defaultPremiumHeads) && plotOrData.defaultPremiumHeads.length > 0) {
+      return plotOrData.defaultPremiumHeads.reduce((sum, h) => sum + (Math.max(0, Number(h.extraPercent)) || 0), 0);
+    }
+    if (plotOrData?.plotType === 'CORNER' || plotOrData?.defaultPlotType === 'CORNER') {
+      return rateConfig?.cornerExtraPercent !== undefined ? rateConfig.cornerExtraPercent : 20;
+    }
+    return 0;
+  }
+
   // ── RATE CONFIGURATION ──────────────────────────────────────────
   async getRateConfig() {
     let config = await PlotRateConfiguration.findOne({ status: 'active' });
@@ -33,6 +62,7 @@ class PlotsService {
       config = new PlotRateConfiguration({
         baseSqFtRate: 1000,
         cornerExtraPercent: 20,
+        premiumHeads: PlotRateConfiguration.getDefaultPremiumHeads(),
         interestRatePercent: 10.88,
         lateFineGraceDays: 15,
         lateFineDailyPercent: 0.05,
@@ -43,6 +73,10 @@ class PlotsService {
       let needsSave = false;
       if (!config.rateSlabs || config.rateSlabs.length === 0) {
         config.rateSlabs = PlotRateConfiguration.getDefaultRateSlabs();
+        needsSave = true;
+      }
+      if (!config.premiumHeads || config.premiumHeads.length === 0) {
+        config.premiumHeads = PlotRateConfiguration.getDefaultPremiumHeads();
         needsSave = true;
       }
       if (config.interestRatePercent === undefined || config.interestRatePercent === null) {
@@ -71,6 +105,13 @@ class PlotsService {
     } else {
       config.baseSqFtRate = data.baseSqFtRate ?? config.baseSqFtRate;
       config.cornerExtraPercent = data.cornerExtraPercent ?? config.cornerExtraPercent;
+      if (data.premiumHeads && Array.isArray(data.premiumHeads)) {
+        config.premiumHeads = data.premiumHeads.map(h => ({
+          name: (h.name || '').trim(),
+          extraPercent: Math.max(0, Number(h.extraPercent) || 0),
+          description: h.description || '',
+        })).filter(h => h.name);
+      }
       config.interestRatePercent = data.interestRatePercent !== undefined ? Number(data.interestRatePercent) : (config.interestRatePercent ?? 10.88);
       if (data.lateFineGraceDays !== undefined) {
         config.lateFineGraceDays = Math.max(0, Number(data.lateFineGraceDays) || 0);
@@ -118,7 +159,7 @@ class PlotsService {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const { name, prefix, startNumber, endNumber, plotArea, defaultPlotType, numberFormat, remarks, defaultDimensions, defaultBoundaries, gracePeriodDays, lateFineDailyPercent } = data;
+      const { name, prefix, startNumber, endNumber, plotArea, defaultPlotType, defaultPremiumHeads, numberFormat, remarks, defaultDimensions, defaultBoundaries, gracePeriodDays, lateFineDailyPercent } = data;
 
       // Get current rate configuration
       const rateConfig = await PlotRateConfiguration.findOne({ status: 'active' }).session(session) || {
@@ -135,7 +176,8 @@ class PlotsService {
         startNumber,
         endNumber,
         plotArea,
-        defaultPlotType,
+        defaultPlotType: defaultPlotType || 'NORMAL',
+        defaultPremiumHeads: Array.isArray(defaultPremiumHeads) ? defaultPremiumHeads : [],
         numberFormat,
         defaultDimensions: defaultDimensions || {},
         defaultBoundaries: defaultBoundaries || {},
@@ -157,21 +199,18 @@ class PlotsService {
           plotNumber = `${prefix}${paddedNum}`;
         }
 
-        // Calculate rate based on type
-        let multiplier = 1;
-        if (defaultPlotType === 'CORNER') {
-          multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
-        }
-
-        const effectiveRate = baseRate * multiplier;
-        const totalPlotValue = plotArea * effectiveRate;
+        // Calculate rate based on premium heads or type
+        const multiplier = this.calculatePlotMultiplier({ defaultPlotType, defaultPremiumHeads }, rateConfig);
+        const effectiveRate = Math.round(baseRate * multiplier * 100) / 100;
+        const totalPlotValue = Math.round(plotArea * effectiveRate);
 
         plotsToCreate.push({
           plotNumber,
           seriesId: series._id,
           sequenceNumber: i,
           plotSize: plotArea,
-          plotType: defaultPlotType,
+          plotType: defaultPlotType || 'NORMAL',
+          premiumHeads: Array.isArray(defaultPremiumHeads) ? defaultPremiumHeads : [],
           dimensions: defaultDimensions || { north: 0, south: 0, east: 0, west: 0 },
           boundaries: defaultBoundaries || { north: '', south: '', east: '', west: '' },
           baseRate,
@@ -258,6 +297,12 @@ class PlotsService {
     if (data.gracePeriodDays !== undefined && data.gracePeriodDays !== '') {
       series.gracePeriodDays = Math.max(0, Number(data.gracePeriodDays));
     }
+    if (data.defaultPremiumHeads !== undefined && Array.isArray(data.defaultPremiumHeads)) {
+      series.defaultPremiumHeads = data.defaultPremiumHeads;
+    }
+    if (data.gracePeriodDays !== undefined && data.gracePeriodDays !== '') {
+      series.gracePeriodDays = Math.max(0, Number(data.gracePeriodDays));
+    }
     if (data.lateFineDailyPercent !== undefined && data.lateFineDailyPercent !== '') {
       series.lateFineDailyPercent = Math.max(0, Number(data.lateFineDailyPercent));
     }
@@ -287,20 +332,17 @@ class PlotsService {
           plotNumber = `${series.prefix}${paddedNum}`;
         }
 
-        let multiplier = 1;
-        if (series.defaultPlotType === 'CORNER') {
-          multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
-        }
-
-        const effectiveRate = baseRate * multiplier;
-        const totalPlotValue = series.plotArea * effectiveRate;
+        const multiplier = this.calculatePlotMultiplier(series, rateConfig);
+        const effectiveRate = Math.round(baseRate * multiplier * 100) / 100;
+        const totalPlotValue = Math.round(series.plotArea * effectiveRate);
 
         await new Plot({
           plotNumber,
           seriesId: series._id,
           sequenceNumber: i,
           plotSize: series.plotArea,
-          plotType: series.defaultPlotType,
+          plotType: series.defaultPlotType || 'NORMAL',
+          premiumHeads: Array.isArray(series.defaultPremiumHeads) ? series.defaultPremiumHeads : [],
           dimensions: series.defaultDimensions || { north: 0, south: 0, east: 0, west: 0 },
           boundaries: series.defaultBoundaries || { north: '', south: '', east: '', west: '' },
           baseRate,
@@ -309,7 +351,7 @@ class PlotsService {
           status: 'AVAILABLE',
         }).save();
       } else if (plot.status === 'AVAILABLE' || plot.status === 'HOLD') {
-        // When series defaults (dimensions, boundaries, plot size, plot type) are updated,
+        // When series defaults (dimensions, boundaries, plot size, plot type, defaultPremiumHeads) are updated,
         // propagate them to all active unbooked (AVAILABLE/HOLD) plots in the series block
         if (data.defaultDimensions !== undefined) {
           plot.dimensions = {
@@ -333,13 +375,13 @@ class PlotsService {
         if (data.defaultPlotType) {
           plot.plotType = series.defaultPlotType;
         }
-
-        let multiplier = 1;
-        if (plot.plotType === 'CORNER') {
-          multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
+        if (data.defaultPremiumHeads !== undefined && Array.isArray(data.defaultPremiumHeads)) {
+          plot.premiumHeads = data.defaultPremiumHeads;
         }
-        plot.effectiveRate = (plot.baseRate || baseRate) * multiplier;
-        plot.totalPlotValue = plot.plotSize * plot.effectiveRate;
+
+        const multiplier = this.calculatePlotMultiplier(plot, rateConfig);
+        plot.effectiveRate = Math.round((plot.baseRate || baseRate) * multiplier * 100) / 100;
+        plot.totalPlotValue = Math.round(plot.plotSize * plot.effectiveRate);
         await plot.save();
       }
     }
@@ -449,7 +491,7 @@ class PlotsService {
   }
 
   async createPlot(data, userId) {
-    const { seriesId, plotNumber, plotSize, plotType, baseRate, sequenceNumber, remarks, dimensions, boundaries } = data;
+    const { seriesId, plotNumber, plotSize, plotType, premiumHeads, baseRate, sequenceNumber, remarks, dimensions, boundaries } = data;
     if (!plotNumber || !plotSize) {
       throw ApiError.badRequest('Plot Number and Plot Size are required');
     }
@@ -480,14 +522,11 @@ class PlotsService {
     const rateConfig = await this.getRateConfig();
     const resolvedBaseRate = baseRate !== undefined && baseRate !== '' ? Number(baseRate) : rateConfig.baseSqFtRate;
     const resolvedPlotType = plotType === 'CORNER' ? 'CORNER' : 'NORMAL';
+    const resolvedPremiumHeads = Array.isArray(premiumHeads) ? premiumHeads : (resolvedPlotType === 'CORNER' ? [{ name: 'Corner Plot', extraPercent: rateConfig.cornerExtraPercent ?? 20 }] : []);
 
-    let multiplier = 1;
-    if (resolvedPlotType === 'CORNER') {
-      multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
-    }
-
-    const effectiveRate = resolvedBaseRate * multiplier;
-    const totalPlotValue = Number(plotSize) * effectiveRate;
+    const multiplier = this.calculatePlotMultiplier({ plotType: resolvedPlotType, premiumHeads: resolvedPremiumHeads }, rateConfig);
+    const effectiveRate = Math.round(resolvedBaseRate * multiplier * 100) / 100;
+    const totalPlotValue = Math.round(Number(plotSize) * effectiveRate);
 
     const newPlot = new Plot({
       plotNumber: cleanPlotNumber,
@@ -495,6 +534,7 @@ class PlotsService {
       sequenceNumber: seq,
       plotSize: Number(plotSize),
       plotType: resolvedPlotType,
+      premiumHeads: resolvedPremiumHeads,
       dimensions: dimensions || series?.defaultDimensions || { north: 0, south: 0, east: 0, west: 0 },
       boundaries: boundaries || series?.defaultBoundaries || { north: '', south: '', east: '', west: '' },
       baseRate: resolvedBaseRate,
@@ -541,11 +581,12 @@ class PlotsService {
       const isAttemptingFinancialChange =
         (data.plotSize !== undefined && Number(data.plotSize) !== plot.plotSize) ||
         (data.plotType !== undefined && data.plotType !== plot.plotType) ||
+        (data.premiumHeads !== undefined && JSON.stringify(data.premiumHeads) !== JSON.stringify(plot.premiumHeads || [])) ||
         (data.baseRate !== undefined && Number(data.baseRate) !== plot.baseRate);
 
       if (isAttemptingFinancialChange) {
         throw ApiError.badRequest(
-          `Cannot modify size, rate, or corner status for Plot ${plot.plotNumber} because it is currently ${plot.status}. Adjustments must be made through the Booking / Agreement module.`
+          `Cannot modify size, rate, or premium heads for Plot ${plot.plotNumber} because it is currently ${plot.status}. Adjustments must be made through the Booking / Agreement module.`
         );
       }
 
@@ -557,7 +598,13 @@ class PlotsService {
       return plot;
     }
 
-    plot.plotType = data.plotType ?? plot.plotType;
+    if (data.plotType !== undefined) plot.plotType = data.plotType;
+    if (data.premiumHeads !== undefined && Array.isArray(data.premiumHeads)) {
+      plot.premiumHeads = data.premiumHeads;
+      // Keep plotType in sync: if any head has 'Corner' in name, mark CORNER, else NORMAL
+      const hasCorner = data.premiumHeads.some(h => /corner/i.test(h.name));
+      plot.plotType = hasCorner ? 'CORNER' : 'NORMAL';
+    }
     plot.plotSize = data.plotSize ?? plot.plotSize;
     plot.baseRate = data.baseRate ?? plot.baseRate;
     if (data.dimensions !== undefined) plot.dimensions = data.dimensions;
@@ -565,13 +612,10 @@ class PlotsService {
 
     // Recalculate values
     const rateConfig = await this.getRateConfig();
-    let multiplier = 1;
-    if (plot.plotType === 'CORNER') {
-      multiplier = 1 + ((rateConfig.cornerExtraPercent ?? 20) / 100);
-    }
+    const multiplier = this.calculatePlotMultiplier(plot, rateConfig);
 
-    plot.effectiveRate = plot.baseRate * multiplier;
-    plot.totalPlotValue = plot.plotSize * plot.effectiveRate;
+    plot.effectiveRate = Math.round(plot.baseRate * multiplier * 100) / 100;
+    plot.totalPlotValue = Math.round(plot.plotSize * plot.effectiveRate);
     plot.remarks = data.remarks ?? plot.remarks;
 
     await plot.save();
@@ -732,9 +776,12 @@ class PlotsService {
         : (customer.sponsorId ? customer.sponsorId : null);
 
       // 3. Rate Slab Lookup & Dynamic Plot Pricing
+      const emiFreq = data.emiFrequency || 'MONTHLY';
+      const freqMultiplier = emiFreq === 'QUARTERLY' ? 3 : emiFreq === 'HALF_YEARLY' ? 6 : emiFreq === 'YEARLY' ? 12 : 1;
+      const numInstallments = Number(data.installmentCount) || 0;
       const resolvedTenure = tenureMonths !== undefined
         ? Number(tenureMonths)
-        : (scheme === 'FULL_PAYMENT' ? 0 : (Number(installmentCount) || 6));
+        : (scheme === 'FULL_PAYMENT' ? 0 : (numInstallments > 0 ? numInstallments * freqMultiplier : 6));
 
       const rateConfig = await this.getRateConfig();
       const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
@@ -747,8 +794,8 @@ class PlotsService {
           ? Number(data.basePlotRate)
           : (slab.plotRate || rateConfig.baseSqFtRate || 1000));
 
-      const cornerExtraPercent = plot.plotType === 'CORNER' ? (rateConfig.cornerExtraPercent || 20) : 0;
-      const effectiveSqFtRate = basePlotRate * (1 + cornerExtraPercent / 100);
+      const totalPremiumPercent = this.calculatePlotTotalPremiumPercent(plot, rateConfig);
+      const effectiveSqFtRate = basePlotRate * (1 + totalPremiumPercent / 100);
       const plotValue = Math.round(plot.plotSize * effectiveSqFtRate);
 
       // 4. Generate Booking number
@@ -802,14 +849,17 @@ class PlotsService {
             ? Number(data.downpaymentRate)
             : (Number(slab.downpaymentRate) || 500));
 
-        downpaymentAmt = Math.round(plot.plotSize * resolvedDpRate);
+        downpaymentAmt = data.downpaymentAmount !== undefined && Number(data.downpaymentAmount) >= 0
+          ? Number(data.downpaymentAmount)
+          : Math.round(plot.plotSize * resolvedDpRate);
 
         // Gross EMI balance is remaining plot value after custom downpayment
         const grossEmiBalance = Math.max(0, plotValue - downpaymentAmt);
         // Discount is deducted EXCLUSIVELY from the EMI balance
         emiPrincipalAmt = Math.max(0, grossEmiBalance - discountVal);
         remainingAmount = downpaymentAmt + emiPrincipalAmt;
-        emiMonthlyAmt = resolvedTenure > 0 ? Math.round(emiPrincipalAmt / resolvedTenure) : 0;
+        const totalInstallmentCount = numInstallments > 0 ? numInstallments : resolvedTenure;
+        emiMonthlyAmt = totalInstallmentCount > 0 ? Math.round(emiPrincipalAmt / totalInstallmentCount) : 0;
         emiRatePerSqFt = plot.plotSize > 0 ? Math.round((emiPrincipalAmt / plot.plotSize) * 100) / 100 : 0;
       }
 
@@ -829,6 +879,8 @@ class PlotsService {
         discount: discountVal,
         oneTimeMonths: resolvedTenure === 0 ? Number(oneTimeMonths) || 1 : undefined,
         tenureMonths: resolvedTenure,
+        emiFrequency: emiFreq,
+        installmentCount: numInstallments > 0 ? numInstallments : resolvedTenure,
         basePlotRate,
         downpaymentRate: resolvedDpRate,
         emiRate: emiRatePerSqFt,
@@ -903,17 +955,11 @@ class PlotsService {
             });
           }
 
-          // Monthly EMIs for the remaining principal after discount
+          // EMIs for the remaining principal after discount
           let principalToDistribute = emiPrincipalAmt;
-          const count = resolvedTenure;
+          const count = numInstallments > 0 ? numInstallments : resolvedTenure;
 
           for (let i = 1; i <= count; i++) {
-            // First EMI begins on the 1st of the month following the downpayment due date
-            const dueDate = new Date(dpDueDate);
-            dueDate.setMonth(dueDate.getMonth() + i);
-            dueDate.setDate(1);
-            dueDate.setHours(0, 0, 0, 0);
-
             let dueForThisInst = 0;
             if (i === count) {
               // Last installment takes the remainder to prevent rounding residue issues
@@ -929,7 +975,7 @@ class PlotsService {
               installments.push({
                 installmentNumber: i,
                 bookingId: booking._id,
-                dueDate,
+                dueDate: null, // Deferred until Downpayment is 100% completed
                 dueAmount: dueForThisInst,
                 paidAmount: 0,
                 status: 'PENDING',
@@ -1273,9 +1319,9 @@ class PlotsService {
         const installment = await PlotInstallment.findById(instId).session(session);
         if (!installment) continue;
 
-        // Calculate late fine
+        // Calculate late fine (applicable to both downpayment and EMIs when past due + grace period)
         let calculatedFine = 0;
-        if (booking.scheme === 'MONTHLY_INSTALLMENT' && installment.installmentNumber > 0) {
+        if (installment.dueDate) {
           const due = new Date(installment.dueDate);
           const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
           const d2 = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
@@ -1283,7 +1329,8 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round(installment.dueAmount * dailyRateMultiplier * diffDays);
+            const unpaidPrincipal = Math.max(0, installment.dueAmount - (installment.paidAmount || 0));
+            calculatedFine = Math.round(unpaidPrincipal * dailyRateMultiplier * diffDays);
           }
         }
         const effectiveFine = Math.max(installment.lateFine || 0, calculatedFine);
@@ -1295,18 +1342,19 @@ class PlotsService {
         installment.lateFineRebate = (installment.lateFineRebate || 0) + fineRebateThisTime;
         remainingRebate -= fineRebateThisTime;
 
-        // 2. Distribute payment: FIRST to principal, then to remaining late fine
-        const unpaidPrincipal = Math.max(0, installment.dueAmount - installment.paidAmount);
-        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
-        installment.paidAmount += principalPaidThisTime;
-        remainingPaid -= principalPaidThisTime;
-        totalPrincipalPaid += principalPaidThisTime;
-
+        // 2. Distribute payment: FIRST to remaining late fine
         const unpaidFineAfterRebate = Math.max(0, effectiveFine - (installment.lateFinePaid || 0) - (installment.lateFineRebate || 0));
         const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
         installment.lateFinePaid += finePaidThisTime;
         totalLateFinePaid += finePaidThisTime;
         remainingPaid -= finePaidThisTime;
+
+        // 3. Distribute payment: SECOND to remaining principal
+        const unpaidPrincipal = Math.max(0, installment.dueAmount - installment.paidAmount);
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        installment.paidAmount += principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+        totalPrincipalPaid += principalPaidThisTime;
 
         updatedInstallments.push(installment);
         // (installment.save() intentionally skipped - see note above)
@@ -1763,14 +1811,13 @@ class PlotsService {
       const newDpBase = updateData.downpaymentCalculationBase || booking.downpaymentCalculationBase || 'BEFORE_DISCOUNT';
       const reason = updateData.reason || 'Customer requested terms restructuring';
 
-      // Slab & Pricing calculation
       const rateConfig = await this.getRateConfig();
       const slabs = rateConfig.rateSlabs || PlotRateConfiguration.getDefaultRateSlabs();
       const slab = slabs.find((s) => Number(s.tenureMonths) === newTenureMonths) || slabs[0];
 
       const basePlotRate = slab.plotRate || rateConfig.baseSqFtRate || 1000;
-      const cornerExtraPercent = plot.plotType === 'CORNER' ? (rateConfig.cornerExtraPercent || 20) : 0;
-      const effectiveSqFtRate = basePlotRate * (1 + cornerExtraPercent / 100);
+      const totalPremiumPercent = this.calculatePlotTotalPremiumPercent(plot, rateConfig);
+      const effectiveSqFtRate = basePlotRate * (1 + totalPremiumPercent / 100);
       const newPlotValue = Math.round(newPlotSize * effectiveSqFtRate);
       const newNetContractValue = Math.max(0, newPlotValue - newDiscount);
 
@@ -2449,15 +2496,12 @@ class PlotsService {
           });
         }
 
-        const count = Number(booking.tenureMonths) || (Number(booking.installmentCount) || 6);
+        const emiFreq = booking.emiFrequency || 'MONTHLY';
+        const freqMultiplier = emiFreq === 'QUARTERLY' ? 3 : emiFreq === 'HALF_YEARLY' ? 6 : emiFreq === 'YEARLY' ? 12 : 1;
+        const count = Number(booking.installmentCount) || (Number(booking.tenureMonths) ? Math.round(Number(booking.tenureMonths) / freqMultiplier) : 6);
         let principalToDistribute = booking.emiPrincipalAmount !== undefined ? booking.emiPrincipalAmount : Math.max(0, remainingAmount - downpaymentAmount);
 
         for (let i = 1; i <= count; i++) {
-          const dueDate = new Date(dpDueDate);
-          dueDate.setMonth(dueDate.getMonth() + i);
-          dueDate.setDate(1);
-          dueDate.setHours(0, 0, 0, 0);
-
           let dueForThisInst = 0;
           if (i === count) {
             dueForThisInst = Math.round(principalToDistribute * 100) / 100;
@@ -2472,7 +2516,7 @@ class PlotsService {
             newInsts.push({
               installmentNumber: i,
               bookingId: booking._id,
-              dueDate,
+              dueDate: downpaymentAmount > 0 ? null : new Date(new Date(dpDueDate).setMonth(new Date(dpDueDate).getMonth() + (i * freqMultiplier))),
               dueAmount: dueForThisInst,
               paidAmount: 0,
               status: 'PENDING',
@@ -2495,7 +2539,17 @@ class PlotsService {
       installments = await instQuery;
     }
 
+    const resolvedDpDays = Number(booking.downpaymentDays) || (Number(booking.downpaymentMonths) ? Number(booking.downpaymentMonths) * 30 : 90);
+    const bookingDateObj = booking.bookingDate || new Date();
+    const dpDueDate = new Date(bookingDateObj.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
+    const hasDpInst = installments.some(i => i.installmentNumber === 0);
+
     for (const inst of installments) {
+      if (inst.installmentNumber === 0) {
+        inst.dueDate = dpDueDate;
+      } else if (booking.scheme === 'MONTHLY_INSTALLMENT' && hasDpInst) {
+        inst.dueDate = null; // Deferred until DP is completed
+      }
       inst.paidAmount = 0;
       inst.lateFine = 0;
       inst.lateFinePaid = 0;
@@ -2545,6 +2599,23 @@ class PlotsService {
     }
 
     const dailyRateMultiplier = (Number(lateFineDailyPercent) || 0.05) / 100;
+    const emiFreq = booking.emiFrequency || 'MONTHLY';
+    const freqMultiplier = emiFreq === 'QUARTERLY' ? 3 : emiFreq === 'HALF_YEARLY' ? 6 : emiFreq === 'YEARLY' ? 12 : 1;
+
+    let dpPaidDate = null;
+
+    // If there is no downpayment installment, EMIs are active from booking date
+    if (!hasDpInst && booking.scheme === 'MONTHLY_INSTALLMENT') {
+      dpPaidDate = bookingDateObj;
+      for (const emiInst of installments) {
+        if (emiInst.installmentNumber > 0) {
+          const emiDueDate = new Date(dpPaidDate);
+          emiDueDate.setMonth(emiDueDate.getMonth() + (emiInst.installmentNumber * freqMultiplier));
+          emiDueDate.setHours(0, 0, 0, 0);
+          emiInst.dueDate = emiDueDate;
+        }
+      }
+    }
 
     // 4. Re-apply each receipt in chronological order
     for (const receipt of receipts) {
@@ -2558,9 +2629,9 @@ class PlotsService {
         if (remainingPaid <= 0 && remainingRebate <= 0) break;
         if (inst.status === 'PAID') continue;
 
-        // Calculate late fine
+        // Calculate late fine (only if installment has an active dueDate)
         let calculatedFine = 0;
-        if (booking.scheme === 'MONTHLY_INSTALLMENT' && inst.installmentNumber > 0) {
+        if (inst.dueDate) {
           const due = new Date(inst.dueDate);
           const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
           const d2 = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
@@ -2568,35 +2639,49 @@ class PlotsService {
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
           if (diffDays > gracePeriod) {
-            calculatedFine = Math.round(inst.dueAmount * dailyRateMultiplier * diffDays);
+            const unpaidPrincipal = Math.max(0, inst.dueAmount - (inst.paidAmount || 0));
+            calculatedFine = Math.round(unpaidPrincipal * dailyRateMultiplier * diffDays);
           }
         }
         const effectiveFine = Math.max(inst.lateFine || 0, calculatedFine);
         inst.lateFine = effectiveFine;
 
-        // Rebate
+        // 1. Rebate
         const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
         const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
         inst.lateFineRebate = (inst.lateFineRebate || 0) + fineRebateThisTime;
         remainingRebate -= fineRebateThisTime;
 
-        // Principal First
-        const unpaidPrincipal = Math.max(0, inst.dueAmount - inst.paidAmount);
-        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
-        inst.paidAmount += principalPaidThisTime;
-        remainingPaid -= principalPaidThisTime;
-
-        // Late Fine
+        // 2. Late Fine First (from Amount Paid)
         const unpaidFineAfterRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
         const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
         inst.lateFinePaid += finePaidThisTime;
         totalLateFinePaidForReceipt += finePaidThisTime;
         remainingPaid -= finePaidThisTime;
 
+        // 3. Principal Second (from Remaining Amount Paid)
+        const unpaidPrincipal = Math.max(0, inst.dueAmount - inst.paidAmount);
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        inst.paidAmount += principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+
         inst.paidDate = paymentDate;
         inst.paymentMode = receipt.paymentMode;
         inst.receiptNumber = receipt.receiptNumber;
         inst.status = (inst.paidAmount >= inst.dueAmount && (inst.lateFinePaid + (inst.lateFineRebate || 0)) >= inst.lateFine) ? 'PAID' : 'PARTIAL';
+
+        // When Downpayment (Inst #0) becomes fully PAID, activate all EMI due dates!
+        if (inst.installmentNumber === 0 && inst.status === 'PAID' && !dpPaidDate) {
+          dpPaidDate = paymentDate;
+          for (const emiInst of installments) {
+            if (emiInst.installmentNumber > 0) {
+              const emiDueDate = new Date(dpPaidDate);
+              emiDueDate.setMonth(emiDueDate.getMonth() + (emiInst.installmentNumber * freqMultiplier));
+              emiDueDate.setHours(0, 0, 0, 0);
+              emiInst.dueDate = emiDueDate;
+            }
+          }
+        }
 
         if (session) await inst.save({ session });
         else await inst.save();
@@ -2606,6 +2691,12 @@ class PlotsService {
       receipt.lateFinePaid = totalLateFinePaidForReceipt;
       if (session) await receipt.save({ session });
       else await receipt.save();
+    }
+
+    // Persist all installments in final state (including updated dueDates)
+    for (const inst of installments) {
+      if (session) await inst.save({ session });
+      else await inst.save();
     }
 
     // 5. Recalculate remainingAmount on Booking
@@ -3289,11 +3380,10 @@ class PlotsService {
 
         const plot = await Plot.findById(booking.plotId).session(session);
         const plotArea = plot ? (plot.plotSize || plot.area || plot.areaSqFt || 0) : 0;
-        const isCorner = plot?.plotType === 'CORNER';
-        const cornerExtra = isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0;
+        const totalPremium = this.calculatePlotTotalPremiumPercent(plot, rateConfig);
         
         const finalBaseRate = newBaseRate !== undefined ? newBaseRate : (tenureChanged ? (slab.plotRate || rateConfig?.baseSqFtRate || 1000) : (booking.basePlotRate || 1000));
-        const effectiveRate = finalBaseRate * (1 + cornerExtra / 100);
+        const effectiveRate = finalBaseRate * (1 + totalPremium / 100);
 
         booking.basePlotRate = finalBaseRate;
         if (newDpRate !== undefined) {
@@ -3471,7 +3561,7 @@ class PlotsService {
               installments.push({
                 installmentNumber: i,
                 bookingId: booking._id,
-                dueDate,
+                dueDate: booking.downpaymentAmount > 0 ? null : dueDate,
                 dueAmount: dueForThisInst,
                 paidAmount: 0,
                 status: 'PENDING',

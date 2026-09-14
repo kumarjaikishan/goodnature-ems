@@ -66,8 +66,10 @@ const Navbar = () => {
     // Plot Management Titles
     "plots": "Plot Management",
     "inventory": "Plots Inventory",
-    "sponsors": "Plot Sponsors",
-    "sponsor-ledger": "Sponsor Ledger",
+    "business-developer": "Business Developer",
+    "business-developers": "Business Developers",
+    "sponsors": "Business Developers",
+    "sponsor-ledger": "Business Developer Ledger",
     "customers": "Customers",
     "booking": "Bookings",
     "addbooking": "Create Booking",
