@@ -32,6 +32,7 @@ export const BookingSummarySidebar = ({
   emiFrequency = 'MONTHLY',
   installmentCount = 8,
   totalTenureMonths = 8,
+  selectedPremiumHeads = [],
 }) => {
   const plotArea = selectedPlot?.plotSize || selectedPlot?.area || 0;
   const resolvedTenure = totalTenureMonths || Number(form.tenureMonths) || 0;
@@ -203,6 +204,30 @@ export const BookingSummarySidebar = ({
                     ₹{calculatedPlotValue.toLocaleString('en-IN')}
                   </td>
                 </tr>
+
+                {/* 1b. Premium Heads Detail (if any active) */}
+                {selectedPremiumHeads && selectedPremiumHeads.some((h) => h.active) && (
+                  <tr className="border-b border-slate-100 bg-amber-50/30">
+                    <td className="py-2 px-3 text-[11px] font-semibold text-amber-900" colSpan={2}>
+                      <div className="flex items-center justify-between font-bold text-[10px] text-amber-800 uppercase mb-1">
+                        <span>Applied Premium Heads:</span>
+                        <span>+{cornerExtra}% total</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        {selectedPremiumHeads
+                          .filter((h) => h.active)
+                          .map((head, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-[11px] text-slate-700">
+                              <span>• {head.name} (+{head.extraPercent}%)</span>
+                              <span className="font-mono font-medium text-amber-900">
+                                +₹{Math.round(plotArea * ((Number(baseRate) || 1000) * (head.extraPercent / 100))).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
 
                 {/* 2. Discount */}
                 <tr className="border-b border-slate-100 bg-white">

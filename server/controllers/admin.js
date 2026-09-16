@@ -20,7 +20,9 @@ const removePhotoBySecureUrl = require('../utils/cloudinaryremove')
 const employeeService = require('../services/employeeService');
 const Essl = require('../models/essllivelogs');
 const EsslEvent = require('../models/esslEvent');
+const Counter = require('../models/Counter');
 const dayjs = require('dayjs');
+const { logActivity } = require('../utils/auditLogger');
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -360,9 +362,9 @@ const employeelist = async (req, res, next) => {
         const limit = parseInt(req.query.limit, 10) || 0; // 0 means return all for backward compatibility if unpaginated
 
         let query = employeeModal.find(queryFilter)
-            .select('employeeName empId email department branchId profileimage status phone joiningDate salary ledgerId userid')
+            .select('employeeName empId email designation department branchId profileimage status phone joiningDate salary ledgerId userid allowances bonuses deductions defaultPolicies advance')
             .populate('department', 'department')
-            .populate('userid', 'email');
+            .populate('userid', 'name email profileImage');
 
         let total = 0;
         let pages = 1;
@@ -772,11 +774,26 @@ const addBranch = async (req, res, next) => {
     const { defaultsetting, name, location, companyId, managerIds = [] } = req.body;
 
     try {
+        const now = new Date();
+        const month = now.getMonth();
+        const fullYear = now.getFullYear();
+        let startYear = month >= 3 ? fullYear : fullYear - 1;
+        let endYear = startYear + 1;
+        const fyStr = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
+
+        const counterKey = `GNE-BRANCH-${fyStr}`;
+        const seqNum = await Counter.getNextSequence(counterKey, null, 3);
+        const branchCode = `B/${fyStr}/${seqNum}`;
+
         // Create new branch
         let fields = {
-            name, location, companyId,
-            managerIds, defaultsetting
-        }
+            name,
+            branchCode,
+            location,
+            companyId,
+            managerIds,
+            defaultsetting
+        };
         if (!defaultsetting) {
             const setting = req.body.setting
             fields.setting = setting
@@ -1024,6 +1041,23 @@ const leavehandle = async (req, res, next) => {
                 }
             }
         }
+
+        await logActivity({
+            req,
+            action: status === 'approved' ? 'APPROVE_LEAVE' : 'REJECT_LEAVE',
+            module: 'LEAVE',
+            documentId: leaveid,
+            modelName: 'Leave',
+            description: `Leave request for employee ${query.employeeId._id} ${status} (${fromFormatted} to ${toFormatted})`,
+            details: {
+                leaveId: leaveid,
+                employeeId: query.employeeId._id,
+                status,
+                fromDate: query.fromDate,
+                toDate: query.toDate,
+                reason: query.reason,
+            },
+        });
 
         return res.status(200).json({
             message: 'Updated Successfully'

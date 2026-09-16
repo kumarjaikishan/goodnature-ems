@@ -1,27 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { apiClient } from '../../../utils/apiClient';
 import { useApi } from '../../../utils/useApi';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
+import { SearchableSelect } from '../../../components/ui/SearchableSelect';
 import {
-  Plus,
   Edit2,
   Search,
   Eye,
   Trash2,
   Lock,
   Unlock,
-  IndianRupee,
   Banknote,
   KeyRound,
   TrendingUp,
   Camera,
   PenTool,
   User,
+  Crown,
+  Users,
+  Building2,
 } from 'lucide-react';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import useImageUpload from '../../../utils/imageresizer';
@@ -30,37 +34,67 @@ import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 const PlotBusinessDevelopers = () => {
   const navigate = useNavigate();
   const { handleImage } = useImageUpload();
+  const { branch, profile } = useSelector((state) => state.user || {});
+
   const [businessDevelopers, setBusinessDevelopers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState('all'); // 'all' | 'partner' | 'associate'
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [createMode, setCreateMode] = useState('partner'); // 'partner' | 'associate'
   const [editingDeveloper, setEditingDeveloper] = useState(null);
   const [viewingDeveloper, setViewingDeveloper] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingSign, setUploadingSign] = useState(false);
 
   const customStyles = useCustomStyles();
+
+  // Branch visibility scoping
+  const userBranchIds = useMemo(() => {
+    return (profile?.branchIds || []).map((b) => (typeof b === 'object' && b?._id ? b._id.toString() : b?.toString()));
+  }, [profile]);
+
+  const isRestrictedUser = useMemo(() => {
+    const role = profile?.role;
+    return role === 'manager' || (role !== 'admin' && role !== 'superadmin' && role !== 'developer' && userBranchIds.length > 0);
+  }, [profile, userBranchIds]);
+
+  const { availableBranches } = useMemo(() => {
+    const allBranches = Array.isArray(branch) ? branch : [];
+    if (!isRestrictedUser) {
+      return { availableBranches: allBranches };
+    }
+    const filtered = allBranches.filter((b) => userBranchIds.includes(b?._id?.toString()));
+    return { availableBranches: filtered };
+  }, [branch, isRestrictedUser, userBranchIds]);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     mobile: '',
-    address: '',
-    currentAddress: '',
-    permanentAddress: '',
-    sameAsCurrentAddress: false,
+    panNumber: '',
+    aadhaarNumber: '',
+    gender: 'Male',
     dob: '',
     occupation: '',
-    gender: 'Male',
-    nomineeName: '',
-    nomineeRelation: '',
-    nomineeAge: '',
-    panCard: '',
-    aadhaarCard: '',
     photo: '',
     signature: '',
-    commissionRate: 0,
+    address: '',
+    bankDetails: {
+      accountNumber: '',
+      ifscCode: '',
+      bankName: '',
+      branch: '',
+    },
+    nominee: {
+      name: '',
+      relation: '',
+      age: '',
+    },
     sponsorId: 'direct',
+    branchId: '',
   });
 
   const { request, loading: submitLoading } = useApi();
@@ -68,9 +102,16 @@ const PlotBusinessDevelopers = () => {
   const fetchBusinessDevelopers = async () => {
     setLoading(true);
     try {
+      const params = { search };
+      if (selectedBranchFilter && selectedBranchFilter !== 'all') {
+        params.branchId = selectedBranchFilter;
+      }
+      if (selectedRoleFilter && selectedRoleFilter !== 'all') {
+        params.roleType = selectedRoleFilter;
+      }
       const res = await apiClient({
         url: 'plots/sponsors',
-        params: { search },
+        params,
       });
       setBusinessDevelopers(res.data || res.sponsors || res || []);
     } catch (err) {
@@ -82,7 +123,7 @@ const PlotBusinessDevelopers = () => {
 
   useEffect(() => {
     fetchBusinessDevelopers();
-  }, [search]);
+  }, [search, selectedBranchFilter, selectedRoleFilter]);
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -148,9 +189,13 @@ const PlotBusinessDevelopers = () => {
     }
   };
 
-  const handleOpenModal = (developer = null) => {
+  const handleOpenModal = (developer = null, mode = 'partner') => {
+    const defaultBranch = availableBranches.length === 1 ? availableBranches[0]._id : (availableBranches[0]?._id || '');
+
     if (developer) {
       setEditingDeveloper(developer);
+      setCreateMode(developer.sponsorId ? 'associate' : 'partner');
+      const existingBranchId = developer.branchIds?.[0]?._id || developer.branchIds?.[0] || '';
       setFormData({
         name: developer.name || '',
         email: developer.email || '',
@@ -171,9 +216,11 @@ const PlotBusinessDevelopers = () => {
         signature: developer.signature || '',
         commissionRate: developer.commissionRate || 0,
         sponsorId: developer.sponsorId?._id || developer.sponsorId || 'direct',
+        branchId: existingBranchId || defaultBranch,
       });
     } else {
       setEditingDeveloper(null);
+      setCreateMode(mode);
       setFormData({
         name: '',
         email: '',
@@ -193,7 +240,8 @@ const PlotBusinessDevelopers = () => {
         photo: '',
         signature: '',
         commissionRate: 0,
-        sponsorId: 'direct',
+        sponsorId: mode === 'partner' ? 'direct' : '',
+        branchId: defaultBranch,
       });
     }
     setShowModal(true);
@@ -206,9 +254,15 @@ const PlotBusinessDevelopers = () => {
 
   const handleToggleBlock = async (developer) => {
     const actionStr = developer.isBlocked ? 'unblock' : 'block';
-    if (!window.confirm(`Are you sure you want to ${actionStr} business developer ${developer.name}?`)) {
-      return;
-    }
+    const proceed = await confirmDialog({
+      title: `${developer.isBlocked ? 'Unblock' : 'Block'} Business Developer?`,
+      text: `Are you sure you want to ${actionStr} business developer "${developer.name}"?`,
+      confirmText: developer.isBlocked ? 'Unblock' : 'Block',
+      cancelText: 'Cancel',
+      isDanger: !developer.isBlocked,
+    });
+    if (!proceed) return;
+
     try {
       await request({
         url: `plots/sponsors/${developer._id}/toggle-block`,
@@ -222,9 +276,15 @@ const PlotBusinessDevelopers = () => {
   };
 
   const handleDeleteDeveloper = async (developer) => {
-    if (!window.confirm(`Are you sure you want to delete business developer "${developer.name}"? This action cannot be undone.`)) {
-      return;
-    }
+    const proceed = await confirmDialog({
+      title: 'Delete Business Developer?',
+      text: `Are you sure you want to delete business developer "${developer.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) return;
+
     try {
       await request({
         url: `plots/sponsors/${developer._id}`,
@@ -239,6 +299,17 @@ const PlotBusinessDevelopers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.branchId) {
+      toast.error('Please select a branch');
+      return;
+    }
+
+    if (createMode === 'associate' && (!formData.sponsorId || formData.sponsorId === 'direct')) {
+      toast.error('Please select a Business Partner for this Business Associate');
+      return;
+    }
+
     try {
       if (editingDeveloper) {
         await request({
@@ -253,12 +324,17 @@ const PlotBusinessDevelopers = () => {
           method: 'POST',
           body: formData,
         });
-        toast.success('Business Developer created successfully');
+        toast.success(
+          createMode === 'partner'
+            ? 'Business Partner created successfully'
+            : 'Business Associate created successfully'
+        );
       }
       setShowModal(false);
       fetchBusinessDevelopers();
     } catch (err) {
       console.error(err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to save business developer');
     }
   };
 
@@ -313,11 +389,22 @@ const PlotBusinessDevelopers = () => {
       name: 'Business Dev ID',
       selector: (row) => row.sponsorCode || 'N/A',
       sortable: true,
-      width: '140px',
+      width: '150px',
+      cell: (row) => (
+        <span className={`font-mono font-bold text-xs px-2 py-0.5 rounded border ${
+          row.sponsorCode?.startsWith('P/') 
+            ? 'bg-amber-50 text-amber-900 border-amber-200' 
+            : row.sponsorCode?.startsWith('A/')
+            ? 'bg-teal-50 text-teal-900 border-teal-200'
+            : 'bg-slate-100 text-slate-800 border-slate-200'
+        }`}>
+          {row.sponsorCode || 'N/A'}
+        </span>
+      ),
     },
     {
       name: 'Designation / Role',
-      selector: (row) => row.sponsorId ? 'Business Associate' : 'Business Partner',
+      selector: (row) => (row.sponsorId ? 'Business Associate' : 'Business Partner'),
       cell: (row) => (
         <span
           className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
@@ -334,7 +421,7 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Parent Partner',
-      selector: (row) => row.sponsorId?.name ? `${row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')} (${row.sponsorId.sponsorCode || ''})` : 'Company Direct',
+      selector: (row) => (row.sponsorId?.name ? `${row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')} (${row.sponsorId.sponsorCode || ''})` : 'Company Direct'),
       cell: (row) => (
         <span className="text-xs font-medium text-slate-700">
           {row.sponsorId?.name ? (
@@ -350,22 +437,35 @@ const PlotBusinessDevelopers = () => {
       sortable: true,
     },
     {
-      name: 'Mobile',
-      selector: (row) => row.mobile || 'N/A',
+      name: 'Branch',
+      selector: (row) => row.branchIds?.map((b) => b.name || b).join(', ') || 'N/A',
+      cell: (row) => (
+        <span className="text-xs font-semibold text-slate-700">
+          {row.branchIds && row.branchIds.length > 0 ? (
+            row.branchIds.map((b) => (
+              <span
+                key={b._id || b}
+                className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px] mr-1 border border-slate-200 font-medium"
+              >
+                <Building2 size={11} className="text-teal-700" />
+                {b.name || b}
+              </span>
+            ))
+          ) : (
+            <span className="text-slate-400 text-xs italic">All / None</span>
+          )}
+        </span>
+      ),
       sortable: true,
-    },
-    {
-      name: 'Email',
-      selector: (row) => row.email || 'N/A',
+      width: '160px',
     },
     {
       name: 'Status / Access',
       cell: (row) => (
         <span
-          className={`px-2 py-0.5 rounded text-xs font-semibold ${row.isBlocked
-              ? 'bg-rose-50 text-rose-600 border border-rose-200'
-              : 'bg-emerald-50 text-emerald-700 font-bold'
-            }`}
+          className={`px-2 py-0.5 rounded text-xs font-semibold ${
+            row.isBlocked ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-emerald-50 text-emerald-700 font-bold'
+          }`}
         >
           {row.isBlocked ? 'Blocked' : 'Active'}
         </span>
@@ -419,17 +519,12 @@ const PlotBusinessDevelopers = () => {
           </button>
           <button
             onClick={() => handleToggleBlock(row)}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${row.isBlocked
-                ? 'text-emerald-600 hover:bg-emerald-50'
-                : 'text-amber-600 hover:bg-amber-50'
-              }`}
+            className={`p-1.5 rounded-lg transition cursor-pointer ${
+              row.isBlocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'
+            }`}
             title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
           >
-            {row.isBlocked ? (
-              <Unlock size={17} />
-            ) : (
-              <Lock size={17} />
-            )}
+            {row.isBlocked ? <Unlock size={17} /> : <Lock size={17} />}
           </button>
           <button
             onClick={() => handleDeleteDeveloper(row)}
@@ -449,30 +544,74 @@ const PlotBusinessDevelopers = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Business Developers</h1>
-          <p className="text-slate-500 text-sm">Manage plot project business developers, hierarchy and commissions</p>
+          <p className="text-slate-500 text-sm">Manage plot project business partners, associates, and hierarchy</p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="primary"
             size="md"
-            startIcon={Plus}
-            onClick={() => handleOpenModal()}
+            startIcon={Crown}
+            onClick={() => handleOpenModal(null, 'partner')}
+            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-xs"
           >
-            Add New Business Developer
+            Create Business Partner
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            startIcon={Users}
+            onClick={() => handleOpenModal(null, 'associate')}
+            className="bg-teal-700 hover:bg-teal-800 text-white font-semibold shadow-xs"
+          >
+            Create Business Associate
           </Button>
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 flex items-center gap-3 border border-slate-200">
-        <Search size={18} className="text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search business developer by ID (e.g. GNE-26-27-001), name, mobile, email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-transparent outline-none text-slate-700 text-sm"
-        />
+      {/* Filter & Search Bar */}
+      <div className="bg-white p-3.5 rounded-2xl shadow-sm mb-6 flex flex-col sm:flex-row items-center gap-3 border border-slate-200">
+        <div className="flex items-center gap-2.5 flex-1 w-full px-2">
+          <Search size={18} className="text-slate-400 shrink-0" />
+          <input
+            type="text"
+            placeholder="Search business developer by ID (e.g. P/2627/001, A/2627/001), name, mobile, email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-transparent outline-none text-slate-700 text-sm"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3">
+          {/* Role / Hierarchy Filter */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <Crown size={15} className="text-amber-600 shrink-0" />
+            <select
+              value={selectedRoleFilter}
+              onChange={(e) => setSelectedRoleFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-auto"
+            >
+              <option value="all">All Roles (BP & BA)</option>
+              <option value="partner">👑 Business Partners (P/)</option>
+              <option value="associate">👥 Business Associates (A/)</option>
+            </select>
+          </div>
+
+          {/* Branch Filter */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <Building2 size={16} className="text-teal-700 shrink-0" />
+            <select
+              value={selectedBranchFilter}
+              onChange={(e) => setSelectedBranchFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-auto"
+            >
+              <option value="all">All Available Branches</option>
+              {availableBranches.map((b) => (
+                <option key={b._id} value={b._id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
@@ -498,33 +637,154 @@ const PlotBusinessDevelopers = () => {
 
       {/* Create/Edit Modal */}
       <Modalbox open={showModal} onClose={() => setShowModal(false)} size="xl" outside={false}>
-        <div className="w-full">
+        <div className="w-full p-6">
           <form onSubmit={handleSubmit}>
-            <h2 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100">
-              {editingDeveloper ? 'Edit Business Developer' : 'Add New Business Developer'}
-            </h2>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                {editingDeveloper ? (
+                  <>
+                    <Edit2 size={20} className="text-slate-600" />
+                    <span>Edit Business Developer ({editingDeveloper.sponsorCode || ''})</span>
+                  </>
+                ) : createMode === 'partner' ? (
+                  <>
+                    <Crown size={20} className="text-amber-600" />
+                    <span>Create Business Partner</span>
+                  </>
+                ) : (
+                  <>
+                    <Users size={20} className="text-teal-700" />
+                    <span>Create Business Associate</span>
+                  </>
+                )}
+              </h2>
+            </div>
+
             <div className="modalcontent space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Hierarchy Level / Referring Partner *</label>
-                <select
-                  required
-                  value={formData.sponsorId}
-                  onChange={(e) => setFormData({ ...formData, sponsorId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none bg-white font-medium text-slate-800"
-                >
-                  <option value="direct">🏢 Company Direct (Becomes a Business Partner)</option>
-                  {businessDevelopers
-                    .filter((s) => s._id !== editingDeveloper?._id && !s.sponsorId)
-                    .map((sp) => (
-                      <option key={sp._id} value={sp._id}>
-                        👑 {sp.name} ({sp.sponsorCode || 'Business Partner'})
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  2-Level Hierarchy: Selecting <strong>Company Direct</strong> creates a <strong>Business Partner</strong>. Selecting an existing Business Partner creates a <strong>Business Associate</strong> under them.
-                </p>
-              </div>
+              {/* Partner Mode: Branch Selection */}
+              {!editingDeveloper && createMode === 'partner' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Select Branch *
+                  </label>
+                  <SearchableSelect
+                    required
+                    value={formData.branchId}
+                    onChange={(val) => setFormData({ ...formData, branchId: val })}
+                    options={availableBranches.map((b) => ({
+                      value: b._id,
+                      label: b.name,
+                      subtitle: b.location || '',
+                    }))}
+                    placeholder="Select Branch..."
+                    searchPlaceholder="Search branch by name or location..."
+                  />
+                </div>
+              )}
+
+              {/* Associate Mode: Partner & Branch Selection */}
+              {!editingDeveloper && createMode === 'associate' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Business Partner *
+                    </label>
+                    <SearchableSelect
+                      required
+                      value={formData.sponsorId}
+                      onChange={(selPartnerId) => {
+                        const partner = businessDevelopers.find((s) => s._id === selPartnerId);
+                        const partnerBranchId = partner?.branchIds?.[0]?._id || partner?.branchIds?.[0] || '';
+                        setFormData((prev) => ({
+                          ...prev,
+                          sponsorId: selPartnerId,
+                          branchId: partnerBranchId || prev.branchId || (availableBranches[0]?._id || ''),
+                        }));
+                      }}
+                      options={businessDevelopers
+                        .filter((s) => !s.sponsorId)
+                        .map((sp) => {
+                          const bName = sp.branchIds?.[0]?.name ? ` (${sp.branchIds[0].name})` : '';
+                          return {
+                            value: sp._id,
+                            label: `${sp.name} (${sp.sponsorCode || 'Partner'})`,
+                            subtitle: bName ? `Branch:${bName}` : undefined,
+                          };
+                        })}
+                      placeholder="Select Business Partner..."
+                      searchPlaceholder="Search partner by name or code..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Assigned Branch (Fixed from Partner)
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={
+                        availableBranches.find((b) => b._id === formData.branchId)?.name
+                          ? `${availableBranches.find((b) => b._id === formData.branchId)?.name}${
+                              availableBranches.find((b) => b._id === formData.branchId)?.location
+                                ? ` (${availableBranches.find((b) => b._id === formData.branchId)?.location})`
+                                : ''
+                            }`
+                          : formData.sponsorId
+                          ? 'No Branch Mapped'
+                          : 'Select Business Partner First...'
+                      }
+                      className="h-10 w-full px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed select-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* In Edit Mode, allow modifying hierarchy and branch */}
+              {editingDeveloper && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Hierarchy Role / Parent Partner *
+                    </label>
+                    <SearchableSelect
+                      required
+                      value={formData.sponsorId}
+                      onChange={(val) => setFormData({ ...formData, sponsorId: val })}
+                      options={[
+                        { value: 'direct', label: 'Company Direct (Business Partner)' },
+                        ...businessDevelopers
+                          .filter((s) => s._id !== editingDeveloper._id && !s.sponsorId)
+                          .map((sp) => ({
+                            value: sp._id,
+                            label: `${sp.name} (${sp.sponsorCode || 'Business Partner'})`,
+                          })),
+                      ]}
+                      placeholder="Select Parent / Hierarchy..."
+                      searchPlaceholder="Search partner..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Assigned Branch *
+                    </label>
+                    <SearchableSelect
+                      required
+                      value={formData.branchId}
+                      onChange={(val) => setFormData({ ...formData, branchId: val })}
+                      options={availableBranches.map((b) => ({
+                        value: b._id,
+                        label: b.name,
+                        subtitle: b.location || '',
+                      }))}
+                      placeholder="Select Branch..."
+                      searchPlaceholder="Search branch..."
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name *</label>
@@ -534,7 +794,7 @@ const PlotBusinessDevelopers = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
-                  placeholder="Enter business developer name"
+                  placeholder="Enter full name"
                 />
               </div>
 
@@ -825,7 +1085,13 @@ const PlotBusinessDevelopers = () => {
                 disabled={submitLoading}
                 className="px-5 py-2 text-sm bg-primary text-white rounded-lg font-medium shadow-sm transition disabled:opacity-50 cursor-pointer"
               >
-                {submitLoading ? 'Saving...' : editingDeveloper ? 'Update Business Developer' : 'Create Business Developer'}
+                {submitLoading
+                  ? 'Saving...'
+                  : editingDeveloper
+                  ? 'Update Business Developer'
+                  : createMode === 'partner'
+                  ? 'Create Business Partner'
+                  : 'Create Business Associate'}
               </button>
             </div>
           </form>
@@ -834,7 +1100,7 @@ const PlotBusinessDevelopers = () => {
 
       {/* View Details Modal */}
       <Modalbox open={showViewModal} onClose={() => setShowViewModal(false)} size="xl" outside={false}>
-        <div className="w-full">
+        <div className="w-full p-6">
           <div className="whole">
             <h2 className="flex items-center justify-between pb-3 border-b border-slate-100 text-lg font-bold text-slate-800">
               <span>Business Developer Details</span>
@@ -869,6 +1135,27 @@ const PlotBusinessDevelopers = () => {
                       {viewingDeveloper.sponsorId?.name
                         ? `👥 Business Associate (under ${viewingDeveloper.sponsorId.name})`
                         : '👑 Business Partner (Direct Company)'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Branch & Sponsoring Partner info */}
+                <div className="grid grid-cols-2 gap-4 bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                  <div>
+                    <p className="text-xs text-slate-400 font-semibold uppercase">Assigned Branch</p>
+                    <p className="font-semibold text-teal-900 flex items-center gap-1.5 mt-0.5">
+                      <Building2 size={15} className="text-teal-700" />
+                      {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
+                        ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
+                        : 'Company Head Office / All'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-semibold uppercase">Parent Partner</p>
+                    <p className="font-semibold text-slate-800 mt-0.5">
+                      {viewingDeveloper.sponsorId?.name
+                        ? `${viewingDeveloper.sponsorId.name} (${viewingDeveloper.sponsorId.sponsorCode || ''})`
+                        : '🏢 Company Direct'}
                     </p>
                   </div>
                 </div>

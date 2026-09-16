@@ -680,7 +680,7 @@ const EditBookingModal = ({
                           setEditForm({ ...editForm, landSourcing: updated });
                         }}
                       >
-                        <option value="">-- Select Agreement / Deed No. --</option>
+                        <option value="">-- Select Agreement --</option>
                         {availableLandSources.map((s, sIdx) => {
                           const optKey = s.deedNumber
                             ? `DEED_${s.deedId || s.deedNumber}_${sIdx}`
@@ -690,9 +690,7 @@ const EditBookingModal = ({
                             : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
                           return (
                             <option key={optKey} value={optVal}>
-                              {s.sourceType === 'REGISTRY_DEED'
-                                ? `Registry Deed #${s.deedNumber} (under Agr #${s.agreementNumber})`
-                                : `Agreement #${s.agreementNumber}${s.mauja ? ` — ${s.mauja}` : ''}`}
+                              {s.sourceType === 'REGISTRY_DEED' ? s.deedNumber : s.agreementNumber}
                             </option>
                           );
                         })}

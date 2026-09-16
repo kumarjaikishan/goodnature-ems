@@ -213,6 +213,17 @@ const plotBookingSchema = new mongoose.Schema(
       ref: 'Voucher',
       default: null,
     },
+    appliedPremiumHeads: [
+      {
+        name: { type: String, required: true },
+        extraPercent: { type: Number, required: true, default: 0 },
+      },
+    ],
+    effectivePlotRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

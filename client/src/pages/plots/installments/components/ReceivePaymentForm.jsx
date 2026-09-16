@@ -18,7 +18,12 @@ const ReceivePaymentForm = ({
   handleCheckboxToggle,
   getLateFine,
   getLateDays,
-  gracePeriod,
+  dpGracePeriod = 15,
+  emiGracePeriod = 15,
+  gracePeriod = 15,
+  lateFineFrequency = 'YEARLY',
+  lateFineRate = 24,
+  lateFineDailyPercent,
   getSelectedLateFineTotal,
   form,
   setForm,
@@ -27,12 +32,21 @@ const ReceivePaymentForm = ({
   mode,
 }) => {
   const isDownpaymentMode = mode === 'DOWNPAYMENT';
+  const effectiveDpGrace = dpGracePeriod ?? gracePeriod ?? 15;
+  const effectiveEmiGrace = emiGracePeriod ?? gracePeriod ?? 15;
+
+  const rateLabel = lateFineFrequency === 'DAILY'
+    ? `${lateFineRate || 0}% / Day`
+    : lateFineFrequency === 'MONTHLY'
+    ? `${lateFineRate || 0}% / Mo`
+    : `${lateFineRate || 24}% P.A.`;
+
   const dpInst = installments?.find((i) => i.installmentNumber === 0) || (installments && installments[0]);
   const dpTotal = dpInst ? dpInst.dueAmount : (selectedBooking?.downpaymentAmount || selectedBooking?.bookingAmount || selectedBooking?.plotValue || 0);
   const dpPaid = dpInst ? dpInst.paidAmount : 0;
   const dpPrincipalDue = Math.max(0, dpTotal - dpPaid);
-  const dpFine = dpInst ? getLateFine(dpInst, gracePeriod, form.createdAt) : 0;
-  const dpLateDays = dpInst ? getLateDays(dpInst, gracePeriod, form.createdAt) : 0;
+  const dpFine = dpInst ? getLateFine(dpInst, effectiveDpGrace, form.createdAt) : 0;
+  const dpLateDays = dpInst ? getLateDays(dpInst, effectiveDpGrace, form.createdAt) : 0;
   const dpTotalPayable = dpPrincipalDue + dpFine;
   const dpDueDate = dpInst?.dueDate || (selectedBooking?.bookingDate ? new Date(new Date(selectedBooking.bookingDate).getTime() + (Number(selectedBooking.downpaymentDays) || 90) * 24 * 60 * 60 * 1000) : null);
 
@@ -44,8 +58,8 @@ const ReceivePaymentForm = ({
   const emiScheduledAmount = activeEmiInst ? activeEmiInst.dueAmount : 0;
   const emiPaid = activeEmiInst ? (activeEmiInst.paidAmount || 0) : 0;
   const emiPrincipalDue = activeEmiInst ? Math.max(0, activeEmiInst.dueAmount - emiPaid) : 0;
-  const emiFine = activeEmiInst ? getLateFine(activeEmiInst, gracePeriod, form.createdAt) : 0;
-  const emiLateDays = activeEmiInst ? getLateDays(activeEmiInst, gracePeriod, form.createdAt) : 0;
+  const emiFine = activeEmiInst ? getLateFine(activeEmiInst, effectiveEmiGrace, form.createdAt) : 0;
+  const emiLateDays = activeEmiInst ? getLateDays(activeEmiInst, effectiveEmiGrace, form.createdAt) : 0;
   const emiTotalPayable = emiPrincipalDue + emiFine;
   const emiDueDate = activeEmiInst?.dueDate;
   const isEmiOverdue = emiDueDate && new Date(emiDueDate) < new Date(form.createdAt || new Date()) && emiPrincipalDue > 0 && emiLateDays > 0;
@@ -125,9 +139,13 @@ const ReceivePaymentForm = ({
                     <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
                       Downpayment Terms & Status
                     </span>
-                    {isDpOverdue ? (
+                    {isDpOverdue && dpLateDays > 0 ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
                         Overdue ({dpLateDays} Days Delay)
+                      </span>
+                    ) : isDpOverdue ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200">
+                        Due (Within Grace Period)
                       </span>
                     ) : dpPrincipalDue === 0 ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -184,7 +202,7 @@ const ReceivePaymentForm = ({
 
                     <div className={`p-2.5 rounded-lg border ${dpFine > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200/70'}`}>
                       <span className={`font-semibold block text-[0.65rem] uppercase ${dpFine > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
-                        Late Fine (24% P.A.)
+                        Late Fine ({rateLabel})
                       </span>
                       <span className={`font-bold mt-0.5 block ${dpFine > 0 ? 'text-rose-700 text-sm' : 'text-slate-800'}`}>
                         ₹{dpFine.toLocaleString('en-IN')}
@@ -255,7 +273,7 @@ const ReceivePaymentForm = ({
 
                       <div className={`p-2.5 rounded-lg border ${emiFine > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200/70'}`}>
                         <span className={`font-semibold block text-[0.65rem] uppercase ${emiFine > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
-                          Late Fine (24% P.A.)
+                          Late Fine ({rateLabel})
                         </span>
                         <span className={`font-bold mt-0.5 block ${emiFine > 0 ? 'text-rose-700 text-sm' : 'text-slate-800'}`}>
                           ₹{emiFine.toLocaleString('en-IN')}
@@ -285,7 +303,7 @@ const ReceivePaymentForm = ({
                             <th className="p-2 text-right">Scheduled</th>
                             <th className="p-2 text-right">Paid</th>
                             <th className="p-2 text-right">Principal Due</th>
-                            <th className="p-2 text-right">Late Fine (24%)</th>
+                            <th className="p-2 text-right">Late Fine ({rateLabel})</th>
                             <th className="p-2 text-center">Status</th>
                           </tr>
                         </thead>
@@ -293,8 +311,8 @@ const ReceivePaymentForm = ({
                           {installments.map((inst) => {
                             const isPaid = inst.status === 'PAID';
                             const principalDue = Math.max(0, inst.dueAmount - (inst.paidAmount || 0));
-                            const fine = getLateFine(inst, gracePeriod, form.createdAt);
-                            const lateDays = getLateDays(inst, gracePeriod, form.createdAt);
+                            const fine = getLateFine(inst, effectiveEmiGrace, form.createdAt);
+                            const lateDays = getLateDays(inst, effectiveEmiGrace, form.createdAt);
 
                             const collectionDateObj = form.createdAt ? new Date(form.createdAt) : new Date();
                             const currentYear = collectionDateObj.getFullYear();
@@ -393,7 +411,14 @@ const ReceivePaymentForm = ({
           {/* Input Fields Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1">
-              <label className={labelCls}>Collection Amount (₹)</label>
+              <div className="flex justify-between items-center">
+                <label className={labelCls}>Collection Amount (₹)</label>
+                {isDownpaymentMode && (
+                  <span className="text-[0.65rem] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                    Max DP Payable: ₹{Math.max(0, dpTotalPayable - (Number(form.lateFineRebate) || 0)).toLocaleString('en-IN')}
+                  </span>
+                )}
+              </div>
               <input
                 className={inputCls}
                 type="text"
@@ -429,8 +454,27 @@ const ReceivePaymentForm = ({
                   pattern="[0-9.]*"
                   value={form.lateFineRebate}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                    setForm({ ...form, lateFineRebate: val });
+                    const rawVal = e.target.value.replace(/[^0-9.]/g, '');
+                    const maxFine = getSelectedLateFineTotal();
+                    const numRebate = Math.min(Number(rawVal) || 0, maxFine);
+                    const cleanRebateStr = rawVal === '' ? '' : String(numRebate);
+
+                    setForm((prev) => {
+                      const principalDue = isDownpaymentMode
+                        ? dpPrincipalDue
+                        : emiPrincipalDue;
+                      const currentFine = isDownpaymentMode
+                        ? dpFine
+                        : emiFine;
+                      const netFine = Math.max(0, currentFine - numRebate);
+                      const newTotal = principalDue + netFine;
+
+                      return {
+                        ...prev,
+                        lateFineRebate: cleanRebateStr,
+                        amountPaid: newTotal > 0 ? String(newTotal) : '',
+                      };
+                    });
                   }}
                   placeholder="Enter rebate amount if any"
                 />

@@ -465,9 +465,9 @@ const updateEntry = async (req, res) => {
       await session.abortTransaction();
       return res.status(404).json({ error: "Entry not found" });
     }
-    if (entry.source === "payroll" || entry.source === "salary") {
+    if (entry.source === "payroll" || entry.source === "salary" || (entry.source && entry.source.startsWith("commission")) || entry.source === "plot_payout") {
       await session.abortTransaction();
-      return res.status(400).json({ error: "This entry belongs to a payroll salary voucher and cannot be edited directly from the ledger." });
+      return res.status(400).json({ error: "This entry belongs to an automated billing commission / payroll voucher and cannot be edited directly from the ledger." });
     }
 
     const updatedEntry = await accountingService.updateLedgerEntry(id, {
@@ -503,9 +503,9 @@ const deleteEntry = async (req, res) => {
       await session.abortTransaction();
       return res.status(404).json({ error: "Entry not found" });
     }
-    if (entry.source === "payroll" || entry.source === "salary") {
+    if (entry.source === "payroll" || entry.source === "salary" || (entry.source && entry.source.startsWith("commission")) || entry.source === "plot_payout") {
       await session.abortTransaction();
-      return res.status(400).json({ error: "This entry belongs to a payroll salary voucher and cannot be deleted directly from the ledger." });
+      return res.status(400).json({ error: "This entry belongs to an automated billing commission / payroll voucher and cannot be deleted directly from the ledger." });
     }
 
     await accountingService.deleteLedgerEntry(id, session);

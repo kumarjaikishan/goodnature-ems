@@ -273,9 +273,9 @@ const ConfigurePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 30"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={configForm.dimensions?.north || ''}
+                  value={configForm.dimensions?.north !== undefined ? configForm.dimensions.north : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(configForm.dimensions || {}), north: val };
@@ -300,9 +300,9 @@ const ConfigurePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 30"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={configForm.dimensions?.south || ''}
+                  value={configForm.dimensions?.south !== undefined ? configForm.dimensions.south : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(configForm.dimensions || {}), south: val };
@@ -327,9 +327,9 @@ const ConfigurePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 40"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={configForm.dimensions?.east || ''}
+                  value={configForm.dimensions?.east !== undefined ? configForm.dimensions.east : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(configForm.dimensions || {}), east: val };
@@ -354,9 +354,9 @@ const ConfigurePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 40"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={configForm.dimensions?.west || ''}
+                  value={configForm.dimensions?.west !== undefined ? configForm.dimensions.west : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(configForm.dimensions || {}), west: val };

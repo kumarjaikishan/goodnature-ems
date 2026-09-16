@@ -65,6 +65,7 @@ export default function PayrollCreatePage() {
   const [taxrate, settaxrate] = useState(0);
   const [employeeleavebal, setemployeeleavebal] = useState(0);
   const [previousAdvance, setpreviousAdvance] = useState(0);
+  const [activeAdvanceInfo, setActiveAdvanceInfo] = useState(null);
   const [previousWeeklyOffAccumulated, setPreviousWeeklyOffAccumulated] = useState(0);
 
   const { holidays, company, employee, attandence, leaveBalance, advance, payroll } = useSelector(
@@ -151,13 +152,26 @@ export default function PayrollCreatePage() {
   }, [id]);
 
   useEffect(() => {
-    if (!stateEmployee && urlEmployeeId && employees.length > 0) {
-      const found = employees.find(e => e._id === urlEmployeeId);
-      if (found) {
-        setSelectedEmployeedetail(found);
-      }
-    }
-  }, [selectedEmployee, employees, stateEmployee, urlEmployeeId]);
+    const targetEmpId = selectedEmployee || urlEmployeeId || stateEmployee?._id;
+    if (!targetEmpId) return;
+
+    const empIdStr = targetEmpId.toString();
+
+    // Fetch full employee details to guarantee accurate salary, policies, allowances & designations
+    apiClient({ url: `getemployee`, params: { empid: empIdStr } })
+      .then((res) => {
+        if (res && res._id) {
+          setSelectedEmployeedetail(res);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load employee details for payroll:", err);
+        if (employees.length > 0) {
+          const found = employees.find(e => e._id?.toString() === empIdStr);
+          if (found) setSelectedEmployeedetail(found);
+        }
+      });
+  }, [selectedEmployee, urlEmployeeId, stateEmployee, employees]);
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
@@ -293,17 +307,52 @@ export default function PayrollCreatePage() {
   }, [leaveBalance, selectedEmployeedetail]);
 
   useEffect(() => {
-    if (!selectedEmployeedetail) return;
-    setpreviousAdvance(selectedEmployeedetail.advance || 0);
-  }, [selectedEmployeedetail]);
+    if (!selectedEmployeedetail?._id) {
+      setpreviousAdvance(0);
+      setActiveAdvanceInfo(null);
+      return;
+    }
+
+    const baseAdvance = Number(selectedEmployeedetail.advance || 0);
+    setpreviousAdvance(baseAdvance);
+
+    apiClient({ url: `advance/employee/${selectedEmployeedetail._id}` })
+      .then((res) => {
+        if (res.success && res.data) {
+          const advData = res.data;
+          setActiveAdvanceInfo(advData);
+
+          const liveBal = advData.totalRemainingBalance !== undefined ? advData.totalRemainingBalance : baseAdvance;
+          setpreviousAdvance(liveBal);
+
+          // Auto-adjust advance with scheduled EMI if active advances exist and not in edit mode
+          if (!id && liveBal > 0) {
+            const suggested = advData.suggestedMonthlyDeduction > 0
+              ? Math.min(advData.suggestedMonthlyDeduction, liveBal)
+              : liveBal;
+
+            setOptions((prev) => ({
+              ...prev,
+              adjustAdvance: true,
+              adjustedAdvance: suggested,
+            }));
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch employee advance details:", err);
+      });
+  }, [selectedEmployeedetail?._id, id]);
 
   function formatRupee(amount) {
+    const num = Number(amount);
+    const valid = Number.isFinite(num) ? num : 0;
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount);
+    }).format(valid);
   }
 
   const [form, setForm] = useState({
@@ -374,18 +423,28 @@ export default function PayrollCreatePage() {
   }, [employee]);
 
   useEffect(() => {
-    if (!selectedEmployeedetail || !basic?.totalDays || !company?.workingMinutes) return;
+    if (!selectedEmployeedetail) {
+      setminuteRate(0);
+      setPerDayRate(0);
+      return;
+    }
+
+    const totalDays = Number(basic?.totalDays) || 30;
+    const holidaysCount = Number(basic?.holidaysCount) || 0;
+    const weeklyOff = Number(basic?.weeklyOff) || 0;
+    const salary = Number(selectedEmployeedetail?.salary) || 0;
+    const fullDayMinutes = Number(company?.workingMinutes?.fullDay) || 480;
 
     let divisor =
       form.calculationBasis === "monthDays"
-        ? basic.totalDays || 1
-        : basic.totalDays - (basic.holidaysCount + basic.weeklyOff) || 1;
+        ? (totalDays > 0 ? totalDays : 30)
+        : Math.max(1, totalDays - (holidaysCount + weeklyOff));
 
-    const perDay = selectedEmployeedetail.salary / divisor;
-    const perMinute = perDay / company.workingMinutes.fullDay;
+    const perDay = divisor > 0 ? (salary / divisor) : 0;
+    const perMinute = fullDayMinutes > 0 ? (perDay / fullDayMinutes) : 0;
 
-    setminuteRate(Number(perMinute.toFixed(5)));
-    setPerDayRate(Number(perDay.toFixed(5)));
+    setPerDayRate(Number.isFinite(perDay) ? Number(perDay.toFixed(5)) : 0);
+    setminuteRate(Number.isFinite(perMinute) ? Number(perMinute.toFixed(5)) : 0);
   }, [form.calculationBasis, basic, selectedEmployeedetail, company]);
 
   useEffect(() => {
@@ -1034,41 +1093,80 @@ export default function PayrollCreatePage() {
             )}
 
             {previousAdvance > 0 && (
-              <div className="flex items-center flex-wrap gap-3 pt-1">
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={options.adjustAdvance}
-                    onChange={(e) =>
-                      setOptions((p) => ({
-                        ...p,
-                        adjustAdvance: e.target.checked,
-                      }))
-                    }
-                    className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
-                  />
-                  <span>Adjust Advance (Balance: {formatRupee(previousAdvance)})</span>
-                </label>
-                {options.adjustAdvance && (
-                  <div className="w-32">
-                    <NumberInput
-                      size="sm"
-                      label="Amount"
-                      min={0}
-                      max={previousAdvance}
-                      value={options.adjustedAdvance}
-                      onChange={(val) => {
-                        if (val < 0) {
-                          setOptions((p) => ({ ...p, adjustedAdvance: 0 }));
-                        } else if (val > previousAdvance) {
-                          setOptions((p) => ({ ...p, adjustedAdvance: previousAdvance }));
-                        } else {
-                          setOptions((p) => ({ ...p, adjustedAdvance: val }));
-                        }
+              <div className="flex flex-col gap-1.5 border border-teal-200 bg-teal-50/50 p-3 rounded-xl">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={options.adjustAdvance}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        const defaultAmount = activeAdvanceInfo?.suggestedMonthlyDeduction > 0
+                          ? Math.min(activeAdvanceInfo.suggestedMonthlyDeduction, previousAdvance)
+                          : previousAdvance;
+                        setOptions((p) => ({
+                          ...p,
+                          adjustAdvance: checked,
+                          adjustedAdvance: checked
+                            ? (p.adjustedAdvance || defaultAmount)
+                            : (p.adjustedAdvance || 0),
+                        }));
                       }}
+                      className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                     />
+                    <span>
+                      Adjust Advance Deduction
+                      <span className="text-teal-700 font-extrabold ml-1">
+                        (Total Balance Due: {formatRupee(previousAdvance)})
+                      </span>
+                    </span>
+                  </label>
+
+                  {options.adjustAdvance && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-32">
+                        <NumberInput
+                          size="sm"
+                          label="Deduct Amount"
+                          min={0}
+                          max={previousAdvance}
+                          value={options.adjustedAdvance}
+                          onChange={(val) => {
+                            if (val < 0) {
+                              setOptions((p) => ({ ...p, adjustedAdvance: 0 }));
+                            } else if (val > previousAdvance) {
+                              setOptions((p) => ({ ...p, adjustedAdvance: previousAdvance }));
+                            } else {
+                              setOptions((p) => ({ ...p, adjustedAdvance: val }));
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-slate-600 pl-6 flex items-center justify-between flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-teal-100 mt-1">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {activeAdvanceInfo?.suggestedMonthlyDeduction > 0 && (
+                      <span>
+                        Scheduled Monthly EMI: <strong className="text-teal-800 font-semibold">{formatRupee(activeAdvanceInfo.suggestedMonthlyDeduction)}</strong>
+                      </span>
+                    )}
+                    {options.adjustAdvance && (
+                      <span className="text-teal-700 font-semibold">
+                        Remaining After Deduction: <strong>{formatRupee(Math.max(0, previousAdvance - (options.adjustedAdvance || 0)))}</strong>
+                      </span>
+                    )}
                   </div>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/advance?employeeId=${selectedEmployeedetail._id}`)}
+                    className="text-teal-700 font-bold hover:underline text-[11px] cursor-pointer"
+                  >
+                    View Advance Records →
+                  </button>
+                </div>
               </div>
             )}
           </div>

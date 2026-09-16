@@ -98,17 +98,16 @@ const KisanAgreementsTable = ({
                 <th className="p-3.5 uppercase">Agreement No & Date</th>
                 <th className="p-3.5 uppercase">Land Particulars</th>
                 <th className="p-3.5 uppercase">Land Seller</th>
-                <th className="p-3.5 uppercase text-right">Agreed Area & Value</th>
+                <th className="p-3.5 uppercase text-right">Agreed Area</th>
                 <th className="p-3.5 uppercase text-right">Registered Area</th>
                 <th className="p-3.5 uppercase text-right">Free Stock</th>
-                <th className="p-3.5 uppercase text-right">Payment Status</th>
-                <th className="p-3.5 uppercase text-left min-w-[310px]">Actions</th>
+                <th className="p-3.5 uppercase text-left min-w-[210px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {agreements.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={7} className="p-8 text-center text-slate-400 italic">
                     No Plot Purchase Agreements found matching criteria. Click "+ New Plot Purchase" above to register one.
                   </td>
                 </tr>
@@ -117,8 +116,6 @@ const KisanAgreementsTable = ({
                   const regDismil = agr.totalRegisteredDismil || 0;
                   const totalDismil = agr.araziDismil || 0;
                   const regPercent = totalDismil > 0 ? Math.round((regDismil / totalDismil) * 100) : 0;
-                  const bal = agr.financialSummary?.balanceDue || 0;
-                  const paid = agr.financialSummary?.totalPaid || 0;
                   const parcels = Array.isArray(agr.landParcels) && agr.landParcels.length > 0 ? agr.landParcels : null;
                   const attachmentsCount = Array.isArray(agr.attachments) ? agr.attachments.length : 0;
 
@@ -148,13 +145,12 @@ const KisanAgreementsTable = ({
                         </div>
                         <div className="mt-1.5 flex items-center gap-1.5">
                           <span
-                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              agr.status === 'FULLY_REGISTERED'
-                                ? 'bg-purple-100 text-purple-800'
-                                : agr.status === 'PARTIALLY_REGISTERED'
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${agr.status === 'FULLY_REGISTERED'
+                              ? 'bg-purple-100 text-purple-800'
+                              : agr.status === 'PARTIALLY_REGISTERED'
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-emerald-100 text-emerald-800'
-                            }`}
+                              }`}
                           >
                             {agr.status?.replace('_', ' ')}
                           </span>
@@ -169,7 +165,7 @@ const KisanAgreementsTable = ({
                         </div>
                       </td>
 
-                      {/* Land Particulars */}
+                      {/* Land Particulars: Thana, then Mauja, then Jamabandi only */}
                       <td className="p-3.5">
                         {parcels && parcels.length > 1 ? (
                           <div className="space-y-1">
@@ -177,43 +173,43 @@ const KisanAgreementsTable = ({
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
                                 <Layers size={11} /> {parcels.length} Land Details
                               </span>
-                              <span className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
-                                {[...new Set(parcels.map((p) => p.mauja))].join(', ')}
-                              </span>
                             </div>
-                            <div className="text-[11px] text-slate-500">
-                              Khesra:{' '}
-                              <strong className="text-slate-700">
-                                {parcels.map((p) => p.khesraNumber).slice(0, 3).join(', ')}
-                                {parcels.length > 3 ? ` +${parcels.length - 3} more` : ''}
-                              </strong>
+                            <div className="text-[11px] text-slate-700">
+                              <span className="text-slate-500">Thana: </span>
+                              <strong>{[...new Set(parcels.map((p) => p.thanaNumber).filter(Boolean))].join(', ') || agr.thanaNumber || '—'}</strong>
+                            </div>
+                            <div className="text-xs font-bold text-slate-800">
+                              <span className="text-slate-500 font-normal text-[11px]">Mauja: </span>
+                              {[...new Set(parcels.map((p) => p.mauja).filter(Boolean))].join(', ') || '—'}
+                            </div>
+                            <div className="text-[11px] text-slate-700">
+                              <span className="text-slate-500">Jamabandi: </span>
+                              <strong>{[...new Set(parcels.map((p) => p.jamabandiNumber).filter(Boolean))].join(', ') || agr.jamabandiNumber || '—'}</strong>
                             </div>
                           </div>
                         ) : (
-                          <div>
-                            <span className="font-bold text-slate-800 block">
-                              Mauja: {parcels?.[0]?.mauja || agr.mauja || '—'}
-                            </span>
-                            <span className="text-[11px] text-slate-500 block">
-                              Khata: <strong className="text-slate-700">{parcels?.[0]?.khataNumber || agr.khataNumber || '—'}</strong> | Khesra:{' '}
-                              <strong className="text-slate-700">{parcels?.[0]?.khesraNumber || agr.khesraNumber || '—'}</strong>
-                            </span>
-                            {(parcels?.[0]?.thanaNumber || agr.thanaNumber) && (
-                              <span className="text-[10px] text-slate-400 block">
-                                Thana No: {parcels?.[0]?.thanaNumber || agr.thanaNumber}
-                              </span>
-                            )}
+                          <div className="space-y-0.5">
+                            <div className="text-[11px] text-slate-700">
+                              <span className="text-slate-500">Thana: </span>
+                              <strong>{parcels?.[0]?.thanaNumber || agr.thanaNumber || '—'}</strong>
+                            </div>
+                            <div className="text-xs font-bold text-slate-800">
+                              <span className="text-slate-500 font-normal text-[11px]">Mauja: </span>
+                              {parcels?.[0]?.mauja || agr.mauja || '—'}
+                            </div>
+                            <div className="text-[11px] text-slate-700">
+                              <span className="text-slate-500">Jamabandi: </span>
+                              <strong>{parcels?.[0]?.jamabandiNumber || agr.jamabandiNumber || '—'}</strong>
+                            </div>
                           </div>
                         )}
                       </td>
 
-                      {/* Land Seller & Purchaser */}
+                      {/* Land Seller (Buyers removed) */}
                       <td className="p-3.5">
-                        <div className="space-y-1.5">
-                          {/* Land Seller */}
+                        <div className="space-y-1">
                           {agr.farmers && agr.farmers.length > 0 ? (
                             <div>
-                              <div className="text-[9px] uppercase font-bold text-slate-400">Land Seller:</div>
                               <span className="font-bold text-slate-800 block text-xs">{agr.farmers[0].name}</span>
                               {agr.farmers[0].mobile && (
                                 <span className="text-[10px] text-slate-400 block">{agr.farmers[0].mobile}</span>
@@ -227,40 +223,15 @@ const KisanAgreementsTable = ({
                           ) : (
                             <span className="text-slate-400">-</span>
                           )}
-
-                          {/* Buyer / Purchaser */}
-                          {agr.purchasers && agr.purchasers.length > 0 && agr.purchasers[0].name && (
-                            <div className="pt-1 border-t border-slate-100">
-                              <div className="text-[9px] uppercase font-bold text-teal-800">Buyer / Purchaser:</div>
-                              <span className="font-semibold text-slate-800 block text-xs">
-                                {agr.purchasers[0].name}
-                              </span>
-                              {(agr.purchasers[0].contact || agr.purchasers[0].mobile) && (
-                                <span className="text-[10px] text-slate-400 block">
-                                  {agr.purchasers[0].contact || agr.purchasers[0].mobile}
-                                </span>
-                              )}
-                              {agr.purchasers.length > 1 && (
-                                <span className="inline-block mt-0.5 text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
-                                  +{agr.purchasers.length - 1} more buyer(s)
-                                </span>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </td>
 
-                      {/* Agreed Area & Value */}
+                      {/* Agreed Area */}
                       <td className="p-3.5 text-right font-mono">
                         <span className="font-bold text-slate-900 block">{agr.araziDismil} Dismil</span>
                         <span className="text-[10px] text-slate-400 block">
                           {agr.totalSqFt?.toLocaleString('en-IN')} SqFt
                         </span>
-                        {agr.totalAgreementAmount > 0 && (
-                          <span className="text-[10px] font-bold text-emerald-800 block mt-0.5">
-                            ₹{agr.totalAgreementAmount?.toLocaleString('en-IN')}
-                          </span>
-                        )}
                       </td>
 
                       {/* Registered Area */}
@@ -283,25 +254,11 @@ const KisanAgreementsTable = ({
                       {/* Available Free Stock */}
                       <td className="p-3.5 text-right font-mono">
                         <span className="font-bold text-emerald-700 block">
-                          {agr.totalAvailableSqFt?.toLocaleString('en-IN')} SqFt
+                          {((agr.totalAvailableSqFt || 0) / 435.6).toFixed(2)} Dismil
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          {((agr.totalAvailableSqFt || 0) / 435.6).toFixed(2)} Dismil free
+                        <span className="text-[10px] text-slate-400 block">
+                          {agr.totalAvailableSqFt?.toLocaleString('en-IN')} SqFt free
                         </span>
-                      </td>
-
-                      {/* Payment Status */}
-                      <td className="p-3.5 text-right">
-                        <span className="font-bold text-slate-800 font-mono block">
-                          Paid: ₹{paid.toLocaleString('en-IN')}
-                        </span>
-                        {bal > 0 ? (
-                          <span className="text-[10px] font-bold text-amber-700 block">
-                            Due: ₹{bal.toLocaleString('en-IN')}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-700 block">✓ Fully Paid</span>
-                        )}
                       </td>
 
                       {/* Actions */}

@@ -295,8 +295,20 @@ const EditAgreementModal = ({
         </div>
 
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Agreement Date & Remarks */}
+          {/* Agreement Number, Date & Remarks */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Number *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. AGR001 or AGR-2627-001"
+                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-teal-900 placeholder:text-slate-400 placeholder:font-normal"
+                value={editAgrForm.agreementNumber || ''}
+                onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementNumber: e.target.value })}
+              />
+            </div>
+
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Date *</label>
               <input
@@ -321,7 +333,7 @@ const EditAgreementModal = ({
               />
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">Remarks / Legal Notes</label>
               <input
                 type="text"

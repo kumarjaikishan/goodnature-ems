@@ -12,6 +12,9 @@ const advanceSchema = new mongoose.Schema({
     // New fields for individual advance tracking
     initialAmount: { type: Number }, // Original amount if it's a "given" type
     remainingBalance: { type: Number, default: 0 }, // Specific balance for this advance
+    monthlyDeductionAmount: { type: Number, default: 0 }, // Monthly EMI deduction amount
+    installments: { type: Number, default: 1 }, // Total planned deduction installments
+    deductionStartMonth: { type: Date, default: null }, // Month from which recovery starts
     
     // Summary balance for the employee (legacy compatibility)
     balance: { type: Number, default: 0 }, 

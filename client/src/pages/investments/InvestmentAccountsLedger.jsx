@@ -90,10 +90,18 @@ const InvestmentAccountsLedger = () => {
         </div>
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => navigate('/dashboard/investments/new')}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+            onClick={() => navigate('/dashboard/investments/new?type=RD')}
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
           >
-            <Plus size={16} /> New Investment
+            <Plus size={15} />
+            Open R.D. Plan
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/investments/new?type=FD')}
+            className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus size={15} />
+            Open F.D. Plan
           </button>
         </div>
       </div>

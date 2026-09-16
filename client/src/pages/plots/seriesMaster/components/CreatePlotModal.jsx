@@ -201,9 +201,9 @@ const CreatePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 30"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={plotForm.dimensions?.north || ''}
+                  value={plotForm.dimensions?.north !== undefined ? plotForm.dimensions.north : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(plotForm.dimensions || {}), north: val };
@@ -228,9 +228,9 @@ const CreatePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 30"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={plotForm.dimensions?.south || ''}
+                  value={plotForm.dimensions?.south !== undefined ? plotForm.dimensions.south : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(plotForm.dimensions || {}), south: val };
@@ -255,9 +255,9 @@ const CreatePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 40"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={plotForm.dimensions?.east || ''}
+                  value={plotForm.dimensions?.east !== undefined ? plotForm.dimensions.east : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(plotForm.dimensions || {}), east: val };
@@ -282,9 +282,9 @@ const CreatePlotModal = ({
                 <input
                   type="number"
                   step="any"
-                  placeholder="e.g. 40"
+                  placeholder="0"
                   className="w-full h-8 bg-white border border-slate-300 focus:ring-1 focus:ring-teal-600 outline-none px-2 rounded-lg text-xs font-bold"
-                  value={plotForm.dimensions?.west || ''}
+                  value={plotForm.dimensions?.west !== undefined ? plotForm.dimensions.west : 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     const nextDims = { ...(plotForm.dimensions || {}), west: val };

@@ -46,6 +46,7 @@ const PlotPurchasePage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm, setCreateForm] = useState({
+    agreementNumber: '',
     agreementDate: new Date().toISOString().split('T')[0],
     agreementEndDate: '',
     remarks: '',
@@ -92,6 +93,7 @@ const PlotPurchasePage = () => {
   const [editAgrLoading, setEditAgrLoading] = useState(false);
   const [editAgrTarget, setEditAgrTarget] = useState(null);
   const [editAgrForm, setEditAgrForm] = useState({
+    agreementNumber: '',
     agreementDate: '',
     agreementEndDate: '',
     remarks: '',
@@ -294,6 +296,7 @@ const PlotPurchasePage = () => {
       : [];
 
     setEditAgrForm({
+      agreementNumber: agr.agreementNumber || '',
       agreementDate: agr.agreementDate ? new Date(agr.agreementDate).toISOString().split('T')[0] : '',
       agreementEndDate: agr.agreementEndDate ? new Date(agr.agreementEndDate).toISOString().split('T')[0] : '',
       remarks: agr.remarks || '',
@@ -399,12 +402,13 @@ const PlotPurchasePage = () => {
   };
 
   // Submit Create Registry Deed
-  const handleSaveRegistryDeed = async (e) => {
-    e.preventDefault();
+  const handleSaveRegistryDeed = async (e, customPayload) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!targetAgreementForDeed) return;
     setDeedLoading(true);
+    const dataToSend = customPayload || deedForm;
     try {
-      await api.post(`/plots/kisan-agreements/${targetAgreementForDeed._id}/deeds`, deedForm);
+      await api.post(`/plots/kisan-agreements/${targetAgreementForDeed._id}/deeds`, dataToSend);
       toast.success('Registry Deed converted & added to land stock successfully!');
       setDeedModalOpen(false);
       fetchAgreements();
@@ -420,7 +424,8 @@ const PlotPurchasePage = () => {
 
   // Open Edit Deed Modal
   const openEditDeedModal = (agreementId, deed) => {
-    setEditingDeedTarget({ agreementId, deed });
+    const parentAgr = agreements.find((a) => String(a._id) === String(agreementId));
+    setEditingDeedTarget({ agreementId, deed, parentAgreement: parentAgr });
     setEditDeedForm({
       deedNumber: deed.deedNumber || '',
       deedDate: deed.deedDate ? new Date(deed.deedDate).toISOString().split('T')[0] : '',
@@ -431,14 +436,15 @@ const PlotPurchasePage = () => {
   };
 
   // Save Edit Deed
-  const handleSaveEditDeed = async (e) => {
-    e.preventDefault();
+  const handleSaveEditDeed = async (e, customPayload) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!editingDeedTarget) return;
     setEditDeedLoading(true);
+    const dataToSend = customPayload || editDeedForm;
     try {
       await api.put(
         `/plots/kisan-agreements/${editingDeedTarget.agreementId}/deeds/${editingDeedTarget.deed._id}`,
-        editDeedForm
+        dataToSend
       );
       toast.success('Registry Deed updated successfully!');
       setEditDeedModalOpen(false);

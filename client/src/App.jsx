@@ -53,6 +53,7 @@ const VoucherList = lazy(() => import('./pages/vouchers/VoucherList'));
 const VoucherDetails = lazy(() => import('./pages/vouchers/VoucherDetails'));
 const LeavePolicyManager = lazy(() => import('./pages/admin/leave/LeavePolicyManager'));
 const AttendanceExcelImport = lazy(() => import('./pages/admin/attandence/AttendanceExcelImport'));
+const ActivityLogs = lazy(() => import('./pages/admin/activityLogs/ActivityLogs'));
 const PasswordReset = lazy(() => import('./utils/PasswordReset'));
 
 // Employee
@@ -84,18 +85,20 @@ const PlotBookingDetails = lazy(() => import('./pages/plots/booking/PlotBookingD
 const InstallmentCollection = lazy(() => import('./pages/plots/installments/InstallmentCollection'));
 const PlotSeriesMaster = lazy(() => import('./pages/plots/seriesMaster/PlotSeriesMaster'));
 const PlotReports = lazy(() => import('./pages/plots/reports/PlotReports'));
-const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/closings/PlotPayoutLedgerPage'));
+const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/incentives/PlotPayoutLedgerPage'));
 const PlotAgreementViewer = lazy(() => import('./pages/plots/printViewers/PlotAgreementViewer'));
 const BookingCertificateViewer = lazy(() => import('./pages/plots/printViewers/BookingCertificateViewer'));
 const ReceiptViewer = lazy(() => import('./pages/plots/printViewers/ReceiptViewer'));
-const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/closings/PlotPayoutVoucherPrint'));
+const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/incentives/PlotPayoutVoucherPrint'));
 const PlotInterestCalculator = lazy(() => import('./pages/plots/calculator/PlotInterestCalculator'));
 const BusinessDeveloperLedgerPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperLedgerPage'));
 const BusinessDeveloperDashboard = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperDashboard'));
 const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperReportPage'));
 const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
-const PlotClosingsPage = lazy(() => import('./pages/plots/closings/PlotClosingsPage'));
-const PlotClosingProcessPage = lazy(() => import('./pages/plots/closings/PlotClosingProcessPage'));
+const PlotIncentivesPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
+const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
+const PlotClosingsPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
+const PlotClosingProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
@@ -132,6 +135,7 @@ const routesByRole = {
       <Route path="attandence-import" element={<AttendanceExcelImport />} />
       <Route path="attandence_Report" element={<AttendanceReport />} />
       <Route path="holiday" element={<HolidayForm />} />
+      <Route path="activity-logs" element={<ActivityLogs />} />
       <Route path="leave-request" element={<Adminleave />} />
       <Route path="leave-ledger" element={<LeaveBalancePage />} />
       <Route path="advance" element={<EmployeeAdvancePage />} />
@@ -186,6 +190,12 @@ const routesByRole = {
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
+      <Route path="plots/incentives" element={<PlotIncentivesPage />} />
+      <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/closings" element={<PlotIncentivesPage />} />
+      <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
 
       {/* Investments (RD / FD) */}
       <Route path="investments/dashboard" element={<InvestmentDashboard />} />
@@ -274,9 +284,12 @@ const routesByRole = {
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
-      <Route path="plots/closings" element={<PlotClosingsPage />} />
-      <Route path="plots/closings/new" element={<PlotClosingProcessPage />} />
-      <Route path="plots/closings/edit/:id" element={<PlotClosingProcessPage />} />
+      <Route path="plots/incentives" element={<PlotIncentivesPage />} />
+      <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/closings" element={<PlotIncentivesPage />} />
+      <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
       {/* Investments (RD / FD) */}
       <Route path="investments/dashboard" element={<InvestmentDashboard />} />
       <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
@@ -310,6 +323,7 @@ const routesByRole = {
       <Route path="attandence-import" element={<AttendanceExcelImport />} />
       <Route path="attandence_Report" element={<AttendanceReport />} />
       <Route path="holiday" element={<HolidayForm />} />
+      <Route path="activity-logs" element={<ActivityLogs />} />
       <Route path="leave-request" element={<Adminleave />} />
       <Route path="leave-ledger" element={<LeaveBalancePage />} />
       <Route path="advance" element={<EmployeeAdvancePage />} />
@@ -364,9 +378,12 @@ const routesByRole = {
       <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
       <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
       <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
-      <Route path="plots/closings" element={<PlotClosingsPage />} />
-      <Route path="plots/closings/new" element={<PlotClosingProcessPage />} />
-      <Route path="plots/closings/edit/:id" element={<PlotClosingProcessPage />} />
+      <Route path="plots/incentives" element={<PlotIncentivesPage />} />
+      <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/closings" element={<PlotIncentivesPage />} />
+      <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
+      <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
 
       {/* Investments (RD / FD) */}
       <Route path="investments/dashboard" element={<InvestmentDashboard />} />
@@ -445,6 +462,7 @@ const routesByRole = {
       <Route path="permission" element={<Permission />} />
       <Route path="api-monitor" element={<ApiMonitor />} />
       <Route path="error-logs" element={<ErrorLogs />} />
+      <Route path="activity-logs" element={<ActivityLogs />} />
     </Route>
   ),
 };

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const branchSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  branchCode: { type: String, unique: true, sparse: true, index: true },
   location: String,
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   managerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],

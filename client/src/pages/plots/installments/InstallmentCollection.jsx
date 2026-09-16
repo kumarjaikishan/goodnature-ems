@@ -28,53 +28,83 @@ const InstallmentCollection = ({ type }) => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [selectedInstIds, setSelectedInstIds] = useState([]);
-  const [gracePeriod, setGracePeriod] = useState(15);
+  const [dpGracePeriod, setDpGracePeriod] = useState(15);
+  const [emiGracePeriod, setEmiGracePeriod] = useState(15);
+  const [lateFineFrequency, setLateFineFrequency] = useState('YEARLY');
+  const [lateFineRate, setLateFineRate] = useState(24);
   const [lateFineDailyPercent, setLateFineDailyPercent] = useState(24 / 365);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getLateFine = (inst, graceDays, customDate = null, fineDailyPercent = lateFineDailyPercent) => {
+  const getLateFine = (inst, customGrace = null, customDate = null, fineDailyPercent = lateFineDailyPercent) => {
     if (!inst || !inst.dueDate) return 0;
     if (inst.status === 'PAID') return inst.lateFine || 0;
 
-    const due = new Date(inst.dueDate);
+    const resolvedGrace = customGrace !== null
+      ? customGrace
+      : (inst.installmentNumber === 0 || selectedBooking?.scheme === 'FULL_PAYMENT' ? dpGracePeriod : emiGracePeriod);
+
     const dateStr = customDate || form?.createdAt;
     const payDate = dateStr ? new Date(dateStr) : new Date();
-
-    const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     const d2 = new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate());
 
-    const diffTime = d2 - d1;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const rate = (Number(fineDailyPercent) || (24 / 365)) / 100;
+    const principal = Math.max(0, inst.dueAmount - (inst.paidAmount || 0));
 
-    let dynamicFine = 0;
-    if (diffDays > graceDays) {
-      const principal = Math.max(0, inst.dueAmount - (inst.paidAmount || 0));
-      const rate = (Number(fineDailyPercent) || (24 / 365)) / 100;
-      dynamicFine = Math.round(principal * rate * diffDays);
+    let newlyAccruedFine = 0;
+    if (!inst.paidDate || !inst.paidAmount) {
+      // First collection: calculate from dueDate with grace period
+      const due = new Date(inst.dueDate);
+      const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      const diffTime = d2 - d1;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+      if (diffDays > resolvedGrace) {
+        newlyAccruedFine = Math.round(principal * rate * diffDays);
+      }
+    } else {
+      // Subsequent collection on partially paid installment: calculate incremental fine since last payment date
+      const lastPaid = new Date(inst.paidDate);
+      const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
+      const diffTime = d2 - d1;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 0) {
+        newlyAccruedFine = Math.round(principal * rate * diffDays);
+      }
     }
 
     const storedUnpaidFine = Math.max(0, (inst.lateFine || 0) - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
-    return Math.max(dynamicFine, storedUnpaidFine);
+    return storedUnpaidFine + newlyAccruedFine;
   };
 
-  const getLateDays = (inst, graceDays, customDate = null) => {
+  const getLateDays = (inst, customGrace = null, customDate = null) => {
     if (!inst || !inst.dueDate) return 0;
     if (inst.status === 'PAID') return inst.lateDays || 0;
 
-    const due = new Date(inst.dueDate);
+    const resolvedGrace = customGrace !== null
+      ? customGrace
+      : (inst.installmentNumber === 0 || selectedBooking?.scheme === 'FULL_PAYMENT' ? dpGracePeriod : emiGracePeriod);
+
     const dateStr = customDate || form?.createdAt;
     const payDate = dateStr ? new Date(dateStr) : new Date();
-
-    const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     const d2 = new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate());
 
-    const diffTime = d2 - d1;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    if (diffDays > graceDays) {
-      return diffDays;
+    if (!inst.paidDate || !inst.paidAmount) {
+      const due = new Date(inst.dueDate);
+      const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      const diffTime = d2 - d1;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDays > resolvedGrace) {
+        return diffDays;
+      }
+      return 0;
+    } else {
+      const lastPaid = new Date(inst.paidDate);
+      const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
+      const diffTime = d2 - d1;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
     }
-    return 0;
   };
 
   // Receipts / Collections list
@@ -119,6 +149,31 @@ const InstallmentCollection = ({ type }) => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   // Fetch receipts list for list view
+  // Fetch receipts and rate config
+  const fetchRateConfig = async () => {
+    try {
+      const res = await api.get('/plots/rate-config');
+      const rateData = res.data?.data || {};
+      const dpGrace = rateData.dpGracePeriodDays ?? rateData.lateFineGraceDays ?? 15;
+      const emiGrace = rateData.emiGracePeriodDays ?? rateData.lateFineGraceDays ?? 15;
+      const freq = rateData.lateFineFrequency || 'YEARLY';
+      const rate = rateData.lateFineRate !== undefined && rateData.lateFineRate !== null ? Number(rateData.lateFineRate) : 24;
+      let dailyPercent = rateData.lateFineDailyPercent;
+      if (dailyPercent === undefined || dailyPercent === null) {
+        if (freq === 'YEARLY') dailyPercent = rate / 365;
+        else if (freq === 'MONTHLY') dailyPercent = rate / 30;
+        else dailyPercent = rate;
+      }
+      setDpGracePeriod(dpGrace);
+      setEmiGracePeriod(emiGrace);
+      setLateFineFrequency(freq);
+      setLateFineRate(rate);
+      setLateFineDailyPercent(dailyPercent);
+    } catch {
+      // Fallback to defaults
+    }
+  };
+
   const fetchReceipts = async () => {
     setReceiptsLoading(true);
     try {
@@ -132,6 +187,7 @@ const InstallmentCollection = ({ type }) => {
   };
 
   useEffect(() => {
+    fetchRateConfig();
     fetchBookings();
     fetchReceipts();
   }, []);
@@ -192,18 +248,29 @@ const InstallmentCollection = ({ type }) => {
       const rateRes = await api.get('/plots/rate-config');
       if (currentReqId !== activeSelectRequestId.current) return;
 
-      const seriesGrace = b?.plotId?.seriesId?.gracePeriodDays;
-      const seriesDailyPercent = b?.plotId?.seriesId?.lateFineDailyPercent;
+      const rateData = rateRes.data?.data || {};
+      const resolvedDpGrace = rateData.dpGracePeriodDays ?? rateData.lateFineGraceDays ?? 15;
+      const resolvedEmiGrace = rateData.emiGracePeriodDays ?? rateData.lateFineGraceDays ?? 15;
+      const resolvedFreq = rateData.lateFineFrequency || 'YEARLY';
+      const resolvedRate = rateData.lateFineRate !== undefined && rateData.lateFineRate !== null
+        ? Number(rateData.lateFineRate)
+        : 24;
 
-      const graceDays = (seriesGrace !== undefined && seriesGrace !== null)
-        ? seriesGrace
-        : (rateRes.data.data?.lateFineGraceDays ?? 15);
+      let dailyPercent = rateData.lateFineDailyPercent;
+      if (dailyPercent === undefined || dailyPercent === null) {
+        if (resolvedFreq === 'YEARLY') {
+          dailyPercent = resolvedRate / 365;
+        } else if (resolvedFreq === 'MONTHLY') {
+          dailyPercent = resolvedRate / 30;
+        } else {
+          dailyPercent = resolvedRate;
+        }
+      }
 
-      const dailyPercent = (seriesDailyPercent !== undefined && seriesDailyPercent !== null)
-        ? seriesDailyPercent
-        : (rateRes.data.data?.lateFineDailyPercent ?? (24 / 365));
-
-      setGracePeriod(graceDays);
+      setDpGracePeriod(resolvedDpGrace);
+      setEmiGracePeriod(resolvedEmiGrace);
+      setLateFineFrequency(resolvedFreq);
+      setLateFineRate(resolvedRate);
       setLateFineDailyPercent(dailyPercent);
 
       const instRes = await api.get(`/plots/bookings/${bookingId}/installments`);
@@ -222,7 +289,8 @@ const InstallmentCollection = ({ type }) => {
       if (firstUnpaid) {
         setSelectedInstIds([firstUnpaid._id]);
         const principalDue = firstUnpaid.dueAmount - firstUnpaid.paidAmount;
-        const fine = getLateFine(firstUnpaid, graceDays, null, dailyPercent);
+        const targetGrace = (firstUnpaid.installmentNumber === 0 || b?.scheme === 'FULL_PAYMENT') ? resolvedDpGrace : resolvedEmiGrace;
+        const fine = getLateFine(firstUnpaid, targetGrace, form.createdAt, dailyPercent);
         setForm((f) => ({ ...f, amountPaid: String(principalDue + fine), lateFineRebate: '' }));
       } else {
         setForm((f) => ({ ...f, amountPaid: String(b?.remainingAmount || 0), lateFineRebate: '' }));
@@ -254,7 +322,7 @@ const InstallmentCollection = ({ type }) => {
 
         const totalCalculated = targetInsts.reduce((sum, i) => {
           const p = Math.max(0, i.dueAmount - (i.paidAmount || 0));
-          const fVal = getLateFine(i, gracePeriod, newDate);
+          const fVal = getLateFine(i, null, newDate);
           return sum + p + fVal;
         }, 0);
         if (totalCalculated > 0) {
@@ -279,7 +347,7 @@ const InstallmentCollection = ({ type }) => {
       .filter((i) => updated.includes(i._id))
       .reduce((sum, i) => {
         const p = Math.max(0, i.dueAmount - (i.paidAmount || 0));
-        const fVal = getLateFine(i, gracePeriod, form.createdAt);
+        const fVal = getLateFine(i, null, form.createdAt);
         return sum + p + fVal;
       }, 0);
 
@@ -289,15 +357,15 @@ const InstallmentCollection = ({ type }) => {
   const getSelectedLateFineTotal = () => {
     if (mode === 'DOWNPAYMENT') {
       const dpInst = installments?.find((i) => i.installmentNumber === 0) || (installments && installments[0]);
-      return dpInst ? getLateFine(dpInst, gracePeriod, form.createdAt) : 0;
+      return dpInst ? getLateFine(dpInst, dpGracePeriod, form.createdAt) : 0;
     }
     if (mode === 'EMI') {
       const activeEmi = installments?.find((i) => i.installmentNumber > 0 && i.status !== 'PAID') || installments?.find((i) => i.installmentNumber > 0);
-      return activeEmi ? getLateFine(activeEmi, gracePeriod, form.createdAt) : 0;
+      return activeEmi ? getLateFine(activeEmi, emiGracePeriod, form.createdAt) : 0;
     }
     return installments
       .filter((i) => selectedInstIds.includes(i._id))
-      .reduce((sum, i) => sum + getLateFine(i, gracePeriod, form.createdAt), 0);
+      .reduce((sum, i) => sum + getLateFine(i, null, form.createdAt), 0);
   };
 
   const handleSubmit = async (e) => {
@@ -312,15 +380,36 @@ const InstallmentCollection = ({ type }) => {
       }
     }
 
+    if (mode === 'DOWNPAYMENT') {
+      const dpInst = installments?.find((i) => i.installmentNumber === 0) || (installments && installments[0]);
+      const dpPrincipalDue = dpInst ? Math.max(0, dpInst.dueAmount - dpInst.paidAmount) : 0;
+      const dpFine = dpInst ? getLateFine(dpInst, dpGracePeriod, form.createdAt) : 0;
+      const netFine = Math.max(0, dpFine - (Number(form.lateFineRebate) || 0));
+      const maxAllowed = dpPrincipalDue + netFine;
+
+      if (Number(form.amountPaid) > maxAllowed && maxAllowed > 0) {
+        return toast.error(
+          `Maximum allowed downpayment collection is ₹${maxAllowed.toLocaleString('en-IN')}. Please collect EMI installments from the EMI page.`
+        );
+      }
+    }
+
     setSubmitLoading(true);
     try {
+      let targetIds = selectedInstIds;
+      if (mode === 'DOWNPAYMENT') {
+        const dpInst = installments?.find((i) => i.installmentNumber === 0) || (installments && installments[0]);
+        if (dpInst) targetIds = [dpInst._id];
+      }
+
       const payload = {
         amountPaid: Number(form.amountPaid),
         lateFineRebate: Number(form.lateFineRebate) || 0,
         paymentMode: form.paymentMode,
         transactionReference: form.paymentMode === 'cash' ? '' : form.transactionReference.trim(),
         remarks: form.remarks,
-        selectedInstallmentIds: selectedBooking.scheme === 'MONTHLY_INSTALLMENT' ? selectedInstIds : undefined,
+        installmentIds: targetIds,
+        selectedInstallmentIds: targetIds,
         createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : undefined,
       };
 
@@ -657,7 +746,11 @@ const InstallmentCollection = ({ type }) => {
           handleCheckboxToggle={handleCheckboxToggle}
           getLateFine={getLateFine}
           getLateDays={getLateDays}
-          gracePeriod={gracePeriod}
+          dpGracePeriod={dpGracePeriod}
+          emiGracePeriod={emiGracePeriod}
+          lateFineFrequency={lateFineFrequency}
+          lateFineRate={lateFineRate}
+          lateFineDailyPercent={lateFineDailyPercent}
           getSelectedLateFineTotal={getSelectedLateFineTotal}
           form={form}
           setForm={setForm}

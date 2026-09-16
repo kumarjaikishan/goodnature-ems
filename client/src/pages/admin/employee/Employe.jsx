@@ -575,13 +575,17 @@ const Employe = () => {
       />
 
       {/* View Profile Modal */}
-      <Modalbox open={openviewmodal} onClose={() => setopenviewmodal(false)}>
-        <div className="w-[92vw] max-w-[690px] max-h-[90vh] overflow-y-auto rounded-xl">
-          <EmployeeProfile
-            viewEmployee={viewEmployee}
-            onClose={() => setopenviewmodal(false)}
-          />
-        </div>
+      <Modalbox
+        open={openviewmodal}
+        onClose={() => setopenviewmodal(false)}
+        title="Employee Profile"
+        subtitle="Detailed personal, employment and document records"
+        maxWidth="max-w-2xl"
+      >
+        <EmployeeProfile
+          viewEmployee={viewEmployee}
+          onClose={() => setopenviewmodal(false)}
+        />
       </Modalbox>
 
       {/* Password Reset Modal */}

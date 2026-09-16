@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Building2, 
-  ArrowLeft, 
-  Sparkles, 
-  Search, 
-  UserPlus, 
-  Edit3, 
-  AlertCircle, 
-  CheckCircle2
+import {
+  Building2,
+  ArrowLeft,
+  Sparkles,
+  Search,
+  UserPlus,
+  Edit3,
+  Calculator,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
@@ -18,7 +19,7 @@ import { BookingSummarySidebar } from './components/BookingSummarySidebar';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
 const inputCls =
-  'w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none font-medium';
+  'w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none font-medium shadow-2xs';
 
 export default function PlotBookingEditPage() {
   const { id } = useParams();
@@ -50,16 +51,19 @@ export default function PlotBookingEditPage() {
   const [discountVal, setDiscountVal] = useState('');
   const [govtRate, setGovtRate] = useState('100');
 
-  // Editable dynamic rates
+  // Dynamic rates & Downpayment
   const [customSqFtRate, setCustomSqFtRate] = useState(1000);
-  const [customDpRate, setCustomDpRate] = useState(1000);
+  const [dpType, setDpType] = useState('SQFT_RATE'); // 'SQFT_RATE', 'PERCENT', or 'FLAT'
+  const [dpVal, setDpVal] = useState(500);
+  const [emiFrequency, setEmiFrequency] = useState('MONTHLY'); // 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'
+  const [installmentCount, setInstallmentCount] = useState(8);
 
   // Form State
   const [form, setForm] = useState({
     customerId: '',
     plotId: '',
     bookingDate: new Date().toISOString().split('T')[0],
-    tenureMonths: 0,
+    tenureMonths: 8,
     bookingType: 'BOOKING',
     holdExpiryDays: '7',
     downpaymentDays: 90,
@@ -93,7 +97,7 @@ export default function PlotBookingEditPage() {
         api.get('/plots/series'),
         api.get('/plots?limit=5000'),
         api.get('/plots/rate-config').catch(() => ({ data: { data: null } })),
-        api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } }))
+        api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
       ]);
 
       const b = bookingRes.data?.data || bookingRes.data;
@@ -125,19 +129,26 @@ export default function PlotBookingEditPage() {
       const plotObj = plotsData.find((p) => p._id === (b.plotId?._id || b.plotId)) || b.plotId;
       setSelectedPlot(plotObj || null);
 
-      // Populate tenure & rates
-      const bookingTenure = b.tenureMonths !== undefined ? Number(b.tenureMonths) : b.scheme === 'FULL_PAYMENT' ? 0 : 6;
-      const initialBaseRate = b.basePlotRate || b.customSqFtRate || (bookingTenure === 0 ? 1000 : 1050);
-      const initialDpRate = b.downpaymentRate || b.customDownpaymentRate || (bookingTenure === 0 ? initialBaseRate : 500);
-      
+      // Populate rates
+      const initialBaseRate = b.basePlotRate || b.customSqFtRate || 1000;
       setCustomSqFtRate(initialBaseRate);
-      setCustomDpRate(initialDpRate);
       setGovtRate(b.govtRate ? String(b.govtRate) : '100');
 
       // Populate discount
-      const bookingDiscount = b.discount || 0;
-      setDiscountType('RUPEE');
-      setDiscountVal(bookingDiscount ? String(bookingDiscount) : '');
+      setDiscountType(b.discountType || 'RUPEE');
+      setDiscountVal(b.discountValue ? String(b.discountValue) : b.discount ? String(b.discount) : '');
+
+      // Populate Downpayment Mode & Value
+      setDpType('SQFT_RATE');
+      const resolvedDpRate = b.downpaymentRate || b.customDownpaymentRate || (b.scheme === 'FULL_PAYMENT' ? initialBaseRate : 500);
+      setDpVal(resolvedDpRate);
+
+      // Populate EMI Frequency & Installments
+      const freq = b.emiFrequency || 'MONTHLY';
+      setEmiFrequency(freq);
+      const freqMultiplier = freq === 'QUARTERLY' ? 3 : freq === 'HALF_YEARLY' ? 6 : freq === 'YEARLY' ? 12 : 1;
+      const instCount = b.installmentCount || (b.tenureMonths ? Math.round(b.tenureMonths / freqMultiplier) : 8);
+      setInstallmentCount(instCount);
 
       // Populate land sourcing
       setLandSourcing(Array.isArray(b.landSourcing) ? JSON.parse(JSON.stringify(b.landSourcing)) : []);
@@ -149,7 +160,7 @@ export default function PlotBookingEditPage() {
         bookingDate: b.bookingDate
           ? new Date(b.bookingDate).toISOString().split('T')[0]
           : new Date(b.createdAt).toISOString().split('T')[0],
-        tenureMonths: bookingTenure,
+        tenureMonths: b.tenureMonths !== undefined ? Number(b.tenureMonths) : 8,
         bookingType: b.bookingType || (b.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
         holdExpiryDays: '7',
         downpaymentDays: b.downpaymentDays || (b.downpaymentMonths ? b.downpaymentMonths * 30 : 90),
@@ -181,17 +192,18 @@ export default function PlotBookingEditPage() {
     }
 
     const timer = setTimeout(() => {
-      api.get('/plots/customers', {
-        params: {
-          search: searchQuery.trim(),
-          limit: 10,
-        },
-      })
-      .then((res) => {
-        const list = res.data?.data?.customers || res.data?.customers || res.data?.data || [];
-        setSearchResults(list);
-      })
-      .catch(() => setSearchResults([]));
+      api
+        .get('/plots/customers', {
+          params: {
+            search: searchQuery.trim(),
+            limit: 10,
+          },
+        })
+        .then((res) => {
+          const list = res.data?.data?.customers || res.data?.customers || res.data?.data || [];
+          setSearchResults(list);
+        })
+        .catch(() => setSearchResults([]));
     }, 250);
 
     return () => clearTimeout(timer);
@@ -222,42 +234,22 @@ export default function PlotBookingEditPage() {
     setForm((f) => ({ ...f, plotId: p._id }));
   };
 
-  // Slabs from rate configuration or standard fallback
-  const slabs = useMemo(() => {
-    if (rateConfig?.rateSlabs?.length > 0) {
-      return rateConfig.rateSlabs;
-    }
-    return [
-      { tenureMonths: 0, plotRate: 1000, downpaymentRate: 1000, emiRate: 0 },
-      { tenureMonths: 6, plotRate: 1100, downpaymentRate: 500, emiRate: 600 },
-      { tenureMonths: 12, plotRate: 1200, downpaymentRate: 500, emiRate: 700 },
-      { tenureMonths: 18, plotRate: 1300, downpaymentRate: 500, emiRate: 800 },
-      { tenureMonths: 24, plotRate: 1400, downpaymentRate: 500, emiRate: 900 },
-      { tenureMonths: 30, plotRate: 1500, downpaymentRate: 500, emiRate: 1000 },
-      { tenureMonths: 36, plotRate: 1600, downpaymentRate: 500, emiRate: 1100 },
-      { tenureMonths: 48, plotRate: 1800, downpaymentRate: 500, emiRate: 1300 },
-      { tenureMonths: 60, plotRate: 2000, downpaymentRate: 500, emiRate: 1500 },
-    ];
-  }, [rateConfig]);
-
-  const currentSlab = useMemo(() => {
-    return slabs.find((s) => Number(s.tenureMonths) === Number(form.tenureMonths)) || slabs[0];
-  }, [slabs, form.tenureMonths]);
-
   // Derived financial & rate calculations
   const isCorner = selectedPlot?.plotType === 'CORNER';
   const plotPremiumHeads = Array.isArray(selectedPlot?.premiumHeads) ? selectedPlot.premiumHeads : [];
-  const totalPremiumExtra = plotPremiumHeads.length > 0
-    ? plotPremiumHeads.reduce((sum, h) => sum + (Number(h.extraPercent) || 0), 0)
-    : (isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0);
+  const totalPremiumExtra =
+    plotPremiumHeads.length > 0
+      ? plotPremiumHeads.reduce((sum, h) => sum + (Number(h.extraPercent) || 0), 0)
+      : isCorner
+      ? rateConfig?.cornerExtraPercent || 20
+      : 0;
   const cornerExtra = totalPremiumExtra;
-  const plotArea = selectedPlot ? (Number(selectedPlot.plotSize) || Number(selectedPlot.area) || 0) : 0;
+  const plotArea = selectedPlot ? Number(selectedPlot.plotSize) || Number(selectedPlot.area) || 0 : 0;
 
-  const baseRate = Number(customSqFtRate) || 0;
-  const effectiveSqFtRate = totalPremiumExtra > 0
-    ? Math.round(baseRate * (1 + totalPremiumExtra / 100) * 100) / 100
-    : baseRate;
-  
+  const baseRate = Number(customSqFtRate) || 1000;
+  const effectiveSqFtRate =
+    totalPremiumExtra > 0 ? Math.round(baseRate * (1 + totalPremiumExtra / 100) * 100) / 100 : baseRate;
+
   const calculatedPlotValue = Math.round(plotArea * effectiveSqFtRate);
 
   // Discount calculation
@@ -274,44 +266,62 @@ export default function PlotBookingEditPage() {
   }, [discountVal, discountType, calculatedPlotValue, selectedPlot, plotArea]);
 
   const netContractValue = Math.max(0, calculatedPlotValue - calculatedDiscount);
-  const isOneTime = Number(form.tenureMonths) === 0;
 
-  // Downpayment & EMI breakdown
+  // Downpayment calculation (Flat vs ₹/Sq.Ft. vs %)
   const downpaymentAmt = useMemo(() => {
-    if (isOneTime) {
-      return netContractValue;
+    const num = parseFloat(dpVal) || 0;
+    if (num <= 0 || !selectedPlot) return 0;
+    if (dpType === 'FLAT') {
+      return Math.min(netContractValue, Math.round(num));
     }
-    const dpRate = Number(customDpRate) || 0;
-    return Math.round(plotArea * dpRate);
-  }, [isOneTime, netContractValue, customDpRate, plotArea]);
+    if (dpType === 'PERCENT') {
+      return Math.min(netContractValue, Math.round((netContractValue * num) / 100));
+    }
+    // SQFT_RATE
+    return Math.min(netContractValue, Math.round(plotArea * num));
+  }, [dpVal, dpType, netContractValue, plotArea, selectedPlot]);
 
-  // Balance EMI Principal
-  const emiPrincipalAmt = useMemo(() => {
-    if (isOneTime) return 0;
-    return Math.max(0, calculatedPlotValue - downpaymentAmt - calculatedDiscount);
-  }, [isOneTime, calculatedPlotValue, downpaymentAmt, calculatedDiscount]);
+  const customDpRate = useMemo(() => {
+    if (plotArea <= 0) return 0;
+    return Math.round((downpaymentAmt / plotArea) * 100) / 100;
+  }, [downpaymentAmt, plotArea]);
+
+  const emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
+  const isOneTime = emiPrincipalAmt === 0;
+
+  const freqMultiplier = useMemo(() => {
+    switch (emiFrequency) {
+      case 'QUARTERLY':
+        return 3;
+      case 'HALF_YEARLY':
+        return 6;
+      case 'YEARLY':
+        return 12;
+      default:
+        return 1;
+    }
+  }, [emiFrequency]);
+
+  const totalTenureMonths = isOneTime ? 0 : (Number(installmentCount) || 1) * freqMultiplier;
+
+  const emiPerInstallmentAmt = useMemo(() => {
+    if (isOneTime || !installmentCount || Number(installmentCount) <= 0) return 0;
+    return Math.round(emiPrincipalAmt / Number(installmentCount));
+  }, [isOneTime, installmentCount, emiPrincipalAmt]);
 
   const emiRatePerSqFt = useMemo(() => {
     if (isOneTime || plotArea <= 0) return 0;
     return Math.round((emiPrincipalAmt / plotArea) * 100) / 100;
   }, [isOneTime, plotArea, emiPrincipalAmt]);
 
-  const emiMonthlyAmt = useMemo(() => {
-    if (isOneTime || Number(form.tenureMonths) <= 0) return 0;
-    return Math.round(emiPrincipalAmt / Number(form.tenureMonths));
-  }, [isOneTime, form.tenureMonths, emiPrincipalAmt]);
-
   // Dynamic Date Helpers
-  const getDynamicOneTimeHelper = (bookingDateStr, daysVal) => {
+  const getDynamicDueHelper = (bookingDateStr, daysVal) => {
     const d = bookingDateStr ? new Date(bookingDateStr) : new Date();
     d.setDate(d.getDate() + Number(daysVal || 90));
-    return `Full payment of ₹${netContractValue.toLocaleString('en-IN')} due on or before ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${daysVal || 90} days).`;
-  };
-
-  const getDynamicEmiHelper = (bookingDateStr, daysVal) => {
-    const d = bookingDateStr ? new Date(bookingDateStr) : new Date();
-    d.setDate(d.getDate() + Number(daysVal || 90));
-    return `Downpayment of ₹${downpaymentAmt.toLocaleString('en-IN')} due on or before ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${daysVal || 90} days). Remaining ₹${emiPrincipalAmt.toLocaleString('en-IN')} in ${form.tenureMonths} monthly EMIs.`;
+    if (isOneTime) {
+      return `Full payment of ₹${netContractValue.toLocaleString('en-IN')} due on or before ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${daysVal || 90} days).`;
+    }
+    return `Downpayment of ₹${downpaymentAmt.toLocaleString('en-IN')} due on or before ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${daysVal || 90} days). Remaining ₹${emiPrincipalAmt.toLocaleString('en-IN')} in ${installmentCount || 1} ${emiFrequency.toLowerCase()} installments (${totalTenureMonths} months).`;
   };
 
   // Land stock validation
@@ -326,8 +336,11 @@ export default function PlotBookingEditPage() {
     Boolean(selectedPlot) &&
     Boolean(form.bookingDate) &&
     Number(customSqFtRate) > 0 &&
-    (isOneTime || (Number(customDpRate) > 0 && Number(customDpRate) <= Number(customSqFtRate))) &&
+    Number(downpaymentAmt) > 0 &&
     isLandStockValid;
+
+  // All available land stock sources (Agreements & Registry Deeds)
+  const allLandSources = availableLandSources || [];
 
   // Submit Updated Booking
   const handleSubmit = async (e) => {
@@ -345,12 +358,14 @@ export default function PlotBookingEditPage() {
       toast.error('Please enter a valid plot rate per sq.ft.');
       return;
     }
-    if (!isOneTime && (Number(customDpRate) <= 0 || Number(customDpRate) > Number(customSqFtRate))) {
-      toast.error('Downpayment rate must be > 0 and <= plot selling rate');
+    if (Number(downpaymentAmt) <= 0) {
+      toast.error('Please enter a valid downpayment amount');
       return;
     }
     if (!isLandStockValid) {
-      toast.error(`Land stock area allocation (${totalAllocatedArea} sqft) must match plot area (${plotArea} sqft) exactly.`);
+      toast.error(
+        `Land stock area allocation (${totalAllocatedArea} sqft) must match plot area (${plotArea} sqft) exactly.`
+      );
       return;
     }
 
@@ -358,36 +373,38 @@ export default function PlotBookingEditPage() {
       setSubmitLoading(true);
 
       const payload = {
-        customerId: form.customerId,
-        plotId: form.plotId,
+        customerId: selectedCustomer._id,
+        plotId: selectedPlot._id,
+        bookingType: form.bookingType || 'BOOKING',
         bookingDate: form.bookingDate,
-        bookingType: form.bookingType,
-        holdExpiryDays: Number(form.holdExpiryDays) || 7,
         scheme: isOneTime ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT',
-        tenureMonths: Number(form.tenureMonths),
-        
-        // Editable Dynamic Rates
-        customSqFtRate: Number(customSqFtRate),
-        basePlotRate: Number(customSqFtRate),
-        customDownpaymentRate: Number(customDpRate),
-        downpaymentRate: Number(customDpRate),
-        emiRate: emiRatePerSqFt,
-        
+        tenureMonths: totalTenureMonths,
+        emiFrequency: emiFrequency,
+        installmentCount: isOneTime ? 0 : Number(installmentCount || 1),
         discount: calculatedDiscount,
-        bookingAmount: downpaymentAmt,
+        discountType: discountType,
+        discountValue: Number(discountVal) || 0,
         govtRate: Number(govtRate) || 100,
-        
-        downpaymentDays: !isOneTime ? (Number(form.downpaymentDays) || 90) : undefined,
-        downpaymentMonths: !isOneTime ? (Number(form.downpaymentMonths) || 3) : undefined,
-        oneTimeDays: isOneTime ? (Number(form.oneTimeDays) || 90) : undefined,
-        oneTimeMonths: isOneTime ? (Number(form.oneTimeMonths) || 3) : undefined,
-        
-        paymentMode: form.paymentMode,
-        transactionReference: form.transactionReference,
-        sponsorId: form.sponsorId || null,
-        status: form.status,
-        agreementNumber: form.agreementNumber,
-        notes: form.notes,
+
+        // Dynamic Rates & Financials
+        customSqFtRate: Number(customSqFtRate) || 1000,
+        basePlotRate: Number(customSqFtRate) || 1000,
+        customDownpaymentRate: Number(customDpRate) || 0,
+        downpaymentRate: Number(customDpRate) || 0,
+        downpaymentAmount: downpaymentAmt,
+        emiRate: emiRatePerSqFt,
+        emiMonthlyAmount: emiPerInstallmentAmt,
+
+        bookingAmount: downpaymentAmt,
+        totalPlotAmount: netContractValue,
+        downpaymentDays: Number(form.downpaymentDays || 90),
+        oneTimeDays: Number(form.downpaymentDays || form.oneTimeDays || 90),
+        paymentMode: form.paymentMode || 'cash',
+        transactionReference: form.transactionReference || '',
+        sponsorId: form.sponsorId || selectedCustomer.sponsorId?._id || undefined,
+        status: form.status || 'ACTIVE',
+        agreementNumber: form.agreementNumber || '',
+        notes: form.notes || '',
         landSourcing: landSourcing,
         reason: (form.reason || '').trim(),
         adminNarration: (form.reason || '').trim(),
@@ -409,7 +426,7 @@ export default function PlotBookingEditPage() {
   }
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
         <div className="flex items-center gap-3">
@@ -456,12 +473,13 @@ export default function PlotBookingEditPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left 2 Columns: Single-Page All Sections */}
         <div className="lg:col-span-2 space-y-6">
-          
           {/* Section 1: Customer Selection */}
           <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">1</span>
+                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                  1
+                </span>
                 <span>Customer Details</span>
               </h3>
               <a
@@ -497,7 +515,9 @@ export default function PlotBookingEditPage() {
                     >
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-800">{cust.name}</span>
-                        <span className="text-slate-500 font-mono text-[11px]">{cust.customerCode || cust.customerId}</span>
+                        <span className="text-slate-500 font-mono text-[11px]">
+                          {cust.customerCode || cust.customerId}
+                        </span>
                       </div>
                       <div className="text-right">
                         <span className="text-slate-600 block">{cust.mobile}</span>
@@ -547,7 +567,9 @@ export default function PlotBookingEditPage() {
           <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">2</span>
+                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                  2
+                </span>
                 <h3 className="text-base font-bold text-slate-800">Choose Plot</h3>
                 {selectedPlot && (
                   <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
@@ -594,7 +616,8 @@ export default function PlotBookingEditPage() {
 
                           let bgClass = 'bg-slate-100 border-slate-300 text-slate-400 opacity-60 cursor-not-allowed';
                           if (isAvail) {
-                            bgClass = 'bg-white border-emerald-300 text-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50 cursor-pointer shadow-2xs';
+                            bgClass =
+                              'bg-white border-emerald-300 text-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50 cursor-pointer shadow-2xs';
                           }
 
                           if (isSelected) {
@@ -639,19 +662,24 @@ export default function PlotBookingEditPage() {
             </div>
           </div>
 
-          {/* Section 3: Scheme, Dynamic Rates & Terms */}
+          {/* Section 3: Contract Terms, Dynamic Rates & Downpayment */}
           <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">3</span>
+                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                  3
+                </span>
                 <span>Contract Terms, Dynamic Rates & Downpayment</span>
               </h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Booking Date */}
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Booking Date *</label>
+              {/* 1. Booking Date */}
+              <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">Booking Date *</label>
+                  <span className="text-[10px] text-slate-400 font-semibold">Start Date</span>
+                </div>
                 <input
                   className={inputCls}
                   type="date"
@@ -659,212 +687,282 @@ export default function PlotBookingEditPage() {
                   onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                   required
                 />
-              </div>
-
-              {/* Tenure Matrix Dropdown */}
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Tenure & Master Plan (समय / बिक्री प्लान) *</label>
-                <select
-                  className={`${inputCls} bg-teal-50/40 border-teal-300 text-teal-950 font-bold`}
-                  value={form.tenureMonths}
-                  onChange={(e) => {
-                    const newTenure = Number(e.target.value);
-                    const selectedSlab = slabs.find((s) => Number(s.tenureMonths) === newTenure) || slabs[0];
-                    setForm({ ...form, tenureMonths: newTenure });
-                    // Auto-sync custom rate inputs to the new slab defaults
-                    setCustomSqFtRate(selectedSlab.plotRate || 1000);
-                    setCustomDpRate(selectedSlab.downpaymentRate || (newTenure === 0 ? selectedSlab.plotRate || 1000 : 500));
-                  }}
-                >
-                  {slabs.map((s) => (
-                    <option key={s.tenureMonths} value={s.tenureMonths}>
-                      {s.tenureMonths === 0
-                        ? `0 Months (One-Time Payment) — Master Rate: ₹${s.plotRate}/sqft [100% Downpayment]`
-                        : `${s.tenureMonths} Months EMI — Master Rate: ₹${s.plotRate}/sqft [Default DP: ₹${s.downpaymentRate || 500}/sqft | EMI: ₹${s.emiRate || (s.plotRate - 500)}/sqft]`}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-[11px] text-teal-700 font-semibold px-1">
-                  Master Plan: ₹{currentSlab.plotRate}/sqft | DP: ₹{currentSlab.downpaymentRate || (currentSlab.tenureMonths === 0 ? 1000 : 500)}/sqft | Duration: {currentSlab.tenureMonths === 0 ? 'Full Payment' : `${currentSlab.tenureMonths} Months`}
+                <span className="text-[11px] text-slate-400 font-medium truncate">
+                  Initial contract booking agreement date
                 </span>
               </div>
 
-              {/* Editable Plot Rate per SqFt */}
-              <div className="flex flex-col gap-1 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                <div className="flex items-center justify-between mb-0.5">
+              {/* 2. Plot Selling Rate (₹ / Sq.Ft.) */}
+              <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <Edit3 size={14} className="text-teal-700" />
-                    Plot Selling Rate (₹ / Sq.Ft.) *
+                    Plot Selling Rate *
                   </label>
+                  <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                    ₹{customSqFtRate || 1000}/sqft
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₹</span>
-                    <input
-                      className={`${inputCls} pl-7 font-mono font-bold text-slate-900 bg-white`}
-                      type="tel"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={customSqFtRate ?? ''}
-                      onChange={(e) => setCustomSqFtRate(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="Rate per sqft"
-                      required
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600">/ Sq.Ft.</span>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-slate-400 font-bold text-sm">₹</span>
+                  <input
+                    className="w-full h-11 pl-7 pr-16 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={customSqFtRate ?? 1000}
+                    onChange={(e) => setCustomSqFtRate(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="1000"
+                    required
+                  />
+                  <span className="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">
+                    / Sq.Ft.
+                  </span>
                 </div>
-                <span className="text-[11px] text-slate-500 font-medium px-1">
-                  {plotArea > 0 && customSqFtRate ? (
-                    <>Plot Base: ₹{(plotArea * (Number(customSqFtRate) || 0)).toLocaleString('en-IN')}</>
-                  ) : (
-                    <>Custom selling rate applied per sqft</>
-                  )}
-                  {isCorner && (
-                    <span className="text-amber-700 font-semibold ml-1">
-                      (+{cornerExtra}% Corner = ₹{effectiveSqFtRate}/sqft)
-                    </span>
-                  )}
+                <span className="text-[11px] text-slate-500 font-medium truncate">
+                  Gross: ₹{calculatedPlotValue.toLocaleString('en-IN')} ({plotArea} sqft @ ₹{effectiveSqFtRate}/sqft)
                 </span>
               </div>
 
-              {/* Editable Downpayment Rate */}
-              {isOneTime ? (
-                <div className="flex flex-col gap-1 p-3.5 bg-teal-50/50 border border-teal-200 rounded-xl">
-                  <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-teal-700" />
-                    Full Payment Rate (100% Downpayment)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-2.5 text-teal-700 font-bold text-sm">₹</span>
-                      <input
-                        className={`${inputCls} pl-7 font-mono font-bold text-teal-950 bg-white`}
-                        type="text"
-                        value={customSqFtRate || ''}
-                        disabled
-                        readOnly
-                      />
-                    </div>
-                    <span className="text-xs font-semibold text-teal-800">/ Sq.Ft.</span>
-                  </div>
-                  <span className="text-[11px] text-teal-700 font-bold px-1">
-                    100% full payment required for 0-month tenure.
+              {/* 3. Govt. Base Rate (₹ / Sq.Ft.) */}
+              <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">Govt. Base Rate</label>
+                  <span className="text-[10px] text-slate-400 font-semibold">Circle Rate</span>
+                </div>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-slate-400 font-bold text-sm">₹</span>
+                  <input
+                    className="w-full h-11 pl-7 pr-16 bg-white border border-slate-300 rounded-xl text-sm font-mono text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={govtRate}
+                    onChange={(e) => setGovtRate(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="100"
+                  />
+                  <span className="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">
+                    / Sq.Ft.
                   </span>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-1 p-3.5 bg-teal-50/50 border border-teal-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
-                      <Edit3 size={14} className="text-teal-700" />
-                      Downpayment Rate (₹ / Sq.Ft.) *
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-2.5 text-teal-700 font-bold text-sm">₹</span>
-                      <input
-                        className={`${inputCls} pl-7 font-mono font-bold text-teal-950 bg-white border-teal-300 focus:ring-teal-600`}
-                        type="tel"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={customDpRate ?? ''}
-                        onChange={(e) => setCustomDpRate(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="DP rate per sqft"
-                        required
-                      />
-                    </div>
-                    <span className="text-xs font-semibold text-teal-800">/ Sq.Ft.</span>
-                  </div>
-                  <span className="text-[11px] text-teal-800 font-bold px-1">
-                    Total DP: ₹{downpaymentAmt.toLocaleString('en-IN')} (₹{customDpRate || 0} × {plotArea} sqft)
-                  </span>
-                </div>
-              )}
+                <span className="text-[11px] text-slate-400 font-medium truncate">
+                  Official government circle base rate
+                </span>
+              </div>
 
-              {/* Discount Input */}
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Discount (Deducted from EMI)</label>
-                <div className="flex rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 bg-white">
+              {/* 4. Discount Input */}
+              <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">Discount</label>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      calculatedDiscount > 0
+                        ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    {calculatedDiscount > 0 ? `-₹${calculatedDiscount.toLocaleString('en-IN')}` : 'Optional'}
+                  </span>
+                </div>
+                <div className="flex h-11 rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 bg-white shadow-2xs">
                   <select
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value)}
-                    className="px-3 py-2.5 bg-slate-100 text-xs font-bold text-slate-700 border-r border-slate-300 outline-none cursor-pointer"
+                    className="px-3 bg-slate-100 text-xs font-bold text-slate-700 border-r border-slate-300 outline-none cursor-pointer shrink-0"
                   >
                     <option value="RUPEE">₹ (Flat)</option>
                     <option value="PERCENT">% (Percentage)</option>
                     <option value="SQFT_RATE">₹ / Sq.Ft.</option>
                   </select>
                   <input
-                    className="w-full px-3.5 py-2.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
+                    className="w-full px-3.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={discountVal}
                     onChange={(e) => setDiscountVal(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder={
                       discountType === 'PERCENT'
-                        ? 'e.g. 10%'
+                        ? 'e.g. 10 (%)'
                         : discountType === 'SQFT_RATE'
-                        ? 'e.g. 50 (₹/Sq.Ft.)'
-                        : 'e.g. 5000 (Flat ₹)'
+                        ? 'e.g. 50 (₹/sqft)'
+                        : 'e.g. 25000 (Flat ₹)'
                     }
                   />
                 </div>
-                {calculatedDiscount > 0 ? (
-                  <span className="text-[11px] text-emerald-700 font-semibold px-1">
-                    Discount: ₹{calculatedDiscount.toLocaleString('en-IN')} (deducted from EMI balance)
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-slate-400 px-1">
-                    Discount reduces EMI balance without altering the downpayment.
-                  </span>
-                )}
+                <span className="text-[11px] font-medium truncate text-emerald-700">
+                  {calculatedDiscount > 0
+                    ? `Discount: ₹${calculatedDiscount.toLocaleString('en-IN')} (Net: ₹${netContractValue.toLocaleString('en-IN')})`
+                    : 'Deducted from total gross plot value'}
+                </span>
               </div>
 
-              {/* Govt Rate */}
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Govt. Base Rate (₹ / Sq.Ft.)</label>
-                <input
-                  className={inputCls}
-                  type="tel"
-                  value={govtRate}
-                  onChange={(e) => setGovtRate(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="Govt rate per sqft (Default 100)"
-                />
-              </div>
-
-              {/* Payment / DP Due Days Config */}
-              {isOneTime ? (
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className={labelCls}>Payment Due Period (Days) *</label>
-                  <input
-                    className={inputCls}
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={form.oneTimeDays ?? 90}
-                    onChange={(e) => setForm({ ...form, oneTimeDays: e.target.value.replace(/[^0-9]/g, '') })}
-                    placeholder="Default 90 days"
-                    required
-                  />
-                  <span className="text-[11px] text-teal-700 font-medium px-1">
-                    {getDynamicOneTimeHelper(form.bookingDate, form.oneTimeDays ?? 90)}
+              {/* 5. Downpayment */}
+              <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-teal-50/50 border border-teal-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
+                    <Calculator size={14} className="text-teal-700" />
+                    Downpayment *
+                  </label>
+                  <span className="text-[10px] text-teal-800 font-bold bg-teal-100/80 px-2 py-0.5 rounded-full border border-teal-300">
+                    {dpType === 'SQFT_RATE'
+                      ? `₹${dpVal || 0}/sqft`
+                      : dpType === 'PERCENT'
+                      ? `${dpVal || 0}%`
+                      : `Flat ₹`}
                   </span>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className={labelCls}>Downpayment Due Period (Days) *</label>
+                <div className="flex h-11 rounded-xl border border-teal-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-700 bg-white shadow-2xs">
+                  <select
+                    value={dpType}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setDpType(newType);
+                      if (newType === 'FLAT') {
+                        setDpVal(downpaymentAmt || Math.round(plotArea * (parseFloat(dpVal) || 500)));
+                      } else if (newType === 'PERCENT') {
+                        setDpVal(
+                          netContractValue > 0
+                            ? Math.min(100, Math.round(((downpaymentAmt || 0) / netContractValue) * 100)) || 50
+                            : 50
+                        );
+                      } else if (newType === 'SQFT_RATE') {
+                        setDpVal(plotArea > 0 ? Math.round((downpaymentAmt || 0) / plotArea) || 500 : 500);
+                      }
+                    }}
+                    className="px-3 bg-teal-50 text-xs font-bold text-teal-900 border-r border-teal-200 outline-none cursor-pointer shrink-0"
+                  >
+                    <option value="SQFT_RATE">₹ / Sq.Ft.</option>
+                    <option value="PERCENT">% (Percentage)</option>
+                    <option value="FLAT">₹ (Flat)</option>
+                  </select>
                   <input
-                    className={inputCls}
+                    className="w-full px-3.5 text-sm bg-transparent outline-none text-teal-950 font-bold font-mono"
                     type="tel"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={form.downpaymentDays ?? 90}
-                    onChange={(e) => setForm({ ...form, downpaymentDays: e.target.value.replace(/[^0-9]/g, '') })}
-                    placeholder="Default 90 days"
+                    value={dpVal}
+                    onChange={(e) => setDpVal(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder={
+                      dpType === 'PERCENT'
+                        ? 'e.g. 25 (%)'
+                        : dpType === 'SQFT_RATE'
+                        ? 'e.g. 500 (₹/sqft)'
+                        : 'e.g. 200000 (Flat ₹)'
+                    }
                     required
                   />
-                  <span className="text-[11px] text-teal-700 font-medium px-1">
-                    {getDynamicEmiHelper(form.bookingDate, form.downpaymentDays ?? 90)}
-                  </span>
+                </div>
+                <span className="text-[11px] text-teal-800 font-bold truncate">
+                  Total DP: ₹{downpaymentAmt.toLocaleString('en-IN')} (₹{customDpRate}/sqft eq.)
+                </span>
+              </div>
+
+              {/* 6. Payment / Downpayment Due Period */}
+              <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">Due Period (Days) *</label>
+                  <span className="text-[10px] text-slate-400 font-semibold">Standard 90 Days</span>
+                </div>
+                <input
+                  className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-mono font-medium text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={form.downpaymentDays ?? 90}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setForm({ ...form, downpaymentDays: val, oneTimeDays: val });
+                  }}
+                  placeholder="90"
+                  required
+                />
+                <span className="text-[11px] text-teal-700 font-medium truncate">
+                  {getDynamicDueHelper(form.bookingDate, form.downpaymentDays ?? 90)}
+                </span>
+              </div>
+
+              {/* 7. EMI Frequency & Installments Schedule (when remaining balance > 0) */}
+              {emiPrincipalAmt > 0 && (
+                <div className="md:col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-col gap-3.5">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Calculator size={15} className="text-teal-700" />
+                      EMI Frequency & Installments Schedule
+                    </label>
+                    <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
+                      Total Tenure: {totalTenureMonths} Months
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Frequency Dropdown */}
+                    <div className="flex flex-col justify-between gap-1.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">EMI Frequency *</label>
+                        <span className="text-[10px] text-slate-400 font-semibold">Periodicity</span>
+                      </div>
+                      <select
+                        value={emiFrequency}
+                        onChange={(e) => setEmiFrequency(e.target.value)}
+                        className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs cursor-pointer"
+                      >
+                        <option value="MONTHLY">Monthly (Every 1 Month)</option>
+                        <option value="QUARTERLY">Quarterly (Every 3 Months)</option>
+                        <option value="HALF_YEARLY">Half-Yearly (Every 6 Months)</option>
+                        <option value="YEARLY">Yearly (Every 12 Months)</option>
+                      </select>
+                      <span className="text-[11px] text-slate-500 font-medium truncate">
+                        Installments due{' '}
+                        {emiFrequency === 'MONTHLY'
+                          ? 'every month'
+                          : emiFrequency === 'QUARTERLY'
+                          ? 'every 3 months'
+                          : emiFrequency === 'HALF_YEARLY'
+                          ? 'every 6 months'
+                          : 'every 12 months'}
+                      </span>
+                    </div>
+
+                    {/* Installment Count Input */}
+                    <div className="flex flex-col justify-between gap-1.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">Number of Installments *</label>
+                        <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                          {installmentCount || 0} installments
+                        </span>
+                      </div>
+                      <input
+                        className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={installmentCount}
+                        onChange={(e) => setInstallmentCount(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="8"
+                        required
+                      />
+                      <span className="text-[11px] text-slate-500 font-medium truncate">
+                        {totalTenureMonths} Months total duration
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Installment Amount Breakdown */}
+                  <div className="p-3 bg-teal-50/60 border border-teal-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-teal-600" />
+                      <span className="font-semibold text-teal-950">
+                        Per Installment ({emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'}):
+                      </span>
+                      <span className="font-extrabold text-teal-900 text-sm font-mono">
+                        ₹{emiPerInstallmentAmt.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-teal-800 font-medium">
+                      ₹{emiRatePerSqFt}/sqft balance over {installmentCount || 1} installments
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -875,14 +973,16 @@ export default function PlotBookingEditPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
               <div>
                 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">4</span>
+                  <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                    4
+                  </span>
                   <span>Land Acquisition Sourcing (किसान एग्रीमेंट स्टॉक) *</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Required: Sourced Area must match plot area ({plotArea} Sq.Ft.) from active Kisan Land Agreements.
+                  Required: Sourced Area must match plot area ({plotArea} Sq.Ft.) from active Kisan Land Agreements or Registry Deeds.
                 </p>
               </div>
-              {availableLandSources.filter((s) => s.sourceType === 'AGREEMENT').length > 0 && (
+              {allLandSources.length > 0 && (
                 <Button
                   type="button"
                   variant="primary"
@@ -899,6 +999,7 @@ export default function PlotBookingEditPage() {
                         deedId: null,
                         deedNumber: '',
                         allocatedSqFt: remaining > 0 ? remaining : plotArea,
+                        allocatedDismil: Math.round(((remaining > 0 ? remaining : plotArea) / 435.6) * 1000) / 1000,
                       },
                     ]);
                   }}
@@ -912,39 +1013,50 @@ export default function PlotBookingEditPage() {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
-                  <span>No agreement selected. Click &quot;+ Add Land Source&quot; to allocate stock.</span>
+                  <span>
+                    {allLandSources.length === 0
+                      ? 'No active agreements or registry deeds with available stock found. Please verify agreements in Purchase & Land Master.'
+                      : 'No agreement or deed selected. Click "+ Add Land Source" to allocate stock.'}
+                  </span>
                 </div>
-                {availableLandSources.filter((s) => s.sourceType === 'AGREEMENT').length > 0 && (
+                {allLandSources.length > 0 && (
                   <Button
                     type="button"
                     variant="primary"
                     size="sm"
                     onClick={() => {
+                      const firstSource = allLandSources[0];
                       setLandSourcing([
                         {
-                          sourceType: 'AGREEMENT',
-                          agreementId: '',
-                          agreementNumber: '',
-                          deedId: null,
-                          deedNumber: '',
+                          sourceType: firstSource?.sourceType || 'AGREEMENT',
+                          agreementId: firstSource?.agreementId || '',
+                          agreementNumber: firstSource?.agreementNumber || '',
+                          parcelId: firstSource?.parcelId || null,
+                          deedId: firstSource?.deedId || null,
+                          deedNumber: firstSource?.deedNumber || '',
                           allocatedSqFt: plotArea,
+                          allocatedDismil: Math.round((plotArea / 435.6) * 1000) / 1000,
                         },
                       ]);
                     }}
                   >
-                    + Choose Land Agreement
+                    + Add Land Source
                   </Button>
                 )}
               </div>
             ) : (
               <div className="space-y-3">
                 {landSourcing.map((src, idx) => {
-                  const agreementSources = availableLandSources.filter((s) => s.sourceType === 'AGREEMENT');
-                  const selectedSourceObj = agreementSources.find((s) =>
-                    String(s.agreementId) === String(src.agreementId)
+                  const selectedSourceObj = allLandSources.find((s) =>
+                    src.deedNumber
+                      ? s.deedNumber === src.deedNumber
+                      : String(s.agreementId) === String(src.agreementId) &&
+                        (!src.parcelId || String(s.parcelId) === String(src.parcelId))
                   );
 
-                  const selectValue = src.agreementId
+                  const selectValue = src.deedNumber
+                    ? `DEED_${src.deedNumber}`
+                    : src.agreementId
                     ? (src.parcelId ? `AGR_${src.agreementId}_${src.parcelId}` : `AGR_${src.agreementId}`)
                     : '';
 
@@ -965,37 +1077,48 @@ export default function PlotBookingEditPage() {
                                 sourceType: 'AGREEMENT',
                                 agreementId: '',
                                 agreementNumber: '',
+                                parcelId: null,
                                 deedId: null,
                                 deedNumber: '',
                                 allocatedSqFt: src.allocatedSqFt || plotArea,
+                                allocatedDismil: Math.round(((src.allocatedSqFt || plotArea) / 435.6) * 1000) / 1000,
                               };
                               setLandSourcing(updated);
                               return;
                             }
-                            const chosen = agreementSources.find(
-                              (s) => `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}` === val || String(s.agreementId) === val
+                            const chosen = allLandSources.find(
+                              (s) => {
+                                const sVal = s.deedNumber
+                                  ? `DEED_${s.deedNumber}`
+                                  : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
+                                return sVal === val || String(s.agreementId) === val || String(s.deedNumber) === val;
+                              }
                             );
                             if (!chosen) return;
                             const updated = [...landSourcing];
                             updated[idx] = {
                               ...updated[idx],
-                              sourceType: 'AGREEMENT',
+                              sourceType: chosen.sourceType,
                               agreementId: chosen.agreementId,
                               agreementNumber: chosen.agreementNumber,
                               parcelId: chosen.parcelId || null,
-                              deedId: null,
-                              deedNumber: '',
+                              deedId: chosen.deedId || null,
+                              deedNumber: chosen.deedNumber || '',
                             };
                             setLandSourcing(updated);
                           }}
                         >
-                          <option value="">-- Select Kisan Land Agreement --</option>
-                          {agreementSources.map((s, sIdx) => {
-                            const optKey = `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
-                            const optVal = `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
+                          <option value="">-- Select Agreement --</option>
+                          {allLandSources.map((s, sIdx) => {
+                            const optKey = s.deedNumber
+                              ? `DEED_${s.deedId || s.deedNumber}_${sIdx}`
+                              : `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
+                            const optVal = s.deedNumber
+                              ? `DEED_${s.deedNumber}`
+                              : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
                             return (
                               <option key={optKey} value={optVal}>
-                                Agreement #{s.agreementNumber}
+                                {s.sourceType === 'REGISTRY_DEED' ? s.deedNumber : s.agreementNumber}
                               </option>
                             );
                           })}
@@ -1034,13 +1157,15 @@ export default function PlotBookingEditPage() {
                       {selectedSourceObj && (
                         <div className="bg-white border border-teal-100 rounded-lg p-2.5 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700 font-medium">
                           <div>
-                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Mauja / Area</span>
-                            <span className="font-bold text-slate-900">{selectedSourceObj.mauja || '-'}</span>
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Agreement No.</span>
+                            <span className="font-bold text-teal-950">
+                              {selectedSourceObj.agreementNumber}
+                            </span>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Khata / Khesra</span>
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Mauja / Khata / Khesra</span>
                             <span className="font-semibold text-slate-800">
-                              Khata: {selectedSourceObj.khataNumber || '-'} | Khesra: {selectedSourceObj.khesraNumber || '-'}
+                              {selectedSourceObj.mauja || '-'} (Khata: {selectedSourceObj.khataNumber || '-'}, Khesra: {selectedSourceObj.khesraNumber || '-'})
                             </span>
                           </div>
                           <div>
@@ -1053,7 +1178,9 @@ export default function PlotBookingEditPage() {
                             <span className="text-slate-400 block text-[10px] uppercase font-bold">Available (Dismil)</span>
                             <span className="font-extrabold text-emerald-800 font-mono">
                               {selectedSourceObj.availableDismil ??
-                                (selectedSourceObj.availableSqFt ? (selectedSourceObj.availableSqFt / 435.6).toFixed(2) : 0)}{' '}
+                                (selectedSourceObj.availableSqFt
+                                  ? (selectedSourceObj.availableSqFt / 435.6).toFixed(2)
+                                  : 0)}{' '}
                               Dismil
                             </span>
                           </div>
@@ -1067,7 +1194,11 @@ export default function PlotBookingEditPage() {
                   const isMatch = Math.abs(totalAllocatedArea - plotArea) <= 0.5 && isLandStockValid;
                   return (
                     <div className="flex justify-between items-center text-xs font-bold px-1 pt-1">
-                      <span className={isMatch ? 'text-emerald-700 flex items-center gap-1' : 'text-rose-600 flex items-center gap-1'}>
+                      <span
+                        className={
+                          isMatch ? 'text-emerald-700 flex items-center gap-1' : 'text-rose-600 flex items-center gap-1'
+                        }
+                      >
                         {isMatch ? (
                           <>
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1098,7 +1229,9 @@ export default function PlotBookingEditPage() {
           <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">5</span>
+                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                  5
+                </span>
                 <span>Payment Mode & Audit Narration</span>
               </h3>
             </div>
@@ -1197,9 +1330,12 @@ export default function PlotBookingEditPage() {
             netContractValue={netContractValue}
             downpaymentAmt={downpaymentAmt}
             emiPrincipalAmt={emiPrincipalAmt}
-            emiMonthlyAmt={emiMonthlyAmt}
+            emiMonthlyAmt={emiPerInstallmentAmt}
             emiRatePerSqFt={emiRatePerSqFt}
             customDpRate={customDpRate}
+            emiFrequency={emiFrequency}
+            installmentCount={installmentCount}
+            totalTenureMonths={totalTenureMonths}
           />
         </div>
       </div>

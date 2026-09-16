@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Lock } from "lucide-react";
 
 
 export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, isReadOnly = false) => {
@@ -82,7 +82,7 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, i
     if (!isReadOnly) {
         cols.push({
             name: 'Actions',
-            width: '100px',
+            width: '120px',
             cell: (row) => {
                 if (row.source === 'advance') {
                     return (
@@ -123,6 +123,21 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, i
                             >
                                 <Edit2 size={16} />
                             </button>
+                        </div>
+                    );
+                }
+
+                // 🔹 If automated billing commission or payout → show lock badge (read-only)
+                if (row.source?.startsWith('commission') || row.source === 'plot_payout') {
+                    return (
+                        <div className="flex items-center justify-start gap-1 w-full">
+                            <span
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md whitespace-nowrap cursor-default shadow-xs"
+                                title="Auto-synced from Plot Billing Collection. To modify or delete, update the billing receipt."
+                            >
+                                <Lock size={11} className="text-teal-600" />
+                                Auto Billing
+                            </span>
                         </div>
                     );
                 }

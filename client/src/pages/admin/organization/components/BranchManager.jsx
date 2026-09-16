@@ -34,6 +34,17 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, styles }) =
                     customStyles={styles}
                     columns={[
                         {
+                            name: "Branch Code",
+                            selector: row => row.branchCode,
+                            sortable: true,
+                            width: "140px",
+                            cell: row => (
+                                <span className="font-mono font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 text-xs">
+                                    {row.branchCode || '-'}
+                                </span>
+                            )
+                        },
+                        {
                             name: "Name",
                             selector: row => row.name,
                             sortable: true,

@@ -14,6 +14,7 @@ const developer = require('../controllers/developer');
 const apiMonitorController = require('../controllers/apiMonitorController');
 const holiday = require('../controllers/holiday');
 const notice = require('../controllers/notice');
+const auditLog = require('../controllers/auditLogController');
 const authmiddlewre = require('../middleware/auth_middleware');
 const authorizeRoles = require('../middleware/Role_middleware')
 const upload = require('../middleware/multer_middleware')
@@ -165,6 +166,8 @@ router.route('/advance')
   .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.addAdvance)
 router.route('/advance/repay')
   .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.repayAdvanceManual)
+router.route('/advance/employee/:employeeId')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), advance.getEmployeeActiveAdvance)
 router.route('/advance/:id')
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.editAdvance)
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.deleteAdvance)
@@ -283,5 +286,13 @@ router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"),
     });
   });
 });
+
+// Centralized System Audit & Activity Logs Routes (Superadmin, Admin, Developer)
+router.route('/audit-logs')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), auditLog.getAuditLogs);
+
+router.route('/audit-logs/stats')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), auditLog.getAuditStats);
+
 
 module.exports = router;

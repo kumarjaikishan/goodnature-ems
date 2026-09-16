@@ -257,11 +257,19 @@ const PlotCustomerFormPage = () => {
 
   const selectedSponsor = sponsors.find((s) => s._id === formState.sponsorId);
 
-  const sponsorOptions = sponsors.map((s) => ({
-    value: s._id,
-    label: s.name,
-    subtitle: s.sponsorCode ? `Code: ${s.sponsorCode}` : s.mobile ? `Mob: ${s.mobile}` : '',
-  }));
+  // In customer registration, only Business Associates (sub-sponsors under a Business Partner) are selectable
+  const associateSponsors = sponsors.filter((s) => s.sponsorId);
+
+  const sponsorOptions = associateSponsors.map((s) => {
+    const parentName = s.sponsorId?.name ? s.sponsorId.name.replace(/\s*\([^)]*\)/g, '') : '';
+    const parentCode = s.sponsorId?.sponsorCode ? ` (${s.sponsorId.sponsorCode})` : '';
+    const parentInfo = parentName ? ` • Parent Partner: ${parentName}${parentCode}` : '';
+    return {
+      value: s._id,
+      label: s.name,
+      subtitle: `${s.sponsorCode ? `Code: ${s.sponsorCode}` : s.mobile ? `Mob: ${s.mobile}` : ''}${parentInfo}`,
+    };
+  });
 
   if (loading) {
     return (
@@ -322,28 +330,28 @@ const PlotCustomerFormPage = () => {
 
       {/* Main Form */}
       <form id="customer-form" onSubmit={handleSubmit} className="space-y-6">
-        {/* Step 1: Business Developer Selection */}
+        {/* Step 1: Business Associate Selection */}
         <div className="p-5 bg-teal-50/70 border border-teal-200/80 rounded-2xl space-y-3 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <label className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-teal-600" />
-              1. Select Assigned Business Developer *
+              1. Select Assigned Business Associate *
             </label>
             <button
               type="button"
               onClick={() => navigate('/dashboard/plots/business-developer')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-800 text-xs font-semibold rounded-lg border border-teal-200 shadow-xs transition hover:border-teal-300 active:scale-95 cursor-pointer self-start sm:self-auto"
-              title="Add a new business developer in Business Developers master"
+              title="Add a new business associate in Business Developers master"
             >
               <UserPlus size={14} className="text-teal-700" />
-              + Add Business Developer
+              + Add Business Associate
             </button>
           </div>
 
           <SearchableSelect
-            label="Assigned Business Developer"
+            label="Assigned Business Associate"
             required
-            placeholder="Search & choose business developer by name or code..."
+            placeholder="Search & choose business associate by name or code..."
             options={sponsorOptions}
             value={formState.sponsorId}
             onChange={(val) => setFormState({ ...formState, sponsorId: val })}
@@ -353,8 +361,13 @@ const PlotCustomerFormPage = () => {
             <div className="mt-2 flex items-center gap-2 text-xs text-emerald-800 font-semibold bg-emerald-50 border border-emerald-200/80 px-3 py-2 rounded-xl">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               <span>
-                Selected Business Developer: <strong>{selectedSponsor.name}</strong>{' '}
+                Selected Business Associate: <strong>{selectedSponsor.name}</strong>{' '}
                 {selectedSponsor.sponsorCode ? `(${selectedSponsor.sponsorCode})` : selectedSponsor.mobile ? `(${selectedSponsor.mobile})` : ''}
+                {selectedSponsor.sponsorId?.name && (
+                  <span className="text-slate-600 font-normal">
+                    {' '}| Parent Partner: <strong>{selectedSponsor.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}</strong>
+                  </span>
+                )}
               </span>
             </div>
           )}

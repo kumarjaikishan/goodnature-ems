@@ -26,7 +26,7 @@ export const StepCustomer = ({
             to="/dashboard/plots/customers/new"
             className="text-xs bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 shadow-2xs"
           >
-            <UserPlus size={14} /> + Register Customer
+            <UserPlus size={14} /> Register Customer
           </Link>
           <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight}>
             Next: Choose Plot
@@ -116,7 +116,7 @@ export const StepCustomer = ({
       ) : (
         <div className="bg-slate-50 border border-dashed border-slate-300 p-8 rounded-xl text-center">
           <p className="text-xs text-slate-500 font-medium">
-            No customer selected. Search and select a registered customer above, or click "+ Register Customer".
+            No customer selected. Search and select a registered customer above, or click "Register Customer".
           </p>
         </div>
       )}

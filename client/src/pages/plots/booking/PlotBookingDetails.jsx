@@ -699,6 +699,29 @@ const PlotBookingDetails = () => {
                   );
                 })}
               </tbody>
+              <tfoot className="border-t-2 border-slate-300 bg-slate-50/90 font-bold text-slate-900">
+                <tr>
+                  <td colSpan={2} className="p-2.5 uppercase tracking-wider text-slate-700">
+                    Total
+                  </td>
+                  <td className="p-2.5 text-right font-mono">
+                    ₹{installments.reduce((sum, i) => sum + (Number(i.dueAmount) || 0), 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-rose-700">
+                    {(() => {
+                      const totalFine = installments.reduce((sum, i) => sum + (Number(i.lateFine) || 0), 0);
+                      return totalFine > 0 ? `₹${totalFine.toLocaleString('en-IN')}` : '-';
+                    })()}
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-slate-900">
+                    ₹{installments.reduce((sum, i) => sum + (Number(i.dueAmount) || 0) + (Number(i.lateFine) || 0), 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-emerald-700">
+                    ₹{installments.reduce((sum, i) => sum + (Number(i.paidAmount) || 0), 0).toLocaleString('en-IN')}
+                  </td>
+                  <td colSpan={3} className="p-2.5"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
@@ -767,6 +790,20 @@ const PlotBookingDetails = () => {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="border-t-2 border-slate-300 bg-slate-50/90 font-bold text-slate-900">
+                <tr>
+                  <td colSpan={3} className="p-2.5 uppercase tracking-wider text-slate-700">
+                    Total
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-emerald-700">
+                    ₹{receipts.reduce((sum, r) => sum + (Number(r.amount) || 0), 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-rose-700">
+                    ₹{receipts.reduce((sum, r) => sum + (Number(r.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
+                  </td>
+                  <td colSpan={2} className="p-2.5"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}

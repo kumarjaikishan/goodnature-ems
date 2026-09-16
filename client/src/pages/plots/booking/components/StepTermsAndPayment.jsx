@@ -44,6 +44,10 @@ export const StepTermsAndPayment = ({
   setCustomSqFtRate,
   effectiveSqFtRate,
   calculatedPlotValue,
+  selectedPlot,
+  selectedPremiumHeads = [],
+  togglePremiumHead,
+  totalPremiumExtra = 0,
 }) => {
   // Compute land stock allocation validity
   const totalAllocatedArea = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
@@ -58,8 +62,7 @@ export const StepTermsAndPayment = ({
     Number(downpaymentAmt) > 0 &&
     isLandStockValid;
 
-  // Filter to show ONLY Kisan Land Agreements (excluding Registry Deeds)
-  const agreementOnlySources = (availableLandSources || []).filter((s) => s.sourceType === 'AGREEMENT');
+  const allLandSources = availableLandSources || [];
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -110,7 +113,7 @@ export const StepTermsAndPayment = ({
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Edit3 size={14} className="text-teal-700" />
-              Plot Selling Rate *
+              Plot Selling Rate (Base) *
             </label>
             <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
               ₹{customSqFtRate || 1000}/sqft
@@ -131,9 +134,81 @@ export const StepTermsAndPayment = ({
             <span className="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">/ Sq.Ft.</span>
           </div>
           <span className="text-[11px] text-slate-500 font-medium truncate">
-            Gross: ₹{calculatedPlotValue.toLocaleString('en-IN')} ({plotArea} sqft @ ₹{effectiveSqFtRate}/sqft)
+            {totalPremiumExtra > 0 ? (
+              <span className="text-amber-700 font-semibold">
+                Effective: ₹{effectiveSqFtRate}/sqft (+{totalPremiumExtra}% premium)
+              </span>
+            ) : (
+              `Gross: ₹${calculatedPlotValue.toLocaleString('en-IN')} (${plotArea} sqft @ ₹${effectiveSqFtRate}/sqft)`
+            )}
           </span>
         </div>
+
+        {/* 2b. Attached Plot Premium Charges (Corner / Park Facing / Wide Road / Commercial) */}
+        {selectedPremiumHeads && selectedPremiumHeads.length > 0 && (
+          <div className="md:col-span-2 p-4 bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 border border-amber-200/90 rounded-2xl shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-amber-200/60 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-amber-500 text-white rounded-lg shadow-2xs">
+                  <Sparkles size={15} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                    Plot Premium Features & Extra Charges Attached
+                  </h4>
+                  <p className="text-[11px] text-amber-800">
+                    Plot #{selectedPlot?.plotNumber} has special premium attributes. Check/uncheck to apply or waive extra sqft charges.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                  Total Applied Extra: +{totalPremiumExtra}% (+₹{Math.round((Number(customSqFtRate) || 1000) * (totalPremiumExtra / 100))}/sqft)
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {selectedPremiumHeads.map((head, idx) => {
+                const headExtraPerSqFt = Math.round((Number(customSqFtRate) || 1000) * (head.extraPercent / 100));
+                const headTotalAmt = Math.round(plotArea * headExtraPerSqFt);
+
+                return (
+                  <label
+                    key={idx}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                      head.active
+                        ? 'bg-white border-amber-400 shadow-xs ring-1 ring-amber-400'
+                        : 'bg-white/60 border-slate-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={head.active}
+                        onChange={() => togglePremiumHead(idx)}
+                        className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <div>
+                        <span className={`text-xs font-bold block leading-tight ${head.active ? 'text-amber-950' : 'text-slate-600'}`}>
+                          {head.name}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          +{head.extraPercent}% (+₹{headExtraPerSqFt}/sqft)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs font-mono font-bold block ${head.active ? 'text-amber-700' : 'text-slate-400'}`}>
+                        {head.active ? `+₹${headTotalAmt.toLocaleString('en-IN')}` : 'Waived'}
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 3. Govt. Base Rate (₹ / Sq.Ft.) */}
         <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
@@ -368,20 +443,20 @@ export const StepTermsAndPayment = ({
           </div>
         )}
 
-        {/* 8. Land Acquisition Stock Allocation (Agreements Only) */}
+        {/* 8. Land Acquisition Stock Allocation (Agreements & Registry Deeds) */}
         <div className="flex flex-col gap-2 md:col-span-2 p-4 bg-teal-50/70 border border-teal-300 rounded-2xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h4 className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 size={16} className="text-teal-700" />
-                Land Acquisition Sourcing (किसान एग्रीमेंट स्टॉक){' '}
+                Land Acquisition Sourcing (किसान एग्रीमेंट / रजिस्ट्री डीड स्टॉक){' '}
                 <span className="text-rose-600 font-black">*</span>
               </h4>
               <p className="text-[11px] text-teal-700 mt-0.5">
-                Required: Allocate the entire plot area ({plotArea} Sq.Ft.) from an active Kisan Agreement.
+                Required: Allocate the entire plot area ({plotArea} Sq.Ft.) from active Kisan Agreements or Registry Deeds.
               </p>
             </div>
-            {agreementOnlySources.length > 0 && (
+            {allLandSources.length > 0 && (
               <Button
                 type="button"
                 variant="primary"
@@ -411,39 +486,49 @@ export const StepTermsAndPayment = ({
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>No agreement selected. Click &quot;+ Add Land Source&quot; or choose from available agreements.</span>
+                <span>
+                  {allLandSources.length === 0
+                    ? 'No active agreements or registry deeds with available stock found. Please add or verify agreements in Purchase & Land Master.'
+                    : 'No agreement or registry deed selected. Click "+ Add Land Source" or choose from available land stock.'}
+                </span>
               </div>
-              {agreementOnlySources.length > 0 && (
+              {allLandSources.length > 0 && (
                 <Button
                   type="button"
                   variant="primary"
                   size="sm"
                   onClick={() => {
+                    const firstSource = allLandSources[0];
                     setLandSourcing([
                       {
-                        sourceType: 'AGREEMENT',
-                        agreementId: '',
-                        agreementNumber: '',
-                        deedId: null,
-                        deedNumber: '',
+                        sourceType: firstSource?.sourceType || 'AGREEMENT',
+                        agreementId: firstSource?.agreementId || '',
+                        agreementNumber: firstSource?.agreementNumber || '',
+                        parcelId: firstSource?.parcelId || null,
+                        deedId: firstSource?.deedId || null,
+                        deedNumber: firstSource?.deedNumber || '',
                         allocatedSqFt: plotArea,
                       },
                     ]);
                   }}
                 >
-                  + Choose Land Agreement
+                  + Add Land Source
                 </Button>
               )}
             </div>
           ) : (
             <div className="space-y-3 mt-2">
               {landSourcing.map((src, idx) => {
-                const selectedSourceObj = agreementOnlySources.find((s) =>
-                  String(s.agreementId) === String(src.agreementId) &&
-                  (!src.parcelId || String(s.parcelId) === String(src.parcelId))
+                const selectedSourceObj = allLandSources.find((s) =>
+                  src.deedNumber
+                    ? s.deedNumber === src.deedNumber
+                    : String(s.agreementId) === String(src.agreementId) &&
+                      (!src.parcelId || String(s.parcelId) === String(src.parcelId))
                 );
 
-                const selectValue = src.agreementId
+                const selectValue = src.deedNumber
+                  ? `DEED_${src.deedNumber}`
+                  : src.agreementId
                   ? (src.parcelId ? `AGR_${src.agreementId}_${src.parcelId}` : `AGR_${src.agreementId}`)
                   : '';
 
@@ -464,6 +549,7 @@ export const StepTermsAndPayment = ({
                               sourceType: 'AGREEMENT',
                               agreementId: '',
                               agreementNumber: '',
+                              parcelId: null,
                               deedId: null,
                               deedNumber: '',
                               allocatedSqFt: src.allocatedSqFt || plotArea,
@@ -471,31 +557,37 @@ export const StepTermsAndPayment = ({
                             setLandSourcing(updated);
                             return;
                           }
-                          const chosen = agreementOnlySources.find((s) => {
-                            const sVal = `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
-                            return sVal === val || String(s.agreementId) === val;
+                          const chosen = allLandSources.find((s) => {
+                            const sVal = s.deedNumber
+                              ? `DEED_${s.deedNumber}`
+                              : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
+                            return sVal === val || String(s.agreementId) === val || String(s.deedNumber) === val;
                           });
                           if (!chosen) return;
                           const updated = [...landSourcing];
                           updated[idx] = {
                             ...updated[idx],
-                            sourceType: 'AGREEMENT',
+                            sourceType: chosen.sourceType,
                             agreementId: chosen.agreementId,
                             agreementNumber: chosen.agreementNumber,
                             parcelId: chosen.parcelId || null,
-                            deedId: null,
-                            deedNumber: '',
+                            deedId: chosen.deedId || null,
+                            deedNumber: chosen.deedNumber || '',
                           };
                           setLandSourcing(updated);
                         }}
                       >
-                        <option value="">-- Select Kisan Land Agreement --</option>
-                        {agreementOnlySources.map((s, sIdx) => {
-                          const optKey = `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
-                          const optVal = `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
+                        <option value="">-- Select Agreement --</option>
+                        {allLandSources.map((s, sIdx) => {
+                          const optKey = s.deedNumber
+                            ? `DEED_${s.deedId || s.deedNumber}_${sIdx}`
+                            : `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
+                          const optVal = s.deedNumber
+                            ? `DEED_${s.deedNumber}`
+                            : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
                           return (
                             <option key={optKey} value={optVal}>
-                              Agreement #{s.agreementNumber}
+                              {s.sourceType === 'REGISTRY_DEED' ? s.deedNumber : s.agreementNumber}
                             </option>
                           );
                         })}
@@ -530,13 +622,15 @@ export const StepTermsAndPayment = ({
                     {selectedSourceObj && (
                       <div className="bg-teal-50/60 border border-teal-100 rounded-lg p-2.5 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700 font-medium">
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Mauja / Area</span>
-                          <span className="font-bold text-slate-900">{selectedSourceObj.mauja || '-'}</span>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Agreement No.</span>
+                          <span className="font-bold text-teal-950">
+                            {selectedSourceObj.agreementNumber}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Khata / Khesra</span>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Mauja / Khata / Khesra</span>
                           <span className="font-semibold text-slate-800">
-                            Khata: {selectedSourceObj.khataNumber || '-'} | Khesra: {selectedSourceObj.khesraNumber || '-'}
+                            {selectedSourceObj.mauja || '-'} (Khata: {selectedSourceObj.khataNumber || '-'}, Khesra: {selectedSourceObj.khesraNumber || '-'})
                           </span>
                         </div>
                         <div>

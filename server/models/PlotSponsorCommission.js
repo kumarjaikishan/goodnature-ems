@@ -99,6 +99,11 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       ref: 'PlotClosing',
       default: null,
     },
+    ledgerEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Entry',
+      default: null,
+    },
   },
   {
     timestamps: true,

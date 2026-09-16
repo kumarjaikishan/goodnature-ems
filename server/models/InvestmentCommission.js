@@ -76,6 +76,11 @@ const investmentCommissionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    ledgerEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Entry',
+      default: null,
+    },
     payoutVoucherId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Voucher',

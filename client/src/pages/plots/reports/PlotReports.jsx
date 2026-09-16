@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
@@ -190,7 +191,15 @@ const PlotReports = () => {
   };
 
   const handleDeleteBooking = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this hold reservation?')) return;
+    const proceed = await confirmDialog({
+      title: 'Delete Hold Reservation?',
+      text: 'Are you sure you want to delete this hold reservation? The plot will be released back to Available.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) return;
+
     setDeletingId(id);
     try {
       await api.delete(`/plots/bookings/${id}`);

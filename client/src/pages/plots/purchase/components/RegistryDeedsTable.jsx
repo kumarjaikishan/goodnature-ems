@@ -49,32 +49,30 @@ const RegistryDeedsTable = ({
                 <th className="p-3.5 uppercase">Deed Number & Date</th>
                 <th className="p-3.5 uppercase">Parent Agreement</th>
                 <th className="p-3.5 uppercase">Land Location</th>
-                <th className="p-3.5 uppercase">Sub-Registrar Office</th>
                 <th className="p-3.5 uppercase text-right">Registered Area</th>
-                <th className="p-3.5 uppercase text-right">Allocated Area</th>
-                <th className="p-3.5 uppercase text-right">Available Free Stock</th>
-                <th className="p-3.5 uppercase text-center">Status</th>
-                <th className="p-3.5 uppercase text-left min-w-[240px]">Actions</th>
+                <th className="p-3.5 uppercase text-left min-w-[220px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {filteredDeeds.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={5} className="p-8 text-center text-slate-400 italic">
                     No Registry Deeds found. Convert agreements into official registry deeds in the Agreements tab.
                   </td>
                 </tr>
               ) : (
                 filteredDeeds.map((deed) => {
-                  const avail = deed.availableSqFt || 0;
-                  const isExhausted = avail <= 0;
-                  const isPartial = (deed.allocatedSqFt || 0) > 0 && avail > 0;
-
                   return (
                     <tr key={deed._id} className="hover:bg-purple-50/30 transition">
-                      {/* Deed Number */}
+                      {/* Deed Number with Parent Agreement: agr001/deed002 format */}
                       <td className="p-3.5">
-                        <span className="font-mono font-bold text-purple-900 block text-xs">{deed.deedNumber}</span>
+                        <span className="font-mono font-bold text-purple-900 block text-xs">
+                          {deed.deedNumber?.includes('/')
+                            ? deed.deedNumber
+                            : deed.parentAgreementNumber
+                            ? `${deed.parentAgreementNumber}/${deed.deedNumber}`
+                            : deed.deedNumber}
+                        </span>
                         <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <Calendar size={11} />
                           {new Date(deed.deedDate).toLocaleDateString('en-IN', {
@@ -106,51 +104,11 @@ const RegistryDeedsTable = ({
                         </span>
                       </td>
 
-                      {/* SRO Office */}
-                      <td className="p-3.5 text-slate-700">
-                        {deed.subRegistrarOffice || <span className="text-slate-400 italic">Not Specified</span>}
-                      </td>
-
                       {/* Registered Area */}
                       <td className="p-3.5 text-right font-mono">
-                        <span className="font-bold text-slate-900 block">{deed.registeredDismil} Dismil</span>
+                        <span className="font-bold text-purple-950 block">{deed.registeredDismil} Dismil</span>
                         <span className="text-[10px] text-slate-400">
                           {deed.registeredSqFt?.toLocaleString('en-IN')} SqFt
-                        </span>
-                      </td>
-
-                      {/* Allocated Area */}
-                      <td className="p-3.5 text-right font-mono">
-                        <span className="font-bold text-amber-700 block">
-                          {(deed.allocatedSqFt || 0).toLocaleString('en-IN')} SqFt
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {(((deed.allocatedSqFt || 0) / 435.6) || 0).toFixed(2)} Dismil
-                        </span>
-                      </td>
-
-                      {/* Available Free Stock */}
-                      <td className="p-3.5 text-right font-mono">
-                        <span className="font-bold text-emerald-700 block">
-                          {(deed.availableSqFt || 0).toLocaleString('en-IN')} SqFt
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {(((deed.availableSqFt || 0) / 435.6) || 0).toFixed(2)} Dismil
-                        </span>
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="p-3.5 text-center">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            isExhausted
-                              ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                              : isPartial
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {isExhausted ? 'Exhausted' : isPartial ? 'Partially Booked' : 'Available'}
                         </span>
                       </td>
 

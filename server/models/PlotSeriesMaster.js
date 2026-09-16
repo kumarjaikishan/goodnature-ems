@@ -61,14 +61,28 @@ const plotSeriesMasterSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    dpGracePeriodDays: {
+      type: Number,
+      min: 0,
+    },
+    emiGracePeriodDays: {
+      type: Number,
+      min: 0,
+    },
     gracePeriodDays: {
       type: Number,
-      default: 15,
+      min: 0,
+    },
+    lateFineFrequency: {
+      type: String,
+      enum: ['DAILY', 'MONTHLY', 'YEARLY'],
+    },
+    lateFineRate: {
+      type: Number,
       min: 0,
     },
     lateFineDailyPercent: {
       type: Number,
-      default: 0.05,
       min: 0,
     },
     status: {

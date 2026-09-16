@@ -136,17 +136,26 @@ class KisanLandService {
       const primaryThana = parsedParcels[0]?.thanaNumber || '';
       const primaryJamabandi = parsedParcels.map((p) => p.jamabandiNumber).filter(Boolean).join(', ');
 
-      // Generate sequence: AGR-2627-001
-      const fyStr = this.getFyString(agreementDate);
-      const prefix = `KISAN_AGR_FY_${fyStr}`;
-      const counterOpts = { new: true, upsert: true };
-      if (session) counterOpts.session = session;
-      const counter = await Counter.findByIdAndUpdate(
-        prefix,
-        { $inc: { sequence: 1 } },
-        counterOpts
-      );
-      const agreementNumber = `AGR-${fyStr}-${String(counter.sequence).padStart(3, '0')}`;
+      // Handle agreementNumber (manual input required or validated)
+      let agreementNumber = data.agreementNumber ? data.agreementNumber.trim().toUpperCase() : '';
+      if (!agreementNumber) {
+        // Fallback sequence if not provided: AGR-2627-001
+        const fyStr = this.getFyString(agreementDate);
+        const prefix = `KISAN_AGR_FY_${fyStr}`;
+        const counterOpts = { new: true, upsert: true };
+        if (session) counterOpts.session = session;
+        const counter = await Counter.findByIdAndUpdate(
+          prefix,
+          { $inc: { sequence: 1 } },
+          counterOpts
+        );
+        agreementNumber = `AGR-${fyStr}-${String(counter.sequence).padStart(3, '0')}`;
+      } else {
+        const existing = await KisanLandAgreement.findOne({ agreementNumber }).session(session || null);
+        if (existing) {
+          throw ApiError.badRequest(`Agreement Number "${agreementNumber}" is already in use.`);
+        }
+      }
 
       // Initialize farmers array
       const parsedFarmers = Array.isArray(farmers) && farmers.length > 0
@@ -470,27 +479,6 @@ class KisanLandService {
 
       await agreement.save(session ? { session } : {});
 
-      // Log conversion in Land Stock Ledger
-      const parcelDeedSummary = deedParcelAllocations
-        .map((p) => `${p.mauja} (Kh:${p.khesraNumber}): ${p.registeredDismil} Dismil`)
-        .join('; ');
-
-      const deedStockLedger = new LandStockLedger({
-        agreementId: agreement._id,
-        sourceType: 'REGISTRY_DEED',
-        deedId: insertedDeed._id,
-        deedNumber: insertedDeed.deedNumber,
-        transactionType: 'REGISTRY_CONVERSION',
-        entryType: 'CREDIT',
-        dismil: totalDeedDismil,
-        sqFt: totalDeedSqFt,
-        runningAvailableSqFt: totalDeedSqFt,
-        date: insertedDeed.deedDate,
-        remarks: `Converted ${totalDeedDismil} Dismil (${totalDeedSqFt} Sq Ft) from Agreement #${agreement.agreementNumber} to Registry Deed #${insertedDeed.deedNumber} (${parcelDeedSummary})`,
-        performedBy: userId,
-      });
-      await deedStockLedger.save(session ? { session } : {});
-
       return agreement;
     });
   }
@@ -632,7 +620,31 @@ class KisanLandService {
     if (!agreement) throw ApiError.notFound('Agreement not found');
 
     const ledgers = await KisanLedger.find({ agreementId: id }).sort({ date: -1, createdAt: -1 }).lean();
-    const stockLedgers = await LandStockLedger.find({ agreementId: id }).sort({ date: -1, createdAt: -1 }).lean();
+
+    // Land Stock Ledger: only tracks Agreement initial pool and Plot Booking allocations/cancellations
+    // Deeds are legal records and do NOT affect or create separate agreement stock
+    const rawStockLedgers = await LandStockLedger.find({
+      agreementId: id,
+      transactionType: { $nin: ['REGISTRY_CONVERSION'] },
+      sourceType: { $ne: 'REGISTRY_DEED' },
+    })
+      .sort({ date: 1, createdAt: 1 })
+      .lean();
+
+    let runningSqFt = 0;
+    const stockLedgersWithBalance = rawStockLedgers.map((entry) => {
+      if (entry.entryType === 'CREDIT') {
+        runningSqFt += entry.sqFt || 0;
+      } else if (entry.entryType === 'DEBIT') {
+        runningSqFt = Math.max(0, runningSqFt - (entry.sqFt || 0));
+      }
+      return {
+        ...entry,
+        runningAvailableSqFt: runningSqFt,
+      };
+    });
+
+    const stockLedgers = stockLedgersWithBalance.reverse();
 
     const totalCost = agreement.totalAgreementAmount || 0;
     const totalPaid = ledgers
@@ -656,67 +668,27 @@ class KisanLandService {
     const sources = [];
 
     for (const agr of agreements) {
-      // 1. Unregistered Agreement Land Stock Options
-      if ((agr.unregisteredAvailableSqFt || 0) > 0) {
-        if (Array.isArray(agr.landParcels) && agr.landParcels.length > 0) {
-          for (const parcel of agr.landParcels) {
-            const availSqFt = parcel.unregisteredAvailableSqFt || 0;
-            if (availSqFt > 0) {
-              sources.push({
-                sourceType: 'AGREEMENT',
-                agreementId: agr._id,
-                agreementNumber: agr.agreementNumber,
-                parcelId: parcel._id,
-                deedId: null,
-                deedNumber: '',
-                label: `[Agreement #${agr.agreementNumber}] Mauja: ${parcel.mauja}, Khata: ${parcel.khataNumber}, Khesra: ${parcel.khesraNumber} (Avail: ${availSqFt} SqFt / ${(availSqFt / 435.6).toFixed(2)} Dismil)`,
-                mauja: parcel.mauja,
-                khataNumber: parcel.khataNumber,
-                khesraNumber: parcel.khesraNumber,
-                thanaNumber: parcel.thanaNumber || '',
-                availableSqFt: availSqFt,
-                availableDismil: Math.round((availSqFt / 435.6) * 100) / 100,
-              });
-            }
-          }
-        } else {
-          sources.push({
-            sourceType: 'AGREEMENT',
-            agreementId: agr._id,
-            agreementNumber: agr.agreementNumber,
-            deedId: null,
-            deedNumber: '',
-            label: `[Agreement #${agr.agreementNumber}] Mauja: ${agr.mauja}, Khata: ${agr.khataNumber}, Khesra: ${agr.khesraNumber} (Avail: ${agr.unregisteredAvailableSqFt} SqFt / ${(agr.unregisteredAvailableSqFt / 435.6).toFixed(2)} Dismil)`,
-            mauja: agr.mauja,
-            khataNumber: agr.khataNumber,
-            khesraNumber: agr.khesraNumber,
-            thanaNumber: agr.thanaNumber || '',
-            availableSqFt: agr.unregisteredAvailableSqFt,
-            availableDismil: Math.round((agr.unregisteredAvailableSqFt / 435.6) * 100) / 100,
-          });
-        }
-      }
+      const availSqFt =
+        agr.totalAvailableSqFt !== undefined && agr.totalAvailableSqFt !== null
+          ? agr.totalAvailableSqFt
+          : Math.max(0, (agr.totalSqFt || 0) - (agr.totalAllocatedSqFt || 0));
 
-      // 2. Registry Deeds Stock Options
-      if (Array.isArray(agr.registryDeeds)) {
-        for (const deed of agr.registryDeeds) {
-          if ((deed.availableSqFt || 0) > 0) {
-            sources.push({
-              sourceType: 'REGISTRY_DEED',
-              agreementId: agr._id,
-              agreementNumber: agr.agreementNumber,
-              deedId: deed._id,
-              deedNumber: deed.deedNumber,
-              label: `[Registry Deed #${deed.deedNumber}] under ${agr.agreementNumber} — Mauja: ${agr.mauja}, Khesra: ${agr.khesraNumber} (Avail: ${deed.availableSqFt} SqFt / ${(deed.availableSqFt / 435.6).toFixed(2)} Dismil)`,
-              mauja: agr.mauja,
-              khataNumber: agr.khataNumber,
-              khesraNumber: agr.khesraNumber,
-              thanaNumber: agr.thanaNumber || '',
-              availableSqFt: deed.availableSqFt,
-              availableDismil: Math.round((deed.availableSqFt / 435.6) * 100) / 100,
-            });
-          }
-        }
+      if (availSqFt > 0) {
+        sources.push({
+          sourceType: 'AGREEMENT',
+          agreementId: agr._id,
+          agreementNumber: agr.agreementNumber,
+          parcelId: null,
+          deedId: null,
+          deedNumber: '',
+          label: agr.agreementNumber,
+          mauja: agr.mauja || agr.landParcels?.[0]?.mauja || '',
+          khataNumber: agr.khataNumber || agr.landParcels?.[0]?.khataNumber || '',
+          khesraNumber: agr.khesraNumber || agr.landParcels?.[0]?.khesraNumber || '',
+          thanaNumber: agr.thanaNumber || agr.landParcels?.[0]?.thanaNumber || '',
+          availableSqFt: availSqFt,
+          availableDismil: Math.round((availSqFt / 435.6) * 100) / 100,
+        });
       }
     }
     return sources;
@@ -733,6 +705,7 @@ class KisanLandService {
       if (!agreement) throw ApiError.notFound('Agreement not found');
 
       const {
+        agreementNumber,
         agreementDate,
         agreementEndDate,
         landParcels,
@@ -749,6 +722,17 @@ class KisanLandService {
         purchasers,
         attachments,
       } = data;
+
+      if (agreementNumber !== undefined && agreementNumber.trim() !== '') {
+        const cleanAgrNo = agreementNumber.trim().toUpperCase();
+        if (cleanAgrNo !== agreement.agreementNumber) {
+          const existing = await KisanLandAgreement.findOne({ agreementNumber: cleanAgrNo, _id: { $ne: agreement._id } }).session(session || null);
+          if (existing) {
+            throw ApiError.badRequest(`Agreement Number "${cleanAgrNo}" is already in use.`);
+          }
+          agreement.agreementNumber = cleanAgrNo;
+        }
+      }
 
       if (agreementDate !== undefined) {
         agreement.agreementDate = agreementDate ? new Date(agreementDate) : agreement.agreementDate;
@@ -939,6 +923,43 @@ class KisanLandService {
 
       await agreement.save(session ? { session } : {});
 
+      // 3. Sync LandStockLedger initial pool entry (Date, Dismil, SqFt, Remarks)
+      const stockLedgerQuery = LandStockLedger.findOne({
+        agreementId: id,
+        transactionType: 'INITIAL_AGREEMENT',
+      });
+      if (session) stockLedgerQuery.session(session);
+      const stockLedger = await stockLedgerQuery;
+
+      const parcelSummary = (agreement.landParcels || [])
+        .map((p) => `${p.mauja} (K:${p.khataNumber}/Kh:${p.khesraNumber}) - ${p.araziDismil} Dismil`)
+        .join('; ');
+
+      if (stockLedger) {
+        stockLedger.date = agreement.agreementDate;
+        stockLedger.dismil = agreement.araziDismil;
+        stockLedger.sqFt = agreement.totalSqFt;
+        stockLedger.runningAvailableSqFt = agreement.totalSqFt;
+        stockLedger.remarks = `Initial Acquisition Agreement #${agreement.agreementNumber} (${agreement.landParcels?.length || 1} Parcels: ${parcelSummary}) Total: ${agreement.araziDismil} Dismil (${agreement.totalSqFt} Sq Ft)`;
+        await stockLedger.save(session ? { session } : {});
+      } else {
+        const newStockLedger = new LandStockLedger({
+          agreementId: agreement._id,
+          sourceType: 'AGREEMENT',
+          deedId: null,
+          deedNumber: '',
+          transactionType: 'INITIAL_AGREEMENT',
+          entryType: 'CREDIT',
+          dismil: agreement.araziDismil,
+          sqFt: agreement.totalSqFt,
+          runningAvailableSqFt: agreement.totalSqFt,
+          date: agreement.agreementDate,
+          remarks: `Initial Acquisition Agreement #${agreement.agreementNumber} (${agreement.landParcels?.length || 1} Parcels: ${parcelSummary}) Total: ${agreement.araziDismil} Dismil (${agreement.totalSqFt} Sq Ft)`,
+          performedBy: userId,
+        });
+        await newStockLedger.save(session ? { session } : {});
+      }
+
       // 4. Sync KisanLedger agreed amount & update running balances
       const primaryFarmer = agreement.farmers?.[0];
       const initialCreditQuery = KisanLedger.findOne({
@@ -1056,11 +1077,87 @@ class KisanLandService {
       const deed = agreement.registryDeeds.id(deedId);
       if (!deed) throw ApiError.notFound('Registry Deed not found');
 
-      const { deedNumber, deedDate, subRegistrarOffice, remarks } = data;
+      const { deedNumber, deedDate, subRegistrarOffice, remarks, parcels, registeredDismil } = data;
       if (deedNumber !== undefined) deed.deedNumber = deedNumber.trim().toUpperCase();
       if (deedDate !== undefined) deed.deedDate = new Date(deedDate);
       if (subRegistrarOffice !== undefined) deed.subRegistrarOffice = subRegistrarOffice.trim();
       if (remarks !== undefined) deed.remarks = remarks;
+
+      // Handle increasing / decreasing registered Dismil area
+      if (Array.isArray(parcels) && parcels.length > 0) {
+        let totalNewDeedDismil = 0;
+        let totalNewDeedSqFt = 0;
+        const newDeedParcels = [];
+
+        for (const item of parcels) {
+          const newDismil = Number(item.registeredDismil);
+          if (isNaN(newDismil) || newDismil < 0) continue;
+
+          const parcelDoc = agreement.landParcels.id(item.parcelId);
+          if (!parcelDoc) continue;
+
+          const oldDeedParcel = Array.isArray(deed.parcels)
+            ? deed.parcels.find((dp) => String(dp.parcelId) === String(item.parcelId))
+            : null;
+          const oldDismil = oldDeedParcel ? Number(oldDeedParcel.registeredDismil) || 0 : 0;
+          const diffDismil = Math.round((newDismil - oldDismil) * 1000) / 1000;
+
+          // Check if increasing exceeds available parcel arazi
+          const currentParcelReg = parcelDoc.registeredDismil || 0;
+          const maxAvail = Math.max(0, parcelDoc.araziDismil - currentParcelReg + oldDismil);
+          if (newDismil > maxAvail + 0.001) {
+            throw ApiError.badRequest(
+              `Cannot set ${newDismil} Dismil on parcel (Mauja: ${parcelDoc.mauja}, Khesra: ${parcelDoc.khesraNumber}). Max available is ${maxAvail.toFixed(3)} Dismil.`
+            );
+          }
+
+          const itemSqFt = Math.round(newDismil * 435.6 * 100) / 100;
+          parcelDoc.registeredDismil = Math.max(0, Math.round((currentParcelReg + diffDismil) * 1000) / 1000);
+          parcelDoc.registeredSqFt = Math.round(parcelDoc.registeredDismil * 435.6 * 100) / 100;
+          parcelDoc.unregisteredAgreedSqFt = Math.max(0, Math.round((parcelDoc.totalSqFt - parcelDoc.registeredSqFt) * 100) / 100);
+          parcelDoc.unregisteredAvailableSqFt = Math.max(
+            0,
+            Math.round((parcelDoc.unregisteredAgreedSqFt - (parcelDoc.unregisteredAllocatedSqFt || 0)) * 100) / 100
+          );
+
+          if (newDismil > 0) {
+            newDeedParcels.push({
+              parcelId: parcelDoc._id,
+              mauja: parcelDoc.mauja,
+              khataNumber: parcelDoc.khataNumber,
+              khesraNumber: parcelDoc.khesraNumber,
+              thanaNumber: parcelDoc.thanaNumber || '',
+              registeredDismil: newDismil,
+              registeredSqFt: itemSqFt,
+            });
+            totalNewDeedDismil += newDismil;
+            totalNewDeedSqFt += itemSqFt;
+          }
+        }
+
+        if (totalNewDeedDismil > 0) {
+          deed.parcels = newDeedParcels;
+          deed.registeredDismil = Math.round(totalNewDeedDismil * 1000) / 1000;
+          deed.registeredSqFt = Math.round(totalNewDeedSqFt * 100) / 100;
+          deed.availableSqFt = Math.max(0, deed.registeredSqFt - (deed.allocatedSqFt || 0));
+
+          // Recalculate agreement totals
+          agreement.totalRegisteredDismil = Math.round(
+            (agreement.landParcels || []).reduce((s, p) => s + (p.registeredDismil || 0), 0) * 1000
+          ) / 1000;
+          agreement.totalRegisteredSqFt = Math.round(
+            (agreement.landParcels || []).reduce((s, p) => s + (p.registeredSqFt || 0), 0) * 100
+          ) / 100;
+          agreement.unregisteredAgreedSqFt = Math.max(
+            0,
+            Math.round((agreement.totalSqFt - agreement.totalRegisteredSqFt) * 100) / 100
+          );
+          agreement.unregisteredAvailableSqFt = Math.max(
+            0,
+            Math.round((agreement.unregisteredAgreedSqFt - (agreement.unregisteredAllocatedSqFt || 0)) * 100) / 100
+          );
+        }
+      }
 
       await agreement.save(session ? { session } : {});
       return agreement;

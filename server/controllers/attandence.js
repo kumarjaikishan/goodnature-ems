@@ -25,6 +25,7 @@ const {
 const { getRulesSnapshot, calculateStats } = require('../services/attendanceService');
 const { syncMonthlyEarnedWeeklyOff } = require('../services/weeklyOffService');
 const ApiResponse = require('../utils/apiResponse');
+const { logActivity } = require('../utils/auditLogger');
 
 
 const webattandence = async (req, res, next) => {
@@ -1513,6 +1514,24 @@ const editattandence = async (req, res) => {
       },
       data.branchId || null
     );
+
+    // Audit Log recording
+    await logActivity({
+      req,
+      action: 'UPDATE_ATTENDANCE',
+      module: 'ATTENDANCE',
+      documentId: data._id,
+      modelName: 'Attendance',
+      description: `Updated attendance for employee ${updatedRecord?.employeeId?.userid?.name || 'ID ' + data.employeeId} on ${baseDate.toISOString().split('T')[0]} (Status: ${data.status || status})`,
+      details: {
+        attendanceId: data._id,
+        employeeId: data.employeeId,
+        date: data.date,
+        status: data.status,
+        punchIn: data.punchIn,
+        punchOut: data.punchOut,
+      },
+    });
 
     return res.status(200).json({
       message: 'Edit successfully',

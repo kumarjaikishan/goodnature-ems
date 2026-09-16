@@ -12,6 +12,7 @@ const LedgerController = require("./ledger");
 const AdvanceController = require("./advance");
 const leaveService = require("../services/leaveService");
 const accountingService = require("../services/accountingService");
+const { logActivity } = require("../utils/auditLogger");
 
 const getMonthName = (m) => ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] || m;
 
@@ -281,6 +282,23 @@ exports.createPayroll = async (req, res, next) => {
     // 🔹 Commit transaction
     await session.commitTransaction();
     session.endSession();
+
+    await logActivity({
+      req,
+      action: 'CREATE_PAYROLL',
+      module: 'PAYROLL',
+      documentId: payroll._id,
+      modelName: 'Payroll',
+      description: `Generated payroll for employee ${whichEmployee.employeeName || employeeId} for ${getMonthName(month)}-${year} (Net: ₹${netSalary.toLocaleString()})`,
+      details: {
+        payrollId: payroll._id,
+        employeeId,
+        month,
+        year,
+        netSalary,
+        grossSalary,
+      },
+    });
 
     return res.status(201).json({
       success: true,

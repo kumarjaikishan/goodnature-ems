@@ -76,11 +76,26 @@ exports.addAdvance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { employeeId, branchId, amount, type = "given", remarks, reason, date } = req.body;
+    const {
+      employeeId,
+      branchId,
+      amount,
+      type = "given",
+      remarks,
+      reason,
+      date,
+      monthlyDeductionAmount,
+      installments,
+      deductionStartMonth
+    } = req.body;
     const amountNum = Number(amount) || 0;
+    const monthlyDedNum = Number(monthlyDeductionAmount) || 0;
+    const installNum = Number(installments) || 1;
 
     const advanceDate = date ? new Date(date) : new Date();
     advanceDate.setHours(0, 0, 0, 0);
+
+    const startMonthDate = deductionStartMonth ? new Date(deductionStartMonth) : advanceDate;
 
     // 1. Create the Advance Record
     const newAdvance = new Advance({
@@ -90,6 +105,9 @@ exports.addAdvance = async (req, res) => {
       amount: amountNum,
       initialAmount: type === "given" ? amountNum : 0,
       remainingBalance: type === "given" ? amountNum : 0,
+      monthlyDeductionAmount: type === "given" ? (monthlyDedNum > 0 ? monthlyDedNum : amountNum) : 0,
+      installments: type === "given" ? installNum : 1,
+      deductionStartMonth: type === "given" ? startMonthDate : null,
       remarks,
       reason,
       date: advanceDate,
@@ -118,18 +136,18 @@ exports.addAdvance = async (req, res) => {
     }
 
     // 3. Create Ledger Entry for General Accounting (DEBIT - Reduces payable/Increases debt)
-    await LedgerController.recordLedgerEntry({
+    await accountingService.recordLedgerEntry({
       employeeId,
-      companyId,
+      companyId: req.user?.companyId,
       date: advanceDate,
       type: type === "given" ? 'DEBIT' : 'CREDIT',
       amount: amountNum,
       source: 'advance',
       referenceId: newAdvance._id,
-      remarks: remarks || `${type === 'given' ? 'Advance granted' : 'Advance adjustment'}: ${reason || 'No reason'}`
+      remarks: remarks || `${type === 'given' ? `Advance granted (EMI: ₹${newAdvance.monthlyDeductionAmount}/mo)` : 'Advance adjustment'}: ${reason || 'No reason'}`
     }, session);
 
-    // 4. Sycnronize Running Balances and Employee Summary
+    // 4. Synchronize Running Balances and Employee Summary
     await syncEmployeeAdvanceBalance(employeeId, session);
 
     await session.commitTransaction();
@@ -187,7 +205,7 @@ exports.repayAdvanceManual = async (req, res) => {
     await repaymentRecord.save({ session });
 
     // 3. Create Ledger Entry (CREDIT - Increases what company owes as it's a repayment)
-    await LedgerController.recordLedgerEntry({
+    await accountingService.recordLedgerEntry({
       employeeId: advance.employeeId,
       companyId: advance.companyId,
       date: repayDate,
@@ -223,7 +241,15 @@ exports.editAdvance = async (req, res) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { amount, remarks, reason, date } = req.body;
+    const {
+      amount,
+      remarks,
+      reason,
+      date,
+      monthlyDeductionAmount,
+      installments,
+      deductionStartMonth
+    } = req.body;
 
     const advance = await Advance.findById(id).session(session);
     if (!advance) {
@@ -236,11 +262,6 @@ exports.editAdvance = async (req, res) => {
 
     // 🔹 Synchronize with Ledger via accountingService, which properly
     // shifts the running balance of this entry AND every entry after it.
-    // (This used to manually patch debit/credit on the Entry directly and
-    // then call LedgerController.recalculateBalances() to fix up running
-    // balances afterward - but that function is a no-op stub (it just
-    // logs a warning), so every edited advance was silently leaving stale
-    // running balances on itself and every later ledger entry.)
     const ledgerEntry = await Entry.findOne({ referenceId: advance._id }).session(session);
 
     if (ledgerEntry) {
@@ -257,7 +278,7 @@ exports.editAdvance = async (req, res) => {
       }
     } else if (amount !== undefined && amount !== advance.amount) {
       // Fallback: create if missing
-      await LedgerController.recordLedgerEntry({
+      await accountingService.recordLedgerEntry({
         employeeId: advance.employeeId,
         companyId: advance.companyId,
         date: date ? new Date(date) : advance.date,
@@ -267,6 +288,16 @@ exports.editAdvance = async (req, res) => {
         referenceId: advance._id,
         remarks: remarks || `Advance entry updated`
       }, session);
+    }
+
+    if (monthlyDeductionAmount !== undefined) {
+      advance.monthlyDeductionAmount = Number(monthlyDeductionAmount) || 0;
+    }
+    if (installments !== undefined) {
+      advance.installments = Number(installments) || 1;
+    }
+    if (deductionStartMonth !== undefined) {
+      advance.deductionStartMonth = deductionStartMonth ? new Date(deductionStartMonth) : null;
     }
 
     if (amount !== undefined && amount !== advance.amount) {
@@ -374,6 +405,43 @@ exports.deleteAdvance = async (req, res) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 🔹 Get active advances and recommended EMI for an employee (Used in Payroll Creation)
+exports.getEmployeeActiveAdvance = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    if (!employeeId) {
+      return res.status(400).json({ success: false, message: "Employee ID is required" });
+    }
+
+    const openAdvances = await Advance.find({
+      employeeId,
+      remainingBalance: { $gt: 0 },
+      type: "given"
+    }).sort({ date: 1, createdAt: 1 });
+
+    const totalRemaining = openAdvances.reduce((sum, a) => sum + (a.remainingBalance || 0), 0);
+    // Sum of scheduled monthly EMIs across active advances (or the remaining balance if less)
+    const suggestedMonthlyEMI = openAdvances.reduce((sum, a) => {
+      const emi = a.monthlyDeductionAmount > 0 ? a.monthlyDeductionAmount : a.remainingBalance;
+      return sum + Math.min(emi, a.remainingBalance);
+    }, 0);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        employeeId,
+        totalRemainingBalance: totalRemaining,
+        suggestedMonthlyDeduction: suggestedMonthlyEMI,
+        activeAdvancesCount: openAdvances.length,
+        openAdvances
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching employee active advance:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

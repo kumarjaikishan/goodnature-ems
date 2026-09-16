@@ -32,6 +32,57 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - The standalone Plot Inventory (`/dashboard/plots/inventory`) has been merged directly into [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) under `/dashboard/plots/series-master` (`Series & Inventory`).
 - The page includes 3 interconnected tabs: **Series Blocks & Layout Grid**, **All Plots Inventory List (Cards & Table with live filters & pagination)**, and **Global Pricing & Commission Matrix**.
 - Both `/dashboard/plots/series-master` and `/dashboard/plots/inventory` route to this unified component.
+- **Series Creation & Edit Modals**:
+  - Bulk Series generator does NOT include PLC/Premium Heads block (Corner, Park Facing, etc.), as premium heads are assigned per individual plot during single plot add or plot configuration.
+  - Manual entry of Plot Size (Sq Ft) in Series creation is removed and made strictly read-only auto-calculated dynamically from North, South, East, and West dimensions: $\text{Area} = \frac{\text{North} + \text{South}}{2} \times \frac{\text{East} + \text{West}}{2}$.
+  - Plot dimensions across Series & Plot modals (North, South, East, West) default to `0`.
+
+### S. Frontend Route Conflict Resolution & Authorization Loop Prevention
+- **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
+- **Gotcha 2**: In `ProtectedRoutes.jsx`, when `role` was undefined during initial profile fetch, `!isAuthorized` redirected to `/`. But in `App.jsx`, `<Route path="/" element={<Navigate to="/dashboard" replace />} />` immediately bounced back to `/dashboard`, causing an infinite redirect loop (`/` <-> `/dashboard`) and rapid toast spam.
+- **Fix Pattern**: In `ProtectedRoutes.jsx`, resolve `role` from JWT token payload immediately if profile is pending, render `<ContentLoader />` while determining authentication, and navigate to `/login` if unauthenticated/unauthorized instead of bouncing to `/`.
+
+### T. Commission Ledger Synchronization on Receipt Update/Delete
+- **Caveat**: Instant fixed commissions on collections (plots and investment RD/FD) create `Entry` documents in the sponsor's `Ledger` linked via `referenceId: receipt._id`.
+- **Handling**: When any receipt is updated, deleted, or rejected, the system must invoke `accountingService.deleteLedgerEntry(entry._id, session)` to correctly propagate balance adjustments across subsequent entries and recalculate `ledger.advance`, ensuring commissions are never stranded or duplicated.
+# SESSION_MEMORY.md — Persistent Discoveries & Context for Future Sessions
+
+This file records crucial patterns, bugs solved, and architectural caveats found in the repository. Future AI sessions should consult this before debugging or adding code.
+
+---
+
+## 1. Important System Discoveries
+
+### A. ESSL Biometric Device Communication
+- **Caveat**: eSSL devices send non-standard HTTP requests (e.g. `/essl/iclock/cdata`, `/essl/iclock/cdata.aspx`, `getrequest.aspx`, `devicecmd`) with raw unencoded text payloads.
+- **Handling**: `server/index.js` mounts a custom raw body stream reader specifically before standard `express.json()` to capture `req.bodyRaw`.
+- Device heartbeats are recorded under `company.devices.$.lastHeartbeat`.
+
+### B. Timezone & Attendance Calculations
+- **Gotcha**: If attendance is queried by a date string (e.g. `2026-08-23`), converting with raw JavaScript `new Date("2026-08-23")` will cause shifts depending on the host server's local timezone.
+- **Fix Pattern**: Always use `parseAttendanceDateTime()` and `getAttendanceDateUTC()` from `server/utils/attendanceTime.js`. Attendance records are saved with `date` set to UTC midnight (`YYYY-MM-DDT00:00:00.000Z`).
+
+### C. Permission Matrix Mapping
+- Permissions are stored in MongoDB as a `Map` of numbers (e.g., `employee: [1, 2, 3, 4]`).
+- Key Legend: `1 = Read`, `2 = Create`, `3 = Update`, `4 = Delete`.
+- When checked, Redis key `permissions:<userId>` is checked first. Superadmins and grant roles bypass checks.
+
+### D. Duplicate Ledger Resolution (`fix_ledgers.js`)
+- An operational script `fix_ledgers.js` exists in the project root to detect and merge duplicate ledgers for employees where multiple ledger documents were historically created.
+
+### E. Plot Installment & Payout Architecture
+- Payout schedules and vouchers track money disbursed back to plot customers/investors.
+- `PlotBooking` status values: `HOLD`, `ACTIVE`, `COMPLETED`, `CANCELLED`.
+- `PlotBooking` has compound index `{ status: 1, createdAt: -1 }` to optimize list view and report rendering.
+
+### F. Plot Series & Inventory Unified Page
+- The standalone Plot Inventory (`/dashboard/plots/inventory`) has been merged directly into [PlotSeriesMaster.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotSeriesMaster.jsx) under `/dashboard/plots/series-master` (`Series & Inventory`).
+- The page includes 3 interconnected tabs: **Series Blocks & Layout Grid**, **All Plots Inventory List (Cards & Table with live filters & pagination)**, and **Global Pricing & Commission Matrix**.
+- Both `/dashboard/plots/series-master` and `/dashboard/plots/inventory` route to this unified component.
+- **Series Creation & Edit Modals**:
+  - Bulk Series generator does NOT include PLC/Premium Heads block (Corner, Park Facing, etc.), as premium heads are assigned per individual plot during single plot add or plot configuration.
+  - Manual entry of Plot Size (Sq Ft) in Series creation is removed and made strictly read-only auto-calculated dynamically from North, South, East, and West dimensions: $\text{Area} = \frac{\text{North} + \text{South}}{2} \times \frac{\text{East} + \text{West}}{2}$.
+  - Plot dimensions across Series & Plot modals (North, South, East, West) default to `0`.
 
 ### S. Frontend Route Conflict Resolution & Authorization Loop Prevention
 - **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
@@ -48,15 +99,51 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 
 ### V. Plot Closings Architecture & Real-Time Preview
 - **Default Naming & Date Range**: Default closing name is generated for the previous month (e.g. `August 2026 Closing` when current month is September 2026) with dates defaulting from 1st to last day of that previous month.
-- **Terminology**: The word "Commission" is simplified to "Closing" (e.g., `Process New Closing`, `Closing System`).
+- **Terminology**: The word "Commission" is simplified to "Closing" / "Incentive" (e.g., `Process New Period Incentive`, `Incentive System`).
 - **Query Optimization**: `previewPlotClosing` queries indexed collection records directly via `PlotSponsorCommission.find({ status: 'active', closingId: null, createdAt: { $gte: start, $lte: end } })` with a compound index on `{ status: 1, closingId: 1, createdAt: 1 }` and no redundant booking loops, making date switching instant (<20ms).
-- **Dedicated Full-Page Workflow**: Process New Closing and Edit Closing are hosted on a dedicated full page [PlotClosingProcessPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/PlotClosingProcessPage.jsx) (`/dashboard/plots/closings/new` and `/dashboard/plots/closings/edit/:id`), providing maximum viewport width for large financial data tables, KPI cards, and sticky action bars.
+- **Dedicated Full-Page Workflow**: Process New Incentive and Edit Incentive are hosted on a dedicated full page [PlotIncentiveProcessPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/incentives/PlotIncentiveProcessPage.jsx) (`/dashboard/plots/incentives/new` and `/dashboard/plots/incentives/edit/:id`), providing maximum viewport width for large financial data tables, KPI cards, and sticky action bars.
 - **Explicit Period Search / Fetch**: Date inputs do not trigger preview recalculations on every keystroke/change; an explicit **"Fetch Period"** button calculates collections and commissions on demand.
-- **Expandable Per-Collection Breakdown**: Both the Live Preview table and the View Closing Details modal feature collapsible dropdown rows per sponsor. Clicking on a sponsor expands a nested table listing each collection receipt with its date, receipt #, booking/plot #, customer name, collection amount, individual applied slab rate (e.g., `7% (5% + 2%)` vs `8% (5% + 3%)`), and calculated commission.
+- **Target Incentive (Variable Part) Only in Payout Batches**:
+  - Instant fixed commissions (5% for Business Associate, 2% for Business Partner, 7% for direct partner) are credited immediately upon receipt collection into the universal ledger.
+  - Therefore, the period Incentive batch previews, calculates, and credits **strictly the achieved Target Incentive (variable part: e.g. 2%–10% for BA, 0.10%–1.00% for BP)** based on total period volume slabs.
+  - The UI tables and KPI cards prominently display the achieved Target Incentive % (`+2% Inc.`, `+3% Inc.`, `+0.10% Inc.`), the exact incentive amount to credit, and an explanatory banner to ensure complete clarity.
+
+### W. System Audit & Activity Logs Architecture
+- **Unified Activity Ledger**: [server/models/AuditLog.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/models/AuditLog.js) stores mutation logs across all modules (`PLOTS`, `ATTENDANCE`, `LEAVE`, `PAYROLL`, `EMPLOYEE`, `ORGANIZATION`, `INVESTMENTS`, `AUTH`, `VOUCHER`, `SYSTEM`).
+- **Compatibility**: Legacy `PlotAuditLog` model is unified to write into the `auditlogs` MongoDB collection so both existing plot actions and new system actions stream into a single searchable log.
+- **Non-blocking Logger**: [server/utils/auditLogger.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/utils/auditLogger.js) provides `logActivity()`, an asynchronous, fail-safe helper that never crashes primary business operations on logging error.
+- **Role Permissions**: Accessible by `developer`, `superadmin`, and `admin` roles via `/dashboard/activity-logs` with filters for modules, dates, and search keywords.
+
+### Y. ID Generation Standards (Partners, Associates, Branches)
+- **Business Partner (BP)**: Format `P/<FY>/<SEQ>` (e.g. `P/2627/001`), where `P` stands for Partner, `2627` is financial year (Apr 2026 – Mar 2027), and `001` is 3-digit zero-padded sequence via `Counter.getNextSequence('GNE-P-2627', null, 3)`.
+- **Business Associate (BA)**: Format `A/<FY>/<SEQ>` (e.g. `A/2627/001`), where `A` stands for Associate, generated via `Counter.getNextSequence('GNE-A-2627', null, 3)`.
+- **Branch Code**: Format `B/<FY>/<SEQ>` (e.g. `B/2627/001`), where `B` stands for Branch, generated via `Counter.getNextSequence('GNE-BRANCH-2627', null, 3)`.
+
+
+
+### X. Two-Tier Sponsor Commission & Closing System (Fixed Instant + Period Target Incentive)
+- **Instant Fixed Commission Credit**:
+  - **Plot Collections (Downpayment / EMI)**: Business Associate (BA) earns **5.00%** fixed, and their parent Business Partner (BP) earns **2.00%** fixed. Direct Business Partner sales earn combined **7.00%** (5% + 2%).
+  - **Investment Collections (RD / FD)**: Business Associate (BA) earns **2.50%** fixed, and their parent Business Partner (BP) earns **1.00%** fixed. Direct Business Partner sales earn combined **3.50%** (2.5% + 1.0%).
+  - Fixed commission is credited immediately upon payment receipt approval to the sponsor's universal company financial ledger account (`Entry` with `source: 'commission_fixed'`).
+- **Period Target Incentive on Closing**:
+  - Target incentives are **not** credited on individual receipts; they are evaluated on total business volume across a closing date range (e.g. 90 days, 3 months, or custom date window).
+  - When Admin executes a **Plot Closing**, the system calculates the sponsor's volume in that date range and matches it against `CommissionPolicyConfig` slabs (BA evaluated on direct volume, BP evaluated on direct + downline team volume).
+  - Slabs determine the achieved Target Incentive % (e.g. BA Plot incentive 2% to 10%, BP Plot incentive 0.10% to 1.00%).
+  - Only the **Target Incentive Amount** (`incentiveCommission`) is credited to the sponsor's universal ledger on closing (`Entry` with `source: 'commission_closing'`), completely eliminating double credit while ensuring mathematical consistency.
+- **Sponsor Ledger Reconciliation**:
+  - Available balance equals `Instant Fixed Credits + Periodic Target Incentive Credits - Payout Debits`.
 
 ### W. Plot Booking Wizard Structure Cleanup
 - **Active Booking Components**: Stored in `client/src/pages/plots/booking/components/` (`BookingProgressBar`, `BookingSummarySidebar`, `StepCustomer`, `StepPlot`, `StepTermsAndPayment`). Used by `client/src/pages/plots/PlotBooking.jsx` mounted on route `/plots/addbooking`.
 - **Removed Duplicate Code**: The legacy duplicate directory `client/src/pages/plots/bookingWizard/` and unused wrapper `client/src/pages/plots/booking/PlotBookingPage.jsx` were safely deleted.
+
+### X. Business Developer Branch Scoping & Dual Creation Workflow
+- **Branch Scoping**: Admin and Superadmin users view and assign from all created branches across the system. Subadmin/Manager users are strictly scoped to their assigned `user.branchIds`.
+- **Dual Creation Buttons**:
+  - **👑 Create Business Partner**: Registers a direct Level 1 partner directly under the company. Requires selecting the assigned **Branch**.
+  - **👥 Create Business Associate**: Registers a Level 2 associate under an existing Business Partner. Requires selecting the parent **Business Partner**, and automatically assigns/inherits their branch.
+- **Backend Sync**: `getSponsors` filters by `branchId` and populates `branchIds` on both the sponsor and their parent partner; `createSponsor` & `updateSponsor` save `branchIds` properly.
 
 ### X. Business Developer Module & Nomenclature Renaming
 - **Terminology**: The submenu and module formerly named "Sponsors" under Plot Management has been renamed to **"Business Developer"** (`Business Developers` in header/titles).
@@ -610,3 +697,30 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Deferred EMI Activation**:
   - In `PlotInstallment`, EMI installments (`installmentNumber > 0`) retain `dueDate: null` until 100% of the Downpayment target is cleared.
   - Once downpayment is paid in full on date $D$, EMIs automatically calculate `dueDate = D + (i * frequencyMultiplier)` months.
+
+### GG. Dynamic DP & EMI Grace Period and Configurable Late Fine Resolution
+- **Gotcha**: `PlotSeriesMaster.js` schema had hardcoded defaults (`default: 15`, `default: 24`). When reading series documents or checking plot installments, series schema defaults shadowed user-configured values from `PlotRateConfiguration` (set under Plot Pricing & Customer EMI Plans). This caused custom DP Grace Periods (e.g. 2 days) to be overridden with 15 days, resulting in 0 late fines even when collections were 4 days overdue, and hardcoded `24% P.A.` text in EMI cards and tables.
+- **Fix Pattern**:
+  - Removed shadowing schema defaults from `PlotSeriesMaster.js`.
+  - Standardized `PlotRateConfiguration` as the authoritative global master for `dpGracePeriodDays`, `emiGracePeriodDays`, `lateFineFrequency`, and `lateFineRate` in [`plots.service.js`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots.service.js) across `createReceipt`, `updateReceipt`, and `rebuildBookingInstallmentsState`.
+  - Hydrated `rateConfig` directly on component mount (`useEffect`) in [`InstallmentCollection.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/installments/InstallmentCollection.jsx).
+  - Dynamically formatted all fine labels (`Late Fine (${rateLabel})`) in [`ReceivePaymentForm.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/installments/components/ReceivePaymentForm.jsx) and updated the Downpayment status badge to indicate whether payment is within grace or overdue by $N$ days.
+
+### HH. Automated Billing Commission Ledger Integrity & Non-Editable/Non-Deletable Protection
+- **Billing Edit & Delete Auto-Sync**:
+  - In `plotDeveloper.service.js` (`syncBookingSponsorCommissions`), when a Downpayment/EMI receipt amount is edited or deleted, the system directly synchronizes the corresponding `commission_fixed` entry in the Business Associate / Business Partner ledger via `accountingService.updateLedgerEntry` or `accountingService.deleteLedgerEntry`.
+  - Propagates running balance recalculations across all subsequent transactions on that ledger.
+  - Cleans up orphan commission entries if a receipt is deleted or rejected.
+- **Direct Edit / Delete Protection (Audit Integrity)**:
+  - In `server/controllers/ledger.js` (`updateEntry` & `deleteEntry`), entries with `source.startsWith('commission')` or `source === 'plot_payout'` are blocked from direct manual editing or deletion (returning HTTP 400), ensuring they cannot diverge from billing receipts.
+  - In `client/src/pages/admin/ledger/ledgerhelper.jsx` (`getLedgerColumns`), automated billing commission entries replace the standard Edit/Trash action buttons with a locked `Auto Billing` badge and explanatory tooltip.
+
+### II. Plot Management Submenu Renaming: Commission Closings -> Incentive
+- **Sidebar & Routes**:
+  - In `client/src/components/sidebar.jsx`, the submenu item under Plot Management is renamed to **"Incentive"** with route `/dashboard/plots/incentives`.
+- **Directory Structure & Pages**:
+  - Dedicated component directory `client/src/pages/plots/incentives/` houses `PlotIncentivesPage.jsx`, `PlotIncentiveProcessPage.jsx`, `PlotPayoutLedgerPage.jsx`, and `PlotPayoutVoucherPrint.jsx`.
+  - All headings, buttons, KPI cards, and tooltips updated to "Incentive" terminology while maintaining backwards-compatible aliases for legacy routes and imports.
+
+
+

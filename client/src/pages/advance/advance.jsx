@@ -14,7 +14,6 @@ import DateInput from "@/components/ui/DateInput";
 import NumberInput from "@/components/ui/NumberInput";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import Badge from "@/components/ui/Badge";
 import { swal } from "../../utils/confirmDialog";
 
 const getInitialBg = (name) => {
@@ -55,26 +54,23 @@ const EmployeeAdvancePage = () => {
         branchId: "",
         empId: "",
         amount: 0,
+        monthlyDeductionAmount: 0,
+        installments: 1,
         type: "given",
         remarks: "",
-        date: dayjs().format("YYYY-MM-DD")
+        date: dayjs().format("YYYY-MM-DD"),
     });
 
     /* -------------------- LOAD DATA -------------------- */
 
-    useEffect(() => {
-        fetchAdvanceData();
-    }, []);
-
     const fetchAdvanceData = async () => {
         try {
             setloading(true);
-            const [advRes, empRes] = await Promise.all([
+            const [advRes] = await Promise.all([
                 apiClient({ url: "advance" }),
-                apiClient({ url: "getemployee" })
             ]);
-            if (Array.isArray(advRes)) setRows(advRes);
-            if (Array.isArray(empRes)) dispatch(setEmployees(empRes));
+
+            setRows(advRes.data || []);
         } catch (err) {
             console.error("Error fetching advance data:", err);
         } finally {
@@ -83,10 +79,15 @@ const EmployeeAdvancePage = () => {
     };
 
     useEffect(() => {
-        if (filters.branch === 'all') {
-            setbranchEmp(employee || []);
-        } else {
-            const filtered = (employee || []).filter((val) => val.branchId === filters.branch);
+        fetchAdvanceData();
+    }, []);
+
+    useEffect(() => {
+        if (employee) {
+            let filtered = employee;
+            if (filters.branch !== "all") {
+                filtered = filtered.filter((e) => e.branchId === filters.branch);
+            }
             setbranchEmp(filtered);
         }
     }, [filters.branch, employee]);
@@ -111,10 +112,27 @@ const EmployeeAdvancePage = () => {
             filters.branch === "all" || row.branchId === filters.branch;
 
         const employeeMatch =
-            row.employeeId?._id === selectedEmployeeId;
+            row.employeeId?._id === selectedEmployeeId || row.employeeId === selectedEmployeeId;
 
         return branchMatch && employeeMatch;
     });
+
+    // Summary calculations for selected employee
+    const employeeGivenTotal = (filteredEmployees || [])
+        .filter(r => r.type === 'given')
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+    const employeeAdjustedTotal = (filteredEmployees || [])
+        .filter(r => r.type === 'adjusted' || r.type === 'repaid')
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+    const employeeActiveAdvances = (filteredEmployees || [])
+        .filter(r => r.type === 'given' && (r.remainingBalance || 0) > 0);
+
+    const totalScheduledEMI = employeeActiveAdvances
+        .reduce((sum, r) => sum + Math.min(r.monthlyDeductionAmount || r.remainingBalance || 0, r.remainingBalance || 0), 0);
+
+    const currentOutstandingBalance = Math.max(0, employeeGivenTotal - employeeAdjustedTotal);
 
     /* -------------------- HANDLERS -------------------- */
 
@@ -136,30 +154,61 @@ const EmployeeAdvancePage = () => {
         window.history.replaceState({}, "", url);
     };
 
-    const handleChange = (field, value) => {
-        setForm(prev => ({ ...prev, [field]: value }));
+    const handleChange = (field, rawValue) => {
+        const raw = (rawValue !== null && typeof rawValue === 'object' && rawValue.target !== undefined)
+            ? rawValue.target.value
+            : rawValue;
+
+        setForm(prev => {
+            const next = { ...prev, [field]: raw };
+            if (field === 'amount' && next.type === 'given') {
+                const amt = Number(raw) || 0;
+                const inst = Number(next.installments) || 1;
+                if (inst > 0) {
+                    next.monthlyDeductionAmount = amt > 0 ? Math.ceil(amt / inst) : 0;
+                }
+            } else if (field === 'installments' && next.type === 'given') {
+                const inst = Number(raw) || 1;
+                const amt = Number(next.amount) || 0;
+                if (inst > 0) {
+                    next.monthlyDeductionAmount = amt > 0 ? Math.ceil(amt / inst) : 0;
+                }
+            } else if (field === 'monthlyDeductionAmount' && next.type === 'given') {
+                const emi = Number(raw) || 0;
+                const amt = Number(next.amount) || 0;
+                if (emi > 0 && amt > 0) {
+                    next.installments = Math.ceil(amt / emi);
+                }
+            }
+            return next;
+        });
     };
 
     const handleOpen = (row = null) => {
         if (row) {
             setForm({
-                employeeId: row.employeeId?._id || "",
+                employeeId: row.employeeId?._id || row.employeeId || "",
                 companyId: row.companyId || "",
                 branchId: row.branchId || "",
                 empId: row.empId || "",
-                amount: row.amount,
+                amount: row.amount || "",
+                monthlyDeductionAmount: row.monthlyDeductionAmount || row.amount || "",
+                installments: row.installments || 1,
                 type: row.type || "given",
                 remarks: row.remarks || "",
                 date: dayjs(row.date).format("YYYY-MM-DD"),
             });
             setEditingId(row._id);
         } else {
+            const defaultEmp = selectedEmployeeId !== "all" ? selectedEmployee : null;
             setForm({
-                employeeId: selectedEmployee?._id || "",
-                companyId: selectedEmployee?.companyId || "",
-                branchId: selectedEmployee?.branchId || "",
-                empId: selectedEmployee?.empId || "",
-                amount: 0,
+                employeeId: defaultEmp?._id || "",
+                companyId: defaultEmp?.companyId || "",
+                branchId: defaultEmp?.branchId || "",
+                empId: defaultEmp?.empId || "",
+                amount: "",
+                monthlyDeductionAmount: "",
+                installments: 1,
                 type: "given",
                 remarks: "",
                 date: dayjs().format("YYYY-MM-DD"),
@@ -173,6 +222,13 @@ const EmployeeAdvancePage = () => {
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
+        if (!form.employeeId) {
+            return toast.error("Please select an employee");
+        }
+        if (!form.amount || Number(form.amount) <= 0) {
+            return toast.error("Please enter a valid advance amount");
+        }
+
         try {
             setloading(true);
             if (editingId) {
@@ -191,7 +247,13 @@ const EmployeeAdvancePage = () => {
                 toast.success("Advance recorded successfully");
             }
 
+            // If user recorded advance for an employee, automatically focus on that employee
+            if (form.employeeId && selectedEmployeeId !== form.employeeId) {
+                handleEmployeeSelect(form.employeeId);
+            }
+
             fetchAdvanceData();
+            dispatch(FirstFetch());
             handleClose();
         } catch (error) {
             console.error("Error saving advance:", error);
@@ -217,6 +279,7 @@ const EmployeeAdvancePage = () => {
                     });
                     toast.success("Advance deleted");
                     fetchAdvanceData();
+                    dispatch(FirstFetch());
                 } catch (error) {
                     console.error("Error deleting advance:", error);
                     toast.error(error.message || "Failed to delete");
@@ -233,33 +296,82 @@ const EmployeeAdvancePage = () => {
             name: "Date", 
             selector: (r) => r.date, 
             sortable: true,
-            width: "120px", 
-            cell: (r) => dayjs(r.date).format('DD MMM YYYY') 
+            width: "115px", 
+            cell: (r) => (
+                <div className="font-mono text-xs text-slate-700">
+                    {dayjs(r.date).format('DD MMM YYYY')}
+                </div>
+            )
         },
-        { name: "Remarks", selector: (r) => r.remarks || "-", wrap: true },
+        { 
+            name: "Type & Remarks", 
+            selector: (r) => r.remarks || "-", 
+            wrap: true,
+            cell: (r) => (
+                <div className="py-1">
+                    <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                            r.type === 'given' 
+                                ? 'bg-teal-50 text-teal-800 border border-teal-200' 
+                                : r.type === 'repaid'
+                                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                        }`}>
+                            {r.type === 'given' ? 'Advance Granted' : r.type === 'repaid' ? 'Repayment' : 'Salary Deduction'}
+                        </span>
+                        {r.status && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                                r.status === 'closed'
+                                    ? 'bg-slate-100 text-slate-600'
+                                    : r.status === 'partially_paid'
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}>
+                                {r.status === 'closed' ? 'Closed' : r.status === 'partially_paid' ? 'In Repayment' : 'Active'}
+                            </span>
+                        )}
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1 font-medium">{r.remarks || r.reason || "-"}</div>
+                </div>
+            )
+        },
         { 
             name: "Given (₹)", 
             selector: (r) => r.type === "given" ? r.amount : 0, 
             width: "110px",
             cell: (r) => r.type === "given" ? (
-                <span className="font-mono font-bold text-teal-700">₹{r.amount?.toLocaleString()}</span>
-            ) : '-'
-        },
-        {
-            name: "Adjusted (₹)",
-            selector: (r) => r.type === "adjusted" ? r.amount : 0,
-            width: "110px",
-            cell: (r) => r.type === "adjusted" ? (
-                <span className="font-mono font-bold text-rose-700">₹{r.amount?.toLocaleString()}</span>
+                <span className="font-mono font-bold text-teal-700">₹{r.amount?.toLocaleString('en-IN')}</span>
             ) : '-'
         },
         { 
-            name: "Balance (₹)", 
-            selector: (r) => r.balance ?? r.remainingBalance ?? 0, 
+            name: "Monthly EMI", 
+            selector: (r) => r.monthlyDeductionAmount || 0, 
+            width: "120px",
+            cell: (r) => r.type === "given" && r.monthlyDeductionAmount > 0 ? (
+                <div className="text-xs">
+                    <span className="font-mono font-bold text-slate-800">₹{r.monthlyDeductionAmount?.toLocaleString('en-IN')}</span>
+                    <span className="text-[10px] text-slate-400 block">/month ({r.installments || 1} inst)</span>
+                </div>
+            ) : '-'
+        },
+        { 
+            name: "Recovered (₹)", 
+            selector: (r) => r.type === "adjusted" || r.type === "repaid" ? r.amount : 0, 
+            width: "110px",
+            cell: (r) => (r.type === "adjusted" || r.type === "repaid") ? (
+                <span className="font-mono font-bold text-rose-700">₹{r.amount?.toLocaleString('en-IN')}</span>
+            ) : '-'
+        },
+        { 
+            name: "Remaining (₹)", 
+            selector: (r) => r.type === "given" ? (r.remainingBalance ?? r.amount ?? 0) : 0, 
             width: "120px",
             cell: (r) => {
-                const bal = r.balance ?? r.remainingBalance ?? 0;
-                return <span className="font-mono font-black text-slate-800">₹{bal.toLocaleString()}</span>;
+                if (r.type === "given") {
+                    const bal = r.remainingBalance ?? r.amount ?? 0;
+                    return <span className="font-mono font-black text-slate-800">₹{bal.toLocaleString('en-IN')}</span>;
+                }
+                return <span className="text-slate-400 font-mono">-</span>;
             }
         },
         {
@@ -285,7 +397,7 @@ const EmployeeAdvancePage = () => {
                         </button>
                     </div>
                 ),
-            width: "100px"
+            width: "90px"
         },
     ];
 
@@ -333,39 +445,69 @@ const EmployeeAdvancePage = () => {
                     size="sm"
                     startIcon={Plus}
                     onClick={() => handleOpen()} 
-                    disabled={selectedEmployeeId === "all"}
                 >
                     Record Advance
                 </Button>
             </div>
 
-            {/* Selected Employee Card */}
+            {/* Selected Employee Summary Cards */}
             {selectedEmployee && (
-                <div className="flex items-center gap-4 p-4 rounded-xl border border-teal-200 bg-teal-50/30 shadow-2xs">
-                    {selectedEmployee.profileimage ? (
-                        <img
-                            src={cloudinaryUrl(selectedEmployee.profileimage, {
-                                format: "webp",
-                                width: 100,
-                                height: 100,
-                            })}
-                            alt={selectedEmployee.userid?.name}
-                            className="w-12 h-12 rounded-full object-cover border border-teal-200"
-                        />
-                    ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm ${getInitialBg(selectedEmployee.userid?.name)}`}>
-                            {selectedEmployee.userid?.name ? selectedEmployee.userid.name.charAt(0).toUpperCase() : <User size={20} />}
+                <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-teal-200 bg-teal-50/30 shadow-2xs">
+                        <div className="flex items-center gap-4">
+                            {selectedEmployee.profileimage ? (
+                                <img
+                                    src={cloudinaryUrl(selectedEmployee.profileimage, {
+                                        format: "webp",
+                                        width: 100,
+                                        height: 100,
+                                    })}
+                                    alt={selectedEmployee.userid?.name}
+                                    className="w-12 h-12 rounded-full object-cover border border-teal-200"
+                                />
+                            ) : (
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm ${getInitialBg(selectedEmployee.userid?.name)}`}>
+                                    {selectedEmployee.userid?.name ? selectedEmployee.userid.name.charAt(0).toUpperCase() : <User size={20} />}
+                                </div>
+                            )}
+
+                            <div className="flex flex-col">
+                                <span className="text-base font-bold capitalize text-slate-800">
+                                    {selectedEmployee.userid?.name}
+                                </span>
+                                <span className="text-xs text-slate-600 font-medium">
+                                    {selectedEmployee.designation || 'Staff'} • Emp ID: {selectedEmployee.empId} • Monthly Salary: ₹{Number(selectedEmployee.salary || 0).toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Summary Badges */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs text-center">
+                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Granted</span>
+                                <span className="text-sm font-black text-teal-800">₹{employeeGivenTotal.toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs text-center">
+                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Recovered</span>
+                                <span className="text-sm font-black text-rose-700">₹{employeeAdjustedTotal.toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 shadow-2xs text-center col-span-2 sm:col-span-1">
+                                <span className="text-[10px] uppercase font-bold text-emerald-800 block">Balance Due</span>
+                                <span className="text-sm font-black text-emerald-700">₹{currentOutstandingBalance.toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {totalScheduledEMI > 0 && currentOutstandingBalance > 0 && (
+                        <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-center justify-between flex-wrap gap-2">
+                            <span>
+                                <strong>Scheduled Monthly Recovery (EMI):</strong> ₹{totalScheduledEMI.toLocaleString('en-IN')}/month will be auto-deducted during payroll generation.
+                            </span>
+                            <span className="font-bold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                                {employeeActiveAdvances.length} Active Advance Plan(s)
+                            </span>
                         </div>
                     )}
-
-                    <div className="flex flex-col">
-                        <span className="text-base font-bold capitalize text-slate-800">
-                            {selectedEmployee.userid?.name}
-                        </span>
-                        <span className="text-xs text-slate-600 font-medium">
-                            {selectedEmployee.designation || 'Staff'} • Emp ID: {selectedEmployee.empId}
-                        </span>
-                    </div>
                 </div>
             )}
 
@@ -391,41 +533,102 @@ const EmployeeAdvancePage = () => {
                 open={open}
                 onClose={handleClose}
                 title={editingId ? "Edit Advance Entry" : "Record Employee Advance"}
-                subtitle={`Employee: ${selectedEmployee?.userid?.name || 'Selected Employee'}`}
+                subtitle={
+                    form.employeeId
+                        ? `Employee: ${employee?.find(e => e._id === form.employeeId)?.userid?.name || selectedEmployee?.userid?.name || 'Selected Employee'}`
+                        : "Grant or recover advance for an employee"
+                }
                 maxWidth="max-w-md"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {!editingId && (
+                        <div className="space-y-1">
+                            <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1">
+                                Employee <span className="text-rose-500 font-bold">*</span>
+                            </label>
+                            <SearchableSelect
+                                options={(employee || []).map(e => ({
+                                    label: `${e.userid?.name || 'Unknown'} (${e.empId || 'No ID'}) - ${e.designation || 'Staff'}`,
+                                    value: e._id
+                                }))}
+                                placeholder="Select Employee..."
+                                searchPlaceholder="Search employee name or ID..."
+                                value={form.employeeId}
+                                onChange={(empId) => {
+                                    const targetEmp = (employee || []).find(e => e._id === empId);
+                                    setForm(p => ({
+                                        ...p,
+                                        employeeId: empId || "",
+                                        companyId: targetEmp?.companyId || "",
+                                        branchId: targetEmp?.branchId || "",
+                                        empId: targetEmp?.empId || "",
+                                    }));
+                                }}
+                            />
+                        </div>
+                    )}
+
                     <DateInput
-                        label="Date"
+                        label="Advance Date"
                         required
                         value={form.date}
-                        onChange={(e) => handleChange('date', e.target.value)}
+                        onChange={(e) => handleChange('date', e?.target?.value || e)}
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <NumberInput
-                            label="Amount"
+                            label="Total Amount"
                             currency
                             required
                             min="1"
                             placeholder="0"
                             value={form.amount}
-                            onChange={(e) => handleChange('amount', Number(e.target.value))}
+                            onChange={(val) => handleChange('amount', val)}
                         />
 
                         <Select
                             label="Transaction Type"
                             options={[
-                                { label: 'Given (+)', value: 'given' },
-                                { label: 'Adjusted (-)', value: 'adjusted' }
+                                { label: 'Given (+ Advance Grant)', value: 'given' },
+                                { label: 'Adjusted (- Manual Recovery)', value: 'adjusted' }
                             ]}
                             value={form.type}
                             onChange={(e) => handleChange('type', e.target.value)}
                         />
                     </div>
 
+                    {form.type === 'given' && (
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                            <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                                <span>Monthly Recovery Schedule (EMI)</span>
+                                <span className="text-[11px] text-teal-700 font-semibold">Auto-calculated</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <NumberInput
+                                    label="Monthly EMI (₹)"
+                                    currency
+                                    min="1"
+                                    max={Number(form.amount) > 0 ? Number(form.amount) : undefined}
+                                    placeholder="e.g. 5000"
+                                    value={form.monthlyDeductionAmount}
+                                    onChange={(val) => handleChange('monthlyDeductionAmount', val)}
+                                />
+
+                                <NumberInput
+                                    label="Installments (Months)"
+                                    min="1"
+                                    max="60"
+                                    placeholder="e.g. 6"
+                                    value={form.installments}
+                                    onChange={(val) => handleChange('installments', val)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-700 tracking-wide">Remarks</label>
+                        <label className="text-xs font-semibold text-slate-700 tracking-wide">Remarks / Reason</label>
                         <textarea
                             rows={3}
                             placeholder="State reason or description for advance disbursement / recovery..."

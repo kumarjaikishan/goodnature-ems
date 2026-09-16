@@ -18,6 +18,8 @@ import {
   AlertCircle,
   MapPin,
   Tag,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -127,11 +129,12 @@ const PlotKisanLedgerPage = () => {
   };
 
   // Submit Create Deed
-  const handleSaveRegistryDeed = async (e) => {
-    e.preventDefault();
+  const handleSaveRegistryDeed = async (e, customPayload) => {
+    if (e && e.preventDefault) e.preventDefault();
     setDeedLoading(true);
+    const dataToSend = customPayload || deedForm;
     try {
-      await api.post(`/plots/kisan-agreements/${id}/deeds`, deedForm);
+      await api.post(`/plots/kisan-agreements/${id}/deeds`, dataToSend);
       toast.success('Registry Deed converted & registered into land stock pool!');
       setDeedModalOpen(false);
       fetchLedgerData();
@@ -144,7 +147,7 @@ const PlotKisanLedgerPage = () => {
 
   // Open Edit Deed Modal
   const openEditDeedModal = (agreementId, deed) => {
-    setEditingDeedTarget({ agreementId, deed });
+    setEditingDeedTarget({ agreementId, deed, parentAgreement: agreement });
     setEditDeedForm({
       deedNumber: deed.deedNumber || '',
       deedDate: deed.deedDate ? new Date(deed.deedDate).toISOString().split('T')[0] : '',
@@ -155,14 +158,15 @@ const PlotKisanLedgerPage = () => {
   };
 
   // Save Edit Deed
-  const handleSaveEditDeed = async (e) => {
-    e.preventDefault();
+  const handleSaveEditDeed = async (e, customPayload) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!editingDeedTarget) return;
     setEditDeedLoading(true);
+    const dataToSend = customPayload || editDeedForm;
     try {
       await api.put(
         `/plots/kisan-agreements/${editingDeedTarget.agreementId}/deeds/${editingDeedTarget.deed._id}`,
-        editDeedForm
+        dataToSend
       );
       toast.success('Registry Deed updated successfully!');
       setEditDeedModalOpen(false);
@@ -661,8 +665,8 @@ const PlotKisanLedgerPage = () => {
                       </td>
                       <td className="p-3.5">
                         <span className="font-bold text-slate-900 block">{sl.transactionType}</span>
-                        <span className="text-[10px] text-purple-700 font-mono block">
-                          {sl.deedNumber ? `Deed #${sl.deedNumber}` : 'Agreement Pool'}
+                        <span className="text-[10px] text-teal-700 font-mono block">
+                          Agreement Stock Pool
                         </span>
                       </td>
                       <td className="p-3.5">
@@ -724,15 +728,13 @@ const PlotKisanLedgerPage = () => {
                   <th className="p-3.5 uppercase">Deed Date</th>
                   <th className="p-3.5 uppercase">Registrar Office</th>
                   <th className="p-3.5 uppercase text-right">Registered Area</th>
-                  <th className="p-3.5 uppercase text-right">Allocated</th>
-                  <th className="p-3.5 uppercase text-right">Available Stock</th>
                   <th className="p-3.5 uppercase text-center print:hidden">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {agreement?.registryDeeds?.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                    <td colSpan={5} className="p-8 text-center text-slate-400 italic">
                       No registry deeds converted yet from this agreement. Click "+ Add Registry Deed" above to convert.
                     </td>
                   </tr>
@@ -742,14 +744,8 @@ const PlotKisanLedgerPage = () => {
                       <td className="p-3.5 font-bold text-purple-900 font-mono">{d.deedNumber}</td>
                       <td className="p-3.5 text-slate-600 font-mono">{new Date(d.deedDate).toLocaleDateString('en-IN')}</td>
                       <td className="p-3.5 text-slate-700">{d.subRegistrarOffice || '-'}</td>
-                      <td className="p-3.5 text-right font-mono font-bold text-slate-900">
+                      <td className="p-3.5 text-right font-mono font-bold text-purple-950">
                         {d.registeredDismil} Dismil ({d.registeredSqFt} SqFt)
-                      </td>
-                      <td className="p-3.5 text-right font-mono text-amber-700 font-semibold">
-                        {d.allocatedSqFt || 0} SqFt
-                      </td>
-                      <td className="p-3.5 text-right font-mono text-emerald-700 font-bold">
-                        {d.availableSqFt} SqFt
                       </td>
                       <td className="p-3.5 text-center print:hidden">
                         <div className="flex items-center justify-center gap-1">
@@ -758,14 +754,14 @@ const PlotKisanLedgerPage = () => {
                             className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg cursor-pointer transition"
                             title="Edit Deed"
                           >
-                            <ShieldCheck size={13} />
+                            <Edit3 size={13} />
                           </button>
                           <button
                             onClick={() => handleDeleteDeed(agreement._id, d)}
                             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg cursor-pointer transition"
                             title="Delete Deed"
                           >
-                            <ShieldCheck size={13} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>

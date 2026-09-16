@@ -115,14 +115,34 @@ const plotRateConfigurationSchema = new mongoose.Schema(
       default: 10.88,
       min: 0,
     },
+    dpGracePeriodDays: {
+      type: Number,
+      default: 15,
+      min: 0,
+    },
+    emiGracePeriodDays: {
+      type: Number,
+      default: 15,
+      min: 0,
+    },
     lateFineGraceDays: {
       type: Number,
       default: 15,
       min: 0,
     },
+    lateFineFrequency: {
+      type: String,
+      enum: ['DAILY', 'MONTHLY', 'YEARLY'],
+      default: 'YEARLY',
+    },
+    lateFineRate: {
+      type: Number,
+      default: 24,
+      min: 0,
+    },
     lateFineDailyPercent: {
       type: Number,
-      default: 0.05,
+      default: 24 / 365,
       min: 0,
     },
     rateSlabs: {

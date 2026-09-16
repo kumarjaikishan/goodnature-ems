@@ -14,79 +14,162 @@ const TenurePlotRatesMatrix = ({
   return (
     <form onSubmit={handleUpdateRates} className="space-y-6">
       {/* Top Config Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
-          <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-            <Sparkles size={18} className="text-amber-600" />
-            <span>Refund / Settlement Rate</span>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Settlement Rate */}
+        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3 flex flex-col justify-between">
           <div>
-            <label className={labelCls}>Settlement Annual Rate (% P.A.)</label>
-            <input
-              className={inputCls}
-              type="tel"
-              inputMode="decimal"
-              value={rateConfig.interestRatePercent ?? ''}
-              onChange={(e) =>
-                setRateConfig({
-                  ...rateConfig,
-                  interestRatePercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'),
-                })
-              }
-              required
-            />
-            <p className="text-[11px] text-slate-400 mt-1">Used in customer plot refund &amp; settlement calculations.</p>
+            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-3">
+              <Sparkles size={18} className="text-amber-600" />
+              <span>Refund / Settlement Rate</span>
+            </div>
+            <div>
+              <label className={labelCls}>Settlement Annual Rate (% P.A.)</label>
+              <input
+                className={inputCls}
+                type="tel"
+                inputMode="decimal"
+                value={rateConfig.interestRatePercent ?? ''}
+                onChange={(e) =>
+                  setRateConfig({
+                    ...rateConfig,
+                    interestRatePercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'),
+                  })
+                }
+                required
+              />
+            </div>
           </div>
+          <p className="text-[11px] text-slate-400">Used in customer plot refund &amp; settlement calculations.</p>
         </div>
 
-        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
-          <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-            <Clock size={18} className="text-blue-600" />
-            <span>EMI Grace Period</span>
-          </div>
+        {/* Card 2: Downpayment Grace Period */}
+        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3 flex flex-col justify-between">
           <div>
-            <label className={labelCls}>Grace Period (Days)</label>
-            <input
-              className={inputCls}
-              type="tel"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="e.g. 15"
-              value={rateConfig.lateFineGraceDays ?? ''}
-              onChange={(e) =>
-                setRateConfig({
-                  ...rateConfig,
-                  lateFineGraceDays: e.target.value.replace(/[^0-9]/g, ''),
-                })
-              }
-              required
-            />
-            <p className="text-[11px] text-slate-400 mt-1">Days after customer EMI due date before late fine starts.</p>
+            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-3">
+              <Clock size={18} className="text-emerald-600" />
+              <span>DP Grace Period</span>
+            </div>
+            <div>
+              <label className={labelCls}>Downpayment Grace (Days)</label>
+              <input
+                className={inputCls}
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="e.g. 15"
+                value={rateConfig.dpGracePeriodDays ?? ''}
+                onChange={(e) =>
+                  setRateConfig({
+                    ...rateConfig,
+                    dpGracePeriodDays: e.target.value.replace(/[^0-9]/g, ''),
+                  })
+                }
+                required
+              />
+            </div>
           </div>
+          <p className="text-[11px] text-slate-400">Days after booking date before late fine starts on Down Payment.</p>
         </div>
 
-        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3">
-          <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
-            <AlertCircle size={18} className="text-rose-600" />
-            <span>Daily Late Fine</span>
-          </div>
+        {/* Card 3: EMI Grace Period */}
+        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3 flex flex-col justify-between">
           <div>
-            <label className={labelCls}>Daily Fine Rate (% / Day)</label>
-            <input
-              className={inputCls}
-              type="tel"
-              inputMode="decimal"
-              placeholder="e.g. 0.05"
-              value={rateConfig.lateFineDailyPercent ?? ''}
-              onChange={(e) =>
-                setRateConfig({
-                  ...rateConfig,
-                  lateFineDailyPercent: e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'),
-                })
-              }
-              required
-            />
-            <p className="text-[11px] text-slate-400 mt-1">Daily penalty % on overdue customer EMI installments.</p>
+            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-3">
+              <Clock size={18} className="text-blue-600" />
+              <span>EMI Grace Period</span>
+            </div>
+            <div>
+              <label className={labelCls}>EMI Grace Period (Days)</label>
+              <input
+                className={inputCls}
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="e.g. 15"
+                value={rateConfig.emiGracePeriodDays ?? rateConfig.lateFineGraceDays ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setRateConfig({
+                    ...rateConfig,
+                    emiGracePeriodDays: val,
+                    lateFineGraceDays: val,
+                  });
+                }}
+                required
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400">Days after customer EMI due date before late fine starts on EMI.</p>
+        </div>
+
+        {/* Card 4: Late Fine Rate & Frequency */}
+        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-3">
+              <AlertCircle size={18} className="text-rose-600" />
+              <span>Late Fine Policy</span>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelCls}>Basis / Period</label>
+                  <select
+                    className={`${inputCls} px-2.5 text-xs font-semibold`}
+                    value={rateConfig.lateFineFrequency || 'YEARLY'}
+                    onChange={(e) => {
+                      const freq = e.target.value;
+                      const rate = Number(rateConfig.lateFineRate) || 24;
+                      let daily = rate / 365;
+                      if (freq === 'MONTHLY') daily = rate / 30;
+                      else if (freq === 'DAILY') daily = rate;
+                      setRateConfig({
+                        ...rateConfig,
+                        lateFineFrequency: freq,
+                        lateFineDailyPercent: daily,
+                      });
+                    }}
+                  >
+                    <option value="YEARLY">Yearly (% P.A.)</option>
+                    <option value="MONTHLY">Monthly (%/Mo)</option>
+                    <option value="DAILY">Daily (%/Day)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Rate %</label>
+                  <input
+                    className={inputCls}
+                    type="tel"
+                    inputMode="decimal"
+                    placeholder="e.g. 24"
+                    value={rateConfig.lateFineRate ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                      const numVal = Number(val) || 0;
+                      const freq = rateConfig.lateFineFrequency || 'YEARLY';
+                      let daily = numVal / 365;
+                      if (freq === 'MONTHLY') daily = numVal / 30;
+                      else if (freq === 'DAILY') daily = numVal;
+                      setRateConfig({
+                        ...rateConfig,
+                        lateFineRate: val,
+                        lateFineDailyPercent: daily,
+                      });
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+            <span>Daily: ~{((Number(rateConfig.lateFineDailyPercent) || (24 / 365))).toFixed(4)}%/day</span>
+            <span className="font-semibold text-rose-600">
+              {rateConfig.lateFineFrequency === 'DAILY'
+                ? `${rateConfig.lateFineRate || 0}% / Day`
+                : rateConfig.lateFineFrequency === 'MONTHLY'
+                ? `${rateConfig.lateFineRate || 0}% / Mo`
+                : `${rateConfig.lateFineRate || 24}% P.A.`}
+            </span>
           </div>
         </div>
       </div>

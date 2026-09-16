@@ -73,20 +73,27 @@ const InvestmentDashboard = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => navigate('/dashboard/investments/schemes')}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-xs rounded-xl shadow-2xs transition cursor-pointer flex items-center gap-2"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-xs rounded-xl shadow-2xs transition cursor-pointer flex items-center gap-1.5"
           >
             <FileSpreadsheet size={15} className="text-slate-500" />
             Scheme Matrix
           </button>
           <button
-            onClick={() => navigate('/dashboard/investments/new')}
-            className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white font-semibold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
+            onClick={() => navigate('/dashboard/investments/new?type=RD')}
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
           >
-            <Plus size={16} />
-            Open New Plan
+            <Plus size={15} />
+            Open R.D. Plan
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/investments/new?type=FD')}
+            className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus size={15} />
+            Open F.D. Plan
           </button>
         </div>
       </div>

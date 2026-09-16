@@ -6,8 +6,10 @@ const InvestmentReceipt = require('../models/InvestmentReceipt');
 const InvestmentCommission = require('../models/InvestmentCommission');
 const PlotCustomer = require('../models/PlotCustomer');
 const User = require('../models/user');
+const Entry = require('../models/entry');
 const Counter = require('../models/Counter');
 const CommissionPolicyConfig = require('../models/CommissionPolicyConfig');
+const accountingService = require('./accountingService');
 
 class InvestmentService {
   /**
@@ -146,14 +148,20 @@ class InvestmentService {
       const maturityDate = new Date(sDate);
       maturityDate.setMonth(maturityDate.getMonth() + numTenure);
 
-      // Resolve sponsor
+      // Resolve customer, sponsor, and nominee
+      const customer = await PlotCustomer.findById(customerId).session(session);
       let finalSponsorId = sponsorId;
-      if (!finalSponsorId) {
-        const customer = await PlotCustomer.findById(customerId).session(session);
-        if (customer && customer.sponsorId) {
-          finalSponsorId = customer.sponsorId;
-        }
+      if (!finalSponsorId && customer?.sponsorId) {
+        finalSponsorId = customer.sponsorId;
       }
+
+      const finalNominee = {
+        name: nominee?.name || customer?.nomineeName || '',
+        relation: nominee?.relation || customer?.nomineeRelation || '',
+        age: nominee?.age || customer?.nomineeAge || '',
+        mobile: nominee?.mobile || '',
+        address: nominee?.address || '',
+      };
 
       const newAccount = new InvestmentAccount({
         accountNumber,
@@ -172,7 +180,7 @@ class InvestmentService {
         developerCommissionPercent: devPct,
         startDate: sDate,
         maturityDate,
-        nominee: nominee || {},
+        nominee: finalNominee,
         notes: notes || '',
         createdBy: userId,
         status: 'ACTIVE',
@@ -514,26 +522,27 @@ class InvestmentService {
     if (!sponsor) return;
 
     const isDeveloper = !sponsor.sponsorId || sponsor.sponsorId === 'direct';
-    const policy = CommissionPolicyConfig.getDefaultInvestmentPolicy();
     const receiptDate = receipt.paymentDate || receipt.createdAt || new Date();
 
     if (isDeveloper) {
       // ── BUSINESS PARTNER DIRECT RD/FD SALE ─────────────────────────
-      // Upper BA: 2.50% Fix + Target Incentive on direct volume
-      // Lower BP: 1.00% Fix + Target Incentive on total team volume
-      const directVol = await this.getSponsorPeriodInvestmentVolume(sponsor._id, receiptDate, false, session);
-      const teamVol = await this.getSponsorPeriodInvestmentVolume(sponsor._id, receiptDate, true, session);
+      // Fixed: BA 2.50% + BP 1.00% = 3.50% Instant
+      const combinedFixed = 3.50;
+      const fAmt = Math.round(receipt.amount * (combinedFixed / 100) * 100) / 100;
 
-      const baSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_ASSOCIATE', directVol);
-      const bpSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_PARTNER', teamVol);
-
-      const combinedFixed = +(baSlab.fixedPercent + bpSlab.fixedPercent).toFixed(3); // 2.50% + 1.00% = 3.50%
-      const combinedIncentive = +(baSlab.incentivePercent + bpSlab.incentivePercent).toFixed(3);
-      const combinedTotal = +(combinedFixed + combinedIncentive).toFixed(3);
-
-      const fAmt = Math.round(receipt.amount * (combinedFixed / 100));
-      const iAmt = Math.round(receipt.amount * (combinedIncentive / 100));
-      const totAmt = fAmt + iAmt;
+      let ledgerEntryId = null;
+      if (fAmt > 0 && receipt.status !== 'PENDING') {
+        const entry = await accountingService.recordLedgerEntry({
+          sponsorId: sponsor._id,
+          date: receiptDate,
+          type: 'CREDIT',
+          amount: fAmt,
+          source: 'commission_fixed',
+          referenceId: receipt._id,
+          remarks: `Instant Fixed Commission (${combinedFixed}%) on Direct RD/FD Deposit [Receipt #${receipt.receiptNumber || ''}] (${account.accountNumber || account.schemeType})`
+        }, session);
+        ledgerEntryId = entry._id;
+      }
 
       await new InvestmentCommission({
         receiptId: receipt._id,
@@ -541,25 +550,37 @@ class InvestmentService {
         sponsorId: sponsor._id,
         sponsorRole: 'DIRECT_DEVELOPER',
         collectedAmount: receipt.amount,
-        commissionPercent: combinedTotal,
-        commissionAmount: totAmt,
+        commissionPercent: combinedFixed,
+        commissionAmount: fAmt,
         fixedPercent: combinedFixed,
-        incentivePercent: combinedIncentive,
+        incentivePercent: 0,
         fixedAmount: fAmt,
-        incentiveAmount: iAmt,
-        slabLabel: `${baSlab.slabLabel} (BA: ${baSlab.totalPercent}%) + ${bpSlab.slabLabel} (BP: ${bpSlab.totalPercent}%)`,
+        incentiveAmount: 0,
+        slabLabel: 'RD/FD Fixed 3.50% (Direct Partner)',
         status: 'EARNED',
+        ledgerEntryId,
         earnedDate: receipt.paymentDate,
+        createdAt: receiptDate,
       }).save({ session });
     } else {
-      // ── BUSINESS ASSOCIATE + PARENT PARTNER OVERRIDE ──────────────
-      // 1. Business Associate gets 2.50% Fix + BA Target Incentive
-      const baVol = await this.getSponsorPeriodInvestmentVolume(sponsor._id, receiptDate, false, session);
-      const baSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_ASSOCIATE', baVol);
+      // ── BUSINESS ASSOCIATE (2.50% Fixed) + PARENT PARTNER (1.00% Fixed) ──
+      // 1. Business Associate gets 2.50% Fix Instant
+      const subFixed = 2.50;
+      const subFAmt = Math.round(receipt.amount * (subFixed / 100) * 100) / 100;
 
-      const subFAmt = Math.round(receipt.amount * (baSlab.fixedPercent / 100));
-      const subIAmt = Math.round(receipt.amount * (baSlab.incentivePercent / 100));
-      const subTot = subFAmt + subIAmt;
+      let subLedgerEntryId = null;
+      if (subFAmt > 0 && receipt.status !== 'PENDING') {
+        const entry = await accountingService.recordLedgerEntry({
+          sponsorId: sponsor._id,
+          date: receiptDate,
+          type: 'CREDIT',
+          amount: subFAmt,
+          source: 'commission_fixed',
+          referenceId: receipt._id,
+          remarks: `Instant Fixed Commission (${subFixed}%) on RD/FD Deposit [Receipt #${receipt.receiptNumber || ''}] (${account.accountNumber || account.schemeType})`
+        }, session);
+        subLedgerEntryId = entry._id;
+      }
 
       await new InvestmentCommission({
         receiptId: receipt._id,
@@ -567,27 +588,39 @@ class InvestmentService {
         sponsorId: sponsor._id,
         sponsorRole: 'PROMOTER',
         collectedAmount: receipt.amount,
-        commissionPercent: baSlab.totalPercent,
-        commissionAmount: subTot,
-        fixedPercent: baSlab.fixedPercent,
-        incentivePercent: baSlab.incentivePercent,
+        commissionPercent: subFixed,
+        commissionAmount: subFAmt,
+        fixedPercent: subFixed,
+        incentivePercent: 0,
         fixedAmount: subFAmt,
-        incentiveAmount: subIAmt,
-        slabLabel: baSlab.slabLabel,
+        incentiveAmount: 0,
+        slabLabel: 'RD/FD Fixed 2.50% (Business Associate)',
         status: 'EARNED',
+        ledgerEntryId: subLedgerEntryId,
         earnedDate: receipt.paymentDate,
+        createdAt: receiptDate,
       }).save({ session });
 
-      // 2. Parent Developer Sponsor gets 1.00% Fix + BP Target Incentive on cumulative team volume
+      // 2. Parent Developer Sponsor gets 1.00% Fix Instant
       if (sponsor.sponsorId && sponsor.sponsorId !== 'direct') {
         const parentDev = await User.findById(sponsor.sponsorId).session(session);
         if (parentDev) {
-          const bpTeamVol = await this.getSponsorPeriodInvestmentVolume(parentDev._id, receiptDate, true, session);
-          const bpSlab = CommissionPolicyConfig.resolveSlab(policy, 'BUSINESS_PARTNER', bpTeamVol);
+          const bpFixed = 1.00;
+          const bpFAmt = Math.round(receipt.amount * (bpFixed / 100) * 100) / 100;
 
-          const bpFAmt = Math.round(receipt.amount * (bpSlab.fixedPercent / 100));
-          const bpIAmt = Math.round(receipt.amount * (bpSlab.incentivePercent / 100));
-          const bpTot = bpFAmt + bpIAmt;
+          let bpLedgerEntryId = null;
+          if (bpFAmt > 0 && receipt.status !== 'PENDING') {
+            const entry = await accountingService.recordLedgerEntry({
+              sponsorId: parentDev._id,
+              date: receiptDate,
+              type: 'CREDIT',
+              amount: bpFAmt,
+              source: 'commission_fixed',
+              referenceId: receipt._id,
+              remarks: `Instant Fixed Commission (${bpFixed}%) on RD/FD Deposit [Receipt #${receipt.receiptNumber || ''}] (${account.accountNumber || account.schemeType}) — BA: ${sponsor.name}`
+            }, session);
+            bpLedgerEntryId = entry._id;
+          }
 
           await new InvestmentCommission({
             receiptId: receipt._id,
@@ -595,15 +628,17 @@ class InvestmentService {
             sponsorId: parentDev._id,
             sponsorRole: 'DEVELOPER',
             collectedAmount: receipt.amount,
-            commissionPercent: bpSlab.totalPercent,
-            commissionAmount: bpTot,
-            fixedPercent: bpSlab.fixedPercent,
-            incentivePercent: bpSlab.incentivePercent,
+            commissionPercent: bpFixed,
+            commissionAmount: bpFAmt,
+            fixedPercent: bpFixed,
+            incentivePercent: 0,
             fixedAmount: bpFAmt,
-            incentiveAmount: bpIAmt,
-            slabLabel: bpSlab.slabLabel,
+            incentiveAmount: 0,
+            slabLabel: 'RD/FD Fixed 1.00% (Business Partner)',
             status: 'EARNED',
+            ledgerEntryId: bpLedgerEntryId,
             earnedDate: receipt.paymentDate,
+            createdAt: receiptDate,
           }).save({ session });
         }
       }
@@ -645,37 +680,140 @@ class InvestmentService {
    * Reject a pending receipt
    */
   async rejectReceipt(receiptId, reason, userId) {
-    const receipt = await InvestmentReceipt.findById(receiptId);
-    if (!receipt) throw new Error('Receipt not found');
-    if (receipt.status === 'APPROVED') {
-      throw new Error('Approved receipt cannot be rejected directly.');
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const receipt = await InvestmentReceipt.findById(receiptId).session(session);
+      if (!receipt) throw new Error('Receipt not found');
+
+      const account = await InvestmentAccount.findById(receipt.accountId).session(session);
+
+      if (receipt.status === 'APPROVED' && account) {
+        // Rollback financial effect
+        account.totalPaidAmount = Math.max(0, (account.totalPaidAmount || 0) - receipt.amount);
+        if (account.accountType === 'RD') {
+          await InvestmentInstallment.updateMany(
+            { receiptId: receipt._id },
+            { $set: { status: 'PENDING', paidAmount: 0, paidDate: null, receiptId: null } },
+            { session }
+          );
+          const paidCount = await InvestmentInstallment.countDocuments({
+            accountId: account._id,
+            status: 'PAID',
+          }).session(session);
+          account.paidInstallmentsCount = paidCount;
+        } else {
+          account.paidInstallmentsCount = account.totalPaidAmount >= account.depositAmount ? 1 : 0;
+        }
+        await account.save({ session });
+
+        // Clean up ledger entries
+        const existingEntries = await Entry.find({
+          source: 'commission_fixed',
+          referenceId: receipt._id,
+        }).session(session);
+        for (const e of existingEntries) {
+          await accountingService.deleteLedgerEntry(e._id, session);
+        }
+        await InvestmentCommission.deleteMany({ receiptId: receipt._id }).session(session);
+      }
+
+      receipt.status = 'REJECTED';
+      receipt.rejectionReason = reason || 'Verification failed';
+      receipt.approvedBy = userId;
+      await receipt.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+      return receipt;
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
     }
-    receipt.status = 'REJECTED';
-    receipt.rejectionReason = reason || 'Verification failed';
-    receipt.approvedBy = userId;
-    await receipt.save();
-    return receipt;
   }
 
   /**
    * Edit/Update collection receipt details
    */
   async updateReceipt(receiptId, updateData) {
-    const receipt = await InvestmentReceipt.findById(receiptId);
-    if (!receipt) throw new Error('Receipt not found');
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const receipt = await InvestmentReceipt.findById(receiptId).session(session);
+      if (!receipt) throw new Error('Receipt not found');
 
-    const { paymentDate, paymentMode, transactionReference, bankName, chequeNumber, chequeDate, remarks } = updateData;
+      const {
+        amount,
+        paymentDate,
+        paymentMode,
+        transactionReference,
+        bankName,
+        chequeNumber,
+        chequeDate,
+        remarks,
+      } = updateData;
 
-    if (paymentDate) receipt.paymentDate = new Date(paymentDate);
-    if (paymentMode) receipt.paymentMode = paymentMode;
-    if (transactionReference !== undefined) receipt.transactionReference = transactionReference;
-    if (bankName !== undefined) receipt.bankName = bankName;
-    if (chequeNumber !== undefined) receipt.chequeNumber = chequeNumber;
-    if (chequeDate !== undefined) receipt.chequeDate = chequeDate ? new Date(chequeDate) : null;
-    if (remarks !== undefined) receipt.remarks = remarks;
+      const oldAmount = receipt.amount;
+      const newAmount =
+        amount !== undefined && !isNaN(Number(amount)) && Number(amount) > 0
+          ? Number(amount)
+          : oldAmount;
+      const amountChanged = oldAmount !== newAmount;
+      const dateChanged = paymentDate && new Date(paymentDate).getTime() !== new Date(receipt.paymentDate).getTime();
 
-    await receipt.save();
-    return receipt;
+      const account = await InvestmentAccount.findById(receipt.accountId).session(session);
+
+      if (paymentDate) receipt.paymentDate = new Date(paymentDate);
+      if (paymentMode) receipt.paymentMode = paymentMode;
+      if (transactionReference !== undefined) receipt.transactionReference = transactionReference;
+      if (bankName !== undefined) receipt.bankName = bankName;
+      if (chequeNumber !== undefined) receipt.chequeNumber = chequeNumber;
+      if (chequeDate !== undefined) receipt.chequeDate = chequeDate ? new Date(chequeDate) : null;
+      if (remarks !== undefined) receipt.remarks = remarks;
+
+      if ((amountChanged || dateChanged) && receipt.status === 'APPROVED' && account) {
+        // 1. Rollback previous ledger effect on account
+        account.totalPaidAmount = Math.max(0, (account.totalPaidAmount || 0) - oldAmount);
+        if (account.accountType === 'RD') {
+          await InvestmentInstallment.updateMany(
+            { receiptId: receipt._id },
+            { $set: { status: 'PENDING', paidAmount: 0, paidDate: null, receiptId: null } },
+            { session }
+          );
+        }
+
+        // 2. Clean up old ledger entries from sponsor ledger!
+        const existingEntries = await Entry.find({
+          source: 'commission_fixed',
+          referenceId: receipt._id,
+        }).session(session);
+
+        for (const e of existingEntries) {
+          await accountingService.deleteLedgerEntry(e._id, session);
+        }
+
+        // 3. Delete previous commissions
+        await InvestmentCommission.deleteMany({ receiptId: receipt._id }).session(session);
+
+        receipt.amount = newAmount;
+        await receipt.save({ session });
+
+        // 4. Re-apply to account with new amount and create updated commissions + ledger entries
+        await this._applyReceiptToAccount(account, receipt, session);
+      } else {
+        receipt.amount = newAmount;
+        await receipt.save({ session });
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+      return receipt;
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
+    }
   }
 
   /**
@@ -691,7 +829,7 @@ class InvestmentService {
       const account = await InvestmentAccount.findById(receipt.accountId).session(session);
 
       if (receipt.status === 'APPROVED' && account) {
-        // Revert financial application
+        // 1. Revert financial application on account
         account.totalPaidAmount = Math.max(0, (account.totalPaidAmount || 0) - receipt.amount);
 
         if (account.accountType === 'RD') {
@@ -713,7 +851,17 @@ class InvestmentService {
 
         await account.save({ session });
 
-        // Delete generated commissions
+        // 2. Clean up / delete ledger entries from accounting system!
+        const existingEntries = await Entry.find({
+          source: 'commission_fixed',
+          referenceId: receipt._id,
+        }).session(session);
+
+        for (const e of existingEntries) {
+          await accountingService.deleteLedgerEntry(e._id, session);
+        }
+
+        // 3. Delete generated commissions
         await InvestmentCommission.deleteMany({ receiptId: receipt._id }).session(session);
       }
 

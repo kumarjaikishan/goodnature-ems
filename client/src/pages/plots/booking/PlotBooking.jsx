@@ -35,8 +35,9 @@ export default function PlotBooking() {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  // Plot selection
+  // Plot selection & Premium Heads toggles
   const [selectedPlot, setSelectedPlot] = useState(null);
+  const [selectedPremiumHeads, setSelectedPremiumHeads] = useState([]); // [{ name, extraPercent, active: boolean }]
 
   // Land stock sourcing allocations: [{ sourceType, agreementId, agreementNumber, deedId, deedNumber, allocatedSqFt }]
   const [landSourcing, setLandSourcing] = useState([]);
@@ -151,6 +152,23 @@ export default function PlotBooking() {
 
     setSelectedPlot(p);
     setForm((f) => ({ ...f, plotId: p._id }));
+
+    // Initialize premium heads with default checked (active: true)
+    const heads = [];
+    if (Array.isArray(p.premiumHeads) && p.premiumHeads.length > 0) {
+      p.premiumHeads.forEach((h) => {
+        heads.push({ name: h.name, extraPercent: Number(h.extraPercent) || 0, active: true });
+      });
+    } else if (p.plotType === 'CORNER') {
+      heads.push({ name: 'Corner Plot', extraPercent: rateConfig?.cornerExtraPercent || 20, active: true });
+    }
+    setSelectedPremiumHeads(heads);
+  };
+
+  const togglePremiumHead = (index) => {
+    setSelectedPremiumHeads((prev) =>
+      prev.map((head, i) => (i === index ? { ...head, active: !head.active } : head))
+    );
   };
 
   // Slabs fallback
@@ -176,11 +194,13 @@ export default function PlotBooking() {
   }, [slabs, form.tenureMonths]);
 
   // Derived financial & rate calculations
+  const totalPremiumExtra = useMemo(() => {
+    return selectedPremiumHeads
+      .filter((h) => h.active)
+      .reduce((sum, h) => sum + (Number(h.extraPercent) || 0), 0);
+  }, [selectedPremiumHeads]);
+
   const isCorner = selectedPlot?.plotType === 'CORNER';
-  const plotPremiumHeads = Array.isArray(selectedPlot?.premiumHeads) ? selectedPlot.premiumHeads : [];
-  const totalPremiumExtra = plotPremiumHeads.length > 0
-    ? plotPremiumHeads.reduce((sum, h) => sum + (Number(h.extraPercent) || 0), 0)
-    : (isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0);
   const cornerExtra = totalPremiumExtra;
   const plotArea = selectedPlot ? (selectedPlot.plotSize || selectedPlot.area || 0) : 0;
 
@@ -349,6 +369,9 @@ export default function PlotBooking() {
         sponsorId: form.sponsorId || selectedCustomer.sponsorId?._id || undefined,
         notes: form.notes || '',
         landSourcing: landSourcing,
+        appliedPremiumHeads: selectedPremiumHeads
+          .filter((h) => h.active)
+          .map((h) => ({ name: h.name, extraPercent: h.extraPercent })),
       };
 
       const res = await api.post('/plots/bookings', payload);
@@ -471,6 +494,10 @@ export default function PlotBooking() {
               setCustomSqFtRate={setCustomSqFtRate}
               effectiveSqFtRate={effectiveSqFtRate}
               calculatedPlotValue={calculatedPlotValue}
+              selectedPlot={selectedPlot}
+              selectedPremiumHeads={selectedPremiumHeads}
+              togglePremiumHead={togglePremiumHead}
+              totalPremiumExtra={totalPremiumExtra}
             />
           )}
 
@@ -498,6 +525,7 @@ export default function PlotBooking() {
           emiFrequency={emiFrequency}
           installmentCount={installmentCount}
           totalTenureMonths={totalTenureMonths}
+          selectedPremiumHeads={selectedPremiumHeads}
         />
 
       </div>

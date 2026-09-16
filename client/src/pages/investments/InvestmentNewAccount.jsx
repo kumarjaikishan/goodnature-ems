@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Coins,
   PiggyBank,
   TrendingUp,
   User,
   Calendar,
-  ShieldCheck,
   Check,
   ChevronRight,
   HelpCircle,
@@ -17,6 +16,9 @@ import { toast } from '../../utils/toast';
 
 const InvestmentNewAccount = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get('type')?.toUpperCase() === 'FD' ? 'FD' : 'RD';
+
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -25,19 +27,12 @@ const InvestmentNewAccount = () => {
   const [config, setConfig] = useState(null);
 
   const [form, setForm] = useState({
-    accountType: 'RD', // 'RD' or 'FD'
+    accountType: initialType, // 'RD' or 'FD'
     customerId: '',
     sponsorId: '',
-    depositAmount: 1000,
+    depositAmount: initialType === 'FD' ? 10000 : 2000,
     tenureMonths: 24,
     startDate: new Date().toISOString().split('T')[0],
-    nominee: {
-      name: '',
-      relation: '',
-      age: '',
-      mobile: '',
-      address: '',
-    },
     notes: '',
   });
 
@@ -55,9 +50,12 @@ const InvestmentNewAccount = () => {
         if (confRes.data.data) {
           setConfig(confRes.data.data);
           const defaultTenure = confRes.data.data.slabs?.[0]?.tenureMonths || 24;
-          const defaultDeposit = confRes.data.data.minRdAmount || 2000;
+          const defaultDeposit = initialType === 'FD'
+            ? (confRes.data.data.minFdAmount || 10000)
+            : (confRes.data.data.minRdAmount || 2000);
           setForm((prev) => ({
             ...prev,
+            accountType: initialType,
             tenureMonths: defaultTenure,
             depositAmount: defaultDeposit,
           }));
@@ -69,7 +67,7 @@ const InvestmentNewAccount = () => {
       }
     };
     initData();
-  }, []);
+  }, [initialType]);
 
   const handleCustomerChange = (custId) => {
     const cust = customers.find((c) => c._id === custId);
@@ -77,25 +75,9 @@ const InvestmentNewAccount = () => {
       ...prev,
       customerId: custId,
       sponsorId: cust?.sponsorId?._id || cust?.sponsorId || '',
-      nominee: {
-        name: cust?.nomineeName || prev.nominee.name || '',
-        relation: cust?.nomineeRelation || prev.nominee.relation || '',
-        age: cust?.nomineeAge || prev.nominee.age || '',
-        mobile: prev.nominee.mobile || '',
-        address: prev.nominee.address || '',
-      },
     }));
   };
 
-  const handleTypeChange = (type) => {
-    if (!config) return;
-    const defaultDeposit = type === 'RD' ? config.minRdAmount : config.minFdAmount;
-    setForm((prev) => ({
-      ...prev,
-      accountType: type,
-      depositAmount: defaultDeposit,
-    }));
-  };
 
   // Live Calculations
   const currentSlab = config?.slabs?.find((s) => s.tenureMonths === Number(form.tenureMonths)) || {
@@ -108,11 +90,6 @@ const InvestmentNewAccount = () => {
 
   const returnPercent =
     form.accountType === 'RD' ? currentSlab.rdMaturityPercent : currentSlab.fdMaturityPercent;
-  const promoterCommPercent =
-    form.accountType === 'RD'
-      ? currentSlab.rdPromoterCommissionPercent
-      : currentSlab.fdPromoterCommissionPercent;
-  const devCommPercent = currentSlab.developerCommissionPercent || 1.0;
 
   const numDeposit = Number(form.depositAmount) || 0;
   const totalDepositExpected =
@@ -129,7 +106,6 @@ const InvestmentNewAccount = () => {
     (selectedCustObj?.sponsorId && typeof selectedCustObj.sponsorId === 'object'
       ? selectedCustObj.sponsorId
       : sponsors.find((s) => s._id === form.sponsorId)) || null;
-  const isDirectDev = selectedSponObj && (!selectedSponObj.sponsorId || selectedSponObj.sponsorId === 'direct');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -162,12 +138,14 @@ const InvestmentNewAccount = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-              <Coins size={22} />
+              {form.accountType === 'RD' ? <Coins size={22} /> : <TrendingUp size={22} />}
             </span>
-            Open New Deposit Account
+            {form.accountType === 'RD' ? 'Open New Recurring Deposit (R.D.) Account' : 'Open New Fixed Deposit (F.D.) Account'}
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Register a new Recurring Deposit (R.D.) or Fixed Deposit (F.D.) plan with guaranteed returns and sponsor linkage.
+            {form.accountType === 'RD'
+              ? 'Register a new Recurring Deposit (R.D.) plan with monthly installments, guaranteed returns and sponsor linkage.'
+              : 'Register a new Fixed Deposit (F.D.) plan with guaranteed returns and sponsor linkage.'}
           </p>
         </div>
       </div>
@@ -175,53 +153,37 @@ const InvestmentNewAccount = () => {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Form */}
         <div className="lg:col-span-2 space-y-5">
-          {/* Account Type Toggle */}
-          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-3">
-            <label className={labelCls}>Select Deposit Plan Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleTypeChange('RD')}
-                className={`p-4 rounded-xl border flex items-center gap-3 transition cursor-pointer text-left ${
+          {/* Plan Type Banner (Locked) */}
+          <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2.5 rounded-xl ${
+                    form.accountType === 'RD' ? 'bg-teal-600 text-white' : 'bg-emerald-600 text-white'
+                  }`}
+                >
+                  {form.accountType === 'RD' ? <Coins size={22} /> : <TrendingUp size={22} />}
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-slate-900">
+                    {form.accountType === 'RD' ? 'Recurring Deposit (R.D.)' : 'Fixed Deposit (F.D.)'}
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    {form.accountType === 'RD'
+                      ? 'मासिक किस्त (Monthly Installments) • Guaranteed Scheme'
+                      : 'एक मुश्त जमा (One-time Lump Sum) • Guaranteed Scheme'}
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`text-xs font-semibold px-3 py-1 rounded-full border ${
                   form.accountType === 'RD'
-                    ? 'border-teal-600 bg-teal-50/60 ring-2 ring-teal-600/20'
-                    : 'border-slate-200 hover:bg-slate-50'
+                    ? 'bg-teal-50 text-teal-800 border-teal-200'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                 }`}
               >
-                <div
-                  className={`p-2.5 rounded-xl ${
-                    form.accountType === 'RD' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <Coins size={20} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Recurring Deposit (R.D.)</h4>
-                  <p className="text-[11px] text-slate-500">मासिक किस्त (Monthly Installments)</p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTypeChange('FD')}
-                className={`p-4 rounded-xl border flex items-center gap-3 transition cursor-pointer text-left ${
-                  form.accountType === 'FD'
-                    ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/20'
-                    : 'border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <div
-                  className={`p-2.5 rounded-xl ${
-                    form.accountType === 'FD' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <TrendingUp size={20} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Fixed Deposit (F.D.)</h4>
-                  <p className="text-[11px] text-slate-500">एक मुश्त जमा (One-time Lump Sum)</p>
-                </div>
-              </button>
+                {form.accountType === 'RD' ? 'Plan: Recurring Deposit' : 'Plan: Fixed Deposit'}
+              </span>
             </div>
           </div>
 
@@ -342,47 +304,6 @@ const InvestmentNewAccount = () => {
               </div>
             </div>
           </div>
-
-          {/* Nominee Details */}
-          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
-              <ShieldCheck size={16} className="text-teal-700" />
-              Nominee Information
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelCls}>Nominee Full Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Smt. Sunita Devi"
-                  className={inputCls}
-                  value={form.nominee.name}
-                  onChange={(e) => setForm({ ...form, nominee: { ...form.nominee, name: e.target.value } })}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Relationship</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Wife / Son / Mother"
-                  className={inputCls}
-                  value={form.nominee.relation}
-                  onChange={(e) => setForm({ ...form, nominee: { ...form.nominee, relation: e.target.value } })}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Nominee Age</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 32"
-                  className={inputCls}
-                  value={form.nominee.age}
-                  onChange={(e) => setForm({ ...form, nominee: { ...form.nominee, age: e.target.value } })}
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Right Col: Live Summary Card */}
@@ -425,17 +346,6 @@ const InvestmentNewAccount = () => {
             <div className="p-4 bg-gradient-to-br from-teal-800 to-emerald-900 text-white rounded-2xl space-y-1">
               <span className="text-[10px] uppercase tracking-wider font-bold text-teal-200">Guaranteed Maturity Value</span>
               <p className="text-2xl font-black font-mono tracking-tight">₹{maturityAmount.toLocaleString('en-IN')}</p>
-            </div>
-
-            {/* Commission Snapshot */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] text-slate-600">
-              <div className="flex items-center justify-between font-bold text-slate-800">
-                <span>Sponsor Commission:</span>
-                <span>{isDirectDev ? `${promoterCommPercent + devCommPercent}% (Direct Dev)` : `${promoterCommPercent}% Promoter + 1% Dev`}</span>
-              </div>
-              <p className="text-[10px] text-slate-400">
-                {form.accountType === 'RD' ? 'Earned on every monthly approved installment.' : 'Earned on deposit principal approval.'}
-              </p>
             </div>
 
             <button

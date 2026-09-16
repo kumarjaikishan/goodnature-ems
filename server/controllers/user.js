@@ -2,6 +2,7 @@ const user = require('../models/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { addtoqueue } = require('../utils/axiosRequest');
+const { logActivity } = require('../utils/auditLogger');
 
 const userRegister = async (req, res, next) => {
   try {
@@ -104,7 +105,24 @@ const userLogin = async (req, res, next) => {
     isUser.password = undefined;
     isUser.createdAt = undefined;
 
-    // console.log("at login asigning permission", send)
+    // Record login audit log
+    await logActivity({
+      req,
+      action: 'USER_LOGIN',
+      module: 'AUTH',
+      documentId: isUser._id,
+      modelName: 'User',
+      userId: isUser._id,
+      userName: isUser.name,
+      userRole: isUser.role,
+      userEmail: isUser.email,
+      description: `User ${isUser.name} (${isUser.role}) logged in successfully`,
+      details: {
+        userId: isUser._id,
+        role: isUser.role,
+        identifier: rawIdentifier,
+      },
+    });
 
     return res.status(200).json({
       success: true,

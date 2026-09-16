@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import PageLoader from '../../../components/common/PageLoader';
 import { 
   Banknote, 
@@ -110,7 +111,14 @@ const PlotPayoutLedgerPage = () => {
   };
 
   const handleDeletePayout = async (voucherId, voucherNumber) => {
-    if (!window.confirm(`Are you sure you want to delete and reverse payout voucher #${voucherNumber}?`)) {
+    const proceed = await confirmDialog({
+      title: 'Delete Payout Voucher?',
+      text: `Are you sure you want to delete and reverse payout voucher #${voucherNumber}?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) {
       return;
     }
     try {

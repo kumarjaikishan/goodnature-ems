@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import { Plus, LayoutGrid, Award, SlidersHorizontal } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 
@@ -24,8 +25,12 @@ const PlotSeriesMaster = () => {
     cornerExtraPercent: 20,
     premiumHeads: [],
     interestRatePercent: 10.88,
+    dpGracePeriodDays: 15,
+    emiGracePeriodDays: 15,
     lateFineGraceDays: 15,
-    lateFineDailyPercent: 0.05,
+    lateFineFrequency: 'YEARLY',
+    lateFineRate: 24,
+    lateFineDailyPercent: 24 / 365,
     rateSlabs: [],
   });
   const [loading, setLoading] = useState(true);
@@ -56,7 +61,7 @@ const PlotSeriesMaster = () => {
     defaultPlotType: 'NORMAL',
     defaultPremiumHeads: [],
     numberFormat: 'A000',
-    defaultDimensions: { north: '', south: '', east: '', west: '' },
+    defaultDimensions: { north: 0, south: 0, east: 0, west: 0 },
     remarks: '',
     gracePeriodDays: 15,
     lateFineDailyPercent: 0.05,
@@ -69,7 +74,7 @@ const PlotSeriesMaster = () => {
     defaultPremiumHeads: [],
     startNumber: '',
     endNumber: '',
-    defaultDimensions: { north: '', south: '', east: '', west: '' },
+    defaultDimensions: { north: 0, south: 0, east: 0, west: 0 },
     remarks: '',
     gracePeriodDays: 15,
     lateFineDailyPercent: 0.05,
@@ -81,7 +86,7 @@ const PlotSeriesMaster = () => {
     plotSize: '',
     plotType: 'NORMAL',
     premiumHeads: [],
-    dimensions: { north: '', south: '', east: '', west: '' },
+    dimensions: { north: 0, south: 0, east: 0, west: 0 },
     boundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
@@ -90,7 +95,7 @@ const PlotSeriesMaster = () => {
     plotSize: '',
     plotType: 'NORMAL',
     premiumHeads: [],
-    dimensions: { north: '', south: '', east: '', west: '' },
+    dimensions: { north: 0, south: 0, east: 0, west: 0 },
     boundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
   });
@@ -161,7 +166,7 @@ const PlotSeriesMaster = () => {
         plotArea: '',
         defaultPlotType: 'NORMAL',
         numberFormat: 'A000',
-        defaultDimensions: { north: '', south: '', east: '', west: '' },
+        defaultDimensions: { north: 0, south: 0, east: 0, west: 0 },
         remarks: '',
         gracePeriodDays: rateConfig.lateFineGraceDays ?? 15,
         lateFineDailyPercent: rateConfig.lateFineDailyPercent ?? 0.05,
@@ -184,10 +189,10 @@ const PlotSeriesMaster = () => {
       startNumber: series.startNumber,
       endNumber: series.endNumber,
       defaultDimensions: {
-        north: series.defaultDimensions?.north || '',
-        south: series.defaultDimensions?.south || '',
-        east: series.defaultDimensions?.east || '',
-        west: series.defaultDimensions?.west || '',
+        north: series.defaultDimensions?.north ?? 0,
+        south: series.defaultDimensions?.south ?? 0,
+        east: series.defaultDimensions?.east ?? 0,
+        west: series.defaultDimensions?.west ?? 0,
       },
       remarks: series.remarks || '',
       gracePeriodDays: series.gracePeriodDays ?? rateConfig.lateFineGraceDays ?? 15,
@@ -213,11 +218,14 @@ const PlotSeriesMaster = () => {
   };
 
   const handleDeleteSeries = async (id) => {
-    if (
-      !window.confirm(
-        'Are you sure you want to delete this series? Associated plots will also be removed if not booked.'
-      )
-    ) {
+    const proceed = await confirmDialog({
+      title: 'Delete Series?',
+      text: 'Are you sure you want to delete this series? Associated plots will also be removed if not booked.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) {
       return;
     }
     try {
@@ -257,10 +265,10 @@ const PlotSeriesMaster = () => {
       plotType: selectedS?.defaultPlotType || 'NORMAL',
       premiumHeads: Array.isArray(selectedS?.defaultPremiumHeads) ? selectedS.defaultPremiumHeads : [],
       dimensions: {
-        north: selectedS?.defaultDimensions?.north || '',
-        south: selectedS?.defaultDimensions?.south || '',
-        east: selectedS?.defaultDimensions?.east || '',
-        west: selectedS?.defaultDimensions?.west || '',
+        north: selectedS?.defaultDimensions?.north ?? 0,
+        south: selectedS?.defaultDimensions?.south ?? 0,
+        east: selectedS?.defaultDimensions?.east ?? 0,
+        west: selectedS?.defaultDimensions?.west ?? 0,
       },
       boundaries: { north: '', south: '', east: '', west: '' },
       remarks: '',
@@ -295,10 +303,10 @@ const PlotSeriesMaster = () => {
       plotType: selectedS?.defaultPlotType || plotForm.plotType,
       premiumHeads: Array.isArray(selectedS?.defaultPremiumHeads) ? selectedS.defaultPremiumHeads : plotForm.premiumHeads,
       dimensions: {
-        north: selectedS?.defaultDimensions?.north || plotForm.dimensions.north,
-        south: selectedS?.defaultDimensions?.south || plotForm.dimensions.south,
-        east: selectedS?.defaultDimensions?.east || plotForm.dimensions.east,
-        west: selectedS?.defaultDimensions?.west || plotForm.dimensions.west,
+        north: selectedS?.defaultDimensions?.north ?? plotForm.dimensions.north ?? 0,
+        south: selectedS?.defaultDimensions?.south ?? plotForm.dimensions.south ?? 0,
+        east: selectedS?.defaultDimensions?.east ?? plotForm.dimensions.east ?? 0,
+        west: selectedS?.defaultDimensions?.west ?? plotForm.dimensions.west ?? 0,
       },
     });
   };
@@ -348,10 +356,10 @@ const PlotSeriesMaster = () => {
       plotType: plot.plotType,
       premiumHeads: existingHeads,
       dimensions: {
-        north: plot.dimensions?.north || '',
-        south: plot.dimensions?.south || '',
-        east: plot.dimensions?.east || '',
-        west: plot.dimensions?.west || '',
+        north: plot.dimensions?.north ?? 0,
+        south: plot.dimensions?.south ?? 0,
+        east: plot.dimensions?.east ?? 0,
+        west: plot.dimensions?.west ?? 0,
       },
       boundaries: {
         north: plot.boundaries?.north || '',
@@ -450,8 +458,12 @@ const PlotSeriesMaster = () => {
           description: h.description || '',
         })).filter((h) => h.name),
         interestRatePercent: Number(rateConfig.interestRatePercent) || 10.88,
-        lateFineGraceDays: Math.max(0, Number(rateConfig.lateFineGraceDays) || 0),
-        lateFineDailyPercent: Math.max(0, Number(rateConfig.lateFineDailyPercent) || 0),
+        dpGracePeriodDays: Math.max(0, Number(rateConfig.dpGracePeriodDays) || 0),
+        emiGracePeriodDays: Math.max(0, Number(rateConfig.emiGracePeriodDays) || Number(rateConfig.lateFineGraceDays) || 0),
+        lateFineGraceDays: Math.max(0, Number(rateConfig.emiGracePeriodDays) || Number(rateConfig.lateFineGraceDays) || 0),
+        lateFineFrequency: rateConfig.lateFineFrequency || 'YEARLY',
+        lateFineRate: Math.max(0, Number(rateConfig.lateFineRate) || 0),
+        lateFineDailyPercent: Math.max(0, Number(rateConfig.lateFineDailyPercent) || (24 / 365)),
         rateSlabs: (rateConfig.rateSlabs || []).map((s) => ({
           tenureMonths: Number(s.tenureMonths) || 0,
           plotRate: Number(s.plotRate) || 0,

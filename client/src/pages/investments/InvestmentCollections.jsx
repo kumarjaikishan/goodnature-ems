@@ -23,6 +23,7 @@ import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import { toast } from '../../utils/toast';
 import Modalbox from '../../components/custommodal/Modalbox';
+import numberToWords from '../../utils/numToWord';
 
 const InvestmentCollections = () => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const InvestmentCollections = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editReceiptData, setEditReceiptData] = useState(null);
   const [editForm, setEditForm] = useState({
+    amount: '',
     paymentDate: '',
     paymentMode: 'cash',
     transactionReference: '',
@@ -104,6 +106,7 @@ const InvestmentCollections = () => {
   const openEditModal = (r) => {
     setEditReceiptData(r);
     setEditForm({
+      amount: String(r.amount || ''),
       paymentDate: r.paymentDate ? new Date(r.paymentDate).toISOString().split('T')[0] : '',
       paymentMode: r.paymentMode || 'cash',
       transactionReference: r.transactionReference || '',
@@ -625,29 +628,31 @@ const InvestmentCollections = () => {
             {/* Payment Details Form */}
             {selectedAccount && (
               <form onSubmit={handleCollectSubmit} className="space-y-4 pt-1">
-                {/* Collection Amount Field with DUES tag */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-4">
-                  <span className="text-xs font-bold text-slate-700 whitespace-nowrap">
-                    Collection Amt:
-                  </span>
-                  <div className="relative flex-1 max-w-[220px]">
+                {/* Collection Amount Field */}
+                <div>
+                  <label className={labelCls}>Collection Amount (₹) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                     <input
                       type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="0"
-                      className="h-9 w-full bg-white border border-slate-300 focus:border-teal-600 outline-none px-3 pr-14 rounded-lg font-mono font-bold text-xs text-slate-900 text-right"
+                      className="w-full h-11 pl-9 pr-14 bg-white border border-slate-300 focus:border-teal-600 outline-none rounded-xl text-sm font-bold font-mono text-slate-900"
                       value={collectForm.amount}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9]/g, '');
                         setCollectForm({ ...collectForm, amount: val });
                       }}
+                      placeholder="Enter amount"
                       required
                     />
                     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold uppercase text-amber-700 tracking-wider">
                       DUES
                     </span>
                   </div>
+                  {collectForm.amount && Number(collectForm.amount) > 0 && (
+                    <p className="text-[11px] font-bold text-teal-800 capitalize bg-teal-50/70 border border-teal-100 rounded-lg px-2.5 py-1 mt-1.5">
+                      {numberToWords(Math.floor(Number(collectForm.amount)))} Rupees Only
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -670,37 +675,53 @@ const InvestmentCollections = () => {
                       onChange={(e) => setCollectForm({ ...collectForm, paymentMode: e.target.value })}
                     >
                       <option value="cash">Cash (Auto-Approved)</option>
-                      <option value="upi">UPI / QR Code</option>
+                      <option value="upi">UPI / Online / QR</option>
                       <option value="bank_transfer">Bank Transfer (IMPS/NEFT)</option>
+                      <option value="neft_rtgs">NEFT / RTGS</option>
                       <option value="cheque">Cheque</option>
+                      <option value="demand_draft">Demand Draft (DD)</option>
+                      <option value="net_banking">Net Banking</option>
                     </select>
                   </div>
                 </div>
 
-                {collectForm.paymentMode === 'cheque' && (
-                  <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div>
-                      <label className={labelCls}>Cheque Number (6 Digits) *</label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="e.g. 045123"
-                        className={inputCls}
-                        value={collectForm.chequeNumber}
-                        onChange={(e) =>
-                          setCollectForm({
-                            ...collectForm,
-                            chequeNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 6),
-                          })
-                        }
-                        required
-                      />
+                {(collectForm.paymentMode === 'cheque' || collectForm.paymentMode === 'demand_draft') && (
+                  <div className="space-y-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>
+                          {collectForm.paymentMode === 'cheque' ? 'Cheque Number (6 Digits) *' : 'DD Number *'}
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder={collectForm.paymentMode === 'cheque' ? 'e.g. 045123' : 'e.g. 123456'}
+                          className={inputCls}
+                          value={collectForm.chequeNumber}
+                          onChange={(e) =>
+                            setCollectForm({
+                              ...collectForm,
+                              chequeNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 6),
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Cheque / DD Date</label>
+                        <input
+                          type="date"
+                          className={inputCls}
+                          value={collectForm.chequeDate}
+                          onChange={(e) => setCollectForm({ ...collectForm, chequeDate: e.target.value })}
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className={labelCls}>Bank Name</label>
+                      <label className={labelCls}>Bank Name & Branch</label>
                       <input
                         type="text"
-                        placeholder="e.g. SBI, HDFC"
+                        placeholder="e.g. State Bank of India, Main Branch"
                         className={inputCls}
                         value={collectForm.bankName}
                         onChange={(e) => setCollectForm({ ...collectForm, bankName: e.target.value })}
@@ -709,18 +730,33 @@ const InvestmentCollections = () => {
                   </div>
                 )}
 
-                {collectForm.paymentMode !== 'cash' && collectForm.paymentMode !== 'cheque' && (
-                  <div>
-                    <label className={labelCls}>Transaction / UTR Reference</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. UTR / Ref Number"
-                      className={inputCls}
-                      value={collectForm.transactionReference}
-                      onChange={(e) => setCollectForm({ ...collectForm, transactionReference: e.target.value })}
-                    />
-                  </div>
-                )}
+                {collectForm.paymentMode !== 'cash' &&
+                  collectForm.paymentMode !== 'cheque' &&
+                  collectForm.paymentMode !== 'demand_draft' && (
+                    <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div>
+                        <label className={labelCls}>Transaction / UTR Reference *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. UTR / Ref Number"
+                          className={inputCls}
+                          value={collectForm.transactionReference}
+                          onChange={(e) => setCollectForm({ ...collectForm, transactionReference: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Bank / App Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Google Pay, HDFC Bank"
+                          className={inputCls}
+                          value={collectForm.bankName}
+                          onChange={(e) => setCollectForm({ ...collectForm, bankName: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                 <div>
                   <label className={labelCls}>Remarks / Note</label>
@@ -743,7 +779,7 @@ const InvestmentCollections = () => {
                   <button
                     type="submit"
                     disabled={submitLoading}
-                    className="px-5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs"
+                    className="px-5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
                   >
                     {submitLoading ? 'Saving...' : 'Submit Collection'}
                   </button>
@@ -757,7 +793,7 @@ const InvestmentCollections = () => {
       {/* Edit Collection Modal */}
       {showEditModal && editReceiptData && (
         <Modalbox open={showEditModal} onClose={() => setShowEditModal(false)}>
-          <div className="p-6 bg-white rounded-2xl w-[520px] max-w-[92vw] space-y-5 max-h-[85vh] overflow-y-auto">
+          <div className="p-6 bg-white rounded-2xl w-[560px] max-w-[92vw] space-y-5 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -765,7 +801,7 @@ const InvestmentCollections = () => {
                   Edit Collection: {editReceiptData.receiptNumber}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {editReceiptData.accountId?.accountNumber} • ₹{(editReceiptData.amount || 0).toLocaleString('en-IN')}
+                  {editReceiptData.accountId?.accountNumber} ({editReceiptData.accountId?.accountType === 'RD' ? 'Recurring Deposit' : 'Fixed Deposit'}) • {editReceiptData.accountId?.customerId?.name || ''}
                 </p>
               </div>
               <button
@@ -777,6 +813,27 @@ const InvestmentCollections = () => {
             </div>
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className={labelCls}>Collection Amount (₹) *</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="w-full h-11 px-3.5 bg-white border border-slate-300 focus:border-teal-600 outline-none rounded-xl text-sm font-bold font-mono text-slate-900"
+                  value={editForm.amount}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setEditForm({ ...editForm, amount: val });
+                  }}
+                  placeholder="Enter collected amount"
+                  required
+                />
+                {editForm.amount && Number(editForm.amount) > 0 && (
+                  <p className="text-[11px] font-bold text-teal-800 capitalize bg-teal-50/70 border border-teal-100 rounded-lg px-2.5 py-1 mt-1.5">
+                    {numberToWords(Math.floor(Number(editForm.amount)))} Rupees Only
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Payment Date *</label>
@@ -797,28 +854,52 @@ const InvestmentCollections = () => {
                     onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value })}
                   >
                     <option value="cash">Cash</option>
-                    <option value="upi">UPI / QR Code</option>
+                    <option value="upi">UPI / Online / QR</option>
                     <option value="bank_transfer">Bank Transfer (IMPS/NEFT)</option>
+                    <option value="neft_rtgs">NEFT / RTGS</option>
                     <option value="cheque">Cheque</option>
+                    <option value="demand_draft">Demand Draft (DD)</option>
+                    <option value="net_banking">Net Banking</option>
                   </select>
                 </div>
               </div>
 
-              {editForm.paymentMode === 'cheque' && (
-                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <div>
-                    <label className={labelCls}>Cheque Number</label>
-                    <input
-                      type="text"
-                      className={inputCls}
-                      value={editForm.chequeNumber}
-                      onChange={(e) => setEditForm({ ...editForm, chequeNumber: e.target.value })}
-                    />
+              {(editForm.paymentMode === 'cheque' || editForm.paymentMode === 'demand_draft') && (
+                <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls}>
+                        {editForm.paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'DD Number'}
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder={editForm.paymentMode === 'cheque' ? 'e.g. 045123' : 'e.g. 123456'}
+                        className={inputCls}
+                        value={editForm.chequeNumber}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            chequeNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 6),
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Cheque / DD Date</label>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={editForm.chequeDate}
+                        onChange={(e) => setEditForm({ ...editForm, chequeDate: e.target.value })}
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Bank Name</label>
+                    <label className={labelCls}>Bank Name & Branch</label>
                     <input
                       type="text"
+                      placeholder="e.g. State Bank of India, Main Branch"
                       className={inputCls}
                       value={editForm.bankName}
                       onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
@@ -827,17 +908,32 @@ const InvestmentCollections = () => {
                 </div>
               )}
 
-              {editForm.paymentMode !== 'cash' && editForm.paymentMode !== 'cheque' && (
-                <div>
-                  <label className={labelCls}>Transaction / UTR Reference</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    value={editForm.transactionReference}
-                    onChange={(e) => setEditForm({ ...editForm, transactionReference: e.target.value })}
-                  />
-                </div>
-              )}
+              {editForm.paymentMode !== 'cash' &&
+                editForm.paymentMode !== 'cheque' &&
+                editForm.paymentMode !== 'demand_draft' && (
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div>
+                      <label className={labelCls}>Transaction / UTR Reference</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. UTR / Ref Number"
+                        className={inputCls}
+                        value={editForm.transactionReference}
+                        onChange={(e) => setEditForm({ ...editForm, transactionReference: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Bank / App Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Google Pay, HDFC Bank"
+                        className={inputCls}
+                        value={editForm.bankName}
+                        onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
 
               <div>
                 <label className={labelCls}>Remarks / Note</label>
@@ -845,6 +941,7 @@ const InvestmentCollections = () => {
                   className="w-full h-16 p-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-600 resize-none"
                   value={editForm.remarks}
                   onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
+                  placeholder="Optional collection notes..."
                 />
               </div>
 

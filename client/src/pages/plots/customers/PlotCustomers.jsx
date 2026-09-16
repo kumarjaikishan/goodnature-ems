@@ -7,6 +7,7 @@ import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
 import { Plus, Eye, Edit2, Trash2, Search, User } from 'lucide-react';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
@@ -47,7 +48,14 @@ const PlotCustomers = () => {
   };
 
   const handleDeleteCustomer = async (customer) => {
-    if (!window.confirm(`Are you sure you want to delete customer "${customer.name}"? This action cannot be undone.`)) {
+    const proceed = await confirmDialog({
+      title: 'Delete Customer?',
+      text: `Are you sure you want to delete customer "${customer.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) {
       return;
     }
     try {

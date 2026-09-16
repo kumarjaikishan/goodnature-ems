@@ -57,6 +57,20 @@ const sponsorSummarySchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    fixedCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    incentiveCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    slabLabel: {
+      type: String,
+      default: '',
+    },
     directRatesStr: {
       type: String,
       default: '',
@@ -114,6 +128,16 @@ const plotClosingSchema = new mongoose.Schema(
       min: 0,
     },
     totalCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalFixedCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalIncentiveCommission: {
       type: Number,
       default: 0,
       min: 0,

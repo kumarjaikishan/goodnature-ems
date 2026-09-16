@@ -98,6 +98,15 @@ const CreateDeedModal = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const prefix = targetAgreementForDeed?.agreementNumber ? `${targetAgreementForDeed.agreementNumber}/` : '';
+    const deedNumberValue = deedForm.deedNumber || '';
+    const codeOnly = deedNumberValue.startsWith(prefix) ? deedNumberValue.slice(prefix.length).trim() : deedNumberValue.trim();
+
+    if (!codeOnly) {
+      toast.error('Please enter a deed number / code.');
+      return;
+    }
+
     if (selectedParcels.length === 0 || totalSelectedDismil <= 0) {
       toast.error('Please select at least one parcel and enter a valid registration dismil area.');
       return;
@@ -114,18 +123,18 @@ const CreateDeedModal = ({
       }
     }
 
-    // Pass parcels array in payload
-    setDeedForm({
+    const payload = {
       ...deedForm,
+      deedNumber: deedNumberValue,
       registeredDismil: totalSelectedDismil,
       parcels: selectedParcels.map((r) => ({
         parcelId: r.parcelId,
         registeredDismil: Number(r.registerDismil),
       })),
-    });
+    };
 
-    // Execute save
-    handleSaveRegistryDeed(e);
+    setDeedForm(payload);
+    handleSaveRegistryDeed(e, payload);
   };
 
   return (
@@ -161,31 +170,30 @@ const CreateDeedModal = ({
           {/* Top Deed Metadata */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-purple-50/40 p-3.5 rounded-2xl border border-purple-100">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[11px] font-bold text-slate-700">
-                  Registry Deed Number *
-                </label>
-                {targetAgreementForDeed?.agreementNumber && (
-                  <span className="text-[10px] font-mono text-purple-700 font-semibold bg-purple-100/70 px-1.5 py-0.5 rounded">
-                    Pattern: {targetAgreementForDeed.agreementNumber}/DEED-XXXX
-                  </span>
-                )}
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Registry Deed Number *
+              </label>
+              <div className="flex items-center border border-slate-300 rounded-xl bg-white overflow-hidden focus-within:ring-2 focus-within:ring-purple-600 focus-within:border-purple-600">
+                <span className="bg-purple-100 text-purple-900 font-mono font-bold text-xs px-2.5 py-2 border-r border-purple-200 select-none shrink-0">
+                  {targetAgreementForDeed?.agreementNumber}/
+                </span>
+                <input
+                  type="text"
+                  required
+                  placeholder="DEED001"
+                  className="h-9 w-full bg-transparent outline-none px-2.5 text-xs font-bold uppercase text-purple-900 placeholder:text-slate-400 placeholder:font-normal"
+                  value={
+                    targetAgreementForDeed?.agreementNumber && (deedForm.deedNumber || '').startsWith(`${targetAgreementForDeed.agreementNumber}/`)
+                      ? (deedForm.deedNumber || '').slice(`${targetAgreementForDeed.agreementNumber}/`.length)
+                      : deedForm.deedNumber || ''
+                  }
+                  onChange={(e) => {
+                    const typed = e.target.value.trim().toUpperCase();
+                    const prefix = targetAgreementForDeed?.agreementNumber ? `${targetAgreementForDeed.agreementNumber}/` : '';
+                    setDeedForm({ ...deedForm, deedNumber: `${prefix}${typed}` });
+                  }}
+                />
               </div>
-              <input
-                type="text"
-                required
-                placeholder={
-                  targetAgreementForDeed?.agreementNumber
-                    ? `${targetAgreementForDeed.agreementNumber}/DEED-XXXX`
-                    : 'AGR-XXXX/DEED-XXXX'
-                }
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-purple-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-purple-900 placeholder:text-slate-400 placeholder:font-normal"
-                value={deedForm.deedNumber || ''}
-                onChange={(e) => setDeedForm({ ...deedForm, deedNumber: e.target.value })}
-              />
-              <p className="text-[10px] text-slate-500 mt-1">
-                Note pattern: <strong>Agreement No / Deed No</strong> (shows parent agreement origin followed by deed identifier).
-              </p>
             </div>
 
             <div>
