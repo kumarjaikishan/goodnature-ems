@@ -76,9 +76,6 @@ const ReceivePaymentForm = ({
             </div>
             <span>{isDownpaymentMode ? 'Receive Downpayment Collection' : 'Receive EMI Collection'}</span>
           </div>
-          <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-lg bg-teal-50 text-teal-700 border border-teal-200">
-            {isDownpaymentMode ? 'Downpayment Only' : 'EMI Installment Only'}
-          </span>
         </h3>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">

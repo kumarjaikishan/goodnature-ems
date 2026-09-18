@@ -42,9 +42,13 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Gotcha 2**: In `ProtectedRoutes.jsx`, when `role` was undefined during initial profile fetch, `!isAuthorized` redirected to `/`. But in `App.jsx`, `<Route path="/" element={<Navigate to="/dashboard" replace />} />` immediately bounced back to `/dashboard`, causing an infinite redirect loop (`/` <-> `/dashboard`) and rapid toast spam.
 - **Fix Pattern**: In `ProtectedRoutes.jsx`, resolve `role` from JWT token payload immediately if profile is pending, render `<ContentLoader />` while determining authentication, and navigate to `/login` if unauthenticated/unauthorized instead of bouncing to `/`.
 
-### T. Commission Ledger Synchronization on Receipt Update/Delete
-- **Caveat**: Instant fixed commissions on collections (plots and investment RD/FD) create `Entry` documents in the sponsor's `Ledger` linked via `referenceId: receipt._id`.
-- **Handling**: When any receipt is updated, deleted, or rejected, the system must invoke `accountingService.deleteLedgerEntry(entry._id, session)` to correctly propagate balance adjustments across subsequent entries and recalculate `ledger.advance`, ensuring commissions are never stranded or duplicated.
+### U. Organization Settings Architecture & Relative Import Depths
+- **Gotcha**: Files in `client/src/pages/admin/organization/pages/` (4 directory levels deep within `src`) require `../../../../utils/...` for utilities (`apiClient`, `toast`, `confirmDialog`) and `../../../../../store/...` (5 levels) to reach `client/store/userSlice.js`. Incorrect depth will cause dynamic import 500 errors in Vite lazy routes.
+- **Organization Pages Redesign**:
+  - `/dashboard/organization/branches`: Upgraded to 4 summary stat cards, live search, manager/timing filter tabs, dual card grid & DataTable views, and safe deletion checks.
+  - `/dashboard/organization/departments`: Modernized with branch tabs, statistics, dual card/table views, and emerald accent theme.
+  - `/dashboard/organization/admin`: Redesigned with 4 summary stat cards, active toggle, branch pills, 1-click permission presets, and dual card grid/table views.
+
 # SESSION_MEMORY.md — Persistent Discoveries & Context for Future Sessions
 
 This file records crucial patterns, bugs solved, and architectural caveats found in the repository. Future AI sessions should consult this before debugging or adding code.

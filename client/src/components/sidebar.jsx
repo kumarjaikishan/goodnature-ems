@@ -101,6 +101,7 @@ const Sidebar = () => {
             { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Ledger", link: "/dashboard/ledger", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
         {
@@ -134,7 +135,6 @@ const Sidebar = () => {
         },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
         { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer"] },
-        { menu: "Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["admin", "superadmin", "manager"] },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },

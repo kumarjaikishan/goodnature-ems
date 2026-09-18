@@ -17,13 +17,14 @@ import {
   DeleteReceiptModal,
 } from './components/CollectionModals';
 
-const InstallmentCollection = ({ type }) => {
+const InstallmentCollection = ({ type, initialView }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isAddRoute = location.pathname.endsWith('/add');
   const mode = type || (location.pathname.includes('/collections/downpayment') ? 'DOWNPAYMENT' : location.pathname.includes('/collections/emi') ? 'EMI' : 'ALL');
 
   const customStyles = useCustomStyles();
-  const [view, setView] = useState('list');
+  const [view, setView] = useState(initialView || (isAddRoute ? 'add' : 'list'));
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
@@ -191,6 +192,23 @@ const InstallmentCollection = ({ type }) => {
     fetchBookings();
     fetchReceipts();
   }, []);
+
+  // Sync view state and clean form on route navigation
+  useEffect(() => {
+    const shouldBeAdd = Boolean(initialView === 'add' || location.pathname.endsWith('/add'));
+    setView(shouldBeAdd ? 'add' : 'list');
+    setSelectedBooking(null);
+    setInstallments([]);
+    setSelectedInstIds([]);
+    setForm({
+      amountPaid: '',
+      paymentMode: 'cash',
+      transactionReference: '',
+      remarks: '',
+      createdAt: new Date().toISOString().split('T')[0],
+      lateFineRebate: '',
+    });
+  }, [location.pathname, mode, initialView]);
 
   const fetchBookings = async () => {
     try {
@@ -598,7 +616,19 @@ const InstallmentCollection = ({ type }) => {
         </div>
         <div>
           {view === 'list' ? (
-            <Button variant="primary" size="md" startIcon={Plus} onClick={() => setView('add')}>
+            <Button
+              variant="primary"
+              size="md"
+              startIcon={Plus}
+              onClick={() => {
+                const basePath = mode === 'DOWNPAYMENT'
+                  ? '/dashboard/plots/collections/downpayment'
+                  : mode === 'EMI'
+                  ? '/dashboard/plots/collections/emi'
+                  : '/dashboard/plots/installments';
+                navigate(`${basePath}/add`);
+              }}
+            >
               {addBtnLabel}
             </Button>
           ) : (
@@ -607,17 +637,12 @@ const InstallmentCollection = ({ type }) => {
               size="md"
               startIcon={ArrowLeft}
               onClick={() => {
-                setView('list');
-                setSelectedBooking(null);
-                setInstallments([]);
-                setSelectedInstIds([]);
-                setForm({
-                  amountPaid: '',
-                  paymentMode: 'cash',
-                  transactionReference: '',
-                  remarks: '',
-                  createdAt: new Date().toISOString().split('T')[0],
-                });
+                const basePath = mode === 'DOWNPAYMENT'
+                  ? '/dashboard/plots/collections/downpayment'
+                  : mode === 'EMI'
+                  ? '/dashboard/plots/collections/emi'
+                  : '/dashboard/plots/installments';
+                navigate(basePath);
               }}
             >
               Back to Collections

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Building2, ChevronLeft, Edit3, Calculator, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Building2, ChevronLeft, Edit3, Calculator, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
@@ -498,15 +498,14 @@ export const StepTermsAndPayment = ({
                   variant="primary"
                   size="sm"
                   onClick={() => {
-                    const firstSource = allLandSources[0];
                     setLandSourcing([
                       {
-                        sourceType: firstSource?.sourceType || 'AGREEMENT',
-                        agreementId: firstSource?.agreementId || '',
-                        agreementNumber: firstSource?.agreementNumber || '',
-                        parcelId: firstSource?.parcelId || null,
-                        deedId: firstSource?.deedId || null,
-                        deedNumber: firstSource?.deedNumber || '',
+                        sourceType: '',
+                        agreementId: '',
+                        agreementNumber: '',
+                        parcelId: null,
+                        deedId: null,
+                        deedNumber: '',
                         allocatedSqFt: plotArea,
                       },
                     ]);
@@ -610,10 +609,10 @@ export const StepTermsAndPayment = ({
                         <button
                           type="button"
                           onClick={() => setLandSourcing(landSourcing.filter((_, i) => i !== idx))}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer flex items-center justify-center"
                           title="Remove Land Source"
                         >
-                          ✕
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>

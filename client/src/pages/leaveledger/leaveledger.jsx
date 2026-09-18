@@ -4,6 +4,7 @@ import { apiClient } from "../../utils/apiClient";
 import { Trash2, Edit2, ExternalLink, History, Search, Plus, Filter, User } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "../../utils/toast";
+import { confirmDialog } from "../../utils/confirmDialog";
 import { useNavigate } from "react-router-dom";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import { FirstFetch } from "../../../store/userSlice";
@@ -188,18 +189,25 @@ const Leaveledger = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this summary record?")) {
-            try {
-                await apiClient({
-                    url: `leave-balances/${id}`,
-                    method: "DELETE"
-                });
-                toast.success("Leave balance deleted");
-                fetchLeaveLedgerData();
-            } catch (error) {
-                console.error("Error deleting leave balance:", error);
-                toast.error(error.message || "Failed to delete");
-            }
+        const proceed = await confirmDialog({
+            title: "Delete Summary Record?",
+            text: "Are you sure you want to delete this leave summary record?",
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            isDanger: true,
+        });
+        if (!proceed) return;
+
+        try {
+            await apiClient({
+                url: `leave-balances/${id}`,
+                method: "DELETE"
+            });
+            toast.success("Leave balance deleted");
+            fetchLeaveLedgerData();
+        } catch (error) {
+            console.error("Error deleting leave balance:", error);
+            toast.error(error.message || "Failed to delete");
         }
     };
 

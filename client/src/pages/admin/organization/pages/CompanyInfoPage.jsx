@@ -9,23 +9,18 @@ const CompanyInfoPage = () => {
         setcompany, 
         isload, 
         setisload, 
-        handleImage, 
-        profile 
+        handleImage
     } = useOrganization();
-
-    const addCompany = () => {};
 
     return (
         <OrganizationLayout title="Company Information">
-            <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md p-4'>
+            <div className="w-full">
                 <CompanyInfo
                     companyinp={companyinp}
                     setcompany={setcompany}
                     isload={isload}
                     setisload={setisload}
                     handleImage={handleImage}
-                    addCompany={addCompany}
-                    profile={profile}
                 />
             </div>
         </OrganizationLayout>

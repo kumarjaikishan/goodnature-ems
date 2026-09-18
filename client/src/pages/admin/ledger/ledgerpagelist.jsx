@@ -61,20 +61,27 @@ const LedgerListPage = () => {
             );
         }
 
-        // Ledger Type Filter (employee, custom, sponsor, etc.)
+        // Ledger Type Filter (employee, partner, associate, custom, etc.)
         if (typeFilter !== "all") {
             result = result.filter((l) => {
                 const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId);
+                const isPartner = (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && (!l.sponsorId?.sponsorId);
+                const isAssociate = (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
                 
                 if (typeFilter === 'employee') {
                     return isEmployee && !isSponsor;
                 }
+                if (typeFilter === 'partner') {
+                    return isPartner;
+                }
+                if (typeFilter === 'associate') {
+                    return isAssociate;
+                }
                 if (typeFilter === 'sponsor') {
                     return isSponsor;
                 }
                 if (typeFilter === 'custom') {
-                    // Custom ledgers are those that are NOT employees and NOT sponsors
                     return !isEmployee && !isSponsor;
                 }
                 return true;
@@ -227,7 +234,7 @@ const LedgerListPage = () => {
                 <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50/70 to-white border border-emerald-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
                     <div className="flex flex-col">
                         <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest">Total Payable</span>
-                        <span className="text-xs font-medium text-emerald-600/80 mt-0.5">Amount We Owe</span>
+                        <span className="text-xs font-medium text-emerald-600/80 mt-0.5">To Pay</span>
                         <span className="text-2xl font-black text-emerald-950 mt-2">
                             ₹ {stats.payable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
@@ -241,7 +248,7 @@ const LedgerListPage = () => {
                 <div className="relative overflow-hidden bg-gradient-to-br from-rose-50/70 to-white border border-rose-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
                     <div className="flex flex-col">
                         <span className="text-[11px] font-bold text-rose-800 uppercase tracking-widest">Total Receivable</span>
-                        <span className="text-xs font-medium text-rose-600/80 mt-0.5">Amount Owed to Us</span>
+                        <span className="text-xs font-medium text-rose-600/80 mt-0.5">To Receive</span>
                         <span className="text-2xl font-black text-rose-950 mt-2">
                             ₹ {stats.receivable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
@@ -266,7 +273,7 @@ const LedgerListPage = () => {
                         <span className={`text-xs font-medium mt-0.5 ${
                             netBalance >= 0 ? 'text-teal-600/80' : 'text-amber-600/80'
                         }`}>
-                            {netBalance >= 0 ? 'Balance We Owe' : 'Balance Owed to Us'}
+                            {netBalance >= 0 ? 'Net Balance to Pay' : 'Net Balance to Receive'}
                         </span>
                         <span className={`text-2xl font-black mt-2 ${
                             netBalance >= 0 ? 'text-teal-950' : 'text-amber-950'
@@ -358,8 +365,11 @@ const LedgerListPage = () => {
                                 <option value="employee">
                                     Employees ({ledgers.filter(l => (l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId))).length})
                                 </option>
-                                <option value="sponsor">
-                                    Sponsors ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId))).length})
+                                <option value="partner">
+                                    Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId).length})
+                                </option>
+                                <option value="associate">
+                                    Business Associates ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId)).length})
                                 </option>
                                 <option value="custom">
                                     Custom Ledgers ({ledgers.filter(l => !(l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId)) && !(l.ledgerType === 'sponsor' || Boolean(l.sponsorId))).length})
@@ -376,8 +386,8 @@ const LedgerListPage = () => {
                                 className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer"
                             >
                                 <option value="all">All Balances</option>
-                                <option value="payable">Payable (We Owe)</option>
-                                <option value="receivable">Receivable (Owed to Us)</option>
+                                <option value="payable">Payable (To Pay)</option>
+                                <option value="receivable">Receivable (To Receive)</option>
                                 <option value="zero">Settled (₹ 0.00)</option>
                             </select>
                         </div>
@@ -425,7 +435,29 @@ const LedgerListPage = () => {
                 <div className="w-full">
                     {viewType === 'card' ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {filteredLedgers.map((l, ind) => (
+                            {filteredLedgers.map((l, ind) => {
+                                const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
+                                const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
+                                const isPartner = isSpon && !l.sponsorId?.sponsorId;
+
+                                const tagLabel = isEmp
+                                    ? 'Employee'
+                                    : isPartner
+                                    ? 'Partner'
+                                    : isAssociate
+                                    ? 'Associate'
+                                    : (l.ledgerType || 'Custom');
+
+                                const tagClass = isEmp
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                    : isPartner
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : isAssociate
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-100';
+
+                                return (
                                 <div
                                     key={ind}
                                     onClick={() => handleNavigate(l)}
@@ -454,14 +486,8 @@ const LedgerListPage = () => {
                                                     {l.name}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
-                                                        l.ledgerType === 'employee' || Boolean(l.employeeId)
-                                                            ? 'bg-blue-50 text-blue-700 border border-blue-100' 
-                                                            : l.ledgerType === 'sponsor' || Boolean(l.sponsorId)
-                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                            : 'bg-amber-50 text-amber-700 border border-amber-100'
-                                                    }`}>
-                                                        {l.ledgerType === 'sponsor' || Boolean(l.sponsorId) ? 'Sponsor' : (l.ledgerType || (l.employeeId ? 'Employee' : 'Custom'))}
+                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${tagClass}`}>
+                                                        {tagLabel}
                                                     </span>
                                                     {l.empId && (
                                                         <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
@@ -543,7 +569,8 @@ const LedgerListPage = () => {
                                         l.netBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
                                     }`}></span>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="w-full overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
@@ -597,22 +624,41 @@ const LedgerListPage = () => {
                                                         </span>
                                                         {l.empId && (
                                                             <span className="text-[11px] text-slate-400 font-medium mt-0.5">
-                                                                EMP ID: {l.empId}
+                                                                ID: {l.empId}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
-                                                    l.ledgerType === 'employee' || Boolean(l.employeeId)
-                                                        ? 'bg-blue-50 text-blue-700 border border-blue-100' 
-                                                        : l.ledgerType === 'sponsor' || Boolean(l.sponsorId)
+                                                {(() => {
+                                                    const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
+                                                    const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                                    const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
+                                                    const isPartner = isSpon && !l.sponsorId?.sponsorId;
+
+                                                    const tagLabel = isEmp
+                                                        ? 'Employee'
+                                                        : isPartner
+                                                        ? 'Partner'
+                                                        : isAssociate
+                                                        ? 'Associate'
+                                                        : (l.ledgerType || 'Custom');
+
+                                                    const tagClass = isEmp
+                                                        ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                                        : isPartner
+                                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                                        : isAssociate
                                                         ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                        : 'bg-amber-50 text-amber-700 border border-amber-100'
-                                                }`}>
-                                                    {l.ledgerType === 'sponsor' || Boolean(l.sponsorId) ? 'Sponsor' : (l.ledgerType || (l.employeeId ? 'Employee' : 'Custom'))}
-                                                </span>
+                                                        : 'bg-amber-50 text-amber-700 border border-amber-100';
+
+                                                    return (
+                                                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
+                                                            {tagLabel}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${

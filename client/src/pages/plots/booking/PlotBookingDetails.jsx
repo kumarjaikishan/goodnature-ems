@@ -14,7 +14,6 @@ import {
   Printer,
   Calendar,
   Sparkles,
-  SlidersHorizontal,
   RotateCcw,
   History,
   Building2,
@@ -34,20 +33,6 @@ const PlotBookingDetails = () => {
   const [receipts, setReceipts] = useState([]);
   const [revisions, setRevisions] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Restructure Modal state
-  const [restructureOpen, setRestructureOpen] = useState(false);
-  const [restructureLoading, setRestructureLoading] = useState(false);
-  const [rateConfig, setRateConfig] = useState(null);
-  const [availableSources, setAvailableSources] = useState([]);
-  const [restructureForm, setRestructureForm] = useState({
-    plotSize: 1200,
-    tenureMonths: 24,
-    discount: 0,
-    reason: '',
-    downpaymentCalculationBase: 'BEFORE_DISCOUNT',
-    landSourcing: [],
-  });
 
   // Refund Modal state
   const [refundOpen, setRefundOpen] = useState(false);
@@ -69,28 +54,13 @@ const PlotBookingDetails = () => {
       api.get(`/plots/bookings/${id}/installments`).catch(() => ({ data: { data: [] } })),
       api.get(`/plots/receipts/list?bookingId=${id}`).catch(() => ({ data: { data: [] } })),
       api.get(`/plots/bookings/${id}/revisions`).catch(() => ({ data: { data: [] } })),
-      api.get('/plots/rate-config').catch(() => ({ data: { data: null } })),
-      api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
     ])
-      .then(([bookingRes, instRes, receiptRes, revRes, rateRes, srcRes]) => {
+      .then(([bookingRes, instRes, receiptRes, revRes]) => {
         const bData = bookingRes.data.data;
         setBooking(bData);
         setInstallments(instRes.data.data || []);
         setReceipts(receiptRes.data.data || []);
         setRevisions(revRes.data.data || []);
-        setRateConfig(rateRes.data.data || null);
-        setAvailableSources(srcRes.data.data || []);
-
-        if (bData) {
-          setRestructureForm({
-            plotSize: bData.plotId?.plotSize || 1200,
-            tenureMonths: bData.tenureMonths || 0,
-            discount: bData.discount || 0,
-            reason: '',
-            downpaymentCalculationBase: bData.downpaymentCalculationBase || 'BEFORE_DISCOUNT',
-            landSourcing: bData.landSourcing || [],
-          });
-        }
         setLoading(false);
       })
       .catch((err) => {
@@ -212,12 +182,6 @@ const PlotBookingDetails = () => {
                 className="flex items-center gap-1.5 px-3.5 py-2 border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
               >
                 <Edit3 size={15} className="text-indigo-700" /> Edit Contract
-              </button>
-              <button
-                onClick={() => setRestructureOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-              >
-                <SlidersHorizontal size={15} className="text-indigo-600" /> Restructure Booking
               </button>
               <button
                 onClick={() => setRefundOpen(true)}
@@ -852,341 +816,6 @@ const PlotBookingDetails = () => {
           </div>
         </div>
       )}
-
-      {/* ── MODAL: RESTRUCTURE / MODIFY BOOKING ── */}
-      <Modalbox open={restructureOpen} onClose={() => setRestructureOpen(false)} outside={true}>
-        <div className="bg-white rounded-3xl p-6 max-w-xl w-full space-y-4 max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <SlidersHorizontal size={18} className="text-indigo-600" />
-              Restructure Plot Booking #{booking.bookingNumber}
-            </h3>
-            <button onClick={() => setRestructureOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
-          </div>
-
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!restructureForm.reason.trim()) return toast.warn('Please provide a reason for restructuring');
-              setRestructureLoading(true);
-              try {
-                await api.post(`/plots/bookings/${booking._id}/restructure`, restructureForm);
-                toast.success('Plot booking terms restructured and recalibrated successfully');
-                setRestructureOpen(false);
-                fetchBookingData();
-              } catch (err) {
-                toast.error(err.response?.data?.message || 'Failed to restructure booking');
-              } finally {
-                setRestructureLoading(false);
-              }
-            }}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">New Plot Size (Sq. Ft.) *</label>
-                <input
-                  type="number"
-                  required
-                  className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-600 outline-none px-3.5 rounded-xl text-xs font-bold"
-                  value={restructureForm.plotSize}
-                  onChange={(e) => setRestructureForm({ ...restructureForm, plotSize: Number(e.target.value) })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">New Tenure / Scheme *</label>
-                <select
-                  className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-600 outline-none px-3.5 rounded-xl text-xs font-bold"
-                  value={restructureForm.tenureMonths}
-                  onChange={(e) => setRestructureForm({ ...restructureForm, tenureMonths: Number(e.target.value) })}
-                >
-                  {(rateConfig?.rateSlabs || [
-                    { tenureMonths: 0, plotRate: 1000, downpaymentRate: 1000, emiRate: 0 },
-                    { tenureMonths: 6, plotRate: 1050, downpaymentRate: 500, emiRate: 550 },
-                    { tenureMonths: 12, plotRate: 1100, downpaymentRate: 500, emiRate: 600 },
-                    { tenureMonths: 18, plotRate: 1150, downpaymentRate: 500, emiRate: 650 },
-                    { tenureMonths: 24, plotRate: 1200, downpaymentRate: 500, emiRate: 700 },
-                    { tenureMonths: 30, plotRate: 1250, downpaymentRate: 500, emiRate: 750 },
-                    { tenureMonths: 36, plotRate: 1300, downpaymentRate: 500, emiRate: 800 },
-                    { tenureMonths: 42, plotRate: 1350, downpaymentRate: 500, emiRate: 850 },
-                    { tenureMonths: 48, plotRate: 1400, downpaymentRate: 500, emiRate: 900 },
-                    { tenureMonths: 54, plotRate: 1450, downpaymentRate: 500, emiRate: 950 },
-                    { tenureMonths: 60, plotRate: 1500, downpaymentRate: 500, emiRate: 1000 },
-                  ]).map((s) => (
-                    <option key={s.tenureMonths} value={s.tenureMonths}>
-                      {s.tenureMonths === 0
-                        ? `0 Months (One-Time Payment) — ₹${s.plotRate}/sqft [100% DP]`
-                        : `${s.tenureMonths} Months EMI — ₹${s.plotRate}/sqft [DP: ₹${s.downpaymentRate || 500}/sqft | EMI: ₹${s.emiRate || (s.plotRate - 500)}/sqft]`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">New Discount (₹ Flat)</label>
-                <input
-                  type="number"
-                  className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-600 outline-none px-3.5 rounded-xl text-xs font-medium"
-                  value={restructureForm.discount}
-                  onChange={(e) => setRestructureForm({ ...restructureForm, discount: Number(e.target.value) })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Downpayment Calculation Base</label>
-                <select
-                  className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-600 outline-none px-3.5 rounded-xl text-xs font-medium"
-                  value={restructureForm.downpaymentCalculationBase}
-                  onChange={(e) => setRestructureForm({ ...restructureForm, downpaymentCalculationBase: e.target.value })}
-                >
-                  <option value="BEFORE_DISCOUNT">40% Before Discount (Standard)</option>
-                  <option value="AFTER_DISCOUNT">40% After Discount</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Live Financial Terms Preview */}
-            {(() => {
-              const slabs = rateConfig?.rateSlabs || [
-                { tenureMonths: 0, plotRate: 1000 },
-                { tenureMonths: 3, plotRate: 1050 },
-                { tenureMonths: 6, plotRate: 1100 },
-                { tenureMonths: 9, plotRate: 1150 },
-                { tenureMonths: 12, plotRate: 1200 },
-                { tenureMonths: 15, plotRate: 1250 },
-                { tenureMonths: 18, plotRate: 1300 },
-                { tenureMonths: 21, plotRate: 1350 },
-                { tenureMonths: 24, plotRate: 1400 },
-                { tenureMonths: 27, plotRate: 1450 },
-                { tenureMonths: 30, plotRate: 1500 },
-              ];
-              const slab = slabs.find((s) => Number(s.tenureMonths) === Number(restructureForm.tenureMonths)) || slabs[0];
-              const pSize = Number(restructureForm.plotSize) || 0;
-              const isCorner = plot.plotType === 'CORNER';
-              const plotHeads = Array.isArray(plot.premiumHeads) ? plot.premiumHeads : [];
-              const totalExtra = plotHeads.length > 0
-                ? plotHeads.reduce((sum, h) => sum + (Number(h.extraPercent) || 0), 0)
-                : (isCorner ? (rateConfig?.cornerExtraPercent || 20) : 0);
-              const baseRate = slab.plotRate || rateConfig?.baseSqFtRate || 1000;
-              const effectiveRate = baseRate * (1 + totalExtra / 100);
-              const previewPlotValue = Math.round(pSize * effectiveRate);
-              const previewNet = Math.max(0, previewPlotValue - (Number(restructureForm.discount) || 0));
-
-              return (
-                <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold block">Effective Rate</span>
-                    <span className="font-bold text-indigo-900">₹{effectiveRate.toLocaleString('en-IN')}/sqft</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold block">Gross Plot Value</span>
-                    <span className="font-bold text-slate-800">₹{previewPlotValue.toLocaleString('en-IN')}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold block">Discount</span>
-                    <span className="font-bold text-rose-700">-₹{(Number(restructureForm.discount) || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-semibold block">Net Contract Value</span>
-                    <span className="font-black text-emerald-800">₹{previewNet.toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Land Acquisition Stock Allocation Selector */}
-            <div className="flex flex-col gap-2 p-3.5 bg-teal-50/70 border border-teal-300 rounded-2xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
-                    <Building2 size={16} className="text-teal-700" />
-                    Land Acquisition Sourcing (किसान एग्रीमेंट / डीड स्टॉक) <span className="text-rose-600 font-black">*</span>
-                  </h4>
-                  <p className="text-[11px] text-teal-700 mt-0.5">
-                    Required: Allocate the entire plot area ({restructureForm.plotSize || 0} Sq.Ft.) from an active Kisan Agreement or Registry Deed.
-                  </p>
-                </div>
-                {availableSources.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentTotal = (restructureForm.landSourcing || []).reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
-                      const targetSize = Number(restructureForm.plotSize) || 0;
-                      const remaining = Math.max(0, targetSize - currentTotal);
-                      const firstSrc = availableSources[0];
-                      if (!firstSrc) return;
-                      setRestructureForm({
-                        ...restructureForm,
-                        landSourcing: [
-                          ...(restructureForm.landSourcing || []),
-                          {
-                            sourceType: firstSrc.sourceType,
-                            agreementId: firstSrc.agreementId,
-                            agreementNumber: firstSrc.agreementNumber,
-                            deedId: firstSrc.deedId || null,
-                            deedNumber: firstSrc.deedNumber || '',
-                            mauja: firstSrc.mauja || '',
-                            khataNumber: firstSrc.khataNumber || '',
-                            khesraNumber: firstSrc.khesraNumber || '',
-                            allocatedSqFt: remaining > 0 ? remaining : Math.min(targetSize, firstSrc.availableSqFt),
-                            allocatedDismil: Math.round(((remaining > 0 ? remaining : Math.min(targetSize, firstSrc.availableSqFt)) / 435.6) * 1000) / 1000,
-                          },
-                        ],
-                      });
-                    }}
-                    className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-lg transition cursor-pointer self-start sm:self-auto"
-                  >
-                    + Add Land Source
-                  </button>
-                )}
-              </div>
-
-              {(!restructureForm.landSourcing || restructureForm.landSourcing.length === 0) ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-amber-800">
-                  <span>⚠️ No land stock linked yet. Choose an agreement/deed below.</span>
-                  {availableSources.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const first = availableSources[0];
-                        const targetSize = Number(restructureForm.plotSize) || 0;
-                        setRestructureForm({
-                          ...restructureForm,
-                          landSourcing: [
-                            {
-                              sourceType: first.sourceType,
-                              agreementId: first.agreementId,
-                              agreementNumber: first.agreementNumber,
-                              deedId: first.deedId || null,
-                              deedNumber: first.deedNumber || '',
-                              mauja: first.mauja || '',
-                              khataNumber: first.khataNumber || '',
-                              khesraNumber: first.khesraNumber || '',
-                              allocatedSqFt: targetSize,
-                              allocatedDismil: Math.round((targetSize / 435.6) * 1000) / 1000,
-                            },
-                          ],
-                        });
-                      }}
-                      className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs cursor-pointer"
-                    >
-                      Auto-Allocate {restructureForm.plotSize || 0} Sq.Ft.
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2 mt-2">
-                  {restructureForm.landSourcing.map((src, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 bg-white p-2.5 rounded-xl border border-teal-200 shadow-2xs">
-                      <select
-                        className="flex-1 h-9 px-2.5 text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg outline-none w-full"
-                        value={src.deedNumber ? `DEED_${src.deedNumber}` : `AGR_${src.agreementId}`}
-                        onChange={(e) => {
-                          const chosen = availableSources.find((s) => (s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`) === e.target.value);
-                          if (!chosen) return;
-                          const updated = [...restructureForm.landSourcing];
-                          updated[idx] = {
-                            ...updated[idx],
-                            sourceType: chosen.sourceType,
-                            agreementId: chosen.agreementId,
-                            agreementNumber: chosen.agreementNumber,
-                            deedId: chosen.deedId || null,
-                            deedNumber: chosen.deedNumber || '',
-                            mauja: chosen.mauja || '',
-                            khataNumber: chosen.khataNumber || '',
-                            khesraNumber: chosen.khesraNumber || '',
-                          };
-                          setRestructureForm({ ...restructureForm, landSourcing: updated });
-                        }}
-                      >
-                        {availableSources.map((s) => (
-                          <option key={s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`} value={s.deedNumber ? `DEED_${s.deedNumber}` : `AGR_${s.agreementId}`}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                        <input
-                          type="number"
-                          className="w-28 h-9 px-2.5 text-xs font-bold text-slate-900 border border-slate-300 rounded-lg outline-none text-right font-mono"
-                          value={src.allocatedSqFt}
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
-                            const updated = [...restructureForm.landSourcing];
-                            updated[idx] = {
-                              ...updated[idx],
-                              allocatedSqFt: val,
-                              allocatedDismil: Math.round((val / 435.6) * 1000) / 1000,
-                            };
-                            setRestructureForm({ ...restructureForm, landSourcing: updated });
-                          }}
-                          placeholder="Sq. Ft."
-                        />
-                        <span className="text-xs font-semibold text-slate-500">SqFt</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const filtered = restructureForm.landSourcing.filter((_, i) => i !== idx);
-                            setRestructureForm({ ...restructureForm, landSourcing: filtered });
-                          }}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {(() => {
-                    const totalAlloc = (restructureForm.landSourcing || []).reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
-                    const targetSize = Number(restructureForm.plotSize) || 0;
-                    const isMatch = Math.abs(totalAlloc - targetSize) <= 0.5;
-                    return (
-                      <div className="flex justify-between items-center text-xs font-bold px-1 pt-1">
-                        <span className={isMatch ? 'text-emerald-700' : 'text-rose-600'}>
-                          {isMatch ? '✅ Land Stock Area Matched:' : '⚠️ Sourced Area Mismatch:'}
-                        </span>
-                        <span className={`font-mono ${isMatch ? 'text-emerald-800' : 'text-rose-700'}`}>
-                          {totalAlloc} / {targetSize} Sq. Ft.
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Reason for Restructuring *</label>
-              <textarea
-                required
-                rows={2}
-                className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-indigo-600 outline-none p-3 rounded-xl text-xs font-medium resize-none"
-                placeholder="e.g. Customer upgraded to bigger size 1500 sqft and reduced tenure from 24 to 12 months..."
-                value={restructureForm.reason}
-                onChange={(e) => setRestructureForm({ ...restructureForm, reason: e.target.value })}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setRestructureOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={restructureLoading}
-                className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition cursor-pointer"
-              >
-                {restructureLoading ? 'Recalibrating...' : 'Apply Restructuring'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modalbox>
 
       {/* ── MODAL: CUSTOMER CANCELLATION & REFUND ── */}
       <Modalbox open={refundOpen} onClose={() => setRefundOpen(false)} outside={true}>

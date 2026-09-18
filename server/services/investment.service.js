@@ -878,6 +878,54 @@ class InvestmentService {
   }
 
   /**
+   * Delete an investment account and cascade clean related installments/receipts/commissions
+   */
+  async deleteAccount(accountId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const account = await InvestmentAccount.findById(accountId).session(session);
+      if (!account) throw new Error('Investment account not found');
+
+      // 1. Find all receipts for this account
+      const receipts = await InvestmentReceipt.find({ accountId: account._id }).session(session);
+      const receiptIds = receipts.map((r) => r._id);
+
+      // 2. Clean up any ledger entries generated from receipts
+      if (receiptIds.length > 0) {
+        const existingEntries = await Entry.find({
+          source: 'commission_fixed',
+          referenceId: { $in: receiptIds },
+        }).session(session);
+
+        for (const e of existingEntries) {
+          await accountingService.deleteLedgerEntry(e._id, session);
+        }
+
+        // Delete all receipts
+        await InvestmentReceipt.deleteMany({ accountId: account._id }).session(session);
+      }
+
+      // 3. Delete all installments
+      await InvestmentInstallment.deleteMany({ accountId: account._id }).session(session);
+
+      // 4. Delete all commissions
+      await InvestmentCommission.deleteMany({ accountId: account._id }).session(session);
+
+      // 5. Delete the account
+      await InvestmentAccount.findByIdAndDelete(account._id).session(session);
+
+      await session.commitTransaction();
+      session.endSession();
+      return { success: true, message: `${account.accountType} account ${account.accountNumber} deleted successfully` };
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
+    }
+  }
+
+  /**
    * Premature Closure / Settlement Calculation
    */
   async calculatePrematureSettlement(accountId) {

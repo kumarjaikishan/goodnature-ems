@@ -1,9 +1,12 @@
-import React, { forwardRef, useState, useRef, useEffect } from 'react';
+import React, { forwardRef, useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCcw } from 'lucide-react';
 import dayjs from 'dayjs';
 
 /**
  * Custom Tailwind Date Picker Component matching the modern card design:
+ * - Rendered via React Portal directly into document.body to prevent parent modal/container scrolling
+ * - Smart viewport collision detection (opens above or below based on available space)
  * - Clean calendar popover with header year/month arrows
  * - Quick 'Yesterday', 'Today' shortcut pills
  * - Formatted date display (e.g. "07 Sep, 2026")
@@ -28,8 +31,10 @@ export const DateInput = forwardRef(({
   ...props
 }, ref) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
-  const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0, openAbove: false });
 
   // Parse current value
   const parsedValue = value ? dayjs(value) : null;
@@ -38,27 +43,83 @@ export const DateInput = forwardRef(({
   // Current calendar view month/year
   const [viewDate, setViewDate] = useState(() => (isValidDate ? parsedValue : dayjs()));
 
-  // Sync viewDate when opened
-  useEffect(() => {
-    if (isOpen && isValidDate) {
-      setViewDate(parsedValue);
-    }
-  }, [isOpen]);
+  // Calculate coordinates relative to viewport
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const popoverWidth = 285;
+    const popoverHeight = 315;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
 
-  // Click outside listener
+    // Determine if it should open above or below
+    const shouldOpenAbove = spaceBelow < popoverHeight + 10 && spaceAbove > spaceBelow;
+
+    let top = shouldOpenAbove ? rect.top - popoverHeight - 6 : rect.bottom + 6;
+
+    // Determine horizontal placement
+    let left = align === 'right' ? rect.right - popoverWidth : rect.left;
+
+    // Horizontal viewport boundaries
+    if (left + popoverWidth > window.innerWidth - 10) {
+      left = window.innerWidth - popoverWidth - 10;
+    }
+    if (left < 10) {
+      left = 10;
+    }
+
+    setCoords({
+      top: Math.max(10, top),
+      left: Math.max(10, left),
+      openAbove: shouldOpenAbove,
+    });
+  }, [align]);
+
+  // Sync viewDate and position when opened
   useEffect(() => {
+    if (isOpen) {
+      if (isValidDate) {
+        setViewDate(parsedValue);
+      }
+      updatePosition();
+    }
+  }, [isOpen, isValidDate, updatePosition]);
+
+  // Click outside and escape listeners
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        popoverRef.current && !popoverRef.current.contains(e.target)
+      ) {
         setIsOpen(false);
       }
     };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, [isOpen]);
+  }, [isOpen, updatePosition]);
 
   const handleSelectDate = (dateObj) => {
     const formatted = dateObj.format('YYYY-MM-DD');
@@ -78,7 +139,6 @@ export const DateInput = forwardRef(({
 
   // Calendar grid math
   const startOfMonth = viewDate.startOf('month');
-  const endOfMonth = viewDate.endOf('month');
   const daysInMonth = viewDate.daysInMonth();
   const startDayOfWeek = startOfMonth.day(); // 0 = Sunday, 1 = Monday ...
 
@@ -136,7 +196,7 @@ export const DateInput = forwardRef(({
   ];
 
   return (
-    <div ref={containerRef} className={`relative flex flex-col gap-1 w-full ${containerClassName}`}>
+    <div className={`relative flex flex-col gap-1 w-full ${containerClassName}`}>
       {label && (
         <div className="flex items-center justify-between">
           <label
@@ -156,11 +216,20 @@ export const DateInput = forwardRef(({
 
       {/* Interactive Trigger Button Styled as an Input */}
       <button
-        ref={ref}
+        ref={(node) => {
+          triggerRef.current = node;
+          if (typeof ref === 'function') ref(node);
+          else if (ref) ref.current = node;
+        }}
         id={inputId}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!disabled) {
+            updatePosition();
+            setIsOpen(!isOpen);
+          }
+        }}
         className={`
           w-full rounded-lg border bg-white text-slate-800 transition-all duration-150 outline-none
           flex items-center justify-between text-left cursor-pointer
@@ -182,11 +251,17 @@ export const DateInput = forwardRef(({
         </div>
       </button>
 
-      {/* Custom Popup DatePicker Modal / Card */}
-      {isOpen && (
+      {/* Portal Calendar Popover rendered on body to float over modals without scrollbars */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 z-50 w-[270px] sm:w-[285px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in fade-in zoom-in-95 duration-150`}
-          style={{ transformOrigin: align === 'right' ? 'top right' : 'top left' }}
+          ref={popoverRef}
+          style={{
+            position: 'fixed',
+            top: `${coords.top}px`,
+            left: `${coords.left}px`,
+            zIndex: 99999,
+          }}
+          className="w-[285px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-3 animate-in fade-in zoom-in-95 duration-150 select-none"
         >
           {/* Header Month / Year Navigation */}
           <div className="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-100">
@@ -307,7 +382,8 @@ export const DateInput = forwardRef(({
               Close
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {(error || helperText) && (
@@ -321,3 +397,4 @@ export const DateInput = forwardRef(({
 
 DateInput.displayName = 'DateInput';
 export default DateInput;
+

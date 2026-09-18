@@ -114,6 +114,16 @@ export default function PlotBooking() {
       return;
     }
 
+    // Skip duplicate network search if search query matches currently selected customer
+    if (
+      selectedCustomer &&
+      (searchQuery.trim().toLowerCase() === selectedCustomer.name?.trim().toLowerCase() ||
+        searchQuery.trim() === (selectedCustomer.customerCode || selectedCustomer.customerId || ''))
+    ) {
+      setSearchResults([]);
+      return;
+    }
+
     const timer = setTimeout(() => {
       api.get('/plots/customers', {
         params: {
@@ -129,7 +139,7 @@ export default function PlotBooking() {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, selectedCustomer]);
 
   // Customer Selection Handler
   const selectCustomer = (cust) => {
@@ -434,7 +444,9 @@ export default function PlotBooking() {
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               searchResults={searchResults}
+              setSearchResults={setSearchResults}
               selectedCustomer={selectedCustomer}
+              setSelectedCustomer={setSelectedCustomer}
               selectCustomer={selectCustomer}
               form={form}
               setForm={setForm}

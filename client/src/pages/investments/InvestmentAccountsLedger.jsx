@@ -15,10 +15,12 @@ import {
   Plus,
   BookOpen,
   TrendingUp,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import { toast } from '../../utils/toast';
+import { confirmDialog } from '../../utils/confirmDialog';
 
 const InvestmentAccountsLedger = () => {
   const navigate = useNavigate();
@@ -59,6 +61,25 @@ const InvestmentAccountsLedger = () => {
     e.preventDefault();
     setPage(1);
     fetchAccounts();
+  };
+
+  const handleDeleteAccount = async (acc) => {
+    const proceed = await confirmDialog({
+      title: `Delete ${acc.accountType} Account ${acc.accountNumber}?`,
+      text: `Are you sure you want to permanently delete account ${acc.accountNumber} for customer ${acc.customerId?.name || 'Customer'}? All installments, ledger records, and associated receipts will be removed.`,
+      confirmText: 'Delete Account',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) return;
+
+    try {
+      await api.delete(`/investments/accounts/${acc._id}`);
+      toast.success(`${acc.accountType} account deleted successfully`);
+      fetchAccounts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete account');
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -396,7 +417,7 @@ const InvestmentAccountsLedger = () => {
 
                       {/* Actions */}
                       <td className="p-3.5 text-left">
-                        <div className="flex flex-col items-start gap-1">
+                        <div className="flex flex-col items-start gap-1.5">
                           <div className="flex items-center gap-1.5 whitespace-nowrap">
                             <button
                               onClick={() => navigate(`/dashboard/investments/passbook/${acc._id}`)}
@@ -417,12 +438,18 @@ const InvestmentAccountsLedger = () => {
                               Collect
                             </button>
                           </div>
-                          <div>
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
                             <button
                               onClick={() => navigate('/dashboard/investments/settlement')}
-                              className="px-2.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] rounded-lg border border-rose-200 transition cursor-pointer"
+                              className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-[11px] rounded-lg border border-amber-200 transition cursor-pointer"
                             >
                               Cancel
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAccount(acc)}
+                              className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] rounded-lg border border-rose-200 transition cursor-pointer flex items-center gap-1"
+                            >
+                              <Trash2 size={11} /> Delete
                             </button>
                           </div>
                         </div>
@@ -543,7 +570,7 @@ const InvestmentAccountsLedger = () => {
 
                       {/* Actions */}
                       <td className="p-3.5 text-left">
-                        <div className="flex flex-col items-start gap-1">
+                        <div className="flex flex-col items-start gap-1.5">
                           <div className="flex items-center gap-1.5 whitespace-nowrap">
                             <button
                               onClick={() => navigate(`/dashboard/investments/certificates/${acc._id}`)}
@@ -566,12 +593,18 @@ const InvestmentAccountsLedger = () => {
                               </button>
                             )}
                           </div>
-                          <div>
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
                             <button
                               onClick={() => navigate('/dashboard/investments/settlement')}
-                              className="px-2.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] rounded-lg border border-rose-200 transition cursor-pointer"
+                              className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-[11px] rounded-lg border border-amber-200 transition cursor-pointer"
                             >
-                              Settlement
+                              Cancel / Settle
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAccount(acc)}
+                              className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] rounded-lg border border-rose-200 transition cursor-pointer flex items-center gap-1"
+                            >
+                              <Trash2 size={11} /> Delete
                             </button>
                           </div>
                         </div>

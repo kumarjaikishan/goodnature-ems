@@ -10,6 +10,7 @@ import {
   Calculator,
   AlertCircle,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
@@ -1025,15 +1026,14 @@ export default function PlotBookingEditPage() {
                     variant="primary"
                     size="sm"
                     onClick={() => {
-                      const firstSource = allLandSources[0];
                       setLandSourcing([
                         {
-                          sourceType: firstSource?.sourceType || 'AGREEMENT',
-                          agreementId: firstSource?.agreementId || '',
-                          agreementNumber: firstSource?.agreementNumber || '',
-                          parcelId: firstSource?.parcelId || null,
-                          deedId: firstSource?.deedId || null,
-                          deedNumber: firstSource?.deedNumber || '',
+                          sourceType: '',
+                          agreementId: '',
+                          agreementNumber: '',
+                          parcelId: null,
+                          deedId: null,
+                          deedNumber: '',
                           allocatedSqFt: plotArea,
                           allocatedDismil: Math.round((plotArea / 435.6) * 1000) / 1000,
                         },
@@ -1145,10 +1145,10 @@ export default function PlotBookingEditPage() {
                               const filtered = landSourcing.filter((_, i) => i !== idx);
                               setLandSourcing(filtered);
                             }}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                            className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition cursor-pointer flex items-center justify-center"
                             title="Remove Land Source"
                           >
-                            ✕
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </div>

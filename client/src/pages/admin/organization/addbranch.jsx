@@ -172,14 +172,9 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
   };
 
   return (
-    <div className='p-6 space-y-5'>
-      <div>
-        <h3 className='text-base font-bold text-slate-800'>{editbranch ? 'Edit Branch' : 'Add New Branch'}</h3>
-        <p className='text-xs text-slate-500'>Configure branch location, assigned branch managers and attendance rules</p>
-      </div>
-
+    <div className='space-y-5'>
       <div className='space-y-4'>
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <Input
             label="Branch Name"
             value={branch.name}
@@ -199,7 +194,7 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
         {/* Assigned Managers Selection */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-slate-700 tracking-wide">Assigned Branch Managers</label>
-          <div className="flex flex-wrap gap-2 pt-1 max-h-36 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50/50">
+          <div className="flex flex-wrap gap-2 pt-1 max-h-36 overflow-y-auto p-2.5 border border-slate-200 rounded-xl bg-slate-50/50">
             {users && users.length > 0 ? (
               users.map(u => {
                 const isSelected = (branch?.managerIds || []).includes(u._id);
@@ -229,19 +224,19 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
         </div>
 
         {/* Attendance Override Checkbox */}
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+        <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl flex items-center justify-between gap-3">
           <div>
             <span className="text-xs font-bold text-slate-800 block">Override Company Default Rules</span>
             <span className="text-[11px] text-slate-500">Enable custom office timings and biometric rules for this branch</span>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
             <input
               type="checkbox"
               className="sr-only peer"
               checked={!branch.defaultsetting}
               onChange={e => setBranch(prev => ({ ...prev, defaultsetting: !e.target.checked }))}
             />
-            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-700"></div>
           </label>
         </div>
 

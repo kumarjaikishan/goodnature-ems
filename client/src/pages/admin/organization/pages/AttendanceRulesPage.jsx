@@ -15,7 +15,7 @@ const AttendanceRulesPage = () => {
 
     return (
         <OrganizationLayout title="Attendance & Overtime Rules">
-            <div className='border shadow-lg bg-white border-dashed border-gray-300 rounded-md p-4'>
+            <div className="w-full">
                 <AttendanceRules
                     companyinp={companyinp}
                     setcompany={setcompany}

@@ -1,5 +1,5 @@
-import React from 'react';
-import { UserPlus, Search, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { UserPlus, Search, ChevronRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 
@@ -12,11 +12,63 @@ export const StepCustomer = ({
   searchQuery,
   setSearchQuery,
   searchResults,
+  setSearchResults,
   selectCustomer,
   selectedCustomer,
   setSelectedCustomer,
   setForm,
 }) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Close dropdown on outside click or Esc
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleClear = () => {
+    setSearchQuery('');
+    if (setSelectedCustomer) setSelectedCustomer(null);
+    if (setSearchResults) setSearchResults([]);
+    setShowDropdown(false);
+    setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const handleCustomerSelect = (cust) => {
+    selectCustomer(cust);
+    setShowDropdown(false);
+    if (setSearchResults) setSearchResults([]);
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    setShowDropdown(true);
+    if (selectedCustomer && val.trim().toLowerCase() !== selectedCustomer.name?.trim().toLowerCase()) {
+      if (setSelectedCustomer) setSelectedCustomer(null);
+      setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
@@ -35,33 +87,51 @@ export const StepCustomer = ({
       </div>
 
       {/* Customer Search Bar */}
-      <div className="relative">
+      <div className="relative" ref={containerRef}>
         <label className={labelCls}>Search Existing Customer</label>
         <div className="relative">
           <input
-            className={`${inputCls} pl-10`}
+            ref={inputRef}
+            className={`${inputCls} pl-10 pr-10`}
             placeholder="Search by name, customer ID, or mobile number..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => {
+              if (!selectedCustomer && searchResults && searchResults.length > 0) {
+                setShowDropdown(true);
+              }
+            }}
+            onChange={handleInputChange}
           />
-          <Search size={18} className="text-slate-400 absolute left-3.5 top-3" />
+          <Search size={18} className="text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+          {(searchQuery || selectedCustomer) && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition cursor-pointer"
+              title="Clear customer selection"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         {/* Search Dropdown Results */}
-        {searchResults.length > 0 && (
-          <div className="absolute z-20 top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-slate-100">
+        {showDropdown && !selectedCustomer && searchResults && searchResults.length > 0 && (
+          <div className="absolute z-30 top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
             {searchResults.map((cust) => (
               <div
                 key={cust._id}
-                onClick={() => selectCustomer(cust)}
-                className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between text-xs"
+                onClick={() => handleCustomerSelect(cust)}
+                className="p-3 hover:bg-teal-50/70 cursor-pointer flex items-center justify-between text-xs transition"
               >
                 <div className="flex flex-col">
                   <span className="font-bold text-slate-800">{cust.name}</span>
-                  <span className="text-slate-500 font-mono text-[11px]">{cust.customerCode || cust.customerId}</span>
+                  <span className="text-slate-500 font-mono text-[11px]">
+                    {cust.customerCode || cust.customerId}
+                  </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-slate-600 block">{cust.mobile}</span>
+                  <span className="text-slate-600 font-medium block">{cust.mobile}</span>
                   <span className="text-[10px] text-teal-700 font-bold uppercase">
                     {cust.sponsorId?.name ? `Sponsor: ${cust.sponsorId.name}` : 'Direct Customer'}
                   </span>
@@ -102,14 +172,10 @@ export const StepCustomer = ({
             </div>
             <button
               type="button"
-              onClick={() => {
-                setSelectedCustomer(null);
-                setSearchQuery('');
-                setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
-              }}
-              className="text-xs text-rose-600 hover:text-rose-700 font-bold ml-auto cursor-pointer"
+              onClick={handleClear}
+              className="text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-2.5 py-1 rounded-lg font-bold ml-auto cursor-pointer flex items-center gap-1 transition"
             >
-              Change
+              <X size={14} /> Clear
             </button>
           </div>
         </div>

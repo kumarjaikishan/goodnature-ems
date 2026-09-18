@@ -75,7 +75,6 @@ const AdminManagerProfile = lazy(() => import('./pages/profile/adminManagerProfi
 
 // Plots
 const PlotDashboard = lazy(() => import('./pages/plots/dashboard/PlotDashboard'));
-const PlotInventory = lazy(() => import('./pages/plots/seriesMaster/PlotInventory'));
 const PlotBusinessDevelopers = lazy(() => import('./pages/plots/businessDevelopers/PlotBusinessDevelopers'));
 const PlotCustomers = lazy(() => import('./pages/plots/customers/PlotCustomers'));
 const PlotCustomerFormPage = lazy(() => import('./pages/plots/customers/PlotCustomerFormPage'));
@@ -97,8 +96,6 @@ const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDev
 const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
 const PlotIncentivesPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
 const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
-const PlotClosingsPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
-const PlotClosingProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
@@ -181,7 +178,9 @@ const routesByRole = {
       <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+      <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
       <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
+      <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
@@ -275,7 +274,9 @@ const routesByRole = {
       <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+      <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
       <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
+      <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
@@ -369,7 +370,9 @@ const routesByRole = {
       <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
       <Route path="plots/installments" element={<InstallmentCollection />} />
       <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+      <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
       <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
+      <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />

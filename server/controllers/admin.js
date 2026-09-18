@@ -395,10 +395,7 @@ const employeelist = async (req, res, next) => {
 };
 
 const addAdmin = async (req, res, next) => {
-
-    // console.log(req.body);
-    // return res.status(400).json({ message: "All fields are required" });
-    const { name, email, role, password, permissions } = req.body;
+    const { name, email, role, password, permissions, branchIds, isBlocked } = req.body;
 
     if (!name || !email || !role || !password) {
         return res.status(400).json({ message: "All fields are required" });
@@ -415,12 +412,24 @@ const addAdmin = async (req, res, next) => {
             return res.status(409).json({ message: 'Email already in use.' });
         }
 
+        let parsedBranchIds = [];
+        if (branchIds) {
+            if (Array.isArray(branchIds)) parsedBranchIds = branchIds;
+            else if (typeof branchIds === 'string' && branchIds.startsWith('[')) {
+                try { parsedBranchIds = JSON.parse(branchIds); } catch (e) { parsedBranchIds = []; }
+            } else if (typeof branchIds === 'string') {
+                parsedBranchIds = [branchIds];
+            }
+        }
+
         const fields = {
             name,
             email,
             role,
             password,
             companyId: req.user.companyId,
+            branchIds: parsedBranchIds,
+            isBlocked: isBlocked === true || isBlocked === 'true',
         };
 
         // Convert permissions if stringified
@@ -444,8 +453,17 @@ const addAdmin = async (req, res, next) => {
             }
         }
 
-        const createUser = new usermodal({ ...fields }); // <-- FIXED
+        const createUser = new usermodal({ ...fields });
         await createUser.save({ session });
+
+        // Add this manager to selected branches
+        if (parsedBranchIds.length > 0) {
+            await branch.updateMany(
+                { _id: { $in: parsedBranchIds } },
+                { $addToSet: { managerIds: createUser._id } },
+                { session }
+            );
+        }
 
         await session.commitTransaction();
         session.endSession();
@@ -459,7 +477,7 @@ const addAdmin = async (req, res, next) => {
         session.endSession();
         console.error(error.message);
         return res.status(500).json({
-            message: 'Server error',
+            message: error.message || 'Server error',
         });
     }
 };
@@ -470,7 +488,10 @@ const getAdmin = async (req, res, next) => {
             companyId: req.user.companyId,
             role: { $in: ["admin", "manager"] },
             _id: { $ne: req.userid }
-        });
+        })
+        .populate('branchIds', 'name branchCode location')
+        .sort({ createdAt: -1 })
+        .lean();
 
         res.status(200).json(admins);
 
@@ -554,12 +575,30 @@ const editAdmin = async (req, res, next) => {
             return res.status(409).json({ message: 'Email already in use.' });
         }
 
+        let parsedBranchIds = undefined;
+        if (req.body.branchIds !== undefined) {
+            if (Array.isArray(req.body.branchIds)) parsedBranchIds = req.body.branchIds;
+            else if (typeof req.body.branchIds === 'string' && req.body.branchIds.startsWith('[')) {
+                try { parsedBranchIds = JSON.parse(req.body.branchIds); } catch (e) { parsedBranchIds = []; }
+            } else if (typeof req.body.branchIds === 'string') {
+                parsedBranchIds = req.body.branchIds ? [req.body.branchIds] : [];
+            }
+        }
+
         const fields = {
             name,
             email,
             role,
             companyId: req.user.companyId
         };
+
+        if (req.body.isBlocked !== undefined) {
+            fields.isBlocked = req.body.isBlocked === true || req.body.isBlocked === 'true';
+        }
+
+        if (parsedBranchIds !== undefined) {
+            fields.branchIds = parsedBranchIds;
+        }
 
         // Convert permissions if stringified
         if (permissions && typeof permissions === 'string') {
@@ -874,45 +913,43 @@ const editBranch = async (req, res, next) => {
 };
 
 const deleteBranch = async (req, res, next) => {
-    const { _id, name, location, companyId, managerIds = [] } = req.body;
+    const { _id, id } = req.body;
+    const branchId = _id || id;
+
+    if (!branchId) {
+        return res.status(400).json({ message: "Branch ID is required" });
+    }
 
     try {
-        const existingBranch = await branch.findById(_id);
+        const existingBranch = await branch.findById(branchId);
         if (!existingBranch) {
             return next({ status: 404, message: "Branch not found" });
         }
 
-        const previousManagerIds = existingBranch.managerIds.map(id => id.toString());
-        const newManagerIds = managerIds.map(id => id.toString());
-
-        const removedManagerIds = previousManagerIds.filter(id => !newManagerIds.includes(id));
-        // console.log("removed id", removedManagerIds);
-
-        const addedManagerIds = newManagerIds.filter(id => !previousManagerIds.includes(id));
-        // console.log("new to be added id", addedManagerIds);
-
-        await branch.findByIdAndUpdate(_id, { name, location, companyId, managerIds });
-
-        // Remove this branch from removed managers
-        for (const removedId of removedManagerIds) {
-            await usermodal.findByIdAndUpdate(
-                removedId,
-                { $pull: { branchIds: _id } } // remove this branch from their array
-            );
+        // Check if employees exist under this branch
+        const empCount = await employeeModal.countDocuments({ branchId });
+        if (empCount > 0) {
+            return res.status(400).json({
+                message: `Cannot delete branch "${existingBranch.name}". There are ${empCount} employee(s) assigned to this branch. Please reassign or delete them first.`
+            });
         }
 
-        // Add this branch to added managers
-        for (const addedId of addedManagerIds) {
-            await usermodal.findByIdAndUpdate(
-                addedId,
-                { $addToSet: { branchIds: _id } } // add branch if not already in array
-            );
-        }
+        // Remove this branch from all managers
+        await usermodal.updateMany(
+            { branchIds: branchId },
+            { $pull: { branchIds: branchId } }
+        );
 
-        return res.status(200).json({ message: "Branch Edited Successfully" });
+        // Delete all departments under this branch
+        await departmentModal.deleteMany({ branchId });
+
+        // Delete the branch
+        await branch.findByIdAndDelete(branchId);
+
+        return res.status(200).json({ message: `Branch "${existingBranch.name}" deleted successfully` });
 
     } catch (error) {
-        console.error(error.message);
+        console.error('Error deleting branch:', error.message);
         return next({ status: 500, message: error.message });
     }
 };

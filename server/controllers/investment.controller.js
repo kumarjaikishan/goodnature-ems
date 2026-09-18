@@ -46,6 +46,15 @@ class InvestmentController {
     }
   }
 
+  async deleteAccount(req, res) {
+    try {
+      const data = await investmentService.deleteAccount(req.params.id);
+      res.status(200).json({ success: true, message: data.message });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  }
+
   async collectPayment(req, res) {
     try {
       const receipt = await investmentService.collectPayment(req.params.id, req.body, req.user?._id || req.user?.id);

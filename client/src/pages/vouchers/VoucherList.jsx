@@ -316,8 +316,8 @@ const VoucherList = () => {
       name: "Voucher No",
       selector: (row) => row.voucherNo,
       cell: (row) => (
-        <span className="font-mono bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-xs font-semibold border border-slate-200">
-          {row.voucherNo}
+        <span className="font-mono text-slate-800 text-xs font-bold">
+          {(row.voucherNo || "").replace(/^(GN-)?INV-/, "INV-")}
         </span>
       ),
       sortable: true,

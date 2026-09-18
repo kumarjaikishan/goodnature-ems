@@ -5,7 +5,7 @@ import Department from '../department/Department';
 const DepartmentPage = () => {
     return (
         <OrganizationLayout title="Departments">
-            <div className='border shadow-lg bg-teal-50 border-dashed border-teal-400 rounded-md p-4'>
+            <div className="w-full">
                 <Department />
             </div>
         </OrganizationLayout>

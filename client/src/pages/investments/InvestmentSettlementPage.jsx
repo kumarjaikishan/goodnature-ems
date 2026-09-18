@@ -13,6 +13,7 @@ import {
 import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import { toast } from '../../utils/toast';
+import { confirmDialog } from '../../utils/confirmDialog';
 
 const InvestmentSettlementPage = () => {
   const navigate = useNavigate();
@@ -70,7 +71,14 @@ const InvestmentSettlementPage = () => {
   const handleProcessSettlement = async (e) => {
     e.preventDefault();
     if (!selectedAccountId) return toast.warn('Please select an account');
-    if (!window.confirm('Are you sure you want to process this settlement and close the account?')) return;
+    const proceed = await confirmDialog({
+      title: 'Process Settlement?',
+      text: 'Are you sure you want to process this settlement and close the account? This action cannot be undone.',
+      confirmText: 'Process Settlement',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) return;
 
     setSubmitLoading(true);
     try {

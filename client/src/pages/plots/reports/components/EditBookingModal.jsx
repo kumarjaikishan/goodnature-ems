@@ -1,7 +1,7 @@
 import React from 'react';
 import Modalbox from '@/components/custommodal/Modalbox';
 import Button from '@/components/ui/Button';
-import { X, Building2, Edit3, Calculator, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, Building2, Edit3, Calculator, AlertCircle, CheckCircle2, Sparkles, Trash2 } from 'lucide-react';
 
 const formatIndianDate = (d) => {
   if (!d || isNaN(d.getTime())) return '';
@@ -717,10 +717,10 @@ const EditBookingModal = ({
                             const filtered = editForm.landSourcing.filter((_, i) => i !== idx);
                             setEditForm({ ...editForm, landSourcing: filtered });
                           }}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer flex items-center justify-center"
                           title="Remove Land Source"
                         >
-                          ✕
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </div>

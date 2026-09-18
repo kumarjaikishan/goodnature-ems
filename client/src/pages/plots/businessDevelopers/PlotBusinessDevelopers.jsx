@@ -421,19 +421,34 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Parent Partner',
-      selector: (row) => (row.sponsorId?.name ? `${row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')} (${row.sponsorId.sponsorCode || ''})` : 'Company Direct'),
-      cell: (row) => (
-        <span className="text-xs font-medium text-slate-700">
-          {row.sponsorId?.name ? (
-            <span className="font-semibold text-slate-900">
-              {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}{' '}
-              <span className="font-mono text-slate-500">({row.sponsorId.sponsorCode || ''})</span>
-            </span>
-          ) : (
-            <span className="text-emerald-700 font-bold">🏢 Company Direct</span>
-          )}
-        </span>
-      ),
+      selector: (row) =>
+        row.sponsorId?.name
+          ? `${row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')} (${row.sponsorId.sponsorCode || ''})`
+          : row.branchIds && row.branchIds.length > 0
+          ? row.branchIds.map((b) => b.name || b).join(', ')
+          : (row.branchId?.name || 'Head Office'),
+      cell: (row) => {
+        const branchName =
+          row.branchIds && row.branchIds.length > 0
+            ? row.branchIds.map((b) => b.name || b).join(', ')
+            : (row.branchId?.name || 'Head Office');
+
+        return (
+          <span className="text-xs font-medium text-slate-700">
+            {row.sponsorId?.name ? (
+              <span className="font-semibold text-slate-900">
+                {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}{' '}
+                <span className="font-mono text-slate-500">({row.sponsorId.sponsorCode || ''})</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-semibold text-teal-800">
+                <Building2 size={13} className="text-teal-700 shrink-0" />
+                {branchName}
+              </span>
+            )}
+          </span>
+        );
+      },
       sortable: true,
     },
     {
@@ -1151,11 +1166,18 @@ const PlotBusinessDevelopers = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Parent Partner</p>
+                    <p className="text-xs text-slate-400 font-semibold uppercase">Parent Partner / Branch</p>
                     <p className="font-semibold text-slate-800 mt-0.5">
-                      {viewingDeveloper.sponsorId?.name
-                        ? `${viewingDeveloper.sponsorId.name} (${viewingDeveloper.sponsorId.sponsorCode || ''})`
-                        : '🏢 Company Direct'}
+                      {viewingDeveloper.sponsorId?.name ? (
+                        `${viewingDeveloper.sponsorId.name} (${viewingDeveloper.sponsorId.sponsorCode || ''})`
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-teal-800">
+                          <Building2 size={13} className="text-teal-700 shrink-0" />
+                          {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
+                            ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
+                            : (viewingDeveloper.branchId?.name || 'Head Office')}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Trash2, Clock, Plus, Minus, X, AlertCircle } from "lucide-react";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
+import { confirmDialog } from "../../../utils/confirmDialog";
 import dayjs from "dayjs";
 
 // Custom UI Components
@@ -88,7 +89,15 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
   };
 
   const handleDelete = async (entryId) => {
-    if (!window.confirm("Are you sure you want to delete this ledger entry?")) return;
+    const proceed = await confirmDialog({
+      title: "Delete Ledger Entry?",
+      text: "Are you sure you want to delete this weekly-off ledger entry?",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      isDanger: true,
+    });
+    if (!proceed) return;
+
     try {
       const res = await apiClient({
         url: `weekly-off-ledger/${entryId}`,

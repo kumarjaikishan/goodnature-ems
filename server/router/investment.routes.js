@@ -19,6 +19,7 @@ router.get('/dues', investmentController.getDuesReport);
 router.post('/accounts', investmentController.createAccount);
 router.get('/accounts', investmentController.getAccounts);
 router.get('/accounts/:id', investmentController.getAccountById);
+router.delete('/accounts/:id', investmentController.deleteAccount);
 
 // Collections & Payments
 router.get('/receipts', investmentController.getReceipts);

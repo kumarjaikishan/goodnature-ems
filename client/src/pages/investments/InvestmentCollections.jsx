@@ -22,6 +22,7 @@ import {
 import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
 import { toast } from '../../utils/toast';
+import { confirmDialog } from '../../utils/confirmDialog';
 import Modalbox from '../../components/custommodal/Modalbox';
 import numberToWords from '../../utils/numToWord';
 
@@ -135,13 +136,14 @@ const InvestmentCollections = () => {
   };
 
   const handleDeleteReceipt = async (receiptId, receiptNo) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete receipt ${receiptNo}? This will rollback the deposit balance and covered installments on this account.`
-      )
-    ) {
-      return;
-    }
+    const proceed = await confirmDialog({
+      title: `Delete Receipt ${receiptNo}?`,
+      text: 'This will rollback the deposit balance and covered installments on this account.',
+      confirmText: 'Delete Receipt',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!proceed) return;
 
     try {
       await api.delete(`/investments/receipts/${receiptId}`);
@@ -213,7 +215,14 @@ const InvestmentCollections = () => {
   };
 
   const handleApprove = async (receiptId) => {
-    if (!window.confirm('Are you sure you want to approve this non-cash payment?')) return;
+    const proceed = await confirmDialog({
+      title: 'Approve Payment?',
+      text: 'Are you sure you want to approve this non-cash payment? The balance will be credited to the account ledger.',
+      confirmText: 'Approve Payment',
+      cancelText: 'Cancel',
+      isDanger: false,
+    });
+    if (!proceed) return;
     try {
       await api.put(`/investments/receipts/${receiptId}/approve`);
       toast.success('Payment approved and credited to ledger');

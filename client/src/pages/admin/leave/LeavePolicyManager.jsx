@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
+import { confirmDialog } from "../../../utils/confirmDialog";
 import { PlusCircle, Edit2, Trash2, X, CheckCircle } from "lucide-react";
 
 // Custom UI Components
@@ -70,7 +71,14 @@ const LeavePolicyManager = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this leave policy?")) return;
+    const proceed = await confirmDialog({
+      title: "Delete Leave Policy?",
+      text: "Are you sure you want to delete this leave policy?",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      isDanger: true,
+    });
+    if (!proceed) return;
     try {
       await apiClient({
         url: `leave-policies/${id}`,

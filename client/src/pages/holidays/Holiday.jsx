@@ -22,7 +22,7 @@ import { toast } from '../../utils/toast';
 import { swal } from '../../utils/confirmDialog';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import HolidayCalander from './holidayCalander';
-import Modalbox from '../../components/custommodal/Modalbox';
+import Modal from '../../components/ui/Modal';
 import HolidayPrintable from './HolidayPrintable';
 import { exportJsonToExcel, parseExcelFile } from '../../utils/excelHelper';
 import { apiClient } from '../../utils/apiClient';
@@ -69,6 +69,7 @@ const HolidayForm = () => {
   const [importModal, setImportModal] = useState(false);
   const [importPreview, setImportPreview] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Dropdown menus
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -301,6 +302,7 @@ const HolidayForm = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      setSaving(true);
       const formattedFromDate = form.fromDate ? dayjs(form.fromDate).format("YYYY-MM-DD") : null;
       const formattedToDate = form.toDate ? dayjs(form.toDate).format("YYYY-MM-DD") : null;
 
@@ -324,6 +326,8 @@ const HolidayForm = () => {
       fetchHolidays();
     } catch (err) {
       console.error('Error saving holiday:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -530,31 +534,30 @@ const HolidayForm = () => {
       </div>
 
       {/* Calendar View Modal */}
-      <Modalbox open={holidaymodal} onClose={() => setholidaymodal(false)}>
-        <div className="p-4 w-full max-w-[420px]">
+      <Modal
+        open={holidaymodal}
+        onClose={() => setholidaymodal(false)}
+        title="Holiday Calendar View"
+        subtitle="Yearly calendar overview with holidays and weekly offs"
+        maxWidth="max-w-md"
+      >
+        <div className="w-full">
           <HolidayCalander highlightedDates={holidaylist.map(dateObj => ({ date: dayjs(dateObj.date), name: dateObj.name }))} weeklyOffs={weeklyOffs} />
         </div>
-      </Modalbox>
+      </Modal>
 
-      {/* Import Preview Modal */}
-      <Modalbox open={importModal} onClose={() => setImportModal(false)}>
-        <div className="w-full max-w-2xl p-6">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900">Import Preview</h3>
-              <p className="text-xs text-slate-500">{importPreview.length} holiday records parsed from spreadsheet</p>
-            </div>
-            <button
-              onClick={() => { setImportModal(false); setImportPreview([]); }}
-              className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="overflow-auto max-h-[380px] rounded-lg border border-slate-200">
+      {/* Import Spreadsheet Modal */}
+      <Modal
+        open={importModal}
+        onClose={() => { setImportModal(false); setImportPreview([]); }}
+        title="Import Preview"
+        subtitle={`${importPreview.length} holiday records parsed from spreadsheet`}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <div className="overflow-auto max-h-[380px] rounded-xl border border-slate-200">
             <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-700 font-medium sticky top-0 border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-700 font-semibold sticky top-0 border-b border-slate-200">
                 <tr>
                   <th className="p-2.5">#</th>
                   <th className="p-2.5">Name</th>
@@ -583,7 +586,7 @@ const HolidayForm = () => {
             </table>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-4 mt-4 border-t border-slate-100">
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
             <Button
               variant="outline"
               size="sm"
@@ -601,105 +604,101 @@ const HolidayForm = () => {
             </Button>
           </div>
         </div>
-      </Modalbox>
+      </Modal>
 
       {/* Add / Edit Holiday Modal */}
-      <Modalbox open={open} onClose={() => setopen(false)}>
-        <div className="w-[92vw] sm:w-[480px] md:w-[520px] p-6 bg-white rounded-2xl">
-          <form onSubmit={handleSave} className="space-y-4">
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-              <h3 className="text-base font-semibold text-slate-900">
-                {isUpdate ? 'Edit Holiday' : 'Add New Holiday'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setopen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <Modal
+        open={open}
+        onClose={() => {
+          setIsUpdate(false);
+          setopen(false);
+          setForm({ name: '', type: 'Public', fromDate: '', toDate: '', description: '' });
+        }}
+        title={isUpdate ? 'Edit Holiday' : 'Add New Holiday'}
+        subtitle="Set official company holidays, festival leaves and public observances"
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="space-y-3.5">
+            <Input
+              label="Holiday Name"
+              required
+              ref={nameInputRef}
+              value={form.name}
+              onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g. Independence Day, Diwali"
+            />
 
-            <div className="space-y-3.5">
-              <Input
-                label="Holiday Name"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <DateInput
+                label="From Date"
                 required
-                ref={nameInputRef}
-                value={form.name}
-                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Independence Day, Diwali"
+                value={form.fromDate}
+                onChange={handleFromDateChange}
               />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <DateInput
-                  label="From Date"
-                  required
-                  value={form.fromDate}
-                  onChange={handleFromDateChange}
-                />
-                <DateInput
-                  label="To Date"
-                  required
-                  align="right"
-                  value={form.toDate}
-                  onChange={(val) => {
-                    const rawVal = val?.target?.value !== undefined ? val.target.value : val;
-                    setForm(prev => ({ ...prev, toDate: rawVal }));
-                  }}
-                />
-              </div>
-
-              <Select
-                label="Holiday Type"
+              <DateInput
+                label="To Date"
                 required
-                value={form.type}
-                onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value }))}
-                options={[
-                  { value: "National", label: "National Holiday" },
-                  { value: "Religious", label: "Religious Holiday" },
-                  { value: "Public", label: "Public / Gazetted" },
-                  { value: "Other", label: "Other" }
-                ]}
-              />
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Description (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 placeholder:text-slate-400 transition-colors"
-                  value={form.description}
-                  onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Additional notes about this holiday..."
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsUpdate(false);
-                  setopen(false);
-                  setForm({ name: '', type: 'Public', fromDate: '', toDate: '', description: '' });
+                align="right"
+                value={form.toDate}
+                onChange={(val) => {
+                  const rawVal = val?.target?.value !== undefined ? val.target.value : val;
+                  setForm(prev => ({ ...prev, toDate: rawVal }));
                 }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-              >
-                {isUpdate ? 'Update Holiday' : 'Create Holiday'}
-              </Button>
+              />
             </div>
-          </form>
-        </div>
-      </Modalbox>
+
+            <Select
+              label="Holiday Type"
+              required
+              value={form.type}
+              onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value }))}
+              options={[
+                { value: "National", label: "National Holiday" },
+                { value: "Religious", label: "Religious Holiday" },
+                { value: "Public", label: "Public / Gazetted" },
+                { value: "Other", label: "Other" }
+              ]}
+            />
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Description (Optional)
+              </label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white focus:bg-white focus:border-teal-700 focus:ring-1 focus:ring-teal-700 px-3 py-2 text-xs text-slate-800 outline-none transition-all placeholder:text-slate-400"
+                value={form.description}
+                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Additional notes about this holiday..."
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsUpdate(false);
+                setopen(false);
+                setForm({ name: '', type: 'Public', fromDate: '', toDate: '', description: '' });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={saving}
+            >
+              {isUpdate ? 'Update Holiday' : 'Save Holiday'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Hidden printable component */}
       <HolidayPrintable ref={printRef} holidays={filteredHolidays} company={company} />

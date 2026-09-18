@@ -135,7 +135,7 @@ const createLedgerForSponsors = async () => {
 
     const User = mongoose.model('User');
     const sponsors = await User.find(
-      { role: 'sponsor' },
+      { role: { $in: ['sponsor', 'agent'] } },
       null,
       { session }
     );
@@ -147,10 +147,10 @@ const createLedgerForSponsors = async () => {
         const [newLedger] = await Ledger.create(
           [
             {
-              name: sp.name || "Sponsor",
+              name: sp.name || "Business Developer",
               sponsorId: sp._id,
               empId: sp.sponsorCode || sp.customerId || "",
-              profileImage: sp.profileImage,
+              profileImage: sp.profileImage || sp.photo || "",
               ledgerType: 'sponsor',
               isVoucherLedger: true
             },
@@ -166,6 +166,10 @@ const createLedgerForSponsors = async () => {
         }
         if (ledger.name !== sp.name) {
           ledger.name = sp.name;
+          updated = true;
+        }
+        if (sp.profileImage && ledger.profileImage !== sp.profileImage) {
+          ledger.profileImage = sp.profileImage;
           updated = true;
         }
         if (ledger.ledgerType !== 'sponsor') { 
@@ -188,7 +192,7 @@ const createLedgerForSponsors = async () => {
     await session.commitTransaction();
   } catch (error) {
     if (session.inTransaction()) await session.abortTransaction();
-    console.error("Sponsor Ledger creation error:", error);
+    console.error("Sponsor/Partner Ledger creation error:", error);
   } finally {
     session.endSession();
   }
@@ -220,7 +224,7 @@ const ledger = async (req, res) => {
       })
       .populate({
         path: 'sponsorId',
-        select: 'name sponsorCode customerId email mobile'
+        select: 'name sponsorCode customerId email mobile role sponsorId photo profileImage'
       });
 
     const { view } = req.query;

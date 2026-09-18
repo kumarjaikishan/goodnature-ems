@@ -81,20 +81,6 @@ const InvestmentDashboard = () => {
             <FileSpreadsheet size={15} className="text-slate-500" />
             Scheme Matrix
           </button>
-          <button
-            onClick={() => navigate('/dashboard/investments/new?type=RD')}
-            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <Plus size={15} />
-            Open R.D. Plan
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/investments/new?type=FD')}
-            className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <Plus size={15} />
-            Open F.D. Plan
-          </button>
         </div>
       </div>
 
