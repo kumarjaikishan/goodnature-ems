@@ -948,6 +948,15 @@ const deleteProductBooking = async (req, res, next) => {
   }
 };
 
+const getProductCollections = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProductCollections(req.query);
+    ApiResponse.success(res, result, 'Product collections retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
