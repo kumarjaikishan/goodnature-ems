@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import viteCompression from 'vite-plugin-compression';
+import { compression } from 'vite-plugin-compression2';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,21 +19,17 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // Brotli (best performance for modern browsers)
-    viteCompression({
-      algorithm: 'brotliCompress',
-      ext: '.br',
-      deleteOriginFile: false,
-      filter: (file) => /\.(js|css|html|svg)$/.test(file),
-      threshold: 1024
-    }),
-    // Gzip (fallback)
-    viteCompression({
+    // Gzip Compression (.gz)
+    compression({
       algorithm: 'gzip',
-      ext: '.gz',
-      deleteOriginFile: false,
-      filter: (file) => /\.(js|css|html|svg)$/.test(file),
-      threshold: 1024
+      threshold: 1024,
+      deleteOriginalAssets: false,
+    }),
+    // Brotli Compression (.br)
+    compression({
+      algorithm: 'brotliCompress',
+      threshold: 1024,
+      deleteOriginalAssets: false,
     })
   ],
   build: {
