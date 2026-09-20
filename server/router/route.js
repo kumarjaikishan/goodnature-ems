@@ -22,8 +22,6 @@ const checkPermission = require('../middleware/checkpermission');
 const checkpermissionchange = require('../middleware/checkpermissionchange');
 const employeemiddlewre = require('../middleware/employee_middleware');
 const { exec } = require("child_process");
-const { Create_Order, verify_payment, webhook, checkstatus } = require('../services/payment');
-const { getSubscriptionStatus, getAllTransactions } = require('../services/subscriptions');
 const rateLimit = require('express-rate-limit');
 
 // Rate limiter for authentication endpoints (prevents brute-force attacks)
@@ -80,12 +78,6 @@ router.route('/updateemployee').post(authmiddlewre, authorizeRoles('superadmin',
 router.route('/deleteemployee').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("employee", 4), admin.deleteemployee);
 router.route('/enrollFace').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), admin.enrollFace);
 router.route('/deletefaceenroll').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 4), admin.deletefaceenroll);
-
-router.route('/create-order').post(authmiddlewre, Create_Order);
-router.route('/verify-payment').post(authmiddlewre, verify_payment);
-// router.route('/checkstatus').get( checkstatus);
-router.route("/subscription-status").get(authmiddlewre, getSubscriptionStatus);
-router.route("/getAllTransactions").get(authmiddlewre, getAllTransactions);
 
 router.route('/allAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), attendance.allAttandence);
 router.route('/attandence/list').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getAttendanceList);

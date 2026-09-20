@@ -41,7 +41,7 @@
 3. **Role Segregation**:
    - Never allow standard `employee`, `customer`, or `sponsor` roles to access `/dashboard` or admin endpoints without explicit checks in `Role_middleware.js` and `checkPermission`.
 4. **Secrets & Keys**:
-   - Never hardcode secret keys or database connection strings in source files. All secrets (`JWT_Key`, `db`, `CLOUDINARY_*`, `RAZORPAY_*`) belong in `.env`.
+   - Never hardcode secret keys or database connection strings in source files. All secrets (`JWT_Key`, `db`, `CLOUDINARY_*`) belong in `.env`.
 
 ---
 

@@ -16,7 +16,6 @@ const route = require('./router/route');
 const esslRoutes = require('./essl');
 const TelegramRoute = require('./telegramHook');
 const { eventsHandler } = require('./utils/sse');
-const { webhook } = require('./services/payment');
 const { apiMonitorMiddleware } = require('./utils/apiMonitor');
 require('./conn/conn');
 
@@ -46,12 +45,6 @@ app.use(cors({
   },
   credentials: true
 }));
-
-app.post(
-  "/api/webhook",
-  express.raw({ type: "application/json" }),
-  webhook
-);
 
 
 // ----------------------

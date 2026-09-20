@@ -16,8 +16,7 @@
 - **Authentication**: JWT (`jsonwebtoken` v9.0.2) + `bcrypt`
 - **Media Storage**: Cloudinary (`cloudinary` v2.6.1) + Multer
 - **Date & Timezone**: `dayjs` (with UTC, timezone, and customParseFormat plugins)
-- **Task Scheduling**: `node-cron` v4.2.1
-- **Payments & External**: Razorpay v2.9.6, Telegram Webhooks, Axios
+- **Payments & External**: Telegram Webhooks, Axios
 
 ### Frontend (`client/`)
 - **Build Tool & Framework**: Vite v6.3.5, React 19 (`react` v19.1.0)
