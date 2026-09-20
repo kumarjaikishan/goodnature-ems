@@ -1,0 +1,1 @@
+import{d as e}from"./vendor-redux-CRpFcnfG.js";var t=(t,n)=>{let r=e(e=>e.user?.profile);if(!r)return!1;if(r.role===`superadmin`||r.role===`developer`)return!0;let i=r.permissions?.[t];return i?i.includes(n):!1};export{t};
