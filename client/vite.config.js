@@ -52,7 +52,7 @@ export default defineConfig({
     }
   },
   server: {
-    allowedHosts: ['local.battlefiesta.in'],
+    allowedHosts: ['local.battlefiesta.in', 'demo.goodfeelsd.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:5008',

@@ -24,6 +24,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://local.battlefiesta.in",
+  "http://demo.goodfeelsd.com",
+  "https://demo.goodfeelsd.com",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
@@ -32,9 +34,12 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, or server-to-server)
     if (!origin) return callback(null, true);
 
-    // Allow configured origins, localhost, or vercel preview deployments
+    // Allow configured origins, localhost, vercel preview deployments, or goodfeelsd.com
     const isAllowed =
       allowedOrigins.includes(origin) ||
+      origin.endsWith('.goodfeelsd.com') ||
+      origin === 'http://demo.goodfeelsd.com' ||
+      origin === 'https://demo.goodfeelsd.com' ||
       origin.endsWith('.vercel.app') ||
       /^http:\/\/localhost:\d+$/.test(origin);
 
