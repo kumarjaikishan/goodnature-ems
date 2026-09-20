@@ -160,6 +160,8 @@ router.delete('/products/:id', checkPermission('plot_inventory', 4), ctrl.delete
 router.get('/product-bookings', checkPermission('plot_booking', 1), ctrl.getProductBookings);
 router.post('/product-bookings', checkPermission('plot_booking', 2), ctrl.createProductBooking);
 router.get('/product-bookings/:id', checkPermission('plot_booking', 1), ctrl.getProductBookingById);
+router.put('/product-bookings/:id', checkPermission('plot_booking', 3), ctrl.updateProductBooking);
+router.delete('/product-bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteProductBooking);
 router.post('/product-bookings/:id/collections', checkPermission('plot_booking', 2), ctrl.collectProductInstallment);
 router.get('/product-collections', checkPermission('plot_collection', 1), ctrl.getProductCollections);
 

@@ -543,9 +543,57 @@ class PlotProductService {
     product.unitsSold = (product.unitsSold || 0) + qty;
     await product.save();
 
-
     const rateConfig = await this.getRateConfig();
     return this.enrichBookingWithDues(bookingDoc.toObject(), rateConfig, new Date());
+  }
+
+  async updateProductBooking(id, data, userId) {
+    const booking = await PlotProductBooking.findById(id);
+    if (!booking) {
+      throw ApiError.notFound('Product booking not found');
+    }
+
+    const {
+      bookingDate,
+      status,
+      remarks,
+    } = data;
+
+    if (bookingDate) booking.bookingDate = new Date(bookingDate);
+    if (status) booking.status = status;
+    if (remarks !== undefined) booking.remarks = remarks;
+
+    await booking.save();
+    const rateConfig = await this.getRateConfig();
+    return this.enrichBookingWithDues(booking.toObject(), rateConfig, new Date());
+  }
+
+  async deleteProductBooking(id) {
+    const booking = await PlotProductBooking.findById(id);
+    if (!booking) {
+      throw ApiError.notFound('Product booking not found');
+    }
+
+    // Check if installments or collections exist beyond downpayment
+    const hasCollections = Array.isArray(booking.collections) && booking.collections.length > 0;
+    const paidInstallments = Array.isArray(booking.installments) && booking.installments.some((i) => i.status === 'PAID' || i.paidAmount > 0);
+
+    if (hasCollections || paidInstallments) {
+      throw ApiError.badRequest('Cannot delete product booking because payment collections/installments have already been recorded. Please cancel the booking instead.');
+    }
+
+    // Restore unitsSold on Product
+    if (booking.productId) {
+      await PlotProduct.findByIdAndUpdate(booking.productId, {
+        $inc: { unitsSold: -Math.max(1, Number(booking.quantity) || 1) }
+      });
+    }
+
+    // Remove any synced commissions
+    await PlotSponsorCommission.deleteMany({ bookingId: booking._id });
+
+    await PlotProductBooking.findByIdAndDelete(id);
+    return { message: 'Product booking deleted successfully' };
   }
 
   async collectProductInstallment(bookingId, data, userId) {

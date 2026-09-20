@@ -930,10 +930,19 @@ const collectProductInstallment = async (req, res, next) => {
   }
 };
 
-const getProductCollections = async (req, res, next) => {
+const updateProductBooking = async (req, res, next) => {
   try {
-    const result = await plotProductService.getProductCollections(req.query);
-    ApiResponse.success(res, result);
+    const result = await plotProductService.updateProductBooking(req.params.id, req.body, req.user?._id || req.user?.id);
+    ApiResponse.success(res, result, 'Product booking updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteProductBooking = async (req, res, next) => {
+  try {
+    const result = await plotProductService.deleteProductBooking(req.params.id);
+    ApiResponse.success(res, result, 'Product booking deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -1035,6 +1044,8 @@ module.exports = {
   getProductBookings,
   getProductBookingById,
   createProductBooking,
+  updateProductBooking,
+  deleteProductBooking,
   collectProductInstallment,
   getProductCollections,
 };
