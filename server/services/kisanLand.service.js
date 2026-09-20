@@ -674,6 +674,24 @@ class KisanLandService {
           : Math.max(0, (agr.totalSqFt || 0) - (agr.totalAllocatedSqFt || 0));
 
       if (availSqFt > 0) {
+        const parcels = (agr.landParcels || []).map((p) => {
+          const pAvail =
+            p.availableSqFt !== undefined && p.availableSqFt !== null
+              ? p.availableSqFt
+              : Math.max(0, (p.totalSqFt || 0) - (p.allocatedSqFt || 0));
+          return {
+            parcelId: p._id,
+            mauja: p.mauja || agr.mauja || '',
+            thanaNumber: p.thanaNumber || agr.thanaNumber || '',
+            khataNumber: p.khataNumber || agr.khataNumber || '',
+            khesraNumber: p.khesraNumber || agr.khesraNumber || '',
+            totalSqFt: p.totalSqFt || 0,
+            allocatedSqFt: p.allocatedSqFt || 0,
+            availableSqFt: pAvail,
+            availableDismil: Math.round((pAvail / 435.6) * 100) / 100,
+          };
+        });
+
         sources.push({
           sourceType: 'AGREEMENT',
           agreementId: agr._id,
@@ -688,6 +706,19 @@ class KisanLandService {
           thanaNumber: agr.thanaNumber || agr.landParcels?.[0]?.thanaNumber || '',
           availableSqFt: availSqFt,
           availableDismil: Math.round((availSqFt / 435.6) * 100) / 100,
+          parcels: parcels.length > 0 ? parcels : [
+            {
+              parcelId: null,
+              mauja: agr.mauja || '',
+              thanaNumber: agr.thanaNumber || '',
+              khataNumber: agr.khataNumber || '',
+              khesraNumber: agr.khesraNumber || 'General Parcel',
+              totalSqFt: agr.totalSqFt || availSqFt,
+              allocatedSqFt: agr.totalAllocatedSqFt || 0,
+              availableSqFt: availSqFt,
+              availableDismil: Math.round((availSqFt / 435.6) * 100) / 100,
+            }
+          ],
         });
       }
     }

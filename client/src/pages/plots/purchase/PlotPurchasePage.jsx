@@ -328,13 +328,19 @@ const PlotPurchasePage = () => {
         ? agr.purchasers.map((p) => ({
             name: p.name || '',
             contact: p.contact || p.mobile || '',
+            mobile: p.mobile || p.contact || '',
             aadhaarNumber: p.aadhaarNumber || '',
+            panNumber: p.panNumber || '',
+            address: p.address || '',
           }))
         : [
             {
               name: '',
               contact: '',
+              mobile: '',
               aadhaarNumber: '',
+              panNumber: '',
+              address: '',
             },
           ],
       attachments,

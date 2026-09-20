@@ -39,7 +39,65 @@ const getEntryRateLabel = (entry) => {
   return '0% Inc.';
 };
 
-const renderSponsorTransactions = (entries) => {
+const renderTransactionNatureBadge = (entry) => {
+  const isPrd = entry.businessType === 'PLOT_PRODUCT';
+  if (isPrd) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+        Plot Product Collection
+      </span>
+    );
+  }
+
+  const isInv = entry.isInvestment || entry.businessType === 'INVESTMENT_RD_FD';
+  if (isInv) {
+    const accType = entry.accountId?.accountType || 'RD/FD';
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+        {accType} Plan Deposit
+      </span>
+    );
+  }
+
+
+  const rType = entry.receiptId?.receiptType;
+  if (rType === 'DOWNPAYMENT') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+        Down Payment (D.P)
+      </span>
+    );
+  }
+  if (rType === 'INSTALLMENT') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+        EMI Installment
+      </span>
+    );
+  }
+  if (rType === 'BOOKING') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+        Booking Token
+      </span>
+    );
+  }
+  if (rType === 'FULL_PAYMENT') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+        Full Payment
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+      Plot Collection
+    </span>
+  );
+};
+
+const renderSponsorTransactions = (entries, isPartner = false) => {
   if (!entries || entries.length === 0) {
     return (
       <div className="p-4 text-center text-xs text-slate-400 italic bg-slate-50/50 rounded-xl border border-slate-100">
@@ -78,7 +136,7 @@ const renderSponsorTransactions = (entries) => {
             <tr>
               <th className="p-2.5">Receipt & Date</th>
               <th className="p-2.5">Booking / Plot</th>
-              <th className="p-2.5">Customer / Associate</th>
+              <th className="p-2.5">Customer & Transaction Nature</th>
               <th className="p-2.5 text-right">Collection Amt</th>
               <th className="p-2.5 text-center">Achieved Slab Inc. %</th>
               <th className="p-2.5 text-right">Incentive to Credit</th>
@@ -128,11 +186,14 @@ const renderSponsorTransactions = (entries) => {
                   </td>
                   <td className="p-2.5 text-slate-700">
                     <div className="font-medium text-slate-800">{custName}</div>
-                    {bookingSponsor && (
-                      <div className="text-[11px] text-slate-500">
-                        Associate: {bookingSponsor.name || ''} {bookingSponsor.sponsorCode ? `(${bookingSponsor.sponsorCode})` : ''}
-                      </div>
-                    )}
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      {renderTransactionNatureBadge(entry)}
+                      {isPartner && bookingSponsor && (
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          (By {bookingSponsor.name || 'Associate'})
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="p-2.5 text-right font-semibold text-slate-700">
                     ₹{Number(entry.collectionAmount || 0).toLocaleString('en-IN')}
@@ -665,9 +726,16 @@ const PlotIncentivesPage = () => {
                                         ₹{Number(sp.totalBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                       <td className="p-3 text-center">
-                                        <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-                                          {sp.slabLabel || 'Standard'}
-                                        </span>
+                                        <div className="inline-flex flex-col items-center gap-1">
+                                          <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                                            {sp.slabLabel || 'Standard'}
+                                          </span>
+                                          {sp.rewardTitle && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 shadow-2xs">
+                                              🎁 {sp.rewardTitle}
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="p-3 text-center">
                                         <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -787,9 +855,16 @@ const PlotIncentivesPage = () => {
                                         ₹{Number(sp.totalBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                       <td className="p-3 text-center">
-                                        <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-                                          {sp.slabLabel || 'Standard'}
-                                        </span>
+                                        <div className="inline-flex flex-col items-center gap-1">
+                                          <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                                            {sp.slabLabel || 'Standard'}
+                                          </span>
+                                          {sp.rewardTitle && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 shadow-2xs">
+                                              🎁 {sp.rewardTitle}
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="p-3 text-center">
                                         <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-800 border border-indigo-200">
@@ -803,7 +878,7 @@ const PlotIncentivesPage = () => {
                                     {isExpanded && (
                                       <tr className="bg-slate-50/70 border-b border-slate-200">
                                         <td colSpan={5} className="p-3">
-                                          {renderSponsorTransactions(sp.entries)}
+                                          {renderSponsorTransactions(sp.entries, true)}
                                         </td>
                                       </tr>
                                     )}

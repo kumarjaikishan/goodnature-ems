@@ -163,7 +163,7 @@ export const StepCustomer = ({
               <span className="font-semibold text-slate-800">{selectedCustomer.mobile}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase">Sponsor / Agent</span>
+              <span className="text-slate-400 block text-[10px] uppercase">Business Associate</span>
               <span className="font-semibold text-slate-800">
                 {selectedCustomer.sponsorId
                   ? `${selectedCustomer.sponsorId.name} (${selectedCustomer.sponsorId.sponsorCode || ''})`
@@ -186,6 +186,13 @@ export const StepCustomer = ({
           </p>
         </div>
       )}
+
+      {/* Bottom Actions Bar */}
+      <div className="flex items-center justify-end border-t border-slate-200 pt-4 mt-1">
+        <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight}>
+          Next: Choose Plot
+        </Button>
+      </div>
     </div>
   );
 };

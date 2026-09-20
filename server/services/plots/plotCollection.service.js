@@ -903,16 +903,32 @@ class PlotCollectionService {
 
       const netPlotCost = (receipt.bookingId.plotValue || 0) - (receipt.bookingId.discount || 0);
       let cumulativePrincipalPaid = 0;
+      let cumulativeDownpaymentPaid = 0;
 
       for (const r of allReceipts) {
         const principalPaid = (r.amount || 0) - (r.lateFinePaid || 0);
         cumulativePrincipalPaid += principalPaid;
+        if (r.receiptType === 'DOWNPAYMENT' || r.receiptType === 'BOOKING') {
+          cumulativeDownpaymentPaid += principalPaid;
+        }
         if (r._id.toString() === receipt._id.toString()) {
           break;
         }
       }
 
+      // Check downpayment installment if exists
+      const dpInstallment = await PlotInstallment.findOne({
+        bookingId: receipt.bookingId._id,
+        installmentNumber: 0,
+      });
+
+      const targetDpAmount = dpInstallment
+        ? (dpInstallment.dueAmount || 0)
+        : (receipt.bookingId.downpaymentAmount !== undefined ? receipt.bookingId.downpaymentAmount : (receipt.bookingId.bookingAmount || 0));
+
       receiptObj.asOfRemainingAmount = Math.max(0, netPlotCost - cumulativePrincipalPaid);
+      receiptObj.totalDownpaymentAmount = targetDpAmount;
+      receiptObj.asOfRemainingDownpayment = Math.max(0, targetDpAmount - cumulativeDownpaymentPaid);
     }
 
     return receiptObj;

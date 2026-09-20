@@ -5,7 +5,16 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotBooking',
-      required: true,
+      required: false,
+    },
+    productBookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProductBooking',
+      default: null,
+    },
+    receiptNumber: {
+      type: String,
+      default: '',
     },
     receiptId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -82,7 +91,7 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
     },
     businessType: {
       type: String,
-      enum: ['PLOT_SALE', 'INVESTMENT_RD_FD'],
+      enum: ['PLOT_SALE', 'INVESTMENT_RD_FD', 'PLOT_PRODUCT'],
       default: 'PLOT_SALE',
     },
     periodVolume: {
@@ -91,6 +100,10 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       min: 0,
     },
     slabLabel: {
+      type: String,
+      default: '',
+    },
+    rewardTitle: {
       type: String,
       default: '',
     },

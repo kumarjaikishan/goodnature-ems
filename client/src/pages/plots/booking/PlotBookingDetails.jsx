@@ -45,6 +45,12 @@ const PlotBookingDetails = () => {
     refundDate: new Date().toISOString().split('T')[0],
   });
 
+  // Approval & Rejection state
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectLoading, setRejectLoading] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   const fetchBookingData = () => {
     if (!id) return;
     setLoading(true);
@@ -68,6 +74,44 @@ const PlotBookingDetails = () => {
         toast.error('Failed to load plot booking details');
         setLoading(false);
       });
+  };
+
+  const handleApproveBooking = async () => {
+    if (!window.confirm('Are you sure you want to APPROVE this plot booking? It will become ACTIVE.')) {
+      return;
+    }
+    try {
+      setApproveLoading(true);
+      await api.put(`/plots/bookings/${id}/approve`);
+      toast.success('Plot booking approved and activated successfully!');
+      fetchBookingData();
+    } catch (err) {
+      console.error('Failed to approve booking:', err);
+      toast.error(err.response?.data?.message || 'Failed to approve booking');
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
+  const handleRejectBooking = async (e) => {
+    e.preventDefault();
+    if (!rejectionReason.trim()) {
+      toast.error('Please specify a reason for rejecting this booking');
+      return;
+    }
+    try {
+      setRejectLoading(true);
+      await api.put(`/plots/bookings/${id}/reject`, { reason: rejectionReason });
+      toast.success('Booking rejected. Plot has been released back to AVAILABLE status.');
+      setRejectModalOpen(false);
+      setRejectionReason('');
+      fetchBookingData();
+    } catch (err) {
+      console.error('Failed to reject booking:', err);
+      toast.error(err.response?.data?.message || 'Failed to reject booking');
+    } finally {
+      setRejectLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -128,11 +172,55 @@ const PlotBookingDetails = () => {
           >
             <ArrowLeft size={16} /> Back
           </button>
-
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900 font-mono">
+                {booking.bookingNumber}
+              </h2>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  booking.status === 'ACTIVE'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : booking.status === 'PENDING'
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : booking.status === 'REJECTED'
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : booking.status === 'CANCELLED'
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : booking.status === 'COMPLETED'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                {booking.status}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Customer: <strong className="text-slate-700">{customer.name || booking.customerName || '-'}</strong> | Plot: <strong className="text-teal-800">#{plot.plotNumber}</strong>
+            </p>
+          </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          {booking.status === 'PENDING' && (
+            <button
+              onClick={handleApproveBooking}
+              disabled={approveLoading}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
+            >
+              <CheckCircle2 size={16} /> {approveLoading ? 'Approving...' : 'Approve'}
+            </button>
+          )}
+          {booking.status === 'PENDING' && (
+            <button
+              onClick={() => setRejectModalOpen(true)}
+              disabled={approveLoading}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
+            >
+              <RotateCcw size={15} className="text-rose-600" /> Reject
+            </button>
+          )}
           <button
             onClick={() => window.open(`/dashboard/plots/certificates/${booking._id}`, '_blank')}
             className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
@@ -201,6 +289,55 @@ const PlotBookingDetails = () => {
           )}
         </div>
       </div>
+
+      {/* Pending Authorization Banner */}
+      {booking.status === 'PENDING' && (
+        <div className="p-4 bg-gradient-to-r from-amber-50 via-amber-100/60 to-orange-50 border border-amber-300 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-2xs shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide">
+                Booking Authorization Required (Pending Approval Stage)
+              </h3>
+              <p className="text-xs text-amber-900 mt-0.5">
+                This booking was submitted in <strong>PENDING</strong> status. An authorized administrator can review and approve it to activate the contract, or reject it to release the plot and restore land stock.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setRejectModalOpen(true)}
+              disabled={approveLoading}
+              className="px-4 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+            >
+              <RotateCcw size={14} /> Reject Booking
+            </button>
+            <button
+              onClick={handleApproveBooking}
+              disabled={approveLoading}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+            >
+              <CheckCircle2 size={15} /> {approveLoading ? 'Approving...' : 'Approve Booking'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rejected Status Banner */}
+      {booking.status === 'REJECTED' && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-xs text-rose-900">
+          <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold block text-sm">Booking Rejected:</span>
+            <span>
+              This booking was rejected on {booking.rejectedAt ? new Date(booking.rejectedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}.
+              {booking.rejectionReason ? ` Reason: "${booking.rejectionReason}"` : ''} The plot and land stock allocations have been restored to available stock.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* KPI Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -549,7 +686,7 @@ const PlotBookingDetails = () => {
                       {src.sourceType === 'REGISTRY_DEED' ? (
                         <>Registry Deed #{src.deedNumber || 'N/A'}</>
                       ) : (
-                        <>Agreement #{src.agreementNumber || 'N/A'}</>
+                        <>Agreement #{src.agreementNumber || 'N/A'}{src.khesraNumber ? ` (Plot #${src.khesraNumber})` : ''}</>
                       )}
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-teal-800 border border-teal-200 uppercase">
@@ -557,10 +694,14 @@ const PlotBookingDetails = () => {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-[11px] pt-2 border-t border-teal-100 text-slate-600">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-2 border-t border-teal-100 text-slate-600">
                     <div>
                       <span className="text-slate-400 block text-[9px] uppercase font-bold">Mauja / मौजा</span>
                       <span className="font-semibold text-slate-800">{src.mauja || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Thana # / थाना</span>
+                      <span className="font-semibold text-slate-800">{src.thanaNumber || '-'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[9px] uppercase font-bold">Khata / Khesra</span>
@@ -568,7 +709,7 @@ const PlotBookingDetails = () => {
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[9px] uppercase font-bold">Allocated Area</span>
-                      <span className="font-bold text-teal-800">{src.allocatedSqFt || 0} SqFt ({src.allocatedDismil || 0} Dismil)</span>
+                      <span className="font-bold text-teal-800">{src.allocatedSqFt || 0} SqFt ({src.allocatedDismil || (src.allocatedSqFt ? (src.allocatedSqFt / 435.6).toFixed(2) : 0)} Dismil)</span>
                     </div>
                   </div>
                 </div>
@@ -916,6 +1057,62 @@ const PlotBookingDetails = () => {
                 className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition cursor-pointer"
               >
                 {refundLoading ? 'Processing...' : 'Confirm Cancellation & Issue Refund'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modalbox>
+
+      {/* ── MODAL: REJECT BOOKING ── */}
+      <Modalbox open={rejectModalOpen} onClose={() => setRejectModalOpen(false)} outside={!rejectLoading}>
+        <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-base font-bold text-rose-900 flex items-center gap-2">
+              <RotateCcw size={18} className="text-rose-600" />
+              Reject Plot Booking
+            </h3>
+            <button onClick={() => setRejectModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+          </div>
+
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+            <p className="font-bold flex items-center gap-1.5">
+              <AlertTriangle size={14} /> Rejection Warning
+            </p>
+            <p className="text-[11px] text-amber-700">
+              Rejecting will change this booking to <strong>REJECTED</strong>, release Plot #{plot.plotNumber} back to <strong>AVAILABLE</strong>, and restore allocated land stock to the respective Kisan agreements.
+            </p>
+          </div>
+
+          <form onSubmit={handleRejectBooking} className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Rejection Reason *
+              </label>
+              <textarea
+                rows={3}
+                required
+                className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-rose-600 outline-none p-3 rounded-xl text-xs font-medium resize-none"
+                placeholder="Reason for rejecting this booking (e.g., credit check failed, customer withdrew, documentation issue)..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setRejectModalOpen(false)}
+                disabled={rejectLoading}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={rejectLoading || !rejectionReason.trim()}
+                className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition cursor-pointer"
+              >
+                {rejectLoading ? 'Rejecting...' : 'Confirm Rejection'}
               </button>
             </div>
           </form>

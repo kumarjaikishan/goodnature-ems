@@ -57,14 +57,14 @@ export default function PlotBookingEditPage() {
   const [dpType, setDpType] = useState('SQFT_RATE'); // 'SQFT_RATE', 'PERCENT', or 'FLAT'
   const [dpVal, setDpVal] = useState(500);
   const [emiFrequency, setEmiFrequency] = useState('MONTHLY'); // 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'
-  const [installmentCount, setInstallmentCount] = useState(8);
+  const [installmentCount, setInstallmentCount] = useState(1);
 
   // Form State
   const [form, setForm] = useState({
     customerId: '',
     plotId: '',
     bookingDate: new Date().toISOString().split('T')[0],
-    tenureMonths: 8,
+    tenureMonths: 1,
     bookingType: 'BOOKING',
     holdExpiryDays: '7',
     downpaymentDays: 90,
@@ -940,7 +940,7 @@ export default function PlotBookingEditPage() {
                         pattern="[0-9]*"
                         value={installmentCount}
                         onChange={(e) => setInstallmentCount(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="8"
+                        placeholder="1"
                         required
                       />
                       <span className="text-[11px] text-slate-500 font-medium truncate">

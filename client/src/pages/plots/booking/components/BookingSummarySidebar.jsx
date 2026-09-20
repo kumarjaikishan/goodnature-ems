@@ -30,8 +30,8 @@ export const BookingSummarySidebar = ({
   emiRatePerSqFt,
   customDpRate,
   emiFrequency = 'MONTHLY',
-  installmentCount = 8,
-  totalTenureMonths = 8,
+  installmentCount = 1,
+  totalTenureMonths = 1,
   selectedPremiumHeads = [],
 }) => {
   const plotArea = selectedPlot?.plotSize || selectedPlot?.area || 0;

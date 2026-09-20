@@ -64,6 +64,10 @@ const investmentCommissionSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    rewardTitle: {
+      type: String,
+      default: '',
+    },
     status: {
       type: String,
       enum: ['EARNED', 'HOLD', 'PAID', 'CANCELLED'],

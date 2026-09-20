@@ -8,12 +8,10 @@ import {
   Layers,
   Users,
   Compass,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { PhoneInput, AadhaarInput, PanInput, SearchableSelect } from '../../../../components/ui';
+import { SearchableSelect } from '../../../../components/ui';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 
@@ -39,6 +37,7 @@ const EditAgreementModal = ({
     const updated = [...(editAgrForm.farmers || [])];
     updated[idx] = {
       ...updated[idx],
+      sellerId: selectedSeller._id,
       name: selectedSeller.name || '',
       guardianName: selectedSeller.guardianName || '',
       relation: selectedSeller.relation || 'Father',
@@ -57,11 +56,13 @@ const EditAgreementModal = ({
     const updated = [...(editAgrForm.purchasers || [])];
     updated[idx] = {
       ...updated[idx],
+      purchaserId: selectedPurchaser._id,
       name: selectedPurchaser.name || '',
-      contact: selectedPurchaser.contact || '',
-      mobile: selectedPurchaser.mobile || '',
+      contact: selectedPurchaser.contact || selectedPurchaser.mobile || '',
+      mobile: selectedPurchaser.mobile || selectedPurchaser.contact || '',
       aadhaarNumber: selectedPurchaser.aadhaarNumber || '',
       panNumber: selectedPurchaser.panNumber || '',
+      address: selectedPurchaser.address || '',
     };
     setEditAgrForm({ ...editAgrForm, purchasers: updated });
     toast.success(`Selected purchaser: ${selectedPurchaser.name}`);
@@ -265,6 +266,13 @@ const EditAgreementModal = ({
       toast.error('Please keep at least one land parcel.');
       return;
     }
+    const validFarmers = (editAgrForm.farmers || []).filter((f) => f && f.name && f.name.trim());
+    if (validFarmers.length === 0) {
+      toast.error('Please choose at least one Land Seller from the directory.');
+      return;
+    }
+    const validPurchasers = (editAgrForm.purchasers || []).filter((p) => p && p.name && p.name.trim());
+    setEditAgrForm((prev) => ({ ...prev, farmers: validFarmers, purchasers: validPurchasers }));
     handleSaveAgreementEdit(e);
   };
 
@@ -364,117 +372,106 @@ const EditAgreementModal = ({
               </button>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {(editAgrForm.farmers || []).map((farmer, idx) => (
-                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 relative">
+                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 relative">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                    <span className="text-[11px] font-bold text-slate-700">Land Seller #{idx + 1}</span>
                     <div className="flex items-center gap-2">
-                      {Array.isArray(sellers) && sellers.length > 0 && (
-                        <div className="flex items-center gap-1.5 min-w-[220px] sm:min-w-[280px]">
-                          <span className="text-[10px] text-teal-800 font-semibold whitespace-nowrap">Choose Land Seller:</span>
-                          <div className="flex-1">
-                            <SearchableSelect
-                              size="sm"
-                              placeholder="-- Search / Select Land Seller --"
-                              searchPlaceholder="Search by name, mobile, father..."
-                              options={sellers.map((s) => ({
-                                value: s._id,
-                                label: s.name,
-                                subtitle: `${s.mobile ? s.mobile : ''}${s.guardianName ? ` • s/o ${s.guardianName}` : ''}${s.address ? ` • ${s.address}` : ''}`.trim(),
-                              }))}
-                              value=""
-                              onChange={(val) => {
-                                if (val) {
-                                  handleSelectExistingFarmer(idx, val);
-                                }
-                              }}
-                              allowClear={false}
-                              containerClassName="w-full"
-                              className="text-[11px] h-7 border-teal-300 bg-white"
-                            />
-                          </div>
+                      <span className="w-5 h-5 bg-teal-700 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-slate-800">Land Seller #{idx + 1}</span>
+                    </div>
+
+                    {(editAgrForm.farmers || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeFarmerRow(idx)}
+                        className="text-rose-500 hover:bg-rose-50 px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-1"
+                        title="Remove land seller"
+                      >
+                        <Trash2 size={14} />
+                        <span>Remove Seller</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Search / Select Dropdown */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Choose Land Seller from Directory *
+                    </label>
+                    <SearchableSelect
+                      placeholder="-- Search / Select Land Seller (Name, Mobile, Father, Village) --"
+                      searchPlaceholder="Search by name, mobile, father, address..."
+                      options={(sellers || []).map((s) => ({
+                        value: s._id,
+                        label: s.name,
+                        subtitle: `${s.mobile ? s.mobile : ''}${s.guardianName ? ` • s/o ${s.guardianName}` : ''}${s.address ? ` • ${s.address}` : ''}`.trim(),
+                      }))}
+                      value={
+                        farmer.sellerId ||
+                        (sellers.find((s) => s.name === farmer.name && (s.mobile === farmer.mobile || !farmer.mobile))?._id || '')
+                      }
+                      onChange={(val) => {
+                        if (val) {
+                          handleSelectExistingFarmer(idx, val);
+                        }
+                      }}
+                      allowClear={false}
+                      containerClassName="w-full"
+                      className="text-xs h-9 border-teal-300 bg-white rounded-xl shadow-2xs"
+                    />
+                  </div>
+
+                  {/* Display Selected Seller Details Card */}
+                  {farmer.name ? (
+                    <div className="p-3 bg-white border border-teal-200/70 rounded-xl shadow-2xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Seller Full Name</span>
+                          <span className="font-bold text-teal-900 text-xs block truncate" title={farmer.name}>
+                            {farmer.name}
+                          </span>
                         </div>
-                      )}
-                      {(editAgrForm.farmers || []).length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeFarmerRow(idx)}
-                          className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg text-xs font-bold cursor-pointer"
-                          title="Remove land seller"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Guardian / Father</span>
+                          <span className="font-semibold text-slate-700 text-xs block truncate" title={farmer.guardianName || '-'}>
+                            {farmer.guardianName ? `${farmer.relation || 'Father'}: ${farmer.guardianName}` : '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Mobile Number</span>
+                          <span className="font-semibold text-slate-700 text-xs block truncate">
+                            {farmer.mobile || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Aadhaar Number</span>
+                          <span className="font-medium text-slate-700 text-xs block font-mono">
+                            {farmer.aadhaarNumber || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">PAN Card</span>
+                          <span className="font-medium text-slate-700 text-xs block font-mono uppercase">
+                            {farmer.panNumber || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Village Address</span>
+                          <span className="font-medium text-slate-700 text-xs block truncate" title={farmer.address || '-'}>
+                            {farmer.address || '-'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Seller Full Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Seller Full Name"
-                        className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-800 outline-none"
-                        value={farmer.name || ''}
-                        onChange={(e) => handleFarmerChange(idx, 'name', e.target.value)}
-                      />
+                  ) : (
+                    <div className="p-3 bg-amber-50/70 border border-dashed border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-center gap-2">
+                      <Users size={14} className="text-amber-600 shrink-0" />
+                      <span>Select a land seller from the directory dropdown above to populate their details.</span>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Guardian / Father Name</label>
-                      <input
-                        type="text"
-                        placeholder="Guardian / Father Name"
-                        className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-medium outline-none"
-                        value={farmer.guardianName || ''}
-                        onChange={(e) => handleFarmerChange(idx, 'guardianName', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Mobile Number</label>
-                      <PhoneInput
-                        size="sm"
-                        placeholder="Mobile Number"
-                        className="h-8 text-xs font-medium"
-                        value={farmer.mobile || ''}
-                        onChange={(e) => handleFarmerChange(idx, 'mobile', e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Aadhaar Number</label>
-                      <AadhaarInput
-                        size="sm"
-                        placeholder="12 digit Aadhaar No."
-                        className="h-8 text-xs font-medium"
-                        value={farmer.aadhaarNumber || ''}
-                        onChange={(e) => handleFarmerChange(idx, 'aadhaarNumber', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">PAN Card</label>
-                      <PanInput
-                        size="sm"
-                        placeholder="10 character PAN No."
-                        className="h-8 text-xs"
-                        value={farmer.panNumber || ''}
-                        onChange={(e) => handleFarmerChange(idx, 'panNumber', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Village Address</label>
-                      <input
-                        type="text"
-                        placeholder="Village / Full Address"
-                        className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-medium outline-none"
-                        value={farmer.address || ''}
-                        onChange={(e) => handleFarmerChange(idx, 'address', e.target.value)}
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -586,7 +583,7 @@ const EditAgreementModal = ({
                         required
                         placeholder="0"
                         className="h-8 w-full bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-lg px-2 text-xs font-bold text-slate-900 outline-none"
-                        value={parcel.araziDismil !== undefined ? parcel.araziDismil : ''}
+                        value={parcel.araziDismil}
                         onChange={(e) => handleParcelChange(idx, 'araziDismil', e.target.value)}
                       />
                     </div>
@@ -599,7 +596,7 @@ const EditAgreementModal = ({
                         type="number"
                         placeholder="0"
                         className="h-8 w-full bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-lg px-2 text-xs font-medium text-slate-800 outline-none"
-                        value={parcel.ratePerDismil !== undefined ? parcel.ratePerDismil : ''}
+                        value={parcel.ratePerDismil || ''}
                         onChange={(e) => handleParcelChange(idx, 'ratePerDismil', e.target.value)}
                       />
                     </div>
@@ -612,7 +609,7 @@ const EditAgreementModal = ({
                         type="number"
                         placeholder="0"
                         className="h-8 w-full bg-emerald-50/60 border border-emerald-300 focus:ring-2 focus:ring-emerald-600 rounded-lg px-2 text-xs font-bold text-emerald-800 outline-none"
-                        value={parcel.totalAmount !== undefined ? parcel.totalAmount : ''}
+                        value={parcel.totalAmount || ''}
                         onChange={(e) => handleParcelChange(idx, 'totalAmount', e.target.value)}
                       />
                       <span className="text-[10px] text-emerald-700 font-medium mt-0.5 block">
@@ -728,84 +725,100 @@ const EditAgreementModal = ({
               </button>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {(editAgrForm.purchasers || []).map((purchaser, idx) => (
-                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 relative">
+                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 relative">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                    <span className="text-[11px] font-bold text-slate-700">Purchaser / Buyer #{idx + 1}</span>
                     <div className="flex items-center gap-2">
-                      {Array.isArray(purchasers) && purchasers.length > 0 && (
-                        <div className="flex items-center gap-1.5 min-w-[220px] sm:min-w-[280px]">
-                          <span className="text-[10px] text-blue-800 font-semibold whitespace-nowrap">Choose from Buyer Directory:</span>
-                          <div className="flex-1">
-                            <SearchableSelect
-                              size="sm"
-                              placeholder="-- Search / Select Buyer --"
-                              searchPlaceholder="Search company, director, mobile..."
-                              options={purchasers.map((p) => ({
-                                value: p._id,
-                                label: `${p.name} ${p.isDefault ? '⭐ (Default)' : ''}`,
-                                subtitle: `${p.contact ? p.contact : ''}${p.panNumber ? ` • PAN: ${p.panNumber}` : ''}${p.address ? ` • ${p.address}` : ''}`.trim(),
-                              }))}
-                              value=""
-                              onChange={(val) => {
-                                if (val) {
-                                  handleSelectExistingPurchaser(idx, val);
-                                }
-                              }}
-                              allowClear={false}
-                              containerClassName="w-full"
-                              className="text-[11px] h-7 border-blue-300 bg-white"
-                            />
-                          </div>
-                        </div>
-                      )}
-                      {(editAgrForm.purchasers || []).length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removePurchaserRow(idx)}
-                          className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg text-xs font-bold cursor-pointer"
-                          title="Remove buyer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
+                      <span className="w-5 h-5 bg-blue-700 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-slate-800">Purchaser / Buyer #{idx + 1}</span>
                     </div>
+
+                    {(editAgrForm.purchasers || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePurchaserRow(idx)}
+                        className="text-rose-500 hover:bg-rose-50 px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-1"
+                        title="Remove buyer"
+                      >
+                        <Trash2 size={14} />
+                        <span>Remove Buyer</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Purchaser / Buyer Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Purchaser / Buyer Name"
-                        className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-800 outline-none"
-                        value={purchaser.name || ''}
-                        onChange={(e) => handlePurchaserChange(idx, 'name', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Contact / Mobile (Optional)</label>
-                      <PhoneInput
-                        size="sm"
-                        placeholder="Mobile Number"
-                        className="h-8 text-xs font-medium"
-                        value={purchaser.contact || purchaser.mobile || ''}
-                        onChange={(e) => handlePurchaserChange(idx, 'contact', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Aadhaar Number (Optional)</label>
-                      <AadhaarInput
-                        size="sm"
-                        placeholder="12 digit Aadhaar No."
-                        className="h-8 text-xs font-medium"
-                        value={purchaser.aadhaarNumber || ''}
-                        onChange={(e) => handlePurchaserChange(idx, 'aadhaarNumber', e.target.value)}
-                      />
-                    </div>
+                  {/* Search / Select Dropdown */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Choose Purchaser / Buyer from Directory *
+                    </label>
+                    <SearchableSelect
+                      placeholder="-- Search / Select Buyer (Company, Director, Mobile, PAN) --"
+                      searchPlaceholder="Search buyer name, mobile, PAN, address..."
+                      options={(purchasers || []).map((p) => ({
+                        value: p._id,
+                        label: `${p.name} ${p.isDefault ? '⭐ (Default)' : ''}`,
+                        subtitle: `${p.contact || p.mobile || ''}${p.panNumber ? ` • PAN: ${p.panNumber}` : ''}${p.address ? ` • ${p.address}` : ''}`.trim(),
+                      }))}
+                      value={
+                        purchaser.purchaserId ||
+                        (purchasers.find((p) => p.name === purchaser.name && (p.contact === purchaser.contact || p.mobile === purchaser.mobile || !purchaser.contact))?._id || '')
+                      }
+                      onChange={(val) => {
+                        if (val) {
+                          handleSelectExistingPurchaser(idx, val);
+                        }
+                      }}
+                      allowClear={false}
+                      containerClassName="w-full"
+                      className="text-xs h-9 border-blue-300 bg-white rounded-xl shadow-2xs"
+                    />
                   </div>
+
+                  {/* Display Selected Purchaser Details Card */}
+                  {purchaser.name ? (
+                    <div className="p-3 bg-white border border-blue-200/70 rounded-xl shadow-2xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Buyer / Company Name</span>
+                          <span className="font-bold text-blue-900 text-xs block truncate" title={purchaser.name}>
+                            {purchaser.name}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Contact / Mobile</span>
+                          <span className="font-semibold text-slate-700 text-xs block truncate">
+                            {purchaser.contact || purchaser.mobile || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Aadhaar Number</span>
+                          <span className="font-medium text-slate-700 text-xs block font-mono">
+                            {purchaser.aadhaarNumber || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">PAN Card</span>
+                          <span className="font-medium text-slate-700 text-xs block font-mono uppercase">
+                            {purchaser.panNumber || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Address</span>
+                          <span className="font-medium text-slate-700 text-xs block truncate" title={purchaser.address || '-'}>
+                            {purchaser.address || '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-blue-50/70 border border-dashed border-blue-200 rounded-xl text-[11px] text-blue-800 flex items-center gap-2">
+                      <Users size={14} className="text-blue-600 shrink-0" />
+                      <span>Select a buyer / company from the directory dropdown above to link their details.</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

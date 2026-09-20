@@ -98,6 +98,7 @@ const Sidebar = () => {
           children: [
             { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Product Collections", link: "/dashboard/plots/collections/products", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"] },
@@ -112,6 +113,7 @@ const Sidebar = () => {
             { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Plot Products", link: "/dashboard/plots/products", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"] },
             { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"] },
@@ -120,20 +122,8 @@ const Sidebar = () => {
             { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
           ],
         },
-        {
-          menu: "Investments",
-          icon: <Coins size={20} />,
-          roles: ["admin", "superadmin", "manager", "demo"],
-          children: [
-            { menu: "Dashboard", link: "/dashboard/investments/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Investment", link: "/dashboard/investments/accounts", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Collections", link: "/dashboard/investments/collections", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Dues & Defaulters", link: "/dashboard/investments/dues", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Premature Settlement", link: "/dashboard/investments/settlement", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Scheme Rules", link: "/dashboard/investments/schemes", roles: ["admin", "superadmin", "manager", "demo"] },
-          ],
-        },
         { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
+
         { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer"] },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },

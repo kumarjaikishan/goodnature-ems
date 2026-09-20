@@ -1,5 +1,6 @@
 const plotsService = require('../services/plots.service');
 const kisanLandService = require('../services/kisanLand.service');
+const plotProductService = require('../services/plots/plotProduct.service');
 const ApiResponse = require('../utils/apiResponse');
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
@@ -217,6 +218,25 @@ const getBookingById = async (req, res, next) => {
   try {
     const booking = await plotsService.getBookingById(req.params.id);
     ApiResponse.success(res, booking);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const approveBooking = async (req, res, next) => {
+  try {
+    const booking = await plotsService.approveBooking(req.params.id, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, booking, 'Plot booking approved & activated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const rejectBooking = async (req, res, next) => {
+  try {
+    const { reason } = req.body || {};
+    const booking = await plotsService.rejectBooking(req.params.id, reason, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, booking, 'Plot booking rejected and inventory restored');
   } catch (error) {
     next(error);
   }
@@ -819,6 +839,106 @@ const deletePurchaser = async (req, res, next) => {
   }
 };
 
+// ── Plot Products & Fractional Units Controller Actions ──
+const getPlotProducts = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProducts(req.query);
+    ApiResponse.success(res, result, 'Plot products retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getPlotProductById = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProductById(req.params.id);
+    ApiResponse.success(res, result, 'Plot product details retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createPlotProduct = async (req, res, next) => {
+  try {
+    const result = await plotProductService.createProduct(req.body, req.user?._id || req.user?.id);
+    ApiResponse.created(res, result, 'Plot product created successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePlotProduct = async (req, res, next) => {
+  try {
+    const result = await plotProductService.updateProduct(req.params.id, req.body);
+    ApiResponse.success(res, result, 'Plot product updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deletePlotProduct = async (req, res, next) => {
+  try {
+    const result = await plotProductService.deleteProduct(req.params.id);
+    ApiResponse.success(res, result, 'Plot product deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAvailableProductTenures = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getAvailableTenures();
+    ApiResponse.success(res, result, 'Available product tenures retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProductBookings = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProductBookings(req.query);
+    ApiResponse.success(res, result, 'Product bookings retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProductBookingById = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProductBookingById(req.params.id);
+    ApiResponse.success(res, result, 'Product booking details retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createProductBooking = async (req, res, next) => {
+  try {
+    const result = await plotProductService.createProductBooking(req.body, req.user?._id || req.user?.id);
+    ApiResponse.created(res, result, 'Product sale/booking created successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const collectProductInstallment = async (req, res, next) => {
+  try {
+    const result = await plotProductService.collectProductInstallment(req.params.id, req.body, req.user?._id || req.user?.id);
+    ApiResponse.success(res, result, 'Product installment payment collected successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProductCollections = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProductCollections(req.query);
+    ApiResponse.success(res, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
@@ -836,6 +956,8 @@ module.exports = {
   createBookingOrHold,
   getBookings,
   getBookingById,
+  approveBooking,
+  rejectBooking,
   getInstallments,
   getPayoutSchedules,
   collectInstallment,
@@ -903,4 +1025,16 @@ module.exports = {
   processCustomerRefund,
   getBookingRevisions,
   updateBookingRevisionNarration,
+  // Plot Products & Fractional Units Exports
+  getPlotProducts,
+  getPlotProductById,
+  createPlotProduct,
+  updatePlotProduct,
+  deletePlotProduct,
+  getAvailableProductTenures,
+  getProductBookings,
+  getProductBookingById,
+  createProductBooking,
+  collectProductInstallment,
+  getProductCollections,
 };

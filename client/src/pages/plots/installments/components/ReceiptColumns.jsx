@@ -1,12 +1,11 @@
 import React from 'react';
-import { Clock, XCircle, Check, Printer, Edit2, Trash2 } from 'lucide-react';
+import { Clock, XCircle, Check, Printer, Trash2 } from 'lucide-react';
 
 export const getReceiptColumns = ({
   navigate,
   setApprovingReceipt,
   setRejectingReceipt,
   setRejectionReason,
-  handleEditClick,
   setDeletingReceipt,
 }) => [
   {
@@ -154,13 +153,6 @@ export const getReceiptColumns = ({
             title="Print Receipt"
           >
             <Printer size={15} />
-          </button>
-          <button
-            onClick={() => handleEditClick(r)}
-            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold border border-indigo-200 transition cursor-pointer flex items-center justify-center shadow-2xs"
-            title="Edit Collection"
-          >
-            <Edit2 size={15} />
           </button>
           <button
             onClick={() => setDeletingReceipt(r)}

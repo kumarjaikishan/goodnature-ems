@@ -79,6 +79,8 @@ router.get('/bookings/:id', (req, res, next) => {
   return checkPermission('plot_booking', 1)(req, res, next);
 }, ctrl.getBookingById);
 router.put('/bookings/:id', checkPermission('plot_booking', 3), ctrl.updateBooking);
+router.put('/bookings/:id/approve', checkPermission('plot_booking', 3), ctrl.approveBooking);
+router.put('/bookings/:id/reject', checkPermission('plot_booking', 3), ctrl.rejectBooking);
 router.delete('/bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteBooking);
 
 // ── Installments & Collections ("take collection") ──
@@ -145,6 +147,21 @@ router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctr
 router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);
 router.get('/bookings/:id/revisions', checkPermission('plot_booking', 1), ctrl.getBookingRevisions);
 router.put('/bookings/revisions/:revisionId/narration', checkPermission('plot_booking', 3), ctrl.updateBookingRevisionNarration);
+
+// ── Plot Products & Fractional Units (Master & Sales) ──
+router.get('/products/tenures', checkPermission('plot_inventory', 1), ctrl.getAvailableProductTenures);
+router.get('/products', checkPermission('plot_inventory', 1), ctrl.getPlotProducts);
+router.post('/products', checkPermission('plot_inventory', 2), ctrl.createPlotProduct);
+router.get('/products/:id', checkPermission('plot_inventory', 1), ctrl.getPlotProductById);
+router.put('/products/:id', checkPermission('plot_inventory', 3), ctrl.updatePlotProduct);
+router.delete('/products/:id', checkPermission('plot_inventory', 4), ctrl.deletePlotProduct);
+
+// ── Product Sales / Bookings & Installment Collections ──
+router.get('/product-bookings', checkPermission('plot_booking', 1), ctrl.getProductBookings);
+router.post('/product-bookings', checkPermission('plot_booking', 2), ctrl.createProductBooking);
+router.get('/product-bookings/:id', checkPermission('plot_booking', 1), ctrl.getProductBookingById);
+router.post('/product-bookings/:id/collections', checkPermission('plot_booking', 2), ctrl.collectProductInstallment);
+router.get('/product-collections', checkPermission('plot_collection', 1), ctrl.getProductCollections);
 
 // ── Plots Inventory (Wildcard /:id placed AFTER specific routes) ──
 router.get('/', checkPermission('plot_inventory', 1), ctrl.getPlots);

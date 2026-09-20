@@ -119,6 +119,16 @@ export const StepPlot = ({
           );
         })}
       </div>
+
+      {/* Bottom Actions Bar */}
+      <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-1">
+        <Button variant="secondary" size="sm" onClick={prevStep} startIcon={ChevronLeft}>
+          Back
+        </Button>
+        <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight}>
+          Next: Payment Details
+        </Button>
+      </div>
     </div>
   );
 };

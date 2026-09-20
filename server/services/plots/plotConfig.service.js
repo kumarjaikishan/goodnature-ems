@@ -165,6 +165,8 @@ class PlotConfigService {
     if (!policy) {
       const defaultData = businessType === 'PLOT_SALE'
         ? CommissionPolicyConfig.getDefaultPlotPolicy()
+        : businessType === 'PLOT_PRODUCT'
+        ? CommissionPolicyConfig.getDefaultPlotProductPolicy()
         : CommissionPolicyConfig.getDefaultInvestmentPolicy();
       policy = new CommissionPolicyConfig(defaultData);
       await policy.save();

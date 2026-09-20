@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   SlidersHorizontal,
   Plus,
@@ -10,15 +9,18 @@ import {
   TrendingUp,
   Coins,
   AlertCircle,
+  HelpCircle,
+  Calendar,
+  Layers,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
-import api from '../../api/axios';
-import PageLoader from '../../components/common/PageLoader';
-import { toast } from '../../utils/toast';
+import api from '../../../../api/axios';
+import PageLoader from '../../../../components/common/PageLoader';
+import { toast } from '../../../../utils/toast';
+import CommissionPolicyMatrix from '../../seriesMaster/components/CommissionPolicyMatrix';
 
-import CommissionPolicyMatrix from '../plots/seriesMaster/components/CommissionPolicyMatrix';
-
-const InvestmentSchemeMaster = () => {
-  const navigate = useNavigate();
+const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [config, setConfig] = useState({
@@ -41,7 +43,7 @@ const InvestmentSchemeMaster = () => {
         setConfig(res.data.data);
       }
     } catch (err) {
-      toast.error('Failed to load investment scheme matrix');
+      toast.error('Failed to load product scheme rules');
     } finally {
       setLoading(false);
     }
@@ -84,17 +86,18 @@ const InvestmentSchemeMaster = () => {
     setSubmitLoading(true);
     try {
       await api.put('/investments/config', config);
-      toast.success('Investment scheme configuration saved successfully');
+      toast.success('Plot Product scheme & maturity rules saved successfully');
       fetchConfig();
+      if (onSchemeUpdated) onSchemeUpdated();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update configuration');
+      toast.error(err.response?.data?.message || 'Failed to update scheme rules');
     } finally {
       setSubmitLoading(false);
     }
   };
 
   if (loading) {
-    return <PageLoader title="Loading Scheme Matrix..." subtitle="Fetching RD/FD interest slabs and commission rates" />;
+    return <PageLoader title="Loading Product Scheme Rules..." subtitle="Fetching EMI & One-Time Full Payment maturity slabs" />;
   }
 
   const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
@@ -102,29 +105,42 @@ const InvestmentSchemeMaster = () => {
     'h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-2.5 rounded-xl font-medium text-xs text-slate-800 transition';
 
   return (
-    <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-              <SlidersHorizontal size={22} />
+    <div className="space-y-6">
+      {/* Informative Explanation Header Card */}
+      <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 rounded-2xl p-5 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 bg-teal-500/20 text-teal-300 border border-teal-400/30 rounded-lg">
+              <Clock size={16} />
             </span>
-            Investment Scheme Matrix & Slabs
-          </h1>
-          <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Define RD/FD maturity percentages, promoter commission, business developer override, and premature rules.
+            <h2 className="text-base font-bold text-white">
+              Plot Product Scheme &amp; Customer Maturity Matrix
+            </h2>
+          </div>
+          <p className="text-xs text-teal-100/90 leading-relaxed">
+            When a customer purchases a plot product on <strong>Monthly EMI</strong> (considered as <strong>R.D.</strong>) or pays <strong>One-Time Full Payment</strong> (considered as <strong>F.D.</strong>), once the period is completed and time has passed, the customer receives the agreed return percentage on their investment.
           </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+          <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center gap-1.5 text-teal-200">
+            <Coins size={14} className="text-teal-400" />
+            <span>EMI Installments = R.D. Plan</span>
+          </div>
+          <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center gap-1.5 text-emerald-200">
+            <TrendingUp size={14} className="text-emerald-400" />
+            <span>One-Time Payment = F.D. Plan</span>
+          </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Deposit Minimums & Rules */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-xs">
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-2xs">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <Coins size={16} className="text-teal-700" />
-              Recurring Deposit (R.D.) Bounds
+              Monthly EMI (R.D.) Bounds
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -150,13 +166,13 @@ const InvestmentSchemeMaster = () => {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">e.g. Min ₹2,000 with ₹1,000 steps (₹2,000, ₹3,000, ₹4,000/mo).</p>
+            <p className="text-[11px] text-slate-400">e.g. Min ₹2,000 with ₹1,000 steps for monthly installments.</p>
           </div>
 
-          <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-xs">
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-2xs">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <TrendingUp size={16} className="text-emerald-700" />
-              Fixed Deposit (F.D.) Bounds
+              One-Time Payment (F.D.) Bounds
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -182,17 +198,17 @@ const InvestmentSchemeMaster = () => {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">e.g. Min ₹50,000 with ₹1,000 steps (₹50,000, ₹51,000, ₹52,000...).</p>
+            <p className="text-[11px] text-slate-400">e.g. Min ₹50,000 with ₹1,000 steps for full upfront payment.</p>
           </div>
 
-          <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-xs">
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-3 shadow-2xs">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <Percent size={16} className="text-indigo-700" />
               Premature Interest Rates
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>R.D. Premature (% P.A.)</label>
+                <label className={labelCls}>EMI / R.D. (% P.A.)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -208,7 +224,7 @@ const InvestmentSchemeMaster = () => {
                 />
               </div>
               <div>
-                <label className={labelCls}>F.D. Premature (% P.A.)</label>
+                <label className={labelCls}>One-Time / F.D. (% P.A.)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -224,17 +240,19 @@ const InvestmentSchemeMaster = () => {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">Separate simple interest rates applied on premature RD and FD closures.</p>
+            <p className="text-[11px] text-slate-400">Simple interest rate applied on premature closure before full tenure.</p>
           </div>
         </div>
 
-        {/* Customer Maturity Returns Matrix Table */}
-        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 space-y-4">
+        {/* Customer Tenure Maturity Returns Matrix Table */}
+        <div className="bg-white border border-slate-200 shadow-2xs rounded-2xl p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Customer Tenure Maturity Returns Matrix</h3>
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <span>Customer Tenure Maturity Returns Matrix</span>
+              </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Exact payout percentages promised on maturity to customers for Recurring Deposit (R.D.) and Fixed Deposit (F.D.).
+                Exact payout percentage promised on maturity to customers for Monthly EMI (R.D.) vs One-Time Full Payment (F.D.).
               </p>
             </div>
             <button
@@ -247,12 +265,22 @@ const InvestmentSchemeMaster = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
+            <table className="w-full border-collapse text-left text-xs min-w-[700px]">
               <thead>
                 <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
-                  <th className="p-3">Tenure (अवधि)</th>
-                  <th className="p-3">R.D. Maturity Return (%)</th>
-                  <th className="p-3">F.D. Maturity Return (%)</th>
+                  <th className="p-3">Tenure (समय अवधि)</th>
+                  <th className="p-3">
+                    <div className="flex items-center gap-1.5 text-teal-900">
+                      <Coins size={14} className="text-teal-700" />
+                      <span>Monthly EMI (R.D.) Maturity Return (%)</span>
+                    </div>
+                  </th>
+                  <th className="p-3">
+                    <div className="flex items-center gap-1.5 text-emerald-900">
+                      <TrendingUp size={14} className="text-emerald-700" />
+                      <span>One-Time Payment (F.D.) Maturity Return (%)</span>
+                    </div>
+                  </th>
                   <th className="p-3 text-center">Action</th>
                 </tr>
               </thead>
@@ -268,24 +296,29 @@ const InvestmentSchemeMaster = () => {
                           onChange={(e) => handleSlabChange(idx, 'tenureMonths', e.target.value)}
                           required
                         />
-                        <span className="text-slate-500 font-semibold">Months</span>
+                        <span className="text-slate-500 font-semibold text-xs">
+                          Months ({+(s.tenureMonths / 12).toFixed(1)} {s.tenureMonths === 12 ? 'Year' : 'Years'})
+                        </span>
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <input
                           type="number"
                           step="0.01"
-                          className="w-24 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-emerald-800"
+                          className="w-24 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-teal-800"
                           value={s.rdMaturityPercent}
                           onChange={(e) => handleSlabChange(idx, 'rdMaturityPercent', e.target.value)}
                           required
                         />
-                        <span className="font-bold text-slate-600">%</span>
+                        <span className="font-bold text-teal-700 text-xs">%</span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          ({s.rdMaturityPercent >= 100 ? `+${s.rdMaturityPercent - 100}% Gain` : `${s.rdMaturityPercent}%`})
+                        </span>
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <input
                           type="number"
                           step="0.01"
@@ -294,7 +327,10 @@ const InvestmentSchemeMaster = () => {
                           onChange={(e) => handleSlabChange(idx, 'fdMaturityPercent', e.target.value)}
                           required
                         />
-                        <span className="font-bold text-slate-600">%</span>
+                        <span className="font-bold text-emerald-700 text-xs">%</span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          ({s.fdMaturityPercent >= 100 ? `+${s.fdMaturityPercent - 100}% Gain` : `${s.fdMaturityPercent}%`})
+                        </span>
                       </div>
                     </td>
                     <td className="p-3 text-center">
@@ -327,17 +363,17 @@ const InvestmentSchemeMaster = () => {
         </div>
       </form>
 
-      {/* R.D. & F.D. Target Incentive & Fixed Commission Policy Matrix */}
+      {/* Plot Product Target Incentive & Fixed Commission Policy Matrix */}
       <div className="pt-2">
         <CommissionPolicyMatrix
-          initialBusinessType="INVESTMENT_RD_FD"
+          initialBusinessType="PLOT_PRODUCT"
           showTypeToggle={false}
-          title="R.D. & F.D. Target Incentive & Fixed Commission Policy"
-          subtitle="Configure monthly deposit collection target slabs, base fix commissions (2.5% BA / 1.0% BP), and tiered performance incentives."
+          title="Plot Product Target Incentive & Fixed Commission Policy"
+          subtitle="Configure Plot Product collection target slabs (left side policy), base fixed commissions (2.50% Business Associate / 1.00% Business Partner), and tiered performance incentives."
         />
       </div>
     </div>
   );
 };
 
-export default InvestmentSchemeMaster;
+export default ProductSchemeRulesTab;

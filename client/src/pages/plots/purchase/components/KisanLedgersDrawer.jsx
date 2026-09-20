@@ -152,62 +152,85 @@ const KisanLedgersDrawer = ({
                       <th className="py-2.5 px-3">Mauja & Thana</th>
                       <th className="py-2.5 px-3">Khata & Khesra</th>
                       <th className="py-2.5 px-3">Chaudhi (चौहद्दी)</th>
-                      <th className="py-2.5 px-3 text-right">Arazi (Dismil)</th>
+                      <th className="py-2.5 px-3 text-right">Arazi (Total)</th>
+                      <th className="py-2.5 px-3 text-right">Available Stock</th>
                       <th className="py-2.5 px-3 text-right">Rate / Dismil</th>
                       <th className="py-2.5 px-3 text-right">Total Cost</th>
                       <th className="py-2.5 px-3">Remarks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {parcels.map((p, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/70">
-                        <td className="py-2.5 px-3 font-bold text-slate-400">{idx + 1}</td>
-                        <td className="py-2.5 px-3 font-bold text-slate-900">
-                          {p.mauja}
-                          {p.thanaNumber && (
-                            <span className="text-[10px] text-slate-400 font-normal block">
-                              Thana: {p.thanaNumber}
+                    {parcels.map((p, idx) => {
+                      const parcelTotalSqFt = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6) : 0);
+                      const parcelAllocatedSqFt = p.allocatedSqFt || 0;
+                      const parcelAvailSqFt = p.availableSqFt !== undefined && p.availableSqFt !== null
+                        ? p.availableSqFt
+                        : Math.max(0, parcelTotalSqFt - parcelAllocatedSqFt);
+                      const parcelAvailDismil = (parcelAvailSqFt / 435.6).toFixed(2);
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/70">
+                          <td className="py-2.5 px-3 font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-900">
+                            {p.mauja}
+                            {p.thanaNumber && (
+                              <span className="text-[10px] text-slate-400 font-normal block">
+                                Thana: {p.thanaNumber}
+                              </span>
+                            )}
+                            {p.jamabandiNumber && (
+                              <span className="text-[10px] text-slate-400 font-normal block">
+                                JB: {p.jamabandiNumber}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700">
+                            Khata: <strong>{p.khataNumber}</strong>
+                            <span className="block text-teal-800 font-bold">Plot/Khesra: {p.khesraNumber}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-[10px] text-slate-600 max-w-xs">
+                            {p.chaudhi && Object.values(p.chaudhi).some(Boolean) ? (
+                              <div className="space-y-0.5 bg-amber-50/60 p-1.5 rounded-lg border border-amber-200/60">
+                                {p.chaudhi.north && <div>N: {p.chaudhi.north}</div>}
+                                {p.chaudhi.south && <div>S: {p.chaudhi.south}</div>}
+                                {p.chaudhi.east && <div>E: {p.chaudhi.east}</div>}
+                                {p.chaudhi.west && <div>W: {p.chaudhi.west}</div>}
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 italic">No chaudhi specified</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                            {p.araziDismil} Dismil
+                            <span className="text-[10px] text-slate-400 block font-normal">
+                              {parcelTotalSqFt?.toLocaleString('en-IN')} SqFt
                             </span>
-                          )}
-                          {p.jamabandiNumber && (
-                            <span className="text-[10px] text-slate-400 font-normal block">
-                              JB: {p.jamabandiNumber}
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <span className="font-mono font-bold text-teal-900 text-xs block">
+                              {parcelAvailSqFt?.toLocaleString('en-IN')} SqFt
                             </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700">
-                          Khata: <strong>{p.khataNumber}</strong>
-                          <span className="block text-teal-800 font-bold">Khesra: {p.khesraNumber}</span>
-                        </td>
-                        <td className="py-2.5 px-3 text-[10px] text-slate-600 max-w-xs">
-                          {p.chaudhi && Object.values(p.chaudhi).some(Boolean) ? (
-                            <div className="space-y-0.5 bg-amber-50/60 p-1.5 rounded-lg border border-amber-200/60">
-                              {p.chaudhi.north && <div>N: {p.chaudhi.north}</div>}
-                              {p.chaudhi.south && <div>S: {p.chaudhi.south}</div>}
-                              {p.chaudhi.east && <div>E: {p.chaudhi.east}</div>}
-                              {p.chaudhi.west && <div>W: {p.chaudhi.west}</div>}
-                            </div>
-                          ) : (
-                            <span className="text-slate-300 italic">No chaudhi specified</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                          {p.araziDismil} Dismil
-                          <span className="text-[10px] text-slate-400 block font-normal">
-                            {p.totalSqFt?.toLocaleString('en-IN')} SqFt
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          ₹{(Number(p.ratePerDismil) || 0).toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-800">
-                          ₹{(Number(p.totalAmount) || 0).toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-500 text-[11px]">
-                          {p.remarks || '—'}
-                        </td>
-                      </tr>
-                    ))}
+                            <span className="text-[10px] text-slate-400 block">
+                              ({parcelAvailDismil} Dismil)
+                            </span>
+                            {parcelAllocatedSqFt > 0 && (
+                              <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200 inline-block mt-0.5">
+                                Allocated: {parcelAllocatedSqFt.toLocaleString('en-IN')} SqFt
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">
+                            ₹{(Number(p.ratePerDismil) || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-800">
+                            ₹{(Number(p.totalAmount) || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-500 text-[11px]">
+                            {p.remarks || '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

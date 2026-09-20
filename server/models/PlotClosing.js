@@ -71,6 +71,10 @@ const sponsorSummarySchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    rewardTitle: {
+      type: String,
+      default: '',
+    },
     directRatesStr: {
       type: String,
       default: '',

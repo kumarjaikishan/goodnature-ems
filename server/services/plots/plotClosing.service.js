@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 const ApiError = require('../../utils/apiError');
+const User = require('../../models/user');
+const PlotCustomer = require('../../models/PlotCustomer');
+const PlotBooking = require('../../models/PlotBooking');
+const PlotReceipt = require('../../models/PlotReceipt');
+const Plot = require('../../models/Plot');
 const PlotSponsorCommission = require('../../models/PlotSponsorCommission');
 const InvestmentCommission = require('../../models/InvestmentCommission');
 const PlotClosing = require('../../models/PlotClosing');
@@ -43,7 +48,7 @@ class PlotClosingService {
     }
 
     const commQuery = PlotSponsorCommission.find(query)
-      .select('sponsorId customerId receiptId bookingId collectionAmount amount commissionPercent commissionRole fixedPercent incentivePercent fixedAmount incentiveAmount status createdAt')
+      .select('sponsorId customerId receiptId bookingId productBookingId receiptNumber collectionAmount amount commissionPercent commissionRole fixedPercent incentivePercent fixedAmount incentiveAmount businessType status createdAt')
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
@@ -55,10 +60,47 @@ class PlotClosingService {
           { path: 'sponsorId', select: 'name sponsorCode customerId' }
         ]
       })
+      .populate({
+        path: 'productBookingId',
+        select: 'bookingNumber tenureMonths totalAmount remainingAmount productId sponsorId',
+        populate: [
+          { path: 'productId', select: 'productName productCode dimensionLabel' },
+          { path: 'sponsorId', select: 'name sponsorCode customerId' }
+        ]
+      })
       .sort({ createdAt: 1 })
       .lean();
     if (session) commQuery.session(session);
-    const plotCommissions = await commQuery;
+    const rawPlotCommissions = await commQuery;
+
+    // Normalize plot commissions (including product bookings)
+    const plotCommissions = rawPlotCommissions.map(pc => {
+      if (pc.businessType === 'PLOT_PRODUCT' || (!pc.bookingId && pc.productBookingId)) {
+        const pb = pc.productBookingId;
+        const prod = pb?.productId;
+        return {
+          ...pc,
+          businessType: 'PLOT_PRODUCT',
+          receiptId: pc.receiptId || {
+            receiptNumber: pc.receiptNumber || 'PRD-RCP',
+            amount: pc.collectionAmount || 0,
+            paymentMode: 'cash',
+            createdAt: pc.createdAt,
+            receiptType: 'Product Collection',
+          },
+          bookingId: {
+            bookingNumber: pb?.bookingNumber || 'PRD-BK',
+            tenureMonths: pb?.tenureMonths || 0,
+            plotId: {
+              plotNumber: prod?.productName || 'Plot Product',
+              seriesId: null,
+            },
+            sponsorId: pb?.sponsorId,
+          }
+        };
+      }
+      return pc;
+    });
 
     // Fetch Investment (RD/FD) Commissions
     const invQuery = {
@@ -137,6 +179,7 @@ class PlotClosingService {
 
     const plotPolicyConfig = await plotConfigService.getCommissionPolicy('PLOT_SALE');
     const investmentPolicyConfig = await plotConfigService.getCommissionPolicy('INVESTMENT_RD_FD');
+    const productPolicyConfig = await plotConfigService.getCommissionPolicy('PLOT_PRODUCT');
 
     // Group collections per sponsor
     const sponsorMap = {};
@@ -174,7 +217,6 @@ class PlotClosingService {
       sponsorMap[spId].entries.push(c);
     });
 
-    let totalCollection = 0;
     let totalCommission = 0;
     let totalFixedCommission = 0;
     let totalIncentiveCommission = 0;
@@ -182,9 +224,10 @@ class PlotClosingService {
     const sponsors = Object.values(sponsorMap).map(sp => {
       const roleName = !sp.isDeveloper ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
 
-      // Slabs resolution for Plot and Investment policies based on sponsor's total period volume
+      // Slabs resolution for Plot, Investment, and Plot Product policies based on sponsor's total period volume
       const plotSlab = CommissionPolicyConfig.resolveSlab(plotPolicyConfig, roleName, sp.totalBusiness);
       const invSlab = CommissionPolicyConfig.resolveSlab(investmentPolicyConfig, roleName, sp.totalBusiness);
+      const prdSlab = CommissionPolicyConfig.resolveSlab(productPolicyConfig, roleName, sp.totalBusiness);
 
       const defaultFixedPct = !sp.isDeveloper ? 5.0 : 2.0;
       const defaultIncPct = plotSlab.incentivePercent;
@@ -193,15 +236,22 @@ class PlotClosingService {
       let spFixedComm = 0;
       let spIncentiveComm = 0;
 
-      // Calculate each entry's incentive based on its business type (PLOT_SALE vs INVESTMENT_RD_FD)
+      // Calculate each entry's incentive based on its business type (PLOT_SALE vs INVESTMENT_RD_FD vs PLOT_PRODUCT)
       sp.entries.forEach(e => {
         const isInv = e.isInvestment || e.businessType === 'INVESTMENT_RD_FD';
-        const applicableSlab = isInv ? invSlab : plotSlab;
+        const isPrd = e.businessType === 'PLOT_PRODUCT';
 
+        let applicableSlab = plotSlab;
         let entryFixedPct = 0;
-        if (isInv) {
+
+        if (isPrd) {
+          applicableSlab = prdSlab;
+          entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;
+        } else if (isInv) {
+          applicableSlab = invSlab;
           entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;
         } else {
+          applicableSlab = plotSlab;
           entryFixedPct = !sp.isDeveloper ? 5.0 : 2.0;
         }
 
@@ -217,10 +267,12 @@ class PlotClosingService {
         e.incentiveAmount = iAmt;
         e.amount = iAmt;
         e.slabLabel = applicableSlab.slabLabel;
+        e.rewardTitle = applicableSlab.rewardTitle || '';
 
         spFixedComm += fAmt;
         spIncentiveComm += iAmt;
       });
+
 
       const totalBusiness = sp.totalBusiness;
       const fixedCommission = Math.round(spFixedComm * 100) / 100;
@@ -228,7 +280,6 @@ class PlotClosingService {
 
       const rateStr = `+${defaultIncPct}% Inc.`;
 
-      totalCollection += totalBusiness;
       totalCommission += incentiveCommission;
       totalFixedCommission += fixedCommission;
       totalIncentiveCommission += incentiveCommission;
@@ -241,19 +292,43 @@ class PlotClosingService {
         effectiveIncPct: defaultIncPct,
         rateStr,
         slabLabel,
+        rewardTitle: plotSlab.rewardTitle || '',
         transactionCount: sp.entries.length,
       };
     }).sort((a, b) => b.incentiveCommission - a.incentiveCommission);
 
+    // Compute the true unique collection business volume and unique receipt count across period
+    const uniqueReceiptMap = new Map();
+    commissions.forEach(c => {
+      const rId = c.receiptId?._id ? c.receiptId._id.toString() : (c.receiptId ? c.receiptId.toString() : null);
+      const colAmt = Number(c.collectionAmount || 0);
+      if (rId) {
+        if (!uniqueReceiptMap.has(rId)) {
+          uniqueReceiptMap.set(rId, colAmt);
+        }
+      } else {
+        // Fallback if receiptId is missing
+        const fallbackKey = `${c._id?.toString() || Math.random()}`;
+        uniqueReceiptMap.set(fallbackKey, colAmt);
+      }
+    });
+
+    let actualPeriodCollection = 0;
+    uniqueReceiptMap.forEach((amt) => {
+      actualPeriodCollection += amt;
+    });
+
+    const uniqueReceiptCount = uniqueReceiptMap.size;
+
     return {
       startDate: start,
       endDate: end,
-      totalCollection: Math.round(totalCollection * 100) / 100,
+      totalCollection: Math.round(actualPeriodCollection * 100) / 100,
       totalCommission: Math.round(totalIncentiveCommission * 100) / 100,
       totalFixedCommission: Math.round(totalFixedCommission * 100) / 100,
       totalIncentiveCommission: Math.round(totalIncentiveCommission * 100) / 100,
       sponsorCount: sponsors.length,
-      transactionCount: commissions.length,
+      transactionCount: uniqueReceiptCount,
       sponsors,
       commissions,
     };
@@ -325,6 +400,7 @@ class PlotClosingService {
           indirectEffectivePct: s.indirectEffectivePct || 0,
           totalEffectivePct: s.totalEffectivePct || 0,
           slabLabel: s.slabLabel || '',
+          rewardTitle: s.rewardTitle || '',
           transactionCount: s.transactionCount,
         })),
         status: 'CLOSED',
@@ -350,6 +426,7 @@ class PlotClosingService {
                   incentiveAmount: entry.incentiveAmount,
                   commissionAmount: entry.fixedAmount + entry.incentiveAmount,
                   slabLabel: entry.slabLabel,
+                  rewardTitle: entry.rewardTitle || '',
                 }
               },
               { session }
@@ -367,6 +444,7 @@ class PlotClosingService {
                   incentiveAmount: entry.incentiveAmount,
                   amount: entry.amount,
                   slabLabel: entry.slabLabel,
+                  rewardTitle: entry.rewardTitle || '',
                 }
               },
               { session }
@@ -378,7 +456,8 @@ class PlotClosingService {
       // Credit ONLY the Target Incentive to the sponsor's universal ledger
       for (const sp of closingDoc.sponsors) {
         if (sp.incentiveCommission > 0) {
-          const particular = `Target Incentive credited for Closing ${closingDoc.closingNumber} (${closingDoc.closingName}) [Achieved Slab: ${sp.slabLabel}] — Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`;
+          const rewardPart = sp.rewardTitle ? ` - ${sp.rewardTitle}` : '';
+          const particular = `Target Incentive credited for Closing ${closingDoc.closingNumber} (${closingDoc.closingName}) [Achieved Slab: ${sp.slabLabel}${rewardPart}] — Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`;
 
           await accountingService.recordLedgerEntry({
             sponsorId: sp.sponsorId,
@@ -504,6 +583,7 @@ class PlotClosingService {
         fixedAmount: ic.fixedAmount || 0,
         incentiveAmount: ic.incentiveAmount || 0,
         slabLabel: ic.slabLabel || '',
+        rewardTitle: ic.rewardTitle || '',
         status: ic.status,
         createdAt: ic.createdAt,
       };
@@ -603,6 +683,7 @@ class PlotClosingService {
                   incentiveAmount: entry.incentiveAmount,
                   commissionAmount: entry.fixedAmount + entry.incentiveAmount,
                   slabLabel: entry.slabLabel,
+                  rewardTitle: entry.rewardTitle || '',
                 }
               },
               { session }
@@ -620,6 +701,7 @@ class PlotClosingService {
                   incentiveAmount: entry.incentiveAmount,
                   amount: entry.amount,
                   slabLabel: entry.slabLabel,
+                  rewardTitle: entry.rewardTitle || '',
                 }
               },
               { session }
@@ -662,6 +744,7 @@ class PlotClosingService {
         indirectEffectivePct: s.indirectEffectivePct || 0,
         totalEffectivePct: s.totalEffectivePct || 0,
         slabLabel: s.slabLabel || '',
+        rewardTitle: s.rewardTitle || '',
         transactionCount: s.transactionCount,
       }));
       if (remarks !== undefined) closing.remarks = remarks;
@@ -673,7 +756,8 @@ class PlotClosingService {
           const directText = sp.directBusiness > 0 ? `Direct: ₹${sp.directBusiness.toLocaleString('en-IN')}` : '';
           const indirectText = sp.indirectBusiness > 0 ? `Team: ₹${sp.indirectBusiness.toLocaleString('en-IN')}` : '';
           const parts = [directText, indirectText].filter(Boolean).join(' | ');
-          const particular = `Target Incentive credited for Closing ${closing.closingNumber} (${closing.closingName}) [Achieved Slab: ${sp.slabLabel}] — ${parts}`;
+          const rewardPart = sp.rewardTitle ? ` - ${sp.rewardTitle}` : '';
+          const particular = `Target Incentive credited for Closing ${closing.closingNumber} (${closing.closingName}) [Achieved Slab: ${sp.slabLabel}${rewardPart}] — ${parts}`;
 
           await accountingService.recordLedgerEntry({
             sponsorId: sp.sponsorId,

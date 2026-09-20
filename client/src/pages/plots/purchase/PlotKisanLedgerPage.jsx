@@ -35,7 +35,7 @@ const PlotKisanLedgerPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [activeTab, setActiveTab] = useState('financial'); // 'financial' | 'stock' | 'deeds'
+  const [activeTab, setActiveTab] = useState('financial'); // 'financial' | 'stock' | 'parcels' | 'deeds'
   const [search, setSearch] = useState('');
 
   // Modals state
@@ -208,6 +208,25 @@ const PlotKisanLedgerPage = () => {
   }
 
   const { agreement, financialSummary, kisanLedgers = [], stockLedgers = [] } = data;
+
+  const parcels = Array.isArray(agreement?.landParcels) && agreement.landParcels.length > 0
+    ? agreement.landParcels
+    : [
+        {
+          mauja: agreement?.mauja || '—',
+          khataNumber: agreement?.khataNumber || '—',
+          khesraNumber: agreement?.khesraNumber || '—',
+          thanaNumber: agreement?.thanaNumber || '—',
+          jamabandiNumber: agreement?.jamabandiNumber || '—',
+          araziDismil: agreement?.araziDismil || 0,
+          totalSqFt: agreement?.totalSqFt || 0,
+          allocatedSqFt: agreement?.totalAllocatedSqFt || 0,
+          availableSqFt: agreement?.totalAvailableSqFt || 0,
+          ratePerDismil: agreement?.ratePerDismil || 0,
+          totalAmount: agreement?.totalAgreementAmount || 0,
+          remarks: agreement?.remarks || '—',
+        },
+      ];
 
   const filteredFinancialLedgers = kisanLedgers.filter((l) => {
     if (!search.trim()) return true;
@@ -477,10 +496,10 @@ const PlotKisanLedgerPage = () => {
       </div>
 
       {/* ── SUB-TABS ── */}
-      <div className="flex items-center gap-3 border-b border-slate-200 print:hidden">
+      <div className="flex items-center gap-3 border-b border-slate-200 print:hidden overflow-x-auto">
         <button
           onClick={() => setActiveTab('financial')}
-          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === 'financial'
               ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -492,7 +511,7 @@ const PlotKisanLedgerPage = () => {
 
         <button
           onClick={() => setActiveTab('stock')}
-          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === 'stock'
               ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -503,8 +522,20 @@ const PlotKisanLedgerPage = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('parcels')}
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer shrink-0 ${
+            activeTab === 'parcels'
+              ? 'border-teal-700 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <MapPin size={17} />
+          Plot-wise Stock Breakdown ({parcels.length})
+        </button>
+
+        <button
           onClick={() => setActiveTab('deeds')}
-          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === 'deeds'
               ? 'border-purple-700 text-purple-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -716,7 +747,173 @@ const PlotKisanLedgerPage = () => {
       )}
 
       {/* ════════════════════════════════════════════════════════════════
-          TAB 3: REGISTRY DEEDS TABLE
+          TAB 3: PLOT / KHESRA STOCK BREAKDOWN (Start Area, Booked, Remaining)
+      ════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'parcels' && (
+        <div className="space-y-4">
+          {/* Summary Banner for Parcels */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-teal-50/60 p-4 rounded-2xl border border-teal-200 text-xs">
+            <div>
+              <span className="text-[10px] text-teal-700 block uppercase font-bold tracking-wider">
+                Total Land Parcels / Plots
+              </span>
+              <span className="font-black text-teal-950 text-base font-mono block mt-0.5">
+                {parcels.length} Plot{parcels.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">
+                Start Total Agreed Area
+              </span>
+              <span className="font-black text-slate-900 text-base font-mono block mt-0.5">
+                {agreement?.totalSqFt?.toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-slate-500">({agreement?.araziDismil} Dismil)</span>
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-amber-700 block uppercase font-bold tracking-wider">
+                Total Booked / Allocated
+              </span>
+              <span className="font-black text-amber-900 text-base font-mono block mt-0.5">
+                {(agreement?.totalAllocatedSqFt || 0).toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-amber-700">({(((agreement?.totalAllocatedSqFt || 0) / 435.6)).toFixed(2)} Dismil)</span>
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-emerald-700 block uppercase font-bold tracking-wider">
+                Total Free Available Stock
+              </span>
+              <span className="font-black text-emerald-900 text-base font-mono block mt-0.5">
+                {(agreement?.totalAvailableSqFt || 0).toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-emerald-700">({(((agreement?.totalAvailableSqFt || 0) / 435.6)).toFixed(2)} Dismil)</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Table of Plot / Parcel Breakdown */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold select-none">
+                    <th className="p-3.5 uppercase">#</th>
+                    <th className="p-3.5 uppercase">Plot / Khesra No.</th>
+                    <th className="p-3.5 uppercase">Mauja & Thana #</th>
+                    <th className="p-3.5 uppercase">Khata & Jamabandi</th>
+                    <th className="p-3.5 uppercase text-right text-slate-700 font-bold">Start / Total Area</th>
+                    <th className="p-3.5 uppercase text-right text-amber-700 font-bold">Booked / Allocated</th>
+                    <th className="p-3.5 uppercase text-right text-emerald-700 font-bold">Remaining Available</th>
+                    <th className="p-3.5 uppercase text-center">Status / Utilization</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {parcels.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400 italic">
+                        No parcel records found in this agreement.
+                      </td>
+                    </tr>
+                  ) : (
+                    parcels.map((p, idx) => {
+                      const parcelTotalSqFt = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6) : 0);
+                      const parcelAllocatedSqFt = p.allocatedSqFt || 0;
+                      const parcelAvailSqFt = p.availableSqFt !== undefined && p.availableSqFt !== null
+                        ? p.availableSqFt
+                        : Math.max(0, parcelTotalSqFt - parcelAllocatedSqFt);
+                      const percentAllocated = parcelTotalSqFt > 0 ? Math.min(100, Math.round((parcelAllocatedSqFt / parcelTotalSqFt) * 100)) : 0;
+                      const isFullyBooked = parcelAvailSqFt <= 0;
+
+                      return (
+                        <tr key={p._id || idx} className="hover:bg-slate-50/80 transition">
+                          <td className="p-3.5 font-bold text-slate-400">{idx + 1}</td>
+                          
+                          {/* Plot / Khesra No */}
+                          <td className="p-3.5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-50 text-teal-900 border border-teal-200 font-black font-mono text-xs">
+                              Plot #{p.khesraNumber || 'N/A'}
+                            </span>
+                          </td>
+
+                          {/* Mauja & Thana */}
+                          <td className="p-3.5">
+                            <span className="font-bold text-slate-800 block">{p.mauja || '—'}</span>
+                            <span className="text-[10px] text-slate-500 font-medium block">
+                              Thana: <strong>{p.thanaNumber || '—'}</strong>
+                            </span>
+                          </td>
+
+                          {/* Khata & Jamabandi */}
+                          <td className="p-3.5">
+                            <span className="text-slate-700 block">
+                              Khata: <strong>{p.khataNumber || '—'}</strong>
+                            </span>
+                            <span className="text-[10px] text-slate-500 block">
+                              JB: <strong>{p.jamabandiNumber || '—'}</strong>
+                            </span>
+                          </td>
+
+                          {/* Start Area */}
+                          <td className="p-3.5 text-right font-mono">
+                            <span className="font-bold text-slate-900 block">
+                              {parcelTotalSqFt?.toLocaleString('en-IN')} Sq.Ft.
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-sans">
+                              {p.araziDismil || (parcelTotalSqFt ? (parcelTotalSqFt / 435.6).toFixed(2) : 0)} Dismil
+                            </span>
+                          </td>
+
+                          {/* Booked / Allocated Area */}
+                          <td className="p-3.5 text-right font-mono">
+                            <span className={`font-bold block ${parcelAllocatedSqFt > 0 ? 'text-amber-800' : 'text-slate-400'}`}>
+                              {parcelAllocatedSqFt > 0 ? `${parcelAllocatedSqFt.toLocaleString('en-IN')} Sq.Ft.` : '0 Sq.Ft.'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-sans">
+                              {parcelAllocatedSqFt > 0 ? `${(parcelAllocatedSqFt / 435.6).toFixed(2)} Dismil` : '0 Dismil'}
+                            </span>
+                          </td>
+
+                          {/* Remaining Available Area */}
+                          <td className="p-3.5 text-right font-mono">
+                            <span className={`font-black text-sm block ${isFullyBooked ? 'text-slate-400' : 'text-emerald-700'}`}>
+                              {parcelAvailSqFt.toLocaleString('en-IN')} Sq.Ft.
+                            </span>
+                            <span className="text-[10px] text-emerald-800 block font-sans font-semibold">
+                              {(parcelAvailSqFt / 435.6).toFixed(2)} Dismil
+                            </span>
+                          </td>
+
+                          {/* Status & Utilization */}
+                          <td className="p-3.5 text-center">
+                            <div className="flex flex-col items-center gap-1 min-w-[120px]">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isFullyBooked
+                                  ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                                  : parcelAllocatedSqFt > 0
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              }`}>
+                                {isFullyBooked ? 'Fully Booked' : parcelAllocatedSqFt > 0 ? `${percentAllocated}% Allocated` : '100% Free Stock'}
+                              </span>
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    isFullyBooked ? 'bg-purple-600' : parcelAllocatedSqFt > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                                  }`}
+                                  style={{ width: `${percentAllocated}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+          TAB 4: REGISTRY DEEDS TABLE
       ════════════════════════════════════════════════════════════════ */}
       {activeTab === 'deeds' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">

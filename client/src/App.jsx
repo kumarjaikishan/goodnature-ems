@@ -82,7 +82,9 @@ const PlotBooking = lazy(() => import('./pages/plots/booking/PlotBooking'));
 const PlotBookingFormPage = lazy(() => import('./pages/plots/booking/PlotBookingFormPage'));
 const PlotBookingDetails = lazy(() => import('./pages/plots/booking/PlotBookingDetails'));
 const InstallmentCollection = lazy(() => import('./pages/plots/installments/InstallmentCollection'));
+const ProductCollectionsPage = lazy(() => import('./pages/plots/products/ProductCollectionsPage'));
 const PlotSeriesMaster = lazy(() => import('./pages/plots/seriesMaster/PlotSeriesMaster'));
+const PlotProductsPage = lazy(() => import('./pages/plots/products/PlotProductsPage'));
 const PlotReports = lazy(() => import('./pages/plots/reports/PlotReports'));
 const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/incentives/PlotPayoutLedgerPage'));
 const PlotAgreementViewer = lazy(() => import('./pages/plots/printViewers/PlotAgreementViewer'));
@@ -100,17 +102,6 @@ const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchaseP
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
 
-// Investments (RD / FD)
-const InvestmentDashboard = lazy(() => import('./pages/investments/InvestmentDashboard'));
-const InvestmentSchemeMaster = lazy(() => import('./pages/investments/InvestmentSchemeMaster'));
-const InvestmentNewAccount = lazy(() => import('./pages/investments/InvestmentNewAccount'));
-const InvestmentAccountsLedger = lazy(() => import('./pages/investments/InvestmentAccountsLedger'));
-const InvestmentCollections = lazy(() => import('./pages/investments/InvestmentCollections'));
-const InvestmentDuesReport = lazy(() => import('./pages/investments/InvestmentDuesReport'));
-const InvestmentSettlementPage = lazy(() => import('./pages/investments/InvestmentSettlementPage'));
-const InvestmentCertificateViewer = lazy(() => import('./pages/investments/InvestmentCertificateViewer'));
-const InvestmentPassbookViewer = lazy(() => import('./pages/investments/InvestmentPassbookViewer'));
-const InvestmentReceiptViewer = lazy(() => import('./pages/investments/InvestmentReceiptViewer'));
 
 // 🔹 Role-based route definitions
 const routesByRole = {
@@ -181,7 +172,10 @@ const routesByRole = {
       <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
       <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
       <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
+      <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
+      <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+      <Route path="plots/products" element={<PlotProductsPage />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
       <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
@@ -196,20 +190,9 @@ const routesByRole = {
       <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
       <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
 
-      {/* Investments (RD / FD) */}
-      <Route path="investments/dashboard" element={<InvestmentDashboard />} />
-      <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
-      <Route path="investments/new" element={<InvestmentNewAccount />} />
-      <Route path="investments/accounts" element={<InvestmentAccountsLedger />} />
-      <Route path="investments/collections" element={<InvestmentCollections />} />
-      <Route path="investments/dues" element={<InvestmentDuesReport />} />
-      <Route path="investments/settlement" element={<InvestmentSettlementPage />} />
-      <Route path="investments/certificates/:id" element={<InvestmentCertificateViewer />} />
-      <Route path="investments/passbook/:id" element={<InvestmentPassbookViewer />} />
-      <Route path="investments/receipts/:id" element={<InvestmentReceiptViewer />} />
-
       <Route path="*" element={<Errorpage />} />
     </Route>
+
   ),
   demo: (
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['demo']} />}>
@@ -277,7 +260,10 @@ const routesByRole = {
       <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
       <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
       <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
+      <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
+      <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+      <Route path="plots/products" element={<PlotProductsPage />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
       <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
@@ -291,17 +277,6 @@ const routesByRole = {
       <Route path="plots/closings" element={<PlotIncentivesPage />} />
       <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
       <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
-      {/* Investments (RD / FD) */}
-      <Route path="investments/dashboard" element={<InvestmentDashboard />} />
-      <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
-      <Route path="investments/new" element={<InvestmentNewAccount />} />
-      <Route path="investments/accounts" element={<InvestmentAccountsLedger />} />
-      <Route path="investments/collections" element={<InvestmentCollections />} />
-      <Route path="investments/dues" element={<InvestmentDuesReport />} />
-      <Route path="investments/settlement" element={<InvestmentSettlementPage />} />
-      <Route path="investments/certificates/:id" element={<InvestmentCertificateViewer />} />
-      <Route path="investments/passbook/:id" element={<InvestmentPassbookViewer />} />
-      <Route path="investments/receipts/:id" element={<InvestmentReceiptViewer />} />
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
@@ -373,7 +348,10 @@ const routesByRole = {
       <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
       <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
       <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
+      <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
+      <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+      <Route path="plots/products" element={<PlotProductsPage />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
       <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
@@ -388,21 +366,10 @@ const routesByRole = {
       <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
       <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
 
-      {/* Investments (RD / FD) */}
-      <Route path="investments/dashboard" element={<InvestmentDashboard />} />
-      <Route path="investments/schemes" element={<InvestmentSchemeMaster />} />
-      <Route path="investments/new" element={<InvestmentNewAccount />} />
-      <Route path="investments/accounts" element={<InvestmentAccountsLedger />} />
-      <Route path="investments/collections" element={<InvestmentCollections />} />
-      <Route path="investments/dues" element={<InvestmentDuesReport />} />
-      <Route path="investments/settlement" element={<InvestmentSettlementPage />} />
-      <Route path="investments/certificates/:id" element={<InvestmentCertificateViewer />} />
-      <Route path="investments/passbook/:id" element={<InvestmentPassbookViewer />} />
-      <Route path="investments/receipts/:id" element={<InvestmentReceiptViewer />} />
-
       <Route path="*" element={<Errorpage />} />
     </Route>
   ),
+
   manager: (
     <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['manager']} />}>
       <Route index element={<ManagerDashboard />} />

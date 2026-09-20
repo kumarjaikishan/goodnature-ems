@@ -1,12 +1,33 @@
 const mongoose = require('mongoose');
 
+const extraIncentiveItemSchema = new mongoose.Schema(
+  {
+    columnId: { type: String, default: '' },
+    label: { type: String, default: '' },
+    percent: { type: Number, default: 0, min: 0 },
+    rewardTitle: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const targetSlabSchema = new mongoose.Schema(
   {
     minAmount: { type: Number, required: true, min: 0 },
     maxAmount: { type: Number, default: null }, // null means unlimited (e.g. 2500000+)
     fixedCommissionPercent: { type: Number, default: null },
     targetIncentivePercent: { type: Number, required: true, min: 0 },
+    rewardPercent: { type: Number, default: 0, min: 0 },
+    rewardTitle: { type: String, default: '' }, // e.g. "Motorcycle", "Car", "Laptop", "Foreign Tour"
     label: { type: String, default: '' },
+    extraIncentives: [extraIncentiveItemSchema],
+  },
+  { _id: false }
+);
+
+const extraColumnSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    label: { type: String, default: 'Reward / Extra Incentive' },
   },
   { _id: false }
 );
@@ -19,6 +40,7 @@ const rolePolicySchema = new mongoose.Schema(
       required: true,
     },
     fixedCommissionPercent: { type: Number, required: true, min: 0 },
+    extraColumns: [extraColumnSchema],
     targetSlabs: [targetSlabSchema],
   },
   { _id: false }
@@ -98,12 +120,49 @@ const DEFAULT_INVESTMENT_POLICY = {
   ],
 };
 
+const DEFAULT_PLOT_PRODUCT_POLICY = {
+  policyName: 'PLOT_PRODUCT_OCT_DEC_2026',
+  businessType: 'PLOT_PRODUCT',
+  validFrom: new Date('2026-10-01T00:00:00.000Z'),
+  validTo: new Date('2026-12-31T23:59:59.999Z'),
+  roles: [
+    {
+      roleName: 'BUSINESS_ASSOCIATE',
+      fixedCommissionPercent: 2.50,
+      targetSlabs: [
+        { minAmount: 1, maxAmount: 499999, targetIncentivePercent: 1.00, label: '1 - 4,99,999' },
+        { minAmount: 500000, maxAmount: 999999, targetIncentivePercent: 1.50, label: '5,00,000 - 9,99,999' },
+        { minAmount: 1000000, maxAmount: 1249999, targetIncentivePercent: 2.00, label: '10,00,000 - 12,49,999' },
+        { minAmount: 1250000, maxAmount: 1499999, targetIncentivePercent: 2.50, label: '12,50,000 - 14,99,999' },
+        { minAmount: 1500000, maxAmount: 1749999, targetIncentivePercent: 3.00, label: '15,00,000 - 17,49,999' },
+        { minAmount: 1750000, maxAmount: 1999999, targetIncentivePercent: 3.50, label: '17,50,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2499999, targetIncentivePercent: 4.00, label: '20,00,000 - 24,99,999' },
+        { minAmount: 2500000, maxAmount: null, targetIncentivePercent: 5.00, label: '25,00,000+' },
+      ],
+    },
+    {
+      roleName: 'BUSINESS_PARTNER',
+      fixedCommissionPercent: 1.00,
+      targetSlabs: [
+        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.050, label: '1 - 9,99,999' },
+        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.075, label: '10,00,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2449999, targetIncentivePercent: 0.125, label: '20,00,000 - 24,49,999' },
+        { minAmount: 2500000, maxAmount: 2999999, targetIncentivePercent: 0.200, label: '25,00,000 - 29,99,999' },
+        { minAmount: 3000000, maxAmount: 3499999, targetIncentivePercent: 0.275, label: '30,00,000 - 34,99,999' },
+        { minAmount: 3500000, maxAmount: 3999999, targetIncentivePercent: 0.350, label: '35,00,000 - 39,99,999' },
+        { minAmount: 4000000, maxAmount: 4999999, targetIncentivePercent: 0.425, label: '40,00,000 - 49,99,999' },
+        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.500, label: '50,00,000+' },
+      ],
+    },
+  ],
+};
+
 const commissionPolicyConfigSchema = new mongoose.Schema(
   {
     policyName: { type: String, required: true, unique: true },
     businessType: {
       type: String,
-      enum: ['PLOT_SALE', 'INVESTMENT_RD_FD'],
+      enum: ['PLOT_SALE', 'INVESTMENT_RD_FD', 'PLOT_PRODUCT'],
       required: true,
     },
     validFrom: { type: Date, default: null },
@@ -120,6 +179,10 @@ commissionPolicyConfigSchema.statics.getDefaultPlotPolicy = function () {
 
 commissionPolicyConfigSchema.statics.getDefaultInvestmentPolicy = function () {
   return DEFAULT_INVESTMENT_POLICY;
+};
+
+commissionPolicyConfigSchema.statics.getDefaultPlotProductPolicy = function () {
+  return DEFAULT_PLOT_PRODUCT_POLICY;
 };
 
 /**
@@ -168,14 +231,43 @@ commissionPolicyConfigSchema.statics.resolveSlab = function (policyData, roleNam
   const fixedPercent = matchedSlab && matchedSlab.fixedCommissionPercent != null && matchedSlab.fixedCommissionPercent !== ''
     ? Number(matchedSlab.fixedCommissionPercent)
     : defaultFixed;
-  const incentivePercent = matchedSlab ? Number(matchedSlab.targetIncentivePercent) : 0;
-  const totalPercent = +(fixedPercent + incentivePercent).toFixed(3);
+
+  const baseIncentivePercent = matchedSlab ? Number(matchedSlab.targetIncentivePercent) || 0 : 0;
+
+  // Extra / Reward incentives calculation
+  let extraIncentivePercent = 0;
+  let rewardTitles = [];
+
+  if (matchedSlab) {
+    if (matchedSlab.rewardPercent) {
+      extraIncentivePercent += Number(matchedSlab.rewardPercent) || 0;
+    }
+    if (matchedSlab.rewardTitle && String(matchedSlab.rewardTitle).trim()) {
+      rewardTitles.push(String(matchedSlab.rewardTitle).trim());
+    }
+    if (Array.isArray(matchedSlab.extraIncentives)) {
+      matchedSlab.extraIncentives.forEach((item) => {
+        const p = Number(item?.percent) || 0;
+        extraIncentivePercent += p;
+        const itemTitle = item?.rewardTitle ? String(item.rewardTitle).trim() : '';
+        if (itemTitle && !rewardTitles.includes(itemTitle)) {
+          rewardTitles.push(itemTitle);
+        }
+      });
+    }
+  }
+
+  const totalIncentivePercent = +(baseIncentivePercent + extraIncentivePercent).toFixed(3);
+  const totalPercent = +(fixedPercent + totalIncentivePercent).toFixed(3);
 
   return {
     fixedPercent,
-    incentivePercent,
+    baseIncentivePercent,
+    extraIncentivePercent,
+    incentivePercent: totalIncentivePercent,
     totalPercent,
     slabLabel: matchedSlab ? matchedSlab.label : 'Below Min Target',
+    rewardTitle: rewardTitles.join(', '),
     currentSlab: matchedSlab,
     nextSlab: nextSlab,
     distanceToNextSlab: nextSlab ? Math.max(0, nextSlab.minAmount - vol) : 0,

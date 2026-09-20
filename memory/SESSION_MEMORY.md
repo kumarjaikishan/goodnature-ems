@@ -37,6 +37,16 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - Manual entry of Plot Size (Sq Ft) in Series creation is removed and made strictly read-only auto-calculated dynamically from North, South, East, and West dimensions: $\text{Area} = \frac{\text{North} + \text{South}}{2} \times \frac{\text{East} + \text{West}}{2}$.
   - Plot dimensions across Series & Plot modals (North, South, East, West) default to `0`.
 
+### Z. Plot Product Fractional Units EMI & Late Fine Architecture
+- **Micro-Plot Fractional Units**: Plot Products configured in `/dashboard/plots/products` allow booking fractional unit pieces with North/South/East/West dimensions on flexible RD/EMI tenure plans (12, 24, 36, 48, 60 months).
+- **EMI & 24% P.A. Late Fine Calculation**:
+  - Unpaid installments past their scheduled due date plus grace period (15 days default from `PlotRateConfiguration`) accrue a 24% annual late fine (`(24/365)%` daily).
+  - Waterfall collection rule: Late fine rebate reduces unpaid fine first; collected amount settles remaining unpaid late fine first, then principal.
+- **Enriched Sales & Statement Tracking**:
+  - `ProductSalesTab.jsx` displays overdue EMI counts, pending EMIs, and real-time accrued late fine amounts.
+  - `ProductCustomerLedgerModal.jsx` provides an itemized statement with overdue days, late fine, rebate, and paid receipts.
+  - `ProductInstallmentCollectModal.jsx` supports multi-installment selection, quick-fill buttons, late fine rebate, cheque 6-digit validation, and real-time payment calculations.
+
 ### S. Frontend Route Conflict Resolution & Authorization Loop Prevention
 - **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
 - **Gotcha 2**: In `ProtectedRoutes.jsx`, when `role` was undefined during initial profile fetch, `!isAuthorized` redirected to `/`. But in `App.jsx`, `<Route path="/" element={<Navigate to="/dashboard" replace />} />` immediately bounced back to `/dashboard`, causing an infinite redirect loop (`/` <-> `/dashboard`) and rapid toast spam.
@@ -92,6 +102,30 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
 - **Gotcha 2**: In `ProtectedRoutes.jsx`, when `role` was undefined during initial profile fetch, `!isAuthorized` redirected to `/`. But in `App.jsx`, `<Route path="/" element={<Navigate to="/dashboard" replace />} />` immediately bounced back to `/dashboard`, causing an infinite redirect loop (`/` <-> `/dashboard`) and rapid toast spam.
 - **Fix Pattern**: In `ProtectedRoutes.jsx`, resolve `role` from JWT token payload immediately if profile is pending, render `<ContentLoader />` while determining authentication, and navigate to `/login` if unauthenticated/unauthorized instead of bouncing to `/`.
+
+### V. Land Acquisition Sourcing & Multi-Plot Parcel Allocation
+- **Architecture**: A single Kisan Agreement (`KisanLandAgreement`) can contain multiple land parcels (`landParcels`), each with its own `mauja`, `thanaNumber`, `khataNumber`, `khesraNumber`, `totalSqFt`, `allocatedSqFt`, and `availableSqFt`.
+- **Plot Booking Sourcing**: In `/dashboard/plots/addbooking`, land sourcing supports allocating plot square footage across:
+  - Multiple different Plot / Khesra numbers from the *same* agreement.
+  - Or different plot numbers from *different* agreements.
+  - Adding land sources auto-calculates remaining unallocated square footage and prevents exceeding total plot area.
+- **Agreement Ledger & Plot Breakdown**:
+  - In the agreement's **Land Stock Allocation Audit** ledger (`PlotKisanLedgerPage`), multiple parcel allocations for the same booking are grouped into a single consolidated transaction entry (e.g. 1200 Sq.Ft.), with individual parcel breakdowns listed clearly in the remarks.
+  - A dedicated **Plot-wise Stock Breakdown** tab displays each individual Plot/Khesra number, Thana #, Khata, Jamabandi, Start Area, Booked/Allocated Area, Remaining Available Area, and live utilization percentage bars.
+- **Backend Tracking**: `getAvailableLandStockSources` in `kisanLand.service.js` returns parcel-level stock data. When creating/rejecting bookings in `plotBooking.service.js`, both agreement-level and parcel-level `allocatedSqFt` and `availableSqFt` are accurately tracked and updated atomically.
+
+### W. Payment Receipt Outstanding Balance & Downpayment Tracking
+- **Receipt Types**: `BOOKING`, `DOWNPAYMENT`, `INSTALLMENT`, `FULL_PAYMENT`.
+- **ReceiptViewer (`/dashboard/plots/receipts/:id`)**:
+  - Displays **Date & Time in 12-hour format with guaranteed capital AM/PM** (e.g. `19 Sept 2026, 12:40 PM`) on all receipts.
+  - For **Downpayment Receipts** (`DOWNPAYMENT` / `BOOKING`), displays 2 distinct outstanding datacells:
+    1. **Outstanding D.P.** (`asOfRemainingDownpayment`): Remaining balance of the initial downpayment obligation.
+    2. **Outstanding Total** (`asOfRemainingAmount`): Total remaining contract principal balance across the whole booking.
+  - For regular installment receipts, displays the consolidated **Outstanding Balance**.
+- **Downpayment Collection Form (`/dashboard/plots/collections/downpayment/add`)**:
+  - Lists **all active contracts** in the select dropdown so users can select any booking without confusion.
+  - Clearly shows `(✓ Downpayment Completed)` or `(Pending DP: ₹...)` in the dropdown options.
+  - If a booking with completed downpayment is selected, displays an explicit green status banner (`Downpayment is Completed (100% Paid)`), shows a direct button to collect EMI instead, and prevents duplicate downpayment collection.
 
 ### T. Standalone MongoDB vs Replica Set Transactions
 - **Gotcha**: Calling `session.startTransaction()` on a standalone local MongoDB instance throws `"Transaction numbers are only allowed on a replica set member or mongos"`.
@@ -719,12 +753,19 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - In `server/controllers/ledger.js` (`updateEntry` & `deleteEntry`), entries with `source.startsWith('commission')` or `source === 'plot_payout'` are blocked from direct manual editing or deletion (returning HTTP 400), ensuring they cannot diverge from billing receipts.
   - In `client/src/pages/admin/ledger/ledgerhelper.jsx` (`getLedgerColumns`), automated billing commission entries replace the standard Edit/Trash action buttons with a locked `Auto Billing` badge and explanatory tooltip.
 
-### II. Plot Management Submenu Renaming: Commission Closings -> Incentive
-- **Sidebar & Routes**:
-  - In `client/src/components/sidebar.jsx`, the submenu item under Plot Management is renamed to **"Incentive"** with route `/dashboard/plots/incentives`.
-- **Directory Structure & Pages**:
-  - Dedicated component directory `client/src/pages/plots/incentives/` houses `PlotIncentivesPage.jsx`, `PlotIncentiveProcessPage.jsx`, `PlotPayoutLedgerPage.jsx`, and `PlotPayoutVoucherPrint.jsx`.
-  - All headings, buttons, KPI cards, and tooltips updated to "Incentive" terminology while maintaining backwards-compatible aliases for legacy routes and imports.
+### JJ. Plot Booking Authorization Workflow, Pre-Booking Confirmation & One-Time vs EMI Scheme
+- **Pending Authorization Workflow**:
+  - `PlotBooking` schema updated with `status: 'PENDING'` (default for new bookings) and `status: 'REJECTED'`.
+  - When submitted, new plot bookings default to `status: 'PENDING'`. The plot is reserved, and land stock allocations are committed in pending state.
+  - Authorized users (Admin/Manager) have **Approve Booking** (`PUT /api/plots/bookings/:id/approve`) and **Reject Booking** (`PUT /api/plots/bookings/:id/reject`) options in [PlotBookingDetails.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/booking/PlotBookingDetails.jsx).
+  - Approving activates the booking to `ACTIVE` and generates audit stamps (`approvedBy`, `approvedAt`).
+  - Rejecting updates status to `REJECTED`, marks `rejectedBy`, `rejectedAt`, and `rejectionReason`, releases the plot back to `AVAILABLE`, and restores allocated land stock back to the Kisan Land Agreement.
+- **Pre-Booking Confirmation Modal**:
+  - [BookingConfirmationModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/booking/components/BookingConfirmationModal.jsx) opens before final submission, showing verified customer details, plot specifications, rates, discounts, payment plan, and land sourcing allocation.
+- **One Time (Full Payment) vs EMI Plan Toggle**:
+  - In [StepTermsAndPayment.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/booking/components/StepTermsAndPayment.jsx), users can choose between **One Time (Full Payment)** and **EMI / Installment Plan**.
+  - When **One Time** is selected, downpayment is automatically set to 100% of net contract value, EMI fields are omitted (`installmentCount: 0`, `tenureMonths: 0`), and the schedule card displays a confirmation banner.
+  - When **EMI** is selected, the total duration (`8 Months total duration`) is rendered in a prominent, bold, and larger highlighted container badge.
 
 
 

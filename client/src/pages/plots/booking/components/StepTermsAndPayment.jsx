@@ -45,6 +45,8 @@ export const StepTermsAndPayment = ({
   effectiveSqFtRate,
   calculatedPlotValue,
   selectedPlot,
+  paymentPlanMode = 'EMI',
+  setPaymentPlanMode,
   selectedPremiumHeads = [],
   togglePremiumHead,
   totalPremiumExtra = 0,
@@ -86,6 +88,77 @@ export const StepTermsAndPayment = ({
           >
             Confirm Book Plot
           </Button>
+        </div>
+      </div>
+
+      {/* Payment Plan Scheme Selector: One Time vs EMI Plan */}
+      <div className="p-4 bg-gradient-to-r from-teal-50/70 via-emerald-50/50 to-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
+            <Calculator size={15} className="text-teal-700" />
+            Payment Plan Scheme *
+          </label>
+          <span className="text-[10px] text-teal-800 font-bold bg-teal-100/90 border border-teal-300 px-2.5 py-0.5 rounded-full">
+            {paymentPlanMode === 'ONE_TIME' ? 'Full 100% Payment' : 'Installments Schedule'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Option A: One Time */}
+          <div
+            onClick={() => {
+              if (setPaymentPlanMode) {
+                setPaymentPlanMode('ONE_TIME');
+              }
+              setDpType('PERCENT');
+              setDpVal(100);
+            }}
+            className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
+              paymentPlanMode === 'ONE_TIME'
+                ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-600/20'
+                : 'bg-white/70 border-slate-200 hover:border-teal-300 hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold ${paymentPlanMode === 'ONE_TIME' ? 'text-teal-950 font-extrabold' : 'text-slate-700'}`}>
+                One Time (Full Payment)
+              </span>
+              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentPlanMode === 'ONE_TIME' ? 'border-teal-600 bg-teal-600' : 'border-slate-300 bg-white'}`}>
+                {paymentPlanMode === 'ONE_TIME' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+              Pay 100% full net amount in Downpayment. No EMI installments or monthly balance required.
+            </p>
+          </div>
+
+          {/* Option B: EMI Plan */}
+          <div
+            onClick={() => {
+              if (setPaymentPlanMode) {
+                setPaymentPlanMode('EMI');
+              }
+              setDpType('SQFT_RATE');
+              setDpVal(500);
+            }}
+            className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
+              paymentPlanMode === 'EMI'
+                ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-600/20'
+                : 'bg-white/70 border-slate-200 hover:border-teal-300 hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold ${paymentPlanMode === 'EMI' ? 'text-teal-950 font-extrabold' : 'text-slate-700'}`}>
+                EMI / Installment Plan
+              </span>
+              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentPlanMode === 'EMI' ? 'border-teal-600 bg-teal-600' : 'border-slate-300 bg-white'}`}>
+                {paymentPlanMode === 'EMI' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+              Flexible initial downpayment + periodic installment EMIs across customized tenure.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -280,57 +353,70 @@ export const StepTermsAndPayment = ({
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
               <Calculator size={14} className="text-teal-700" />
-              Downpayment *
+              {paymentPlanMode === 'ONE_TIME' ? 'Full Payment Downpayment (100%) *' : 'Downpayment *'}
             </label>
             <span className="text-[10px] text-teal-800 font-bold bg-teal-100/80 px-2 py-0.5 rounded-full border border-teal-300">
-              {dpType === 'SQFT_RATE'
+              {paymentPlanMode === 'ONE_TIME'
+                ? '100% Full Net Value'
+                : dpType === 'SQFT_RATE'
                 ? `₹${dpVal || 0}/sqft`
                 : dpType === 'PERCENT'
                 ? `${dpVal || 0}%`
                 : `Flat ₹`}
             </span>
           </div>
-          <div className="flex h-11 rounded-xl border border-teal-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-700 bg-white shadow-2xs">
-            <select
-              value={dpType}
-              onChange={(e) => {
-                const newType = e.target.value;
-                setDpType(newType);
-                if (newType === 'FLAT') {
-                  setDpVal(downpaymentAmt || Math.round(plotArea * (parseFloat(dpVal) || 500)));
-                } else if (newType === 'PERCENT') {
-                  setDpVal(
-                    netContractValue > 0
-                      ? Math.min(100, Math.round(((downpaymentAmt || 0) / netContractValue) * 100)) || 50
-                      : 50
-                  );
-                } else if (newType === 'SQFT_RATE') {
-                  setDpVal(plotArea > 0 ? Math.round((downpaymentAmt || 0) / plotArea) || 500 : 500);
+
+          {paymentPlanMode === 'ONE_TIME' ? (
+            <div className="h-11 px-3.5 bg-white border border-teal-300 rounded-xl flex items-center justify-between shadow-2xs">
+              <span className="text-xs font-semibold text-teal-900">Total Contract Value:</span>
+              <span className="text-sm font-bold font-mono text-emerald-900">
+                ₹{downpaymentAmt.toLocaleString('en-IN')}
+              </span>
+            </div>
+          ) : (
+            <div className="flex h-11 rounded-xl border border-teal-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-700 bg-white shadow-2xs">
+              <select
+                value={dpType}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setDpType(newType);
+                  if (newType === 'FLAT') {
+                    setDpVal(downpaymentAmt || Math.round(plotArea * (parseFloat(dpVal) || 500)));
+                  } else if (newType === 'PERCENT') {
+                    setDpVal(
+                      netContractValue > 0
+                        ? Math.min(100, Math.round(((downpaymentAmt || 0) / netContractValue) * 100)) || 50
+                        : 50
+                    );
+                  } else if (newType === 'SQFT_RATE') {
+                    setDpVal(plotArea > 0 ? Math.round((downpaymentAmt || 0) / plotArea) || 500 : 500);
+                  }
+                }}
+                className="px-3 bg-teal-50 text-xs font-bold text-teal-900 border-r border-teal-200 outline-none cursor-pointer shrink-0"
+              >
+                <option value="SQFT_RATE">₹ / Sq.Ft.</option>
+                <option value="PERCENT">% (Percentage)</option>
+                <option value="FLAT">₹ (Flat)</option>
+              </select>
+              <input
+                className="w-full px-3.5 text-sm bg-transparent outline-none text-teal-950 font-bold font-mono"
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={dpVal}
+                onChange={(e) => setDpVal(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder={
+                  dpType === 'PERCENT'
+                    ? 'e.g. 25 (%)'
+                    : dpType === 'SQFT_RATE'
+                    ? 'e.g. 500 (₹/sqft)'
+                    : 'e.g. 200000 (Flat ₹)'
                 }
-              }}
-              className="px-3 bg-teal-50 text-xs font-bold text-teal-900 border-r border-teal-200 outline-none cursor-pointer shrink-0"
-            >
-              <option value="SQFT_RATE">₹ / Sq.Ft.</option>
-              <option value="PERCENT">% (Percentage)</option>
-              <option value="FLAT">₹ (Flat)</option>
-            </select>
-            <input
-              className="w-full px-3.5 text-sm bg-transparent outline-none text-teal-950 font-bold font-mono"
-              type="tel"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={dpVal}
-              onChange={(e) => setDpVal(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder={
-                dpType === 'PERCENT'
-                  ? 'e.g. 25 (%)'
-                  : dpType === 'SQFT_RATE'
-                  ? 'e.g. 500 (₹/sqft)'
-                  : 'e.g. 200000 (Flat ₹)'
-              }
-              required
-            />
-          </div>
+                required
+              />
+            </div>
+          )}
+
           <span className="text-[11px] text-teal-800 font-bold truncate">
             Total DP: ₹{downpaymentAmt.toLocaleString('en-IN')} (₹{customDpRate}/sqft eq.)
           </span>
@@ -360,15 +446,15 @@ export const StepTermsAndPayment = ({
           </span>
         </div>
 
-        {/* 7. EMI Frequency & Installments Schedule (when remaining balance > 0) */}
-        {remainingBalance > 0 ? (
+        {/* 7. EMI Frequency & Installments Schedule (when EMI scheme active & remaining balance > 0) */}
+        {paymentPlanMode === 'EMI' && remainingBalance > 0 ? (
           <div className="md:col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-col gap-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Calculator size={15} className="text-teal-700" />
                 EMI Frequency & Installments Schedule
               </label>
-              <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-black text-teal-900 bg-teal-100/90 border border-teal-300 px-3 py-1 rounded-xl shadow-2xs">
                 Total Tenure: {totalTenureMonths} Months
               </span>
             </div>
@@ -410,12 +496,19 @@ export const StepTermsAndPayment = ({
                   pattern="[0-9]*"
                   value={installmentCount}
                   onChange={(e) => setInstallmentCount(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="8"
+                  placeholder="1"
                   required
                 />
-                <span className="text-[11px] text-slate-500 font-medium truncate">
-                  {totalTenureMonths} Months total duration
-                </span>
+                
+                {/* Highlighted Bold & Larger EMI Duration */}
+                <div className="mt-1.5 flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl w-fit">
+                  <span className="text-sm font-black text-teal-950 font-mono tracking-tight">
+                    {totalTenureMonths} Months
+                  </span>
+                  <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+                    Total Duration
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -437,9 +530,19 @@ export const StepTermsAndPayment = ({
             </div>
           </div>
         ) : (
-          <div className="md:col-span-2 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
-            <span>Full Payment (100% Downpayment) — Remaining Balance is ₹0. No EMI installments required.</span>
+          <div className="md:col-span-2 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl text-xs font-bold text-emerald-900 flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 size={18} className="text-emerald-700 shrink-0" />
+              <div>
+                <p className="font-bold text-emerald-950 text-sm">One Time Full Payment Selected</p>
+                <p className="text-[11px] text-emerald-800 font-normal">
+                  Remaining balance is ₹0. No EMI schedule or installments are required for this contract.
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-white text-emerald-800 border border-emerald-300 rounded-xl text-xs font-black font-mono">
+              ₹0 EMI / Month
+            </span>
           </div>
         )}
 
@@ -470,9 +573,14 @@ export const StepTermsAndPayment = ({
                       sourceType: 'AGREEMENT',
                       agreementId: '',
                       agreementNumber: '',
+                      parcelId: null,
+                      khesraNumber: '',
+                      mauja: '',
+                      thanaNumber: '',
+                      khataNumber: '',
                       deedId: null,
                       deedNumber: '',
-                      allocatedSqFt: remaining > 0 ? remaining : plotArea,
+                      allocatedSqFt: remaining,
                     },
                   ]);
                 }}
@@ -500,10 +608,14 @@ export const StepTermsAndPayment = ({
                   onClick={() => {
                     setLandSourcing([
                       {
-                        sourceType: '',
+                        sourceType: 'AGREEMENT',
                         agreementId: '',
                         agreementNumber: '',
                         parcelId: null,
+                        khesraNumber: '',
+                        mauja: '',
+                        thanaNumber: '',
+                        khataNumber: '',
                         deedId: null,
                         deedNumber: '',
                         allocatedSqFt: plotArea,
@@ -518,132 +630,225 @@ export const StepTermsAndPayment = ({
           ) : (
             <div className="space-y-3 mt-2">
               {landSourcing.map((src, idx) => {
-                const selectedSourceObj = allLandSources.find((s) =>
-                  src.deedNumber
-                    ? s.deedNumber === src.deedNumber
-                    : String(s.agreementId) === String(src.agreementId) &&
-                      (!src.parcelId || String(s.parcelId) === String(src.parcelId))
+                // Find selected agreement in allLandSources
+                const selectedAgr = allLandSources.find(
+                  (s) => String(s.agreementId) === String(src.agreementId)
                 );
 
-                const selectValue = src.deedNumber
-                  ? `DEED_${src.deedNumber}`
-                  : src.agreementId
-                  ? (src.parcelId ? `AGR_${src.agreementId}_${src.parcelId}` : `AGR_${src.agreementId}`)
-                  : '';
+                // Available parcels under this agreement
+                const availableParcels = selectedAgr?.parcels || [];
+
+                // Find active parcel
+                const selectedParcel = availableParcels.find(
+                  (p) => (src.parcelId && String(p.parcelId) === String(src.parcelId)) ||
+                         (src.khesraNumber && String(p.khesraNumber) === String(src.khesraNumber))
+                ) || availableParcels[0];
+
+                const parcelAvailableSqFt = selectedParcel?.availableSqFt ?? selectedAgr?.availableSqFt ?? 0;
+                const parcelAvailableDismil = selectedParcel?.availableDismil ?? selectedAgr?.availableDismil ?? (parcelAvailableSqFt ? (parcelAvailableSqFt / 435.6).toFixed(2) : 0);
 
                 return (
                   <div
                     key={idx}
-                    className="flex flex-col gap-2.5 bg-white p-3.5 rounded-xl border border-teal-200 shadow-2xs"
+                    className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-teal-200 shadow-2xs"
                   >
-                    <div className="flex flex-col sm:flex-row items-center gap-2">
-                      <select
-                        className="flex-1 h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg outline-none w-full focus:ring-2 focus:ring-teal-600 focus:bg-white"
-                        value={selectValue}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (!val) {
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                      {/* 1. Select Agreement */}
+                      <div className="sm:col-span-5 flex flex-col gap-1">
+                        <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                          1. Select Agreement *
+                        </label>
+                        <select
+                          className="h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg outline-none w-full focus:ring-2 focus:ring-teal-600 focus:bg-white cursor-pointer"
+                          value={src.agreementId || ''}
+                          onChange={(e) => {
+                            const chosenAgrId = e.target.value;
                             const updated = [...landSourcing];
+                            if (!chosenAgrId) {
+                              updated[idx] = {
+                                sourceType: 'AGREEMENT',
+                                agreementId: '',
+                                agreementNumber: '',
+                                parcelId: null,
+                                khesraNumber: '',
+                                mauja: '',
+                                thanaNumber: '',
+                                khataNumber: '',
+                                deedId: null,
+                                deedNumber: '',
+                                allocatedSqFt: src.allocatedSqFt || 0,
+                              };
+                              setLandSourcing(updated);
+                              return;
+                            }
+
+                            const chosenAgr = allLandSources.find(
+                              (s) => String(s.agreementId) === String(chosenAgrId)
+                            );
+                            if (!chosenAgr) return;
+
+                            const firstParcel = chosenAgr.parcels?.[0];
+                            const otherRowsTotal = landSourcing
+                              .filter((_, i) => i !== idx)
+                              .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+                            const remainingNeeded = Math.max(0, plotArea - otherRowsTotal);
+                            const currentAlloc = Number(src.allocatedSqFt) || 0;
+
                             updated[idx] = {
-                              sourceType: 'AGREEMENT',
-                              agreementId: '',
-                              agreementNumber: '',
-                              parcelId: null,
-                              deedId: null,
-                              deedNumber: '',
-                              allocatedSqFt: src.allocatedSqFt || plotArea,
+                              ...updated[idx],
+                              sourceType: chosenAgr.sourceType || 'AGREEMENT',
+                              agreementId: chosenAgr.agreementId,
+                              agreementNumber: chosenAgr.agreementNumber,
+                              parcelId: firstParcel?.parcelId || null,
+                              khesraNumber: firstParcel?.khesraNumber || chosenAgr.khesraNumber || '',
+                              mauja: firstParcel?.mauja || chosenAgr.mauja || '',
+                              thanaNumber: firstParcel?.thanaNumber || chosenAgr.thanaNumber || '',
+                              khataNumber: firstParcel?.khataNumber || chosenAgr.khataNumber || '',
+                              allocatedSqFt: currentAlloc > 0 ? currentAlloc : remainingNeeded,
                             };
                             setLandSourcing(updated);
-                            return;
-                          }
-                          const chosen = allLandSources.find((s) => {
-                            const sVal = s.deedNumber
-                              ? `DEED_${s.deedNumber}`
-                              : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
-                            return sVal === val || String(s.agreementId) === val || String(s.deedNumber) === val;
-                          });
-                          if (!chosen) return;
-                          const updated = [...landSourcing];
-                          updated[idx] = {
-                            ...updated[idx],
-                            sourceType: chosen.sourceType,
-                            agreementId: chosen.agreementId,
-                            agreementNumber: chosen.agreementNumber,
-                            parcelId: chosen.parcelId || null,
-                            deedId: chosen.deedId || null,
-                            deedNumber: chosen.deedNumber || '',
-                          };
-                          setLandSourcing(updated);
-                        }}
-                      >
-                        <option value="">-- Select Agreement --</option>
-                        {allLandSources.map((s, sIdx) => {
-                          const optKey = s.deedNumber
-                            ? `DEED_${s.deedId || s.deedNumber}_${sIdx}`
-                            : `AGR_${s.agreementId}_${s.parcelId || sIdx}`;
-                          const optVal = s.deedNumber
-                            ? `DEED_${s.deedNumber}`
-                            : `AGR_${s.agreementId}${s.parcelId ? `_${s.parcelId}` : ''}`;
-                          return (
-                            <option key={optKey} value={optVal}>
-                              {s.sourceType === 'REGISTRY_DEED' ? s.deedNumber : s.agreementNumber}
-                            </option>
-                          );
-                        })}
-                      </select>
-
-                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                        <input
-                          type="number"
-                          className="w-28 h-10 px-2.5 text-xs font-bold text-slate-900 border border-slate-300 rounded-lg outline-none text-right font-mono focus:ring-2 focus:ring-teal-600"
-                          value={src.allocatedSqFt ?? ''}
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
-                            const updated = [...landSourcing];
-                            updated[idx].allocatedSqFt = val;
-                            setLandSourcing(updated);
                           }}
-                          placeholder="Sq. Ft."
-                        />
-                        <span className="text-xs font-semibold text-slate-500">SqFt</span>
-                        <button
-                          type="button"
-                          onClick={() => setLandSourcing(landSourcing.filter((_, i) => i !== idx))}
-                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer flex items-center justify-center"
-                          title="Remove Land Source"
                         >
-                          <Trash2 size={16} />
-                        </button>
+                          <option value="">-- Select Agreement --</option>
+                          {allLandSources.map((agr, aIdx) => (
+                            <option key={`agr_${agr.agreementId}_${aIdx}`} value={agr.agreementId}>
+                              {agr.agreementNumber} (Total Avail: {agr.availableSqFt?.toLocaleString('en-IN')} SqFt)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* 2. Select Plot / Khesra No. in this agreement */}
+                      <div className="sm:col-span-4 flex flex-col gap-1">
+                        <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                          2. Plot / Khesra No. *
+                        </label>
+                        {src.agreementId && availableParcels.length > 0 ? (
+                          <select
+                            className="h-10 px-3 text-xs font-semibold bg-teal-50/60 border border-teal-300 rounded-lg outline-none w-full focus:ring-2 focus:ring-teal-600 focus:bg-white text-teal-950 cursor-pointer"
+                            value={src.parcelId ? String(src.parcelId) : (src.khesraNumber || '')}
+                            onChange={(e) => {
+                              const chosenVal = e.target.value;
+                              const p = availableParcels.find(
+                                (item) => String(item.parcelId) === chosenVal || String(item.khesraNumber) === chosenVal
+                              );
+                              if (!p) return;
+                              const updated = [...landSourcing];
+                              updated[idx] = {
+                                ...updated[idx],
+                                parcelId: p.parcelId || null,
+                                khesraNumber: p.khesraNumber || '',
+                                mauja: p.mauja || '',
+                                thanaNumber: p.thanaNumber || '',
+                                khataNumber: p.khataNumber || '',
+                              };
+                              setLandSourcing(updated);
+                            }}
+                          >
+                            {availableParcels.map((p, pIdx) => (
+                              <option
+                                key={`parcel_${p.parcelId || pIdx}`}
+                                value={p.parcelId ? String(p.parcelId) : String(p.khesraNumber)}
+                              >
+                                Plot #{p.khesraNumber || 'N/A'} (Khata: {p.khataNumber || '-'}, Thana: {p.thanaNumber || '-'}, Avail: {p.availableSqFt} SqFt)
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            disabled
+                            placeholder="Select agreement first"
+                            className="h-10 px-3 text-xs bg-slate-100 border border-slate-200 rounded-lg text-slate-400 font-medium"
+                          />
+                        )}
+                      </div>
+
+                      {/* 3. Allocated SqFt Input & Delete */}
+                      <div className="sm:col-span-3 flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                            Allocated Area *
+                          </label>
+                          {(() => {
+                            const otherRowsTotal = landSourcing
+                              .filter((_, i) => i !== idx)
+                              .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+                            const remainingNeeded = Math.max(0, plotArea - otherRowsTotal);
+                            if (remainingNeeded > 0 && Number(src.allocatedSqFt) !== remainingNeeded) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...landSourcing];
+                                    updated[idx].allocatedSqFt = remainingNeeded;
+                                    setLandSourcing(updated);
+                                  }}
+                                  className="text-[9px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-1.5 py-0.5 rounded border border-teal-200 transition cursor-pointer"
+                                  title={`Auto-fill remaining ${remainingNeeded} Sq.Ft.`}
+                                >
+                                  Fill {remainingNeeded} SqFt
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            className="w-full h-10 px-2.5 text-xs font-bold text-slate-900 border border-slate-300 rounded-lg outline-none text-right font-mono focus:ring-2 focus:ring-teal-600 shadow-2xs"
+                            value={src.allocatedSqFt ?? ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              const updated = [...landSourcing];
+                              updated[idx].allocatedSqFt = val;
+                              setLandSourcing(updated);
+                            }}
+                            placeholder="Sq.Ft."
+                          />
+                          <span className="text-xs font-bold text-slate-500 shrink-0">SqFt</span>
+                          <button
+                            type="button"
+                            onClick={() => setLandSourcing(landSourcing.filter((_, i) => i !== idx))}
+                            className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer flex items-center justify-center shrink-0 border border-rose-200"
+                            title="Remove this Land Source"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Show details card when an agreement is selected */}
-                    {selectedSourceObj && (
-                      <div className="bg-teal-50/60 border border-teal-100 rounded-lg p-2.5 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700 font-medium">
+                    {/* Show Details & Remaining Available Plot Size Card */}
+                    {src.agreementId && (
+                      <div className="bg-teal-50/70 border border-teal-200/90 rounded-xl p-3 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-700 font-medium">
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Agreement No.</span>
-                          <span className="font-bold text-teal-950">
-                            {selectedSourceObj.agreementNumber}
+                          <span className="text-slate-400 block text-[9px] uppercase font-bold">Agreement #</span>
+                          <span className="font-bold text-teal-950 font-mono">
+                            {src.agreementNumber}
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Mauja / Khata / Khesra</span>
-                          <span className="font-semibold text-slate-800">
-                            {selectedSourceObj.mauja || '-'} (Khata: {selectedSourceObj.khataNumber || '-'}, Khesra: {selectedSourceObj.khesraNumber || '-'})
+                          <span className="text-slate-400 block text-[9px] uppercase font-bold">Plot / Khesra & Thana #</span>
+                          <span className="font-bold text-slate-900">
+                            Plot #{src.khesraNumber || '-'} {src.thanaNumber ? `(Thana: ${src.thanaNumber})` : ''}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block">
+                            Mauja: {src.mauja || '-'} | Khata: {src.khataNumber || '-'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Available Area (Sq.Ft.)</span>
-                          <span className="font-extrabold text-teal-900 font-mono">
-                            {selectedSourceObj.availableSqFt?.toLocaleString('en-IN') || 0} Sq.Ft.
+                          <span className="text-slate-400 block text-[9px] uppercase font-bold">Available in this Plot</span>
+                          <span className="font-extrabold text-teal-900 font-mono text-xs">
+                            {parcelAvailableSqFt.toLocaleString('en-IN')} Sq.Ft.
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Available (Dismil)</span>
-                          <span className="font-extrabold text-emerald-800 font-mono">
-                            {selectedSourceObj.availableDismil ??
-                              (selectedSourceObj.availableSqFt ? (selectedSourceObj.availableSqFt / 435.6).toFixed(2) : 0)}{' '}
-                            Dismil
+                          <span className="text-slate-400 block text-[9px] uppercase font-bold">Available (Dismil)</span>
+                          <span className="font-extrabold text-emerald-800 font-mono text-xs">
+                            {parcelAvailableDismil} Dismil
                           </span>
                         </div>
                       </div>
@@ -654,25 +859,51 @@ export const StepTermsAndPayment = ({
 
               {(() => {
                 const isMatch = Math.abs(totalAllocatedArea - plotArea) <= 0.5 && isLandStockValid;
+                const isExceeded = totalAllocatedArea > plotArea;
                 return (
-                  <div className="flex justify-between items-center text-xs font-bold px-1 pt-1">
-                    <span className={isMatch ? 'text-emerald-700 flex items-center gap-1' : 'text-rose-600 flex items-center gap-1'}>
-                      {isMatch ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Land Stock Area Matched:</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          <span>
-                            {landSourcing.some((s) => !s.agreementId)
-                              ? '⚠️ Please choose an agreement for all rows'
-                              : '⚠️ Sourced Area Mismatch:'}
-                          </span>
-                        </>
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs font-bold px-1 pt-1">
+                    <div className="flex items-center gap-2">
+                      <span className={isMatch ? 'text-emerald-700 flex items-center gap-1' : 'text-rose-600 flex items-center gap-1'}>
+                        {isMatch ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Land Stock Area Perfectly Matched:</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>
+                              {landSourcing.some((s) => !s.agreementId)
+                                ? '⚠️ Please choose an agreement for all rows'
+                                : isExceeded
+                                ? `⚠️ Allocated Area Exceeds Plot Size by ${(totalAllocatedArea - plotArea).toLocaleString('en-IN')} Sq.Ft.:`
+                                : `⚠️ Underallocated: Remaining ${(plotArea - totalAllocatedArea).toLocaleString('en-IN')} Sq.Ft. needed:`}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                      {!isMatch && landSourcing.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Auto balance across rows so sum equals plotArea
+                            const updated = [...landSourcing];
+                            let runningSum = 0;
+                            for (let i = 0; i < updated.length; i++) {
+                              if (i === updated.length - 1) {
+                                updated[i].allocatedSqFt = Math.max(0, plotArea - runningSum);
+                              } else {
+                                runningSum += Number(updated[i].allocatedSqFt) || 0;
+                              }
+                            }
+                            setLandSourcing(updated);
+                          }}
+                          className="text-[10px] font-bold text-teal-800 bg-white hover:bg-teal-100 px-2 py-0.5 rounded border border-teal-300 transition cursor-pointer shadow-2xs"
+                        >
+                          Auto-Balance to {plotArea} SqFt
+                        </button>
                       )}
-                    </span>
+                    </div>
                     <span className={`font-mono ${isMatch ? 'text-emerald-800' : 'text-rose-700'}`}>
                       {totalAllocatedArea} / {plotArea} Sq. Ft.
                     </span>
@@ -693,6 +924,22 @@ export const StepTermsAndPayment = ({
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="Special booking conditions, approvals or client notes..."
           />
+        </div>
+
+        {/* Bottom Actions Bar */}
+        <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-2 md:col-span-2">
+          <Button variant="secondary" size="sm" onClick={prevStep} disabled={submitLoading} startIcon={ChevronLeft}>
+            Back
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            loading={submitLoading}
+            disabled={!isFormValid || submitLoading}
+          >
+            Confirm Book Plot
+          </Button>
         </div>
       </div>
     </form>

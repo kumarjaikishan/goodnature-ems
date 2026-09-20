@@ -86,6 +86,18 @@ class PlotBookingService {
           );
         }
 
+        let selectedParcel = null;
+        if (item.parcelId && Array.isArray(agr.landParcels)) {
+          selectedParcel = agr.landParcels.find((p) => String(p._id) === String(item.parcelId));
+        } else if (item.khesraNumber && Array.isArray(agr.landParcels)) {
+          selectedParcel = agr.landParcels.find((p) => p.khesraNumber === item.khesraNumber);
+        }
+
+        if (selectedParcel) {
+          selectedParcel.allocatedSqFt = (selectedParcel.allocatedSqFt || 0) + numSqFt;
+          selectedParcel.availableSqFt = Math.max(0, (selectedParcel.totalSqFt || 0) - selectedParcel.allocatedSqFt);
+        }
+
         agr.totalAllocatedSqFt = (agr.totalAllocatedSqFt || 0) + numSqFt;
         agr.totalAvailableSqFt = Math.max(0, (agr.totalSqFt || 0) - agr.totalAllocatedSqFt);
         if (agr.unregisteredAgreedSqFt) {
@@ -101,11 +113,13 @@ class PlotBookingService {
           sourceType: 'AGREEMENT',
           agreementId: agr._id,
           agreementNumber: agr.agreementNumber,
+          parcelId: selectedParcel ? selectedParcel._id : (item.parcelId || null),
           deedId: null,
           deedNumber: '',
-          mauja: agr.mauja || agr.landParcels?.[0]?.mauja || '',
-          khataNumber: agr.khataNumber || agr.landParcels?.[0]?.khataNumber || '',
-          khesraNumber: agr.khesraNumber || agr.landParcels?.[0]?.khesraNumber || '',
+          mauja: selectedParcel?.mauja || item.mauja || agr.mauja || agr.landParcels?.[0]?.mauja || '',
+          thanaNumber: selectedParcel?.thanaNumber || item.thanaNumber || agr.thanaNumber || agr.landParcels?.[0]?.thanaNumber || '',
+          khataNumber: selectedParcel?.khataNumber || item.khataNumber || agr.khataNumber || agr.landParcels?.[0]?.khataNumber || '',
+          khesraNumber: selectedParcel?.khesraNumber || item.khesraNumber || agr.khesraNumber || agr.landParcels?.[0]?.khesraNumber || '',
           allocatedSqFt: numSqFt,
           allocatedDismil: Math.round((numSqFt / 435.6) * 1000) / 1000,
         });
@@ -252,7 +266,7 @@ class PlotBookingService {
         scheme: resolvedScheme,
         bookingAmount: 0,
         remainingAmount,
-        status: bookingType === 'HOLD' ? 'HOLD' : 'ACTIVE',
+        status: bookingType === 'HOLD' ? 'HOLD' : 'PENDING',
         holdExpiryDate: bookingType === 'HOLD' ? new Date(bookingDateObj.getTime() + holdExpiryDays * 24 * 60 * 60 * 1000) : undefined,
         notes,
         discount: discountVal,
@@ -277,24 +291,48 @@ class PlotBookingService {
       });
       await booking.save({ session });
 
-      // Log Land Stock Ledger for each allocated source
+      // Log Land Stock Ledger consolidated per agreement source
+      const sourcingByAgreement = {};
       for (const src of processedSourcing) {
+        const key = String(src.agreementId);
+        if (!sourcingByAgreement[key]) {
+          sourcingByAgreement[key] = {
+            agreementId: src.agreementId,
+            sourceType: src.sourceType,
+            deedId: src.deedId || null,
+            deedNumber: src.deedNumber || '',
+            allocatedSqFt: 0,
+            allocatedDismil: 0,
+            breakdown: [],
+          };
+        }
+        sourcingByAgreement[key].allocatedSqFt += Number(src.allocatedSqFt) || 0;
+        sourcingByAgreement[key].allocatedDismil += Number(src.allocatedDismil) || 0;
+        sourcingByAgreement[key].breakdown.push(`Plot #${src.khesraNumber || 'N/A'}: ${src.allocatedSqFt} SqFt`);
+      }
+
+      for (const key of Object.keys(sourcingByAgreement)) {
+        const grp = sourcingByAgreement[key];
+        const remarksDetails = grp.breakdown.length > 1
+          ? ` [Breakdown: ${grp.breakdown.join(', ')}]`
+          : (grp.breakdown[0] ? ` (${grp.breakdown[0]})` : '');
+
         const stockLog = new LandStockLedger({
-          agreementId: src.agreementId,
-          sourceType: src.sourceType,
-          deedId: src.deedId || null,
-          deedNumber: src.deedNumber || '',
+          agreementId: grp.agreementId,
+          sourceType: grp.sourceType,
+          deedId: grp.deedId || null,
+          deedNumber: grp.deedNumber || '',
           bookingId: booking._id,
           bookingNumber: booking.bookingNumber,
           customerName: customer.name,
           plotNumber: plot.plotNumber,
           transactionType: 'BOOKING_ALLOCATION',
           entryType: 'DEBIT',
-          dismil: src.allocatedDismil,
-          sqFt: src.allocatedSqFt,
+          dismil: Math.round((grp.allocatedSqFt / 435.6) * 1000) / 1000,
+          sqFt: grp.allocatedSqFt,
           runningAvailableSqFt: 0,
           date: booking.bookingDate,
-          remarks: `Allocated ${src.allocatedSqFt} SqFt (${src.allocatedDismil} Dismil) to Booking #${booking.bookingNumber} (${customer.name}, Plot ${plot.plotNumber})`,
+          remarks: `Allocated ${grp.allocatedSqFt.toLocaleString('en-IN')} SqFt (${(grp.allocatedSqFt / 435.6).toFixed(3)} Dismil) to Booking #${booking.bookingNumber} (${customer.name}, Plot ${plot.plotNumber})${remarksDetails}`,
           performedBy: processedBy,
         });
         await stockLog.save({ session });
@@ -1754,6 +1792,108 @@ class PlotBookingService {
       await session.commitTransaction();
       session.endSession();
       return { success: true };
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  }
+
+  // ── APPROVE PENDING BOOKING ───────────────────────────────────────
+  async approveBooking(bookingId, userId) {
+    const booking = await PlotBooking.findById(bookingId).populate('plotId customerId');
+    if (!booking) throw ApiError.notFound('Plot booking not found');
+    if (booking.status !== 'PENDING') {
+      throw ApiError.badRequest(`Cannot approve booking with status "${booking.status}". Only PENDING bookings can be approved.`);
+    }
+
+    booking.status = 'ACTIVE';
+    booking.approvedBy = userId;
+    booking.approvedAt = new Date();
+    await booking.save();
+
+    await new PlotAuditLog({
+      action: 'APPROVE_BOOKING',
+      modelName: 'PlotBooking',
+      documentId: booking._id,
+      userId,
+      details: { bookingNumber: booking.bookingNumber, approvedAt: booking.approvedAt },
+    }).save();
+
+    return booking;
+  }
+
+  // ── REJECT PENDING BOOKING ───────────────────────────────────────
+  async rejectBooking(bookingId, reason = '', userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const booking = await PlotBooking.findById(bookingId).populate('plotId customerId').session(session);
+      if (!booking) throw ApiError.notFound('Plot booking not found');
+      if (booking.status !== 'PENDING') {
+        throw ApiError.badRequest(`Cannot reject booking with status "${booking.status}". Only PENDING bookings can be rejected.`);
+      }
+
+      booking.status = 'REJECTED';
+      booking.rejectedBy = userId;
+      booking.rejectedAt = new Date();
+      booking.rejectionReason = reason || 'Booking rejected by administrator';
+      await booking.save({ session });
+
+      // Release Plot back to AVAILABLE
+      if (booking.plotId) {
+        await Plot.findByIdAndUpdate(booking.plotId._id || booking.plotId, { status: 'AVAILABLE' }).session(session);
+      }
+
+      // Revert Land Acquisition Sourcing Allocations
+      if (Array.isArray(booking.landSourcing) && booking.landSourcing.length > 0) {
+        for (const src of booking.landSourcing) {
+          const numSqFt = Number(src.allocatedSqFt) || 0;
+          if (numSqFt <= 0 || !src.agreementId) continue;
+
+          const agr = await KisanLandAgreement.findById(src.agreementId).session(session);
+          if (agr) {
+            agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
+            agr.totalAvailableSqFt = Math.max(0, (agr.totalSqFt || 0) - agr.totalAllocatedSqFt);
+            if (agr.unregisteredAgreedSqFt) {
+              agr.unregisteredAllocatedSqFt = Math.max(0, (agr.unregisteredAllocatedSqFt || 0) - numSqFt);
+              agr.unregisteredAvailableSqFt = Math.max(0, agr.unregisteredAgreedSqFt - agr.unregisteredAllocatedSqFt);
+            }
+            await agr.save({ session });
+
+            await new LandStockLedger({
+              agreementId: src.agreementId,
+              sourceType: src.sourceType || 'KISAN_AGREEMENT',
+              deedId: src.deedId || null,
+              deedNumber: src.deedNumber || '',
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              customerName: booking.customerId?.name || '',
+              plotNumber: booking.plotId?.plotNumber || '',
+              transactionType: 'BOOKING_REJECTION_RESTORE',
+              entryType: 'CREDIT',
+              dismil: src.allocatedDismil || Math.round((numSqFt / 435.6) * 1000) / 1000,
+              sqFt: numSqFt,
+              runningAvailableSqFt: agr.totalAvailableSqFt,
+              date: new Date(),
+              remarks: `Restored ${numSqFt} SqFt due to Rejection of Booking #${booking.bookingNumber}`,
+              performedBy: userId,
+            }).save({ session });
+          }
+        }
+      }
+
+      await new PlotAuditLog({
+        action: 'REJECT_BOOKING',
+        modelName: 'PlotBooking',
+        documentId: booking._id,
+        userId,
+        details: { bookingNumber: booking.bookingNumber, reason: booking.rejectionReason },
+      }).save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+      return booking;
     } catch (error) {
       await session.abortTransaction();
       session.endSession();

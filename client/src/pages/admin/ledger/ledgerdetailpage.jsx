@@ -34,7 +34,8 @@ const LedgerDetailPage = () => {
 
     const [filterYear, setFilterYear] = useState('all');
     const [filterMonth, setFilterMonth] = useState('all');
-    const [filterDate, setFilterDate] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     const [totalDebit, setTotalDebit] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
@@ -62,8 +63,20 @@ const LedgerDetailPage = () => {
             const d = dayjs(e.date);
             const yearMatch = filterYear !== 'all' ? d.year() === Number(filterYear) : true;
             const monthMatch = filterMonth !== "all" ? (d.month() + 1) === Number(filterMonth) : true;
-            const dateMatch = filterDate ? d.isSame(filterDate, "day") : true;
-            return yearMatch && monthMatch && dateMatch;
+            
+            let dateRangeMatch = true;
+            if (startDate && endDate) {
+                const dateStr = d.format('YYYY-MM-DD');
+                dateRangeMatch = dateStr >= startDate && dateStr <= endDate;
+            } else if (startDate) {
+                const dateStr = d.format('YYYY-MM-DD');
+                dateRangeMatch = dateStr >= startDate;
+            } else if (endDate) {
+                const dateStr = d.format('YYYY-MM-DD');
+                dateRangeMatch = dateStr <= endDate;
+            }
+
+            return yearMatch && monthMatch && dateRangeMatch;
         });
 
         setFiltered(filteredData);
@@ -75,7 +88,7 @@ const LedgerDetailPage = () => {
         setTotalDebit(debit);
         setTotalCredit(credit);
         setTotalBalance(balance);
-    }, [entries, filterYear, filterMonth, filterDate]);
+    }, [entries, filterYear, filterMonth, startDate, endDate]);
 
     const fetchEnteries = async () => {
         setLoading(true);
@@ -94,7 +107,8 @@ const LedgerDetailPage = () => {
     const resetFilters = () => {
         setFilterYear('all');
         setFilterMonth('all');
-        setFilterDate('');
+        setStartDate('');
+        setEndDate('');
     };
 
     const handleDeleteEntry = async (idx) => {
@@ -332,18 +346,29 @@ const LedgerDetailPage = () => {
                         </select>
                     </div>
 
-                    {/* Exact Date */}
+                    {/* Date Range: From */}
                     <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-600">Date:</span>
+                        <span className="text-xs font-bold text-slate-600">From:</span>
                         <input
                             type="date"
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
-                            className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="h-9 px-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
                         />
                     </div>
 
-                    {(filterYear !== 'all' || filterMonth !== 'all' || filterDate) && (
+                    {/* Date Range: To */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-600">To:</span>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="h-9 px-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                        />
+                    </div>
+
+                    {(filterYear !== 'all' || filterMonth !== 'all' || startDate || endDate) && (
                         <button
                             onClick={resetFilters}
                             className="h-9 px-3 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"

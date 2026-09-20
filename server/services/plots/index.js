@@ -237,6 +237,14 @@ class PlotsService {
     return plotBookingService.updateBooking(id, data, userId);
   }
 
+  approveBooking(bookingId, userId) {
+    return plotBookingService.approveBooking(bookingId, userId);
+  }
+
+  rejectBooking(bookingId, reason, userId) {
+    return plotBookingService.rejectBooking(bookingId, reason, userId);
+  }
+
   deleteBooking(id, userId) {
     return plotBookingService.deleteBooking(id, userId);
   }

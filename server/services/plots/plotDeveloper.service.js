@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const User = require('../../models/user');
 const PlotCustomer = require('../../models/PlotCustomer');
 const PlotBooking = require('../../models/PlotBooking');
+const PlotProductBooking = require('../../models/PlotProductBooking');
 const PlotReceipt = require('../../models/PlotReceipt');
 const PlotSponsorCommission = require('../../models/PlotSponsorCommission');
 const PlotPayoutVoucher = require('../../models/PlotPayoutVoucher');
@@ -40,23 +41,52 @@ class PlotDeveloperService {
     if (session) bookingQuery.session(session);
     const bookings = await bookingQuery.lean();
 
-    if (!bookings.length) return 0;
-    const bookingIds = bookings.map(b => b._id);
+    let total = 0;
 
-    const receiptQuery = PlotReceipt.find({
-      bookingId: { $in: bookingIds },
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+    if (bookings.length > 0) {
+      const bookingIds = bookings.map(b => b._id);
+      const receiptQuery = PlotReceipt.find({
+        bookingId: { $in: bookingIds },
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+        status: { $ne: 'CANCELLED' }
+      }).select('amount lateFinePaid');
+      if (session) receiptQuery.session(session);
+      const receipts = await receiptQuery.lean();
+
+      total += receipts.reduce((acc, r) => {
+        const principal = Math.max(0, Number(r.amount || 0) - Number(r.lateFinePaid || 0));
+        return acc + principal;
+      }, 0);
+    }
+
+    // Also include PlotProductBooking collections in volume
+    const prdQuery = PlotProductBooking.find({
+      sponsorId: { $in: sponsorIds },
       status: { $ne: 'CANCELLED' }
-    }).select('amount lateFinePaid');
-    if (session) receiptQuery.session(session);
-    const receipts = await receiptQuery.lean();
+    }).select('downPayment bookingDate collections createdAt');
+    if (session) prdQuery.session(session);
+    const prdBookings = await prdQuery.lean();
 
-    const total = receipts.reduce((acc, r) => {
-      const principal = Math.max(0, Number(r.amount || 0) - Number(r.lateFinePaid || 0));
-      return acc + principal;
-    }, 0);
+    for (const pb of prdBookings) {
+      if (pb.downPayment > 0) {
+        const dpDate = new Date(pb.bookingDate || pb.createdAt);
+        if (dpDate >= startOfMonth && dpDate <= endOfMonth) {
+          total += Number(pb.downPayment);
+        }
+      }
+      if (Array.isArray(pb.collections)) {
+        for (const col of pb.collections) {
+          const colDate = new Date(col.paymentDate || col.createdAt);
+          if (colDate >= startOfMonth && colDate <= endOfMonth) {
+            const principal = Number(col.principalPaid || col.amountPaid || 0);
+            total += principal;
+          }
+        }
+      }
+    }
 
     return Math.round(total * 100) / 100;
+
   }
 
   // ── SPONSOR COMMISSION SYNCHRONIZATION ENGINE ────────────────────
@@ -139,6 +169,18 @@ class PlotDeveloperService {
 
       const receiptDate = receipt.createdAt ? new Date(receipt.createdAt) : new Date();
 
+      const receiptTypeFormatted = receipt.receiptType === 'DOWNPAYMENT'
+        ? 'Downpayment'
+        : receipt.receiptType === 'INSTALLMENT'
+        ? 'EMI'
+        : receipt.receiptType === 'FULL_PAYMENT'
+        ? 'Full Payment'
+        : receipt.receiptType === 'BOOKING'
+        ? 'Booking'
+        : (receipt.receiptType || 'Collection');
+
+      const colAmtFormatted = collectionPrincipal.toLocaleString('en-IN');
+
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ───────────────────────────────
         // Fixed: BA 5% + BP 2% = 7% Instant
@@ -155,7 +197,7 @@ class PlotDeveloperService {
 
         // Idempotent instant ledger posting
         let ledgerEntryId = null;
-        const directRemarks = `Instant Fixed Commission (${combinedFixedPct}%) on Direct Plot Collection [Receipt #${receipt.receiptNumber || ''}] (Booking #${booking.bookingNumber || ''})`;
+        const directRemarks = `F.Comm on ₹${colAmtFormatted} (${combinedFixedPct}%) [${receiptTypeFormatted}] Receipt #${receipt.receiptNumber || ''} (Booking #${booking.bookingNumber || ''})`;
         if (fixedAmt > 0 && receipt.status !== 'PENDING') {
           const sponsorLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = sponsorLedger ? await Entry.findOne({
@@ -229,7 +271,7 @@ class PlotDeveloperService {
         const baTotalAmt = Math.round((baFixedAmt + baIncentiveAmt) * 100) / 100;
 
         let baLedgerEntryId = null;
-        const baRemarks = `Instant Fixed Commission (${baFixedPct}%) on Plot Collection [Receipt #${receipt.receiptNumber || ''}] (Booking #${booking.bookingNumber || ''})`;
+        const baRemarks = `F.Comm on ₹${colAmtFormatted} (${baFixedPct}%) [${receiptTypeFormatted}] Receipt #${receipt.receiptNumber || ''} (Booking #${booking.bookingNumber || ''})`;
         if (baFixedAmt > 0 && receipt.status !== 'PENDING') {
           const baLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = baLedger ? await Entry.findOne({
@@ -304,7 +346,7 @@ class PlotDeveloperService {
           const bpTotalAmt = Math.round((bpFixedAmt + bpIncentiveAmt) * 100) / 100;
 
           let bpLedgerEntryId = null;
-          const bpRemarks = `Instant Fixed Commission (${bpFixedPct}%) on Plot Collection [Receipt #${receipt.receiptNumber || ''}] (Booking #${booking.bookingNumber || ''}) — BA: ${sponsorDoc.name}`;
+          const bpRemarks = `F.Comm on ₹${colAmtFormatted} (${bpFixedPct}%) [${receiptTypeFormatted}] Receipt #${receipt.receiptNumber || ''} (Booking #${booking.bookingNumber || ''}) — BA: ${sponsorDoc.name}`;
           if (bpFixedAmt > 0 && receipt.status !== 'PENDING') {
             const bpLedger = await Ledger.findOne({ sponsorId: parentDevId }).session(session);
             let existingEntry = bpLedger ? await Entry.findOne({
@@ -383,6 +425,348 @@ class PlotDeveloperService {
     }
   }
 
+  // ── PRODUCT BOOKING SPONSOR COMMISSION SYNCHRONIZATION ENGINE ──
+  async syncProductBookingSponsorCommissions(productBookingId, session = null) {
+    if (!productBookingId) return;
+    const query = PlotProductBooking.findById(productBookingId);
+    if (session) query.session(session);
+    const booking = await query;
+    if (!booking) return;
+
+    // If no sponsor or booking is cancelled, clean up commissions and ledger entries
+    if (!booking.sponsorId || booking.status === 'CANCELLED') {
+      const delQuery = PlotSponsorCommission.deleteMany({ productBookingId: booking._id });
+      if (session) delQuery.session(session);
+      await delQuery;
+
+      const orphanQuery = Entry.find({
+        source: 'commission_fixed',
+        referenceId: booking._id,
+      });
+      if (session) orphanQuery.session(session);
+      const orphanEntries = await orphanQuery;
+      for (const e of orphanEntries) {
+        await accountingService.deleteLedgerEntry(e._id, session);
+      }
+      return;
+    }
+
+    const sponsorQuery = User.findById(booking.sponsorId);
+    if (session) sponsorQuery.session(session);
+    const sponsorDoc = await sponsorQuery;
+    if (!sponsorDoc) return;
+
+    // Find existing commissions for this product booking to preserve closingId and incentive tags
+    const existingQuery = PlotSponsorCommission.find({ productBookingId: booking._id });
+    if (session) existingQuery.session(session);
+    const existingComms = await existingQuery;
+    const closingTagMap = {};
+    existingComms.forEach((c) => {
+      if (c.closingId && (c.receiptNumber || c._id)) {
+        const key = `${c.receiptNumber || c._id.toString()}_${c.sponsorId.toString()}_${c.commissionRole}`;
+        closingTagMap[key] = {
+          closingId: c.closingId,
+          incentivePercent: c.incentivePercent || 0,
+          incentiveAmount: c.incentiveAmount || 0,
+          slabLabel: c.slabLabel || '',
+        };
+      }
+    });
+
+    // Delete existing commissions for this booking to re-sync cleanly
+    const delQuery = PlotSponsorCommission.deleteMany({ productBookingId: booking._id });
+    if (session) delQuery.session(session);
+    await delQuery;
+
+    // Collect all receipts / collections for this product booking
+    const collectionsList = [];
+    const seenReceipts = new Set();
+
+    if (Array.isArray(booking.collections) && booking.collections.length > 0) {
+      for (const col of booking.collections) {
+        if (!col.receiptNumber || seenReceipts.has(col.receiptNumber)) continue;
+        seenReceipts.add(col.receiptNumber);
+        collectionsList.push({
+          receiptNumber: col.receiptNumber,
+          amountPaid: Number(col.amountPaid || 0),
+          principalPaid: Number(col.principalPaid || col.amountPaid || 0),
+          lateFinePaid: Number(col.lateFinePaid || 0),
+          paymentDate: col.paymentDate || col.createdAt || booking.createdAt,
+          receiptType: 'Product EMI',
+        });
+      }
+    }
+
+    if (Array.isArray(booking.installments)) {
+      for (const inst of booking.installments) {
+        if (inst.receiptNumber && !seenReceipts.has(inst.receiptNumber)) {
+          seenReceipts.add(inst.receiptNumber);
+          collectionsList.push({
+            receiptNumber: inst.receiptNumber,
+            amountPaid: Number(inst.paidAmount || 0),
+            principalPaid: Number(inst.paidAmount || 0),
+            lateFinePaid: Number(inst.lateFinePaid || 0),
+            paymentDate: inst.paidDate || booking.createdAt,
+            receiptType: 'Product EMI',
+          });
+        }
+      }
+    }
+
+    if (booking.downPayment > 0 && !seenReceipts.has(`DP-${booking.bookingNumber}`)) {
+      const dpReceipt = `DP-${booking.bookingNumber}`;
+      seenReceipts.add(dpReceipt);
+      collectionsList.push({
+        receiptNumber: dpReceipt,
+        amountPaid: Number(booking.downPayment),
+        principalPaid: Number(booking.downPayment),
+        lateFinePaid: 0,
+        paymentDate: booking.bookingDate || booking.createdAt,
+        receiptType: 'Product Downpayment',
+      });
+    }
+
+    const validEntryIds = new Set();
+
+    for (const col of collectionsList) {
+      const collectionPrincipal = col.principalPaid > 0 ? col.principalPaid : Math.max(0, col.amountPaid - col.lateFinePaid);
+      if (collectionPrincipal <= 0) continue;
+
+      const receiptDate = col.paymentDate ? new Date(col.paymentDate) : new Date();
+      const colAmtFormatted = collectionPrincipal.toLocaleString('en-IN');
+      const receiptTypeFormatted = col.receiptType || 'Product Collection';
+
+      if (!sponsorDoc.sponsorId) {
+        // ── BUSINESS PARTNER DIRECT SALE ──
+        // Fixed: 2.50% (BA) + 1.00% (BP) = 3.50% Immediate
+        const combinedFixedPct = 3.50;
+        const fixedAmt = Math.round(collectionPrincipal * (combinedFixedPct / 100) * 100) / 100;
+
+        const key = `${col.receiptNumber}_${sponsorDoc._id.toString()}_DIRECT_DEVELOPER`;
+        const closedInfo = closingTagMap[key] || null;
+
+        const incentivePct = closedInfo ? closedInfo.incentivePercent : 0;
+        const incentiveAmt = closedInfo ? closedInfo.incentiveAmount : 0;
+        const totalPct = +(combinedFixedPct + incentivePct).toFixed(3);
+        const totalAmt = Math.round((fixedAmt + incentiveAmt) * 100) / 100;
+
+        let ledgerEntryId = null;
+        const directRemarks = `F.Comm on ₹${colAmtFormatted} (${combinedFixedPct}%) [${receiptTypeFormatted}] Receipt #${col.receiptNumber} (Booking #${booking.bookingNumber})`;
+        if (fixedAmt > 0) {
+          const sponsorLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
+          let existingEntry = sponsorLedger ? await Entry.findOne({
+            ledgerId: sponsorLedger._id,
+            referenceId: booking._id,
+            particular: { $regex: col.receiptNumber },
+            source: 'commission_fixed',
+            status: 'active'
+          }).session(session) : null;
+
+          if (existingEntry) {
+            if (existingEntry.credit !== fixedAmt || existingEntry.particular !== directRemarks || (existingEntry.date && new Date(existingEntry.date).getTime() !== new Date(receiptDate).getTime())) {
+              await accountingService.updateLedgerEntry(existingEntry._id, {
+                credit: fixedAmt,
+                particular: directRemarks,
+                date: receiptDate
+              }, session);
+            }
+            ledgerEntryId = existingEntry._id;
+          } else {
+            const entry = await accountingService.recordLedgerEntry({
+              sponsorId: sponsorDoc._id,
+              date: receiptDate,
+              type: 'CREDIT',
+              amount: fixedAmt,
+              source: 'commission_fixed',
+              referenceId: booking._id,
+              remarks: directRemarks
+            }, session);
+            ledgerEntryId = entry._id;
+          }
+          if (ledgerEntryId) validEntryIds.add(ledgerEntryId.toString());
+        }
+
+        const commDoc = new PlotSponsorCommission({
+          productBookingId: booking._id,
+          receiptNumber: col.receiptNumber,
+          sponsorId: sponsorDoc._id,
+          customerId: booking.customerId,
+          collectionAmount: collectionPrincipal,
+          plotValue: collectionPrincipal,
+          amount: totalAmt,
+          commissionPercent: totalPct,
+          commissionRole: 'DIRECT_DEVELOPER',
+          fixedPercent: combinedFixedPct,
+          incentivePercent: incentivePct,
+          fixedAmount: fixedAmt,
+          incentiveAmount: incentiveAmt,
+          businessType: 'PLOT_PRODUCT',
+          periodVolume: 0,
+          slabLabel: closedInfo ? closedInfo.slabLabel : 'Product Collection Fixed 3.50% (Direct Partner)',
+          tierTenureMonths: Number(booking.tenureMonths) || 0,
+          status: 'active',
+          closingId: closedInfo ? closedInfo.closingId : null,
+          ledgerEntryId,
+          createdAt: receiptDate,
+        });
+        if (session) await commDoc.save({ session });
+        else await commDoc.save();
+      } else {
+        // ── BUSINESS ASSOCIATE (2.50% Fixed) + PARENT PARTNER (1.00% Fixed) ──
+        // 1. Business Associate Commission (2.50% Immediate)
+        const baFixedPct = 2.50;
+        const baFixedAmt = Math.round(collectionPrincipal * (baFixedPct / 100) * 100) / 100;
+
+        const promoterKey = `${col.receiptNumber}_${sponsorDoc._id.toString()}_PROMOTER`;
+        const baClosedInfo = closingTagMap[promoterKey] || null;
+
+        const baIncentivePct = baClosedInfo ? baClosedInfo.incentivePercent : 0;
+        const baIncentiveAmt = baClosedInfo ? baClosedInfo.incentiveAmount : 0;
+        const baTotalPct = +(baFixedPct + baIncentivePct).toFixed(3);
+        const baTotalAmt = Math.round((baFixedAmt + baIncentiveAmt) * 100) / 100;
+
+        let baLedgerEntryId = null;
+        const baRemarks = `F.Comm on ₹${colAmtFormatted} (${baFixedPct}%) [${receiptTypeFormatted}] Receipt #${col.receiptNumber} (Booking #${booking.bookingNumber})`;
+        if (baFixedAmt > 0) {
+          const baLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
+          let existingEntry = baLedger ? await Entry.findOne({
+            ledgerId: baLedger._id,
+            referenceId: booking._id,
+            particular: { $regex: col.receiptNumber },
+            source: 'commission_fixed',
+            status: 'active'
+          }).session(session) : null;
+
+          if (existingEntry) {
+            if (existingEntry.credit !== baFixedAmt || existingEntry.particular !== baRemarks || (existingEntry.date && new Date(existingEntry.date).getTime() !== new Date(receiptDate).getTime())) {
+              await accountingService.updateLedgerEntry(existingEntry._id, {
+                credit: baFixedAmt,
+                particular: baRemarks,
+                date: receiptDate
+              }, session);
+            }
+            baLedgerEntryId = existingEntry._id;
+          } else {
+            const entry = await accountingService.recordLedgerEntry({
+              sponsorId: sponsorDoc._id,
+              date: receiptDate,
+              type: 'CREDIT',
+              amount: baFixedAmt,
+              source: 'commission_fixed',
+              referenceId: booking._id,
+              remarks: baRemarks
+            }, session);
+            baLedgerEntryId = entry._id;
+          }
+          if (baLedgerEntryId) validEntryIds.add(baLedgerEntryId.toString());
+        }
+
+        const subCommission = new PlotSponsorCommission({
+          productBookingId: booking._id,
+          receiptNumber: col.receiptNumber,
+          sponsorId: sponsorDoc._id,
+          customerId: booking.customerId,
+          collectionAmount: collectionPrincipal,
+          plotValue: collectionPrincipal,
+          amount: baTotalAmt,
+          commissionPercent: baTotalPct,
+          commissionRole: 'PROMOTER',
+          fixedPercent: baFixedPct,
+          incentivePercent: baIncentivePct,
+          fixedAmount: baFixedAmt,
+          incentiveAmount: baIncentiveAmt,
+          businessType: 'PLOT_PRODUCT',
+          periodVolume: 0,
+          slabLabel: baClosedInfo ? baClosedInfo.slabLabel : 'Product Collection Fixed 2.50% (Business Associate)',
+          tierTenureMonths: Number(booking.tenureMonths) || 0,
+          status: 'active',
+          closingId: baClosedInfo ? baClosedInfo.closingId : null,
+          ledgerEntryId: baLedgerEntryId,
+          createdAt: receiptDate,
+        });
+        if (session) await subCommission.save({ session });
+        else await subCommission.save();
+
+        // 2. Parent Partner Developer Override (1.00% Immediate)
+        const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
+        if (parentDevId) {
+          const bpFixedPct = 1.00;
+          const bpFixedAmt = Math.round(collectionPrincipal * (bpFixedPct / 100) * 100) / 100;
+
+          const devKey = `${col.receiptNumber}_${parentDevId.toString()}_DEVELOPER_OVERRIDE`;
+          const bpClosedInfo = closingTagMap[devKey] || null;
+
+          const bpIncentivePct = bpClosedInfo ? bpClosedInfo.incentivePercent : 0;
+          const bpIncentiveAmt = bpClosedInfo ? bpClosedInfo.incentiveAmount : 0;
+          const bpTotalPct = +(bpFixedPct + bpIncentivePct).toFixed(3);
+          const bpTotalAmt = Math.round((bpFixedAmt + bpIncentiveAmt) * 100) / 100;
+
+          let bpLedgerEntryId = null;
+          const bpRemarks = `F.Comm on ₹${colAmtFormatted} (${bpFixedPct}%) [${receiptTypeFormatted}] Receipt #${col.receiptNumber} (Booking #${booking.bookingNumber}) — BA: ${sponsorDoc.name}`;
+          if (bpFixedAmt > 0) {
+            const bpLedger = await Ledger.findOne({ sponsorId: parentDevId }).session(session);
+            let existingEntry = bpLedger ? await Entry.findOne({
+              ledgerId: bpLedger._id,
+              referenceId: booking._id,
+              particular: { $regex: col.receiptNumber },
+              source: 'commission_fixed',
+              status: 'active'
+            }).session(session) : null;
+
+            if (existingEntry) {
+              if (existingEntry.credit !== bpFixedAmt || existingEntry.particular !== bpRemarks || (existingEntry.date && new Date(existingEntry.date).getTime() !== new Date(receiptDate).getTime())) {
+                await accountingService.updateLedgerEntry(existingEntry._id, {
+                  credit: bpFixedAmt,
+                  particular: bpRemarks,
+                  date: receiptDate
+                }, session);
+              }
+              bpLedgerEntryId = existingEntry._id;
+            } else {
+              const entry = await accountingService.recordLedgerEntry({
+                sponsorId: parentDevId,
+                date: receiptDate,
+                type: 'CREDIT',
+                amount: bpFixedAmt,
+                source: 'commission_fixed',
+                referenceId: booking._id,
+                remarks: bpRemarks
+              }, session);
+              bpLedgerEntryId = entry._id;
+            }
+            if (bpLedgerEntryId) validEntryIds.add(bpLedgerEntryId.toString());
+          }
+
+          const devCommission = new PlotSponsorCommission({
+            productBookingId: booking._id,
+            receiptNumber: col.receiptNumber,
+            sponsorId: parentDevId,
+            customerId: booking.customerId,
+            collectionAmount: collectionPrincipal,
+            plotValue: collectionPrincipal,
+            amount: bpTotalAmt,
+            commissionPercent: bpTotalPct,
+            commissionRole: 'DEVELOPER_OVERRIDE',
+            fixedPercent: bpFixedPct,
+            incentivePercent: bpIncentivePct,
+            fixedAmount: bpFixedAmt,
+            incentiveAmount: bpIncentiveAmt,
+            businessType: 'PLOT_PRODUCT',
+            periodVolume: 0,
+            slabLabel: bpClosedInfo ? bpClosedInfo.slabLabel : 'Product Collection Fixed 1.00% (Business Partner)',
+            tierTenureMonths: Number(booking.tenureMonths) || 0,
+            status: 'active',
+            closingId: bpClosedInfo ? bpClosedInfo.closingId : null,
+            ledgerEntryId: bpLedgerEntryId,
+            createdAt: receiptDate,
+          });
+          if (session) await devCommission.save({ session });
+          else await devCommission.save();
+        }
+      }
+    }
+  }
+
   // ── SPONSOR PORTAL DASHBOARD ───────────────────────────────
   async getSponsorDashboardStats(sponsorId) {
     const sponsor = await User.findById(sponsorId)
@@ -403,6 +787,16 @@ class PlotDeveloperService {
     for (const b of activeBookings) {
       await this.syncBookingSponsorCommissions(b._id);
     }
+
+    const activeProductBookings = await PlotProductBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      sponsorId: sponsor._id,
+    }).select('_id').lean();
+
+    for (const pb of activeProductBookings) {
+      await this.syncProductBookingSponsorCommissions(pb._id);
+    }
+
 
     // 1. Fetch Subordinates / Team Network
     const subordinates = await User.find({
@@ -658,6 +1052,15 @@ class PlotDeveloperService {
       await this.syncBookingSponsorCommissions(b._id);
     }
 
+    const activeProductBookings = await PlotProductBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      sponsorId: sponsor._id,
+    }).select('_id').lean();
+
+    for (const pb of activeProductBookings) {
+      await this.syncProductBookingSponsorCommissions(pb._id);
+    }
+
     const subordinates = await User.find({
       role: 'sponsor',
       sponsorId: sponsor._id
@@ -680,8 +1083,17 @@ class PlotDeveloperService {
           { path: 'sponsorId', select: 'name sponsorCode' }
         ]
       })
+      .populate({
+        path: 'productBookingId',
+        select: 'bookingNumber tenureMonths totalAmount remainingAmount productId bookingDate createdAt sponsorId',
+        populate: [
+          { path: 'productId', select: 'productName productCode dimensionLabel' },
+          { path: 'sponsorId', select: 'name sponsorCode' }
+        ]
+      })
       .sort({ createdAt: -1 })
       .lean();
+
 
     let filteredCommissions = commissions;
     const { fromDate, toDate, typeFilter, search } = filters;
@@ -942,6 +1354,15 @@ class PlotDeveloperService {
       await this.syncBookingSponsorCommissions(b._id);
     }
 
+    const activeProductBookings = await PlotProductBooking.find({
+      status: { $in: ['ACTIVE', 'COMPLETED'] },
+      sponsorId: sponsor._id,
+    }).select('_id').lean();
+
+    for (const pb of activeProductBookings) {
+      await this.syncProductBookingSponsorCommissions(pb._id);
+    }
+
     const commissions = await PlotSponsorCommission.find({
       sponsorId: sponsor._id,
       status: 'active'
@@ -954,8 +1375,14 @@ class PlotDeveloperService {
         select: 'bookingNumber tenureMonths plotValue netValue discount plotId',
         populate: { path: 'plotId', select: 'plotNumber seriesId' }
       })
+      .populate({
+        path: 'productBookingId',
+        select: 'bookingNumber tenureMonths totalAmount remainingAmount productId',
+        populate: { path: 'productId', select: 'productName productCode dimensionLabel' }
+      })
       .sort({ createdAt: 1 })
       .lean();
+
 
     const rawTransactions = [];
     let totalCredits = 0;
@@ -974,13 +1401,31 @@ class PlotDeveloperService {
       totalFixedCredited += fAmt;
       totalCollectionsBase += colAmt;
 
-      const rNum = c.receiptId?.receiptNumber || '-';
-      const bNum = c.bookingId?.bookingNumber || '-';
+      const rNum = c.receiptId?.receiptNumber || c.receiptNumber || '-';
+      const bNum = c.bookingId?.bookingNumber || c.productBookingId?.bookingNumber || '-';
       const cName = c.customerId?.name || '-';
-      const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
-      const roleStr = isDirect ? (c.commissionRole === 'DIRECT_DEVELOPER' ? 'Direct Partner (7%)' : 'Associate (5%)') : 'Partner Override (2%)';
+      let rType = 'Collection';
+      if (c.businessType === 'PLOT_PRODUCT') {
+        rType = 'Product Collection';
+      } else if (c.receiptId?.receiptType === 'DOWNPAYMENT') {
+        rType = 'Downpayment';
+      } else if (c.receiptId?.receiptType === 'INSTALLMENT') {
+        rType = 'EMI';
+      } else if (c.receiptId?.receiptType === 'FULL_PAYMENT') {
+        rType = 'Full Payment';
+      } else if (c.receiptId?.receiptType === 'BOOKING') {
+        rType = 'Booking';
+      } else if (c.receiptId?.receiptType) {
+        rType = c.receiptId.receiptType;
+      }
 
-      const desc = `Instant Fixed Commission (${c.fixedPercent || (isDirect ? 5 : 2)}%) on Plot Collection [Receipt #${rNum}] — Customer: ${cName} (${bNum}) [${roleStr}]`;
+      const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
+      const isProduct = c.businessType === 'PLOT_PRODUCT';
+      const roleStr = isDirect
+        ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 'Direct Partner (3.5%)' : 'Direct Partner (7%)') : (isProduct ? 'Associate (2.5%)' : 'Associate (5%)'))
+        : (isProduct ? 'Partner Override (1%)' : 'Partner Override (2%)');
+
+      const desc = `F.Comm on ₹${colAmt.toLocaleString('en-IN')} (${c.fixedPercent || (isDirect ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 3.5 : 7) : (isProduct ? 2.5 : 5)) : (isProduct ? 1 : 2))}%) [${rType}] Receipt #${rNum} (Booking #${bNum})`;
 
       rawTransactions.push({
         id: c._id,
@@ -1000,6 +1445,7 @@ class PlotDeveloperService {
         status: 'CREDITED',
         businessType: c.businessType || 'PLOT_SALE'
       });
+
     });
 
     // 2. Periodic Target Incentive Closings
@@ -1450,6 +1896,17 @@ class PlotDeveloperService {
       photo, signature
     } = data;
 
+    let resolvedSponsorId = sponsorId === 'company' || sponsorId === 'direct' || !sponsorId ? null : sponsorId;
+    if (resolvedSponsorId) {
+      const sponsorDoc = await User.findById(resolvedSponsorId);
+      if (!sponsorDoc) {
+        throw new Error('Selected sponsor not found');
+      }
+      if (!sponsorDoc.sponsorId) {
+        throw new Error('Customers can only be registered under a Business Associate (BA), not directly under a Business Partner (BP).');
+      }
+    }
+
     // Financial Year string: e.g. 2627 (April 1 to March 31)
     const now = new Date();
     const curYear = now.getFullYear();
@@ -1463,7 +1920,7 @@ class PlotDeveloperService {
 
     const customer = new PlotCustomer({
       customerId,
-      sponsorId: sponsorId === 'company' || sponsorId === 'direct' || !sponsorId ? null : sponsorId,
+      sponsorId: resolvedSponsorId,
       name,
       email: email || '',
       mobile: mobile || '',
@@ -1505,6 +1962,14 @@ class PlotDeveloperService {
   async updateCustomer(id, data) {
     if (data.sponsorId === 'company' || data.sponsorId === 'direct') {
       data.sponsorId = null;
+    } else if (data.sponsorId) {
+      const sponsorDoc = await User.findById(data.sponsorId);
+      if (!sponsorDoc) {
+        throw new Error('Selected sponsor not found');
+      }
+      if (!sponsorDoc.sponsorId) {
+        throw new Error('Customers can only be registered under a Business Associate (BA), not directly under a Business Partner (BP).');
+      }
     }
     const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true }).populate('sponsorId', 'name sponsorCode mobile email photo signature');
     return customer;

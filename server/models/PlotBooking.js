@@ -51,8 +51,26 @@ const plotBookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['HOLD', 'ACTIVE', 'COMPLETED', 'CANCELLED'],
-      default: 'ACTIVE',
+      enum: ['HOLD', 'PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'REJECTED'],
+      default: 'PENDING',
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    rejectedAt: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
     },
     holdExpiryDate: {
       type: Date,

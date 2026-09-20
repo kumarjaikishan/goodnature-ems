@@ -45,6 +45,24 @@ const numberToWords = (num) => {
   return words + ' Rupees Only';
 };
 
+const formatReceiptDateTime = (dateVal) => {
+  if (!dateVal) return '-';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '-';
+  const dateStr = d.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursStr = String(hours).padStart(2, '0');
+  return `${dateStr}, ${hoursStr}:${minutes} ${ampm}`;
+};
+
 const ReceiptViewer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -100,9 +118,13 @@ const ReceiptViewer = () => {
   const { bookingId = {} } = receipt;
   const customer = bookingId.customerId || {};
   const plot = bookingId.plotId || {};
+  const isDownpaymentReceipt = receipt.receiptType === 'DOWNPAYMENT' || receipt.receiptType === 'BOOKING';
   const outstandingBalance = receipt.asOfRemainingAmount !== undefined
     ? receipt.asOfRemainingAmount
     : (bookingId.remainingAmount || 0);
+  const outstandingDownpayment = receipt.asOfRemainingDownpayment !== undefined
+    ? receipt.asOfRemainingDownpayment
+    : 0;
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
@@ -208,12 +230,12 @@ const ReceiptViewer = () => {
               <td className="p-2 font-black text-slate-900 w-[32%] font-mono">{receipt.receiptNumber}</td>
               <td className="p-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
-                  <span>Date</span>
+                  <span>Date & Time</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900 w-[32%]">
-                {new Date(receipt.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              <td className="p-2 font-bold text-slate-900 w-[32%] font-mono">
+                {formatReceiptDateTime(receipt.createdAt)}
               </td>
             </tr>
 
@@ -282,37 +304,90 @@ const ReceiptViewer = () => {
               <td className="p-2 font-bold text-red-600">₹{(receipt.lateFinePaid || 0).toLocaleString('en-IN')}</td>
             </tr>
 
-            {/* Row 5 */}
-            <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Payment Mode</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-bold text-slate-900 uppercase">
-                {receipt.paymentMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
-              </td>
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Outstanding Balance</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-black text-indigo-700">₹{(outstandingBalance || 0).toLocaleString('en-IN')}</td>
-            </tr>
+            {/* Row 5 & 5b: Payment Mode & Outstanding datacells */}
+            {isDownpaymentReceipt ? (
+              <>
+                <tr className="border-b border-slate-100">
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Payment Mode</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-slate-900 uppercase">
+                    {receipt.paymentMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
+                  </td>
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Outstanding D.P.</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-black text-amber-800">
+                    ₹{(outstandingDownpayment || 0).toLocaleString('en-IN')}
+                  </td>
+                </tr>
 
-            {/* Row 7 (Late Fine Rebate, if any) */}
-            {receipt.lateFineRebate > 0 && (
-              <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Late Fine Rebate</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td colSpan={3} className="p-2 font-bold text-emerald-600">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</td>
-              </tr>
+                <tr className="border-b border-slate-100">
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>{receipt.lateFineRebate > 0 ? 'Late Fine Rebate' : 'Receipt Category'}</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-slate-900">
+                    {receipt.lateFineRebate > 0 ? (
+                      <span className="text-emerald-600 font-bold">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</span>
+                    ) : (
+                      <span className="text-teal-900 font-bold uppercase text-[10px] bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                        Downpayment Voucher
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Outstanding Total</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-black text-indigo-700">
+                    ₹{(outstandingBalance || 0).toLocaleString('en-IN')}
+                  </td>
+                </tr>
+              </>
+            ) : (
+              <>
+                <tr className="border-b border-slate-100">
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Payment Mode</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-slate-900 uppercase">
+                    {receipt.paymentMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
+                  </td>
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Outstanding Balance</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-black text-indigo-700">₹{(outstandingBalance || 0).toLocaleString('en-IN')}</td>
+                </tr>
+
+                {receipt.lateFineRebate > 0 && (
+                  <tr className="border-b border-slate-100">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Late Fine Rebate</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td colSpan={3} className="p-2 font-bold text-emerald-600">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</td>
+                  </tr>
+                )}
+              </>
             )}
 
             {/* Row 6 (Amount in Words) */}

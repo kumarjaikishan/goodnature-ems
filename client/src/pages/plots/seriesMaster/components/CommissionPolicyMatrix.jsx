@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 import {
@@ -6,11 +6,11 @@ import {
   Plus,
   Trash2,
   Save,
-  CheckCircle2,
   Building,
   TrendingUp,
   RotateCcw,
-  Sparkles,
+  Gift,
+  Columns,
 } from 'lucide-react';
 
 const CommissionPolicyMatrix = ({
@@ -28,12 +28,45 @@ const CommissionPolicyMatrix = ({
     setBusinessType(initialBusinessType);
   }, [initialBusinessType]);
 
+  const normalizePolicyData = (rawPolicy) => {
+    if (!rawPolicy) return rawPolicy;
+    const p = JSON.parse(JSON.stringify(rawPolicy));
+
+    (p.roles || []).forEach((role) => {
+      if (!Array.isArray(role.extraColumns) || role.extraColumns.length === 0) {
+        role.extraColumns = [{ id: 'reward_col_1', label: 'Reward / Extra Incentive' }];
+      }
+
+      (role.targetSlabs || []).forEach((slab) => {
+        if (!Array.isArray(slab.extraIncentives)) {
+          slab.extraIncentives = [];
+        }
+
+        role.extraColumns.forEach((col) => {
+          let item = slab.extraIncentives.find((x) => x.columnId === col.id);
+          if (!item) {
+            const isFirst = col.id === 'reward_col_1' || col.id === role.extraColumns[0]?.id;
+            item = {
+              columnId: col.id,
+              label: col.label,
+              percent: isFirst ? (slab.rewardPercent ?? '') : '',
+              rewardTitle: isFirst ? (slab.rewardTitle || '') : '',
+            };
+            slab.extraIncentives.push(item);
+          }
+        });
+      });
+    });
+
+    return p;
+  };
+
   const fetchPolicy = async (type = businessType) => {
     setLoading(true);
     try {
       const res = await api.get(`/plots/commission-policy?type=${type}`);
       if (res.data?.data) {
-        setPolicy(res.data.data);
+        setPolicy(normalizePolicyData(res.data.data));
       }
     } catch {
       toast.error('Failed to load commission policy configuration');
@@ -52,22 +85,47 @@ const CommissionPolicyMatrix = ({
 
     setSaving(true);
     try {
-      // Validate roles and sanitize numeric inputs
-      const sanitizedRoles = (policy.roles || []).map((role) => ({
-        roleName: role.roleName,
-        fixedCommissionPercent: Number(role.fixedCommissionPercent) || 0,
-        targetSlabs: (role.targetSlabs || []).map((slab) => ({
-          minAmount: Number(slab.minAmount) || 0,
-          maxAmount: slab.maxAmount === null || slab.maxAmount === '' || slab.maxAmount === undefined
-            ? null
-            : Number(slab.maxAmount),
-          fixedCommissionPercent: slab.fixedCommissionPercent === null || slab.fixedCommissionPercent === '' || slab.fixedCommissionPercent === undefined
-            ? (Number(role.fixedCommissionPercent) || 0)
-            : Number(slab.fixedCommissionPercent),
-          targetIncentivePercent: Number(slab.targetIncentivePercent) || 0,
-          label: slab.label || '',
-        })),
-      }));
+      const sanitizedRoles = (policy.roles || []).map((role) => {
+        const extraCols = (role.extraColumns || []).map((c) => ({
+          id: String(c.id || ''),
+          label: String(c.label || ''),
+        }));
+
+        return {
+          roleName: role.roleName,
+          fixedCommissionPercent: Number(role.fixedCommissionPercent) || 0,
+          extraColumns: extraCols,
+          targetSlabs: (role.targetSlabs || []).map((slab) => {
+            const extraIncs = (slab.extraIncentives || []).map((item) => ({
+              columnId: String(item.columnId || ''),
+              label: String(item.label || ''),
+              percent: Number(item.percent) || 0,
+              rewardTitle: String(item.rewardTitle || '').trim(),
+            }));
+
+            const primaryExtra = extraIncs[0];
+
+            return {
+              minAmount: Number(slab.minAmount) || 0,
+              maxAmount:
+                slab.maxAmount === null || slab.maxAmount === '' || slab.maxAmount === undefined
+                  ? null
+                  : Number(slab.maxAmount),
+              fixedCommissionPercent:
+                slab.fixedCommissionPercent === null ||
+                slab.fixedCommissionPercent === '' ||
+                slab.fixedCommissionPercent === undefined
+                  ? Number(role.fixedCommissionPercent) || 0
+                  : Number(slab.fixedCommissionPercent),
+              targetIncentivePercent: Number(slab.targetIncentivePercent) || 0,
+              rewardPercent: primaryExtra ? primaryExtra.percent : Number(slab.rewardPercent) || 0,
+              rewardTitle: primaryExtra ? primaryExtra.rewardTitle : slab.rewardTitle || '',
+              extraIncentives: extraIncs,
+              label: slab.label || '',
+            };
+          }),
+        };
+      });
 
       const payload = {
         policyName: policy.policyName,
@@ -78,7 +136,9 @@ const CommissionPolicyMatrix = ({
       };
 
       await api.put(`/plots/commission-policy?type=${policy.businessType}`, payload);
-      toast.success(`${policy.businessType === 'PLOT_SALE' ? 'Plot Sales' : 'RD/FD'} Commission Policy saved successfully!`);
+      toast.success(
+        `${policy.businessType === 'PLOT_SALE' ? 'Plot Sales' : 'RD/FD'} Commission Policy saved successfully!`
+      );
       fetchPolicy(policy.businessType);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update commission policy');
@@ -92,7 +152,6 @@ const CommissionPolicyMatrix = ({
     const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
     updated.roles[roleIndex].fixedCommissionPercent = cleaned;
 
-    // Sync across all slabs for this role
     (updated.roles[roleIndex].targetSlabs || []).forEach((slab) => {
       slab.fixedCommissionPercent = cleaned;
     });
@@ -103,19 +162,107 @@ const CommissionPolicyMatrix = ({
   const handleSlabFieldChange = (roleIndex, slabIndex, field, value) => {
     const updated = { ...policy };
     const slab = updated.roles[roleIndex].targetSlabs[slabIndex];
+    const strVal = String(value ?? '');
 
     if (field === 'targetIncentivePercent' || field === 'fixedCommissionPercent') {
-      slab[field] = value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+      slab[field] = strVal.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
     } else if (field === 'minAmount') {
-      slab[field] = value.replace(/[^0-9]/g, '');
+      slab[field] = strVal.replace(/[^0-9]/g, '');
     } else if (field === 'maxAmount') {
-      if (value === 'unlimited' || value === '' || value === null) {
+      if (value === 'unlimited' || value === '' || value === null || value === undefined) {
         slab.maxAmount = null;
       } else {
-        slab.maxAmount = value.replace(/[^0-9]/g, '');
+        slab.maxAmount = strVal.replace(/[^0-9]/g, '');
       }
     } else {
       slab[field] = value;
+    }
+
+    setPolicy(updated);
+  };
+
+  const handleAddExtraColumn = (roleIndex) => {
+    const updated = { ...policy };
+    const role = updated.roles[roleIndex];
+    if (!Array.isArray(role.extraColumns)) {
+      role.extraColumns = [];
+    }
+
+    const newColId = `col_${Date.now()}`;
+    const newColLabel = `Incentive Col ${role.extraColumns.length + 1}`;
+    role.extraColumns.push({ id: newColId, label: newColLabel });
+
+    (role.targetSlabs || []).forEach((slab) => {
+      if (!Array.isArray(slab.extraIncentives)) {
+        slab.extraIncentives = [];
+      }
+      slab.extraIncentives.push({
+        columnId: newColId,
+        label: newColLabel,
+        percent: '',
+        rewardTitle: '',
+      });
+    });
+
+    setPolicy(updated);
+  };
+
+  const handleRemoveExtraColumn = (roleIndex, colIndex) => {
+    const updated = { ...policy };
+    const role = updated.roles[roleIndex];
+    const removedCol = role.extraColumns[colIndex];
+    if (!removedCol) return;
+
+    role.extraColumns.splice(colIndex, 1);
+    (role.targetSlabs || []).forEach((slab) => {
+      if (Array.isArray(slab.extraIncentives)) {
+        slab.extraIncentives = slab.extraIncentives.filter((item) => item.columnId !== removedCol.id);
+      }
+    });
+
+    setPolicy(updated);
+  };
+
+  const handleRenameExtraColumn = (roleIndex, colIndex, newLabel) => {
+    const updated = { ...policy };
+    const role = updated.roles[roleIndex];
+    if (role.extraColumns && role.extraColumns[colIndex]) {
+      role.extraColumns[colIndex].label = newLabel;
+      const colId = role.extraColumns[colIndex].id;
+      (role.targetSlabs || []).forEach((slab) => {
+        if (Array.isArray(slab.extraIncentives)) {
+          const item = slab.extraIncentives.find((x) => x.columnId === colId);
+          if (item) item.label = newLabel;
+        }
+      });
+      setPolicy(updated);
+    }
+  };
+
+  const handleSlabExtraIncentiveChange = (roleIndex, slabIndex, columnId, field, value) => {
+    const updated = { ...policy };
+    const slab = updated.roles[roleIndex].targetSlabs[slabIndex];
+    if (!Array.isArray(slab.extraIncentives)) {
+      slab.extraIncentives = [];
+    }
+
+    let item = slab.extraIncentives.find((x) => x.columnId === columnId);
+    if (!item) {
+      item = { columnId, percent: '', rewardTitle: '', label: '' };
+      slab.extraIncentives.push(item);
+    }
+
+    if (field === 'percent') {
+      const strVal = String(value ?? '');
+      item.percent = strVal.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+    } else {
+      item[field] = value;
+    }
+
+    const role = updated.roles[roleIndex];
+    if (role.extraColumns && role.extraColumns[0]?.id === columnId) {
+      if (field === 'percent') slab.rewardPercent = item.percent;
+      if (field === 'rewardTitle') slab.rewardTitle = item.rewardTitle;
     }
 
     setPolicy(updated);
@@ -125,18 +272,26 @@ const CommissionPolicyMatrix = ({
     const updated = { ...policy };
     const currentSlabs = updated.roles[roleIndex].targetSlabs || [];
     const lastSlab = currentSlabs[currentSlabs.length - 1];
+    const extraCols = updated.roles[roleIndex].extraColumns || [];
 
     let newMin = 1;
     let newMax = null;
     let newIncentive = 2.0;
 
-    const roleFixed = Number(policy.roles[roleIndex].fixedCommissionPercent) || (policy.roles[roleIndex].roleName === 'BUSINESS_PARTNER' ? 2.0 : 5.0);
+    const roleFixed =
+      Number(policy.roles[roleIndex].fixedCommissionPercent) ||
+      (policy.roles[roleIndex].roleName === 'BUSINESS_PARTNER' ? 2.0 : 5.0);
 
     if (lastSlab) {
-      const prevMax = lastSlab.maxAmount ? Number(lastSlab.maxAmount) : Number(lastSlab.minAmount) + 500000;
+      const prevMax = lastSlab.maxAmount
+        ? Number(lastSlab.maxAmount)
+        : Number(lastSlab.minAmount) + 500000;
       newMin = prevMax + 1;
       newMax = newMin + 999999;
-      newIncentive = +(Number(lastSlab.targetIncentivePercent) + (policy.roles[roleIndex].roleName === 'BUSINESS_PARTNER' ? 0.15 : 1.0)).toFixed(3);
+      newIncentive = +(
+        Number(lastSlab.targetIncentivePercent) +
+        (policy.roles[roleIndex].roleName === 'BUSINESS_PARTNER' ? 0.15 : 1.0)
+      ).toFixed(3);
     }
 
     const newSlab = {
@@ -144,6 +299,14 @@ const CommissionPolicyMatrix = ({
       maxAmount: newMax,
       fixedCommissionPercent: roleFixed,
       targetIncentivePercent: newIncentive,
+      rewardPercent: 0,
+      rewardTitle: '',
+      extraIncentives: extraCols.map((c) => ({
+        columnId: c.id,
+        label: c.label,
+        percent: '',
+        rewardTitle: '',
+      })),
       label: `₹${newMin.toLocaleString('en-IN')} - ${newMax ? `₹${newMax.toLocaleString('en-IN')}` : 'Above'}`,
     };
 
@@ -153,7 +316,9 @@ const CommissionPolicyMatrix = ({
 
   const handleRemoveSlab = (roleIndex, slabIndex) => {
     const updated = { ...policy };
-    updated.roles[roleIndex].targetSlabs = updated.roles[roleIndex].targetSlabs.filter((_, i) => i !== slabIndex);
+    updated.roles[roleIndex].targetSlabs = updated.roles[roleIndex].targetSlabs.filter(
+      (_, i) => i !== slabIndex
+    );
     setPolicy(updated);
   };
 
@@ -187,8 +352,10 @@ const CommissionPolicyMatrix = ({
   const associateRole = associateRoleIdx !== -1 ? policy.roles[associateRoleIdx] : null;
   const partnerRole = partnerRoleIdx !== -1 ? policy.roles[partnerRoleIdx] : null;
 
-  const associateFixed = Number(associateRole?.fixedCommissionPercent) || (businessType === 'PLOT_SALE' ? 5.0 : 2.5);
-  const partnerFixed = Number(partnerRole?.fixedCommissionPercent) || (businessType === 'PLOT_SALE' ? 2.0 : 1.0);
+  const associateFixed =
+    Number(associateRole?.fixedCommissionPercent) || (businessType === 'PLOT_SALE' ? 5.0 : 2.5);
+  const partnerFixed =
+    Number(partnerRole?.fixedCommissionPercent) || (businessType === 'PLOT_SALE' ? 2.0 : 1.0);
 
   return (
     <div className="space-y-6">
@@ -206,9 +373,7 @@ const CommissionPolicyMatrix = ({
                   Active
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                {subtitle}
-              </p>
+              <p className="text-xs text-slate-500 font-medium">{subtitle}</p>
             </div>
           </div>
         </div>
@@ -267,50 +432,6 @@ const CommissionPolicyMatrix = ({
         </div>
       </div>
 
-      {/* Policy Effective Duration & Overview Banner */}
-      <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-teal-700/50 pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-teal-300" />
-            <span className="font-bold text-sm tracking-wide">
-              Official Target Circular: {businessType === 'PLOT_SALE' ? 'Plot Sales Circular (Right Side)' : 'RD/FD Investment Circular (Left Side)'}
-            </span>
-          </div>
-          <span className="text-xs font-mono font-medium text-teal-200">
-            Quarter Validity: {new Date(policy.validFrom).toLocaleDateString('en-GB')} — {new Date(policy.validTo).toLocaleDateString('en-GB')}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-teal-100 pt-1">
-          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 space-y-1">
-            <p className="font-bold text-white flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-emerald-400" /> 1. Business Associate (BA)
-            </p>
-            <p className="text-[11px] text-teal-100 leading-relaxed">
-              Subordinate sponsor ID under a Business Developer. Receives <strong>Fixed {associateFixed}%</strong> + Target Incentive % based on their individual monthly collections.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 space-y-1">
-            <p className="font-bold text-white flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-blue-400" /> 2. Business Partner (BP)
-            </p>
-            <p className="text-[11px] text-teal-100 leading-relaxed">
-              Top developer ID direct with company. On subordinate Associate business, receives <strong>Fixed {partnerFixed}%</strong> + Partner Team Incentive %.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10 space-y-1">
-            <p className="font-bold text-white flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-amber-300" /> 3. Direct Partner Sale
-            </p>
-            <p className="text-[11px] text-teal-100 leading-relaxed">
-              When a Business Partner personally brings a direct customer, they receive <strong>both</strong> BA Rate ({associateFixed}% + Slab) AND BP Rate ({partnerFixed}% + Slab)!
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ── SECTION 1: BUSINESS ASSOCIATE SLABS TABLE ── */}
       {associateRole && (
         <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 space-y-4">
@@ -323,11 +444,11 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to direct sponsors &amp; subordinates. Fixed base % + monthly target achievement incentive %.
+                Applied to direct sponsors &amp; subordinates. Fixed base % + monthly target achievement bonus + additional rewards distributed at closing.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center flex-wrap gap-2.5">
               <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-xl">
                 <span className="text-xs font-bold text-teal-900">Base Fixed %:</span>
                 <input
@@ -340,6 +461,16 @@ const CommissionPolicyMatrix = ({
                 />
                 <span className="text-xs font-bold text-teal-800">%</span>
               </div>
+
+              <button
+                type="button"
+                onClick={() => handleAddExtraColumn(associateRoleIdx)}
+                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5"
+                title="Add extra reward/incentive column"
+              >
+                <Columns size={14} className="text-amber-700" />
+                <span>+ Add Incentive Column</span>
+              </button>
 
               <button
                 type="button"
@@ -366,28 +497,49 @@ const CommissionPolicyMatrix = ({
                     Target Incentive %<br />
                     <span className="text-blue-500 font-normal">Monthly Bonus</span>
                   </th>
-                  <th className="p-3 bg-emerald-50/50 text-emerald-900">
-                    Total BA Commission %<br />
-                    <span className="text-emerald-600 font-normal">Fixed + Incentive</span>
-                  </th>
+
+                  {/* Dynamic Additional Incentive Columns */}
+                  {(associateRole.extraColumns || []).map((col, cIdx) => (
+                    <th key={col.id} className="p-3 bg-amber-50/60 text-amber-900 min-w-[180px]">
+                      <div className="flex items-center justify-between gap-1">
+                        <input
+                          type="text"
+                          value={col.label || ''}
+                          onChange={(e) => handleRenameExtraColumn(associateRoleIdx, cIdx, e.target.value)}
+                          className="bg-transparent font-bold text-[0.68rem] text-amber-950 uppercase outline-none focus:bg-white focus:ring-1 focus:ring-amber-400 px-1 py-0.5 rounded"
+                          placeholder="Reward / Incentive"
+                        />
+                        {(associateRole.extraColumns || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExtraColumn(associateRoleIdx, cIdx)}
+                            className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer"
+                            title="Remove Column"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-amber-700 font-normal text-[10px] flex items-center gap-1 mt-0.5">
+                        <Gift size={11} /> % &amp; Reward Name (At Closing)
+                      </span>
+                    </th>
+                  ))}
+
                   <th className="p-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {(associateRole.targetSlabs || []).map((slab, sIdx) => {
-                  const slabFixed = slab.fixedCommissionPercent !== undefined && slab.fixedCommissionPercent !== null && slab.fixedCommissionPercent !== ''
-                    ? Number(slab.fixedCommissionPercent)
-                    : associateFixed;
-                  const incentive = Number(slab.targetIncentivePercent) || 0;
-                  const total = +(slabFixed + incentive).toFixed(2);
-                  const isUnlimited = slab.maxAmount === null || slab.maxAmount === '' || slab.maxAmount === undefined;
+                  const isUnlimited =
+                    slab.maxAmount === null || slab.maxAmount === '' || slab.maxAmount === undefined;
 
                   return (
                     <tr key={sIdx} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3">
                         <input
                           type="text"
-                          className="w-36 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                          className="w-32 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
                           value={slab.label || ''}
                           placeholder="e.g. 1 - 4,99,999"
                           onChange={(e) => handleSlabFieldChange(associateRoleIdx, sIdx, 'label', e.target.value)}
@@ -426,7 +578,14 @@ const CommissionPolicyMatrix = ({
                             <input
                               type="checkbox"
                               checked={isUnlimited}
-                              onChange={(e) => handleSlabFieldChange(associateRoleIdx, sIdx, 'maxAmount', e.target.checked ? 'unlimited' : 5000000)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleSlabFieldChange(associateRoleIdx, sIdx, 'maxAmount', 'unlimited');
+                                } else {
+                                  const fallbackMax = slab.minAmount ? Number(slab.minAmount) + 499999 : 5000000;
+                                  handleSlabFieldChange(associateRoleIdx, sIdx, 'maxAmount', String(fallbackMax));
+                                }
+                              }}
                               className="rounded text-teal-600 focus:ring-0 cursor-pointer"
                             />
                             No Limit
@@ -462,11 +621,56 @@ const CommissionPolicyMatrix = ({
                         </div>
                       </td>
 
-                      <td className="p-3 bg-emerald-50/30">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                          {total}%
-                        </span>
-                      </td>
+                      {/* Dynamic Extra Columns Inputs: % and Name in the same cell without extra text labels */}
+                      {(associateRole.extraColumns || []).map((col) => {
+                        const item =
+                          (slab.extraIncentives || []).find((x) => x.columnId === col.id) || {
+                            percent: '',
+                            rewardTitle: '',
+                          };
+
+                        return (
+                          <td key={col.id} className="p-3 bg-amber-50/20">
+                            <div className="flex flex-col gap-1.5 min-w-[170px]">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="tel"
+                                  inputMode="decimal"
+                                  placeholder="0"
+                                  className="w-16 px-2 py-1 bg-white border border-amber-300 rounded-lg text-xs font-extrabold text-amber-900 text-center focus:ring-1 focus:ring-amber-500 outline-none"
+                                  value={item.percent ?? ''}
+                                  onChange={(e) =>
+                                    handleSlabExtraIncentiveChange(
+                                      associateRoleIdx,
+                                      sIdx,
+                                      col.id,
+                                      'percent',
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                                <span className="font-bold text-amber-800 text-xs">%</span>
+                              </div>
+
+                              <input
+                                type="text"
+                                placeholder="e.g. Motorcycle, Car"
+                                className="w-full px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-300 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
+                                value={item.rewardTitle || ''}
+                                onChange={(e) =>
+                                  handleSlabExtraIncentiveChange(
+                                    associateRoleIdx,
+                                    sIdx,
+                                    col.id,
+                                    'rewardTitle',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
 
                       <td className="p-3 text-center">
                         <button
@@ -499,11 +703,11 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to top developer IDs direct to company. Fixed base team % + team target incentive %.
+                Applied to top developer IDs direct to company. Fixed base team % + team target incentive % + additional rewards distributed at closing.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center flex-wrap gap-2.5">
               <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
                 <span className="text-xs font-bold text-amber-900">Base Fixed %:</span>
                 <input
@@ -516,6 +720,16 @@ const CommissionPolicyMatrix = ({
                 />
                 <span className="text-xs font-bold text-amber-800">%</span>
               </div>
+
+              <button
+                type="button"
+                onClick={() => handleAddExtraColumn(partnerRoleIdx)}
+                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5"
+                title="Add extra reward/incentive column"
+              >
+                <Columns size={14} className="text-amber-700" />
+                <span>+ Add Incentive Column</span>
+              </button>
 
               <button
                 type="button"
@@ -540,45 +754,51 @@ const CommissionPolicyMatrix = ({
                   </th>
                   <th className="p-3 bg-amber-50/50 text-amber-900">
                     Partner Incentive %<br />
-                    <span className="text-amber-600 font-normal">Team Business Incentive</span>
+                    <span className="text-amber-600 font-normal">Team Target Bonus</span>
                   </th>
-                  <th className="p-3 bg-teal-50/50 text-teal-900">
-                    Subordinate Team Comm. %<br />
-                    <span className="text-teal-600 font-normal">Fixed + Inc</span>
-                  </th>
-                  <th className="p-3 bg-indigo-50/50 text-indigo-900">
-                    Direct Partner Total %<br />
-                    <span className="text-indigo-600 font-normal">Dual: BA Rate + BP Rate</span>
-                  </th>
+
+                  {/* Dynamic Additional Incentive Columns for BP */}
+                  {(partnerRole.extraColumns || []).map((col, cIdx) => (
+                    <th key={col.id} className="p-3 bg-amber-50/60 text-amber-900 min-w-[180px]">
+                      <div className="flex items-center justify-between gap-1">
+                        <input
+                          type="text"
+                          value={col.label || ''}
+                          onChange={(e) => handleRenameExtraColumn(partnerRoleIdx, cIdx, e.target.value)}
+                          className="bg-transparent font-bold text-[0.68rem] text-amber-950 uppercase outline-none focus:bg-white focus:ring-1 focus:ring-amber-400 px-1 py-0.5 rounded"
+                          placeholder="Reward / Incentive"
+                        />
+                        {(partnerRole.extraColumns || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExtraColumn(partnerRoleIdx, cIdx)}
+                            className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer"
+                            title="Remove Column"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-amber-700 font-normal text-[10px] flex items-center gap-1 mt-0.5">
+                        <Gift size={11} /> % &amp; Reward Name (At Closing)
+                      </span>
+                    </th>
+                  ))}
+
                   <th className="p-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {(partnerRole.targetSlabs || []).map((slab, sIdx) => {
-                  const slabPartnerFixed = slab.fixedCommissionPercent !== undefined && slab.fixedCommissionPercent !== null && slab.fixedCommissionPercent !== ''
-                    ? Number(slab.fixedCommissionPercent)
-                    : partnerFixed;
-                  const incentive = Number(slab.targetIncentivePercent) || 0;
-                  const partnerTotal = +(slabPartnerFixed + incentive).toFixed(3);
-                  const isUnlimited = slab.maxAmount === null || slab.maxAmount === '' || slab.maxAmount === undefined;
-
-                  // Find corresponding BA slab for direct partner simulation
-                  const matchingBaSlab = (associateRole?.targetSlabs || []).find(
-                    (ba) => slab.minAmount >= ba.minAmount && (ba.maxAmount === null || slab.minAmount <= ba.maxAmount)
-                  ) || associateRole?.targetSlabs?.[sIdx] || associateRole?.targetSlabs?.[0];
-
-                  const matchingBaFixed = matchingBaSlab?.fixedCommissionPercent !== undefined && matchingBaSlab?.fixedCommissionPercent !== null && matchingBaSlab?.fixedCommissionPercent !== ''
-                    ? Number(matchingBaSlab.fixedCommissionPercent)
-                    : associateFixed;
-                  const baIncentive = Number(matchingBaSlab?.targetIncentivePercent) || 2.0;
-                  const directCombined = +(matchingBaFixed + baIncentive + partnerTotal).toFixed(3);
+                  const isUnlimited =
+                    slab.maxAmount === null || slab.maxAmount === '' || slab.maxAmount === undefined;
 
                   return (
                     <tr key={sIdx} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3">
                         <input
                           type="text"
-                          className="w-36 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+                          className="w-32 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
                           value={slab.label || ''}
                           placeholder="e.g. 1 - 9,99,999"
                           onChange={(e) => handleSlabFieldChange(partnerRoleIdx, sIdx, 'label', e.target.value)}
@@ -617,7 +837,14 @@ const CommissionPolicyMatrix = ({
                             <input
                               type="checkbox"
                               checked={isUnlimited}
-                              onChange={(e) => handleSlabFieldChange(partnerRoleIdx, sIdx, 'maxAmount', e.target.checked ? 'unlimited' : 10000000)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleSlabFieldChange(partnerRoleIdx, sIdx, 'maxAmount', 'unlimited');
+                                } else {
+                                  const fallbackMax = slab.minAmount ? Number(slab.minAmount) + 999999 : 10000000;
+                                  handleSlabFieldChange(partnerRoleIdx, sIdx, 'maxAmount', String(fallbackMax));
+                                }
+                              }}
                               className="rounded text-teal-600 focus:ring-0 cursor-pointer"
                             />
                             No Limit
@@ -653,17 +880,56 @@ const CommissionPolicyMatrix = ({
                         </div>
                       </td>
 
-                      <td className="p-3 bg-teal-50/30">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-teal-100 text-teal-800 border border-teal-300">
-                          {partnerTotal}%
-                        </span>
-                      </td>
+                      {/* Dynamic Extra Columns Inputs for BP: % and Name in the same cell without extra text labels */}
+                      {(partnerRole.extraColumns || []).map((col) => {
+                        const item =
+                          (slab.extraIncentives || []).find((x) => x.columnId === col.id) || {
+                            percent: '',
+                            rewardTitle: '',
+                          };
 
-                      <td className="p-3 bg-indigo-50/30">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
-                          {directCombined}%
-                        </span>
-                      </td>
+                        return (
+                          <td key={col.id} className="p-3 bg-amber-50/20">
+                            <div className="flex flex-col gap-1.5 min-w-[170px]">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="tel"
+                                  inputMode="decimal"
+                                  placeholder="0"
+                                  className="w-16 px-2 py-1 bg-white border border-amber-300 rounded-lg text-xs font-extrabold text-amber-900 text-center focus:ring-1 focus:ring-amber-500 outline-none"
+                                  value={item.percent ?? ''}
+                                  onChange={(e) =>
+                                    handleSlabExtraIncentiveChange(
+                                      partnerRoleIdx,
+                                      sIdx,
+                                      col.id,
+                                      'percent',
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                                <span className="font-bold text-amber-800 text-xs">%</span>
+                              </div>
+
+                              <input
+                                type="text"
+                                placeholder="e.g. Foreign Tour, SUV"
+                                className="w-full px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold text-slate-800 placeholder:text-slate-300 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
+                                value={item.rewardTitle || ''}
+                                onChange={(e) =>
+                                  handleSlabExtraIncentiveChange(
+                                    partnerRoleIdx,
+                                    sIdx,
+                                    col.id,
+                                    'rewardTitle',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
 
                       <td className="p-3 text-center">
                         <button
@@ -687,7 +953,7 @@ const CommissionPolicyMatrix = ({
       {/* Bottom Save Action Bar */}
       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-xs text-slate-500 font-medium">
-          Changes take effect immediately across all newly synced receipt collections and target performance reports.
+          Changes take effect immediately across all newly synced receipt collections, closing distributions, and target performance reports.
         </p>
         <button
           type="button"
@@ -708,3 +974,4 @@ const CommissionPolicyMatrix = ({
 };
 
 export default CommissionPolicyMatrix;
+

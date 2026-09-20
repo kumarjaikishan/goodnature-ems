@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Button from '@/components/ui/Button';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import numberToWords from '@/utils/numToWord';
 import { Banknote, CheckCircle, Clock } from 'lucide-react';
 
@@ -35,6 +36,20 @@ const ReceivePaymentForm = ({
   const effectiveDpGrace = dpGracePeriod ?? gracePeriod ?? 15;
   const effectiveEmiGrace = emiGracePeriod ?? gracePeriod ?? 15;
 
+  const bookingOptions = useMemo(() => {
+    return (bookings || []).map((b) => {
+      const bNum = b.bookingNumber || '-';
+      const custName = b.customerId?.name || b.customerName || '';
+      const plotNum = b.plotId?.plotNumber || '';
+
+      return {
+        value: b._id,
+        label: `${bNum}`,
+        subtitle: custName || plotNum ? `Customer: ${custName} • Plot #${plotNum}` : undefined,
+      };
+    });
+  }, [bookings]);
+
   const rateLabel = lateFineFrequency === 'DAILY'
     ? `${lateFineRate || 0}% / Day`
     : lateFineFrequency === 'MONTHLY'
@@ -53,16 +68,38 @@ const ReceivePaymentForm = ({
   const isDpOverdue = dpDueDate && new Date(dpDueDate) < new Date(form.createdAt || new Date()) && dpPrincipalDue > 0;
 
   const emiInsts = installments?.filter((i) => i.installmentNumber > 0) || [];
-  const activeEmiInst = emiInsts.find((i) => i.status !== 'PAID') || emiInsts[0];
-  const activeEmiNum = activeEmiInst ? activeEmiInst.installmentNumber : 1;
-  const emiScheduledAmount = activeEmiInst ? activeEmiInst.dueAmount : 0;
-  const emiPaid = activeEmiInst ? (activeEmiInst.paidAmount || 0) : 0;
-  const emiPrincipalDue = activeEmiInst ? Math.max(0, activeEmiInst.dueAmount - emiPaid) : 0;
-  const emiFine = activeEmiInst ? getLateFine(activeEmiInst, effectiveEmiGrace, form.createdAt) : 0;
+  const formDateObj = form.createdAt ? new Date(form.createdAt) : new Date();
+  const formYear = formDateObj.getFullYear();
+  const formMonth = formDateObj.getMonth();
+
+  const dueOrOverdueEmis = emiInsts.filter((i) => {
+    if (i.status === 'PAID') return false;
+    if (!i.dueDate) return false;
+    const d = new Date(i.dueDate);
+    const dYear = d.getFullYear();
+    const dMonth = d.getMonth();
+    return dYear < formYear || (dYear === formYear && dMonth <= formMonth);
+  });
+
+  const targetEmis = dueOrOverdueEmis.length > 0
+    ? dueOrOverdueEmis
+    : emiInsts.filter((i) => i.status !== 'PAID').slice(0, 1);
+
+  const activeEmiInst = targetEmis[0] || emiInsts[0];
+  const activeEmiNum = targetEmis.length > 1
+    ? `#${targetEmis.map(i => i.installmentNumber).join(', #')}`
+    : activeEmiInst ? `#${activeEmiInst.installmentNumber}` : '#1';
+
+  const emiScheduledAmount = targetEmis.reduce((sum, i) => sum + (i.dueAmount || 0), 0);
+  const emiPrincipalDue = targetEmis.reduce((sum, i) => sum + Math.max(0, (i.dueAmount || 0) - (i.paidAmount || 0)), 0);
+  const emiFine = targetEmis.reduce((sum, i) => sum + getLateFine(i, effectiveEmiGrace, form.createdAt), 0);
   const emiLateDays = activeEmiInst ? getLateDays(activeEmiInst, effectiveEmiGrace, form.createdAt) : 0;
   const emiTotalPayable = emiPrincipalDue + emiFine;
   const emiDueDate = activeEmiInst?.dueDate;
-  const isEmiOverdue = emiDueDate && new Date(emiDueDate) < new Date(form.createdAt || new Date()) && emiPrincipalDue > 0 && emiLateDays > 0;
+  const hasOverdue = targetEmis.some((i) => {
+    const d = i.dueDate ? new Date(i.dueDate) : null;
+    return d && d < formDateObj && Math.max(0, (i.dueAmount || 0) - (i.paidAmount || 0)) > 0 && getLateDays(i, effectiveEmiGrace, form.createdAt) > 0;
+  });
   const isEmiPaidInFull = emiInsts.length > 0 && emiInsts.every((i) => i.status === 'PAID');
 
   return (
@@ -80,19 +117,16 @@ const ReceivePaymentForm = ({
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1">
-            <label className={labelCls}>Select Active Contract</label>
-            <select
-              className={inputCls}
-              onChange={(e) => handleBookingSelect(e.target.value)}
+            <SearchableSelect
+              label="Select Booking Number"
+              placeholder="Search or enter Booking Number..."
+              searchPlaceholder="Type Booking Number, Customer Name, or Plot Number..."
+              options={bookingOptions}
               value={selectedBooking?._id || ''}
-            >
-              <option value="">Select Customer / Plot Booking...</option>
-              {bookings.map((b) => (
-                <option key={b._id} value={b._id}>
-                  {b.customerId?.name || b.customerName} | {b.bookingNumber} | Plot #{b.plotId?.plotNumber}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleBookingSelect(val || '')}
+              allowClear={true}
+              required={true}
+            />
           </div>
 
           {selectedBooking && (
@@ -131,82 +165,102 @@ const ReceivePaymentForm = ({
                 </div>
               ) : isDownpaymentMode ? (
                 /* Dedicated Downpayment Summary Panel */
-                <div className="bg-white border border-teal-200/80 rounded-xl p-4 shadow-xs flex flex-col gap-3">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
-                      Downpayment Terms & Status
-                    </span>
-                    {isDpOverdue && dpLateDays > 0 ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
-                        Overdue ({dpLateDays} Days Delay)
-                      </span>
-                    ) : isDpOverdue ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200">
-                        Due (Within Grace Period)
-                      </span>
-                    ) : dpPrincipalDue === 0 ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        Paid in Full
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-teal-100 text-teal-800 border border-teal-200">
-                        Pending Clearance
-                      </span>
+                dpPrincipalDue === 0 && dpFine === 0 ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-950 font-medium shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold block uppercase tracking-wide text-xs text-emerald-900">
+                          Downpayment is Completed (100% Paid)
+                        </span>
+                        <span className="text-xs text-emerald-800">
+                          Total Downpayment of ₹{dpTotal.toLocaleString('en-IN')} has been fully paid and cleared for this booking.
+                        </span>
+                      </div>
+                    </div>
+                    {selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && (
+                      <a
+                        href="/dashboard/plots/collections/emi/add"
+                        className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl text-xs transition shrink-0 self-start sm:self-auto shadow-sm inline-flex items-center gap-1.5"
+                      >
+                        Collect Monthly EMI Instead →
+                      </a>
                     )}
                   </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
-                      <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Booking Date</span>
-                      <span className="font-bold text-slate-800 mt-0.5 block">
-                        {selectedBooking.bookingDate
-                          ? new Date(selectedBooking.bookingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                          : '-'}
+                ) : (
+                  <div className="bg-white border border-teal-200/80 rounded-xl p-4 shadow-xs flex flex-col gap-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
+                        Downpayment Terms & Status
                       </span>
+                      {isDpOverdue && dpLateDays > 0 ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
+                          Overdue ({dpLateDays} Days Delay)
+                        </span>
+                      ) : isDpOverdue ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200">
+                          Due (Within Grace Period)
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-teal-100 text-teal-800 border border-teal-200">
+                          Pending Clearance
+                        </span>
+                      )}
                     </div>
 
-                    <div className={`p-2.5 rounded-lg border ${isDpOverdue ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <span className={`font-semibold block text-[0.65rem] uppercase ${isDpOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
-                        DP Last Due Date
-                      </span>
-                      <span className={`font-bold mt-0.5 block ${isDpOverdue ? 'text-rose-700' : 'text-slate-800'}`}>
-                        {dpDueDate
-                          ? new Date(dpDueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                          : '-'}
-                      </span>
-                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                        <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Booking Date</span>
+                        <span className="font-bold text-slate-800 mt-0.5 block">
+                          {selectedBooking.bookingDate
+                            ? new Date(selectedBooking.bookingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '-'}
+                        </span>
+                      </div>
 
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
-                      <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Total Downpayment</span>
-                      <span className="font-bold text-slate-800 mt-0.5 block">
-                        ₹{dpTotal.toLocaleString('en-IN')}
-                      </span>
-                    </div>
+                      <div className={`p-2.5 rounded-lg border ${isDpOverdue ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200/70'}`}>
+                        <span className={`font-semibold block text-[0.65rem] uppercase ${isDpOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
+                          DP Last Due Date
+                        </span>
+                        <span className={`font-bold mt-0.5 block ${isDpOverdue ? 'text-rose-700' : 'text-slate-800'}`}>
+                          {dpDueDate
+                            ? new Date(dpDueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '-'}
+                        </span>
+                      </div>
 
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
-                      <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Paid So Far</span>
-                      <span className="font-bold text-emerald-700 mt-0.5 block">
-                        ₹{dpPaid.toLocaleString('en-IN')}
-                      </span>
-                    </div>
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                        <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Total Downpayment</span>
+                        <span className="font-bold text-slate-800 mt-0.5 block">
+                          ₹{dpTotal.toLocaleString('en-IN')}
+                        </span>
+                      </div>
 
-                    <div className="bg-teal-50/80 p-2.5 rounded-lg border border-teal-200">
-                      <span className="text-teal-700 font-semibold block text-[0.65rem] uppercase">Principal Due</span>
-                      <span className="font-bold text-teal-900 mt-0.5 block text-sm">
-                        ₹{dpPrincipalDue.toLocaleString('en-IN')}
-                      </span>
-                    </div>
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                        <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Paid So Far</span>
+                        <span className="font-bold text-emerald-700 mt-0.5 block">
+                          ₹{dpPaid.toLocaleString('en-IN')}
+                        </span>
+                      </div>
 
-                    <div className={`p-2.5 rounded-lg border ${dpFine > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200/70'}`}>
-                      <span className={`font-semibold block text-[0.65rem] uppercase ${dpFine > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
-                        Late Fine ({rateLabel})
-                      </span>
-                      <span className={`font-bold mt-0.5 block ${dpFine > 0 ? 'text-rose-700 text-sm' : 'text-slate-800'}`}>
-                        ₹{dpFine.toLocaleString('en-IN')}
-                      </span>
+                      <div className="bg-teal-50/80 p-2.5 rounded-lg border border-teal-200">
+                        <span className="text-teal-700 font-semibold block text-[0.65rem] uppercase">Principal Due</span>
+                        <span className="font-bold text-teal-900 mt-0.5 block text-sm">
+                          ₹{dpPrincipalDue.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+
+                      <div className={`p-2.5 rounded-lg border ${dpFine > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200/70'}`}>
+                        <span className={`font-semibold block text-[0.65rem] uppercase ${dpFine > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                          Late Fine ({rateLabel})
+                        </span>
+                        <span className={`font-bold mt-0.5 block ${dpFine > 0 ? 'text-rose-700 text-sm' : 'text-slate-800'}`}>
+                          ₹{dpFine.toLocaleString('en-IN')}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               ) : (
                 /* Dedicated EMI Summary & Schedule Panel */
                 <div className="flex flex-col gap-4">
@@ -214,15 +268,15 @@ const ReceivePaymentForm = ({
                   <div className="bg-white border border-teal-200/80 rounded-xl p-4 shadow-xs flex flex-col gap-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                       <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
-                        EMI Active Installment Details
+                        EMI Active Installment Details {targetEmis.length > 1 ? `(${targetEmis.length} EMIs Due)` : ''}
                       </span>
                       {isEmiPaidInFull ? (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-200">
                           All EMIs Paid in Full
                         </span>
-                      ) : isEmiOverdue ? (
+                      ) : hasOverdue ? (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
-                          Inst #{activeEmiNum} Overdue ({emiLateDays} Days Delay)
+                          {targetEmis.length > 1 ? `${targetEmis.length} EMIs Overdue / Due` : `Inst ${activeEmiNum} Overdue (${emiLateDays} Days Delay)`}
                         </span>
                       ) : !emiDueDate ? (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200">
@@ -230,7 +284,7 @@ const ReceivePaymentForm = ({
                         </span>
                       ) : (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-teal-100 text-teal-800 border border-teal-200">
-                          Active Installment #{activeEmiNum}
+                          Active Installment {activeEmiNum}
                         </span>
                       )}
                     </div>
@@ -238,16 +292,16 @@ const ReceivePaymentForm = ({
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
                       <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
                         <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Active Inst #</span>
-                        <span className="font-bold text-slate-800 mt-0.5 block">
-                          {isEmiPaidInFull ? 'Completed' : `EMI #${activeEmiNum}`}
+                        <span className="font-bold text-slate-800 mt-0.5 block truncate" title={activeEmiNum}>
+                          {isEmiPaidInFull ? 'Completed' : `EMI ${activeEmiNum}`}
                         </span>
                       </div>
 
-                      <div className={`p-2.5 rounded-lg border ${isEmiOverdue ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200/70'}`}>
-                        <span className={`font-semibold block text-[0.65rem] uppercase ${isEmiOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
-                          EMI Due Date
+                      <div className={`p-2.5 rounded-lg border ${hasOverdue ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200/70'}`}>
+                        <span className={`font-semibold block text-[0.65rem] uppercase ${hasOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
+                          {targetEmis.length > 1 ? 'First Due Date' : 'EMI Due Date'}
                         </span>
-                        <span className={`font-bold mt-0.5 block ${isEmiOverdue ? 'text-rose-700' : 'text-slate-800'}`}>
+                        <span className={`font-bold mt-0.5 block ${hasOverdue ? 'text-rose-700' : 'text-slate-800'}`}>
                           {emiDueDate
                             ? new Date(emiDueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                             : 'Pending DP'}
@@ -255,7 +309,9 @@ const ReceivePaymentForm = ({
                       </div>
 
                       <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
-                        <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Monthly EMI</span>
+                        <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">
+                          {targetEmis.length > 1 ? `Scheduled (${targetEmis.length} EMIs)` : 'Monthly EMI'}
+                        </span>
                         <span className="font-bold text-slate-800 mt-0.5 block">
                           ₹{emiScheduledAmount.toLocaleString('en-IN')}
                         </span>
@@ -405,170 +461,179 @@ const ReceivePaymentForm = ({
             </>
           )}
 
-          {/* Input Fields Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1">
-              <div className="flex justify-between items-center">
-                <label className={labelCls}>Collection Amount (₹)</label>
-                {isDownpaymentMode && (
-                  <span className="text-[0.65rem] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                    Max DP Payable: ₹{Math.max(0, dpTotalPayable - (Number(form.lateFineRebate) || 0)).toLocaleString('en-IN')}
-                  </span>
-                )}
-              </div>
-              <input
-                className={inputCls}
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9.]*"
-                value={form.amountPaid}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9.]/g, '');
-                  setForm({ ...form, amountPaid: val });
-                }}
-                placeholder="Enter collected cash"
-                required
-              />
-              {form.amountPaid && Number(form.amountPaid) > 0 ? (
-                <p className="text-[0.7rem] font-bold text-teal-800 mt-1 capitalize bg-teal-50/70 border border-teal-100 rounded-lg px-2.5 py-1">
-                  {numberToWords(Math.floor(Number(form.amountPaid)))} Rupees Only
-                </p>
-              ) : null}
-            </div>
+          {/* Input Fields Grid (Only rendered if downpayment/contract is not already completed) */}
+          {!(isDownpaymentMode && dpPrincipalDue === 0 && dpFine === 0) && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <label className={labelCls}>Collection Amount (₹)</label>
+                    {isDownpaymentMode && (
+                      <span className="text-[0.65rem] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                        Max DP Payable: ₹{Math.max(0, dpTotalPayable - (Number(form.lateFineRebate) || 0)).toLocaleString('en-IN')}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    className={inputCls}
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9.]*"
+                    value={form.amountPaid}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      setForm({ ...form, amountPaid: val });
+                    }}
+                    placeholder="Enter collected cash"
+                    required
+                  />
+                  {form.amountPaid && Number(form.amountPaid) > 0 ? (
+                    <p className="text-[0.7rem] font-bold text-teal-800 mt-1 capitalize bg-teal-50/70 border border-teal-100 rounded-lg px-2.5 py-1">
+                      {numberToWords(Math.floor(Number(form.amountPaid)))} Rupees Only
+                    </p>
+                  ) : null}
+                </div>
 
-            {(isDownpaymentMode || selectedBooking?.scheme === 'MONTHLY_INSTALLMENT') && (
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center">
-                  <label className={labelCls}>Late Fine Rebate (₹)</label>
-                  <span className="text-[0.65rem] text-slate-400 font-medium">
-                    Max: ₹{getSelectedLateFineTotal().toLocaleString('en-IN')}
+                {(isDownpaymentMode || selectedBooking?.scheme === 'MONTHLY_INSTALLMENT') && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between items-center">
+                      <label className={labelCls}>Late Fine Rebate (₹)</label>
+                      <span className="text-[0.65rem] text-slate-400 font-medium">
+                        Max: ₹{getSelectedLateFineTotal().toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <input
+                      className={inputCls}
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9.]*"
+                      value={form.lateFineRebate}
+                      onChange={(e) => {
+                        const rawVal = e.target.value.replace(/[^0-9.]/g, '');
+                        const maxFine = getSelectedLateFineTotal();
+                        const numRebate = Math.min(Number(rawVal) || 0, maxFine);
+                        const cleanRebateStr = rawVal === '' ? '' : String(numRebate);
+
+                        setForm((prev) => {
+                          const principalDue = isDownpaymentMode
+                            ? dpPrincipalDue
+                            : emiPrincipalDue;
+                          const currentFine = isDownpaymentMode
+                            ? dpFine
+                            : emiFine;
+                          const netFine = Math.max(0, currentFine - numRebate);
+                          const newTotal = principalDue + netFine;
+
+                          return {
+                            ...prev,
+                            lateFineRebate: cleanRebateStr,
+                            amountPaid: newTotal > 0 ? String(newTotal) : '',
+                          };
+                        });
+                      }}
+                      placeholder="Enter rebate amount if any"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelCls}>Payment Mode</label>
+                  <select
+                    className={inputCls}
+                    value={form.paymentMode}
+                    onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI / Online</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="neft_rtgs">NEFT / RTGS</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelCls}>Collection Date</label>
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={form.createdAt}
+                    onChange={(e) => handleCollectionDateChange(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {form.paymentMode !== 'cash' && (
+                  <div className="flex flex-col gap-1">
+                    <label className={labelCls}>
+                      {form.paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'Reference / UTR / Transaction No.'}
+                    </label>
+                    <input
+                      className={inputCls}
+                      type={form.paymentMode === 'cheque' ? 'tel' : 'text'}
+                      inputMode={form.paymentMode === 'cheque' ? 'numeric' : 'text'}
+                      maxLength={form.paymentMode === 'cheque' ? 6 : 50}
+                      pattern={form.paymentMode === 'cheque' ? '[0-9]{6}' : undefined}
+                      placeholder={form.paymentMode === 'cheque' ? 'e.g. 045123' : 'Enter UTR / Transaction Reference'}
+                      value={form.transactionReference}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (form.paymentMode === 'cheque') {
+                          val = val.replace(/[^0-9]/g, '').slice(0, 6);
+                        }
+                        setForm({ ...form, transactionReference: val });
+                      }}
+                      required
+                    />
+                    {form.paymentMode === 'cheque' && form.transactionReference && form.transactionReference.length !== 6 && (
+                      <span className="text-[10px] text-amber-600 font-semibold mt-0.5">
+                        {form.transactionReference.length}/6 digits entered
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+                  <label className={labelCls}>Narration / Remarks</label>
+                  <textarea
+                    className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition min-h-[70px] resize-none"
+                    placeholder="Enter narration notes for this payment..."
+                    value={form.remarks}
+                    onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {form.paymentMode !== 'cash' && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-center gap-2">
+                  <Clock size={16} className="text-amber-700 shrink-0" />
+                  <span>
+                    <strong>Non-Cash Payment Notice:</strong> Payments collected via{' '}
+                    <strong>{form.paymentMode.toUpperCase()}</strong> will be recorded in <strong>Pending Approval</strong>{' '}
+                    state and will realize into the customer's balance once verified & approved by an admin.
                   </span>
                 </div>
-                <input
-                  className={inputCls}
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9.]*"
-                  value={form.lateFineRebate}
-                  onChange={(e) => {
-                    const rawVal = e.target.value.replace(/[^0-9.]/g, '');
-                    const maxFine = getSelectedLateFineTotal();
-                    const numRebate = Math.min(Number(rawVal) || 0, maxFine);
-                    const cleanRebateStr = rawVal === '' ? '' : String(numRebate);
+              )}
 
-                    setForm((prev) => {
-                      const principalDue = isDownpaymentMode
-                        ? dpPrincipalDue
-                        : emiPrincipalDue;
-                      const currentFine = isDownpaymentMode
-                        ? dpFine
-                        : emiFine;
-                      const netFine = Math.max(0, currentFine - numRebate);
-                      const newTotal = principalDue + netFine;
-
-                      return {
-                        ...prev,
-                        lateFineRebate: cleanRebateStr,
-                        amountPaid: newTotal > 0 ? String(newTotal) : '',
-                      };
-                    });
-                  }}
-                  placeholder="Enter rebate amount if any"
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Payment Mode</label>
-              <select
-                className={inputCls}
-                value={form.paymentMode}
-                onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                loading={submitLoading}
+                disabled={
+                  submitLoading ||
+                  !selectedBooking ||
+                  !form.amountPaid ||
+                  Number(form.amountPaid) <= 0
+                }
+                startIcon={CheckCircle}
+                className="mt-2 w-full py-3"
               >
-                <option value="cash">Cash</option>
-                <option value="upi">UPI / Online</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-                <option value="neft_rtgs">NEFT / RTGS</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className={labelCls}>Collection Date</label>
-              <input
-                type="date"
-                className={inputCls}
-                value={form.createdAt}
-                onChange={(e) => handleCollectionDateChange(e.target.value)}
-                required
-              />
-            </div>
-
-            {form.paymentMode !== 'cash' && (
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>
-                  {form.paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'Reference / UTR / Transaction No.'}
-                </label>
-                <input
-                  className={inputCls}
-                  type={form.paymentMode === 'cheque' ? 'tel' : 'text'}
-                  inputMode={form.paymentMode === 'cheque' ? 'numeric' : 'text'}
-                  maxLength={form.paymentMode === 'cheque' ? 6 : 50}
-                  pattern={form.paymentMode === 'cheque' ? '[0-9]{6}' : undefined}
-                  placeholder={form.paymentMode === 'cheque' ? 'e.g. 045123' : 'Enter UTR / Transaction Reference'}
-                  value={form.transactionReference}
-                  onChange={(e) => {
-                    let val = e.target.value;
-                    if (form.paymentMode === 'cheque') {
-                      val = val.replace(/[^0-9]/g, '').slice(0, 6);
-                    }
-                    setForm({ ...form, transactionReference: val });
-                  }}
-                  required
-                />
-                {form.paymentMode === 'cheque' && form.transactionReference && form.transactionReference.length !== 6 && (
-                  <span className="text-[10px] text-amber-600 font-semibold mt-0.5">
-                    {form.transactionReference.length}/6 digits entered
-                  </span>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-              <label className={labelCls}>Narration / Remarks</label>
-              <textarea
-                className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none p-3 rounded-xl font-medium text-sm text-slate-800 transition min-h-[70px] resize-none"
-                placeholder="Enter narration notes for this payment..."
-                value={form.remarks}
-                onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {form.paymentMode !== 'cash' && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-center gap-2">
-              <Clock size={16} className="text-amber-700 shrink-0" />
-              <span>
-                <strong>Non-Cash Payment Notice:</strong> Payments collected via{' '}
-                <strong>{form.paymentMode.toUpperCase()}</strong> will be recorded in <strong>Pending Approval</strong>{' '}
-                state and will realize into the customer's balance once verified & approved by an admin.
-              </span>
-            </div>
+                {form.paymentMode === 'cash'
+                  ? 'Collect Payment'
+                  : 'Submit Collection for Admin Approval'}
+              </Button>
+            </>
           )}
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            loading={submitLoading}
-            disabled={submitLoading || !selectedBooking || !form.amountPaid || Number(form.amountPaid) <= 0}
-            startIcon={CheckCircle}
-            className="mt-2 w-full py-3"
-          >
-            {form.paymentMode === 'cash'
-              ? 'Collect Payment'
-              : 'Submit Collection for Admin Approval'}
-          </Button>
         </form>
       </div>
     </div>

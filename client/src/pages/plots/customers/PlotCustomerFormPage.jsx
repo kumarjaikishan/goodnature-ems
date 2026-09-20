@@ -66,6 +66,7 @@ const PlotCustomerFormPage = () => {
     try {
       const res = await apiClient({
         url: 'plots/sponsors',
+        params: { roleType: 'associate' },
       });
       setSponsors(res.data || res.sponsors || res || []);
     } catch (err) {

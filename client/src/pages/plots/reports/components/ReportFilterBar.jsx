@@ -45,8 +45,12 @@ const ReportFilterBar = ({
               className="h-10 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition min-w-[130px]"
             >
               <option value="">All Statuses</option>
+              <option value="PENDING">PENDING</option>
               <option value="ACTIVE">ACTIVE</option>
+              <option value="HOLD">HOLD</option>
               <option value="COMPLETED">COMPLETED</option>
+              <option value="REJECTED">REJECTED</option>
+              <option value="CANCELLED">CANCELLED</option>
             </select>
           </div>
         </div>

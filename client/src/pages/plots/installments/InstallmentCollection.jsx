@@ -11,7 +11,6 @@ import { Plus, ArrowLeft, Search } from 'lucide-react';
 import { getReceiptColumns } from './components/ReceiptColumns';
 import ReceivePaymentForm from './components/ReceivePaymentForm';
 import {
-  EditReceiptModal,
   ApproveReceiptModal,
   RejectReceiptModal,
   DeleteReceiptModal,
@@ -36,9 +35,23 @@ const InstallmentCollection = ({ type, initialView }) => {
   const [lateFineDailyPercent, setLateFineDailyPercent] = useState(24 / 365);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getLateFine = (inst, customGrace = null, customDate = null, fineDailyPercent = lateFineDailyPercent) => {
+  // Collection form state
+  const [form, setForm] = useState({
+    amountPaid: '',
+    lateFineRebate: '',
+    paymentMode: 'cash',
+    transactionReference: '',
+    remarks: '',
+    createdAt: new Date().toISOString().split('T')[0],
+  });
+
+  const getLateFine = (inst, customGrace = null, customDate = null, fineDailyPercent = null) => {
     if (!inst || !inst.dueDate) return 0;
-    if (inst.status === 'PAID') return inst.lateFine || 0;
+    const principal = Math.max(0, (inst.dueAmount || 0) - (inst.paidAmount || 0));
+    if (inst.status === 'PAID' || principal <= 0) {
+      const storedUnpaidFine = Math.max(0, (inst.lateFine || 0) - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+      return storedUnpaidFine;
+    }
 
     const resolvedGrace = customGrace !== null
       ? customGrace
@@ -49,7 +62,6 @@ const InstallmentCollection = ({ type, initialView }) => {
     const d2 = new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate());
 
     const rate = (Number(fineDailyPercent) || (24 / 365)) / 100;
-    const principal = Math.max(0, inst.dueAmount - (inst.paidAmount || 0));
 
     let newlyAccruedFine = 0;
     if (!inst.paidDate || !inst.paidAmount) {
@@ -120,26 +132,6 @@ const InstallmentCollection = ({ type, initialView }) => {
   const [rejectingReceipt, setRejectingReceipt] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Collection form state
-  const [form, setForm] = useState({
-    amountPaid: '',
-    lateFineRebate: '',
-    paymentMode: 'cash',
-    transactionReference: '',
-    remarks: '',
-    createdAt: new Date().toISOString().split('T')[0],
-  });
-
-  // Edit Modal State
-  const [editingReceipt, setEditingReceipt] = useState(null);
-  const [editForm, setEditForm] = useState({
-    paymentMode: 'cash',
-    transactionReference: '',
-    remarks: '',
-    createdAt: '',
-  });
-  const [editLoading, setEditLoading] = useState(false);
 
   // Delete Confirmation State
   const [deletingReceipt, setDeletingReceipt] = useState(null);
@@ -223,19 +215,11 @@ const InstallmentCollection = ({ type, initialView }) => {
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
-      const remaining = Number(b.remainingAmount) || 0;
-      if (remaining <= 0) return false;
-
-      const netValue = Math.max(0, (Number(b.plotValue) || 0) - (Number(b.discount) || 0));
-      const paidSoFar = netValue - remaining;
-      const dpTarget = Number(b.downpaymentAmount) || Number(b.bookingAmount) || 0;
-      const isDpDone = dpTarget <= 0 || paidSoFar >= dpTarget;
-
       if (mode === 'DOWNPAYMENT') {
-        return b.scheme === 'FULL_PAYMENT' || !isDpDone;
+        return true;
       }
       if (mode === 'EMI') {
-        return b.scheme === 'MONTHLY_INSTALLMENT' && isDpDone;
+        return b.scheme === 'MONTHLY_INSTALLMENT';
       }
       return true;
     });
@@ -303,15 +287,49 @@ const InstallmentCollection = ({ type, initialView }) => {
       }
       setInstallments(targetInsts);
 
-      const firstUnpaid = targetInsts.find((i) => i.status !== 'PAID');
-      if (firstUnpaid) {
-        setSelectedInstIds([firstUnpaid._id]);
-        const principalDue = firstUnpaid.dueAmount - firstUnpaid.paidAmount;
-        const targetGrace = (firstUnpaid.installmentNumber === 0 || b?.scheme === 'FULL_PAYMENT') ? resolvedDpGrace : resolvedEmiGrace;
-        const fine = getLateFine(firstUnpaid, targetGrace, form.createdAt, dailyPercent);
-        setForm((f) => ({ ...f, amountPaid: String(principalDue + fine), lateFineRebate: '' }));
+      const dateObj = form.createdAt ? new Date(form.createdAt) : new Date();
+      const currentYear = dateObj.getFullYear();
+      const currentMonth = dateObj.getMonth();
+
+      let defaultTargetInsts = [];
+      if (mode === 'DOWNPAYMENT') {
+        const firstUnpaid = targetInsts.find((i) => i.status !== 'PAID');
+        if (firstUnpaid) defaultTargetInsts = [firstUnpaid];
+      } else if (mode === 'EMI') {
+        // Find all unpaid EMIs due on or before the selected collection date month/year
+        const dueOrOverdueEmis = targetInsts.filter((i) => {
+          if (i.status === 'PAID') return false;
+          if (!i.dueDate) return false;
+          const d = new Date(i.dueDate);
+          const dYear = d.getFullYear();
+          const dMonth = d.getMonth();
+          return dYear < currentYear || (dYear === currentYear && dMonth <= currentMonth);
+        });
+
+        if (dueOrOverdueEmis.length > 0) {
+          defaultTargetInsts = dueOrOverdueEmis;
+        } else {
+          // If none is overdue or due yet this month, select the next unpaid installment
+          const firstUnpaid = targetInsts.find((i) => i.status !== 'PAID');
+          if (firstUnpaid) defaultTargetInsts = [firstUnpaid];
+        }
       } else {
-        setForm((f) => ({ ...f, amountPaid: String(b?.remainingAmount || 0), lateFineRebate: '' }));
+        const firstUnpaid = targetInsts.find((i) => i.status !== 'PAID');
+        if (firstUnpaid) defaultTargetInsts = [firstUnpaid];
+      }
+
+      if (defaultTargetInsts.length > 0) {
+        setSelectedInstIds(defaultTargetInsts.map((i) => i._id));
+        const totalAmount = defaultTargetInsts.reduce((sum, inst) => {
+          const principalDue = Math.max(0, inst.dueAmount - (inst.paidAmount || 0));
+          const targetGrace = (inst.installmentNumber === 0 || b?.scheme === 'FULL_PAYMENT') ? resolvedDpGrace : resolvedEmiGrace;
+          const fine = getLateFine(inst, targetGrace, form.createdAt, dailyPercent);
+          return sum + principalDue + fine;
+        }, 0);
+        setForm((f) => ({ ...f, amountPaid: totalAmount > 0 ? String(totalAmount) : '', lateFineRebate: '' }));
+      } else {
+        setSelectedInstIds([]);
+        setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
       }
     } catch {
       if (currentReqId === activeSelectRequestId.current) {
@@ -332,8 +350,26 @@ const InstallmentCollection = ({ type, initialView }) => {
         if (mode === 'DOWNPAYMENT') {
           targetInsts = installments.filter((i) => i.installmentNumber === 0 || selectedBooking?.scheme === 'FULL_PAYMENT');
         } else if (mode === 'EMI') {
-          const firstUnpaid = installments.find((i) => i.installmentNumber > 0 && i.status !== 'PAID') || installments.find((i) => i.installmentNumber > 0);
-          targetInsts = firstUnpaid ? [firstUnpaid] : [];
+          const dateObj = newDate ? new Date(newDate) : new Date();
+          const currentYear = dateObj.getFullYear();
+          const currentMonth = dateObj.getMonth();
+
+          const dueOrOverdueEmis = installments.filter((i) => {
+            if (i.installmentNumber === 0 || i.status === 'PAID') return false;
+            if (!i.dueDate) return false;
+            const d = new Date(i.dueDate);
+            const dYear = d.getFullYear();
+            const dMonth = d.getMonth();
+            return dYear < currentYear || (dYear === currentYear && dMonth <= currentMonth);
+          });
+
+          if (dueOrOverdueEmis.length > 0) {
+            targetInsts = dueOrOverdueEmis;
+          } else {
+            const firstUnpaid = installments.find((i) => i.installmentNumber > 0 && i.status !== 'PAID') || installments.find((i) => i.installmentNumber > 0);
+            targetInsts = firstUnpaid ? [firstUnpaid] : [];
+          }
+          setSelectedInstIds(targetInsts.map((i) => i._id));
         } else {
           targetInsts = installments.filter((i) => selectedInstIds.includes(i._id));
         }
@@ -378,8 +414,24 @@ const InstallmentCollection = ({ type, initialView }) => {
       return dpInst ? getLateFine(dpInst, dpGracePeriod, form.createdAt) : 0;
     }
     if (mode === 'EMI') {
-      const activeEmi = installments?.find((i) => i.installmentNumber > 0 && i.status !== 'PAID') || installments?.find((i) => i.installmentNumber > 0);
-      return activeEmi ? getLateFine(activeEmi, emiGracePeriod, form.createdAt) : 0;
+      const dateObj = form.createdAt ? new Date(form.createdAt) : new Date();
+      const currentYear = dateObj.getFullYear();
+      const currentMonth = dateObj.getMonth();
+
+      const dueOrOverdueEmis = (installments || []).filter((i) => {
+        if (i.installmentNumber === 0 || i.status === 'PAID') return false;
+        if (!i.dueDate) return false;
+        const d = new Date(i.dueDate);
+        const dYear = d.getFullYear();
+        const dMonth = d.getMonth();
+        return dYear < currentYear || (dYear === currentYear && dMonth <= currentMonth);
+      });
+
+      const targetEmis = dueOrOverdueEmis.length > 0
+        ? dueOrOverdueEmis
+        : installments?.filter((i) => i.installmentNumber > 0 && i.status !== 'PAID').slice(0, 1) || [];
+
+      return targetEmis.reduce((sum, i) => sum + getLateFine(i, emiGracePeriod, form.createdAt), 0);
     }
     return installments
       .filter((i) => selectedInstIds.includes(i._id))
@@ -445,47 +497,6 @@ const InstallmentCollection = ({ type, initialView }) => {
       toast.error(err.response?.data?.message || 'Collection process failed');
     } finally {
       setSubmitLoading(false);
-    }
-  };
-
-  const handleEditClick = (receipt) => {
-    setEditingReceipt(receipt);
-    setEditForm({
-      amount: String(receipt.amount || ''),
-      lateFineRebate: String(receipt.lateFineRebate || ''),
-      paymentMode: receipt.paymentMode || 'cash',
-      transactionReference: receipt.transactionReference || '',
-      remarks: receipt.remarks || '',
-      createdAt: receipt.createdAt ? new Date(receipt.createdAt).toISOString().split('T')[0] : '',
-    });
-  };
-
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (editForm.paymentMode === 'cheque') {
-      const cleanCheque = (editForm.transactionReference || '').trim();
-      if (!/^\d{6}$/.test(cleanCheque)) {
-        return toast.error('Cheque number must be exactly 6 numeric digits (e.g. 045123)');
-      }
-    }
-
-    setEditLoading(true);
-    try {
-      await api.put(`/plots/receipts/${editingReceipt._id}`, {
-        amount: Number(editForm.amount),
-        lateFineRebate: Number(editForm.lateFineRebate) || 0,
-        paymentMode: editForm.paymentMode,
-        transactionReference: editForm.paymentMode === 'cash' ? '' : editForm.transactionReference.trim(),
-        remarks: editForm.remarks,
-        createdAt: editForm.createdAt ? new Date(editForm.createdAt).toISOString() : undefined,
-      });
-      toast.success('Collection updated successfully');
-      setEditingReceipt(null);
-      fetchReceipts();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed');
-    } finally {
-      setEditLoading(false);
     }
   };
 
@@ -577,7 +588,6 @@ const InstallmentCollection = ({ type, initialView }) => {
         setApprovingReceipt,
         setRejectingReceipt,
         setRejectionReason,
-        handleEditClick,
         setDeletingReceipt,
       }),
     [navigate]
@@ -786,15 +796,6 @@ const InstallmentCollection = ({ type, initialView }) => {
       )}
 
       {/* Modals */}
-      <EditReceiptModal
-        editingReceipt={editingReceipt}
-        onClose={() => setEditingReceipt(null)}
-        onSubmit={handleEditSubmit}
-        editForm={editForm}
-        setEditForm={setEditForm}
-        editLoading={editLoading}
-      />
-
       <ApproveReceiptModal
         approvingReceipt={approvingReceipt}
         onClose={() => setApprovingReceipt(null)}

@@ -15,6 +15,7 @@ import { StepCustomer } from './components/StepCustomer';
 import { StepPlot } from './components/StepPlot';
 import { StepTermsAndPayment } from './components/StepTermsAndPayment';
 import { BookingSummarySidebar } from './components/BookingSummarySidebar';
+import { BookingConfirmationModal } from './components/BookingConfirmationModal';
 
 export default function PlotBooking() {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export default function PlotBooking() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   // Master Data
   const [seriesList, setSeriesList] = useState([]);
@@ -47,19 +49,20 @@ export default function PlotBooking() {
   const [discountVal, setDiscountVal] = useState('');
   const [govtRate, setGovtRate] = useState('100'); // default 100 / sqft
 
-  // Editable dynamic rates
+  // Editable dynamic rates & Payment Plan Mode
+  const [paymentPlanMode, setPaymentPlanMode] = useState('EMI'); // 'EMI' or 'ONE_TIME'
   const [customSqFtRate, setCustomSqFtRate] = useState(1000);
   const [dpType, setDpType] = useState('SQFT_RATE'); // 'SQFT_RATE', 'PERCENT', or 'FLAT'
   const [dpVal, setDpVal] = useState(500);
   const [emiFrequency, setEmiFrequency] = useState('MONTHLY'); // 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'
-  const [installmentCount, setInstallmentCount] = useState(8);
+  const [installmentCount, setInstallmentCount] = useState(1);
 
   // Form State
   const [form, setForm] = useState({
     customerId: '',
     plotId: '',
     bookingDate: new Date().toISOString().split('T')[0],
-    tenureMonths: 8,
+    tenureMonths: 1,
     bookingType: 'BOOKING',
     downpaymentDays: 90,
     downpaymentMonths: 3,
@@ -305,9 +308,9 @@ export default function PlotBooking() {
     setStep((prev) => prev - 1);
   };
 
-  // Submit Handler
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Submit Handler: Opens the Review & Confirmation Modal
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
 
     if (!selectedCustomer) {
       toast.error('Please select a customer');
@@ -344,6 +347,12 @@ export default function PlotBooking() {
       return;
     }
 
+    // Open Pre-Booking Confirmation Modal
+    setIsConfirmModalOpen(true);
+  };
+
+  // Final confirmation action inside modal
+  const handleFinalBookingConfirm = async () => {
     try {
       setSubmitLoading(true);
 
@@ -385,7 +394,9 @@ export default function PlotBooking() {
       };
 
       const res = await api.post('/plots/bookings', payload);
-      toast.success('Plot booked successfully!');
+      toast.success('Plot booking submitted successfully in PENDING status!');
+
+      setIsConfirmModalOpen(false);
 
       const bookingId = res.data?.data?.booking?._id || res.data?.data?._id || res.data?.booking?._id || '';
       if (bookingId) {
@@ -483,6 +494,8 @@ export default function PlotBooking() {
               govtRate={govtRate}
               setGovtRate={setGovtRate}
               isOneTime={isOneTime}
+              paymentPlanMode={paymentPlanMode}
+              setPaymentPlanMode={setPaymentPlanMode}
               netContractValue={netContractValue}
               downpaymentAmt={downpaymentAmt}
               dpType={dpType}
@@ -541,6 +554,36 @@ export default function PlotBooking() {
         />
 
       </div>
+
+      {/* Pre-Booking Review & Confirmation Modal */}
+      <BookingConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={handleFinalBookingConfirm}
+        submitLoading={submitLoading}
+        selectedCustomer={selectedCustomer}
+        selectedPlot={selectedPlot}
+        seriesList={seriesList}
+        customSqFtRate={customSqFtRate}
+        effectiveSqFtRate={effectiveSqFtRate}
+        calculatedPlotValue={calculatedPlotValue}
+        calculatedDiscount={calculatedDiscount}
+        discountType={discountType}
+        discountVal={discountVal}
+        netContractValue={netContractValue}
+        paymentPlanMode={paymentPlanMode}
+        downpaymentAmt={downpaymentAmt}
+        customDpRate={customDpRate}
+        remainingBalance={emiPrincipalAmt}
+        emiFrequency={emiFrequency}
+        installmentCount={installmentCount}
+        totalTenureMonths={totalTenureMonths}
+        emiPerInstallmentAmt={emiPerInstallmentAmt}
+        form={form}
+        landSourcing={landSourcing}
+        selectedPremiumHeads={selectedPremiumHeads}
+        plotArea={plotArea}
+      />
     </div>
   );
 }

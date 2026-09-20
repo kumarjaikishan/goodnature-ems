@@ -104,10 +104,16 @@ export const getBookingColumns = ({
         className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
           row.status === 'ACTIVE'
             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : row.status === 'PENDING'
+            ? 'bg-amber-100 text-amber-900 border border-amber-300 font-extrabold'
+            : row.status === 'REJECTED'
+            ? 'bg-rose-100 text-rose-800 border border-rose-300'
             : row.status === 'HOLD'
             ? 'bg-amber-50 text-amber-700 border border-amber-200'
             : row.status === 'COMPLETED'
             ? 'bg-blue-50 text-blue-700 border border-blue-200'
+            : row.status === 'CANCELLED'
+            ? 'bg-red-50 text-red-700 border border-red-200'
             : 'bg-slate-100 text-slate-700 border border-slate-200'
         }`}
       >
