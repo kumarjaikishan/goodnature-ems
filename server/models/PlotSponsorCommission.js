@@ -112,7 +112,28 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       ref: 'PlotClosing',
       default: null,
     },
+    extraClosingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotClosing',
+      default: null,
+      index: true,
+    },
+    extraIncentivePercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    extraIncentiveAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     ledgerEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Entry',
+      default: null,
+    },
+    extraLedgerEntryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Entry',
       default: null,
@@ -126,7 +147,9 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
 plotSponsorCommissionSchema.index({ sponsorId: 1 });
 plotSponsorCommissionSchema.index({ bookingId: 1 });
 plotSponsorCommissionSchema.index({ closingId: 1, createdAt: -1 });
+plotSponsorCommissionSchema.index({ extraClosingId: 1, createdAt: -1 });
 plotSponsorCommissionSchema.index({ status: 1, closingId: 1, createdAt: 1 });
+plotSponsorCommissionSchema.index({ status: 1, extraClosingId: 1, createdAt: 1 });
 // Commission report sorts by createdAt and filters by status.
 plotSponsorCommissionSchema.index({ status: 1, createdAt: -1 });
 

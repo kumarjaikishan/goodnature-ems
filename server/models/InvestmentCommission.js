@@ -80,7 +80,18 @@ const investmentCommissionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    extraClosingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotClosing',
+      default: null,
+      index: true,
+    },
     ledgerEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Entry',
+      default: null,
+    },
+    extraLedgerEntryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Entry',
       default: null,
@@ -89,6 +100,16 @@ const investmentCommissionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Voucher',
       default: null,
+    },
+    extraIncentivePercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    extraIncentiveAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     earnedDate: {
       type: Date,

@@ -126,6 +126,11 @@ const plotProductBookingSchema = new mongoose.Schema(
       ref: 'PlotProduct',
       required: true,
     },
+    plotId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Plot',
+      required: false,
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotCustomer',
@@ -136,6 +141,32 @@ const plotProductBookingSchema = new mongoose.Schema(
       ref: 'User',
       required: false,
     },
+    landSourcing: [
+      {
+        sourceType: {
+          type: String,
+          default: 'AGREEMENT',
+        },
+        agreementId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'KisanLandAgreement',
+        },
+        agreementNumber: String,
+        parcelId: {
+          type: mongoose.Schema.Types.ObjectId,
+        },
+        deedId: {
+          type: mongoose.Schema.Types.ObjectId,
+        },
+        deedNumber: String,
+        mauja: String,
+        thanaNumber: String,
+        khataNumber: String,
+        khesraNumber: String,
+        allocatedSqFt: Number,
+        allocatedDismil: Number,
+      },
+    ],
     quantity: {
       type: Number,
       required: true,

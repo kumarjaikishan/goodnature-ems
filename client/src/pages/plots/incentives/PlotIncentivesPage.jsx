@@ -228,6 +228,7 @@ const PlotIncentivesPage = () => {
   const navigate = useNavigate();
   const customStyles = useCustomStyles();
 
+  const [activeTab, setActiveTab] = useState('TARGET_INCENTIVE'); // 'TARGET_INCENTIVE' | 'EXTRA_INCENTIVE'
   const [closings, setClosings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -245,12 +246,15 @@ const PlotIncentivesPage = () => {
     }));
   };
 
-  // Fetch all closings list
+  // Fetch all closings list filtered by closingType
   const fetchClosings = async () => {
     setLoading(true);
     try {
       const res = await api.get('/plots/closings', {
-        params: { search: search.trim() },
+        params: {
+          search: search.trim(),
+          closingType: activeTab,
+        },
       });
       setClosings(res.data.data || []);
     } catch (err) {
@@ -262,16 +266,16 @@ const PlotIncentivesPage = () => {
 
   useEffect(() => {
     fetchClosings();
-  }, [search]);
+  }, [search, activeTab]);
 
   // Navigate to New Incentive Closing Page
-  const handleOpenCreateModal = () => {
-    navigate('/dashboard/plots/incentives/new');
+  const handleOpenCreateModal = (type = activeTab) => {
+    navigate(`/dashboard/plots/incentives/new?type=${type}`);
   };
 
   // Navigate to Edit Incentive Closing Page
   const handleOpenEditModal = (closing) => {
-    navigate(`/dashboard/plots/incentives/edit/${closing._id}`);
+    navigate(`/dashboard/plots/incentives/edit/${closing._id}?type=${closing.closingType || activeTab}`);
   };
 
   // Open Details Modal
@@ -291,9 +295,11 @@ const PlotIncentivesPage = () => {
 
   // Handle Delete / Reverse Closing
   const handleDeleteClosing = (closing) => {
+    const isExtra = closing.closingType === 'EXTRA_INCENTIVE';
+    const typeLabel = isExtra ? 'Extra Incentive & Rewards' : 'Target Incentive';
     swal({
       title: `Reverse & Delete ${closing.closingNumber}?`,
-      text: `Are you sure you want to delete "${closing.closingName}"? All ${closing.transactionCount || 0} associated target incentives will be restored to unclosed state. No payments or collection records will be lost.`,
+      text: `Are you sure you want to delete "${closing.closingName}"? All ${closing.transactionCount || 0} associated ${typeLabel.toLowerCase()} payouts will be restored to unclosed state. No payments or collection records will be lost.`,
       icon: 'warning',
       buttons: ['Cancel', 'Yes, Reverse & Delete'],
       dangerMode: true,
@@ -301,13 +307,13 @@ const PlotIncentivesPage = () => {
       if (willDelete) {
         try {
           const res = await api.delete(`/plots/closings/${closing._id}`);
-          toast.success(res.data.message || 'Incentive closing reversed and deleted successfully');
+          toast.success(res.data.message || `${typeLabel} closing reversed and deleted successfully`);
           fetchClosings();
           if (showDetailsModal && selectedClosingDetails?._id === closing._id) {
             setShowDetailsModal(false);
           }
         } catch (err) {
-          toast.error(err.response?.data?.message || 'Failed to delete incentive closing');
+          toast.error(err.response?.data?.message || `Failed to delete ${typeLabel.toLowerCase()} closing`);
         }
       }
     });
@@ -320,20 +326,32 @@ const PlotIncentivesPage = () => {
       selector: (row) => row.closingName,
       sortable: true,
       minWidth: '220px',
-      cell: (row) => (
-        <div className="py-2">
-          <div className="flex items-center gap-1.5 font-bold text-slate-800 text-sm">
-            <span>{row.closingName}</span>
+      cell: (row) => {
+        const isExtra = row.closingType === 'EXTRA_INCENTIVE';
+        return (
+          <div className="py-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 text-sm">
+              <span>{row.closingName}</span>
+              {isExtra && (
+                <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded border border-purple-200">
+                  Extra / Reward
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
+              <span className={`font-bold px-2 py-0.5 rounded-md border font-mono text-[11px] ${
+                isExtra
+                  ? 'bg-purple-50 text-purple-800 border-purple-200/60'
+                  : 'bg-teal-50 text-teal-800 border-teal-200/60'
+              }`}>
+                {row.closingNumber}
+              </span>
+              <span>•</span>
+              <span>{row.sponsorCount || 0} Associates/Partners</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
-            <span className="bg-teal-50 text-teal-800 font-bold px-2 py-0.5 rounded-md border border-teal-200/60 font-mono text-[11px]">
-              {row.closingNumber}
-            </span>
-            <span>•</span>
-            <span>{row.sponsorCount || 0} Associates/Partners</span>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       name: 'Evaluation Period',
@@ -343,7 +361,7 @@ const PlotIncentivesPage = () => {
       cell: (row) => (
         <div className="text-xs font-medium text-slate-700 py-1">
           <div className="flex items-center gap-1 font-semibold text-slate-800">
-            <Calendar size={13} className="text-teal-600" />
+            <Calendar size={13} className={row.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-600' : 'text-teal-600'} />
             <span>
               {new Date(row.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
             </span>
@@ -379,16 +397,22 @@ const PlotIncentivesPage = () => {
       selector: (row) => row.totalCommission,
       sortable: true,
       right: true,
-      cell: (row) => (
-        <div className="text-right py-1">
-          <div className="text-sm font-black text-emerald-700">
-            ₹{Number(row.totalIncentiveCommission ?? row.totalCommission ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+      cell: (row) => {
+        const isExtra = row.closingType === 'EXTRA_INCENTIVE';
+        const displayAmt = isExtra
+          ? (row.totalExtraIncentiveCommission ?? row.totalCommission ?? 0)
+          : (row.totalIncentiveCommission ?? row.totalCommission ?? 0);
+        return (
+          <div className="text-right py-1">
+            <div className={`text-sm font-black ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>
+              ₹{Number(displayAmt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </div>
+            <div className="text-[10px] text-slate-500 font-medium">
+              {row.sponsorCount || 0} Partners/Associates
+            </div>
           </div>
-          <div className="text-[10px] text-slate-500 font-medium">
-            {row.sponsorCount || 0} Partners/Associates
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       name: 'Status',
@@ -445,28 +469,62 @@ const PlotIncentivesPage = () => {
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Gift className="text-teal-700" size={26} />
-            Incentive System
+            Incentive & Reward System
           </h1>
           <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
-            Process bi-weekly/monthly period incentives, aggregate direct & indirect partner collections, and generate audit-locked statements.
+            Manage independent Target Incentive (Quarterly / Periodic) and Extra Incentive & Reward (Semi-Annual / Annual) closing batches.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs md:text-sm font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
+            onClick={() => handleOpenCreateModal('TARGET_INCENTIVE')}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
           >
-            <Plus size={17} />
-            <span>New Period Incentive</span>
+            <Plus size={16} />
+            <span>Process Target Incentive</span>
+          </button>
+          <button
+            onClick={() => handleOpenCreateModal('EXTRA_INCENTIVE')}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-700/20 active:scale-[0.98] transition cursor-pointer"
+          >
+            <Sparkles size={16} />
+            <span>Process Extra Incentive / Reward</span>
           </button>
         </div>
+      </div>
+
+      {/* Tabs Navigation for Target Incentive vs Extra Incentive */}
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-1">
+        <button
+          onClick={() => setActiveTab('TARGET_INCENTIVE')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer ${
+            activeTab === 'TARGET_INCENTIVE'
+              ? 'bg-teal-700 text-white shadow-sm shadow-teal-700/20'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+          }`}
+        >
+          <TrendingUp size={16} />
+          <span>Target Incentive Closings</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('EXTRA_INCENTIVE')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer ${
+            activeTab === 'EXTRA_INCENTIVE'
+              ? 'bg-purple-700 text-white shadow-sm shadow-purple-700/20'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+          }`}
+        >
+          <Gift size={16} />
+          <span>Extra Incentive & Rewards Closings</span>
+        </button>
       </div>
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-          <div className="p-3 bg-teal-50 text-teal-700 rounded-xl border border-teal-100">
+          <div className={`p-3 rounded-xl border ${activeTab === 'EXTRA_INCENTIVE' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-teal-50 text-teal-700 border-teal-100'}`}>
             <CheckCircle2 size={22} />
           </div>
           <div>
@@ -488,12 +546,14 @@ const PlotIncentivesPage = () => {
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-          <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+          <div className={`p-3 rounded-xl border ${activeTab === 'EXTRA_INCENTIVE' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
             <TrendingUp size={22} />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Closed Incentives</div>
-            <div className="text-xl font-black text-emerald-700 mt-0.5">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {activeTab === 'EXTRA_INCENTIVE' ? 'Total Extra Incentives' : 'Total Target Incentives'}
+            </div>
+            <div className={`text-xl font-black mt-0.5 ${activeTab === 'EXTRA_INCENTIVE' ? 'text-purple-700' : 'text-emerald-700'}`}>
               ₹{closings.reduce((sum, c) => sum + (c.totalCommission || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </div>
           </div>
@@ -520,7 +580,7 @@ const PlotIncentivesPage = () => {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="Search by batch name or number..."
+              placeholder={`Search ${activeTab === 'EXTRA_INCENTIVE' ? 'extra incentive' : 'target incentive'} batches...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none transition"
@@ -528,7 +588,7 @@ const PlotIncentivesPage = () => {
           </div>
 
           <div className="text-xs text-slate-500 font-medium">
-            Showing <strong>{closings.length}</strong> incentive batches
+            Showing <strong>{closings.length}</strong> {activeTab === 'EXTRA_INCENTIVE' ? 'extra incentive / reward' : 'target incentive'} batches
           </div>
         </div>
 
@@ -547,8 +607,12 @@ const PlotIncentivesPage = () => {
             noDataComponent={
               <div className="py-16 text-center text-slate-400 space-y-2">
                 <Gift className="mx-auto text-slate-300" size={36} />
-                <p className="text-sm font-semibold text-slate-600">No incentive batches recorded yet.</p>
-                <p className="text-xs text-slate-400">Click "New Period Incentive" above to calculate target incentives for a date range.</p>
+                <p className="text-sm font-semibold text-slate-600">
+                  No {activeTab === 'EXTRA_INCENTIVE' ? 'extra incentive / reward' : 'target incentive'} batches recorded yet.
+                </p>
+                <p className="text-xs text-slate-400">
+                  Click "{activeTab === 'EXTRA_INCENTIVE' ? 'Process Extra Incentive / Reward' : 'Process Target Incentive'}" above to calculate payouts.
+                </p>
               </div>
             }
           />
@@ -618,17 +682,19 @@ const PlotIncentivesPage = () => {
                     {selectedClosingDetails.sponsors?.length || 0}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    Eligible for target incentive
+                    Eligible for {selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'extra rewards' : 'target incentives'}
                   </div>
                 </div>
 
-                <div className="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-200">
-                  <div className="text-[10px] uppercase font-bold text-emerald-800">Total Net Incentive Credited</div>
-                  <div className="text-lg font-black text-emerald-700 mt-0.5">
-                    ₹{Number(selectedClosingDetails.totalIncentiveCommission ?? selectedClosingDetails.totalCommission ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <div className={`p-3.5 rounded-xl border ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'bg-purple-50/80 border-purple-200' : 'bg-emerald-50/80 border-emerald-200'}`}>
+                  <div className={`text-[10px] uppercase font-bold ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                    Total Net {selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'Extra Reward' : 'Incentive'} Credited
                   </div>
-                  <div className="text-[11px] text-emerald-800 font-medium mt-0.5">
-                    Variable target incentive part only
+                  <div className={`text-lg font-black mt-0.5 ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                    ₹{Number(selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? (selectedClosingDetails.totalExtraIncentiveCommission ?? selectedClosingDetails.totalCommission ?? 0) : (selectedClosingDetails.totalIncentiveCommission ?? selectedClosingDetails.totalCommission ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[11px] font-medium mt-0.5 ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                    {selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'Extra reward % & slab gifts only' : 'Variable target incentive part only'}
                   </div>
                 </div>
               </div>
@@ -637,40 +703,41 @@ const PlotIncentivesPage = () => {
               <div className="flex-1 overflow-auto space-y-5">
                 {/* ── 1. BUSINESS ASSOCIATES TABLE ── */}
                 {(() => {
+                  const isModalExtra = selectedClosingDetails.closingType === 'EXTRA_INCENTIVE';
                   const associateSponsors = (selectedClosingDetails.sponsors || []).filter((s) => !s.isDeveloper);
                   const totalAssociateBusiness = associateSponsors.reduce((sum, s) => sum + Number(s.totalBusiness || 0), 0);
-                  const totalAssociateInc = associateSponsors.reduce((sum, s) => sum + Number(s.incentiveCommission ?? s.totalCommission ?? 0), 0);
+                  const totalAssociatePayout = associateSponsors.reduce((sum, s) => sum + Number(isModalExtra ? (s.extraIncentiveCommission || 0) : (s.incentiveCommission ?? s.totalCommission ?? 0)), 0);
 
                   return (
                     <div className="space-y-2">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
                         <div className="flex items-center gap-2">
-                          <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+                          <span className={`p-1 rounded-md ${isModalExtra ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
                             <Users size={14} />
                           </span>
                           <span className="text-xs font-bold text-slate-800">
                             Business Associates (Direct Plots & RD/FD Collections)
                           </span>
-                          <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isModalExtra ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                             {associateSponsors.length} {associateSponsors.length === 1 ? 'Associate' : 'Associates'}
                           </span>
                         </div>
                         <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
                           <span>Associate Business: <strong className="text-slate-800">₹{totalAssociateBusiness.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                           <span className="text-slate-300">|</span>
-                          <span>Net Incentive: <strong className="text-emerald-700 font-bold">₹{totalAssociateInc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                          <span>Net {isModalExtra ? 'Extra Reward' : 'Incentive'}: <strong className={`font-bold ${isModalExtra ? 'text-purple-700' : 'text-emerald-700'}`}>₹{totalAssociatePayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                         </div>
                       </div>
 
-                      <div className="border border-emerald-100 rounded-xl overflow-x-auto bg-white shadow-2xs">
+                      <div className={`border rounded-xl overflow-x-auto bg-white shadow-2xs ${isModalExtra ? 'border-purple-100' : 'border-emerald-100'}`}>
                         <table className="w-full text-left text-xs border-collapse min-w-[700px]">
-                          <thead className="bg-emerald-50/70 sticky top-0 border-b border-emerald-100 text-slate-700 font-bold select-none">
+                          <thead className={`sticky top-0 border-b text-slate-700 font-bold select-none ${isModalExtra ? 'bg-purple-50/70 border-purple-100' : 'bg-emerald-50/70 border-emerald-100'}`}>
                             <tr>
                               <th className="p-3">Associate Details</th>
                               <th className="p-3 text-right">Achieved Period Business</th>
                               <th className="p-3 text-center">Achieved Slab</th>
-                              <th className="p-3 text-center">Target Incentive %</th>
-                              <th className="p-3 text-right font-black">Net Target Incentive</th>
+                              <th className="p-3 text-center">{isModalExtra ? 'Extra % / Reward' : 'Target Incentive %'}</th>
+                              <th className="p-3 text-right font-black">Net {isModalExtra ? 'Extra Reward' : 'Target Incentive'}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -684,11 +751,12 @@ const PlotIncentivesPage = () => {
                               associateSponsors.map((sp) => {
                                 const isExpanded = !!expandedDetailsSponsors[sp.sponsorId];
                                 const entriesCount = sp.entries?.length || sp.transactionCount || 0;
+                                const spPayout = isModalExtra ? (sp.extraIncentiveCommission || 0) : (sp.incentiveCommission ?? sp.totalCommission ?? 0);
                                 return (
                                   <React.Fragment key={sp.sponsorId}>
                                     <tr
                                       onClick={() => toggleDetailsSponsorExpand(sp.sponsorId)}
-                                      className={`hover:bg-emerald-50/20 transition cursor-pointer ${isExpanded ? 'bg-emerald-50/40 font-semibold' : ''}`}
+                                      className={`hover:bg-slate-50/80 transition cursor-pointer ${isExpanded ? 'bg-slate-50/90 font-semibold' : ''}`}
                                     >
                                       <td className="p-3 font-bold text-slate-800">
                                         <div className="flex items-start gap-2">
@@ -698,11 +766,11 @@ const PlotIncentivesPage = () => {
                                               e.stopPropagation();
                                               toggleDetailsSponsorExpand(sp.sponsorId);
                                             }}
-                                            className="mt-0.5 p-1 rounded-md hover:bg-emerald-100 text-slate-500 hover:text-emerald-800 transition"
+                                            className="mt-0.5 p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
                                             title={isExpanded ? 'Collapse receipts' : 'Expand receipts'}
                                           >
                                             {isExpanded ? (
-                                              <ChevronDown size={15} className="text-emerald-700" />
+                                              <ChevronDown size={15} className={isModalExtra ? 'text-purple-700' : 'text-emerald-700'} />
                                             ) : (
                                               <ChevronRight size={15} />
                                             )}
@@ -711,7 +779,7 @@ const PlotIncentivesPage = () => {
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="text-sm">{sp.sponsorName?.replace(/\s*\([^)]*\)/g, '') || sp.sponsorName}</span>
                                               {entriesCount > 0 && (
-                                                <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${isModalExtra ? 'bg-purple-50 text-purple-700 border-purple-200/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'}`}>
                                                   {entriesCount} {entriesCount === 1 ? 'collection' : 'collections'}
                                                 </span>
                                               )}
@@ -738,12 +806,12 @@ const PlotIncentivesPage = () => {
                                         </div>
                                       </td>
                                       <td className="p-3 text-center">
-                                        <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                          {sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%')}
+                                        <span className={`inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs border ${isModalExtra ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'}`}>
+                                          {isModalExtra ? (sp.rateStr || (sp.rewardTitle ? `🎁 ${sp.rewardTitle}` : '0% Extra')) : (sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%'))}
                                         </span>
                                       </td>
-                                      <td className="p-3 text-right font-black text-emerald-800 bg-emerald-50/40 text-sm">
-                                        ₹{Number(sp.incentiveCommission ?? sp.totalCommission ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      <td className={`p-3 text-right font-black text-sm ${isModalExtra ? 'text-purple-800 bg-purple-50/40' : 'text-emerald-800 bg-emerald-50/40'}`}>
+                                        ₹{Number(spPayout).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                     </tr>
                                     {isExpanded && (
@@ -766,9 +834,10 @@ const PlotIncentivesPage = () => {
 
                 {/* ── 2. BUSINESS PARTNERS TABLE ── */}
                 {(() => {
+                  const isModalExtra = selectedClosingDetails.closingType === 'EXTRA_INCENTIVE';
                   const partnerSponsors = (selectedClosingDetails.sponsors || []).filter((s) => s.isDeveloper);
                   const totalPartnerBusiness = partnerSponsors.reduce((sum, s) => sum + Number(s.totalBusiness || 0), 0);
-                  const totalPartnerInc = partnerSponsors.reduce((sum, s) => sum + Number(s.incentiveCommission ?? s.totalCommission ?? 0), 0);
+                  const totalPartnerPayout = partnerSponsors.reduce((sum, s) => sum + Number(isModalExtra ? (s.extraIncentiveCommission || 0) : (s.incentiveCommission ?? s.totalCommission ?? 0)), 0);
 
                   return (
                     <div className="space-y-2 pt-1">
@@ -787,7 +856,7 @@ const PlotIncentivesPage = () => {
                         <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
                           <span>Network Business: <strong className="text-slate-800">₹{totalPartnerBusiness.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                           <span className="text-slate-300">|</span>
-                          <span>Net Incentive: <strong className="text-indigo-700 font-bold">₹{totalPartnerInc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                          <span>Net {isModalExtra ? 'Extra Reward' : 'Incentive'}: <strong className="text-indigo-700 font-bold">₹{totalPartnerPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                         </div>
                       </div>
 
@@ -798,8 +867,8 @@ const PlotIncentivesPage = () => {
                               <th className="p-3">Partner Details</th>
                               <th className="p-3 text-right">Team Aggregate Business</th>
                               <th className="p-3 text-center">Achieved Slab</th>
-                              <th className="p-3 text-center">Target Incentive %</th>
-                              <th className="p-3 text-right font-black">Net Target Incentive</th>
+                              <th className="p-3 text-center">{isModalExtra ? 'Extra % / Reward' : 'Target Incentive %'}</th>
+                              <th className="p-3 text-right font-black">Net {isModalExtra ? 'Extra Reward' : 'Target Incentive'}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -813,6 +882,7 @@ const PlotIncentivesPage = () => {
                               partnerSponsors.map((sp) => {
                                 const isExpanded = !!expandedDetailsSponsors[sp.sponsorId];
                                 const entriesCount = sp.entries?.length || sp.transactionCount || 0;
+                                const spPayout = isModalExtra ? (sp.extraIncentiveCommission || 0) : (sp.incentiveCommission ?? sp.totalCommission ?? 0);
                                 return (
                                   <React.Fragment key={sp.sponsorId}>
                                     <tr
@@ -868,11 +938,11 @@ const PlotIncentivesPage = () => {
                                       </td>
                                       <td className="p-3 text-center">
                                         <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                          {sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%')}
+                                          {isModalExtra ? (sp.rateStr || (sp.rewardTitle ? `🎁 ${sp.rewardTitle}` : '0% Extra')) : (sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%'))}
                                         </span>
                                       </td>
                                       <td className="p-3 text-right font-black text-indigo-800 bg-indigo-50/40 text-sm">
-                                        ₹{Number(sp.incentiveCommission ?? sp.totalCommission ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        ₹{Number(spPayout).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                     </tr>
                                     {isExpanded && (

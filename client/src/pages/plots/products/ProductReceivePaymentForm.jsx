@@ -179,34 +179,83 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
     }
   };
 
+  const [emiCount, setEmiCount] = useState(1);
+
   const installments = selectedBooking?.installments || [];
 
-  const dueStats = useMemo(() => {
-    if (!selectedBooking) return { dueCount: 0, duePrincipal: 0, totalFine: 0, totalPayable: 0, targetEmis: [] };
-    const payDateObj = form.paymentDate ? new Date(form.paymentDate + 'T23:59:59') : new Date();
-    const pending = installments.filter((ins) => ins.status !== 'PAID');
-    const dueOrOverdue = pending.filter((ins) => ins.dueDate && new Date(ins.dueDate) <= payDateObj);
+  // All pending/unpaid installments in chronological order
+  const pendingInstallments = useMemo(() => {
+    return installments.filter((ins) => ins.status !== 'PAID');
+  }, [installments]);
 
-    const targetList = dueOrOverdue.length > 0 ? dueOrOverdue : pending.slice(0, 1);
+  // Dynamic assessment of Due/Overdue EMIs based on currently selected paymentDate
+  const dueStats = useMemo(() => {
+    if (!selectedBooking) {
+      return {
+        dueCount: 0,
+        duePrincipal: 0,
+        totalFine: 0,
+        totalPayable: 0,
+        dueEmis: [],
+        selectedEmis: [],
+        selectedPrincipal: 0,
+        selectedFine: 0,
+        selectedTotal: 0,
+      };
+    }
+    const payDateObj = form.paymentDate ? new Date(form.paymentDate + 'T23:59:59') : new Date();
+
+    // 1. Dues up to paymentDate
+    const dueOrOverdue = pendingInstallments.filter((ins) => ins.dueDate && new Date(ins.dueDate) <= payDateObj);
+    const targetDueList = dueOrOverdue.length > 0 ? dueOrOverdue : pendingInstallments.slice(0, 1);
 
     let duePrincipal = 0;
-    let totalFine = 0;
-
-    targetList.forEach((ins) => {
+    let dueFine = 0;
+    targetDueList.forEach((ins) => {
       const rem = Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
       const fine = getInstLateFine(ins, form.paymentDate);
       duePrincipal += rem;
-      totalFine += fine;
+      dueFine += fine;
+    });
+
+    // 2. Selected N EMIs based on chosen emiCount
+    const count = Math.max(1, Math.min(Number(emiCount) || 1, pendingInstallments.length || 1));
+    const chosenList = pendingInstallments.slice(0, count);
+
+    let selectedPrincipal = 0;
+    let selectedFine = 0;
+    chosenList.forEach((ins) => {
+      const rem = Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+      const fine = getInstLateFine(ins, form.paymentDate);
+      selectedPrincipal += rem;
+      selectedFine += fine;
     });
 
     return {
       dueCount: dueOrOverdue.length,
       duePrincipal,
-      totalFine,
-      totalPayable: duePrincipal + totalFine,
-      targetEmis: targetList,
+      totalFine: dueFine,
+      totalPayable: duePrincipal + dueFine,
+      dueEmis: targetDueList,
+      selectedEmis: chosenList,
+      selectedPrincipal,
+      selectedFine,
+      selectedTotal: selectedPrincipal + selectedFine,
     };
-  }, [selectedBooking, form.paymentDate, installments]);
+  }, [selectedBooking, form.paymentDate, pendingInstallments, emiCount]);
+
+  // Auto-accumulate due EMI amount when booking or paymentDate changes
+  useEffect(() => {
+    if (selectedBooking) {
+      const defaultCount = dueStats.dueCount > 0 ? dueStats.dueCount : 1;
+      setEmiCount(defaultCount);
+      const defaultAmount = dueStats.dueCount > 0 ? dueStats.totalPayable : (Number(selectedBooking.monthlyEmi) || dueStats.selectedTotal || 0);
+      setForm((prev) => ({
+        ...prev,
+        amountPaid: defaultAmount > 0 ? String(defaultAmount) : '',
+      }));
+    }
+  }, [selectedBookingId, form.paymentDate, dueStats.dueCount]);
 
   const bookingOptions = useMemo(() => {
     return bookings.map((b) => ({
@@ -231,7 +280,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
 
     setSubmitting(true);
     try {
-      const targetInstIds = dueStats.targetEmis.map((i) => i._id);
+      const targetInstIds = (dueStats.selectedEmis?.length > 0 ? dueStats.selectedEmis : dueStats.dueEmis).map((i) => i._id);
       const payload = {
         installmentIds: targetInstIds,
         amountPaid: payAmount,
@@ -472,7 +521,8 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                     const lateDays = getInstLateDays(ins, form.paymentDate);
                     const unpaidPrincipal = Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
                     const isFullyPaid = ins.status === 'PAID';
-                    const isTarget = dueStats.targetEmis.some((t) => t._id === ins._id);
+                    const targetList = dueStats.selectedEmis || dueStats.dueEmis || [];
+                    const isTarget = targetList.some((t) => String(t._id || t.installmentNumber) === String(ins._id || ins.installmentNumber));
 
                     return (
                       <tr
@@ -566,11 +616,66 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 </p>
               </div>
 
+              {/* Number of EMIs to Collect */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Number of EMIs to Collect
+                  </label>
+                  <span className="text-[11px] font-semibold text-teal-800">
+                    {dueStats.dueCount > 0 ? `${dueStats.dueCount} Overdue/Due` : `${pendingInstallments.length} Pending`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={emiCount}
+                    onChange={(e) => {
+                      const count = Number(e.target.value) || 1;
+                      setEmiCount(count);
+                      // Calculate total for this number of EMIs
+                      const chosen = pendingInstallments.slice(0, count);
+                      let pr = 0;
+                      let fn = 0;
+                      chosen.forEach((ins) => {
+                        pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+                        fn += getInstLateFine(ins, form.paymentDate);
+                      });
+                      const tot = pr + fn;
+                      setForm((prev) => ({ ...prev, amountPaid: String(tot) }));
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-teal-50/70 border border-teal-200 rounded-xl text-xs sm:text-sm font-bold text-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
+                  >
+                    {pendingInstallments.map((ins, idx) => {
+                      const n = idx + 1;
+                      const isDue = ins.dueDate && new Date(ins.dueDate) <= new Date(form.paymentDate + 'T23:59:59');
+                      return (
+                        <option key={ins.installmentNumber || idx} value={n}>
+                          {n} {n === 1 ? 'EMI' : 'EMIs'} {isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #{ins.installmentNumber || n}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Selecting EMI count calculates exact principal + accrued late fine.
+                </p>
+              </div>
+
               {/* Amount to Collect */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Amount to Collect (INR) *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Amount to Collect (INR) *
+                  </label>
+                  {dueStats.selectedPrincipal > 0 && (
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Principal: <b className="text-slate-800">₹{dueStats.selectedPrincipal.toLocaleString('en-IN')}</b>
+                      {dueStats.selectedFine > 0 && (
+                        <span> + Fine: <b className="text-amber-700 font-bold">₹{dueStats.selectedFine.toLocaleString('en-IN')}</b></span>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   min="1"
@@ -586,26 +691,42 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, amountPaid: String(selectedBooking.monthlyEmi || '') }))}
+                    onClick={() => {
+                      setEmiCount(1);
+                      const chosen = pendingInstallments.slice(0, 1);
+                      let pr = 0;
+                      let fn = 0;
+                      chosen.forEach((ins) => {
+                        pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+                        fn += getInstLateFine(ins, form.paymentDate);
+                      });
+                      setForm((f) => ({ ...f, amountPaid: String(pr + fn) }));
+                    }}
                     className="px-2.5 py-1 text-[11px] font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg border border-teal-200 transition cursor-pointer"
                   >
-                    1 Monthly EMI (₹{Number(selectedBooking.monthlyEmi || 0).toLocaleString('en-IN')})
+                    1 EMI (₹{(Number(selectedBooking.monthlyEmi || 0) + (pendingInstallments[0] ? getInstLateFine(pendingInstallments[0], form.paymentDate) : 0)).toLocaleString('en-IN')})
                   </button>
 
-                  {dueStats.totalPayable > 0 && (
+                  {dueStats.dueCount > 1 && (
                     <button
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, amountPaid: String(dueStats.totalPayable) }))}
+                      onClick={() => {
+                        setEmiCount(dueStats.dueCount);
+                        setForm((f) => ({ ...f, amountPaid: String(dueStats.totalPayable) }));
+                      }}
                       className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg border border-amber-200 transition cursor-pointer"
                     >
-                      Pay Full Dues (₹{dueStats.totalPayable.toLocaleString('en-IN')})
+                      All {dueStats.dueCount} Due EMIs (₹{dueStats.totalPayable.toLocaleString('en-IN')})
                     </button>
                   )}
 
                   {selectedBooking.remainingAmount > 0 && (
                     <button
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, amountPaid: String(selectedBooking.remainingAmount + dueStats.totalFine) }))}
+                      onClick={() => {
+                        setEmiCount(pendingInstallments.length);
+                        setForm((f) => ({ ...f, amountPaid: String(selectedBooking.remainingAmount + dueStats.totalFine) }));
+                      }}
                       className="px-2.5 py-1 text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg border border-emerald-200 transition cursor-pointer"
                     >
                       Clear All Balance (₹{(selectedBooking.remainingAmount + dueStats.totalFine).toLocaleString('en-IN')})
@@ -621,26 +742,34 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 )}
               </div>
 
-              {/* Late Fine Rebate */}
+              {/* Late Fine Rebate & Calculated Fine Banner */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Late Fine Rebate / Discount (Optional)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Late Fine Rebate / Discount (Optional)
+                  </label>
+                  {/* Total Late Fine Banner above Late Fine input */}
+                  <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md text-[11px] font-bold text-amber-800 flex items-center gap-1">
+                    <span>Total Late Fine ({emiCount} {emiCount === 1 ? 'EMI' : 'EMIs'}):</span>
+                    <span className="font-mono font-black text-amber-900">₹{dueStats.selectedFine.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+
                 <div className="relative">
                   <input
                     type="number"
                     min="0"
                     step="any"
-                    max={dueStats.totalFine || undefined}
+                    max={dueStats.selectedFine || undefined}
                     placeholder="0"
                     value={form.lateFineRebate}
                     onChange={(e) => setForm({ ...form, lateFineRebate: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
                   />
-                  {dueStats.totalFine > 0 && (
+                  {dueStats.selectedFine > 0 && (
                     <button
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, lateFineRebate: String(dueStats.totalFine) }))}
+                      onClick={() => setForm((f) => ({ ...f, lateFineRebate: String(dueStats.selectedFine) }))}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 hover:bg-teal-100 transition"
                     >
                       100% Fine Waiver
@@ -648,7 +777,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  Waived fine is adjusted before principal payment.
+                  Waived fine is adjusted directly against the ₹{dueStats.selectedFine.toLocaleString('en-IN')} late fine on selected EMIs.
                 </p>
               </div>
 

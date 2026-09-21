@@ -164,6 +164,7 @@ router.put('/product-bookings/:id', checkPermission('plot_booking', 3), ctrl.upd
 router.delete('/product-bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteProductBooking);
 router.post('/product-bookings/:id/collections', checkPermission('plot_booking', 2), ctrl.collectProductInstallment);
 router.get('/product-collections', checkPermission('plot_collection', 1), ctrl.getProductCollections);
+router.delete('/product-collections/:bookingId/:receiptNumber', checkPermission('plot_collection', 4), ctrl.deleteProductCollection);
 
 // ── Plots Inventory (Wildcard /:id placed AFTER specific routes) ──
 router.get('/', checkPermission('plot_inventory', 1), ctrl.getPlots);

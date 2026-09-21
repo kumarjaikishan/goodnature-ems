@@ -67,6 +67,18 @@ const sponsorSummarySchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    extraIncentiveCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    extraIncentivePercent: {
+      type: Number,
+      default: 0,
+    },
+    extraRewardTitles: [{
+      type: String,
+    }],
     slabLabel: {
       type: String,
       default: '',
@@ -145,6 +157,17 @@ const plotClosingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    totalExtraIncentiveCommission: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    closingType: {
+      type: String,
+      enum: ['TARGET_INCENTIVE', 'EXTRA_INCENTIVE'],
+      default: 'TARGET_INCENTIVE',
+      index: true,
     },
     directBusinessTotal: {
       type: Number,

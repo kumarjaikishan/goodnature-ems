@@ -1,11 +1,8 @@
-import { SlidersHorizontal, Sparkles, Clock, AlertCircle, Table, Plus, Trash2 } from 'lucide-react';
+import { SlidersHorizontal, Sparkles, Clock, AlertCircle, Plus, Trash2 } from 'lucide-react';
 
 const TenurePlotRatesMatrix = ({
   rateConfig,
   setRateConfig,
-  handleSlabChange,
-  handleAddSlab,
-  handleRemoveSlab,
   handleUpdateRates,
   submitLoading,
   inputCls = 'h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition',
@@ -300,158 +297,15 @@ const TenurePlotRatesMatrix = ({
         </div>
       </div>
 
-      {/* Customer Plot Rates & EMI Tenure Table */}
-      <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Table size={18} className="text-teal-700" />
-              Customer Plot Rate &amp; EMI Tenure Plans
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Defines tenure duration, customer selling rate (₹/sqft), downpayment % (40%), and installment balance % (60%).
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleAddSlab}
-              className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5"
-            >
-              <Plus size={16} /> Add Tenure Plan
-            </button>
-            <button
-              type="submit"
-              disabled={submitLoading}
-              className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shadow-xs"
-            >
-              {submitLoading ? 'Saving...' : 'Save Plot Rates'}
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider text-[0.68rem] font-bold">
-                <th className="p-3">Period / Label</th>
-                <th className="p-3">
-                  बिक्री दर प्रति वर्ग फिट<br />
-                  <span className="text-slate-400 font-normal">Plot Rate (₹/sqft)</span>
-                </th>
-                <th className="p-3">
-                  डाउन पेमेंट प्रति वर्ग फिट<br />
-                  <span className="text-slate-400 font-normal">Downpayment Rate</span>
-                </th>
-                <th className="p-3">
-                  डाउन पेमेंट समय<br />
-                  <span className="text-slate-400 font-normal">DP Due Window</span>
-                </th>
-                <th className="p-3">
-                  किश्त प्रति वर्ग फिट<br />
-                  <span className="text-slate-400 font-normal">EMI Rate (₹/sqft)</span>
-                </th>
-                <th className="p-3">
-                  किश्त भुगतान समय सीमा<br />
-                  <span className="text-slate-400 font-normal">Tenure Duration</span>
-                </th>
-                <th className="p-3 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {(rateConfig.rateSlabs || []).map((slab, idx) => {
-                const isOneTime = Number(slab.tenureMonths) === 0;
-                const dpPerSqFt = slab.downpaymentRate || (isOneTime ? (slab.plotRate || 1000) : 500);
-                const emiPerSqFt = slab.emiRate || (isOneTime ? 0 : Math.max(0, (slab.plotRate || 0) - dpPerSqFt));
-                return (
-                  <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3">
-                      <input
-                        type="text"
-                        className="w-32 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
-                        value={slab.effectiveLabel || ''}
-                        placeholder="e.g. 12M Plan"
-                        onChange={(e) => handleSlabChange(idx, 'effectiveLabel', e.target.value)}
-                      />
-                    </td>
-
-                    <td className="p-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-400 font-bold">₹</span>
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          className="w-24 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-900"
-                          value={slab.plotRate ?? ''}
-                          onChange={(e) => handleSlabChange(idx, 'plotRate', e.target.value.replace(/[^0-9]/g, ''))}
-                          required
-                        />
-                        <span className="text-[11px] text-slate-400">/sqft</span>
-                      </div>
-                    </td>
-
-                    <td className="p-3">
-                      <span className="px-2.5 py-1 bg-teal-50 text-teal-800 border border-teal-200 rounded-lg text-xs font-bold font-mono">
-                        ₹{dpPerSqFt} / sqft
-                      </span>
-                    </td>
-
-                    <td className="p-3">
-                      <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
-                        90 days
-                      </span>
-                    </td>
-
-                    <td className="p-3">
-                      <span className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold font-mono">
-                        ₹{emiPerSqFt} / sqft
-                      </span>
-                    </td>
-
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
-                          value={slab.tenureMonths ?? ''}
-                          onChange={(e) => handleSlabChange(idx, 'tenureMonths', e.target.value.replace(/[^0-9]/g, ''))}
-                          required
-                        />
-                        <span className="text-xs text-slate-500 font-medium">
-                          {isOneTime ? '(Full Payment)' : 'Months'}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="p-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSlab(idx)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                        title="Delete tenure plan"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-teal-600"></span>
-            <span>
-              Customer plot rates and payment schedules configured here define booking prices and customer installments. All sponsor commissions are exclusively calculated by the <strong>Target Incentive Policy &amp; Slabs</strong> tab.
-            </span>
-          </div>
-        </div>
+      {/* Save Button Bar */}
+      <div className="flex items-center justify-end">
+        <button
+          type="submit"
+          disabled={submitLoading}
+          className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shadow-sm"
+        >
+          {submitLoading ? 'Saving...' : 'Save Configuration & Policy'}
+        </button>
       </div>
     </form>
   );

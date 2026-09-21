@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -36,15 +37,24 @@ const ProductSalesTab = ({
   onOpenLedger,
   onOpenCollect,
 }) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [editForm, setEditForm] = useState({
+    productId: '',
+    customerId: '',
+    quantity: 1,
+    customUnitPrice: '',
+    tenureMonths: 24,
+    paymentType: 'MONTHLY_INSTALLMENT',
     bookingDate: '',
     status: 'ACTIVE',
     remarks: '',
+    paymentMode: 'cash',
+    transactionReference: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -69,12 +79,26 @@ const ProductSalesTab = ({
     : Number(selectedProduct?.unitPrice || 0);
 
   const totalAmount = Math.max(0, Number(form.quantity || 1) * unitRate);
-  const downPaymentAmt = Math.min(totalAmount, Math.max(0, Number(form.downPayment) || 0));
-  const remainingAmt = Math.max(0, totalAmount - downPaymentAmt);
-  const tenure = Math.max(1, Number(form.tenureMonths) || 1);
-  const monthlyEmi = form.paymentType === 'FULL_PAYMENT' || tenure <= 1
-    ? remainingAmt
-    : Math.round((remainingAmt / tenure) * 100) / 100;
+  const isFullPayment = form.paymentType === 'FULL_PAYMENT';
+  const downPaymentAmt = isFullPayment ? totalAmount : 0;
+  const remainingAmt = isFullPayment ? 0 : totalAmount;
+  const tenure = Math.max(1, Number(form.tenureMonths) || 24);
+  const monthlyEmi = isFullPayment
+    ? 0
+    : Math.round(totalAmount / tenure);
+
+  // Edit form calculations
+  const editSelectedProduct = products.find((p) => p._id === editForm.productId);
+  const editSelectedCustomer = customers.find((c) => c._id === editForm.customerId);
+  const editUnitRate = editForm.customUnitPrice !== '' && Number(editForm.customUnitPrice) > 0
+    ? Number(editForm.customUnitPrice)
+    : Number(editSelectedProduct?.unitPrice || editingBooking?.unitPrice || 0);
+  const editTotalAmount = Math.max(0, Number(editForm.quantity || 1) * editUnitRate);
+  const editIsFullPayment = editForm.paymentType === 'FULL_PAYMENT';
+  const editTenure = Math.max(1, Number(editForm.tenureMonths) || 24);
+  const editMonthlyEmi = editIsFullPayment
+    ? 0
+    : Math.round(editTotalAmount / editTenure);
 
   const handleOpenSaleModal = () => {
     const firstPrd = products[0]?._id || '';
@@ -95,11 +119,16 @@ const ProductSalesTab = ({
     setShowSaleModal(true);
   };
 
-
   const handleQuantityStep = (delta) => {
     const cur = Number(form.quantity) || 1;
     const next = Math.max(1, cur + delta);
     setForm({ ...form, quantity: next });
+  };
+
+  const handleEditQuantityStep = (delta) => {
+    const cur = Number(editForm.quantity) || 1;
+    const next = Math.max(1, cur + delta);
+    setEditForm({ ...editForm, quantity: next });
   };
 
   const handleSubmitSale = async (e) => {
@@ -124,8 +153,11 @@ const ProductSalesTab = ({
         ...form,
         quantity: qty,
         customUnitPrice: form.customUnitPrice !== '' ? Number(form.customUnitPrice) : undefined,
-        downPayment: Number(form.downPayment) || 0,
-        tenureMonths: Number(form.tenureMonths),
+        downPayment: isFullPayment ? totalAmount : 0,
+        tenureMonths: Number(form.tenureMonths) || 24,
+        paymentType: form.paymentType,
+        paymentMode: isFullPayment ? (form.paymentMode || 'cash') : 'cash',
+        transactionReference: isFullPayment ? (form.transactionReference || '') : '',
       };
 
       const res = await api.post('/plots/product-bookings', payload);
@@ -146,9 +178,17 @@ const ProductSalesTab = ({
   const handleOpenEditModal = (booking) => {
     setEditingBooking(booking);
     setEditForm({
+      productId: booking.productId?._id || booking.productId || '',
+      customerId: booking.customerId?._id || booking.customerId || '',
+      quantity: booking.quantity || 1,
+      customUnitPrice: booking.unitPrice || '',
+      tenureMonths: booking.tenureMonths || 24,
+      paymentType: booking.paymentType || 'MONTHLY_INSTALLMENT',
       bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '',
       status: booking.status || 'ACTIVE',
       remarks: booking.remarks || '',
+      paymentMode: booking.collections?.[0]?.paymentMode || 'cash',
+      transactionReference: booking.collections?.[0]?.transactionReference || '',
     });
     setShowEditModal(true);
   };
@@ -157,9 +197,29 @@ const ProductSalesTab = ({
     e.preventDefault();
     if (!editingBooking) return;
 
+    if (!editForm.productId) {
+      toast.error('Please select a product');
+      return;
+    }
+    if (!editForm.customerId) {
+      toast.error('Please select a customer');
+      return;
+    }
+    const qty = Number(editForm.quantity);
+    if (!qty || qty < 1) {
+      toast.error('Quantity must be at least 1');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const res = await api.put(`/plots/product-bookings/${editingBooking._id}`, editForm);
+      const payload = {
+        ...editForm,
+        quantity: qty,
+        customUnitPrice: editForm.customUnitPrice !== '' ? Number(editForm.customUnitPrice) : undefined,
+        tenureMonths: Number(editForm.tenureMonths) || 24,
+      };
+      const res = await api.put(`/plots/product-bookings/${editingBooking._id}`, payload);
       toast.success(res.data?.message || 'Product booking updated successfully');
       setShowEditModal(false);
       setEditingBooking(null);
@@ -170,6 +230,8 @@ const ProductSalesTab = ({
       setSubmitting(false);
     }
   };
+
+  const [deletingBookingId, setDeletingBookingId] = useState(null);
 
   const handleDeleteBooking = async (booking) => {
     const proceed = await confirmDialog({
@@ -182,12 +244,18 @@ const ProductSalesTab = ({
 
     if (!proceed) return;
 
+    setDeletingBookingId(booking._id);
+    const toastId = toast.loading(`Deleting booking ${booking.bookingNumber}...`);
     try {
       const res = await api.delete(`/plots/product-bookings/${booking._id}`);
+      toast.dismiss(toastId);
       toast.success(res.data?.message || 'Product booking deleted successfully');
       onRefresh();
     } catch (err) {
+      toast.dismiss(toastId);
       toast.error(err.response?.data?.message || 'Failed to delete booking');
+    } finally {
+      setDeletingBookingId(null);
     }
   };
 
@@ -234,10 +302,10 @@ const ProductSalesTab = ({
 
         <button
           type="button"
-          onClick={handleOpenSaleModal}
+          onClick={() => navigate('/dashboard/plots/products/book')}
           className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
         >
-          <ShoppingCart size={15} /> Sell Plot Product
+          <ShoppingCart size={15} /> + Sell Plot Product (New Booking)
         </button>
       </div>
 
@@ -428,10 +496,15 @@ const ProductSalesTab = ({
                           <button
                             type="button"
                             onClick={() => handleDeleteBooking(b)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition border border-rose-200/60 cursor-pointer"
+                            disabled={deletingBookingId === b._id}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-50 rounded-lg transition border border-rose-200/60 cursor-pointer"
                             title="Delete Product Booking"
                           >
-                            <Trash2 size={14} />
+                            {deletingBookingId === b._id ? (
+                              <Loader2 size={14} className="animate-spin text-rose-600" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -457,7 +530,36 @@ const ProductSalesTab = ({
           </div>
 
           <form onSubmit={handleSubmitSale} className="space-y-4 text-xs">
-            {/* 1. Product Selection */}
+            {/* 1. Customer Selection (with auto-linked Business Associate) */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Select Customer <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={form.customerId}
+                onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                required
+              >
+                <option value="">-- Choose Verified Customer --</option>
+                {customers.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name} ({c.customerCode || c.customerId || 'ID'}) {c.sponsorId?.name ? `• Sponsoring BA: ${c.sponsorId.name}` : ''}
+                  </option>
+                ))}
+              </select>
+
+              {selectedCustomer && (
+                <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-[11px] text-slate-700">
+                  <span>Customer Mobile: <strong>{selectedCustomer.mobile || '-'}</strong></span>
+                  <span>
+                    Business Associate: <strong className="text-teal-800">{selectedCustomer.sponsorId?.name || 'Direct Company'}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Product Selection */}
             <div>
               <label className="block font-bold text-slate-700 mb-1">
                 Select Plot Product <span className="text-rose-500">*</span>
@@ -491,35 +593,6 @@ const ProductSalesTab = ({
                   </span>
                   <span>
                     Catalog Unit Rate: <strong>₹{Number(selectedProduct.unitPrice || 0).toLocaleString('en-IN')}</strong>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* 2. Customer Selection (with auto-linked Business Associate) */}
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Select Customer <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={form.customerId}
-                onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                required
-              >
-                <option value="">-- Choose Verified Customer --</option>
-                {customers.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name} ({c.customerCode || c.customerId || 'ID'}) {c.sponsorId?.name ? `• Sponsoring BA: ${c.sponsorId.name}` : ''}
-                  </option>
-                ))}
-              </select>
-
-              {selectedCustomer && (
-                <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-[11px] text-slate-700">
-                  <span>Customer Mobile: <strong>{selectedCustomer.mobile || '-'}</strong></span>
-                  <span>
-                    Business Associate: <strong className="text-teal-800">{selectedCustomer.sponsorId?.name || 'Direct Company'}</strong>
                   </span>
                 </div>
               )}
@@ -585,10 +658,12 @@ const ProductSalesTab = ({
               </div>
             </div>
 
-            {/* 4. Payment Plan & Tenure (Tenure shown only for Monthly EMI) */}
-            <div className={`grid ${form.paymentType === 'MONTHLY_INSTALLMENT' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3.5`}>
+            {/* 4. Payment Plan & Selected Tenure Period (Always selectable for both EMI and One-Time Full Payment) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Payment Plan <span className="text-rose-500">*</span></label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Payment Plan <span className="text-rose-500">*</span>
+                </label>
                 <select
                   value={form.paymentType}
                   onChange={(e) => {
@@ -596,8 +671,6 @@ const ProductSalesTab = ({
                     setForm({
                       ...form,
                       paymentType: newType,
-                      tenureMonths: newType === 'FULL_PAYMENT' ? 1 : (tenures[0]?.tenureMonths || 24),
-                      downPayment: newType === 'FULL_PAYMENT' ? totalAmount : '',
                     });
                   }}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
@@ -607,93 +680,102 @@ const ProductSalesTab = ({
                 </select>
               </div>
 
-              {form.paymentType === 'MONTHLY_INSTALLMENT' && (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Selected Period (Tenure Months) <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={form.tenureMonths}
-                    onChange={(e) => setForm({ ...form, tenureMonths: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-teal-900"
-                  >
-                    {tenures.map((t) => {
-                      const years = t.tenureMonths >= 12 ? ` (${+(t.tenureMonths / 12).toFixed(1)} ${t.tenureMonths === 12 ? 'Year' : 'Years'})` : '';
-                      return (
-                        <option key={t.tenureMonths} value={t.tenureMonths}>
-                          {t.tenureMonths} Months{years}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
-
-            </div>
-
-
-            {/* 5. Downpayment / Full Payment & Financial Breakdown Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  {form.paymentType === 'FULL_PAYMENT' ? 'Total Payment Amount (₹)' : 'Initial Downpayment (₹)'}
-                  <span className="text-slate-400 font-normal"> {form.paymentType === 'FULL_PAYMENT' ? '(Full Paid)' : '(Optional)'}</span>
+                  {form.paymentType === 'FULL_PAYMENT' ? 'Deposit & Holding Period' : 'Selected Period (Tenure Months)'}{' '}
+                  <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max={totalAmount}
-                    value={form.paymentType === 'FULL_PAYMENT' ? totalAmount : form.downPayment}
-                    disabled={form.paymentType === 'FULL_PAYMENT'}
-                    onChange={(e) => setForm({ ...form, downPayment: e.target.value })}
-                    placeholder="0"
-                    className={`w-full pl-8 pr-3.5 py-2 border border-slate-200 rounded-xl font-bold font-mono text-slate-900 outline-none ${
-                      form.paymentType === 'FULL_PAYMENT' ? 'bg-slate-100 text-teal-900 cursor-not-allowed' : 'bg-white focus:ring-2 focus:ring-teal-600'
-                    }`}
-                  />
+                <select
+                  value={form.tenureMonths}
+                  onChange={(e) => setForm({ ...form, tenureMonths: Number(e.target.value) })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-teal-900"
+                >
+                  {tenures.map((t) => {
+                    const years = t.tenureMonths >= 12 ? ` (${+(t.tenureMonths / 12).toFixed(1)} ${t.tenureMonths === 12 ? 'Year' : 'Years'})` : '';
+                    return (
+                      <option key={t.tenureMonths} value={t.tenureMonths}>
+                        {t.tenureMonths} Months{years}
+                      </option>
+                    );
+                  })}
+                </select>
+                {form.paymentType === 'FULL_PAYMENT' && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Recorded deposit holding duration for product delivery or money-back refund on completion.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 5. Payment Details & Dates */}
+            {form.paymentType === 'FULL_PAYMENT' ? (
+              <div className="space-y-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Upfront Payment Amount (₹) <span className="text-emerald-700 font-bold">(100% Full Paid)</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                      <input
+                        type="text"
+                        readOnly
+                        value={totalAmount.toLocaleString('en-IN')}
+                        className="w-full pl-8 pr-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold font-mono text-teal-950 cursor-not-allowed outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Booking / Payment Date <span className="text-rose-500">*</span></label>
+                    <input
+                      type="date"
+                      value={form.bookingDate}
+                      onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Mode for Full Upfront Payment */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 text-[11px]">Payment Mode</label>
+                    <select
+                      value={form.paymentMode || 'cash'}
+                      onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-teal-600 outline-none"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="bank_transfer">Bank Transfer / NEFT / IMPS</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="upi">UPI / QR Code</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 text-[11px]">Transaction Ref / Cheque # (Optional)</label>
+                    <input
+                      type="text"
+                      value={form.transactionReference || ''}
+                      onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                      placeholder="e.g. UTR / Cheque / Ref #"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-teal-600"
+                    />
+                  </div>
                 </div>
               </div>
-
+            ) : (
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Booking / Payment Date</label>
+                <label className="block font-bold text-slate-700 mb-1">Booking / Start Date <span className="text-rose-500">*</span></label>
                 <input
                   type="date"
                   value={form.bookingDate}
                   onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                   className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                  required
                 />
-              </div>
-            </div>
-
-            {/* Payment Mode when full payment or downpayment is paid */}
-            {(form.paymentType === 'FULL_PAYMENT' || Number(form.downPayment) > 0) && (
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 text-[11px]">Payment Mode</label>
-                  <select
-                    value={form.paymentMode || 'cash'}
-                    onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-teal-600 outline-none"
-                  >
-                    <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank Transfer / NEFT / IMPS</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="upi">UPI / QR Code</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 text-[11px]">Transaction Ref / Cheque # (Optional)</label>
-                  <input
-                    type="text"
-                    value={form.transactionReference || ''}
-                    onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                    placeholder="e.g. UTR / Cheque / Ref #"
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-teal-600"
-                  />
-                </div>
               </div>
             )}
 
@@ -705,21 +787,23 @@ const ProductSalesTab = ({
               </div>
               <div>
                 <span className="text-[10px] text-teal-200 uppercase font-bold block">
-                  {form.paymentType === 'FULL_PAYMENT' ? 'Full Paid (100%)' : 'Downpayment'}
+                  {form.paymentType === 'FULL_PAYMENT' ? 'Deposit Period' : 'Tenure Plan'}
                 </span>
                 <span className="text-base font-bold font-mono text-emerald-300">
-                  ₹{(form.paymentType === 'FULL_PAYMENT' ? totalAmount : downPaymentAmt).toLocaleString('en-IN')}
+                  {tenure} Months
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-teal-200 uppercase font-bold block">Remaining Due</span>
-                <span className={`text-base font-bold font-mono ${form.paymentType === 'FULL_PAYMENT' ? 'text-emerald-400' : 'text-rose-300'}`}>
-                  ₹{(form.paymentType === 'FULL_PAYMENT' ? 0 : remainingAmt).toLocaleString('en-IN')}
+                <span className="text-[10px] text-teal-200 uppercase font-bold block">
+                  {form.paymentType === 'FULL_PAYMENT' ? 'Amount Paid' : 'Total Installments'}
+                </span>
+                <span className={`text-base font-bold font-mono ${form.paymentType === 'FULL_PAYMENT' ? 'text-emerald-300' : 'text-slate-200'}`}>
+                  {form.paymentType === 'FULL_PAYMENT' ? `₹${totalAmount.toLocaleString('en-IN')}` : `${tenure} EMIs`}
                 </span>
               </div>
               <div>
                 <span className="text-[10px] text-emerald-300 uppercase font-bold block">
-                  {form.paymentType === 'FULL_PAYMENT' ? 'Payment Status' : `Monthly EMI (${tenure} M)`}
+                  {form.paymentType === 'FULL_PAYMENT' ? 'Payment Status' : 'Monthly EMI'}
                 </span>
                 <span className="text-base font-black font-mono text-emerald-400">
                   {form.paymentType === 'FULL_PAYMENT' ? 'FULLY PAID' : `₹${monthlyEmi.toLocaleString('en-IN')}`}
@@ -767,69 +851,261 @@ const ProductSalesTab = ({
           setShowEditModal(false);
           setEditingBooking(null);
         }}
-        size="lg"
-        title={`Edit Product Booking — ${editingBooking?.bookingNumber || ''}`}
-        subtitle="Update booking date, operational status, or internal remarks"
+        size="2xl"
       >
-        <div className="p-4 sm:p-6 text-xs text-slate-800">
-          <form onSubmit={handleUpdateBooking} className="space-y-4">
-            {editingBooking && (
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-[11px]">
-                <div>
-                  <span className="text-slate-400">Customer:</span>{' '}
-                  <strong className="text-slate-800">{editingBooking.customerId?.name || 'Customer'}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">Product:</span>{' '}
-                  <strong className="text-slate-800">{editingBooking.productId?.productName || 'Product'}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">Units / Qty:</span>{' '}
-                  <strong className="text-slate-800">{editingBooking.quantity} Units</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">Total Valuation:</span>{' '}
-                  <strong className="text-teal-800 font-mono">₹{Number(editingBooking.totalAmount || 0).toLocaleString('en-IN')}</strong>
-                </div>
+        <div className="p-5 md:p-6 bg-white space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
+                <Edit2 size={18} />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm md:text-base">
+                  Edit Plot Product Booking — <span className="font-mono text-teal-800">{editingBooking?.bookingNumber}</span>
+                </h3>
+                <p className="text-[11px] text-slate-500">Update customer, product, quantity, tenure, plan, date, and status</p>
               </div>
-            )}
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Booking Date <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={editForm.bookingDate}
-                onChange={(e) => setEditForm({ ...editForm, bookingDate: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                required
-              />
             </div>
+          </div>
 
+          <form onSubmit={handleUpdateBooking} className="space-y-4 text-xs">
+            {/* 1. Customer Selection */}
             <div>
               <label className="block font-bold text-slate-700 mb-1">
-                Booking Status <span className="text-rose-500">*</span>
+                Select Customer <span className="text-rose-500">*</span>
               </label>
               <select
-                value={editForm.status}
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                value={editForm.customerId}
+                onChange={(e) => setEditForm({ ...editForm, customerId: e.target.value })}
                 className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
                 required
               >
-                <option value="ACTIVE">ACTIVE (Ongoing Installments / Regular)</option>
-                <option value="COMPLETED">COMPLETED (Fully Paid & Closed)</option>
-                <option value="CANCELLED">CANCELLED (Void / Cancelled)</option>
+                <option value="">-- Choose Verified Customer --</option>
+                {customers.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name} ({c.customerCode || c.customerId || 'ID'}) {c.sponsorId?.name ? `• Sponsoring BA: ${c.sponsorId.name}` : ''}
+                  </option>
+                ))}
               </select>
+
+              {editSelectedCustomer && (
+                <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-[11px] text-slate-700">
+                  <span>Customer Mobile: <strong>{editSelectedCustomer.mobile || '-'}</strong></span>
+                  <span>
+                    Business Associate: <strong className="text-teal-800">{editSelectedCustomer.sponsorId?.name || 'Direct Company'}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Product Selection */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Select Plot Product <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={editForm.productId}
+                onChange={(e) => {
+                  const prdId = e.target.value;
+                  const prd = products.find((p) => p._id === prdId);
+                  setEditForm({
+                    ...editForm,
+                    productId: prdId,
+                    customUnitPrice: prd?.unitPrice || '',
+                  });
+                }}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                required
+              >
+                <option value="">-- Choose Product --</option>
+                {products.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.productName} ({p.productCode}) — Dimensions: {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
+                  </option>
+                ))}
+              </select>
+
+              {editSelectedProduct && (
+                <div className="mt-2 p-2.5 bg-teal-50/50 rounded-xl border border-teal-200/60 flex items-center justify-between text-[11px] text-teal-900">
+                  <span>
+                    Dimensions: <strong>{editSelectedProduct.dimensionLabel || `${editSelectedProduct.dimensions?.north}x${editSelectedProduct.dimensions?.east} ft`}</strong> ({editSelectedProduct.areaSqFt} Sq.Ft)
+                  </span>
+                  <span>
+                    Catalog Unit Rate: <strong>₹{Number(editSelectedProduct.unitPrice || 0).toLocaleString('en-IN')}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Quantity Stepper & Unit Price */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Quantity (Units / Pieces) <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleEditQuantityStep(-1)}
+                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
+                  >
+                    <Minus size={15} />
+                  </button>
+
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.quantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditForm({ ...editForm, quantity: val === '' ? '' : Number(val) });
+                    }}
+                    onBlur={() => {
+                      if (!editForm.quantity || Number(editForm.quantity) < 1) {
+                        setEditForm((prev) => ({ ...prev, quantity: 1 }));
+                      }
+                    }}
+                    className="w-full text-center px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => handleEditQuantityStep(1)}
+                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Unit Price (₹) <span className="text-slate-400 font-normal">(Editable)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.customUnitPrice}
+                    onChange={(e) => setEditForm({ ...editForm, customUnitPrice: e.target.value })}
+                    placeholder={editSelectedProduct?.unitPrice ? String(editSelectedProduct.unitPrice) : '5000'}
+                    className="w-full pl-8 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Payment Plan & Tenure */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Payment Plan <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={editForm.paymentType}
+                  onChange={(e) => setEditForm({ ...editForm, paymentType: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                >
+                  <option value="MONTHLY_INSTALLMENT">Monthly EMI Installments</option>
+                  <option value="FULL_PAYMENT">One-Time Full Payment (100% Upfront)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Deposit & Holding Period' : 'Selected Period (Tenure Months)'}{' '}
+                  <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={editForm.tenureMonths}
+                  onChange={(e) => setEditForm({ ...editForm, tenureMonths: Number(e.target.value) })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-teal-900"
+                >
+                  {tenures.map((t) => {
+                    const years = t.tenureMonths >= 12 ? ` (${+(t.tenureMonths / 12).toFixed(1)} ${t.tenureMonths === 12 ? 'Year' : 'Years'})` : '';
+                    return (
+                      <option key={t.tenureMonths} value={t.tenureMonths}>
+                        {t.tenureMonths} Months{years}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* 5. Payment Date & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Booking Date <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={editForm.bookingDate}
+                  onChange={(e) => setEditForm({ ...editForm, bookingDate: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Booking Status <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                  required
+                >
+                  <option value="ACTIVE">ACTIVE (Ongoing Installments / Regular)</option>
+                  <option value="COMPLETED">COMPLETED (Fully Paid & Closed)</option>
+                  <option value="CANCELLED">CANCELLED (Void / Cancelled)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Real-Time Total & EMI Summary Strip */}
+            <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 text-white p-4 rounded-2xl shadow-sm grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <span className="text-[10px] text-teal-200 uppercase font-bold block">Total Valuation</span>
+                <span className="text-base font-black font-mono">₹{editTotalAmount.toLocaleString('en-IN')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-teal-200 uppercase font-bold block">
+                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Deposit Period' : 'Tenure Plan'}
+                </span>
+                <span className="text-base font-bold font-mono text-emerald-300">
+                  {editTenure} Months
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-teal-200 uppercase font-bold block">
+                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Amount Paid' : 'Total Installments'}
+                </span>
+                <span className={`text-base font-bold font-mono ${editForm.paymentType === 'FULL_PAYMENT' ? 'text-emerald-300' : 'text-slate-200'}`}>
+                  {editForm.paymentType === 'FULL_PAYMENT' ? `₹${editTotalAmount.toLocaleString('en-IN')}` : `${editTenure} EMIs`}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-emerald-300 uppercase font-bold block">
+                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Payment Status' : 'Monthly EMI'}
+                </span>
+                <span className="text-base font-black font-mono text-emerald-400">
+                  {editForm.paymentType === 'FULL_PAYMENT' ? 'FULLY PAID' : `₹${editMonthlyEmi.toLocaleString('en-IN')}`}
+                </span>
+              </div>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Remarks / Notes</label>
+              <label className="block font-bold text-slate-700 mb-1">Remarks / Internal Notes (Optional)</label>
               <textarea
-                rows={3}
+                rows={2}
                 value={editForm.remarks}
                 onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
-                placeholder="Add any updated remarks..."
+                placeholder="Add any specific operational remarks..."
                 className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none resize-none"
               />
             </div>
@@ -847,11 +1123,11 @@ const ProductSalesTab = ({
               </button>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || editTotalAmount <= 0}
                 className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold transition shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-                <span>{submitting ? 'Saving Changes...' : 'Save Changes'}</span>
+                <span>{submitting ? 'Saving Changes...' : 'Save & Update Booking'}</span>
               </button>
             </div>
           </form>

@@ -36,7 +36,7 @@ const rolePolicySchema = new mongoose.Schema(
   {
     roleName: {
       type: String,
-      enum: ['BUSINESS_ASSOCIATE', 'BUSINESS_PARTNER'],
+      enum: ['BUSINESS_ASSOCIATE', 'BUSINESS_PARTNER', 'BRANCH_PARTNER'],
       required: true,
     },
     fixedCommissionPercent: { type: Number, required: true, min: 0 },
@@ -80,6 +80,17 @@ const DEFAULT_PLOT_POLICY = {
         { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 1.00, label: '50,00,000+' },
       ],
     },
+    {
+      roleName: 'BRANCH_PARTNER',
+      fixedCommissionPercent: 0.0,
+      targetSlabs: [
+        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.0, label: '1 - 9,99,999' },
+        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.0, label: '10,00,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2999999, targetIncentivePercent: 0.0, label: '20,00,000 - 29,99,999' },
+        { minAmount: 3000000, maxAmount: 4999999, targetIncentivePercent: 0.0, label: '30,00,000 - 49,99,999' },
+        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.0, label: '50,00,000+' },
+      ],
+    },
   ],
 };
 
@@ -117,6 +128,17 @@ const DEFAULT_INVESTMENT_POLICY = {
         { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.500, label: '50,00,000+' },
       ],
     },
+    {
+      roleName: 'BRANCH_PARTNER',
+      fixedCommissionPercent: 0.0,
+      targetSlabs: [
+        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.0, label: '1 - 9,99,999' },
+        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.0, label: '10,00,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2999999, targetIncentivePercent: 0.0, label: '20,00,000 - 29,99,999' },
+        { minAmount: 3000000, maxAmount: 4999999, targetIncentivePercent: 0.0, label: '30,00,000 - 49,99,999' },
+        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.0, label: '50,00,000+' },
+      ],
+    },
   ],
 };
 
@@ -152,6 +174,17 @@ const DEFAULT_PLOT_PRODUCT_POLICY = {
         { minAmount: 3500000, maxAmount: 3999999, targetIncentivePercent: 0.350, label: '35,00,000 - 39,99,999' },
         { minAmount: 4000000, maxAmount: 4999999, targetIncentivePercent: 0.425, label: '40,00,000 - 49,99,999' },
         { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.500, label: '50,00,000+' },
+      ],
+    },
+    {
+      roleName: 'BRANCH_PARTNER',
+      fixedCommissionPercent: 0.0,
+      targetSlabs: [
+        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.0, label: '1 - 9,99,999' },
+        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.0, label: '10,00,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2999999, targetIncentivePercent: 0.0, label: '20,00,000 - 29,99,999' },
+        { minAmount: 3000000, maxAmount: 4999999, targetIncentivePercent: 0.0, label: '30,00,000 - 49,99,999' },
+        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.0, label: '50,00,000+' },
       ],
     },
   ],

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit2, Trash2, Pin, Bell, Calendar, FileText } from 'lucide-react';
+import { Edit2, Trash2, Pin, Bell, Calendar } from 'lucide-react';
 import Modalbox from './custommodal/Modalbox';
 import Input from './ui/Input';
 import Select from './ui/Select';
@@ -10,6 +10,8 @@ const employeeTypes = ['All', 'Staff', 'Manager', 'HR', 'Individual'];
 const noticeTypes = ['Holiday', 'Policy', 'Event', 'Urgent'];
 
 const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], isAdmin = false }) => {
+  const safeNotices = Array.isArray(notices) ? notices : [];
+  const safeEmployees = Array.isArray(employees) ? employees : [];
   const [open, setOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState(null);
 
@@ -76,8 +78,8 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
       </div>
 
       <div className="space-y-2.5 max-h-96 overflow-y-auto">
-        {notices.length > 0 ? (
-          notices.map((notice) => (
+        {safeNotices.length > 0 ? (
+          safeNotices.map((notice) => (
             <div
               key={notice._id}
               className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition flex justify-between items-start gap-3"
@@ -199,7 +201,7 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
                   onChange={(e) => setForm({ ...form, targetEmployeeId: e.target.value })}
                 >
                   <option value="">Select Employee</option>
-                  {employees.map((emp) => (
+                  {safeEmployees.map((emp) => (
                     <option key={emp._id} value={emp._id}>
                       {emp.userid?.name} ({emp.empId})
                     </option>

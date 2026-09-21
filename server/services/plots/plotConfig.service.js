@@ -162,14 +162,25 @@ class PlotConfigService {
   // ── COMMISSION POLICY CONFIGURATION ─────────────────────────────
   async getCommissionPolicy(businessType = 'PLOT_SALE') {
     let policy = await CommissionPolicyConfig.findOne({ businessType, status: 'active' });
+    const defaultData = businessType === 'PLOT_SALE'
+      ? CommissionPolicyConfig.getDefaultPlotPolicy()
+      : businessType === 'PLOT_PRODUCT'
+      ? CommissionPolicyConfig.getDefaultPlotProductPolicy()
+      : CommissionPolicyConfig.getDefaultInvestmentPolicy();
+
     if (!policy) {
-      const defaultData = businessType === 'PLOT_SALE'
-        ? CommissionPolicyConfig.getDefaultPlotPolicy()
-        : businessType === 'PLOT_PRODUCT'
-        ? CommissionPolicyConfig.getDefaultPlotProductPolicy()
-        : CommissionPolicyConfig.getDefaultInvestmentPolicy();
       policy = new CommissionPolicyConfig(defaultData);
       await policy.save();
+    } else {
+      // Auto-migrate: ensure BRANCH_PARTNER exists if policy was saved previously
+      const hasBranchPartner = (policy.roles || []).some((r) => r.roleName === 'BRANCH_PARTNER');
+      if (!hasBranchPartner) {
+        const branchPartnerDefault = defaultData.roles.find((r) => r.roleName === 'BRANCH_PARTNER');
+        if (branchPartnerDefault) {
+          policy.roles.push(branchPartnerDefault);
+          await policy.save();
+        }
+      }
     }
     return policy;
   }

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { Printer, Building2, User, MapPin, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Printer, Building2, User, MapPin, ShieldCheck, CheckCircle2, Layers } from 'lucide-react';
 import { cloudinaryUrl } from '../../../../utils/imageurlsetter';
 
 const ProductBookingCertificateModal = ({ open, onClose, booking }) => {
@@ -277,6 +277,47 @@ const ProductBookingCertificateModal = ({ open, onClose, booking }) => {
               </div>
             </div>
 
+            {/* Land Stock Sourcing & Plot Reference */}
+            {((booking.landSourcing && booking.landSourcing.length > 0) || booking.plotId) && (
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs space-y-1.5">
+                <div className="text-[11px] uppercase font-bold text-emerald-900 flex items-center gap-1.5">
+                  <Layers size={13} className="text-emerald-700" /> Land Sourcing &amp; Allocation Reference
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-slate-700 font-medium">
+                  {booking.landSourcing?.[0]?.agreementNumber && (
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Kisan Agreement</span>
+                      <span className="font-bold text-slate-900 font-mono">{booking.landSourcing[0].agreementNumber}</span>
+                    </div>
+                  )}
+                  {booking.landSourcing?.[0]?.mauja && (
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Mauja / Thana</span>
+                      <span className="font-semibold text-slate-900">{booking.landSourcing[0].mauja} {booking.landSourcing[0].thanaNumber ? `(Thana #${booking.landSourcing[0].thanaNumber})` : ''}</span>
+                    </div>
+                  )}
+                  {(booking.landSourcing?.[0]?.khataNumber || booking.landSourcing?.[0]?.khesraNumber) && (
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Khata / Khesra (Plot)</span>
+                      <span className="font-semibold text-slate-900">Khata: {booking.landSourcing[0].khataNumber || '-'} | Plot: {booking.landSourcing[0].khesraNumber || '-'}</span>
+                    </div>
+                  )}
+                  {booking.landSourcing?.[0]?.allocatedSqFt && (
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Allocated Area</span>
+                      <span className="font-bold text-emerald-800">{booking.landSourcing[0].allocatedSqFt} Sq.Ft ({booking.landSourcing[0].allocatedDismil || (Math.round((booking.landSourcing[0].allocatedSqFt / 435.6) * 1000) / 1000)} Dismil)</span>
+                    </div>
+                  )}
+                  {booking.plotId && (
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Master Plot Link</span>
+                      <span className="font-bold text-slate-900">Plot #{booking.plotId.plotNumber || booking.plotId}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* 5. Financial Breakdown & Period Scheme */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-slate-50/90 p-3 sm:p-3.5 rounded-xl border border-slate-200">
               <div>
@@ -292,15 +333,23 @@ const ProductBookingCertificateModal = ({ open, onClose, booking }) => {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Initial Downpayment</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">
+                  {booking.paymentType === 'FULL_PAYMENT' ? 'Payment Scheme' : 'Initial Downpayment'}
+                </div>
                 <div className="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5">
-                  ₹{Number(booking.downPayment || 0).toLocaleString('en-IN')}
+                  {booking.paymentType === 'FULL_PAYMENT'
+                    ? '100% Upfront Paid'
+                    : `₹${Number(booking.downPayment || 0).toLocaleString('en-IN')}`}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Monthly Installment (EMI)</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">
+                  {booking.paymentType === 'FULL_PAYMENT' ? 'Payment Status' : 'Monthly EMI'}
+                </div>
                 <div className="text-sm sm:text-base font-black text-emerald-700 mt-0.5">
-                  ₹{Number(booking.monthlyEmi || 0).toLocaleString('en-IN')}
+                  {booking.paymentType === 'FULL_PAYMENT'
+                    ? 'FULLY SETTLED'
+                    : `₹${Number(booking.monthlyEmi || 0).toLocaleString('en-IN')}`}
                 </div>
               </div>
             </div>

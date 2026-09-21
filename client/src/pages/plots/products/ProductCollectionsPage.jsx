@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import {
   Receipt,
   DollarSign,
@@ -9,15 +10,15 @@ import {
   Search,
   RefreshCw,
   Printer,
-  BookOpen,
   Calendar,
   X,
   Percent,
-  Clock
+  Clock,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import ProductReceivePaymentForm from './ProductReceivePaymentForm';
-import ProductCustomerLedgerModal from './components/ProductCustomerLedgerModal';
 import ProductReceiptModal from './components/ProductReceiptModal';
 
 const ProductCollectionsPage = ({ initialView }) => {
@@ -39,14 +40,11 @@ const ProductCollectionsPage = ({ initialView }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filters
+  // Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentModeFilter, setPaymentModeFilter] = useState('ALL');
 
-  // Modals for Ledger and Printable Receipt
-  const [selectedBookingForLedger, setSelectedBookingForLedger] = useState(null);
-  const [ledgerModalOpen, setLedgerModalOpen] = useState(false);
-
+  // Modal for Printable Receipt
   const [selectedCollectionForReceipt, setSelectedCollectionForReceipt] = useState(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
@@ -91,13 +89,35 @@ const ProductCollectionsPage = ({ initialView }) => {
     navigate('/dashboard/plots/collections/products/add' + (bookingId ? `?bookingId=${bookingId}` : ''));
   };
 
-  const handleOpenLedgerForBookingId = async (bookingId) => {
+  const [deletingReceiptId, setDeletingReceiptId] = useState(null);
+
+  const handleDeleteCollection = async (col) => {
+    if (!col || !col.receiptNumber) return;
+
+    const proceed = await confirmDialog({
+      title: 'Delete Collection Receipt?',
+      text: `Are you sure you want to delete receipt ${col.receiptNumber} for ₹${(Number(col.amountPaid) || 0).toLocaleString('en-IN')}? This will revert the paid installment status and recalculate the customer ledger.`,
+      confirmText: 'Yes, Delete Receipt',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+
+    if (!proceed) return;
+
+    setDeletingReceiptId(col.receiptNumber);
+    const toastId = toast.loading(`Deleting receipt ${col.receiptNumber}...`);
     try {
-      const res = await api.get(`/plots/product-bookings/${bookingId}`);
-      setSelectedBookingForLedger(res.data?.data);
-      setLedgerModalOpen(true);
-    } catch {
-      toast.error('Failed to load booking ledger details');
+      const res = await api.delete(
+        `/plots/product-collections/${col.bookingId || 'unknown'}/${encodeURIComponent(col.receiptNumber)}`
+      );
+      toast.dismiss(toastId);
+      toast.success(res.data?.message || `Receipt ${col.receiptNumber} deleted successfully`);
+      fetchCollections(true);
+    } catch (err) {
+      toast.dismiss(toastId);
+      toast.error(err.response?.data?.message || 'Failed to delete collection receipt');
+    } finally {
+      setDeletingReceiptId(null);
     }
   };
 
@@ -425,19 +445,16 @@ const ProductCollectionsPage = ({ initialView }) => {
                         </button>
 
                         <button
-                          onClick={() => handleOpenLedgerForBookingId(col.bookingId)}
-                          className="p-1.5 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                          title="View Customer Ledger"
+                          onClick={() => handleDeleteCollection(col)}
+                          disabled={deletingReceiptId === col.receiptNumber}
+                          className="p-1.5 text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 rounded-lg border border-rose-200 transition-colors cursor-pointer"
+                          title="Delete Receipt"
                         >
-                          <BookOpen className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          onClick={() => handleOpenAddCollection(col.bookingId)}
-                          className="p-1.5 text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors cursor-pointer"
-                          title="Collect More Installments"
-                        >
-                          <DollarSign className="w-3.5 h-3.5" />
+                          {deletingReceiptId === col.receiptNumber ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-700" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -448,22 +465,6 @@ const ProductCollectionsPage = ({ initialView }) => {
           </div>
         )}
       </div>
-
-      {/* Customer Ledger Modal */}
-      {ledgerModalOpen && selectedBookingForLedger && (
-        <ProductCustomerLedgerModal
-          open={ledgerModalOpen}
-          onClose={() => {
-            setLedgerModalOpen(false);
-            setSelectedBookingForLedger(null);
-          }}
-          booking={selectedBookingForLedger}
-          onTakeCollection={() => {
-            setLedgerModalOpen(false);
-            handleOpenAddCollection(selectedBookingForLedger._id);
-          }}
-        />
-      )}
 
       {/* Printable Receipt Modal */}
       {receiptModalOpen && selectedCollectionForReceipt && (

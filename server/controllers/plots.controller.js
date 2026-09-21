@@ -561,6 +561,7 @@ const previewPlotClosing = async (req, res, next) => {
     const preview = await plotsService.previewPlotClosing({
       startDate: req.query.startDate,
       endDate: req.query.endDate,
+      closingType: req.query.closingType || 'TARGET_INCENTIVE',
       excludeClosingId: req.query.excludeClosingId || null,
     });
     ApiResponse.success(res, preview);
@@ -957,6 +958,21 @@ const getProductCollections = async (req, res, next) => {
   }
 };
 
+const deleteProductCollection = async (req, res, next) => {
+  try {
+    const { bookingId, receiptNumber } = req.params;
+    const userId = req.user?._id || req.user?.id || null;
+    const result = await plotProductService.deleteProductCollection(
+      bookingId,
+      decodeURIComponent(receiptNumber),
+      userId
+    );
+    ApiResponse.success(res, result, 'Product collection receipt deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
@@ -1057,4 +1073,5 @@ module.exports = {
   deleteProductBooking,
   collectProductInstallment,
   getProductCollections,
+  deleteProductCollection,
 };

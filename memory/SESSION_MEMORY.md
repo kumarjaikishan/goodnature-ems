@@ -37,8 +37,12 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - Manual entry of Plot Size (Sq Ft) in Series creation is removed and made strictly read-only auto-calculated dynamically from North, South, East, and West dimensions: $\text{Area} = \frac{\text{North} + \text{South}}{2} \times \frac{\text{East} + \text{West}}{2}$.
   - Plot dimensions across Series & Plot modals (North, South, East, West) default to `0`.
 
-### Z. Plot Product Fractional Units EMI & Late Fine Architecture
+### Z. Plot Product Fractional Units EMI, Land Sourcing & Full-Page Booking Architecture
 - **Micro-Plot Fractional Units**: Plot Products configured in `/dashboard/plots/products` allow booking fractional unit pieces with North/South/East/West dimensions on flexible RD/EMI tenure plans (12, 24, 36, 48, 60 months).
+- **Dedicated Full-Page Booking Workflow**:
+  - Route: `/dashboard/plots/products/book` (`ProductBookingPage.jsx`).
+  - Follows the standard plot booking (`/dashboard/plots/addbooking`) interactive standard: Verified Customer search with auto-resolved BA/Sponsor detection, Product Specifications, Kisan Land Agreement stock selection/deduction, and Payment Plan configuration with a sticky live calculation sidebar.
+  - **Land Sourcing Deduction**: Sourced from active Kisan Land Agreements (`GET /plots/kisan-agreements/sources`). Automatically checks parcel availability, validates area against unit square footage ($qty \times unitAreaSqFt$), increments `totalAllocatedSqFt` and decrements `totalAvailableSqFt` upon creation, and restores the area to the agreement if the booking is deleted.
 - **EMI & 24% P.A. Late Fine Calculation**:
   - Unpaid installments past their scheduled due date plus grace period (15 days default from `PlotRateConfiguration`) accrue a 24% annual late fine (`(24/365)%` daily).
   - Waterfall collection rule: Late fine rebate reduces unpaid fine first; collected amount settles remaining unpaid late fine first, then principal.
@@ -46,6 +50,18 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `ProductSalesTab.jsx` displays overdue EMI counts, pending EMIs, and real-time accrued late fine amounts.
   - `ProductCustomerLedgerModal.jsx` provides an itemized statement with overdue days, late fine, rebate, and paid receipts.
   - `ProductInstallmentCollectModal.jsx` supports multi-installment selection, quick-fill buttons, late fine rebate, cheque 6-digit validation, and real-time payment calculations.
+  - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
+  - For Monthly EMI plans, downpayment is eliminated ($0$) and the entire total valuation is divided equally into monthly installments over the chosen tenure. For One-Time Full Payment, the deposit/holding tenure period (12, 24, 36, 48, 60 months) is explicitly recorded to track the contract duration for product delivery or money-back refund on completion.
+
+### AA. Dual Incentive Closing Architecture (Target Incentive vs Extra Incentive / Rewards)
+- **Problem**: Fixed base commissions (5% BA / 2% BP) are credited immediately upon transaction collection. Target incentives (variable % slabs) and Extra Incentives / Rewards (additional column % & physical gifts/tours/vehicles) often follow different closing frequencies (e.g. Target Incentive closed every 3 months / quarterly, Extra Incentives closed every 6 months / semi-annually or annually).
+- **Dual Closing Engine**:
+  - `PlotClosing.js` has `closingType: { type: String, enum: ['TARGET_INCENTIVE', 'EXTRA_INCENTIVE'], default: 'TARGET_INCENTIVE' }`.
+  - Prefix generation: `INC-YYYYMM-XXX` for Target Incentive closings, `EXT-YYYYMM-XXX` for Extra Incentive closings.
+  - Independent commission tracking: `PlotSponsorCommission` and `InvestmentCommission` store `closingId` for Target Incentive and `extraClosingId` for Extra Incentive closing. This enables a transaction receipt to participate in both closings for distinct periods without locking collisions.
+  - Universal ledger credits are recorded under `commission_closing` with explicit narrative particulars distinguishing Target Incentive from Extra Incentive / Rewards.
+  - Reversal/deletion safely resets either `closingId` or `extraClosingId` and clears the associated universal ledger entry without corrupting the other closing type.
+  - Frontend UI at `/dashboard/plots/incentives` provides dedicated tabs for **Target Incentive Closings** and **Extra Incentive & Rewards Closings** with dedicated processing buttons and filtered historical records.
 
 ### S. Frontend Route Conflict Resolution & Authorization Loop Prevention
 - **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.
@@ -75,6 +91,10 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 ### B. Timezone & Attendance Calculations
 - **Gotcha**: If attendance is queried by a date string (e.g. `2026-08-23`), converting with raw JavaScript `new Date("2026-08-23")` will cause shifts depending on the host server's local timezone.
 - **Fix Pattern**: Always use `parseAttendanceDateTime()` and `getAttendanceDateUTC()` from `server/utils/attendanceTime.js`. Attendance records are saved with `date` set to UTC midnight (`YYYY-MM-DDT00:00:00.000Z`).
+
+### B1. Component Prop Safety (Null vs Undefined Defaults)
+- **Gotcha**: ES6 default parameter syntax `{ notices = [], employees = [] }` only triggers when the passed value is `undefined`. When Redux slices initialize or return `null`, `notices.length` throws `Cannot read properties of null (reading 'length')`.
+- **Fix Pattern**: Always guard with `Array.isArray(notices) ? notices : []` inside the component.
 
 ### C. Permission Matrix Mapping
 - Permissions are stored in MongoDB as a `Map` of numbers (e.g., `employee: [1, 2, 3, 4]`).

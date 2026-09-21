@@ -85,6 +85,7 @@ const InstallmentCollection = lazy(() => import('./pages/plots/installments/Inst
 const ProductCollectionsPage = lazy(() => import('./pages/plots/products/ProductCollectionsPage'));
 const PlotSeriesMaster = lazy(() => import('./pages/plots/seriesMaster/PlotSeriesMaster'));
 const PlotProductsPage = lazy(() => import('./pages/plots/products/PlotProductsPage'));
+const ProductBookingPage = lazy(() => import('./pages/plots/products/ProductBookingPage'));
 const PlotReports = lazy(() => import('./pages/plots/reports/PlotReports'));
 const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/incentives/PlotPayoutLedgerPage'));
 const PlotAgreementViewer = lazy(() => import('./pages/plots/printViewers/PlotAgreementViewer'));
@@ -176,6 +177,7 @@ const routesByRole = {
       <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/products" element={<PlotProductsPage />} />
+      <Route path="plots/products/book" element={<ProductBookingPage />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
       <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
@@ -264,6 +266,7 @@ const routesByRole = {
       <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/products" element={<PlotProductsPage />} />
+      <Route path="plots/products/book" element={<ProductBookingPage />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
       <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
@@ -352,6 +355,7 @@ const routesByRole = {
       <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
       <Route path="plots/series-master" element={<PlotSeriesMaster />} />
       <Route path="plots/products" element={<PlotProductsPage />} />
+      <Route path="plots/products/book" element={<ProductBookingPage />} />
       <Route path="plots/reports" element={<PlotReports />} />
       <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
       <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />

@@ -43,4 +43,5 @@ This document tracks known tasks, technical debt, and pending improvements ident
 - [x] Dynamic multi-head Plot Premium & PLC (Preferential Location Charges) system on Series Master and plot configuration.
 - [x] Deferred EMI schedule calculation dynamically activated from 100% Downpayment completion date.
 - [x] Dedicated Downpayment Collections and EMI Collections pages in Sidebar and Router.
-
+- [x] Plot Products micro-plot fractional units module with full-page booking workflow (`/dashboard/plots/products/book`), verified customer search, BA auto-detection, and Allotment Certificate.
+- [x] Plot Products Kisan Land Agreement sourcing & parcel area deduction/restoration synchronization.

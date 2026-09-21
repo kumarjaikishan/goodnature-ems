@@ -8,6 +8,10 @@ const Counter = require('../../models/Counter');
 const InvestmentSchemeConfig = require('../../models/InvestmentSchemeConfig');
 const PlotReceipt = require('../../models/PlotReceipt');
 const PlotRateConfiguration = require('../../models/PlotRateConfiguration');
+const PlotAuditLog = require('../../models/PlotAuditLog');
+const PlotSponsorCommission = require('../../models/PlotSponsorCommission');
+const KisanLandAgreement = require('../../models/KisanLandAgreement');
+const Plot = require('../../models/Plot');
 const plotDeveloperService = require('./plotDeveloper.service');
 
 class PlotProductService {
@@ -340,6 +344,7 @@ class PlotProductService {
     if (query.customerId) filter.customerId = query.customerId;
     if (query.productId) filter.productId = query.productId;
     if (query.sponsorId) filter.sponsorId = query.sponsorId;
+    if (query.plotId) filter.plotId = query.plotId;
 
     if (query.search) {
       const q = query.search.trim();
@@ -350,7 +355,9 @@ class PlotProductService {
 
     const bookings = await PlotProductBooking.find(filter)
       .populate('productId', 'productName productCode dimensions dimensionLabel areaSqFt unitPrice')
+      .populate('plotId', 'plotNumber plotSize plotType seriesId dimensions')
       .populate('customerId', 'name customerId customerCode mobile email address fatherOrHusbandName')
+      .populate('landSourcing.agreementId', 'agreementNumber mauja khataNumber khesraNumber thanaNumber')
       .populate({
         path: 'sponsorId',
         select: 'name sponsorCode mobile email photo sponsorId',
@@ -371,7 +378,9 @@ class PlotProductService {
   async getProductBookingById(id) {
     const booking = await PlotProductBooking.findById(id)
       .populate('productId')
+      .populate('plotId')
       .populate('customerId')
+      .populate('landSourcing.agreementId', 'agreementNumber mauja khataNumber khesraNumber thanaNumber')
       .populate({
         path: 'sponsorId',
         select: 'name sponsorCode mobile email photo sponsorId',
@@ -394,6 +403,7 @@ class PlotProductService {
   async createProductBooking(data, userId) {
     const {
       productId,
+      plotId = null,
       customerId,
       quantity = 1,
       customUnitPrice,
@@ -402,6 +412,7 @@ class PlotProductService {
       downPayment = 0,
       bookingDate = new Date(),
       remarks = '',
+      landSourcing = [],
     } = data;
 
     if (!productId) throw ApiError.badRequest('Product is required');
@@ -427,14 +438,76 @@ class PlotProductService {
 
     const totalAmount = Math.round(qty * unitPrice * 100) / 100;
     const totalArea = Math.round(qty * (product.areaSqFt || 2) * 100) / 100;
-    const dp = Math.min(totalAmount, Math.max(0, Number(downPayment) || 0));
-    const remainingAmount = Math.max(0, totalAmount - dp);
-    const tenure = Math.max(1, Number(tenureMonths) || 1);
+    const isFullPayment = paymentType === 'FULL_PAYMENT';
+    const dp = isFullPayment ? totalAmount : 0;
+    const remainingAmount = isFullPayment ? 0 : totalAmount;
+    const tenure = Math.max(1, Number(tenureMonths) || 24);
 
-    // Compute Monthly EMI
-    const monthlyEmi = paymentType === 'FULL_PAYMENT' || tenure <= 1
-      ? remainingAmount
-      : Math.round((remainingAmount / tenure) * 100) / 100;
+    // Compute Monthly EMI in whole round figure (no decimals)
+    const monthlyEmi = isFullPayment
+      ? 0
+      : Math.round(totalAmount / tenure);
+
+    // Process & Deduct Land Stock from KisanLandAgreement if provided
+    const processedSourcing = [];
+    if (Array.isArray(landSourcing) && landSourcing.length > 0) {
+      for (const item of landSourcing) {
+        const numSqFt = Number(item.allocatedSqFt) || 0;
+        if (numSqFt <= 0) continue;
+
+        const agr = await KisanLandAgreement.findById(item.agreementId);
+        if (!agr) throw ApiError.badRequest(`Land Agreement ${item.agreementId} not found`);
+
+        const availSqFt =
+          agr.totalAvailableSqFt !== undefined && agr.totalAvailableSqFt !== null
+            ? agr.totalAvailableSqFt
+            : Math.max(0, (agr.totalSqFt || 0) - (agr.totalAllocatedSqFt || 0));
+
+        if (availSqFt < numSqFt) {
+          throw ApiError.badRequest(
+            `Insufficient stock in Agreement ${agr.agreementNumber}. Available: ${availSqFt} SqFt, Requested: ${numSqFt} SqFt`
+          );
+        }
+
+        let selectedParcel = null;
+        if (item.parcelId && Array.isArray(agr.landParcels)) {
+          selectedParcel = agr.landParcels.find((p) => String(p._id) === String(item.parcelId));
+        } else if (item.khesraNumber && Array.isArray(agr.landParcels)) {
+          selectedParcel = agr.landParcels.find((p) => p.khesraNumber === item.khesraNumber);
+        }
+
+        if (selectedParcel) {
+          selectedParcel.allocatedSqFt = (selectedParcel.allocatedSqFt || 0) + numSqFt;
+          selectedParcel.availableSqFt = Math.max(0, (selectedParcel.totalSqFt || 0) - selectedParcel.allocatedSqFt);
+        }
+
+        agr.totalAllocatedSqFt = (agr.totalAllocatedSqFt || 0) + numSqFt;
+        agr.totalAvailableSqFt = Math.max(0, (agr.totalSqFt || 0) - agr.totalAllocatedSqFt);
+        if (agr.unregisteredAgreedSqFt) {
+          agr.unregisteredAllocatedSqFt = Math.min(
+            agr.unregisteredAgreedSqFt,
+            (agr.unregisteredAllocatedSqFt || 0) + numSqFt
+          );
+          agr.unregisteredAvailableSqFt = Math.max(0, agr.unregisteredAgreedSqFt - agr.unregisteredAllocatedSqFt);
+        }
+        await agr.save();
+
+        processedSourcing.push({
+          sourceType: 'AGREEMENT',
+          agreementId: agr._id,
+          agreementNumber: agr.agreementNumber,
+          parcelId: selectedParcel ? selectedParcel._id : (item.parcelId || null),
+          deedId: null,
+          deedNumber: '',
+          mauja: selectedParcel?.mauja || item.mauja || agr.mauja || agr.landParcels?.[0]?.mauja || '',
+          thanaNumber: selectedParcel?.thanaNumber || item.thanaNumber || agr.thanaNumber || agr.landParcels?.[0]?.thanaNumber || '',
+          khataNumber: selectedParcel?.khataNumber || item.khataNumber || agr.khataNumber || agr.landParcels?.[0]?.khataNumber || '',
+          khesraNumber: selectedParcel?.khesraNumber || item.khesraNumber || agr.khesraNumber || agr.landParcels?.[0]?.khesraNumber || '',
+          allocatedSqFt: numSqFt,
+          allocatedDismil: Math.round((numSqFt / 435.6) * 1000) / 1000,
+        });
+      }
+    }
 
     // Generate Financial Year Booking Number: e.g. PRD-BK-2627-001
     const bDate = new Date(bookingDate);
@@ -476,7 +549,6 @@ class PlotProductService {
       }
     }
 
-    const isFullPayment = paymentType === 'FULL_PAYMENT' || dp >= totalAmount;
     const bookingStatus = isFullPayment ? 'COMPLETED' : 'ACTIVE';
 
     const collections = [];
@@ -500,6 +572,7 @@ class PlotProductService {
       bookingNumber,
       bookingDate: bDate,
       productId: product._id,
+      plotId: plotId || null,
       customerId: customer._id,
       sponsorId,
       quantity: qty,
@@ -522,6 +595,7 @@ class PlotProductService {
       totalPaid: dp,
       installments,
       collections,
+      landSourcing: processedSourcing,
       status: bookingStatus,
       remarks: remarks.trim(),
       createdById: userId,
@@ -538,7 +612,6 @@ class PlotProductService {
       }
     }
 
-
     // Update Product units sold
     product.unitsSold = (product.unitsSold || 0) + qty;
     await product.save();
@@ -554,16 +627,184 @@ class PlotProductService {
     }
 
     const {
+      productId,
+      customerId,
+      quantity,
+      customUnitPrice,
+      tenureMonths,
+      paymentType,
       bookingDate,
       status,
       remarks,
+      paymentMode,
+      transactionReference,
     } = data;
 
-    if (bookingDate) booking.bookingDate = new Date(bookingDate);
+    // Check if installments or collections exist beyond downpayment
+    const hasCollections = Array.isArray(booking.collections) && booking.collections.length > 0;
+    const paidInstallments = Array.isArray(booking.installments) && booking.installments.some((i) => i.status === 'PAID' || i.paidAmount > 0);
+    const hasFinancialTransactions = (hasCollections && booking.collections.length > (booking.paymentType === 'FULL_PAYMENT' ? 1 : 0)) || paidInstallments;
+
+    const oldQty = Math.max(1, Number(booking.quantity) || 1);
+    const oldProductId = String(booking.productId);
+
+    // If financial transactions exist (installments paid), prevent changing product, quantity, tenure, customer, paymentType
+    if (hasFinancialTransactions) {
+      if (productId && String(productId) !== oldProductId) {
+        throw ApiError.badRequest('Cannot change Product because payment installments have already been recorded.');
+      }
+      if (customerId && String(customerId) !== String(booking.customerId)) {
+        throw ApiError.badRequest('Cannot change Customer because payment installments have already been recorded.');
+      }
+      if (quantity && Number(quantity) !== oldQty) {
+        throw ApiError.badRequest('Cannot change Quantity because payment installments have already been recorded.');
+      }
+      if (tenureMonths && Number(tenureMonths) !== Number(booking.tenureMonths)) {
+        throw ApiError.badRequest('Cannot change Tenure Months because payment installments have already been recorded.');
+      }
+      if (paymentType && paymentType !== booking.paymentType) {
+        throw ApiError.badRequest('Cannot change Payment Plan because payment installments have already been recorded.');
+      }
+    }
+
+    // Resolve Product & Customer
+    let targetProduct = null;
+    if (productId) {
+      targetProduct = await PlotProduct.findById(productId);
+      if (!targetProduct) throw ApiError.badRequest('Product not found');
+      booking.productId = targetProduct._id;
+      booking.dimensionsSnapshot = {
+        north: targetProduct.dimensions?.north || 1,
+        south: targetProduct.dimensions?.south || 1,
+        east: targetProduct.dimensions?.east || 2,
+        west: targetProduct.dimensions?.west || 2,
+        unit: targetProduct.dimensions?.unit || 'feet',
+        dimensionLabel: targetProduct.dimensionLabel || `${targetProduct.dimensions?.north || 1} ft x ${targetProduct.dimensions?.east || 2} ft`,
+      };
+    } else {
+      targetProduct = await PlotProduct.findById(booking.productId);
+    }
+
+    if (customerId) {
+      const targetCustomer = await PlotCustomer.findById(customerId);
+      if (!targetCustomer) throw ApiError.badRequest('Customer not found');
+      booking.customerId = targetCustomer._id;
+      booking.sponsorId = targetCustomer.sponsorId || null;
+    }
+
+    // Recalculate quantities, valuation, tenure, paymentType if changed
+    const newQty = quantity !== undefined ? Math.max(1, Number(quantity) || 1) : oldQty;
+    booking.quantity = newQty;
+
+    const unitPrice = customUnitPrice !== undefined && Number(customUnitPrice) > 0
+      ? Number(customUnitPrice)
+      : (targetProduct?.unitPrice || booking.unitPrice || 5000);
+    booking.unitPrice = unitPrice;
+
+    const totalAmount = Math.round(newQty * unitPrice * 100) / 100;
+    const totalArea = Math.round(newQty * (targetProduct?.areaSqFt || 2) * 100) / 100;
+    booking.totalAmount = totalAmount;
+    booking.totalAreaSqFt = totalArea;
+
+    const newPaymentType = paymentType || booking.paymentType || 'MONTHLY_INSTALLMENT';
+    booking.paymentType = newPaymentType;
+    const isFullPayment = newPaymentType === 'FULL_PAYMENT';
+
+    const newTenure = tenureMonths !== undefined ? Math.max(1, Number(tenureMonths) || 24) : (booking.tenureMonths || 24);
+    booking.tenureMonths = newTenure;
+
+    if (bookingDate) {
+      booking.bookingDate = new Date(bookingDate);
+    }
+    const bDate = new Date(booking.bookingDate);
+
     if (status) booking.status = status;
     if (remarks !== undefined) booking.remarks = remarks;
 
+    // Adjust product unitsSold count if product or quantity changed
+    if (String(oldProductId) !== String(booking.productId) || oldQty !== newQty) {
+      if (String(oldProductId) === String(booking.productId)) {
+        const delta = newQty - oldQty;
+        if (delta !== 0) {
+          await PlotProduct.findByIdAndUpdate(booking.productId, { $inc: { unitsSold: delta } });
+        }
+      } else {
+        await PlotProduct.findByIdAndUpdate(oldProductId, { $inc: { unitsSold: -oldQty } });
+        await PlotProduct.findByIdAndUpdate(booking.productId, { $inc: { unitsSold: newQty } });
+      }
+    }
+
+    // Recalculate schedule if no installments were paid yet
+    if (!paidInstallments) {
+      const dp = isFullPayment ? totalAmount : 0;
+      const remainingAmount = isFullPayment ? 0 : totalAmount;
+      const monthlyEmi = isFullPayment ? 0 : Math.round(totalAmount / newTenure);
+
+      booking.downPayment = dp;
+      booking.remainingAmount = remainingAmount;
+      booking.monthlyEmi = monthlyEmi;
+
+      if (isFullPayment) {
+        booking.totalPaid = dp;
+        booking.installments = [];
+        booking.collections = [{
+          receiptNumber: `PRD-DP-${booking.bookingNumber}`,
+          amountPaid: dp,
+          principalPaid: dp,
+          lateFinePaid: 0,
+          lateFineRebate: 0,
+          paymentMode: paymentMode || 'cash',
+          transactionReference: transactionReference || '',
+          paymentDate: bDate,
+          installmentNumbers: [],
+          remarks: 'Full Payment recorded at time of booking (Updated)',
+          collectedById: userId || null,
+        }];
+        if (!status) booking.status = 'COMPLETED';
+      } else {
+        booking.totalPaid = 0;
+        booking.collections = [];
+        if (!status) booking.status = 'ACTIVE';
+
+        const installments = [];
+        let accumulated = 0;
+        for (let i = 1; i <= newTenure; i++) {
+          const dueDate = new Date(bDate);
+          dueDate.setMonth(dueDate.getMonth() + i);
+
+          const emiAmt = i === newTenure
+            ? Math.round((remainingAmount - accumulated) * 100) / 100
+            : monthlyEmi;
+
+          accumulated += emiAmt;
+
+          installments.push({
+            installmentNumber: i,
+            dueDate,
+            amount: emiAmt,
+            paidAmount: 0,
+            status: 'PENDING',
+            lateFine: 0,
+            lateFinePaid: 0,
+            lateFineRebate: 0,
+            lateDays: 0,
+          });
+        }
+        booking.installments = installments;
+      }
+    }
+
     await booking.save();
+
+    // Re-sync commissions
+    if (booking.sponsorId) {
+      try {
+        await plotDeveloperService.syncProductBookingSponsorCommissions(booking._id);
+      } catch (e) {
+        console.error('Error syncing product booking sponsor commission on edit:', e);
+      }
+    }
+
     const rateConfig = await this.getRateConfig();
     return this.enrichBookingWithDues(booking.toObject(), rateConfig, new Date());
   }
@@ -580,6 +821,27 @@ class PlotProductService {
 
     if (hasCollections || paidInstallments) {
       throw ApiError.badRequest('Cannot delete product booking because payment collections/installments have already been recorded. Please cancel the booking instead.');
+    }
+
+    // Release allocated land stock back to KisanLandAgreement
+    if (Array.isArray(booking.landSourcing) && booking.landSourcing.length > 0) {
+      for (const src of booking.landSourcing) {
+        if (!src.agreementId || !src.allocatedSqFt) continue;
+        const agr = await KisanLandAgreement.findById(src.agreementId);
+        if (agr) {
+          agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - src.allocatedSqFt);
+          agr.totalAvailableSqFt = Math.min(agr.totalSqFt || 0, (agr.totalAvailableSqFt || 0) + src.allocatedSqFt);
+
+          if (src.parcelId && Array.isArray(agr.landParcels)) {
+            const p = agr.landParcels.find((pr) => String(pr._id) === String(src.parcelId));
+            if (p) {
+              p.allocatedSqFt = Math.max(0, (p.allocatedSqFt || 0) - src.allocatedSqFt);
+              p.availableSqFt = Math.min(p.totalSqFt || 0, (p.availableSqFt || 0) + src.allocatedSqFt);
+            }
+          }
+          await agr.save();
+        }
+      }
     }
 
     // Restore unitsSold on Product
@@ -933,6 +1195,186 @@ class PlotProductService {
     return {
       collections: filtered,
       summary,
+    };
+  }
+
+  async deleteProductCollection(bookingId, receiptNumber, processedBy) {
+    if (!receiptNumber) {
+      throw ApiError.badRequest('Receipt number is required');
+    }
+
+    // Find the product booking
+    let booking = null;
+    if (bookingId) {
+      booking = await PlotProductBooking.findById(bookingId);
+    }
+    if (!booking) {
+      booking = await PlotProductBooking.findOne({
+        $or: [
+          { 'collections.receiptNumber': receiptNumber },
+          { 'installments.receiptNumber': receiptNumber },
+          { bookingNumber: receiptNumber.replace(/^DP-/, '') },
+        ],
+      });
+    }
+
+    if (!booking) {
+      throw ApiError.notFound('Product booking or collection receipt not found');
+    }
+
+    // Check if any sponsor commission from this receipt is already locked in a closed monthly closing
+    const lockedCommission = await PlotSponsorCommission.findOne({
+      productBookingId: booking._id,
+      receiptNumber,
+      closingId: { $ne: null },
+    });
+    if (lockedCommission) {
+      throw ApiError.badRequest(
+        'Cannot delete receipt: This collection has already been processed and locked in a Monthly Payout Closing.'
+      );
+    }
+
+    const isDpReceipt =
+      receiptNumber === `DP-${booking.bookingNumber}` ||
+      receiptNumber.startsWith('PRD-DP-') ||
+      receiptNumber.startsWith('DP-');
+
+    // Remove from booking.collections
+    if (Array.isArray(booking.collections)) {
+      booking.collections = booking.collections.filter(
+        (col) => col.receiptNumber !== receiptNumber
+      );
+    }
+
+    // If it was down payment receipt
+    if (isDpReceipt) {
+      booking.downPayment = 0;
+    }
+
+    // Rebuild installment ledger from remaining collections
+    const rateConfig = await this.getRateConfig();
+
+    // Reset all installments
+    if (Array.isArray(booking.installments)) {
+      for (const inst of booking.installments) {
+        inst.paidAmount = 0;
+        inst.paidDate = null;
+        inst.receiptNumber = '';
+        inst.status = 'PENDING';
+        inst.lateDays = 0;
+        inst.lateFine = 0;
+        inst.lateFinePaid = 0;
+        inst.lateFineRebate = 0;
+      }
+    }
+
+    let totalPrincipal = Number(booking.downPayment || 0);
+    let totalFinePaid = 0;
+    let totalFineRebate = 0;
+
+    // Sort remaining collections chronologically
+    const remainingCollections = (booking.collections || []).slice().sort(
+      (a, b) => new Date(a.paymentDate || a.createdAt || 0) - new Date(b.paymentDate || b.createdAt || 0)
+    );
+
+    for (const col of remainingCollections) {
+      let remainingPaid = Number(col.amountPaid) || 0;
+      let remainingRebate = Number(col.lateFineRebate) || 0;
+      const pDate = new Date(col.paymentDate || col.createdAt || Date.now());
+      const rNum = col.receiptNumber;
+
+      const targetInsts =
+        col.installmentNumbers && col.installmentNumbers.length > 0
+          ? booking.installments.filter((i) => col.installmentNumbers.includes(i.installmentNumber))
+          : booking.installments.filter((i) => i.status !== 'PAID');
+
+      let colPrincipal = 0;
+      let colFine = 0;
+      let colRebate = 0;
+
+      for (const inst of targetInsts) {
+        if (remainingPaid <= 0 && remainingRebate <= 0) break;
+        if (inst.status === 'PAID') continue;
+
+        const stats = this.computeInstallmentStats(inst, rateConfig, pDate);
+        const effectiveFine = stats.lateFine;
+        inst.lateFine = effectiveFine;
+        inst.lateDays = stats.lateDays;
+
+        // 1. Apply rebate first against unpaid late fine
+        const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+        const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
+        inst.lateFineRebate = (inst.lateFineRebate || 0) + fineRebateThisTime;
+        remainingRebate -= fineRebateThisTime;
+        colRebate += fineRebateThisTime;
+
+        // 2. Distribute payment: FIRST to remaining late fine
+        const unpaidFineAfterRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+        const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
+        inst.lateFinePaid = (inst.lateFinePaid || 0) + finePaidThisTime;
+        remainingPaid -= finePaidThisTime;
+        colFine += finePaidThisTime;
+
+        // 3. Distribute payment: SECOND to remaining principal
+        const unpaidPrincipal = Math.max(0, inst.amount - (inst.paidAmount || 0));
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        inst.paidAmount = (inst.paidAmount || 0) + principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+        colPrincipal += principalPaidThisTime;
+
+        inst.paidDate = pDate;
+        inst.receiptNumber = rNum;
+
+        const isFullyPaid =
+          inst.paidAmount >= inst.amount &&
+          inst.lateFinePaid + (inst.lateFineRebate || 0) >= inst.lateFine;
+        inst.status = isFullyPaid ? 'PAID' : 'PARTIAL';
+      }
+
+      col.principalPaid = colPrincipal;
+      col.lateFinePaid = colFine;
+      col.lateFineRebate = colRebate;
+
+      totalPrincipal += colPrincipal;
+      totalFinePaid += colFine;
+      totalFineRebate += colRebate;
+    }
+
+    booking.totalPaid = totalPrincipal;
+    booking.totalLateFinePaid = totalFinePaid;
+    booking.totalLateFineRebate = totalFineRebate;
+    booking.remainingAmount = Math.max(0, booking.totalAmount - booking.totalPaid);
+    booking.status = booking.remainingAmount <= 0 ? 'COMPLETED' : 'ACTIVE';
+
+    await booking.save();
+
+    // Auto sync commissions for sponsor
+    if (booking.sponsorId) {
+      try {
+        await plotDeveloperService.syncProductBookingSponsorCommissions(booking._id);
+      } catch (e) {
+        console.error('Error syncing product booking sponsor commission on collection deletion:', e);
+      }
+    }
+
+    // Log audit
+    try {
+      await new PlotAuditLog({
+        action: 'DELETE_PRODUCT_COLLECTION_RECEIPT',
+        modelName: 'PlotProductBooking',
+        documentId: booking._id,
+        userId: processedBy || null,
+        details: { receiptNumber, bookingNumber: booking.bookingNumber },
+      }).save();
+    } catch (e) {
+      console.error('Failed to write audit log for product collection deletion:', e);
+    }
+
+    return {
+      success: true,
+      receiptNumber,
+      bookingNumber: booking.bookingNumber,
+      message: `Receipt ${receiptNumber} deleted and ledger updated successfully`,
     };
   }
 }

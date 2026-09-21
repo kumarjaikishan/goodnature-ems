@@ -402,48 +402,6 @@ const PlotSeriesMaster = () => {
     }
   };
 
-  // Rates tab handlers
-  const handleSlabChange = (index, field, value) => {
-    const updatedSlabs = [...(rateConfig.rateSlabs || [])];
-    updatedSlabs[index] = {
-      ...updatedSlabs[index],
-      [field]: value,
-    };
-    if (field === 'tenureMonths') {
-      const tenure = Number(value) || 0;
-      if (tenure === 0) {
-        updatedSlabs[index].downpaymentPercent = 100;
-        updatedSlabs[index].emiPercent = 0;
-      } else if (updatedSlabs[index].downpaymentPercent === 100) {
-        updatedSlabs[index].downpaymentPercent = 40;
-        updatedSlabs[index].emiPercent = 60;
-      }
-    }
-    setRateConfig({ ...rateConfig, rateSlabs: updatedSlabs });
-  };
-
-  const handleAddSlab = () => {
-    const currentSlabs = rateConfig.rateSlabs || [];
-    const lastSlab = currentSlabs[currentSlabs.length - 1];
-    const newTenure = lastSlab ? (Number(lastSlab.tenureMonths) || 0) + 3 : 3;
-    const newRate = lastSlab ? (Number(lastSlab.plotRate) || 1000) + 50 : 1050;
-
-    const newSlab = {
-      tenureMonths: newTenure,
-      plotRate: newRate,
-      downpaymentPercent: 40,
-      emiPercent: 60,
-      effectiveLabel: lastSlab?.effectiveLabel || 'Oct 26 - Dec 26',
-    };
-
-    setRateConfig({ ...rateConfig, rateSlabs: [...currentSlabs, newSlab] });
-  };
-
-  const handleRemoveSlab = (index) => {
-    const updatedSlabs = (rateConfig.rateSlabs || []).filter((_, i) => i !== index);
-    setRateConfig({ ...rateConfig, rateSlabs: updatedSlabs });
-  };
-
   const handleUpdateRates = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
@@ -464,19 +422,12 @@ const PlotSeriesMaster = () => {
         lateFineFrequency: rateConfig.lateFineFrequency || 'YEARLY',
         lateFineRate: Math.max(0, Number(rateConfig.lateFineRate) || 0),
         lateFineDailyPercent: Math.max(0, Number(rateConfig.lateFineDailyPercent) || (24 / 365)),
-        rateSlabs: (rateConfig.rateSlabs || []).map((s) => ({
-          tenureMonths: Number(s.tenureMonths) || 0,
-          plotRate: Number(s.plotRate) || 0,
-          downpaymentPercent: Number(s.downpaymentPercent) || (Number(s.tenureMonths) === 0 ? 100 : 40),
-          emiPercent: Number(s.emiPercent) ?? (Number(s.tenureMonths) === 0 ? 0 : 60),
-          effectiveLabel: s.effectiveLabel || '',
-        })),
       };
       await api.put('/plots/rate-config', payload);
-      toast.success('Customer plot pricing and payment plans updated successfully');
+      toast.success('Plot policy and configuration updated successfully');
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update rates');
+      toast.error(err.response?.data?.message || 'Failed to update configuration');
     } finally {
       setSubmitLoading(false);
     }
@@ -566,7 +517,7 @@ const PlotSeriesMaster = () => {
           }`}
         >
           <SlidersHorizontal size={17} />
-          Plot Pricing &amp; Customer EMI Plans
+          Plot Configuration &amp; Policy
         </button>
       </div>
 
@@ -610,14 +561,11 @@ const PlotSeriesMaster = () => {
         />
       )}
 
-      {/* ── TAB 3: TENURE RATES & PRICING SCHEDULE ── */}
+      {/* ── TAB 3: CONFIGURATION & POLICY ── */}
       {activeTab === 'rates' && (
         <TenurePlotRatesMatrix
           rateConfig={rateConfig}
           setRateConfig={setRateConfig}
-          handleSlabChange={handleSlabChange}
-          handleAddSlab={handleAddSlab}
-          handleRemoveSlab={handleRemoveSlab}
           handleUpdateRates={handleUpdateRates}
           submitLoading={submitLoading}
           inputCls={inputCls}
