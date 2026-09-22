@@ -594,7 +594,22 @@ function App() {
 
   return (
     <>
-      <Toaster position="top-right" richColors closeButton />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        expand={true}
+        visibleToasts={6}
+        gap={10}
+        duration={5000}
+        toastOptions={{
+          style: {
+            fontSize: '13px',
+            padding: '12px 16px',
+            borderRadius: '12px',
+          },
+        }}
+      />
       <ScrollToTop />
       <Suspense
         fallback={<div className="flex items-center justify-center h-screen w-screen bg-white">

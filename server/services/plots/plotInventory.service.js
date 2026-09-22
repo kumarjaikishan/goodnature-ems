@@ -447,12 +447,18 @@ class PlotInventoryService {
   }
 
   async getPlotById(id) {
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw ApiError.notFound('Plot not found');
+    }
     const plot = await Plot.findById(id).populate('seriesId');
     if (!plot) throw ApiError.notFound('Plot not found');
     return plot;
   }
 
   async updatePlot(id, data, userId) {
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw ApiError.notFound('Plot not found');
+    }
     const plot = await Plot.findById(id);
     if (!plot) throw ApiError.notFound('Plot not found');
     

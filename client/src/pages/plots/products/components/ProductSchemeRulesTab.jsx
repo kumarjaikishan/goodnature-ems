@@ -37,7 +37,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/plots/scheme-rules');
+      const res = await api.get('/investments/config');
       if (res.data?.success && res.data?.data) {
         setConfig({
           minRdAmount: res.data.data.minRdAmount ?? 2000,
@@ -64,21 +64,16 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   }, []);
 
   const handleAddSlab = () => {
+    const lastSlab = config.slabs[config.slabs.length - 1];
+    const newTenure = lastSlab ? Number(lastSlab.tenureMonths) + 12 : 12;
     setConfig({
       ...config,
       slabs: [
         ...config.slabs,
         {
-          durationMonths: 12,
-          label: '',
-          rdMaturityPercent: 0,
-          fdMaturityPercent: 0,
-          rdMaturityCalculationType: 'PERCENTAGE',
-          fdMaturityCalculationType: 'PERCENTAGE',
-          rdMaturityFixedAmount: 0,
-          fdMaturityFixedAmount: 0,
-          displayOrder: config.slabs.length + 1,
-          active: true,
+          tenureMonths: newTenure,
+          rdMaturityPercent: lastSlab ? Number(lastSlab.rdMaturityPercent) + 10 : 106,
+          fdMaturityPercent: lastSlab ? Number(lastSlab.fdMaturityPercent) + 15 : 110,
         },
       ],
     });
@@ -92,7 +87,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
   const handleSlabChange = (index, field, value) => {
     const updated = [...config.slabs];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], [field]: Number(value) || 0 };
     setConfig({ ...config, slabs: updated });
   };
 
@@ -100,7 +95,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     e.preventDefault();
     setSubmitLoading(true);
     try {
-      const res = await api.put('/plots/scheme-rules', config);
+      const res = await api.put('/investments/config', config);
       if (res.data?.success) {
         toast.success('Product Scheme Rules updated successfully');
         if (onSchemeUpdated) onSchemeUpdated();
