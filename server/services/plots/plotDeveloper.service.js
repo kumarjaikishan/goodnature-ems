@@ -197,7 +197,7 @@ class PlotDeveloperService {
 
         // Idempotent instant ledger posting
         let ledgerEntryId = null;
-        const directRemarks = `F.Comm on ₹${colAmtFormatted} (${combinedFixedPct}%) [${receiptTypeFormatted}] Receipt #${receipt.receiptNumber || ''} (Booking #${booking.bookingNumber || ''})`;
+        const directRemarks = `F.Comm (${combinedFixedPct}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
         if (fixedAmt > 0 && receipt.status !== 'PENDING') {
           const sponsorLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = sponsorLedger ? await Entry.findOne({
@@ -271,7 +271,7 @@ class PlotDeveloperService {
         const baTotalAmt = Math.round((baFixedAmt + baIncentiveAmt) * 100) / 100;
 
         let baLedgerEntryId = null;
-        const baRemarks = `F.Comm on ₹${colAmtFormatted} (${baFixedPct}%) [${receiptTypeFormatted}] Receipt #${receipt.receiptNumber || ''} (Booking #${booking.bookingNumber || ''})`;
+        const baRemarks = `F.Comm (${baFixedPct}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
         if (baFixedAmt > 0 && receipt.status !== 'PENDING') {
           const baLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = baLedger ? await Entry.findOne({
@@ -346,7 +346,7 @@ class PlotDeveloperService {
           const bpTotalAmt = Math.round((bpFixedAmt + bpIncentiveAmt) * 100) / 100;
 
           let bpLedgerEntryId = null;
-          const bpRemarks = `F.Comm on ₹${colAmtFormatted} (${bpFixedPct}%) [${receiptTypeFormatted}] Receipt #${receipt.receiptNumber || ''} (Booking #${booking.bookingNumber || ''}) — BA: ${sponsorDoc.name}`;
+          const bpRemarks = `F.Comm (${bpFixedPct}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''} | BA: ${sponsorDoc.name}`;
           if (bpFixedAmt > 0 && receipt.status !== 'PENDING') {
             const bpLedger = await Ledger.findOne({ sponsorId: parentDevId }).session(session);
             let existingEntry = bpLedger ? await Entry.findOne({
@@ -551,7 +551,7 @@ class PlotDeveloperService {
         const totalAmt = Math.round((fixedAmt + incentiveAmt) * 100) / 100;
 
         let ledgerEntryId = null;
-        const directRemarks = `F.Comm on ₹${colAmtFormatted} (${combinedFixedPct}%) [${receiptTypeFormatted}] Receipt #${col.receiptNumber} (Booking #${booking.bookingNumber})`;
+        const directRemarks = `F.Comm (${combinedFixedPct}%) on ₹${colAmtFormatted} | Plot Product (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
         if (fixedAmt > 0) {
           const sponsorLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = sponsorLedger ? await Entry.findOne({
@@ -626,7 +626,7 @@ class PlotDeveloperService {
         const baTotalAmt = Math.round((baFixedAmt + baIncentiveAmt) * 100) / 100;
 
         let baLedgerEntryId = null;
-        const baRemarks = `F.Comm on ₹${colAmtFormatted} (${baFixedPct}%) [${receiptTypeFormatted}] Receipt #${col.receiptNumber} (Booking #${booking.bookingNumber})`;
+        const baRemarks = `F.Comm (${baFixedPct}%) on ₹${colAmtFormatted} | Plot Product (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
         if (baFixedAmt > 0) {
           const baLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = baLedger ? await Entry.findOne({
@@ -702,7 +702,7 @@ class PlotDeveloperService {
           const bpTotalAmt = Math.round((bpFixedAmt + bpIncentiveAmt) * 100) / 100;
 
           let bpLedgerEntryId = null;
-          const bpRemarks = `F.Comm on ₹${colAmtFormatted} (${bpFixedPct}%) [${receiptTypeFormatted}] Receipt #${col.receiptNumber} (Booking #${booking.bookingNumber}) — BA: ${sponsorDoc.name}`;
+          const bpRemarks = `F.Comm (${bpFixedPct}%) on ₹${colAmtFormatted} | Plot Product (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber} | BA: ${sponsorDoc.name}`;
           if (bpFixedAmt > 0) {
             const bpLedger = await Ledger.findOne({ sponsorId: parentDevId }).session(session);
             let existingEntry = bpLedger ? await Entry.findOne({

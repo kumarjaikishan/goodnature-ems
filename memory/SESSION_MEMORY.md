@@ -60,8 +60,16 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - Prefix generation: `INC-YYYYMM-XXX` for Target Incentive closings, `EXT-YYYYMM-XXX` for Extra Incentive closings.
   - Independent commission tracking: `PlotSponsorCommission` and `InvestmentCommission` store `closingId` for Target Incentive and `extraClosingId` for Extra Incentive closing. This enables a transaction receipt to participate in both closings for distinct periods without locking collisions.
   - Universal ledger credits are recorded under `commission_closing` with explicit narrative particulars distinguishing Target Incentive from Extra Incentive / Rewards.
+  - **Universal Ledger Narration Format**: All commission postings to developer / sponsor ledgers use a structured ` | ` pipe-separated standard:
+    - **Fixed Commission (Plot Sale / Product / Investment)**:
+      - `F.Comm (5%) on ₹50,000 | Downpayment | Receipt #RCP-001 | Booking #BK-001`
+      - `F.Comm (2%) on ₹50,000 | Downpayment | Receipt #RCP-001 | Booking #BK-001 | BA: John Doe`
+    - **Closing Credits (Target & Extra Incentive / Rewards)**:
+      - `Extra Incentive & Reward | Closing #EXT-202610-001 (Diwali Special) | Slab: 10,00,000 - 19,99,999 (1% Extra Inc.) | Fund/Reward: Motorcycle, Car | Period Business: ₹15,00,000`
+      - `Target Incentive | Closing #INC-202610-001 (Q3 Target) | Slab: 10,00,000 - 19,99,999 (1% Target Inc.) | Period Business: ₹15,00,000`
   - Reversal/deletion safely resets either `closingId` or `extraClosingId` and clears the associated universal ledger entry without corrupting the other closing type.
   - Frontend UI at `/dashboard/plots/incentives` provides dedicated tabs for **Target Incentive Closings** and **Extra Incentive & Rewards Closings** with dedicated processing buttons and filtered historical records.
+  - **Terminology Standard**: Target Incentive % and Extra Incentive / Reward columns are strictly evaluated on a period closing basis (at closing settlement), so UI labels avoid "Monthly Bonus" and use "At Period Closing" / "Target Incentive (At Closing)".
 
 ### S. Frontend Route Conflict Resolution & Authorization Loop Prevention
 - **Gotcha 1**: Placing a top-level `<Route path="/dashboard" element={!islogin && <Navigate to="/login" replace />} />` inside `<Routes>` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) caused React Router v6 to match `/dashboard` with `element={false}` when `islogin` was `true`, shadowing the nested `{roleRoute}` and rendering a blank white screen with no console errors.

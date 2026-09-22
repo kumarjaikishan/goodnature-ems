@@ -500,10 +500,13 @@ class PlotClosingService {
       for (const sp of closingDoc.sponsors) {
         const creditAmt = isExtra ? Number(sp.extraIncentiveCommission || 0) : Number(sp.incentiveCommission || 0);
         if (creditAmt > 0) {
-          const rewardPart = sp.rewardTitle ? ` - ${sp.rewardTitle}` : '';
+          const rewardPart = sp.rewardTitle ? ` | Fund/Reward: ${sp.rewardTitle}` : '';
+          const ratePart = isExtra
+            ? `${sp.extraIncentivePercent || 0}% Extra Incentive`
+            : `${sp.effectiveIncPct || 0}% Target Incentive`;
           const particular = isExtra
-            ? `Extra Incentive & Reward credited for Closing ${closingDoc.closingNumber} (${closingDoc.closingName}) [Achieved Slab: ${sp.slabLabel}${rewardPart}] — Period Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`
-            : `Target Incentive credited for Closing ${closingDoc.closingNumber} (${closingDoc.closingName}) [Achieved Slab: ${sp.slabLabel}${rewardPart}] — Period Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`;
+            ? `Extra Incentive & Reward | Closing #${closingDoc.closingNumber} (${closingDoc.closingName}) | Slab: ${sp.slabLabel} (${ratePart})${rewardPart} | Period Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`
+            : `Target Incentive | Closing #${closingDoc.closingNumber} (${closingDoc.closingName}) | Slab: ${sp.slabLabel} (${ratePart})${rewardPart} | Period Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`;
 
           await accountingService.recordLedgerEntry({
             sponsorId: sp.sponsorId,
@@ -830,11 +833,14 @@ class PlotClosingService {
         if (creditAmt > 0) {
           const directText = sp.directBusiness > 0 ? `Direct: ₹${sp.directBusiness.toLocaleString('en-IN')}` : '';
           const indirectText = sp.indirectBusiness > 0 ? `Team: ₹${sp.indirectBusiness.toLocaleString('en-IN')}` : '';
-          const parts = [directText, indirectText].filter(Boolean).join(' | ');
-          const rewardPart = sp.rewardTitle ? ` - ${sp.rewardTitle}` : '';
+          const businessBreakdown = [directText, indirectText].filter(Boolean).join(' | ') || `Period Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`;
+          const rewardPart = sp.rewardTitle ? ` | Fund/Reward: ${sp.rewardTitle}` : '';
+          const ratePart = isExtra
+            ? `${sp.extraIncentivePercent || 0}% Extra Incentive`
+            : `${sp.effectiveIncPct || 0}% Target Incentive`;
           const particular = isExtra
-            ? `Extra Incentive & Reward credited for Closing ${closing.closingNumber} (${closing.closingName}) [Achieved Slab: ${sp.slabLabel}${rewardPart}] — ${parts}`
-            : `Target Incentive credited for Closing ${closing.closingNumber} (${closing.closingName}) [Achieved Slab: ${sp.slabLabel}${rewardPart}] — ${parts}`;
+            ? `Extra Incentive & Reward | Closing #${closing.closingNumber} (${closing.closingName}) | Slab: ${sp.slabLabel} (${ratePart})${rewardPart} | ${businessBreakdown}`
+            : `Target Incentive | Closing #${closing.closingNumber} (${closing.closingName}) | Slab: ${sp.slabLabel} (${ratePart})${rewardPart} | ${businessBreakdown}`;
 
           await accountingService.recordLedgerEntry({
             sponsorId: sp.sponsorId,

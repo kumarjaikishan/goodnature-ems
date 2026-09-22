@@ -12,8 +12,7 @@ import {
   HelpCircle,
   Calendar,
   Layers,
-  CheckCircle2,
-  Clock
+  CheckCircle2
 } from 'lucide-react';
 import api from '../../../../api/axios';
 import PageLoader from '../../../../components/common/PageLoader';
@@ -38,12 +37,23 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/investments/config');
-      if (res.data.data) {
-        setConfig(res.data.data);
+      const res = await api.get('/plots/scheme-rules');
+      if (res.data?.success && res.data?.data) {
+        setConfig({
+          minRdAmount: res.data.data.minRdAmount ?? 2000,
+          rdStepAmount: res.data.data.rdStepAmount ?? 1000,
+          minFdAmount: res.data.data.minFdAmount ?? 50000,
+          fdStepAmount: res.data.data.fdStepAmount ?? 1000,
+          prematureAnnualInterestPercent: res.data.data.prematureAnnualInterestPercent ?? 6.0,
+          rdPrematureAnnualInterestPercent: res.data.data.rdPrematureAnnualInterestPercent ?? 6.0,
+          fdPrematureAnnualInterestPercent: res.data.data.fdPrematureAnnualInterestPercent ?? 6.0,
+          slabs: res.data.data.slabs || [],
+          rulesAndRegulations: res.data.data.rulesAndRegulations || [],
+        });
       }
     } catch (err) {
-      toast.error('Failed to load product scheme rules');
+      console.error('Failed to load scheme rules', err);
+      toast.error('Failed to load scheme rules');
     } finally {
       setLoading(false);
     }
@@ -54,16 +64,21 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   }, []);
 
   const handleAddSlab = () => {
-    const lastSlab = config.slabs[config.slabs.length - 1];
-    const newTenure = lastSlab ? Number(lastSlab.tenureMonths) + 12 : 12;
     setConfig({
       ...config,
       slabs: [
         ...config.slabs,
         {
-          tenureMonths: newTenure,
-          rdMaturityPercent: lastSlab ? Number(lastSlab.rdMaturityPercent) + 10 : 106,
-          fdMaturityPercent: lastSlab ? Number(lastSlab.fdMaturityPercent) + 15 : 110,
+          durationMonths: 12,
+          label: '',
+          rdMaturityPercent: 0,
+          fdMaturityPercent: 0,
+          rdMaturityCalculationType: 'PERCENTAGE',
+          fdMaturityCalculationType: 'PERCENTAGE',
+          rdMaturityFixedAmount: 0,
+          fdMaturityFixedAmount: 0,
+          displayOrder: config.slabs.length + 1,
+          active: true,
         },
       ],
     });
@@ -77,7 +92,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
   const handleSlabChange = (index, field, value) => {
     const updated = [...config.slabs];
-    updated[index][field] = Number(value) || 0;
+    updated[index] = { ...updated[index], [field]: value };
     setConfig({ ...config, slabs: updated });
   };
 
@@ -85,11 +100,15 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     e.preventDefault();
     setSubmitLoading(true);
     try {
-      await api.put('/investments/config', config);
-      toast.success('Plot Product scheme & maturity rules saved successfully');
-      fetchConfig();
-      if (onSchemeUpdated) onSchemeUpdated();
+      const res = await api.put('/plots/scheme-rules', config);
+      if (res.data?.success) {
+        toast.success('Product Scheme Rules updated successfully');
+        if (onSchemeUpdated) onSchemeUpdated();
+      } else {
+        toast.error(res.data?.message || 'Failed to update scheme rules');
+      }
     } catch (err) {
+      console.error('Failed to update scheme rules', err);
       toast.error(err.response?.data?.message || 'Failed to update scheme rules');
     } finally {
       setSubmitLoading(false);
@@ -106,34 +125,6 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
   return (
     <div className="space-y-6">
-      {/* Informative Explanation Header Card */}
-      <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 rounded-2xl p-5 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1.5 max-w-2xl">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-teal-500/20 text-teal-300 border border-teal-400/30 rounded-lg">
-              <Clock size={16} />
-            </span>
-            <h2 className="text-base font-bold text-white">
-              Plot Product Scheme &amp; Customer Maturity Matrix
-            </h2>
-          </div>
-          <p className="text-xs text-teal-100/90 leading-relaxed">
-            When a customer purchases a plot product on <strong>Monthly EMI</strong> (considered as <strong>R.D.</strong>) or pays <strong>One-Time Full Payment</strong> (considered as <strong>F.D.</strong>), once the period is completed and time has passed, the customer receives the agreed return percentage on their investment.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-          <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center gap-1.5 text-teal-200">
-            <Coins size={14} className="text-teal-400" />
-            <span>EMI Installments = R.D. Plan</span>
-          </div>
-          <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center gap-1.5 text-emerald-200">
-            <TrendingUp size={14} className="text-emerald-400" />
-            <span>One-Time Payment = F.D. Plan</span>
-          </div>
-        </div>
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Deposit Minimums & Rules */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

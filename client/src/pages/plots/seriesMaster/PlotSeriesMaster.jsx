@@ -444,7 +444,7 @@ const PlotSeriesMaster = () => {
 
   const labelCls = 'block text-xs font-semibold text-slate-600 mb-1';
   const inputCls =
-    'h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition';
+    'h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition';
 
   return (
     <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
@@ -557,7 +557,7 @@ const PlotSeriesMaster = () => {
           initialBusinessType="PLOT_SALE"
           showTypeToggle={false}
           title="Plot Sales Target Incentive & Fixed Commission Policy"
-          subtitle="Configure monthly collection target slabs, fixed base rates, and tiered incentive percentages for Plot sales."
+          subtitle="Configure collection target slabs, fixed base rates, and tiered incentive percentages for Plot sales."
         />
       )}
 

@@ -539,7 +539,7 @@ class InvestmentService {
           amount: fAmt,
           source: 'commission_fixed',
           referenceId: receipt._id,
-          remarks: `Instant Fixed Commission (${combinedFixed}%) on Direct RD/FD Deposit [Receipt #${receipt.receiptNumber || ''}] (${account.accountNumber || account.schemeType})`
+          remarks: `F.Comm (${combinedFixed}%) on ₹${Number(receipt.amount || 0).toLocaleString('en-IN')} | RD/FD Deposit | Receipt #${receipt.receiptNumber || ''} | A/C #${account.accountNumber || account.schemeType}`
         }, session);
         ledgerEntryId = entry._id;
       }
@@ -577,7 +577,7 @@ class InvestmentService {
           amount: subFAmt,
           source: 'commission_fixed',
           referenceId: receipt._id,
-          remarks: `Instant Fixed Commission (${subFixed}%) on RD/FD Deposit [Receipt #${receipt.receiptNumber || ''}] (${account.accountNumber || account.schemeType})`
+          remarks: `F.Comm (${subFixed}%) on ₹${Number(receipt.amount || 0).toLocaleString('en-IN')} | RD/FD Deposit | Receipt #${receipt.receiptNumber || ''} | A/C #${account.accountNumber || account.schemeType}`
         }, session);
         subLedgerEntryId = entry._id;
       }
@@ -617,7 +617,7 @@ class InvestmentService {
               amount: bpFAmt,
               source: 'commission_fixed',
               referenceId: receipt._id,
-              remarks: `Instant Fixed Commission (${bpFixed}%) on RD/FD Deposit [Receipt #${receipt.receiptNumber || ''}] (${account.accountNumber || account.schemeType}) — BA: ${sponsor.name}`
+              remarks: `F.Comm (${bpFixed}%) on ₹${Number(receipt.amount || 0).toLocaleString('en-IN')} | RD/FD Deposit | Receipt #${receipt.receiptNumber || ''} | A/C #${account.accountNumber || account.schemeType} | BA: ${sponsor.name}`
             }, session);
             bpLedgerEntryId = entry._id;
           }

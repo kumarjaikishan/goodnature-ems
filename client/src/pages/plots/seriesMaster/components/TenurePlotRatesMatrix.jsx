@@ -5,7 +5,7 @@ const TenurePlotRatesMatrix = ({
   setRateConfig,
   handleUpdateRates,
   submitLoading,
-  inputCls = 'h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition',
+  inputCls = 'h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl font-medium text-sm text-slate-800 transition',
   labelCls = 'block text-xs font-semibold text-slate-600 mb-1',
 }) => {
   return (
@@ -108,10 +108,10 @@ const TenurePlotRatesMatrix = ({
             </div>
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
-                <div>
+                <div className="min-w-0">
                   <label className={labelCls}>Basis / Period</label>
                   <select
-                    className={`${inputCls} px-2.5 text-xs font-semibold`}
+                    className="h-10 w-full min-w-0 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-2 rounded-xl font-semibold text-xs text-slate-800 transition"
                     value={rateConfig.lateFineFrequency || 'YEARLY'}
                     onChange={(e) => {
                       const freq = e.target.value;
@@ -131,10 +131,10 @@ const TenurePlotRatesMatrix = ({
                     <option value="DAILY">Daily (%/Day)</option>
                   </select>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className={labelCls}>Rate %</label>
                   <input
-                    className={inputCls}
+                    className="h-10 w-full min-w-0 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-2.5 rounded-xl font-medium text-sm text-slate-800 transition"
                     type="tel"
                     inputMode="decimal"
                     placeholder="e.g. 24"
@@ -158,9 +158,9 @@ const TenurePlotRatesMatrix = ({
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-            <span>Daily: ~{((Number(rateConfig.lateFineDailyPercent) || (24 / 365))).toFixed(4)}%/day</span>
-            <span className="font-semibold text-rose-600">
+          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100 gap-1 min-w-0">
+            <span className="truncate">Daily: ~{((Number(rateConfig.lateFineDailyPercent) || (24 / 365))).toFixed(4)}%/day</span>
+            <span className="font-semibold text-rose-600 shrink-0">
               {rateConfig.lateFineFrequency === 'DAILY'
                 ? `${rateConfig.lateFineRate || 0}% / Day`
                 : rateConfig.lateFineFrequency === 'MONTHLY'

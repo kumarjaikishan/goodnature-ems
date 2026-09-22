@@ -16,8 +16,8 @@ import {
 const CommissionPolicyMatrix = ({
   initialBusinessType = 'PLOT_SALE',
   showTypeToggle = true,
-  title = 'Quarterly Target Incentive & Fixed Commission Policy',
-  subtitle = 'Configure monthly collection business target slabs, fixed base rates, and tiered incentive percentages.',
+  title = 'Target Incentive & Fixed Commission Policy',
+  subtitle = 'Configure collection business target slabs, fixed base rates, and tiered incentive percentages.',
 }) => {
   const [businessType, setBusinessType] = useState(initialBusinessType);
   const [loading, setLoading] = useState(true);
@@ -456,7 +456,7 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to direct sponsors &amp; subordinates. Fixed base % + monthly target achievement bonus + additional rewards distributed at closing.
+                Applied to direct sponsors &amp; subordinates. Fixed base % + period closing target incentive % + additional rewards distributed at closing.
               </p>
             </div>
 
@@ -507,7 +507,7 @@ const CommissionPolicyMatrix = ({
                   </th>
                   <th className="p-3 bg-blue-50/50 text-blue-900">
                     Target Incentive %<br />
-                    <span className="text-blue-500 font-normal">Monthly Bonus</span>
+                    <span className="text-blue-500 font-normal">At Period Closing</span>
                   </th>
 
                   {/* Dynamic Additional Incentive Columns */}
@@ -766,7 +766,7 @@ const CommissionPolicyMatrix = ({
                   </th>
                   <th className="p-3 bg-amber-50/50 text-amber-900">
                     Partner Incentive %<br />
-                    <span className="text-amber-600 font-normal">Team Target Bonus</span>
+                    <span className="text-amber-600 font-normal">Team Target (At Closing)</span>
                   </th>
 
                   {/* Dynamic Additional Incentive Columns for BP */}
@@ -974,7 +974,7 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to branch franchise &amp; regional management partners. Configurable fixed base % + branch monthly collection target slabs &amp; closing rewards.
+                Applied to branch franchise &amp; regional management partners. Configurable fixed base % + branch collection target slabs &amp; closing rewards.
               </p>
             </div>
 
@@ -1025,7 +1025,7 @@ const CommissionPolicyMatrix = ({
                   </th>
                   <th className="p-3 bg-blue-50/70 text-blue-900">
                     <div>Target Incentive %</div>
-                    <span className="text-blue-700 font-normal text-[10px]">Monthly Collection Bonus</span>
+                    <span className="text-blue-700 font-normal text-[10px]">Target Incentive (At Closing)</span>
                   </th>
 
                   {/* Dynamic Additional Incentive Columns */}
