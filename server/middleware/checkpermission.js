@@ -26,7 +26,7 @@ const checkPermission = (permissionName, key) => {
         try {
             const userId = req.user.id;
 
-            if (req.user.role == 'superadmin' || req.user.role == 'grant') {
+            if (req.user.role === 'superadmin' || req.user.role === 'grant' || req.user.role === 'developer') {
                 return next();
             }
 

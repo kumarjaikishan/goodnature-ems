@@ -56,7 +56,7 @@ router.route('/resetrequest').get(authmiddlewre, authorizeRoles('superadmin'), u
 router.route('/setpassword').post(authLimiter, users.setpassword);
 // router.route('/signup').post(users.userRegister);
 
-router.route('/departmentlist').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.departmentlist);
+router.route('/departmentlist').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("department", 1), admin.departmentlist);
 router.route('/adddepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 2), admin.addDepartment);
 router.route('/updatedepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 3), admin.updatedepartment);
 router.route('/deletedepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 4), admin.deletedepartment);
@@ -70,7 +70,7 @@ router.route('/updateCompany').post(authmiddlewre, authorizeRoles('superadmin'),
 router.route('/addBranch').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("branch", 2), admin.addBranch);
 router.route('/editBranch').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("branch", 3), admin.editBranch);
 router.route('/deleteBranch').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("branch", 4), admin.deleteBranch);
-router.route('/getemployee').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.getemployee);
+router.route('/getemployee').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("employee", 1), admin.getemployee);
 router.route('/updatepassword').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), admin.updatepassword);
 
 router.route('/addemployee').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("employee", 2), upload.single('photo'), admin.addemployee);
@@ -79,24 +79,24 @@ router.route('/deleteemployee').post(authmiddlewre, authorizeRoles('superadmin',
 router.route('/enrollFace').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), admin.enrollFace);
 router.route('/deletefaceenroll').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 4), admin.deletefaceenroll);
 
-router.route('/allAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), attendance.allAttandence);
+router.route('/allAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.allAttandence);
 router.route('/attandence/list').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getAttendanceList);
 router.route('/bulkMarkAttendance/data').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getBulkMarkData);
 router.route('/editattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 3), attendance.editattandence);
 router.route('/webattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.webattandence);
 router.route('/bulkMarkAttendance').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.bulkMarkAttendance);
-router.route('/bulkMarkAttendanceExcel').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.bulkMarkAttendanceExcel);
+router.route('/bulkMarkAttendanceExcel').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.bulkMarkAttendanceExcel);
 router.route('/checkout').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.checkout);
 router.route('/checkin').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.checkin);
-router.route('/facecheckin').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.facecheckin);
-router.route('/facecheckout').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), attendance.facecheckout);
+router.route('/facecheckin').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.facecheckin);
+router.route('/facecheckout').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.facecheckout);
 router.route('/employeeAttandence').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.employeeAttandence);
 router.route('/singleEmployeeAttendance').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getSingleEmployeeAttendance);
 router.route('/attendanceReport').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getAttendanceReport);
 router.route('/deleteattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 4), attendance.deleteattandence);
 router.route('/recordAttendanceFromLogs').post(authmiddlewre, attendance.recordAttendanceFromLogs);
 
-router.route('/getholidays').get(authmiddlewre, holiday.getholidays);
+router.route('/getholidays').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo'), checkPermission("holiday", 1), holiday.getholidays);
 router.route('/addholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 2), holiday.addholiday);
 router.route('/updateholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 3), holiday.updateholiday);
 router.route('/deleteholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 4), holiday.deleteholiday);
@@ -112,12 +112,12 @@ router.route('/deletenotification').delete(authmiddlewre, leave.deletenotificati
 
 // Leave Policy Routes
 router.route('/leave-policies')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo'), leave.getPolicies)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leave.createLeavePolicy);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo'), checkPermission("leave", 1), leave.getPolicies)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 2), leave.createLeavePolicy);
 
 router.route('/leave-policies/:id')
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leave.updateLeavePolicy)
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leave.deleteLeavePolicy);
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 3), leave.updateLeavePolicy)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 4), leave.deleteLeavePolicy);
 
 router.route('/approve-leave/:leaveid').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 3), leave.approveLeave);
 
@@ -137,32 +137,33 @@ router.route('/payroll/:id')
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("salary", 4), payroll.deletePayroll)
 
 router.route('/leave-balances')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), leaveBalance.getallleavebalnce)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.addleavebalance)
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("leave", 1), leaveBalance.getallleavebalnce)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 2), leaveBalance.addleavebalance)
 router.route('/leave-balances/bulk')
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.bulkAddLeaveBalance)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 2), leaveBalance.bulkAddLeaveBalance)
 router.route('/leave-balances/:id')
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.updateleavebalance)
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), leaveBalance.deleteleavebalance)
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 3), leaveBalance.updateleavebalance)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 4), leaveBalance.deleteleavebalance)
 
 // Leave Transactions (Admin View)
 router.route('/leave-transactions/:employeeId')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), leaveBalance.getLeaveTransactions)
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("leave", 1), leaveBalance.getLeaveTransactions)
 
 // My Leaves (Employee Portal)
 router.route('/my-leave-balances').get(authmiddlewre, leaveBalance.getMyLeaveBalance);
 router.route('/my-leave-transactions').get(authmiddlewre, leaveBalance.getMyLeaveTransactions);
 
 router.route('/advance')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), advance.getAllAdvances)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.addAdvance)
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("advance", 1), advance.getAllAdvances)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("advance", 2), advance.addAdvance)
 router.route('/advance/repay')
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.repayAdvanceManual)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("advance", 2), advance.repayAdvanceManual)
 router.route('/advance/employee/:employeeId')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), advance.getEmployeeActiveAdvance)
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("advance", 1), advance.getEmployeeActiveAdvance)
 router.route('/advance/:id')
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.editAdvance)
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), advance.deleteAdvance)
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("advance", 3), advance.editAdvance)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("advance", 4), advance.deleteAdvance)
+
 
 router.route('/developerfetch').get(authmiddlewre, authorizeRoles('developer'), developer.allUser);
 router.route('/User').post(authmiddlewre, authorizeRoles('developer'), developer.addUser)
@@ -214,32 +215,32 @@ router.route("/ledgerentry/:id")
 
 // Voucher Routes
 router.route('/vouchers')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), voucher.getVouchers)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.createVoucher);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("voucher", 1), voucher.getVouchers)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 2), voucher.createVoucher);
 router.route('/vouchers/:id')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), voucher.getVoucherDetails)
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.editVoucher)
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), voucher.deleteVoucher);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("voucher", 1), voucher.getVoucherDetails)
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.editVoucher)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 4), voucher.deleteVoucher);
 
 // Weekly Off Work Ledger Routes
 const weeklyOffLedger = require('../controllers/weeklyOffLedger');
 
 router.route('/weekly-off-ledger/:employeeId')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), weeklyOffLedger.getEmployeeLedger);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("weekly_off_ledger", 1), weeklyOffLedger.getEmployeeLedger);
 
 router.route('/weekly-off-ledger')
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), weeklyOffLedger.addManualEntry);
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("weekly_off_ledger", 2), weeklyOffLedger.addManualEntry);
 
 router.route('/weekly-off-ledger-rebuild')
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), weeklyOffLedger.rebuildAll);
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("weekly_off_ledger", 3), weeklyOffLedger.rebuildAll);
 
 router.route('/weekly-off-ledger/:id')
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), weeklyOffLedger.deleteEntry);
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("weekly_off_ledger", 4), weeklyOffLedger.deleteEntry);
 
 // Employee Ledger Route
 router.route('/my-ledger').get(authmiddlewre, authorizeRoles('employee'), ledger.getMyLedger);
 router.route('/employee-ledger/:employeeId')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), ledger.getEmployeeLedger);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("ledger", 1), ledger.getEmployeeLedger);
 
 // Developer ESSL Monitoring & Deletion Routes
 router.route('/developer/essl-logs')
@@ -281,10 +282,11 @@ router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"),
 
 // Centralized System Audit & Activity Logs Routes (Superadmin, Admin, Developer)
 router.route('/audit-logs')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), auditLog.getAuditLogs);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), checkPermission("audit_log", 1), auditLog.getAuditLogs);
 
 router.route('/audit-logs/stats')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), auditLog.getAuditStats);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), checkPermission("audit_log", 1), auditLog.getAuditStats);
+
 
 
 module.exports = router;

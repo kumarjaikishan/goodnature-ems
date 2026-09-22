@@ -117,6 +117,7 @@ const routesByRole = {
       <Route path="organization/devices" element={<DeviceManagementPage />} />
       <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
       <Route path="organization/admin" element={<AdminManagerPage />} />
+      <Route path="organization/users" element={<AdminManagerPage />} />
       <Route path="organization/rules" element={<AttendanceRulesPage />} />
       <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
       <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
@@ -207,6 +208,7 @@ const routesByRole = {
       <Route path="organization/devices" element={<DeviceManagementPage />} />
       <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
       <Route path="organization/admin" element={<AdminManagerPage />} />
+      <Route path="organization/users" element={<AdminManagerPage />} />
       <Route path="organization/rules" element={<AttendanceRulesPage />} />
       <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
       <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
@@ -295,6 +297,7 @@ const routesByRole = {
       <Route path="organization/devices" element={<DeviceManagementPage />} />
       <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
       <Route path="organization/admin" element={<AdminManagerPage />} />
+      <Route path="organization/users" element={<AdminManagerPage />} />
       <Route path="organization/rules" element={<AttendanceRulesPage />} />
       <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
       <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />

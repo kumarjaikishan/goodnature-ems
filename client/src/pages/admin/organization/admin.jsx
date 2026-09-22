@@ -26,9 +26,57 @@ const PERMISSION_LABELS = {
 };
 
 const AllPermissionNames = [
-    "branch", "department", "employee", "attandence",
-    "ledger", "ledger_entry", "holiday", "leave", "notification", "salary",
-    "plot_inventory", "plot_booking", "plot_collection", "plot_sponsor", "plot_customer", "plot_payout", "plot_reports"
+    "branch",
+    "department",
+    "employee",
+    "attandence",
+    "holiday",
+    "leave",
+    "salary",
+    "advance",
+    "voucher",
+    "ledger",
+    "ledger_entry",
+    "weekly_off_ledger",
+    "plot_inventory",
+    "plot_booking",
+    "plot_collection",
+    "plot_sponsor",
+    "plot_customer",
+    "plot_payout",
+    "plot_reports",
+    "investment",
+    "audit_log",
+    "notification"
+];
+
+// Module Categorization for Enterprise UX
+const MODULE_CATEGORIES = [
+    {
+        id: "all",
+        label: "All Modules",
+        modules: AllPermissionNames
+    },
+    {
+        id: "hrms",
+        label: "HRMS & Staff",
+        modules: ["employee", "attandence", "leave", "salary", "holiday", "weekly_off_ledger"]
+    },
+    {
+        id: "finance",
+        label: "Finance & Accounts",
+        modules: ["ledger", "ledger_entry", "voucher", "advance"]
+    },
+    {
+        id: "realestate",
+        label: "Real Estate & Plots",
+        modules: ["plot_inventory", "plot_booking", "plot_collection", "plot_sponsor", "plot_customer", "plot_payout", "plot_reports"]
+    },
+    {
+        id: "admin",
+        label: "Admin & Settings",
+        modules: ["investment", "branch", "department", "audit_log", "notification"]
+    }
 ];
 
 const adminPermission = {
@@ -36,12 +84,14 @@ const adminPermission = {
     department: [1, 2, 3, 4],
     employee: [1, 2, 3, 4],
     attandence: [1, 2, 3, 4],
+    holiday: [1, 2, 3, 4],
+    leave: [1, 2, 3, 4],
+    salary: [1, 2, 3, 4],
+    advance: [1, 2, 3, 4],
+    voucher: [1, 2, 3, 4],
     ledger: [1, 2, 3, 4],
     ledger_entry: [1, 2, 3, 4],
-    holiday: [1, 2, 3, 4],
-    leave: [1, 3, 4],
-    notification: [1, 2, 3, 4],
-    salary: [1, 2, 3],
+    weekly_off_ledger: [1, 2, 3, 4],
     plot_inventory: [1, 2, 3, 4],
     plot_booking: [1, 2, 3, 4],
     plot_collection: [1, 2, 3, 4],
@@ -49,26 +99,36 @@ const adminPermission = {
     plot_customer: [1, 2, 3, 4],
     plot_payout: [1, 2, 3, 4],
     plot_reports: [1, 2, 3, 4],
+    investment: [1, 2, 3, 4],
+    audit_log: [1],
+    notification: [1, 2, 3, 4],
 };
 
 const managerPermission = {
+    branch: [1],
     department: [1, 2, 3],
     employee: [1, 2, 3],
     attandence: [1, 2, 3],
+    holiday: [1, 2],
+    leave: [1, 2, 3],
+    salary: [1],
+    advance: [1, 2, 3],
+    voucher: [1, 2, 3, 4],
     ledger: [1, 2, 3, 4],
     ledger_entry: [1, 2, 3, 4],
-    holiday: [1, 2],
-    leave: [1, 3],
-    notification: [1, 2],
-    salary: [1],
+    weekly_off_ledger: [1, 2, 3],
     plot_inventory: [1],
     plot_booking: [1, 2, 3],
-    plot_collection: [1, 2],
+    plot_collection: [1, 2, 3],
     plot_sponsor: [1],
     plot_customer: [1, 2, 3],
     plot_payout: [1],
     plot_reports: [1],
+    investment: [1, 2, 3],
+    audit_log: [1],
+    notification: [1, 2],
 };
+
 
 export default function SuperAdminDashboard() {
     const [admins, setAdmins] = useState([]);
@@ -100,6 +160,7 @@ export default function SuperAdminDashboard() {
     const [editingIndex, setEditingIndex] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [newModule, setNewModule] = useState("");
+    const [activePermTab, setActivePermTab] = useState("all");
     const [passmodal, setpassmodal] = useState(false);
     const [expandedIndex, setExpandedIndex] = useState(null);
     const [copiedEmail, setCopiedEmail] = useState(null);
@@ -1204,35 +1265,104 @@ export default function SuperAdminDashboard() {
                             </div>
                         )}
 
+                        {/* Category Navigation Tabs */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
+                            {MODULE_CATEGORIES.map(cat => {
+                                const isActive = activePermTab === cat.id;
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        type="button"
+                                        onClick={() => setActivePermTab(cat.id)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                                            isActive
+                                                ? "bg-teal-700 text-white shadow-xs"
+                                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                        }`}
+                                    >
+                                        {cat.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
                         {/* Permissions Matrix Table */}
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-60 overflow-y-auto shadow-inner">
+                        <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-64 overflow-y-auto shadow-inner">
                             <table className="w-full text-left text-xs border-collapse">
-                                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-100">
+                                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-100 z-10">
                                     <tr>
-                                        <th className="py-2.5 px-3">Module</th>
-                                        {Object.entries(PERMISSION_LABELS).map(([code, label]) => (
-                                            <th key={code} className="py-2.5 px-3 text-center">{label}</th>
-                                        ))}
+                                        <th className="py-2.5 px-3">Module Name</th>
+                                        {Object.entries(PERMISSION_LABELS).map(([code, label]) => {
+                                            const numCode = Number(code);
+                                            const activeCat = MODULE_CATEGORIES.find(c => c.id === activePermTab);
+                                            const displayedModules = currentModules.filter(m => activePermTab === "all" || (activeCat && activeCat.modules.includes(m)));
+                                            const allChecked = displayedModules.length > 0 && displayedModules.every(m => form.permissions[m]?.includes(numCode));
+                                            
+                                            return (
+                                                <th key={code} className="py-2 px-2 text-center select-none">
+                                                    <div className="flex flex-col items-center justify-center gap-1">
+                                                        <span>{label}</span>
+                                                        <button
+                                                            type="button"
+                                                            title={`Toggle ${label} for visible modules`}
+                                                            onClick={() => {
+                                                                setForm(prev => {
+                                                                    const nextPerms = { ...prev.permissions };
+                                                                    displayedModules.forEach(m => {
+                                                                        const existing = nextPerms[m] || [];
+                                                                        if (allChecked) {
+                                                                            nextPerms[m] = existing.filter(l => l !== numCode);
+                                                                        } else {
+                                                                            if (!existing.includes(numCode)) {
+                                                                                nextPerms[m] = [...existing, numCode].sort();
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    return { ...prev, permissions: nextPerms };
+                                                                });
+                                                            }}
+                                                            className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition border cursor-pointer ${
+                                                                allChecked
+                                                                    ? "bg-teal-700 text-white border-teal-700"
+                                                                    : "bg-white text-slate-500 border-slate-300 hover:bg-slate-50"
+                                                            }`}
+                                                        >
+                                                            {allChecked ? "All" : "Toggle"}
+                                                        </button>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
-                                    {currentModules.map((module) => (
-                                        <tr key={module} className="hover:bg-slate-50/70 transition-colors">
-                                            <td className="py-2 px-3 capitalize font-semibold text-slate-800 text-[11px]">
-                                                {module.replace('_', ' ')}
-                                            </td>
-                                            {Object.keys(PERMISSION_LABELS).map((level) => (
-                                                <td key={level} className="py-2 px-3 text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="w-4 h-4 accent-teal-700 text-teal-700 rounded focus:ring-teal-600 border-slate-300 cursor-pointer"
-                                                        checked={form.permissions[module]?.includes(Number(level)) || false}
-                                                        onChange={() => togglePermission(module, Number(level))}
-                                                    />
+                                    {currentModules
+                                        .filter(module => {
+                                            if (activePermTab === "all") return true;
+                                            const cat = MODULE_CATEGORIES.find(c => c.id === activePermTab);
+                                            return cat ? cat.modules.includes(module) : true;
+                                        })
+                                        .map((module) => (
+                                            <tr key={module} className="hover:bg-teal-50/40 transition-colors">
+                                                <td className="py-2.5 px-3 font-semibold text-slate-800 text-xs">
+                                                    <span className="capitalize">{module.replace(/_/g, ' ')}</span>
                                                 </td>
-                                            ))}
-                                        </tr>
-                                    ))}
+                                                {Object.keys(PERMISSION_LABELS).map((level) => {
+                                                    const numLevel = Number(level);
+                                                    const isGranted = form.permissions[module]?.includes(numLevel) || false;
+                                                    return (
+                                                        <td key={level} className="py-2.5 px-2 text-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="w-4 h-4 accent-teal-700 text-teal-700 rounded focus:ring-teal-600 border-slate-300 cursor-pointer transition-all"
+                                                                checked={isGranted}
+                                                                onChange={() => togglePermission(module, numLevel)}
+                                                            />
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
                                 </tbody>
                             </table>
                         </div>

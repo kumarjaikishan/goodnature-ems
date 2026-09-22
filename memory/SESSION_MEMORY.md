@@ -104,10 +104,18 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Gotcha**: ES6 default parameter syntax `{ notices = [], employees = [] }` only triggers when the passed value is `undefined`. When Redux slices initialize or return `null`, `notices.length` throws `Cannot read properties of null (reading 'length')`.
 - **Fix Pattern**: Always guard with `Array.isArray(notices) ? notices : []` inside the component.
 
-### C. Permission Matrix Mapping
+### C. Permission Matrix Mapping & RBAC/ABAC Architecture
 - Permissions are stored in MongoDB as a `Map` of numbers (e.g., `employee: [1, 2, 3, 4]`).
 - Key Legend: `1 = Read`, `2 = Create`, `3 = Update`, `4 = Delete`.
-- When checked, Redis key `permissions:<userId>` is checked first. Superadmins and grant roles bypass checks.
+- **RBAC Enforcement**: Centralized `checkPermission(resourceName, actionNumber)` middleware with Redis caching (`permissions:<userId>`) with automatic cache invalidation on user edits.
+- **Role Bypasses**: `superadmin`, `developer`, and `grant` roles bypass granular checks automatically.
+- **Canonical 22 System Resources**: `branch`, `department`, `employee`, `attandence`, `holiday`, `leave`, `salary`, `advance`, `voucher`, `ledger`, `ledger_entry`, `weekly_off_ledger`, `plot_inventory`, `plot_booking`, `plot_collection`, `plot_sponsor`, `plot_customer`, `plot_payout`, `plot_reports`, `investment`, `audit_log`, `notification`.
+- **ABAC & Branch Scoping**:
+  - `manager` users have assigned `branchIds` array in their JWT token / DB record. Endpoints automatically enforce branch filtering (`branchIds: { $in: req.user.branchIds }`), preventing unauthorized cross-branch data access.
+  - `employee` accounts are strictly scoped to self-service endpoints (own attendance, leaves, advances, ledger, payslips).
+  - `sponsor` accounts are strictly scoped to their own downline tree, personal ledger, own plot bookings, and business performance reports.
+  - `customer` accounts are blocked from dashboard login.
+- **Frontend Sidebar Navigation Sync**: `sidebar.jsx` uses `hasPermission(profile, child.resource, 1)` to dynamically show/hide child navigation routes according to the user's assigned RBAC permissions.
 
 ### D. Duplicate Ledger Resolution (`fix_ledgers.js`)
 - An operational script `fix_ledgers.js` exists in the project root to detect and merge duplicate ledgers for employees where multiple ledger documents were historically created.

@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 
+import { hasPermission } from "../utils/CheckPermission";
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +38,7 @@ const Sidebar = () => {
 
   const user = useSelector((state) => state.user);
   const role = user?.profile?.role;
+  const profile = role === 'employee' ? empProfile : adminProfile;
   const company = role === 'employee' ? empCompany : adminCompany;
   const sidebarOpen = Boolean(user?.sidebar);
   const extended = Boolean(user?.extendedonMobile);
@@ -59,14 +62,14 @@ const Sidebar = () => {
           roles: ["admin", "superadmin"],
           children: [
             { menu: "Company Info", link: "/dashboard/organization/company", roles: ["admin", "superadmin"] },
-            { menu: "Branches & Managers", link: "/dashboard/organization/branches", roles: ["admin", "superadmin"] },
-            { menu: "Departments", link: "/dashboard/organization/departments", roles: ["admin", "superadmin"] },
-            { menu: "Admin/Manager", link: "/dashboard/organization/admin", roles: ["superadmin"] },
-            { menu: "Attendance Rules", link: "/dashboard/organization/rules", roles: ["admin", "superadmin"] },
+            { menu: "Branches", link: "/dashboard/organization/branches", roles: ["admin", "superadmin"], resource: "branch" },
+            { menu: "Departments", link: "/dashboard/organization/departments", roles: ["admin", "superadmin"], resource: "department" },
+            { menu: "User Management", link: "/dashboard/organization/users", roles: ["superadmin"] },
+            { menu: "Attendance Rules", link: "/dashboard/organization/rules", roles: ["admin", "superadmin"], resource: "attandence" },
             { menu: "Device Management", link: "/dashboard/organization/devices", roles: ["admin", "superadmin"] },
             { menu: "Telegram", link: "/dashboard/organization/telegram", roles: ["admin", "superadmin"] },
-            { menu: "Payroll Policies", link: "/dashboard/organization/payroll", roles: ["admin", "superadmin"] },
-            { menu: "Leave Policies", link: "/dashboard/organization/leave-policies", roles: ["admin", "superadmin"] },
+            { menu: "Payroll Policies", link: "/dashboard/organization/payroll", roles: ["admin", "superadmin"], resource: "salary" },
+            { menu: "Leave Policies", link: "/dashboard/organization/leave-policies", roles: ["admin", "superadmin"], resource: "leave" },
           ],
         },
         {
@@ -74,10 +77,10 @@ const Sidebar = () => {
           icon: <Users size={20} />,
           roles: ["admin", "superadmin", "manager", "employee", "demo"],
           children: [
-            { menu: "Employee", link: "/dashboard/employe", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Leave Request", link: "/dashboard/leave-request", roles: ["employee", "admin", "superadmin", "manager", "demo"], icon: <FileText size={18} /> },
-            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: ["admin", "superadmin", "manager", "demo"], icon: <History size={18} /> },
-            { menu: "Leave Policies", link: "/dashboard/leave-policies", roles: ["admin", "superadmin", "demo"], icon: <Settings size={18} /> },
+            { menu: "Employee", link: "/dashboard/employe", roles: ["admin", "superadmin", "manager", "demo"], resource: "employee" },
+            { menu: "Leave Request", link: "/dashboard/leave-request", roles: ["employee", "admin", "superadmin", "manager", "demo"], resource: "leave", icon: <FileText size={18} /> },
+            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: ["admin", "superadmin", "manager", "demo"], resource: "leave", icon: <History size={18} /> },
+            { menu: "Leave Policies", link: "/dashboard/leave-policies", roles: ["admin", "superadmin", "demo"], resource: "leave", icon: <Settings size={18} /> },
             { menu: "Leave Ledger", link: "/dashboard/my-leave-ledger", roles: ["employee"], icon: <History size={18} />, hidden: !company?.leaveSettings?.allowEmployeeToSeeLedger },
           ].filter(c => !c.hidden),
         },
@@ -86,9 +89,9 @@ const Sidebar = () => {
           icon: <CalendarCheck2 size={20} />,
           roles: ["admin", "superadmin", "manager", "employee", "demo"],
           children: [
-            { menu: "Attendance", link: "/dashboard/attandence", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Attendance", link: "/dashboard/attandence", roles: ["admin", "superadmin", "manager", "demo"], resource: "attandence" },
             { menu: "Emp Attendance", link: "/dashboard/empattandence", roles: ["employee"] },
-            { menu: "Report", link: "/dashboard/attandence_Report", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Report", link: "/dashboard/attandence_Report", roles: ["admin", "superadmin", "manager", "demo"], resource: "attandence" },
           ],
         },
         {
@@ -96,13 +99,13 @@ const Sidebar = () => {
           icon: <Wallet size={20} />,
           roles: ["admin", "superadmin", "manager", "demo"],
           children: [
-            { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Product Collections", link: "/dashboard/plots/collections/products", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Ledger", link: "/dashboard/ledger", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_collection" },
+            { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_collection" },
+            { menu: "Product Collections", link: "/dashboard/plots/collections/products", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_collection" },
+            { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"], resource: "salary" },
+            { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "manager", "demo"], resource: "advance" },
+            { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"], resource: "voucher" },
+            { menu: "Ledger", link: "/dashboard/ledger", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
           ],
         },
         {
@@ -110,21 +113,21 @@ const Sidebar = () => {
           icon: <Building2 size={20} />,
           roles: ["admin", "superadmin", "manager", "demo"],
           children: [
-            { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Plot Products", link: "/dashboard/plots/products", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Incentive", link: "/dashboard/plots/incentives", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: ["admin", "superadmin", "manager", "demo"] },
-            { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"] },
+            { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_reports" },
+            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
+            { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
+            { menu: "Plot Products", link: "/dashboard/plots/products", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
+            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_sponsor" },
+            { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_customer" },
+            { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_booking" },
+            { menu: "Incentive", link: "/dashboard/plots/incentives", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_sponsor" },
+            { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
+            { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_reports" },
           ],
         },
-        { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"] },
+        { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"], resource: "holiday" },
 
-        { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer"] },
+        { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer"], resource: "audit_log" },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
@@ -139,6 +142,7 @@ const Sidebar = () => {
       ],
     },
   ];
+
 
   const handleLogout = () => {
     swal({
@@ -295,6 +299,7 @@ const Sidebar = () => {
                         >
                           {item.children.map((child) => {
                             if (!child.roles.includes(role)) return null;
+                            if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
                             return (
                               <div key={child.menu} className="relative flex items-center">
                                 {/* Tree horizontal branch connector line */}
@@ -331,6 +336,7 @@ const Sidebar = () => {
                           <div className="p-1 space-y-0.5">
                             {item.children.map((child) => {
                               if (!child.roles.includes(role)) return null;
+                              if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
                               return (
                                 <NavLink
                                   to={child.link}

@@ -57,7 +57,7 @@ const Navbar = () => {
     "departments": "Departments",
     "devices": "Device Management",
     "telegram": "Telegram Integration",
-    "admin": "Admin/Manager",
+    "admin": "User Management",
     "rules": "Attendance Rules",
     "leave-policies": "Leave Policies",
     "attandence-import": "Attendance Import",

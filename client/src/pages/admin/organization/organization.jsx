@@ -155,12 +155,12 @@ export default function OrganizationSettings() {
                     </div>
                 </div>
 
-                {/* 6. Admin / Manager Info */}
+                {/* 6. User Management (Admin / Manager) */}
                 {['superadmin'].includes(profile?.role) &&
                     <div className='border bg-white border-slate-200 rounded-xl shadow-2xs overflow-hidden'>
                         <div className="flex justify-between items-center cursor-pointer bg-slate-50 hover:bg-slate-100/80 transition px-5 py-3.5"
                             onClick={() => toggleSection('admin')}>
-                            <span className="font-bold text-sm text-slate-800 tracking-wide">Admin & Manager Control</span>
+                            <span className="font-bold text-sm text-slate-800 tracking-wide">User Management & Access Control</span>
                             {openSection === 'admin' ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
                         </div>
                         <div className={`overflow-hidden transition-all duration-300 ${openSection === 'admin' ? 'max-h-fit p-5' : 'max-h-0'}`}>

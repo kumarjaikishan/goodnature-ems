@@ -1,0 +1,1 @@
+import"./rolldown-runtime-hePW80VL.js";import{t as e,zn as t}from"./vendor-react-v1z4aeQy.js";import{t as n}from"./Department-C7y_CVK0.js";import{t as r}from"./OrganizationLayout-BuIlxfYD.js";t();var i=e(),a=()=>(0,i.jsx)(r,{title:`Departments`,children:(0,i.jsx)(`div`,{className:`w-full`,children:(0,i.jsx)(n,{})})});export{a as default};
