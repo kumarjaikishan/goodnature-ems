@@ -21,16 +21,12 @@ export default defineConfig({
     tailwindcss(),
     // Gzip Compression (.gz)
     compression({
-      algorithm: 'gzip',
+      algorithms: ['gzip'],
+      // To re-enable Brotli (.br) in the future, simply switch to:
+      // algorithms: ['gzip', 'brotliCompress'],
       threshold: 1024,
       deleteOriginalAssets: false,
     }),
-    // Brotli Compression (.br) - temporarily disabled
-    // compression({
-    //   algorithm: 'brotliCompress',
-    //   threshold: 1024,
-    //   deleteOriginalAssets: false,
-    // })
   ],
   build: {
     rollupOptions: {

@@ -53,11 +53,13 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
   - For Monthly EMI plans, downpayment is eliminated ($0$) and the entire total valuation is divided equally into monthly installments over the chosen tenure. For One-Time Full Payment, the deposit/holding tenure period (12, 24, 36, 48, 60 months) is explicitly recorded to track the contract duration for product delivery or money-back refund on completion.
 
-### AA. Dual Incentive Closing Architecture (Target Incentive vs Extra Incentive / Rewards)
-- **Problem**: Fixed base commissions (5% BA / 2% BP) are credited immediately upon transaction collection. Target incentives (variable % slabs) and Extra Incentives / Rewards (additional column % & physical gifts/tours/vehicles) often follow different closing frequencies (e.g. Target Incentive closed every 3 months / quarterly, Extra Incentives closed every 6 months / semi-annually or annually).
-- **Dual Closing Engine**:
-  - `PlotClosing.js` has `closingType: { type: String, enum: ['TARGET_INCENTIVE', 'EXTRA_INCENTIVE'], default: 'TARGET_INCENTIVE' }`.
-  - Prefix generation: `INC-YYYYMM-XXX` for Target Incentive closings, `EXT-YYYYMM-XXX` for Extra Incentive closings.
+### AC. Plot Product Fixed Commission & Target Slabs Separation
+- **Tenure-Based Fixed Commission Matrix**: Fixed commissions for Plot Products are configured directly on a tenure/period basis (e.g., 12, 24, 36, 48, 60 months) with distinct EMI vs One-Time FD percentages for all three hierarchy tiers:
+  - **Business Associate (BA)**: Direct booking commission (`rdPromoterCommissionPercent` & `fdPromoterCommissionPercent`).
+  - **Business Partner (BP)**: Parent partner override commission (`bpRdCommissionPercent` & `bpFdCommissionPercent`).
+  - **Branch Partner**: Branch franchise / regional head commission (`branchRdCommissionPercent` & `branchFdCommissionPercent`).
+- **Target Incentive Slabs**: Slabs in `CommissionPolicyMatrix.jsx` are strictly reserved for **Period Closing Target Incentive %** and **Additional Rewards / Physical Gifts** evaluated at monthly/quarterly closing.
+- **Redundant Fixed Base Removal**: The fixed base % column and header inputs are conditionally hidden via `shouldHideFixed` (`hideFixedCommission || businessType === 'PLOT_PRODUCT'`), eliminating duplicate/confusing fixed inputs while ensuring seamless data persistence.
 
 ### AB. Business Associate, Business Partner & Branch Partner Portal Architecture
 - **Unified Role**: All associates and partners are stored with `role: 'sponsor'` in MongoDB `User` collection.

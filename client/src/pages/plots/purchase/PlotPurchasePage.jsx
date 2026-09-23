@@ -586,7 +586,7 @@ const PlotPurchasePage = () => {
           }`}
         >
           <ShieldCheck size={16} />
-          Registry Deeds Master ({allRegistryDeeds.length})
+          Registry Deeds ({allRegistryDeeds.length})
         </button>
 
         <button

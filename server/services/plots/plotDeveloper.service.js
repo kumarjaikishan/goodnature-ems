@@ -11,6 +11,7 @@ const Ledger = require('../../models/ledger');
 const Entry = require('../../models/entry');
 const accountingService = require('../accountingService');
 const CommissionPolicyConfig = require('../../models/CommissionPolicyConfig');
+const InvestmentSchemeConfig = require('../../models/InvestmentSchemeConfig');
 const Counter = require('../../models/Counter');
 const ApiError = require('../../utils/apiError');
 const plotConfigService = require('./plotConfig.service');
@@ -526,6 +527,53 @@ class PlotDeveloperService {
       });
     }
 
+    // Fetch scheme config to dynamically resolve tenure-specific fixed commission
+    let schemeConfig = null;
+    try {
+      schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' });
+      if (!schemeConfig) {
+        schemeConfig = await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
+      }
+    } catch (err) {
+      console.error('Error fetching InvestmentSchemeConfig for product commission:', err);
+    }
+
+    // Match slab by tenureMonths
+    const bookingTenure = Number(booking.tenureMonths) || 0;
+    let matchedSlab = null;
+    if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
+      // Look for exact match or closest slab <= tenure
+      matchedSlab = schemeConfig.slabs.find(s => Number(s.tenureMonths) === bookingTenure);
+      if (!matchedSlab) {
+        const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
+        matchedSlab = sortedSlabs.find(s => Number(s.tenureMonths) >= bookingTenure) || sortedSlabs[sortedSlabs.length - 1];
+      }
+    }
+
+    const isFdOrOneTime = booking.paymentType === 'FULL_PAYMENT' || booking.paymentType === 'ONE_TIME' || booking.schemeType === 'FD' || booking.productType === 'FD';
+    
+    // Resolve fixed percentages based on tenure slab for BA, BP, and Branch Partner
+    let defaultBaFixed = isFdOrOneTime ? 5.0 : 4.0;
+    let defaultBpFixed = isFdOrOneTime ? 1.0 : 1.0;
+    let defaultBranchFixed = isFdOrOneTime ? 0.5 : 0.5;
+
+    if (matchedSlab) {
+      if (isFdOrOneTime) {
+        defaultBaFixed = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
+        defaultBpFixed = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
+        defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
+      } else {
+        defaultBaFixed = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
+        defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
+        defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
+      }
+    }
+
+    const baFixedPct = defaultBaFixed;
+    const bpFixedPct = defaultBpFixed;
+    const branchFixedPct = defaultBranchFixed;
+    const combinedFixedPct = baFixedPct;
+
     const validEntryIds = new Set();
 
     for (const col of collectionsList) {
@@ -538,8 +586,6 @@ class PlotDeveloperService {
 
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ──
-        // Fixed: 2.50% (BA) + 1.00% (BP) = 3.50% Immediate
-        const combinedFixedPct = 3.50;
         const fixedAmt = Math.round(collectionPrincipal * (combinedFixedPct / 100) * 100) / 100;
 
         const key = `${col.receiptNumber}_${sponsorDoc._id.toString()}_DIRECT_DEVELOPER`;
@@ -602,7 +648,7 @@ class PlotDeveloperService {
           incentiveAmount: incentiveAmt,
           businessType: 'PLOT_PRODUCT',
           periodVolume: 0,
-          slabLabel: closedInfo ? closedInfo.slabLabel : 'Product Collection Fixed 3.50% (Direct Partner)',
+          slabLabel: closedInfo ? closedInfo.slabLabel : `Product Collection Fixed ${combinedFixedPct}% (${bookingTenure}M Direct Partner)`,
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: closedInfo ? closedInfo.closingId : null,
@@ -612,9 +658,8 @@ class PlotDeveloperService {
         if (session) await commDoc.save({ session });
         else await commDoc.save();
       } else {
-        // ── BUSINESS ASSOCIATE (2.50% Fixed) + PARENT PARTNER (1.00% Fixed) ──
-        // 1. Business Associate Commission (2.50% Immediate)
-        const baFixedPct = 2.50;
+        // ── BUSINESS ASSOCIATE (Fixed per tenure) + PARENT PARTNER (Fixed override) ──
+        // 1. Business Associate Commission
         const baFixedAmt = Math.round(collectionPrincipal * (baFixedPct / 100) * 100) / 100;
 
         const promoterKey = `${col.receiptNumber}_${sponsorDoc._id.toString()}_PROMOTER`;
@@ -677,7 +722,7 @@ class PlotDeveloperService {
           incentiveAmount: baIncentiveAmt,
           businessType: 'PLOT_PRODUCT',
           periodVolume: 0,
-          slabLabel: baClosedInfo ? baClosedInfo.slabLabel : 'Product Collection Fixed 2.50% (Business Associate)',
+          slabLabel: baClosedInfo ? baClosedInfo.slabLabel : `Product Collection Fixed ${baFixedPct}% (${bookingTenure}M BA)`,
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: baClosedInfo ? baClosedInfo.closingId : null,
@@ -687,10 +732,9 @@ class PlotDeveloperService {
         if (session) await subCommission.save({ session });
         else await subCommission.save();
 
-        // 2. Parent Partner Developer Override (1.00% Immediate)
+        // 2. Parent Partner Developer Override (Fixed Immediate)
         const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
         if (parentDevId) {
-          const bpFixedPct = 1.00;
           const bpFixedAmt = Math.round(collectionPrincipal * (bpFixedPct / 100) * 100) / 100;
 
           const devKey = `${col.receiptNumber}_${parentDevId.toString()}_DEVELOPER_OVERRIDE`;
@@ -753,7 +797,7 @@ class PlotDeveloperService {
             incentiveAmount: bpIncentiveAmt,
             businessType: 'PLOT_PRODUCT',
             periodVolume: 0,
-            slabLabel: bpClosedInfo ? bpClosedInfo.slabLabel : 'Product Collection Fixed 1.00% (Business Partner)',
+            slabLabel: bpClosedInfo ? bpClosedInfo.slabLabel : `Product Collection Fixed ${bpFixedPct}% (${bookingTenure}M BP Override)`,
             tierTenureMonths: Number(booking.tenureMonths) || 0,
             status: 'active',
             closingId: bpClosedInfo ? bpClosedInfo.closingId : null,

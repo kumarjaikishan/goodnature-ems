@@ -17,19 +17,43 @@ const schemeSlabSchema = new mongoose.Schema(
       required: true,
       min: 100, // e.g., 121 for 121%
     },
+    // Business Associate (BA) Fixed Commission %
     rdPromoterCommissionPercent: {
       type: Number,
-      default: 0,
+      default: 4.0,
       min: 0,
     },
     fdPromoterCommissionPercent: {
       type: Number,
-      default: 0,
+      default: 5.0,
       min: 0,
     },
+    // Business Partner (BP) Fixed Team Commission %
+    bpRdCommissionPercent: {
+      type: Number,
+      default: 1.0,
+      min: 0,
+    },
+    bpFdCommissionPercent: {
+      type: Number,
+      default: 1.0,
+      min: 0,
+    },
+    // Branch Partner (BrP) Fixed Team Commission %
+    branchRdCommissionPercent: {
+      type: Number,
+      default: 0.5,
+      min: 0,
+    },
+    branchFdCommissionPercent: {
+      type: Number,
+      default: 0.5,
+      min: 0,
+    },
+    // Legacy fallback
     developerCommissionPercent: {
       type: Number,
-      default: 1.0, // 1% override for business developer
+      default: 1.0,
       min: 0,
     },
   },
@@ -81,6 +105,10 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
           fdMaturityPercent: 121,
           rdPromoterCommissionPercent: 4.0,
           fdPromoterCommissionPercent: 5.0,
+          bpRdCommissionPercent: 1.0,
+          bpFdCommissionPercent: 1.0,
+          branchRdCommissionPercent: 0.5,
+          branchFdCommissionPercent: 0.5,
           developerCommissionPercent: 1.0,
         },
         {
@@ -89,6 +117,10 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
           fdMaturityPercent: 135,
           rdPromoterCommissionPercent: 5.0,
           fdPromoterCommissionPercent: 7.0,
+          bpRdCommissionPercent: 1.0,
+          bpFdCommissionPercent: 1.0,
+          branchRdCommissionPercent: 0.5,
+          branchFdCommissionPercent: 0.5,
           developerCommissionPercent: 1.0,
         },
         {
@@ -97,6 +129,10 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
           fdMaturityPercent: 150,
           rdPromoterCommissionPercent: 6.0,
           fdPromoterCommissionPercent: 9.0,
+          bpRdCommissionPercent: 1.0,
+          bpFdCommissionPercent: 1.0,
+          branchRdCommissionPercent: 0.5,
+          branchFdCommissionPercent: 0.5,
           developerCommissionPercent: 1.0,
         },
         {
@@ -105,6 +141,10 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
           fdMaturityPercent: 175,
           rdPromoterCommissionPercent: 8.0,
           fdPromoterCommissionPercent: 11.0,
+          bpRdCommissionPercent: 1.0,
+          bpFdCommissionPercent: 1.0,
+          branchRdCommissionPercent: 0.5,
+          branchFdCommissionPercent: 0.5,
           developerCommissionPercent: 1.0,
         },
         {
@@ -113,6 +153,10 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
           fdMaturityPercent: 200,
           rdPromoterCommissionPercent: 10.0,
           fdPromoterCommissionPercent: 13.0,
+          bpRdCommissionPercent: 1.0,
+          bpFdCommissionPercent: 1.0,
+          branchRdCommissionPercent: 0.5,
+          branchFdCommissionPercent: 0.5,
           developerCommissionPercent: 1.0,
         },
         {
@@ -121,6 +165,10 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
           fdMaturityPercent: 350,
           rdPromoterCommissionPercent: 12.0,
           fdPromoterCommissionPercent: 15.0,
+          bpRdCommissionPercent: 1.0,
+          bpFdCommissionPercent: 1.0,
+          branchRdCommissionPercent: 0.5,
+          branchFdCommissionPercent: 0.5,
           developerCommissionPercent: 1.0,
         },
       ],

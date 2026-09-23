@@ -763,7 +763,7 @@ const PlotKisanLedgerPage = () => {
             </div>
             <div>
               <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">
-                Start Total Agreed Area
+                Total Agreed Area
               </span>
               <span className="font-black text-slate-900 text-base font-mono block mt-0.5">
                 {agreement?.totalSqFt?.toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-slate-500">({agreement?.araziDismil} Dismil)</span>
@@ -771,7 +771,7 @@ const PlotKisanLedgerPage = () => {
             </div>
             <div>
               <span className="text-[10px] text-amber-700 block uppercase font-bold tracking-wider">
-                Total Booked / Allocated
+                Total Allocated Area
               </span>
               <span className="font-black text-amber-900 text-base font-mono block mt-0.5">
                 {(agreement?.totalAllocatedSqFt || 0).toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-amber-700">({(((agreement?.totalAllocatedSqFt || 0) / 435.6)).toFixed(2)} Dismil)</span>
@@ -797,8 +797,8 @@ const PlotKisanLedgerPage = () => {
                     <th className="p-3.5 uppercase">Plot / Khesra No.</th>
                     <th className="p-3.5 uppercase">Mauja & Thana #</th>
                     <th className="p-3.5 uppercase">Khata & Jamabandi</th>
-                    <th className="p-3.5 uppercase text-right text-slate-700 font-bold">Start / Total Area</th>
-                    <th className="p-3.5 uppercase text-right text-amber-700 font-bold">Booked / Allocated</th>
+                    <th className="p-3.5 uppercase text-right text-slate-700 font-bold">Total Area</th>
+                    <th className="p-3.5 uppercase text-right text-amber-700 font-bold">Allocated</th>
                     <th className="p-3.5 uppercase text-right text-emerald-700 font-bold">Remaining Available</th>
                     <th className="p-3.5 uppercase text-center">Status / Utilization</th>
                   </tr>
@@ -849,7 +849,7 @@ const PlotKisanLedgerPage = () => {
                             </span>
                           </td>
 
-                          {/* Start Area */}
+                          {/* Total Area */}
                           <td className="p-3.5 text-right font-mono">
                             <span className="font-bold text-slate-900 block">
                               {parcelTotalSqFt?.toLocaleString('en-IN')} Sq.Ft.
@@ -859,7 +859,7 @@ const PlotKisanLedgerPage = () => {
                             </span>
                           </td>
 
-                          {/* Booked / Allocated Area */}
+                          {/* Allocated Area */}
                           <td className="p-3.5 text-right font-mono">
                             <span className={`font-bold block ${parcelAllocatedSqFt > 0 ? 'text-amber-800' : 'text-slate-400'}`}>
                               {parcelAllocatedSqFt > 0 ? `${parcelAllocatedSqFt.toLocaleString('en-IN')} Sq.Ft.` : '0 Sq.Ft.'}

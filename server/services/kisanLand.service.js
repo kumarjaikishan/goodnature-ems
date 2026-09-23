@@ -652,8 +652,34 @@ class KisanLandService {
       .reduce((sum, l) => sum + (l.amount || 0), 0);
     const balanceDue = Math.max(0, totalCost - totalPaid);
 
+    // Ensure agreement and parcel availability accurately reflect allocated bookings
+    const calcAllocatedSqFt = agreement.totalAllocatedSqFt || 0;
+    const calcTotalSqFt = agreement.totalSqFt || 0;
+    const calcAvailSqFt = Math.max(0, calcTotalSqFt - calcAllocatedSqFt);
+
+    const sanitizedParcels = (agreement.landParcels || []).map((p) => {
+      const pTotal = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6) : 0);
+      const pAlloc = p.allocatedSqFt || 0;
+      const pAvail = p.availableSqFt !== undefined && p.availableSqFt !== null
+        ? p.availableSqFt
+        : Math.max(0, pTotal - pAlloc);
+      return {
+        ...p,
+        totalSqFt: pTotal,
+        allocatedSqFt: pAlloc,
+        availableSqFt: pAvail,
+      };
+    });
+
+    const sanitizedAgreement = {
+      ...agreement,
+      totalAllocatedSqFt: calcAllocatedSqFt,
+      totalAvailableSqFt: calcAvailSqFt,
+      landParcels: sanitizedParcels,
+    };
+
     return {
-      agreement,
+      agreement: sanitizedAgreement,
       financialSummary: { totalCost, totalPaid, balanceDue },
       kisanLedgers: ledgers,
       stockLedgers,

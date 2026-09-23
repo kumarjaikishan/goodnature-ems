@@ -100,14 +100,13 @@ const KisanAgreementsTable = ({
                 <th className="p-3.5 uppercase">Land Seller</th>
                 <th className="p-3.5 uppercase text-right">Agreed Area</th>
                 <th className="p-3.5 uppercase text-right">Registered Area</th>
-                <th className="p-3.5 uppercase text-right">Free Stock</th>
                 <th className="p-3.5 uppercase text-left min-w-[210px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {agreements.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={6} className="p-8 text-center text-slate-400 italic">
                     No Plot Purchase Agreements found matching criteria. Click "+ New Plot Purchase" above to register one.
                   </td>
                 </tr>
@@ -248,16 +247,6 @@ const KisanAgreementsTable = ({
                         </div>
                         <span className="text-[9px] text-slate-400 block">
                           ({agr.registryDeeds?.length || 0} Deed{agr.registryDeeds?.length === 1 ? '' : 's'})
-                        </span>
-                      </td>
-
-                      {/* Available Free Stock */}
-                      <td className="p-3.5 text-right font-mono">
-                        <span className="font-bold text-emerald-700 block">
-                          {((agr.totalAvailableSqFt || 0) / 435.6).toFixed(2)} Dismil
-                        </span>
-                        <span className="text-[10px] text-slate-400 block">
-                          {agr.totalAvailableSqFt?.toLocaleString('en-IN')} SqFt free
                         </span>
                       </td>
 

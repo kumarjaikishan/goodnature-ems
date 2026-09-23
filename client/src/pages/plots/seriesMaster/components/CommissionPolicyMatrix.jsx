@@ -16,6 +16,7 @@ import {
 const CommissionPolicyMatrix = ({
   initialBusinessType = 'PLOT_SALE',
   showTypeToggle = true,
+  hideFixedCommission = false,
   title = 'Target Incentive & Fixed Commission Policy',
   subtitle = 'Configure collection business target slabs, fixed base rates, and tiered incentive percentages.',
 }) => {
@@ -23,6 +24,8 @@ const CommissionPolicyMatrix = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [policy, setPolicy] = useState(null);
+
+  const shouldHideFixed = hideFixedCommission || businessType === 'PLOT_PRODUCT';
 
   useEffect(() => {
     setBusinessType(initialBusinessType);
@@ -456,23 +459,27 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to direct sponsors &amp; subordinates. Fixed base % + period closing target incentive % + additional rewards distributed at closing.
+                {shouldHideFixed
+                  ? 'Applied to direct sponsors & subordinates. Period closing target incentive % + additional rewards distributed at closing.'
+                  : 'Applied to direct sponsors & subordinates. Fixed base % + period closing target incentive % + additional rewards distributed at closing.'}
               </p>
             </div>
 
             <div className="flex items-center flex-wrap gap-2.5">
-              <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-xl">
-                <span className="text-xs font-bold text-teal-900">Base Fixed %:</span>
-                <input
-                  type="tel"
-                  inputMode="decimal"
-                  className="w-16 px-2 py-0.5 bg-white border border-teal-300 rounded-lg text-xs font-bold text-teal-900 text-center"
-                  value={associateRole.fixedCommissionPercent ?? ''}
-                  onChange={(e) => handleRoleFixedChange(associateRoleIdx, e.target.value)}
-                  placeholder="5.0"
-                />
-                <span className="text-xs font-bold text-teal-800">%</span>
-              </div>
+              {!shouldHideFixed && (
+                <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-teal-900">Base Fixed %:</span>
+                  <input
+                    type="tel"
+                    inputMode="decimal"
+                    className="w-16 px-2 py-0.5 bg-white border border-teal-300 rounded-lg text-xs font-bold text-teal-900 text-center"
+                    value={associateRole.fixedCommissionPercent ?? ''}
+                    onChange={(e) => handleRoleFixedChange(associateRoleIdx, e.target.value)}
+                    placeholder="5.0"
+                  />
+                  <span className="text-xs font-bold text-teal-800">%</span>
+                </div>
+              )}
 
               <button
                 type="button"
@@ -501,10 +508,12 @@ const CommissionPolicyMatrix = ({
                   <th className="p-3">Slab Label</th>
                   <th className="p-3">Min Collection (₹)</th>
                   <th className="p-3">Max Collection (₹)</th>
-                  <th className="p-3 bg-teal-50/70 text-teal-900">
-                    Fixed Base %<br />
-                    <span className="text-teal-600 font-normal">Base Fixed Commission</span>
-                  </th>
+                  {!shouldHideFixed && (
+                    <th className="p-3 bg-teal-50/70 text-teal-900">
+                      Fixed Base %<br />
+                      <span className="text-teal-600 font-normal">Base Fixed Commission</span>
+                    </th>
+                  )}
                   <th className="p-3 bg-blue-50/50 text-blue-900">
                     Target Incentive %<br />
                     <span className="text-blue-500 font-normal">At Period Closing</span>
@@ -605,19 +614,21 @@ const CommissionPolicyMatrix = ({
                         </div>
                       </td>
 
-                      <td className="p-3 bg-teal-50/30">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="tel"
-                            inputMode="decimal"
-                            className="w-20 px-2 py-1 bg-white border border-teal-300 rounded-lg text-xs font-extrabold text-teal-900 text-center"
-                            value={slab.fixedCommissionPercent ?? associateFixed}
-                            onChange={(e) => handleSlabFieldChange(associateRoleIdx, sIdx, 'fixedCommissionPercent', e.target.value)}
-                            required
-                          />
-                          <span className="font-bold text-teal-700">%</span>
-                        </div>
-                      </td>
+                      {!shouldHideFixed && (
+                        <td className="p-3 bg-teal-50/30">
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="tel"
+                              inputMode="decimal"
+                              className="w-20 px-2 py-1 bg-white border border-teal-300 rounded-lg text-xs font-extrabold text-teal-900 text-center"
+                              value={slab.fixedCommissionPercent ?? associateFixed}
+                              onChange={(e) => handleSlabFieldChange(associateRoleIdx, sIdx, 'fixedCommissionPercent', e.target.value)}
+                              required
+                            />
+                            <span className="font-bold text-teal-700">%</span>
+                          </div>
+                        </td>
+                      )}
 
                       <td className="p-3 bg-blue-50/30">
                         <div className="flex items-center gap-1">
@@ -715,23 +726,27 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to top developer IDs direct to company. Fixed base team % + team target incentive % + additional rewards distributed at closing.
+                {shouldHideFixed
+                  ? 'Applied to top developer IDs direct to company. Team target incentive % + additional rewards distributed at closing.'
+                  : 'Applied to top developer IDs direct to company. Fixed base team % + team target incentive % + additional rewards distributed at closing.'}
               </p>
             </div>
 
             <div className="flex items-center flex-wrap gap-2.5">
-              <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
-                <span className="text-xs font-bold text-amber-900">Base Fixed %:</span>
-                <input
-                  type="tel"
-                  inputMode="decimal"
-                  className="w-16 px-2 py-0.5 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-900 text-center"
-                  value={partnerRole.fixedCommissionPercent ?? ''}
-                  onChange={(e) => handleRoleFixedChange(partnerRoleIdx, e.target.value)}
-                  placeholder="2.0"
-                />
-                <span className="text-xs font-bold text-amber-800">%</span>
-              </div>
+              {!shouldHideFixed && (
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-amber-900">Base Fixed %:</span>
+                  <input
+                    type="tel"
+                    inputMode="decimal"
+                    className="w-16 px-2 py-0.5 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-900 text-center"
+                    value={partnerRole.fixedCommissionPercent ?? ''}
+                    onChange={(e) => handleRoleFixedChange(partnerRoleIdx, e.target.value)}
+                    placeholder="2.0"
+                  />
+                  <span className="text-xs font-bold text-amber-800">%</span>
+                </div>
+              )}
 
               <button
                 type="button"
@@ -760,10 +775,12 @@ const CommissionPolicyMatrix = ({
                   <th className="p-3">Slab Label</th>
                   <th className="p-3">Min Collection (₹)</th>
                   <th className="p-3">Max Collection (₹)</th>
-                  <th className="p-3 bg-teal-50/70 text-teal-900">
-                    Fixed Base %<br />
-                    <span className="text-teal-600 font-normal">Base Fixed Team</span>
-                  </th>
+                  {!shouldHideFixed && (
+                    <th className="p-3 bg-teal-50/70 text-teal-900">
+                      Fixed Base %<br />
+                      <span className="text-teal-600 font-normal">Base Fixed Team</span>
+                    </th>
+                  )}
                   <th className="p-3 bg-amber-50/50 text-amber-900">
                     Partner Incentive %<br />
                     <span className="text-amber-600 font-normal">Team Target (At Closing)</span>
@@ -864,19 +881,21 @@ const CommissionPolicyMatrix = ({
                         </div>
                       </td>
 
-                      <td className="p-3 bg-teal-50/30">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="tel"
-                            inputMode="decimal"
-                            className="w-20 px-2 py-1 bg-white border border-teal-300 rounded-lg text-xs font-extrabold text-teal-900 text-center"
-                            value={slab.fixedCommissionPercent ?? partnerFixed}
-                            onChange={(e) => handleSlabFieldChange(partnerRoleIdx, sIdx, 'fixedCommissionPercent', e.target.value)}
-                            required
-                          />
-                          <span className="font-bold text-teal-700">%</span>
-                        </div>
-                      </td>
+                      {!shouldHideFixed && (
+                        <td className="p-3 bg-teal-50/30">
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="tel"
+                              inputMode="decimal"
+                              className="w-20 px-2 py-1 bg-white border border-teal-300 rounded-lg text-xs font-extrabold text-teal-900 text-center"
+                              value={slab.fixedCommissionPercent ?? partnerFixed}
+                              onChange={(e) => handleSlabFieldChange(partnerRoleIdx, sIdx, 'fixedCommissionPercent', e.target.value)}
+                              required
+                            />
+                            <span className="font-bold text-teal-700">%</span>
+                          </div>
+                        </td>
+                      )}
 
                       <td className="p-3 bg-amber-50/30">
                         <div className="flex items-center gap-1">
@@ -974,23 +993,27 @@ const CommissionPolicyMatrix = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Applied to branch franchise &amp; regional management partners. Configurable fixed base % + branch collection target slabs &amp; closing rewards.
+                {shouldHideFixed
+                  ? 'Applied to branch franchise & regional management partners. Branch collection target slabs & closing rewards.'
+                  : 'Applied to branch franchise & regional management partners. Configurable fixed base % + branch collection target slabs & closing rewards.'}
               </p>
             </div>
 
             <div className="flex items-center flex-wrap gap-2.5">
-              <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl">
-                <span className="text-xs font-bold text-indigo-900">Base Fixed %:</span>
-                <input
-                  type="tel"
-                  inputMode="decimal"
-                  className="w-16 px-2 py-0.5 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-indigo-900 text-center"
-                  value={branchPartnerRole.fixedCommissionPercent ?? ''}
-                  onChange={(e) => handleRoleFixedChange(branchPartnerRoleIdx, e.target.value)}
-                  placeholder="0.0"
-                />
-                <span className="text-xs font-bold text-indigo-800">%</span>
-              </div>
+              {!shouldHideFixed && (
+                <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-indigo-900">Base Fixed %:</span>
+                  <input
+                    type="tel"
+                    inputMode="decimal"
+                    className="w-16 px-2 py-0.5 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-indigo-900 text-center"
+                    value={branchPartnerRole.fixedCommissionPercent ?? ''}
+                    onChange={(e) => handleRoleFixedChange(branchPartnerRoleIdx, e.target.value)}
+                    placeholder="0.0"
+                  />
+                  <span className="text-xs font-bold text-indigo-800">%</span>
+                </div>
+              )}
 
               <button
                 type="button"
@@ -1019,10 +1042,12 @@ const CommissionPolicyMatrix = ({
                   <th className="p-3">Slab Label</th>
                   <th className="p-3">Min Collection (₹)</th>
                   <th className="p-3">Max Collection (₹)</th>
-                  <th className="p-3 bg-indigo-50/70 text-indigo-900">
-                    <div>Fixed Base %</div>
-                    <span className="text-indigo-700 font-normal text-[10px]">Branch Base Rate</span>
-                  </th>
+                  {!shouldHideFixed && (
+                    <th className="p-3 bg-indigo-50/70 text-indigo-900">
+                      <div>Fixed Base %</div>
+                      <span className="text-indigo-700 font-normal text-[10px]">Branch Base Rate</span>
+                    </th>
+                  )}
                   <th className="p-3 bg-blue-50/70 text-blue-900">
                     <div>Target Incentive %</div>
                     <span className="text-blue-700 font-normal text-[10px]">Target Incentive (At Closing)</span>
@@ -1123,19 +1148,21 @@ const CommissionPolicyMatrix = ({
                         </div>
                       </td>
 
-                      <td className="p-3 bg-indigo-50/30">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="tel"
-                            inputMode="decimal"
-                            className="w-14 px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 text-center"
-                            value={slab.fixedCommissionPercent ?? branchPartnerFixed ?? 0}
-                            onChange={(e) => handleSlabFieldChange(branchPartnerRoleIdx, sIdx, 'fixedCommissionPercent', e.target.value)}
-                            placeholder="0"
-                          />
-                          <span className="font-bold text-indigo-700 text-xs">%</span>
-                        </div>
-                      </td>
+                      {!shouldHideFixed && (
+                        <td className="p-3 bg-indigo-50/30">
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="tel"
+                              inputMode="decimal"
+                              className="w-14 px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 text-center"
+                              value={slab.fixedCommissionPercent ?? branchPartnerFixed ?? 0}
+                              onChange={(e) => handleSlabFieldChange(branchPartnerRoleIdx, sIdx, 'fixedCommissionPercent', e.target.value)}
+                              placeholder="0"
+                            />
+                            <span className="font-bold text-indigo-700 text-xs">%</span>
+                          </div>
+                        </td>
+                      )}
 
                       <td className="p-3 bg-blue-50/30">
                         <div className="flex items-center gap-1">

@@ -1,1 +1,0 @@
-import{r as e}from"./rolldown-runtime-hePW80VL.js";import{zn as t}from"./vendor-react-v1z4aeQy.js";import{u as n}from"./vendor-redux-BfDQjErQ.js";import{S as r,c as i,u as a,y as o}from"./index-3A7hTTBb.js";var s=e(t(),1),c=()=>{let e=n(),t=r();return(0,s.useEffect)(()=>(localStorage.removeItem(`emstoken`),e(o()),e(a()),e(i(!1)),t(`/login`)),[]),null};export{c as default};

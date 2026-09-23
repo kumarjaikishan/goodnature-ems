@@ -52,9 +52,16 @@ class InvestmentService {
         tenureMonths: Number(s.tenureMonths),
         rdMaturityPercent: Number(s.rdMaturityPercent),
         fdMaturityPercent: Number(s.fdMaturityPercent),
-        rdPromoterCommissionPercent: Number(s.rdPromoterCommissionPercent),
-        fdPromoterCommissionPercent: Number(s.fdPromoterCommissionPercent),
-        developerCommissionPercent: Number(s.developerCommissionPercent || 1.0),
+        // Business Associate (BA)
+        rdPromoterCommissionPercent: Number(s.rdPromoterCommissionPercent || 0),
+        fdPromoterCommissionPercent: Number(s.fdPromoterCommissionPercent || 0),
+        // Business Partner (BP)
+        bpRdCommissionPercent: Number(s.bpRdCommissionPercent !== undefined ? s.bpRdCommissionPercent : (s.developerCommissionPercent || 1.0)),
+        bpFdCommissionPercent: Number(s.bpFdCommissionPercent !== undefined ? s.bpFdCommissionPercent : (s.developerCommissionPercent || 1.0)),
+        // Branch Partner (BrP)
+        branchRdCommissionPercent: Number(s.branchRdCommissionPercent || 0),
+        branchFdCommissionPercent: Number(s.branchFdCommissionPercent || 0),
+        developerCommissionPercent: Number(s.developerCommissionPercent || s.bpRdCommissionPercent || 1.0),
       }));
     }
     if (data.rulesAndRegulations && Array.isArray(data.rulesAndRegulations)) {
