@@ -122,6 +122,57 @@ export const EditReceiptModal = ({
             </div>
           )}
 
+          {editForm.paymentMode !== 'cash' && (
+            <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2.5">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                Customer Bank Details
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className={labelCls}>Bank Name</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="e.g. HDFC Bank"
+                    value={editForm.bankName || ''}
+                    onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Account Number</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="e.g. 1234567890"
+                    value={editForm.accountNumber || ''}
+                    onChange={(e) => setEditForm({ ...editForm, accountNumber: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Account Holder Name</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="e.g. Name on Bank A/C"
+                    value={editForm.accountHolderName || ''}
+                    onChange={(e) => setEditForm({ ...editForm, accountHolderName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>IFSC Code</label>
+                  <input
+                    type="text"
+                    className={`${inputCls} uppercase`}
+                    maxLength={11}
+                    placeholder="e.g. HDFC0001234"
+                    value={editForm.ifscCode || ''}
+                    onChange={(e) => setEditForm({ ...editForm, ifscCode: e.target.value.toUpperCase() })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1 sm:col-span-2">
             <label className={labelCls}>Narration / Remarks</label>
             <textarea
@@ -183,8 +234,36 @@ export const ApproveReceiptModal = ({
           </div>
           {approvingReceipt?.transactionReference && (
             <div className="flex justify-between">
-              <span>Reference / UTR:</span>
+              <span>Reference / UTR / Cheque:</span>
               <strong className="font-mono">{approvingReceipt.transactionReference}</strong>
+            </div>
+          )}
+          {(approvingReceipt?.bankName || approvingReceipt?.accountNumber) && (
+            <div className="pt-1.5 mt-1 border-t border-emerald-200/70 text-[11px] space-y-1">
+              {approvingReceipt?.bankName && (
+                <div className="flex justify-between">
+                  <span className="text-emerald-800/80">Customer Bank:</span>
+                  <strong>{approvingReceipt.bankName}{approvingReceipt.bankBranch ? ` (${approvingReceipt.bankBranch})` : ''}</strong>
+                </div>
+              )}
+              {approvingReceipt?.accountNumber && (
+                <div className="flex justify-between">
+                  <span className="text-emerald-800/80">A/C Number:</span>
+                  <strong className="font-mono">{approvingReceipt.accountNumber}</strong>
+                </div>
+              )}
+              {approvingReceipt?.accountHolderName && (
+                <div className="flex justify-between">
+                  <span className="text-emerald-800/80">A/C Holder:</span>
+                  <strong>{approvingReceipt.accountHolderName}</strong>
+                </div>
+              )}
+              {approvingReceipt?.ifscCode && (
+                <div className="flex justify-between">
+                  <span className="text-emerald-800/80">IFSC Code:</span>
+                  <strong className="font-mono">{approvingReceipt.ifscCode}</strong>
+                </div>
+              )}
             </div>
           )}
         </div>

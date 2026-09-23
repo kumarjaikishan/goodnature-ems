@@ -116,6 +116,10 @@ const plotCustomerSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  ifscCode: {
+    type: String,
+    default: '',
+  },
   photo: {
     type: String,
     default: '',

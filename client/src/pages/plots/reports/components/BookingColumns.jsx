@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Receipt, Award, ScrollText, Edit3, History, Trash2, CalendarPlus, Coins } from 'lucide-react';
+import { Eye, Receipt, Printer, ScrollText, Edit3, History, Trash2, CalendarPlus, Coins } from 'lucide-react';
 import { toast } from '@/utils/toast';
 import api from '@/api/axios';
 
@@ -151,10 +151,10 @@ export const getBookingColumns = ({
         {/* 3. Print Booking Certificate */}
         <button
           onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
-          title="Print Official Booking Certificate"
+          title="Print Booking Certificate"
           className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs"
         >
-          <Award size={15} />
+          <Printer size={15} />
         </button>
 
         {/* 4. Print Plot Agreement */}
@@ -180,26 +180,7 @@ export const getBookingColumns = ({
                   return;
                 }
 
-                if (b.agreementNumber && b.agreementNumber.trim() !== '') {
-                  navigate(`/dashboard/plots/agreements/${b._id}`);
-                } else {
-                  const input = window.prompt(
-                    `Enter Agreement Number for Booking #${b.bookingNumber} (Plot #${b.plotId?.plotNumber || ''}):`,
-                    ''
-                  );
-                  if (input === null) return;
-                  const finalAgreementNo = input.trim();
-                  if (finalAgreementNo) {
-                    try {
-                      await api.put(`/plots/bookings/${b._id}`, { agreementNumber: finalAgreementNo });
-                      toast.success('Agreement number saved successfully');
-                      b.agreementNumber = finalAgreementNo;
-                    } catch (err) {
-                      console.error('Failed to update agreement number:', err);
-                    }
-                  }
-                  navigate(`/dashboard/plots/agreements/${b._id}`);
-                }
+                navigate(`/dashboard/plots/agreements/${b._id}`);
               }}
               title={
                 !isDpComplete

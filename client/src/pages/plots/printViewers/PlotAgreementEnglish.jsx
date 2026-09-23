@@ -33,7 +33,19 @@ const PlotAgreementEnglish = ({
   const projectName = series.seriesName || series.projectName || plot.projectName || 'NALANDA NEW CITY';
   const projectArea = series.projectArea || '19.5 Acres Approx.';
 
-  const plotDimension = booking.plotDimension || plot.dimension || plot.dimensions || '[NW-NE] 40 X [SW-SE] 40 X [NE-SE] 30 X [NW-SW] 30 = 1200 SQFT';
+  const getFormattedDimension = (dim) => {
+    if (!dim) return '[NW-NE] 40 X [SW-SE] 40 X [NE-SE] 30 X [NW-SW] 30 = 1200 SQFT';
+    if (typeof dim === 'string') return dim;
+    if (typeof dim === 'object') {
+      const { north, south, east, west } = dim;
+      if (north || south || east || west) {
+        return `North: ${north || 0} ft, South: ${south || 0} ft, East: ${east || 0} ft, West: ${west || 0} ft`;
+      }
+    }
+    return '[NW-NE] 40 X [SW-SE] 40 X [NE-SE] 30 X [NW-SW] 30 = 1200 SQFT';
+  };
+
+  const plotDimension = getFormattedDimension(booking.plotDimension || plot.dimension || plot.dimensions);
   const plotArea = plot.areaSqFt || booking.plotAreaSqFt || 1200;
   const applicationNo = booking.applicationNo || booking.bookingNumber || '0686';
   const planCode = series.seriesCode || series.planCode || booking.planCode || 'NNNC/ROW/B2';
@@ -58,7 +70,7 @@ const PlotAgreementEnglish = ({
           <div className="flex justify-between items-center text-[0.76rem] font-bold text-slate-900 pb-1.5 mb-2">
             <div>Name : <span className="uppercase font-extrabold">{customerName}</span></div>
             <div>Agreement No. : <span className="uppercase font-mono font-extrabold">{booking.agreementNumber || booking.bookingNumber}</span></div>
-            <div>Plan : <span className="uppercase font-extrabold">{planCode}</span></div>
+            <div>Plot No. : <span className="uppercase font-extrabold">{plot.plotNumber || booking.plotNumber || 'N/A'}</span></div>
           </div>
 
           {/* Header Title */}

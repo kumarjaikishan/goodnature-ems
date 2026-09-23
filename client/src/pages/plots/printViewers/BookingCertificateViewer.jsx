@@ -167,7 +167,6 @@ const BookingCertificateViewer = () => {
               ) : null}
               <div>
                 <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">{companyName}</h1>
-                <p className="text-[10px] text-gray-500">Plot Management & Development</p>
               </div>
             </div>
 
@@ -207,7 +206,7 @@ const BookingCertificateViewer = () => {
               </td>
             </tr>
 
-            {/* Row 1 */}
+            {/* Row 1: Customer Details */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -222,10 +221,10 @@ const BookingCertificateViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">{customer.customerId || '-'}</td>
+              <td className="p-2 font-bold text-slate-900 font-mono">{customer.customerId || '-'}</td>
             </tr>
 
-            {/* Row 2 */}
+            {/* Row 2: Mobile & Father/Husband */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -236,14 +235,14 @@ const BookingCertificateViewer = () => {
               <td className="p-2 font-bold text-slate-900">{customer.mobile || booking.customerMobile}</td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Plot Number</span>
+                  <span>Guardian / Father</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">#{plot.plotNumber} ({plot.plotSize} Sq Ft)</td>
+              <td className="p-2 font-bold text-slate-900">{customer.fatherOrHusbandName ? `${customer.relationType || 'S/o'} ${customer.fatherOrHusbandName}` : '-'}</td>
             </tr>
 
-            {/* Row 3 (Address takes full width) */}
+            {/* Row 3: Address */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -254,8 +253,81 @@ const BookingCertificateViewer = () => {
               <td colSpan={3} className="p-2 font-bold text-slate-900">{customer.address || '-'}</td>
             </tr>
 
-            {/* Row 3b: Plot Dimensions & Chaudhi (Boundaries) */}
-            {(plot.dimensions?.north || plot.dimensions?.east || plot.boundaries?.north || plot.boundaries?.east) && (
+            {/* Row 4: Plot Specifications & Land Location */}
+            <tr className="border-b border-slate-100 bg-slate-50/30">
+              <td className="p-2 text-slate-500 font-medium">
+                <div className="flex justify-between items-center">
+                  <span>Plot Number</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="p-2 font-bold text-slate-900">{plot.plotNumber || '-'}</td>
+              <td className="p-2 text-slate-500 font-medium">
+                <div className="flex justify-between items-center">
+                  <span>Plot Area</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="p-2 font-bold text-slate-900">
+                {plot.plotSize || 0} Sq Ft
+              </td>
+            </tr>
+
+            {/* Row 5: Mauja, Thana, Khata & Jamabandi No. */}
+            {(() => {
+              const sourcing = booking.landSourcing || [];
+              const khataList = Array.from(new Set(sourcing.map(s => s.khataNumber || s.agreementId?.khataNumber).filter(Boolean))).join(', ') || plot.khataNo || '-';
+              const khesraList = Array.from(new Set(sourcing.map(s => s.khesraNumber || s.agreementId?.khesraNumber).filter(Boolean))).join(', ') || plot.plotNumber || '-';
+              const jamabandiList = Array.from(new Set(sourcing.map(s => s.agreementId?.jamabandiNumber).filter(Boolean))).join(', ') || '-';
+              const maujaList = Array.from(new Set(sourcing.map(s => s.mauja || s.agreementId?.mauja).filter(Boolean))).join(', ') || plot.mauja || '-';
+              const thanaList = Array.from(new Set(sourcing.map(s => s.thanaNumber || s.agreementId?.thanaNumber).filter(Boolean))).join(', ') || '-';
+
+              return (
+                <>
+                  <tr className="border-b border-slate-100">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Mauja / थाना</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900 uppercase">
+                      {maujaList} {thanaList !== '-' ? `(Thana: ${thanaList})` : ''}
+                    </td>
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Khata / Khesra No</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900 font-mono">
+                      Khata: {khataList} | Khesra: {khesraList}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-slate-100">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Jamabandi No.</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900 font-mono">{jamabandiList}</td>
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Booked Rate</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900">
+                      ₹{Number(booking.effectivePlotRate || booking.basePlotRate || (plot.plotSize ? (booking.plotValue || 0) / plot.plotSize : 0)).toLocaleString('en-IN')} / Sq Ft
+                    </td>
+                  </tr>
+                </>
+              );
+            })()}
+
+            {/* Row 6: Plot Dimensions & Chaudhi (Boundaries) */}
+            {(plot.dimensions || plot.boundaries) && (
               <tr className="border-b border-slate-100 bg-slate-50/40">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
@@ -264,7 +336,11 @@ const BookingCertificateViewer = () => {
                   </div>
                 </td>
                 <td className="p-2 font-bold text-slate-900 font-mono text-[10px]">
-                  <span>उत्तर: {plot.dimensions?.north || 0} ft | दक्षिण: {plot.dimensions?.south || 0} ft | पूरब: {plot.dimensions?.east || 0} ft | पश्चिम: {plot.dimensions?.west || 0} ft</span>
+                  {typeof plot.dimensions === 'object' && plot.dimensions !== null ? (
+                    <span>उत्तर: {plot.dimensions?.north || 0} ft | दक्षिण: {plot.dimensions?.south || 0} ft | पूरब: {plot.dimensions?.east || 0} ft | पश्चिम: {plot.dimensions?.west || 0} ft</span>
+                  ) : (
+                    <span>{typeof plot.dimensions === 'string' ? plot.dimensions : '-'}</span>
+                  )}
                 </td>
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
@@ -273,12 +349,16 @@ const BookingCertificateViewer = () => {
                   </div>
                 </td>
                 <td className="p-2 font-medium text-slate-800 text-[10px]">
-                  <span>उत्तर: {plot.boundaries?.north || '-'}, दक्षिण: {plot.boundaries?.south || '-'}, पूरब: {plot.boundaries?.east || '-'}, पश्चिम: {plot.boundaries?.west || '-'}</span>
+                  {typeof plot.boundaries === 'object' && plot.boundaries !== null ? (
+                    <span>उत्तर: {plot.boundaries?.north || '-'}, दक्षिण: {plot.boundaries?.south || '-'}, पूरब: {plot.boundaries?.east || '-'}, पश्चिम: {plot.boundaries?.west || '-'}</span>
+                  ) : (
+                    <span>{typeof plot.boundaries === 'string' ? plot.boundaries : '-'}</span>
+                  )}
                 </td>
               </tr>
             )}
 
-            {/* Numeric details row */}
+            {/* Row 7: Plot Value, Discount & Net Payable */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -289,41 +369,74 @@ const BookingCertificateViewer = () => {
               <td className="p-2 font-black text-slate-900">₹{(booking.plotValue || 0).toLocaleString('en-IN')}</td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Net Payable</span>
+                  <span>Discount</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-black text-slate-900">₹{((booking.plotValue || 0) - (booking.discount || 0)).toLocaleString('en-IN')}</td>
+              <td className="p-2 font-bold text-emerald-700">₹{(booking.discount || 0).toLocaleString('en-IN')}</td>
             </tr>
 
-            {/* Payment Type & Downpayment details */}
-            <tr className="border-b border-slate-100">
+            {/* Row 8: Net Payable & Payment Scheme */}
+            <tr className="border-b border-slate-100 bg-slate-50/20">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Payment Type</span>
+                  <span>Net Payable Amount</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="p-2 font-black text-slate-900 text-xs">
+                ₹{Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)).toLocaleString('en-IN')}
+              </td>
+              <td className="p-2 text-slate-500 font-medium">
+                <div className="flex justify-between items-center">
+                  <span>Payment Scheme</span>
                   <span>:</span>
                 </div>
               </td>
               <td className="p-2 font-bold text-slate-900">
-                {booking.scheme === 'FULL_PAYMENT' ? 'One Time' : 'EMI'}
-              </td>
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Down Payment</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-bold text-slate-900">
-                {(() => {
-                  const net = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
-                  const dpInst = (installments || []).find(i => i.installmentNumber === 0);
-                  const dp = booking.bookingAmount || dpInst?.dueAmount || Math.max(0, net - (booking.remainingAmount || 0));
-                  return `₹${dp.toLocaleString('en-IN')}`;
-                })()}
+                {booking.scheme === 'FULL_PAYMENT' ? 'One Time (Full Payment)' : 'Monthly Installment (EMI)'}
               </td>
             </tr>
 
-            {/* Swapped: Remaining Balance (Left) & EMI Details (Right) */}
+            {/* Row 9: Downpayment Amount & Downpayment Due Date */}
+            {(() => {
+              const dpInst = (installments || []).find(i => i.installmentNumber === 0);
+              const dpAmount = booking.bookingAmount || booking.downpaymentAmount || dpInst?.dueAmount || 0;
+              let dpDueDateStr = '-';
+              if (dpInst?.dueDate) {
+                dpDueDateStr = new Date(dpInst.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+              } else if (booking.downpaymentDays) {
+                const bDate = new Date(booking.bookingDate || booking.createdAt);
+                bDate.setDate(bDate.getDate() + Number(booking.downpaymentDays));
+                dpDueDateStr = bDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+              }
+
+              return (
+                <tr className="border-b border-slate-100">
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Down Payment (D.P)</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-slate-900">
+                    ₹{dpAmount.toLocaleString('en-IN')}
+                    {booking.downpaymentDays ? <span className="text-[10px] text-slate-500 font-normal ml-1">({booking.downpaymentDays} Days)</span> : null}
+                  </td>
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>D.P Due Date</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-amber-800">
+                    {dpDueDateStr}
+                  </td>
+                </tr>
+              );
+            })()}
+
+            {/* Row 10: Remaining Balance & EMI / Duration Details */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -335,7 +448,7 @@ const BookingCertificateViewer = () => {
                 {(() => {
                   const net = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
                   const dpInst = (installments || []).find(i => i.installmentNumber === 0);
-                  const dp = booking.bookingAmount || dpInst?.dueAmount || Math.max(0, net - (booking.remainingAmount || 0));
+                  const dp = booking.bookingAmount || dpInst?.dueAmount || booking.downpaymentAmount || Math.max(0, net - (booking.remainingAmount || 0));
                   const rem = Math.max(0, net - dp);
                   return `₹${rem.toLocaleString('en-IN')}`;
                 })()}
@@ -361,13 +474,13 @@ const BookingCertificateViewer = () => {
                     const emiFormatted = rawEmi % 1 === 0
                       ? rawEmi.toLocaleString('en-IN')
                       : rawEmi.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    return `${months} Month(s) @ ₹${emiFormatted}/mo`;
+                    return `₹${emiFormatted} for ${months} months`;
                   })()
                 )}
               </td>
             </tr>
 
-            {/* Row 8 (Net Payable Amount in Words) */}
+            {/* Row 11: Net Payable Amount in Words */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -375,7 +488,7 @@ const BookingCertificateViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td colSpan={3} className="p-2 font-bold text-slate-900">{numberToWords((booking.plotValue || 0) - (booking.discount || 0))}</td>
+              <td colSpan={3} className="p-2 font-bold text-slate-900">{numberToWords(Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)))}</td>
             </tr>
           </tbody>
         </table>

@@ -262,7 +262,7 @@ const getPayoutSchedules = async (req, res, next) => {
 
 const collectInstallment = async (req, res, next) => {
   try {
-    const { installmentIds, amountPaid, lateFineRebate, paymentMode, transactionReference, remarks, createdAt } = req.body;
+    const { installmentIds, amountPaid, lateFineRebate, paymentMode, transactionReference, remarks, createdAt, bankDetails } = req.body;
     const result = await plotsService.collectInstallment(
       req.params.bookingId,
       installmentIds,
@@ -272,7 +272,8 @@ const collectInstallment = async (req, res, next) => {
       req.user?._id || req.user?.id || null,
       Number(lateFineRebate) || 0,
       remarks,
-      createdAt
+      createdAt,
+      bankDetails
     );
     ApiResponse.success(res, result, 'Installment payment recorded successfully');
   } catch (error) {

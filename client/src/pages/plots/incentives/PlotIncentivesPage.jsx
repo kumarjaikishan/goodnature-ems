@@ -464,61 +464,54 @@ const PlotIncentivesPage = () => {
 
   return (
     <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Gift className="text-teal-700" size={26} />
-            Incentive & Reward System
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
-            Manage independent Target Incentive (Quarterly / Periodic) and Extra Incentive & Reward (Semi-Annual / Annual) closing batches.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
+      {/* Top Header & Tab Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-1">
+        {/* Navigation Tabs Bar */}
+        <div className="flex gap-6 overflow-x-auto">
           <button
-            onClick={() => handleOpenCreateModal('TARGET_INCENTIVE')}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
+            type="button"
+            onClick={() => setActiveTab('TARGET_INCENTIVE')}
+            className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'TARGET_INCENTIVE'
+                ? 'border-teal-800 text-teal-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <Plus size={16} />
-            <span>Process Target Incentive</span>
+            <TrendingUp size={16} /> Target Incentive Closings
           </button>
           <button
-            onClick={() => handleOpenCreateModal('EXTRA_INCENTIVE')}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-700/20 active:scale-[0.98] transition cursor-pointer"
+            type="button"
+            onClick={() => setActiveTab('EXTRA_INCENTIVE')}
+            className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'EXTRA_INCENTIVE'
+                ? 'border-teal-800 text-teal-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <Sparkles size={16} />
-            <span>Process Extra Incentive / Reward</span>
+            <Gift size={16} /> Extra Incentive &amp; Rewards Closings
           </button>
         </div>
-      </div>
 
-      {/* Tabs Navigation for Target Incentive vs Extra Incentive */}
-      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-1">
-        <button
-          onClick={() => setActiveTab('TARGET_INCENTIVE')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer ${
-            activeTab === 'TARGET_INCENTIVE'
-              ? 'bg-teal-700 text-white shadow-sm shadow-teal-700/20'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
-          }`}
-        >
-          <TrendingUp size={16} />
-          <span>Target Incentive Closings</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('EXTRA_INCENTIVE')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer ${
-            activeTab === 'EXTRA_INCENTIVE'
-              ? 'bg-purple-700 text-white shadow-sm shadow-purple-700/20'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
-          }`}
-        >
-          <Gift size={16} />
-          <span>Extra Incentive & Rewards Closings</span>
-        </button>
+        {/* Dynamic Action Button for Active Tab */}
+        <div className="flex items-center gap-2.5 pb-2 sm:pb-0">
+          {activeTab === 'TARGET_INCENTIVE' ? (
+            <button
+              onClick={() => handleOpenCreateModal('TARGET_INCENTIVE')}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>Process Target Incentive</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => handleOpenCreateModal('EXTRA_INCENTIVE')}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-700/20 active:scale-[0.98] transition cursor-pointer"
+            >
+              <Sparkles size={16} />
+              <span>Process Extra Incentive / Reward</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Summary KPI Cards */}

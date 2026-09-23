@@ -33,7 +33,16 @@ const Department = () => {
   const [openmodal, setopenmodal] = useState(false);
   const [isload, setisload] = useState(false);
   const [isupdate, setisupdate] = useState(false);
-  const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('deptMgmt_viewMode') || 'grid'); // 'grid' | 'table'
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('deptMgmt_viewMode', mode);
+    } catch (e) {
+      console.error('Failed to save department view mode:', e);
+    }
+  };
 
   const { branch, department } = useSelector((e) => e.user);
   const [filtere, setfiltere] = useState({
@@ -264,7 +273,7 @@ const Department = () => {
             <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
               <button
                 type="button"
-                onClick={() => setViewMode("grid")}
+                onClick={() => handleViewModeChange("grid")}
                 className={`p-1.5 rounded-lg transition-all ${
                   viewMode === "grid"
                     ? "bg-white text-teal-800 shadow-xs font-bold"
@@ -276,7 +285,7 @@ const Department = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode("table")}
+                onClick={() => handleViewModeChange("table")}
                 className={`p-1.5 rounded-lg transition-all ${
                   viewMode === "table"
                     ? "bg-white text-teal-800 shadow-xs font-bold"

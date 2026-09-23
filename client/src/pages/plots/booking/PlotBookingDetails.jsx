@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import {
   ArrowLeft,
   User,
@@ -77,7 +78,15 @@ const PlotBookingDetails = () => {
   };
 
   const handleApproveBooking = async () => {
-    if (!window.confirm('Are you sure you want to APPROVE this plot booking? It will become ACTIVE.')) {
+    const proceed = await confirmDialog({
+      title: 'Approve Plot Booking?',
+      text: 'Are you sure you want to APPROVE this plot booking? The contract will become ACTIVE and land inventory will be locked.',
+      confirmText: 'Approve Booking',
+      cancelText: 'Cancel',
+      isDanger: false,
+    });
+
+    if (!proceed) {
       return;
     }
     try {

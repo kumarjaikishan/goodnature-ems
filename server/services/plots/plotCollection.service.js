@@ -347,7 +347,7 @@ class PlotCollectionService {
   }
 
   // ── INSTALLMENT / COLLECTIONS PAYMENTS ──────────────────────────
-  async collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate = 0, remarks = '', customDate = null) {
+  async collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate = 0, remarks = '', customDate = null, bankDetails = null) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -355,6 +355,20 @@ class PlotCollectionService {
       if (!booking) throw ApiError.notFound('Booking not found');
       if (booking.status !== 'ACTIVE') {
         throw ApiError.badRequest(`Booking status is ${booking.status}. Can only collect on active bookings.`);
+      }
+
+      // If bank details are provided for cheque/bank payment, also update PlotCustomer profile
+      if (bankDetails && (bankDetails.bankName || bankDetails.accountNumber) && booking.customerId) {
+        const custUpdate = {};
+        if (bankDetails.bankName) custUpdate.bankName = bankDetails.bankName.trim();
+        if (bankDetails.bankBranch) custUpdate.bankBranch = bankDetails.bankBranch.trim();
+        if (bankDetails.accountNumber) custUpdate.accountNumber = bankDetails.accountNumber.trim();
+        if (bankDetails.accountHolderName) custUpdate.accountHolderName = bankDetails.accountHolderName.trim();
+        if (bankDetails.ifscCode) custUpdate.ifscCode = bankDetails.ifscCode.trim();
+
+        if (Object.keys(custUpdate).length > 0) {
+          await PlotCustomer.findByIdAndUpdate(booking.customerId, { $set: custUpdate }, { session });
+        }
       }
 
       const paymentDate = customDate ? new Date(customDate) : new Date();
@@ -375,10 +389,15 @@ class PlotCollectionService {
       }
       await payment.save({ session });
 
-      // Generate Receipt Number
-      const fyStr = `${paymentDate.getFullYear().toString().slice(-2)}${(paymentDate.getFullYear() + 1).toString().slice(-2)}`;
+      // Generate Receipt Number (e.g. RO-REC-PLT-2627-00004)
+      const pMonth = paymentDate.getMonth();
+      const pYear = paymentDate.getFullYear();
+      const startYr = pMonth >= 3 ? pYear : pYear - 1;
+      const endYr = startYr + 1;
+      const fyStr = `${String(startYr).slice(-2)}${String(endYr).slice(-2)}`;
       const receiptPrefix = `RO-REC-PLT-${fyStr}`;
-      const receiptNumber = await Counter.getNextSequence(receiptPrefix, session, 5);
+      const seq = await Counter.getNextSequence(receiptPrefix, session, 5);
+      const receiptNumber = `${receiptPrefix}-${seq}`;
 
       let remainingPaid = Number(amountPaid);
       let remainingRebate = Number(lateFineRebate);
@@ -528,6 +547,11 @@ class PlotCollectionService {
         lateFineRebate: Number(lateFineRebate),
         paymentMode,
         transactionReference,
+        bankName: bankDetails?.bankName || '',
+        bankBranch: bankDetails?.bankBranch || '',
+        accountNumber: bankDetails?.accountNumber || '',
+        accountHolderName: bankDetails?.accountHolderName || '',
+        ifscCode: bankDetails?.ifscCode || '',
         remarks,
         status: initialStatus,
         approvedBy: isCash ? processedBy : undefined,
@@ -580,6 +604,11 @@ class PlotCollectionService {
       // 1. Update receipt and payment fields
       receipt.paymentMode = updateData.paymentMode || receipt.paymentMode;
       receipt.transactionReference = updateData.transactionReference !== undefined ? updateData.transactionReference : receipt.transactionReference;
+      if (updateData.bankName !== undefined) receipt.bankName = updateData.bankName;
+      if (updateData.bankBranch !== undefined) receipt.bankBranch = updateData.bankBranch;
+      if (updateData.accountNumber !== undefined) receipt.accountNumber = updateData.accountNumber;
+      if (updateData.accountHolderName !== undefined) receipt.accountHolderName = updateData.accountHolderName;
+      if (updateData.ifscCode !== undefined) receipt.ifscCode = updateData.ifscCode;
       receipt.remarks = updateData.remarks !== undefined ? updateData.remarks : receipt.remarks;
       receipt.amount = newAmount;
       receipt.lateFineRebate = newRebate;

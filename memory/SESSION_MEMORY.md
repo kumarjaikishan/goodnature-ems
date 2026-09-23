@@ -58,6 +58,16 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Dual Closing Engine**:
   - `PlotClosing.js` has `closingType: { type: String, enum: ['TARGET_INCENTIVE', 'EXTRA_INCENTIVE'], default: 'TARGET_INCENTIVE' }`.
   - Prefix generation: `INC-YYYYMM-XXX` for Target Incentive closings, `EXT-YYYYMM-XXX` for Extra Incentive closings.
+
+### AB. Business Associate, Business Partner & Branch Partner Portal Architecture
+- **Unified Role**: All associates and partners are stored with `role: 'sponsor'` in MongoDB `User` collection.
+  - **Business Partner (BP)**: `sponsorId === null` (Direct to Company), prefix `BP-DD/MM/YY(YY+1)/XXX`. Receives direct commissions (7% plot, 3.5% product) and team override commissions (2% plot, 1% product) on subordinate volume.
+  - **Business Associate (BA)**: `sponsorId !== null` (Under a BP), prefix `BA-DD/MM/YY(YY+1)/XXX`. Receives direct commissions (5% plot, 2.5% product).
+  - **Branch Partner / Franchise**: Partner linked with `branchIds` array.
+- **Dedicated Portal & Routes**:
+  - Direct login redirection to `/dashboard` rendering `BusinessDeveloperDashboard.jsx`.
+  - Accessible routes: `/dashboard` (KPIs, active policy slabs, incentive progress, downline list), `/dashboard/ledger` (Universal account ledger with pass-through lookup), `/dashboard/my-bookings` (Filtered direct vs team bookings), `/dashboard/my-business` (Date-wise collections, commission percentages, and transaction statement).
+  - Backend permissions automatically allow sponsors to fetch their own stats, bookings, and ledger entries while restricting staff administration.
   - Independent commission tracking: `PlotSponsorCommission` and `InvestmentCommission` store `closingId` for Target Incentive and `extraClosingId` for Extra Incentive closing. This enables a transaction receipt to participate in both closings for distinct periods without locking collisions.
   - Universal ledger credits are recorded under `commission_closing` with explicit narrative particulars distinguishing Target Incentive from Extra Incentive / Rewards.
   - **Universal Ledger Narration Format**: All commission postings to developer / sponsor ledgers use a structured ` | ` pipe-separated standard:

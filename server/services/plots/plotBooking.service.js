@@ -139,10 +139,18 @@ class PlotBookingService {
         }
         let customerDoc = await PlotCustomer.findOne({ mobile: customerMobile }).session(session);
         if (!customerDoc) {
-          const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
-          const custSeq = await Counter.getNextSequence(`RO-CUST-${fyStr}`, session, 5);
+          const cDate = new Date();
+          const cDay = String(cDate.getDate()).padStart(2, '0');
+          const cMonthNum = String(cDate.getMonth() + 1).padStart(2, '0');
+          const cMonth = cDate.getMonth();
+          const cYear = cDate.getFullYear();
+          const startYr = cMonth >= 3 ? cYear : cYear - 1;
+          const endYr = startYr + 1;
+          const fyStr = `${String(startYr).slice(-2)}${String(endYr).slice(-2)}`;
+          const custSeq = await Counter.getNextSequence(`PLOT_CUST_FY_${fyStr}`, session, 3);
+          const customerId = `PC-${cDay}/${cMonthNum}/${fyStr}/${custSeq}`;
           customerDoc = new PlotCustomer({
-            customerId: custSeq,
+            customerId,
             name: customerName,
             mobile: customerMobile,
             email: customerEmail || '',
@@ -195,11 +203,12 @@ class PlotBookingService {
       const effectiveSqFtRate = basePlotRate * (1 + totalPremiumPercent / 100);
       const plotValue = Math.round(plot.plotSize * effectiveSqFtRate);
 
-      // 4. Generate Booking number
+      // 4. Generate Booking number (PB-DD/MM/YY(YY+1)/XXX) and Agreement number (AG-DD/MM/YY(YY+1)/XXX)
       const bookingDateObj = bookingDate ? new Date(bookingDate) : new Date();
-      const date = bookingDateObj;
-      const month = date.getMonth();
-      const fullYear = date.getFullYear();
+      const bDay = String(bookingDateObj.getDate()).padStart(2, '0');
+      const bMonthNum = String(bookingDateObj.getMonth() + 1).padStart(2, '0');
+      const month = bookingDateObj.getMonth();
+      const fullYear = bookingDateObj.getFullYear();
       let startYearVal, endYearVal;
       if (month >= 3) {
         startYearVal = fullYear;
@@ -215,7 +224,9 @@ class PlotBookingService {
         { $inc: { sequence: 1 } },
         { new: true, upsert: true, session }
       );
-      const bookingNumber = `${fyStr}${String(counter.sequence).padStart(3, '0')}`;
+      const seqStr = String(counter.sequence).padStart(3, '0');
+      const bookingNumber = `PB-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
+      const agreementNumber = `AG-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
 
       // Calculate Downpayment & EMI Breakdown
       const discountVal = Number(discount) || 0;
@@ -258,6 +269,7 @@ class PlotBookingService {
 
       const booking = new PlotBooking({
         bookingNumber,
+        agreementNumber,
         bookingDate: bookingDateObj,
         customerId: finalCustomerId,
         sponsorId: finalSponsorId,
@@ -1063,7 +1075,7 @@ class PlotBookingService {
 
     const [bookings, total] = await Promise.all([
       PlotBooking.find(query)
-        .populate('customerId', 'name mobile customerId')
+        .populate('customerId', 'name mobile customerId accountHolderName bankName bankBranch accountNumber ifscCode')
         .populate({
           path: 'sponsorId',
           select: 'name sponsorCode customerId mobile sponsorId',
@@ -1089,13 +1101,40 @@ class PlotBookingService {
     const plotCollectionService = require('./plotCollection.service');
     await plotCollectionService.rebuildBookingInstallmentsState(id);
     const booking = await PlotBooking.findById(id)
-      .populate('customerId', 'name mobile email customerId address fatherOrHusbandName relationType gender age nominee')
+      .populate('customerId', 'name mobile email customerId address fatherOrHusbandName relationType gender age nominee accountHolderName bankName bankBranch accountNumber ifscCode')
       .populate('sponsorId', 'name customerId mobile address')
       .populate({
         path: 'plotId',
         populate: { path: 'seriesId' }
-      });
+      })
+      .populate('landSourcing.agreementId', 'agreementNumber mauja thanaNumber khataNumber khesraNumber jamabandiNumber landParcels');
     if (!booking) throw ApiError.notFound('Booking not found');
+
+    // If agreementNumber is missing, auto-generate in standard AG-DD/MM/YY(YY+1)/XXX format
+    if (!booking.agreementNumber || booking.agreementNumber.trim() === '' || booking.agreementNumber.includes('/2627001') || booking.agreementNumber.includes('/2627002')) {
+      const bDate = booking.bookingDate || booking.createdAt || new Date();
+      const bDay = String(bDate.getDate()).padStart(2, '0');
+      const bMonthNum = String(bDate.getMonth() + 1).padStart(2, '0');
+      const bMonth = bDate.getMonth();
+      const bFullYear = bDate.getFullYear();
+      const startYearVal = bMonth >= 3 ? bFullYear : bFullYear - 1;
+      const endYearVal = startYearVal + 1;
+      const fyStr = `${String(startYearVal).slice(-2)}${String(endYearVal).slice(-2)}`;
+
+      // Extract trailing sequence (take last 3 digits if bookingNumber ends with digits)
+      let seqStr = '001';
+      if (booking.bookingNumber) {
+        const numPart = booking.bookingNumber.replace(/\D/g, '');
+        if (numPart.length >= 3) {
+          seqStr = numPart.slice(-3);
+        } else if (numPart.length > 0) {
+          seqStr = numPart.padStart(3, '0');
+        }
+      }
+      booking.agreementNumber = `AG-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
+      await booking.save();
+    }
+
     return booking;
   }
 

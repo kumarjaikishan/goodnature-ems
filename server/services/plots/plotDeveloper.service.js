@@ -1669,17 +1669,19 @@ class PlotDeveloperService {
     const resolvedParentId = sponsorId === 'company' || sponsorId === 'direct' ? null : sponsorId;
 
     const now = new Date();
+    const sDay = String(now.getDate()).padStart(2, '0');
+    const sMonthNum = String(now.getMonth() + 1).padStart(2, '0');
     const month = now.getMonth(); // 0-indexed: 0 = Jan, 3 = Apr
     const fullYear = now.getFullYear();
     let startYear = month >= 3 ? fullYear : fullYear - 1;
     let endYear = startYear + 1;
     const fyStr = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
 
-    // P for Business Partner (Direct to company), A for Business Associate (Under Partner)
-    const codeType = resolvedParentId ? 'A' : 'P';
-    const counterKey = `GNE-${codeType}-${fyStr}`;
+    // BP for Business Partner (Direct to company), BA for Business Associate (Under Partner)
+    const prefixType = resolvedParentId ? 'BA' : 'BP';
+    const counterKey = `GNE-${prefixType}-${fyStr}`;
     const seqNum = await Counter.getNextSequence(counterKey, null, 3);
-    const sponsorCode = `${codeType}/${fyStr}/${seqNum}`;
+    const sponsorCode = `${prefixType}-${sDay}/${sMonthNum}/${fyStr}/${seqNum}`;
 
     let resolvedBranchIds = [];
     if (branchId) {
@@ -1907,8 +1909,10 @@ class PlotDeveloperService {
       }
     }
 
-    // Financial Year string: e.g. 2627 (April 1 to March 31)
+    // Customer ID: e.g. PC-23/09/2627/001
     const now = new Date();
+    const cDay = String(now.getDate()).padStart(2, '0');
+    const cMonthNum = String(now.getMonth() + 1).padStart(2, '0');
     const curYear = now.getFullYear();
     const curMonth = now.getMonth(); // 0-indexed, 3 = April
     const startYr = curMonth >= 3 ? curYear : curYear - 1;
@@ -1916,7 +1920,7 @@ class PlotDeveloperService {
     const fyStr = `${String(startYr).slice(-2)}${String(endYr).slice(-2)}`;
 
     const seq = await Counter.getNextSequence(`PLOT_CUST_FY_${fyStr}`, null, 3);
-    const customerId = `C/${fyStr}/${seq}`;
+    const customerId = `PC-${cDay}/${cMonthNum}/${fyStr}/${seq}`;
 
     const customer = new PlotCustomer({
       customerId,

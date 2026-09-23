@@ -27,6 +27,7 @@ const InstallmentCollection = ({ type, initialView }) => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
+  const [allInstallments, setAllInstallments] = useState([]);
   const [selectedInstIds, setSelectedInstIds] = useState([]);
   const [dpGracePeriod, setDpGracePeriod] = useState(15);
   const [emiGracePeriod, setEmiGracePeriod] = useState(15);
@@ -43,6 +44,11 @@ const InstallmentCollection = ({ type, initialView }) => {
     transactionReference: '',
     remarks: '',
     createdAt: new Date().toISOString().split('T')[0],
+    bankName: '',
+    bankBranch: '',
+    accountNumber: '',
+    accountHolderName: '',
+    ifscCode: '',
   });
 
   const getLateFine = (inst, customGrace = null, customDate = null, fineDailyPercent = null) => {
@@ -199,6 +205,11 @@ const InstallmentCollection = ({ type, initialView }) => {
       remarks: '',
       createdAt: new Date().toISOString().split('T')[0],
       lateFineRebate: '',
+      bankName: '',
+      bankBranch: '',
+      accountNumber: '',
+      accountHolderName: '',
+      ifscCode: '',
     });
   }, [location.pathname, mode, initialView]);
 
@@ -234,7 +245,16 @@ const InstallmentCollection = ({ type, initialView }) => {
       setSelectedBooking(null);
       setInstallments([]);
       setSelectedInstIds([]);
-      setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
+      setForm((f) => ({
+        ...f,
+        amountPaid: '',
+        lateFineRebate: '',
+        bankName: '',
+        bankBranch: '',
+        accountNumber: '',
+        accountHolderName: '',
+        ifscCode: '',
+      }));
       setDetailsLoading(false);
       return;
     }
@@ -243,7 +263,17 @@ const InstallmentCollection = ({ type, initialView }) => {
     setSelectedBooking(b);
     setInstallments([]);
     setSelectedInstIds([]);
-    setForm((f) => ({ ...f, amountPaid: '', lateFineRebate: '' }));
+    const cust = b?.customerId;
+    setForm((f) => ({
+      ...f,
+      amountPaid: '',
+      lateFineRebate: '',
+      bankName: cust?.bankName || '',
+      bankBranch: cust?.bankBranch || '',
+      accountNumber: cust?.accountNumber || '',
+      accountHolderName: cust?.accountHolderName || cust?.name || b?.customerName || '',
+      ifscCode: cust?.ifscCode || '',
+    }));
     setDetailsLoading(true);
 
     try {
@@ -279,6 +309,7 @@ const InstallmentCollection = ({ type, initialView }) => {
       if (currentReqId !== activeSelectRequestId.current) return;
 
       const fetchedInsts = instRes.data.data || [];
+      setAllInstallments(fetchedInsts);
       let targetInsts = fetchedInsts;
       if (mode === 'DOWNPAYMENT') {
         targetInsts = fetchedInsts.filter(i => i.installmentNumber === 0 || b?.scheme === 'FULL_PAYMENT');
@@ -464,6 +495,14 @@ const InstallmentCollection = ({ type, initialView }) => {
       }
     }
 
+    if (mode === 'EMI') {
+      const dpInst = allInstallments?.find((i) => i.installmentNumber === 0);
+      const isDpPending = dpInst && dpInst.status !== 'PAID' && (dpInst.dueAmount - (dpInst.paidAmount || 0)) > 0;
+      if (isDpPending) {
+        return toast.error('Downpayment is not completed yet. Please clear the downpayment collection before receiving monthly EMIs.');
+      }
+    }
+
     setSubmitLoading(true);
     try {
       let targetIds = selectedInstIds;
@@ -481,6 +520,13 @@ const InstallmentCollection = ({ type, initialView }) => {
         installmentIds: targetIds,
         selectedInstallmentIds: targetIds,
         createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : undefined,
+        bankDetails: form.paymentMode !== 'cash' ? {
+          bankName: form.bankName || '',
+          bankBranch: form.bankBranch || '',
+          accountNumber: form.accountNumber || '',
+          accountHolderName: form.accountHolderName || '',
+          ifscCode: form.ifscCode || '',
+        } : undefined,
       };
 
       const res = await api.post(`/plots/bookings/${selectedBooking._id}/collect`, payload);
@@ -792,6 +838,7 @@ const InstallmentCollection = ({ type, initialView }) => {
           handleCollectionDateChange={handleCollectionDateChange}
           submitLoading={submitLoading}
           mode={mode}
+          allInstallments={allInstallments}
         />
       )}
 

@@ -261,11 +261,13 @@ const ReceiptViewer = () => {
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Mobile No</span>
+                  <span>Customer ID</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">{customer.mobile || bookingId.customerMobile}</td>
+              <td className="p-2 font-bold text-slate-900 font-mono">
+                {customer.customerId || customer.customerCode || bookingId.customerId?.customerId || '-'}
+              </td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
                   <span>Plot Number</span>
@@ -388,6 +390,31 @@ const ReceiptViewer = () => {
                   </tr>
                 )}
               </>
+            )}
+
+            {/* Customer Bank Details for Non-Cash / Cheque */}
+            {(receipt.bankName || receipt.accountNumber || receipt.ifscCode) && (
+              <tr className="border-b border-slate-100 bg-slate-50/50">
+                <td className="p-2 text-slate-500 font-medium">
+                  <div className="flex justify-between items-center">
+                    <span>Customer Bank Details</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td colSpan={3} className="p-2 font-bold text-slate-800 text-xs">
+                  <span>{receipt.bankName || 'Bank'}</span>
+                  {receipt.bankBranch && <span className="text-slate-600 font-normal"> ({receipt.bankBranch})</span>}
+                  {receipt.accountNumber && (
+                    <span className="ml-2 font-mono">| A/C: {receipt.accountNumber}</span>
+                  )}
+                  {receipt.accountHolderName && (
+                    <span className="ml-2 text-slate-600 font-normal">| Holder: {receipt.accountHolderName}</span>
+                  )}
+                  {receipt.ifscCode && (
+                    <span className="ml-2 font-mono text-slate-700">| IFSC: {receipt.ifscCode}</span>
+                  )}
+                </td>
+              </tr>
             )}
 
             {/* Row 6 (Amount in Words) */}

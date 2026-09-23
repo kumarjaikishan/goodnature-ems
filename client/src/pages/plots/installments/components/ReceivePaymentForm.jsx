@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import numberToWords from '@/utils/numToWord';
-import { Banknote, CheckCircle, Clock } from 'lucide-react';
+import { Banknote, CheckCircle, Clock, AlertTriangle, ArrowRight, Building2 } from 'lucide-react';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
 const inputCls =
@@ -15,6 +15,7 @@ const ReceivePaymentForm = ({
   handleBookingSelect,
   detailsLoading,
   installments,
+  allInstallments = [],
   selectedInstIds,
   handleCheckboxToggle,
   getLateFine,
@@ -56,7 +57,7 @@ const ReceivePaymentForm = ({
     ? `${lateFineRate || 0}% / Mo`
     : `${lateFineRate || 24}% P.A.`;
 
-  const dpInst = installments?.find((i) => i.installmentNumber === 0) || (installments && installments[0]);
+  const dpInst = (allInstallments.length > 0 ? allInstallments : installments)?.find((i) => i.installmentNumber === 0) || (installments && installments[0]);
   const dpTotal = dpInst ? dpInst.dueAmount : (selectedBooking?.downpaymentAmount || selectedBooking?.bookingAmount || selectedBooking?.plotValue || 0);
   const dpPaid = dpInst ? dpInst.paidAmount : 0;
   const dpPrincipalDue = Math.max(0, dpTotal - dpPaid);
@@ -66,6 +67,9 @@ const ReceivePaymentForm = ({
   const dpDueDate = dpInst?.dueDate || (selectedBooking?.bookingDate ? new Date(new Date(selectedBooking.bookingDate).getTime() + (Number(selectedBooking.downpaymentDays) || 90) * 24 * 60 * 60 * 1000) : null);
 
   const isDpOverdue = dpDueDate && new Date(dpDueDate) < new Date(form.createdAt || new Date()) && dpPrincipalDue > 0;
+  
+  // Check if Downpayment is pending for this booking in EMI collection mode
+  const isDownpaymentPending = !isDownpaymentMode && selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && dpPrincipalDue > 0;
 
   const emiInsts = installments?.filter((i) => i.installmentNumber > 0) || [];
   const formDateObj = form.createdAt ? new Date(form.createdAt) : new Date();
@@ -261,6 +265,31 @@ const ReceivePaymentForm = ({
                     </div>
                   </div>
                 )
+              ) : isDownpaymentPending ? (
+                /* Clear Message: Downpayment Not Completed - Block EMI Collection */
+                <div className="p-5 bg-amber-50/90 border-2 border-amber-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl shrink-0 mt-0.5">
+                      <AlertTriangle size={24} />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-amber-950 uppercase tracking-wide">
+                        Downpayment Required Before Collecting Monthly EMIs
+                      </h4>
+                      <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                        This booking has a pending downpayment of <strong className="font-bold text-amber-950">₹{dpPrincipalDue.toLocaleString('en-IN')}</strong>. 
+                        Under EMS rules, the customer must complete the initial downpayment before monthly EMI installments can be collected and scheduled.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={`/dashboard/plots/collections/downpayment/add`}
+                    className="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-xl text-xs transition shrink-0 self-start sm:self-auto shadow-sm inline-flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                  >
+                    <span>Collect Downpayment Now</span>
+                    <ArrowRight size={14} />
+                  </a>
+                </div>
               ) : (
                 /* Dedicated EMI Summary & Schedule Panel */
                 <div className="flex flex-col gap-4">
@@ -461,8 +490,8 @@ const ReceivePaymentForm = ({
             </>
           )}
 
-          {/* Input Fields Grid (Only rendered if downpayment/contract is not already completed) */}
-          {!(isDownpaymentMode && dpPrincipalDue === 0 && dpFine === 0) && (
+          {/* Input Fields Grid (Only rendered if downpayment/contract is not already completed and DP is not pending in EMI mode) */}
+          {!(isDownpaymentMode && dpPrincipalDue === 0 && dpFine === 0) && !isDownpaymentPending && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
@@ -592,6 +621,81 @@ const ReceivePaymentForm = ({
                   </div>
                 )}
 
+                {/* Customer Bank Details for Non-Cash (Cheque / Online / Bank Transfer) Payments */}
+                {form.paymentMode !== 'cash' && (
+                  <div className="sm:col-span-2 lg:col-span-3 p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 size={16} className="text-teal-700" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                          Customer Bank Account Details
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        (Used for Cheque/Bank Verification & Record)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className={labelCls}>Bank Name</label>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          placeholder="e.g. State Bank of India, HDFC Bank"
+                          value={form.bankName || ''}
+                          onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className={labelCls}>Account Number</label>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          placeholder="e.g. 123456789012"
+                          value={form.accountNumber || ''}
+                          onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className={labelCls}>Account Holder Name</label>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          placeholder="e.g. Customer Name / Company Name"
+                          value={form.accountHolderName || ''}
+                          onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className={labelCls}>IFSC Code</label>
+                        <input
+                          type="text"
+                          className={`${inputCls} uppercase`}
+                          maxLength={11}
+                          placeholder="e.g. SBIN0001234"
+                          value={form.ifscCode || ''}
+                          onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <label className={labelCls}>Branch Name</label>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          placeholder="e.g. Main Branch"
+                          value={form.bankBranch || ''}
+                          onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
                   <label className={labelCls}>Narration / Remarks</label>
                   <textarea
@@ -602,17 +706,6 @@ const ReceivePaymentForm = ({
                   />
                 </div>
               </div>
-
-              {form.paymentMode !== 'cash' && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-center gap-2">
-                  <Clock size={16} className="text-amber-700 shrink-0" />
-                  <span>
-                    <strong>Non-Cash Payment Notice:</strong> Payments collected via{' '}
-                    <strong>{form.paymentMode.toUpperCase()}</strong> will be recorded in <strong>Pending Approval</strong>{' '}
-                    state and will realize into the customer's balance once verified & approved by an admin.
-                  </span>
-                </div>
-              )}
 
               <Button
                 type="submit"

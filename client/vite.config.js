@@ -25,12 +25,12 @@ export default defineConfig({
       threshold: 1024,
       deleteOriginalAssets: false,
     }),
-    // Brotli Compression (.br)
-    compression({
-      algorithm: 'brotliCompress',
-      threshold: 1024,
-      deleteOriginalAssets: false,
-    })
+    // Brotli Compression (.br) - temporarily disabled
+    // compression({
+    //   algorithm: 'brotliCompress',
+    //   threshold: 1024,
+    //   deleteOriginalAssets: false,
+    // })
   ],
   build: {
     rollupOptions: {

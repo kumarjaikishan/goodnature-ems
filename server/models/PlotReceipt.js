@@ -46,6 +46,32 @@ const plotReceiptSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Customer Bank details for non-cash (cheque/bank transfer/neft) collections
+    bankName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    bankBranch: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    accountNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    accountHolderName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    ifscCode: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     remarks: {
       type: String,
       default: '',

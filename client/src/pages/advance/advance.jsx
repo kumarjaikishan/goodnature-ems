@@ -6,7 +6,7 @@ import { toast } from "../../utils/toast";
 import { FirstFetch } from "../../../store/userSlice";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import dayjs from "dayjs";
-import { Edit2, Trash2, Plus, User } from "lucide-react";
+import { Edit2, Trash2, Plus, User, Search, X } from "lucide-react";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
@@ -43,6 +43,8 @@ const EmployeeAdvancePage = () => {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState(
         paramEmployeeId || "all"
     );
+
+    const [searchTerm, setSearchTerm] = useState("");
 
     const [filters, setFilters] = useState({
         branch: "all",
@@ -105,7 +107,7 @@ const EmployeeAdvancePage = () => {
 
     /* -------------------- FILTERING -------------------- */
 
-    const filteredEmployees = rows?.filter((row) => {
+    const allEmployeeAdvances = rows?.filter((row) => {
         if (selectedEmployeeId === "all") return false;
 
         const branchMatch =
@@ -115,18 +117,35 @@ const EmployeeAdvancePage = () => {
             row.employeeId?._id === selectedEmployeeId || row.employeeId === selectedEmployeeId;
 
         return branchMatch && employeeMatch;
+    }) || [];
+
+    const filteredEmployees = allEmployeeAdvances.filter((row) => {
+        if (!searchTerm.trim()) return true;
+        const q = searchTerm.toLowerCase().trim();
+        const dateStr = dayjs(row.date).format('DD MMM YYYY').toLowerCase();
+        const remarksStr = (row.remarks || row.reason || "").toLowerCase();
+        const typeStr = (row.type === 'given' ? 'advance granted' : row.type === 'repaid' ? 'repayment' : 'salary deduction').toLowerCase();
+        const statusStr = (row.status || "").toLowerCase();
+        const amountStr = String(row.amount || "");
+        return (
+            dateStr.includes(q) ||
+            remarksStr.includes(q) ||
+            typeStr.includes(q) ||
+            statusStr.includes(q) ||
+            amountStr.includes(q)
+        );
     });
 
     // Summary calculations for selected employee
-    const employeeGivenTotal = (filteredEmployees || [])
+    const employeeGivenTotal = allEmployeeAdvances
         .filter(r => r.type === 'given')
         .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
-    const employeeAdjustedTotal = (filteredEmployees || [])
+    const employeeAdjustedTotal = allEmployeeAdvances
         .filter(r => r.type === 'adjusted' || r.type === 'repaid')
         .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
-    const employeeActiveAdvances = (filteredEmployees || [])
+    const employeeActiveAdvances = allEmployeeAdvances
         .filter(r => r.type === 'given' && (r.remainingBalance || 0) > 0);
 
     const totalScheduledEMI = employeeActiveAdvances
@@ -438,6 +457,28 @@ const EmployeeAdvancePage = () => {
                             allowClear={false}
                         />
                     </div>
+
+                    {/* Search in employee advance entries */}
+                    <div className="relative min-w-[220px] max-w-xs flex-1">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Search advance entries..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700 shadow-2xs transition"
+                        />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded transition cursor-pointer"
+                                title="Clear search"
+                            >
+                                <X size={13} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <Button 
@@ -522,7 +563,9 @@ const EmployeeAdvancePage = () => {
                         <div className="py-12 text-center text-slate-500 font-medium text-sm">
                             {!selectedEmployee
                                 ? "Please select an employee above to view advance ledgers"
-                                : "No advance entries recorded for this employee"}
+                                : searchTerm
+                                    ? `No advance entries matching "${searchTerm}"`
+                                    : "No advance entries recorded for this employee"}
                         </div>
                     }
                 />

@@ -141,7 +141,16 @@ export default function SuperAdminDashboard() {
     const [roleFilter, setRoleFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
     const [branchFilter, setBranchFilter] = useState("all");
-    const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
+    const [viewMode, setViewMode] = useState(() => localStorage.getItem("userMgmt_viewMode") || "grid"); // 'grid' | 'table'
+
+    const handleViewModeChange = (mode) => {
+        setViewMode(mode);
+        try {
+            localStorage.setItem("userMgmt_viewMode", mode);
+        } catch (e) {
+            console.error("Failed to save view mode:", e);
+        }
+    };
 
     const [form, setForm] = useState({
         name: "",
@@ -597,7 +606,7 @@ export default function SuperAdminDashboard() {
                         <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                             <button
                                 type="button"
-                                onClick={() => setViewMode("grid")}
+                                onClick={() => handleViewModeChange("grid")}
                                 className={`p-1.5 rounded-lg transition-all ${
                                     viewMode === "grid"
                                         ? "bg-white text-teal-800 shadow-xs font-bold"
@@ -609,7 +618,7 @@ export default function SuperAdminDashboard() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setViewMode("table")}
+                                onClick={() => handleViewModeChange("table")}
                                 className={`p-1.5 rounded-lg transition-all ${
                                     viewMode === "table"
                                         ? "bg-white text-teal-800 shadow-xs font-bold"
