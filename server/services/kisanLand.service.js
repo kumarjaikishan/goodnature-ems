@@ -372,6 +372,8 @@ class KisanLandService {
             khataNumber: parcelDoc.khataNumber,
             khesraNumber: parcelDoc.khesraNumber,
             thanaNumber: parcelDoc.thanaNumber || '',
+            jamabandiNumber: parcelDoc.jamabandiNumber || '',
+            chaudhi: parcelDoc.chaudhi || {},
             registeredDismil: itemDismil,
             registeredSqFt: itemSqFt,
           });
@@ -424,6 +426,8 @@ class KisanLandService {
             khataNumber: parcelDoc.khataNumber,
             khesraNumber: parcelDoc.khesraNumber,
             thanaNumber: parcelDoc.thanaNumber || '',
+            jamabandiNumber: parcelDoc.jamabandiNumber || '',
+            chaudhi: parcelDoc.chaudhi || {},
             registeredDismil: allocDismil,
             registeredSqFt: allocSqFt,
           });

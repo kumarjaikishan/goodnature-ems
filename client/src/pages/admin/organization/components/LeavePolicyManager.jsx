@@ -22,6 +22,7 @@ const LeavePolicyManager = () => {
         totalLeaves: 0,
         carryForward: {
             enabled: false,
+            carryForwardAll: false,
             maxLimit: 0
         },
         encashable: false,
@@ -52,7 +53,7 @@ const LeavePolicyManager = () => {
             name: '',
             allocationType: 'monthly',
             totalLeaves: 0,
-            carryForward: { enabled: false, maxLimit: 0 },
+            carryForward: { enabled: false, carryForwardAll: false, maxLimit: 0 },
             encashable: false,
             probationRule: { allowed: false, afterDays: 0 }
         });
@@ -64,11 +65,18 @@ const LeavePolicyManager = () => {
         setEditingPolicy(policy);
         setForm({
             name: policy.name,
-            allocationType: policy.allocationType,
-            totalLeaves: policy.totalLeaves,
-            carryForward: policy.carryForward || { enabled: false, maxLimit: 0 },
+            allocationType: policy.allocationType || 'monthly',
+            totalLeaves: policy.totalLeaves || 0,
+            carryForward: {
+                enabled: policy.carryForward?.enabled || false,
+                carryForwardAll: policy.carryForward?.carryForwardAll || false,
+                maxLimit: policy.carryForward?.maxLimit || 0
+            },
             encashable: policy.encashable || false,
-            probationRule: policy.probationRule || { allowed: false, afterDays: 0 }
+            probationRule: {
+                allowed: policy.probationRule?.allowed || false,
+                afterDays: policy.probationRule?.afterDays || 0
+            }
         });
         setShowForm(true);
     };
@@ -161,8 +169,8 @@ const LeavePolicyManager = () => {
                                     options={[
                                         { value: "monthly", label: "Monthly" },
                                         { value: "quarterly", label: "Quarterly" },
-                                        { value: "annually", label: "Annually" },
-                                        { value: "biannually", label: "Bi-Annually" }
+                                        { value: "biannually", label: "Bi-Annually" },
+                                        { value: "yearly", label: "Yearly" }
                                     ]}
                                 />
                             </div>
@@ -185,23 +193,48 @@ const LeavePolicyManager = () => {
                                         checked={form.carryForward.enabled} 
                                         onChange={(e) => setForm({ 
                                             ...form, 
-                                            carryForward: { ...form.carryForward, enabled: e.target.checked } 
+                                            carryForward: { 
+                                                ...form.carryForward, 
+                                                enabled: e.target.checked,
+                                                carryForwardAll: e.target.checked ? form.carryForward.carryForwardAll : false,
+                                                maxLimit: e.target.checked ? form.carryForward.maxLimit : 0
+                                            } 
                                         })} 
                                         className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                                     />
                                     <span>Enable Carry Forward</span>
                                 </label>
                                 {form.carryForward.enabled && (
-                                    <NumberInput
-                                        size="sm"
-                                        label="Max Carry Forward Limit"
-                                        min={0}
-                                        value={form.carryForward.maxLimit}
-                                        onChange={(val) => setForm({ 
-                                            ...form, 
-                                            carryForward: { ...form.carryForward, maxLimit: val } 
-                                        })}
-                                    />
+                                    <div className="space-y-2 pt-1 border-t border-slate-200/60">
+                                        <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
+                                            <input
+                                                type="checkbox"
+                                                checked={form.carryForward.carryForwardAll}
+                                                onChange={(e) => setForm({
+                                                    ...form,
+                                                    carryForward: {
+                                                        ...form.carryForward,
+                                                        carryForwardAll: e.target.checked,
+                                                        maxLimit: e.target.checked ? 0 : form.carryForward.maxLimit
+                                                    }
+                                                })}
+                                                className="rounded text-teal-600 focus:ring-teal-500 w-3.5 h-3.5 border-slate-300"
+                                            />
+                                            <span>Carry Forward All Remaining</span>
+                                        </label>
+                                        {!form.carryForward.carryForwardAll && (
+                                            <NumberInput
+                                                size="sm"
+                                                label="Max Limit (Number of Leaves)"
+                                                min={0}
+                                                value={form.carryForward.maxLimit}
+                                                onChange={(val) => setForm({ 
+                                                    ...form, 
+                                                    carryForward: { ...form.carryForward, maxLimit: val } 
+                                                })}
+                                            />
+                                        )}
+                                    </div>
                                 )}
                             </div>
 
@@ -299,7 +332,9 @@ const LeavePolicyManager = () => {
                                     <td className="p-3 font-bold text-slate-900">{policy.totalLeaves}</td>
                                     <td className="p-3">
                                         {policy.carryForward?.enabled ? (
-                                            <span className="text-emerald-700 font-medium">Yes (Max: {policy.carryForward.maxLimit})</span>
+                                            <span className="text-emerald-700 font-medium">
+                                                {policy.carryForward?.carryForwardAll ? 'Yes (All)' : `Yes (Max: ${policy.carryForward.maxLimit || 0})`}
+                                            </span>
                                         ) : (
                                             <span className="text-slate-400">No</span>
                                         )}

@@ -237,6 +237,13 @@ const deedParcelAllocationSchema = new mongoose.Schema(
     khataNumber: { type: String, default: '' },
     khesraNumber: { type: String, default: '' },
     thanaNumber: { type: String, default: '' },
+    jamabandiNumber: { type: String, default: '' },
+    chaudhi: {
+      north: { type: String, default: '' },
+      south: { type: String, default: '' },
+      east: { type: String, default: '' },
+      west: { type: String, default: '' },
+    },
     registeredDismil: {
       type: Number,
       required: true,

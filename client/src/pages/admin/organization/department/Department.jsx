@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  Building2, Briefcase, Plus, Search, Edit2, Trash2,
-  LayoutGrid, List, Layers, FileText, Sparkles, Building
+  Building2, Plus, Search, Edit2, Trash2,
+  LayoutGrid, List
 } from 'lucide-react';
 import { swal } from '../../../../utils/confirmDialog';
 import DataTable from '@/components/common/DataTable';
@@ -33,7 +33,7 @@ const Department = () => {
   const [openmodal, setopenmodal] = useState(false);
   const [isload, setisload] = useState(false);
   const [isupdate, setisupdate] = useState(false);
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('deptMgmt_viewMode') || 'grid'); // 'grid' | 'table'
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('deptMgmt_viewMode') || 'table'); // 'grid' | 'table'
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
@@ -79,20 +79,6 @@ const Department = () => {
       return matchBranch && matchSearch;
     });
   }, [department, filtere]);
-
-  // Summary stats
-  const stats = useMemo(() => {
-    const totalDeps = department?.length || 0;
-    const branchIdsWithDeps = new Set(
-      (department || []).map((d) => d.branchId?._id || d.branchId).filter(Boolean)
-    );
-    const totalBranches = branch?.length || 0;
-    return {
-      totalDeps,
-      branchesCovered: branchIdsWithDeps.size,
-      totalBranches,
-    };
-  }, [department, branch]);
 
   const adddepartcall = (e) => {
     e.preventDefault();
@@ -208,50 +194,7 @@ const Department = () => {
   ];
 
   return (
-    <div className="w-full space-y-6">
-      {/* Stat Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Total Departments */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Departments</p>
-            <h4 className="text-2xl font-bold text-slate-800 mt-1">{stats.totalDeps}</h4>
-            <span className="text-[11px] text-teal-600 font-medium">Configured functional units</span>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center border border-teal-100">
-            <Layers size={22} />
-          </div>
-        </div>
-
-        {/* Branches Covered */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Branches Assigned</p>
-            <h4 className="text-2xl font-bold text-emerald-800 mt-1">
-              {stats.branchesCovered} <span className="text-xs text-slate-400 font-normal">/ {stats.totalBranches}</span>
-            </h4>
-            <span className="text-[11px] text-emerald-600 font-medium">Locations with active depts</span>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
-            <Building2 size={22} />
-          </div>
-        </div>
-
-        {/* Avg Depts per Branch */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Operational Scope</p>
-            <h4 className="text-2xl font-bold text-sky-800 mt-1">
-              {stats.branchesCovered > 0 ? (stats.totalDeps / stats.branchesCovered).toFixed(1) : 0}
-            </h4>
-            <span className="text-[11px] text-sky-600 font-medium">Avg departments per branch</span>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center border border-sky-100">
-            <Briefcase size={22} />
-          </div>
-        </div>
-      </div>
-
+    <div className="w-full space-y-4">
       {/* Toolbar & Filter Bar */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -349,7 +292,7 @@ const Department = () => {
       {filteredDepartments.length === 0 ? (
         <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center mx-auto mb-3 border border-teal-100">
-            <Layers size={28} />
+            <Building2 size={28} />
           </div>
           <h4 className="text-base font-bold text-slate-800">No Departments Found</h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">

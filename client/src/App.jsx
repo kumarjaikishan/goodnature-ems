@@ -51,7 +51,6 @@ const LedgerDetailPage = lazy(() => import('./pages/admin/ledger/ledgerdetailpag
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
 const VoucherList = lazy(() => import('./pages/vouchers/VoucherList'));
 const VoucherDetails = lazy(() => import('./pages/vouchers/VoucherDetails'));
-const LeavePolicyManager = lazy(() => import('./pages/admin/leave/LeavePolicyManager'));
 const AttendanceExcelImport = lazy(() => import('./pages/admin/attandence/AttendanceExcelImport'));
 const ActivityLogs = lazy(() => import('./pages/admin/activityLogs/ActivityLogs'));
 const PasswordReset = lazy(() => import('./utils/PasswordReset'));
@@ -140,7 +139,6 @@ const routesByRole = {
       <Route path="payroll/edit/:id" element={<PayrollEdit />} />
       <Route path="vouchers" element={<VoucherList />} />
       <Route path="vouchers/:id" element={<VoucherDetails />} />
-      <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
       <Route path="plots/purchase" element={<PlotPurchasePage />} />
       <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
@@ -230,7 +228,6 @@ const routesByRole = {
       <Route path="payroll/edit/:id" element={<PayrollEdit />} />
       <Route path="vouchers" element={<VoucherList />} />
       <Route path="vouchers/:id" element={<VoucherDetails />} />
-      <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
       <Route path="plots/purchase" element={<PlotPurchasePage />} />
       <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
@@ -320,7 +317,6 @@ const routesByRole = {
       <Route path="payroll/edit/:id" element={<PayrollEdit />} />
       <Route path="vouchers" element={<VoucherList />} />
       <Route path="vouchers/:id" element={<VoucherDetails />} />
-      <Route path="leave-policies" element={<LeavePolicyManager />} />
       <Route path="plots/dashboard" element={<PlotDashboard />} />
       <Route path="plots/purchase" element={<PlotPurchasePage />} />
       <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />

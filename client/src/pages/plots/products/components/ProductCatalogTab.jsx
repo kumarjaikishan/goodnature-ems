@@ -158,7 +158,7 @@ const ProductCatalogTab = ({ products, loading, onRefresh }) => {
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] uppercase font-bold tracking-wider">Total Catalog Valuation</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider">Total Valuation</span>
             <DollarSign size={16} className="text-teal-700" />
           </div>
           <div className="text-2xl font-black text-slate-900 mt-1">₹{totalValuation.toLocaleString('en-IN')}</div>

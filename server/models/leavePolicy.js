@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const leavePolicySchema = new mongoose.Schema({
   name: { type: String, required: true },
-  allocationType: { type: String, enum: ['monthly', 'yearly'], required: true },
+  allocationType: { type: String, enum: ['monthly', 'quarterly', 'biannually', 'yearly', 'annually'], required: true },
   totalLeaves: { type: Number, required: true },
   carryForward: {
     enabled: { type: Boolean, default: false },

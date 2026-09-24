@@ -16,6 +16,7 @@ import CreateDeedModal from './components/CreateDeedModal';
 import EditDeedModal from './components/EditDeedModal';
 import RecordPaymentModal from './components/RecordPaymentModal';
 import KisanLedgersDrawer from './components/KisanLedgersDrawer';
+import ViewDeedModal from './components/ViewDeedModal';
 
 const PlotPurchasePage = () => {
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,9 @@ const PlotPurchasePage = () => {
   const [selectedAgrId, setSelectedAgrId] = useState(null);
   const [detailData, setDetailData] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
+
+  // Selected Deed for Viewing
+  const [viewDeedTarget, setViewDeedTarget] = useState(null);
 
   // Create Agreement Modal State
   const [createOpen, setCreateOpen] = useState(false);
@@ -215,11 +219,16 @@ const PlotPurchasePage = () => {
             ...deed,
             parentAgreementId: agr._id,
             parentAgreementNumber: agr.agreementNumber,
+            parentAgreementDate: agr.agreementDate,
+            parentAgreementStatus: agr.status,
             mauja: agr.mauja,
             khataNumber: agr.khataNumber,
             khesraNumber: agr.khesraNumber,
             thanaNumber: agr.thanaNumber,
+            jamabandiNumber: agr.jamabandiNumber,
             farmers: agr.farmers || [],
+            purchasers: agr.purchasers || [],
+            agreementParcels: agr.landParcels || [],
           });
         });
       }
@@ -640,6 +649,7 @@ const PlotPurchasePage = () => {
           deedSearch={deedSearch}
           setDeedSearch={setDeedSearch}
           loadAgreementDetails={loadAgreementDetails}
+          onViewDeed={(deed) => setViewDeedTarget(deed)}
           openEditDeedModal={openEditDeedModal}
           handleDeleteDeed={handleDeleteDeed}
         />
@@ -726,6 +736,12 @@ const PlotPurchasePage = () => {
         open={Boolean(selectedAgrId && detailData)}
         onClose={() => setSelectedAgrId(null)}
         detailData={detailData}
+      />
+
+      <ViewDeedModal
+        open={Boolean(viewDeedTarget)}
+        onClose={() => setViewDeedTarget(null)}
+        deed={viewDeedTarget}
       />
     </div>
   );

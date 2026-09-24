@@ -108,6 +108,10 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Handling**: `server/index.js` mounts a custom raw body stream reader specifically before standard `express.json()` to capture `req.bodyRaw`.
 - Device heartbeats are recorded under `company.devices.$.lastHeartbeat`.
 
+### AA. Registry Deed Parcel-Level Jamabandi & Particulars Resolution
+- **Gotcha**: When viewing a Registry Deed in `ViewDeedModal.jsx`, each land parcel row must display its own specific Jamabandi Number, Khata, Khesra, Thana, Mauja, and Chaudhi mapped from `agreementParcels` (`agr.landParcels`) by matching `parcelId` or `khataNumber + '_' + khesraNumber`.
+- **Fix Pattern**: Never fall back to agreement-level concatenated fields (such as `agr.jamabandiNumber` = `"103, 100"`) inside parcel table rows, as that causes every row to display all jamabandi numbers instead of its own. Also store `jamabandiNumber` and `chaudhi` directly on `deedParcelAllocations` subdocuments in `server/models/KisanLandAgreement.js` and `server/services/kisanLand.service.js`.
+
 ### B. Timezone & Attendance Calculations
 - **Gotcha**: If attendance is queried by a date string (e.g. `2026-08-23`), converting with raw JavaScript `new Date("2026-08-23")` will cause shifts depending on the host server's local timezone.
 - **Fix Pattern**: Always use `parseAttendanceDateTime()` and `getAttendanceDateUTC()` from `server/utils/attendanceTime.js`. Attendance records are saved with `date` set to UTC midnight (`YYYY-MM-DDT00:00:00.000Z`).

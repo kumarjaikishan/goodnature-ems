@@ -80,7 +80,6 @@ const Sidebar = () => {
             { menu: "Employee", link: "/dashboard/employe", roles: ["admin", "superadmin", "manager", "demo"], resource: "employee" },
             { menu: "Leave Request", link: "/dashboard/leave-request", roles: ["employee", "admin", "superadmin", "manager", "demo"], resource: "leave", icon: <FileText size={18} /> },
             { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: ["admin", "superadmin", "manager", "demo"], resource: "leave", icon: <History size={18} /> },
-            { menu: "Leave Policies", link: "/dashboard/leave-policies", roles: ["admin", "superadmin", "demo"], resource: "leave", icon: <Settings size={18} /> },
             { menu: "Leave Ledger", link: "/dashboard/my-leave-ledger", roles: ["employee"], icon: <History size={18} />, hidden: !company?.leaveSettings?.allowEmployeeToSeeLedger },
           ].filter(c => !c.hidden),
         },

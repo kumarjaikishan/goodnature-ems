@@ -164,7 +164,7 @@ const KisanAgreementsTable = ({
                         </div>
                       </td>
 
-                      {/* Land Particulars: Thana, then Mauja, then Jamabandi only */}
+                      {/* Land Particulars: Mauja, Thana, Khata, Khesra, Jamabandi */}
                       <td className="p-3.5">
                         {parcels && parcels.length > 1 ? (
                           <div className="space-y-1">
@@ -173,32 +173,52 @@ const KisanAgreementsTable = ({
                                 <Layers size={11} /> {parcels.length} Land Details
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-700">
-                              <span className="text-slate-500">Thana: </span>
-                              <strong>{[...new Set(parcels.map((p) => p.thanaNumber).filter(Boolean))].join(', ') || agr.thanaNumber || '—'}</strong>
-                            </div>
                             <div className="text-xs font-bold text-slate-800">
                               <span className="text-slate-500 font-normal text-[11px]">Mauja: </span>
-                              {[...new Set(parcels.map((p) => p.mauja).filter(Boolean))].join(', ') || '—'}
+                              {[...new Set(parcels.map((p) => p.mauja).filter(Boolean))].join(', ') || agr.mauja || '—'}
+                              {([ ...new Set(parcels.map((p) => p.thanaNumber).filter(Boolean))].join(', ') || agr.thanaNumber) && (
+                                <span className="text-[11px] font-normal text-slate-500 ml-1">
+                                  (Thana: {[...new Set(parcels.map((p) => p.thanaNumber).filter(Boolean))].join(', ') || agr.thanaNumber})
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-slate-700">
-                              <span className="text-slate-500">Jamabandi: </span>
-                              <strong>{[...new Set(parcels.map((p) => p.jamabandiNumber).filter(Boolean))].join(', ') || agr.jamabandiNumber || '—'}</strong>
+                              <span className="text-slate-500">Khata: </span>
+                              <strong>{[...new Set(parcels.map((p) => p.khataNumber).filter(Boolean))].join(', ') || agr.khataNumber || '—'}</strong>
+                              <span className="text-slate-400 mx-1">|</span>
+                              <span className="text-slate-500">Khesra: </span>
+                              <strong className="text-purple-900">{[...new Set(parcels.map((p) => p.khesraNumber).filter(Boolean))].join(', ') || agr.khesraNumber || '—'}</strong>
+                            </div>
+                            <div className="text-[11px] text-slate-700">
+                              <span className="text-teal-700 font-semibold">Jamabandi: </span>
+                              <strong className="text-teal-900 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">
+                                {[...new Set(parcels.map((p) => p.jamabandiNumber).filter(Boolean))].join(', ') || agr.jamabandiNumber || '—'}
+                              </strong>
                             </div>
                           </div>
                         ) : (
                           <div className="space-y-0.5">
-                            <div className="text-[11px] text-slate-700">
-                              <span className="text-slate-500">Thana: </span>
-                              <strong>{parcels?.[0]?.thanaNumber || agr.thanaNumber || '—'}</strong>
-                            </div>
                             <div className="text-xs font-bold text-slate-800">
                               <span className="text-slate-500 font-normal text-[11px]">Mauja: </span>
                               {parcels?.[0]?.mauja || agr.mauja || '—'}
+                              {(parcels?.[0]?.thanaNumber || agr.thanaNumber) && (
+                                <span className="text-[11px] font-normal text-slate-500 ml-1">
+                                  (Thana: {parcels?.[0]?.thanaNumber || agr.thanaNumber})
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-slate-700">
-                              <span className="text-slate-500">Jamabandi: </span>
-                              <strong>{parcels?.[0]?.jamabandiNumber || agr.jamabandiNumber || '—'}</strong>
+                              <span className="text-slate-500">Khata: </span>
+                              <strong>{parcels?.[0]?.khataNumber || agr.khataNumber || '—'}</strong>
+                              <span className="text-slate-400 mx-1">|</span>
+                              <span className="text-slate-500">Khesra: </span>
+                              <strong className="text-purple-900">{parcels?.[0]?.khesraNumber || agr.khesraNumber || '—'}</strong>
+                            </div>
+                            <div className="text-[11px] text-slate-700">
+                              <span className="text-teal-700 font-semibold">Jamabandi: </span>
+                              <strong className="text-teal-900 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">
+                                {parcels?.[0]?.jamabandiNumber || agr.jamabandiNumber || '—'}
+                              </strong>
                             </div>
                           </div>
                         )}

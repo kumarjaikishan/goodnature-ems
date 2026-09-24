@@ -7,6 +7,7 @@ const RegistryDeedsTable = ({
   deedSearch,
   setDeedSearch,
   loadAgreementDetails,
+  onViewDeed,
   openEditDeedModal,
   handleDeleteDeed,
 }) => {
@@ -66,13 +67,18 @@ const RegistryDeedsTable = ({
                     <tr key={deed._id} className="hover:bg-purple-50/30 transition">
                       {/* Deed Number with Parent Agreement: agr001/deed002 format */}
                       <td className="p-3.5">
-                        <span className="font-mono font-bold text-purple-900 block text-xs">
+                        <button
+                          type="button"
+                          onClick={() => onViewDeed && onViewDeed(deed)}
+                          className="font-mono font-bold text-purple-900 hover:underline block text-xs cursor-pointer text-left"
+                          title="Click to view deed particulars"
+                        >
                           {deed.deedNumber?.includes('/')
                             ? deed.deedNumber
                             : deed.parentAgreementNumber
                             ? `${deed.parentAgreementNumber}/${deed.deedNumber}`
                             : deed.deedNumber}
-                        </span>
+                        </button>
                         <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <Calendar size={11} />
                           {new Date(deed.deedDate).toLocaleDateString('en-IN', {
@@ -86,8 +92,9 @@ const RegistryDeedsTable = ({
                       {/* Parent Agreement */}
                       <td className="p-3.5">
                         <button
-                          onClick={() => loadAgreementDetails(deed.parentAgreementId, 'deeds')}
+                          onClick={() => loadAgreementDetails(deed.parentAgreementId, 'overview')}
                           className="font-mono font-bold text-teal-800 hover:underline block text-xs cursor-pointer"
+                          title="Preview Agreement Details"
                         >
                           {deed.parentAgreementNumber}
                         </button>
@@ -115,13 +122,13 @@ const RegistryDeedsTable = ({
                       {/* Actions */}
                       <td className="p-3.5">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {/* View Ledgers */}
+                          {/* View Deed Particulars */}
                           <button
-                            onClick={() => loadAgreementDetails(deed.parentAgreementId, 'deeds')}
-                            className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1"
-                            title="View Parent Ledgers"
+                            onClick={() => onViewDeed && onViewDeed(deed)}
+                            className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1"
+                            title="View Registry Deed Particulars & Land Details"
                           >
-                            <Eye size={12} /> Ledgers
+                            <Eye size={12} /> View
                           </button>
 
                           {/* Edit Deed */}

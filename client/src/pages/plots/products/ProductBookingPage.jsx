@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -22,7 +22,9 @@ import {
   ChevronRight,
   FileCheck,
   AlertCircle,
-  Trash2
+  Trash2,
+  Search,
+  X,
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import ProductBookingCertificateModal from './components/ProductBookingCertificateModal';
@@ -46,6 +48,28 @@ const ProductBookingPage = () => {
   // Customer search & selection
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const customerDropdownRef = useRef(null);
+
+  // Close dropdown on outside click or Esc
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(e.target)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowCustomerDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Success Allotment Certificate Modal
   const [completedBooking, setCompletedBooking] = useState(null);
@@ -221,6 +245,7 @@ const ProductBookingPage = () => {
     setSelectedCustomer(cust);
     setForm((prev) => ({ ...prev, customerId: cust._id }));
     setCustomerSearchQuery('');
+    setShowCustomerDropdown(false);
   };
 
   // Handle Submit Booking
@@ -401,6 +426,8 @@ const ProductBookingPage = () => {
                   onClick={() => {
                     setSelectedCustomer(null);
                     setForm({ ...form, customerId: '' });
+                    setCustomerSearchQuery('');
+                    setShowCustomerDropdown(true);
                   }}
                   className="px-3 py-1.5 bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 rounded-lg text-xs font-bold transition cursor-pointer"
                 >
@@ -408,43 +435,69 @@ const ProductBookingPage = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="relative" ref={customerDropdownRef}>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Search &amp; Select Customer <span className="text-rose-500">*</span>
+                </label>
                 <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Search size={16} />
+                  </span>
                   <input
                     type="text"
                     value={customerSearchQuery}
-                    onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                    placeholder="Search by customer name, mobile number, code, or BA..."
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    onClick={() => setShowCustomerDropdown(true)}
+                    onChange={(e) => {
+                      setCustomerSearchQuery(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    placeholder="Click to select or type customer name, mobile, code, or BA..."
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                   />
-                </div>
-
-                <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-white">
-                  {filteredCustomers.length > 0 ? (
-                    filteredCustomers.map((cust) => (
-                      <div
-                        key={cust._id}
-                        onClick={() => handleSelectCustomer(cust)}
-                        className="p-3 hover:bg-teal-50/60 transition cursor-pointer flex items-center justify-between text-xs"
-                      >
-                        <div>
-                          <div className="font-bold text-slate-900">{cust.name}</div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                            <span>Code: <b className="font-mono text-slate-700">{cust.customerCode || cust.customerId}</b></span>
-                            <span>• Mobile: {cust.mobile || '-'}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 block">
-                            BA: {cust.sponsorId?.name || 'Company Direct'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-xs text-slate-400">No customers found matching your search.</div>
+                  {customerSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomerSearchQuery('');
+                        setShowCustomerDropdown(true);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-md"
+                    >
+                      <X size={14} />
+                    </button>
                   )}
                 </div>
+
+                {/* Searchable Floating Dropdown Popup */}
+                {showCustomerDropdown && (
+                  <div className="absolute z-30 top-full mt-1.5 left-0 right-0 max-h-64 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-white shadow-xl">
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.map((cust) => (
+                        <div
+                          key={cust._id}
+                          onClick={() => handleSelectCustomer(cust)}
+                          className="p-3 hover:bg-teal-50/70 transition cursor-pointer flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <div className="font-bold text-slate-900">{cust.name}</div>
+                            <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                              <span>Code: <b className="font-mono text-slate-700">{cust.customerCode || cust.customerId}</b></span>
+                              <span>• Mobile: {cust.mobile || '-'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 inline-block">
+                              BA: {cust.sponsorId?.name || 'Company Direct'}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-400">No customers found matching your search.</div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
