@@ -9,7 +9,6 @@ import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import {
   Building2,
   Search,
-  Eye,
   Calendar,
 } from 'lucide-react';
 
@@ -216,19 +215,6 @@ const BusinessDeveloperBookingsPage = () => {
       ),
       sortable: true,
       minWidth: '100px',
-    },
-    {
-      name: 'Action',
-      minWidth: '90px',
-      cell: (b) => (
-        <button
-          onClick={() => navigate(`/dashboard/plots/booking/${b._id}`)}
-          title="View Contract Statement"
-          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer"
-        >
-          <Eye size={16} />
-        </button>
-      ),
     },
   ];
 

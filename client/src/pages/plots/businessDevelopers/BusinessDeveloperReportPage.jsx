@@ -11,7 +11,11 @@ import {
   TrendingUp,
   Filter,
   Search,
-  Award
+  Award,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -39,6 +43,10 @@ const BusinessDeveloperReportPage = () => {
     typeFilter: 'ALL',
     searchQuery: ''
   });
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const fetchBusinessReport = async (overrideFilters) => {
     if (!targetId) return;
@@ -71,6 +79,7 @@ const BusinessDeveloperReportPage = () => {
 
   const handleApplyFilters = (e) => {
     if (e) e.preventDefault();
+    setCurrentPage(1);
     setAppliedFilters({
       fromDate,
       toDate,
@@ -84,6 +93,7 @@ const BusinessDeveloperReportPage = () => {
     setToDate('');
     setTypeFilter('ALL');
     setSearchQuery('');
+    setCurrentPage(1);
     setAppliedFilters({
       fromDate: '',
       toDate: '',
@@ -119,6 +129,26 @@ const BusinessDeveloperReportPage = () => {
   const isDeveloperPartner = developer.isDeveloperSponsor;
 
   const hasActiveFilters = Boolean(appliedFilters.fromDate || appliedFilters.toDate || appliedFilters.typeFilter !== 'ALL' || appliedFilters.searchQuery);
+
+  // Pagination calculation
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedItems = items.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (e) => {
+    const newSize = Number(e.target.value);
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
@@ -436,147 +466,220 @@ const BusinessDeveloperReportPage = () => {
             No business collections found matching the selected filters.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="bg-slate-100/75 border-b border-slate-200 select-none text-slate-700 font-bold uppercase text-[10px] tracking-wider">
-                  <th className="p-3">S.No</th>
-                  <th className="p-3">Collection Date</th>
-                  <th className="p-3">Customer & Plot</th>
-                  <th className="p-3">Source, Downline & Commission %</th>
-                  <th className="p-3 text-right">Collection Amount</th>
-                  <th className="p-3 text-right">Commission Earned</th>
-                  <th className="p-3 text-center">Closing Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {items.map((row, idx) => {
-                  const isSelf = row.sourceType === 'SELF';
-                  const isDirectDev = row.commissionRole === 'DIRECT_DEVELOPER';
-                  return (
-                    <tr key={row._id || idx} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-semibold text-slate-400">{idx + 1}</td>
-                      <td className="p-3 whitespace-nowrap">
-                        <span className="font-semibold text-slate-800">
-                          {dayjs(row.date).format('DD MMM YYYY')}
-                        </span>
-                        <span className="block text-[10px] text-slate-400 font-normal">
-                          {dayjs(row.date).format('hh:mm A')}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-slate-800 text-[12px]">{row.customerName}</span>
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
-                                row.businessType === 'INVESTMENT_RD_FD'
-                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                  : 'bg-teal-50 text-teal-800 border border-teal-200'
-                              }`}
-                            >
-                              {row.businessType === 'INVESTMENT_RD_FD' ? 'RD / FD' : 'Plot Sale'}
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-slate-600 font-medium">
-                            {row.businessType === 'INVESTMENT_RD_FD' ? (
-                              <>Account: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong></>
-                            ) : (
-                              <>Plot: <strong className="text-teal-800 font-bold">#{row.plotNumber}</strong> | Booking: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong></>
-                            )}
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-100/75 border-b border-slate-200 select-none text-slate-700 font-bold uppercase text-[10px] tracking-wider">
+                    <th className="p-3">S.No</th>
+                    <th className="p-3">Collection Date</th>
+                    <th className="p-3">Customer & Plot</th>
+                    <th className="p-3">Source, Downline & Commission %</th>
+                    <th className="p-3 text-right">Collection Amount</th>
+                    <th className="p-3 text-right">Commission Earned</th>
+                    <th className="p-3 text-center">Closing Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {paginatedItems.map((row, idx) => {
+                    const isSelf = row.sourceType === 'SELF';
+                    const isDirectDev = row.commissionRole === 'DIRECT_DEVELOPER';
+                    const serialNumber = startIndex + idx + 1;
+                    return (
+                      <tr key={row._id || idx} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3 font-semibold text-slate-400">{serialNumber}</td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span className="font-semibold text-slate-800">
+                            {dayjs(row.date).format('DD MMM YYYY')}
                           </span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        {isSelf ? (
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            {dayjs(row.date).format('hh:mm A')}
+                          </span>
+                        </td>
+                        <td className="p-3">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 text-[11px]">
-                                Direct Self
-                              </span>
-                              <span className="font-black text-blue-900 bg-blue-100/70 border border-blue-300/80 rounded px-2 py-0.5 text-[11px]">
-                                {row.percentFormula || `${row.commissionPercent}%`}
+                              <span className="font-bold text-slate-800 text-[12px]">{row.customerName}</span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
+                                  row.businessType === 'INVESTMENT_RD_FD'
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                    : 'bg-teal-50 text-teal-800 border border-teal-200'
+                                }`}
+                              >
+                                {row.businessType === 'INVESTMENT_RD_FD' ? 'RD / FD' : 'Plot Sale'}
                               </span>
                             </div>
-                            {row.slabLabel && (
-                              <span className="text-[10px] text-teal-800 font-semibold">
-                                Slab: {row.slabLabel}
-                              </span>
-                            )}
-                            <span className="text-[10px] text-slate-500 font-medium">
-                              {isDirectDev ? 'Promoter + Developer Commission' : 'Direct Promoter Sale'}
+                            <span className="text-[11px] text-slate-600 font-medium">
+                              {row.businessType === 'INVESTMENT_RD_FD' ? (
+                                <>Account: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong></>
+                              ) : (
+                                <>Plot: <strong className="text-teal-800 font-bold">#{row.plotNumber}</strong> | Booking: <strong className="font-mono text-slate-700 font-bold">{row.bookingNumber}</strong></>
+                              )}
                             </span>
                           </div>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 text-[11px]">
-                                Subordinate
-                              </span>
-                              <span className="font-black text-amber-900 bg-amber-100/70 border border-amber-300/80 rounded px-2 py-0.5 text-[11px]">
-                                {row.percentFormula || `${row.commissionPercent}% Team Comm.`}
+                        </td>
+                        <td className="p-3">
+                          {isSelf ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 text-[11px]">
+                                  Direct Self
+                                </span>
+                                <span className="font-black text-blue-900 bg-blue-100/70 border border-blue-300/80 rounded px-2 py-0.5 text-[11px]">
+                                  {row.percentFormula || `${row.commissionPercent}%`}
+                                </span>
+                              </div>
+                              {row.slabLabel && (
+                                <span className="text-[10px] text-teal-800 font-semibold">
+                                  Slab: {row.slabLabel}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {isDirectDev ? 'Promoter + Developer Commission' : 'Direct Promoter Sale'}
                               </span>
                             </div>
-                            {row.slabLabel && (
-                              <span className="text-[10px] text-amber-800 font-semibold">
-                                Team Slab: {row.slabLabel}
-                              </span>
-                            )}
-                            {row.subordinateName && (
-                              <span className="text-[11px] font-semibold text-slate-700">
-                                {row.subordinateName} <span className="font-mono text-slate-500 text-[10px]">({row.subordinateCode})</span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 text-[11px]">
+                                  Subordinate
+                                </span>
+                                <span className="font-black text-amber-900 bg-amber-100/70 border border-amber-300/80 rounded px-2 py-0.5 text-[11px]">
+                                  {row.percentFormula || `${row.commissionPercent}% Team Comm.`}
+                                </span>
+                              </div>
+                              {row.slabLabel && (
+                                <span className="text-[10px] text-amber-800 font-semibold">
+                                  Team Slab: {row.slabLabel}
+                                </span>
+                              )}
+                              {row.subordinateName && (
+                                <span className="text-[11px] font-semibold text-slate-700">
+                                  {row.subordinateName} <span className="font-mono text-slate-500 text-[10px]">({row.subordinateCode})</span>
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <span className="font-bold font-mono text-slate-900 text-[13px]">
+                            ₹{row.collectionAmount.toLocaleString('en-IN')}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-black font-mono text-emerald-700 text-[13px]">
+                              ₹{row.commissionEarned.toLocaleString('en-IN')}
+                            </span>
+                            {(row.fixedAmount > 0 || row.incentiveAmount > 0) && (
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                Fix: ₹{row.fixedAmount.toLocaleString('en-IN')} | Inc: ₹{row.incentiveAmount.toLocaleString('en-IN')}
                               </span>
                             )}
                           </div>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        <span className="font-bold font-mono text-slate-900 text-[13px]">
-                          ₹{row.collectionAmount.toLocaleString('en-IN')}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="font-black font-mono text-emerald-700 text-[13px]">
-                            ₹{row.commissionEarned.toLocaleString('en-IN')}
-                          </span>
-                          {(row.fixedAmount > 0 || row.incentiveAmount > 0) && (
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              Fix: ₹{row.fixedAmount.toLocaleString('en-IN')} | Inc: ₹{row.incentiveAmount.toLocaleString('en-IN')}
+                        </td>
+                        <td className="p-3 text-center">
+                          {row.isClosed ? (
+                            <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
+                              Closed ({row.closingNumber})
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold">
+                              Pending Closing
                             </span>
                           )}
-                        </div>
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.isClosed ? (
-                          <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
-                            Closed ({row.closingNumber})
-                          </span>
-                        ) : (
-                          <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold">
-                            Pending Closing
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-slate-800 text-xs">
-                <tr>
-                  <td colSpan={4} className="p-3 text-right uppercase tracking-wider text-slate-500">
-                    Grand Total ({items.length} Entries):
-                  </td>
-                  <td className="p-3 text-right font-black font-mono text-slate-900 text-[13px]">
-                    ₹{(summary.totalCollection || 0).toLocaleString('en-IN')}
-                  </td>
-                  <td className="p-3 text-right font-black font-mono text-emerald-700 text-[14px]">
-                    ₹{(summary.totalCommission || 0).toLocaleString('en-IN')}
-                  </td>
-                  <td className="p-3"></td>
-                </tr>
-              </tfoot>
-            </table>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-slate-800 text-xs">
+                  <tr>
+                    <td colSpan={4} className="p-3 text-right uppercase tracking-wider text-slate-500">
+                      Grand Total ({items.length} Entries):
+                    </td>
+                    <td className="p-3 text-right font-black font-mono text-slate-900 text-[13px]">
+                      ₹{(summary.totalCollection || 0).toLocaleString('en-IN')}
+                    </td>
+                    <td className="p-3 text-right font-black font-mono text-emerald-700 text-[14px]">
+                      ₹{(summary.totalCommission || 0).toLocaleString('en-IN')}
+                    </td>
+                    <td className="p-3"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* ── Table Pagination Bar ── */}
+            <div className="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 select-none print:hidden">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <span>Rows per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={handlePageSizeChange}
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-600 cursor-pointer"
+                  >
+                    {[10, 25, 50, 100].map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-slate-400">|</span>
+                <span className="text-slate-600 font-medium">
+                  Showing <strong className="text-slate-800">{totalItems === 0 ? 0 : startIndex + 1}</strong> to{' '}
+                  <strong className="text-slate-800">{endIndex}</strong> of{' '}
+                  <strong className="text-slate-800">{totalItems}</strong> entries
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => handlePageChange(1)}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="First Page"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => handlePageChange(safeCurrentPage - 1)}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="Previous Page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <div className="px-2.5 py-1 text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-lg">
+                  Page {safeCurrentPage} of {totalPages}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => handlePageChange(safeCurrentPage + 1)}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="Next Page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => handlePageChange(totalPages)}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="Last Page"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

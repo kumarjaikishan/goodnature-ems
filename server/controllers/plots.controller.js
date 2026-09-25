@@ -217,6 +217,31 @@ const getBookings = async (req, res, next) => {
 const getBookingById = async (req, res, next) => {
   try {
     const booking = await plotsService.getBookingById(req.params.id);
+    if (!booking) {
+      return ApiResponse.notFound(res, 'Plot booking not found');
+    }
+
+    // If request comes from a Sponsor / Associate / Partner, ensure they own or downline-manage this booking
+    if (req.user?.role === 'sponsor') {
+      const requesterId = (req.user.id || req.user._id).toString();
+      const directSponsorId = booking.sponsorId?._id?.toString() || booking.sponsorId?.toString();
+
+      // Check direct ownership or downline ownership
+      if (directSponsorId !== requesterId) {
+        const User = require('../models/user');
+        const downline = await User.find({ sponsorId: requesterId }).select('_id').lean();
+        const downlineIds = downline.map((d) => d._id.toString());
+        if (!downlineIds.includes(directSponsorId)) {
+          return res.status(403).json({ message: 'Access denied: You are not authorized to view this booking.' });
+        }
+      }
+
+      // Sanitize backend response for sponsor: Strip out internal land acquisition / seller sourcing info
+      const bookingObj = booking.toObject ? booking.toObject() : { ...booking };
+      delete bookingObj.landSourcing;
+      return ApiResponse.success(res, bookingObj);
+    }
+
     ApiResponse.success(res, booking);
   } catch (error) {
     next(error);

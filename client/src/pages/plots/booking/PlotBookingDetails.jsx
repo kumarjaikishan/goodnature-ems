@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
@@ -28,6 +29,25 @@ import Modalbox from '../../../components/custommodal/Modalbox';
 const PlotBookingDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const user = useSelector((state) => state.user);
+
+  const getRole = () => {
+    if (user?.profile?.role) return user.profile.role;
+    if (user?.role) return user.role;
+    try {
+      const token = localStorage.getItem('emstoken');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload?.role;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const userRole = getRole();
+  const isSponsor = userRole === 'sponsor';
 
   const [booking, setBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
@@ -128,7 +148,7 @@ const PlotBookingDetails = () => {
   }, [id]);
 
   if (loading) {
-    return <PageLoader text="Loading plot booking details..." />;
+    return <PageLoader title="Loading Booking Details..." subtitle="Fetching real-time plot contract & ledger state" />;
   }
 
   if (!booking) {
@@ -136,8 +156,8 @@ const PlotBookingDetails = () => {
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <p className="text-sm font-bold text-slate-500">Booking details not found.</p>
         <button
-          onClick={() => navigate('/dashboard/plots/booking')}
-          className="px-4 py-2 text-white rounded-xl text-xs font-bold bg-primary shadow-sm"
+          onClick={() => navigate(isSponsor ? '/dashboard/my-bookings' : '/dashboard/plots/booking')}
+          className="px-4 py-2 text-white rounded-xl text-xs font-bold bg-primary shadow-sm cursor-pointer"
         >
           Back to Bookings
         </button>
@@ -176,7 +196,7 @@ const PlotBookingDetails = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(isSponsor ? '/dashboard/my-bookings' : -1)}
             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600 font-medium text-xs flex items-center gap-1 cursor-pointer"
           >
             <ArrowLeft size={16} /> Back
@@ -212,7 +232,7 @@ const PlotBookingDetails = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          {booking.status === 'PENDING' && (
+          {!isSponsor && booking.status === 'PENDING' && (
             <button
               onClick={handleApproveBooking}
               disabled={approveLoading}
@@ -221,7 +241,7 @@ const PlotBookingDetails = () => {
               <CheckCircle2 size={16} /> {approveLoading ? 'Approving...' : 'Approve'}
             </button>
           )}
-          {booking.status === 'PENDING' && (
+          {!isSponsor && booking.status === 'PENDING' && (
             <button
               onClick={() => setRejectModalOpen(true)}
               disabled={approveLoading}
@@ -230,41 +250,47 @@ const PlotBookingDetails = () => {
               <RotateCcw size={15} className="text-rose-600" /> Reject
             </button>
           )}
-          <button
-            onClick={() => window.open(`/dashboard/plots/certificates/${booking._id}`, '_blank')}
-            className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
-          >
-            <FileText size={16} className="text-slate-500" /> Certificate
-          </button>
-          <button
-            onClick={() => {
-              if (!isDownpaymentCompleted) {
-                toast.warning(`Agreement available only after downpayment is completed. Required: ₹${downpaymentRequired.toLocaleString('en-IN')}, Paid: ₹${paidAmount.toLocaleString('en-IN')}`);
-                return;
+          {!isSponsor && (
+            <button
+              onClick={() => window.open(`/dashboard/plots/certificates/${booking._id}`, '_blank')}
+              className="flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
+            >
+              <FileText size={16} className="text-slate-500" /> Certificate
+            </button>
+          )}
+          {!isSponsor && (
+            <button
+              onClick={() => {
+                if (!isDownpaymentCompleted) {
+                  toast.warning(`Agreement available only after downpayment is completed. Required: ₹${downpaymentRequired.toLocaleString('en-IN')}, Paid: ₹${paidAmount.toLocaleString('en-IN')}`);
+                  return;
+                }
+                window.open(`/dashboard/plots/agreements/${booking._id}`, '_blank');
+              }}
+              title={
+                !isDownpaymentCompleted
+                  ? `Agreement locked: Downpayment pending (Paid: ₹${paidAmount.toLocaleString('en-IN')} / Required: ₹${downpaymentRequired.toLocaleString('en-IN')})`
+                  : 'Open Customer Plot Agreement'
               }
-              window.open(`/dashboard/plots/agreements/${booking._id}`, '_blank');
-            }}
-            title={
-              !isDownpaymentCompleted
-                ? `Agreement locked: Downpayment pending (Paid: ₹${paidAmount.toLocaleString('en-IN')} / Required: ₹${downpaymentRequired.toLocaleString('en-IN')})`
-                : 'Open Customer Plot Agreement'
-            }
-            className={`flex items-center gap-1.5 px-3.5 py-2 border font-medium text-xs rounded-xl transition shadow-2xs ${
-              isDownpaymentCompleted
-                ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 cursor-pointer'
-                : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'
-            }`}
-          >
-            <ClipboardCheck size={16} className={isDownpaymentCompleted ? 'text-amber-600' : 'text-slate-400'} />
-            Agreement {!isDownpaymentCompleted && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded ml-1">Pending DP</span>}
-          </button>
-          <button
-            onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${booking._id}&bookingNumber=${booking.bookingNumber}`)}
-            className="flex items-center gap-1.5 px-3.5 py-2 border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
-          >
-            <Sparkles size={16} className="text-teal-700" /> Growth & Interest
-          </button>
-          {booking.scheme === 'FULL_PAYMENT' && booking.payoutStatus === 'ACTIVE' && (
+              className={`flex items-center gap-1.5 px-3.5 py-2 border font-medium text-xs rounded-xl transition shadow-2xs ${
+                isDownpaymentCompleted
+                  ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 cursor-pointer'
+                  : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'
+              }`}
+            >
+              <ClipboardCheck size={16} className={isDownpaymentCompleted ? 'text-amber-600' : 'text-slate-400'} />
+              Agreement {!isDownpaymentCompleted && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded ml-1">Pending DP</span>}
+            </button>
+          )}
+          {!isSponsor && (
+            <button
+              onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${booking._id}&bookingNumber=${booking.bookingNumber}`)}
+              className="flex items-center gap-1.5 px-3.5 py-2 border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
+            >
+              <Sparkles size={16} className="text-teal-700" /> Growth & Interest
+            </button>
+          )}
+          {!isSponsor && booking.scheme === 'FULL_PAYMENT' && booking.payoutStatus === 'ACTIVE' && (
             <button
               onClick={() => navigate(`/dashboard/plots/payout-ledger?bookingId=${booking._id}`)}
               className="flex items-center gap-1.5 px-3.5 py-2 text-white font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs bg-primary"
@@ -272,7 +298,7 @@ const PlotBookingDetails = () => {
               <Banknote size={16} /> Payout Ledger
             </button>
           )}
-          {booking.status !== 'CANCELLED' && (
+          {!isSponsor && booking.status !== 'CANCELLED' && (
             <>
               <button
                 onClick={() => navigate(`/dashboard/plots/booking/edit/${booking._id}`)}
@@ -288,7 +314,7 @@ const PlotBookingDetails = () => {
               </button>
             </>
           )}
-          {booking.status !== 'CANCELLED' && (
+          {!isSponsor && booking.status !== 'CANCELLED' && (
             <button
               onClick={() => navigate('/dashboard/plots/installments')}
               className="flex items-center gap-1.5 px-3.5 py-2 text-white font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs bg-primary"
@@ -660,72 +686,74 @@ const PlotBookingDetails = () => {
           </div>
         </div>
 
-        {/* Card 6: Land Acquisition Sourcing / किसान एग्रीमेंट & रजिस्ट्री डीड */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4 lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <Building2 size={16} className="text-teal-700" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Land Acquisition & Sourcing (किसान एग्रीमेंट / रजिस्ट्री डीड विवरण)
-              </h3>
+        {/* Card 6: Land Acquisition Sourcing / किसान एग्रीमेंट & रजिस्ट्री डीड (Admin Only) */}
+        {!isSponsor && (
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4 lg:col-span-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Building2 size={16} className="text-teal-700" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Land Acquisition & Sourcing (किसान एग्रीमेंट / रजिस्ट्री डीड विवरण)
+                </h3>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                {booking.landSourcing?.length || 0} Source{booking.landSourcing?.length === 1 ? '' : 's'} Linked
+              </span>
             </div>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
-              {booking.landSourcing?.length || 0} Source{booking.landSourcing?.length === 1 ? '' : 's'} Linked
-            </span>
+
+            {(!booking.landSourcing || booking.landSourcing.length === 0) ? (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <span>⚠️ No specific land agreement linked to this booking yet.</span>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/dashboard/plots/booking/edit/${booking._id}`)}
+                  className="px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl transition cursor-pointer shadow-xs"
+                >
+                  + Link Land Agreement in Contract Edit
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {booking.landSourcing.map((src, idx) => (
+                  <div key={idx} className="p-3.5 bg-teal-50/40 border border-teal-200 rounded-xl flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-teal-950 text-xs flex items-center gap-1.5">
+                        <FileText size={15} className="text-teal-700" />
+                        {src.sourceType === 'REGISTRY_DEED' ? (
+                          <>Registry Deed #{src.deedNumber || 'N/A'}</>
+                        ) : (
+                          <>Agreement #{src.agreementNumber || 'N/A'}{src.khesraNumber ? ` (Plot #${src.khesraNumber})` : ''}</>
+                        )}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-teal-800 border border-teal-200 uppercase">
+                        {src.sourceType === 'REGISTRY_DEED' ? 'REGISTRY DEED' : 'AGREEMENT'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-2 border-t border-teal-100 text-slate-600">
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Mauja / मौजा</span>
+                        <span className="font-semibold text-slate-800">{src.mauja || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Thana # / थाना</span>
+                        <span className="font-semibold text-slate-800">{src.thanaNumber || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Khata / Khesra</span>
+                        <span className="font-semibold text-slate-800">{src.khataNumber || '-'}/{src.khesraNumber || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Allocated Area</span>
+                        <span className="font-bold text-teal-800">{src.allocatedSqFt || 0} SqFt ({src.allocatedDismil || (src.allocatedSqFt ? (src.allocatedSqFt / 435.6).toFixed(2) : 0)} Dismil)</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-
-          {(!booking.landSourcing || booking.landSourcing.length === 0) ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <span>⚠️ No specific land agreement linked to this booking yet.</span>
-              <button
-                type="button"
-                onClick={() => setRestructureOpen(true)}
-                className="px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl transition cursor-pointer shadow-xs"
-              >
-                + Link Land Agreement Now
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {booking.landSourcing.map((src, idx) => (
-                <div key={idx} className="p-3.5 bg-teal-50/40 border border-teal-200 rounded-xl flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-teal-950 text-xs flex items-center gap-1.5">
-                      <FileText size={15} className="text-teal-700" />
-                      {src.sourceType === 'REGISTRY_DEED' ? (
-                        <>Registry Deed #{src.deedNumber || 'N/A'}</>
-                      ) : (
-                        <>Agreement #{src.agreementNumber || 'N/A'}{src.khesraNumber ? ` (Plot #${src.khesraNumber})` : ''}</>
-                      )}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-teal-800 border border-teal-200 uppercase">
-                      {src.sourceType === 'REGISTRY_DEED' ? 'REGISTRY DEED' : 'AGREEMENT'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-2 border-t border-teal-100 text-slate-600">
-                    <div>
-                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Mauja / मौजा</span>
-                      <span className="font-semibold text-slate-800">{src.mauja || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Thana # / थाना</span>
-                      <span className="font-semibold text-slate-800">{src.thanaNumber || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Khata / Khesra</span>
-                      <span className="font-semibold text-slate-800">{src.khataNumber || '-'}/{src.khesraNumber || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Allocated Area</span>
-                      <span className="font-bold text-teal-800">{src.allocatedSqFt || 0} SqFt ({src.allocatedDismil || (src.allocatedSqFt ? (src.allocatedSqFt / 435.6).toFixed(2) : 0)} Dismil)</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
 
       </div>
 
@@ -923,8 +951,8 @@ const PlotBookingDetails = () => {
         )}
       </div>
 
-      {/* Revisions & Restructuring History Section */}
-      {revisions.length > 0 && (
+      {/* Revisions & Restructuring History Section (Admin Only) */}
+      {!isSponsor && revisions.length > 0 && (
         <div className="bg-white border border-indigo-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4 mt-2">
           <div className="flex items-center gap-2 border-b border-indigo-100 pb-3">
             <History size={16} className="text-indigo-600" />

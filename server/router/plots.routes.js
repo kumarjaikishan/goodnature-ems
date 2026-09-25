@@ -84,13 +84,33 @@ router.put('/bookings/:id/reject', checkPermission('plot_booking', 3), ctrl.reje
 router.delete('/bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteBooking);
 
 // ── Installments & Collections ("take collection") ──
-router.get('/bookings/:bookingId/installments', checkPermission('plot_collection', 1), ctrl.getInstallments);
-router.get('/bookings/:bookingId/payouts', checkPermission('plot_payout', 1), ctrl.getPayoutSchedules);
+router.get('/bookings/:bookingId/installments', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_collection', 1)(req, res, next);
+}, ctrl.getInstallments);
+router.get('/bookings/:bookingId/payouts', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_payout', 1)(req, res, next);
+}, ctrl.getPayoutSchedules);
 router.post('/bookings/:bookingId/collect', checkPermission('plot_collection', 2), ctrl.collectInstallment);
 
 // ── Receipts (part of collections) ──
-router.get('/receipts/list', checkPermission('plot_collection', 1), ctrl.getReceipts);
-router.get('/receipts/:id', checkPermission('plot_collection', 1), ctrl.getReceiptById);
+router.get('/receipts/list', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_collection', 1)(req, res, next);
+}, ctrl.getReceipts);
+router.get('/receipts/:id', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_collection', 1)(req, res, next);
+}, ctrl.getReceiptById);
 router.put('/receipts/:id', checkPermission('plot_collection', 3), ctrl.updateReceipt);
 router.delete('/receipts/:id', checkPermission('plot_collection', 4), ctrl.deleteReceipt);
 router.put('/receipts/:id/approve', checkPermission('plot_collection', 3), ctrl.approveReceipt);
@@ -111,7 +131,12 @@ router.delete('/closings/:id', checkPermission('plot_sponsor', 4), ctrl.deletePl
 // ── Weekly Payouts (money going back OUT to the customer) ──
 router.post('/bookings/:id/payout/initialize', checkPermission('plot_payout', 2), ctrl.initializePlotPayout);
 router.post('/bookings/:id/payout/pay', checkPermission('plot_payout', 2), ctrl.collectPlotPayoutPayment);
-router.get('/bookings/:id/payout/ledger', checkPermission('plot_payout', 1), ctrl.getPlotPayoutLedger);
+router.get('/bookings/:id/payout/ledger', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_payout', 1)(req, res, next);
+}, ctrl.getPlotPayoutLedger);
 router.get('/payout-vouchers/:id', checkPermission('plot_payout', 1), ctrl.getPlotPayoutVoucher);
 router.delete('/payout-vouchers/:id', checkPermission('plot_payout', 4), ctrl.deletePlotPayoutVoucher);
 router.put('/payout-vouchers/:id', checkPermission('plot_payout', 3), ctrl.updatePlotPayoutVoucher);
@@ -145,7 +170,12 @@ router.delete('/purchasers/:id', checkPermission('plot_inventory', 4), ctrl.dele
 // ── Booking Restructuring, Customer Refund & Revisions ──
 router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctrl.restructureBooking);
 router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);
-router.get('/bookings/:id/revisions', checkPermission('plot_booking', 1), ctrl.getBookingRevisions);
+router.get('/bookings/:id/revisions', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_booking', 1)(req, res, next);
+}, ctrl.getBookingRevisions);
 router.put('/bookings/revisions/:revisionId/narration', checkPermission('plot_booking', 3), ctrl.updateBookingRevisionNarration);
 
 // ── Plot Products & Fractional Units (Master & Sales) ──
