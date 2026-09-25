@@ -29,6 +29,17 @@ const plotBookingSchema = new mongoose.Schema(
       ref: 'Plot',
       required: true,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProject',
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     plotValue: {
       type: Number,
       required: true,

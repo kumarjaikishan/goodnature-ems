@@ -48,6 +48,7 @@ const SeriesLayoutGrid = ({
             <thead>
               <tr className="bg-slate-100/75 border-b border-slate-200 select-none text-slate-700 font-bold uppercase text-[10px] tracking-wider">
                 {[
+                  'Project',
                   'Series Name',
                   'Prefix',
                   'Plot Range',
@@ -66,13 +67,22 @@ const SeriesLayoutGrid = ({
             <tbody className="divide-y divide-slate-100">
               {seriesList.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-400 italic font-medium">
+                  <td colSpan="9" className="p-8 text-center text-slate-400 italic font-medium">
                     No plot series defined yet. Click &quot;Create Series Block&quot; to get started.
                   </td>
                 </tr>
               ) : (
                 seriesList.map((s) => (
                   <tr key={s._id} className="hover:bg-slate-50 transition">
+                    <td className="p-3.5">
+                      {s.projectName ? (
+                        <span className="font-bold text-[11px] text-teal-900 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/70">
+                          {s.projectName}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">General</span>
+                      )}
+                    </td>
                     <td className="p-3.5 font-bold text-slate-800 text-sm">{s.name}</td>
                     <td className="p-3.5 font-bold text-teal-800 tracking-wider">{s.prefix}</td>
                     <td className="p-3.5 text-slate-700 font-medium">
@@ -146,6 +156,11 @@ const SeriesLayoutGrid = ({
                   <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                     {s.prefix}-Series Block ({s.name})
                   </span>
+                  {s.projectName && (
+                    <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-lg font-bold">
+                      {s.projectName}
+                    </span>
+                  )}
                   <span className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded-lg font-bold">
                     {s.plotArea} Sq Ft
                   </span>

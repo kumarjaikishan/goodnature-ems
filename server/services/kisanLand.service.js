@@ -4,6 +4,7 @@ const LandStockLedger = require('../models/LandStockLedger');
 const KisanLedger = require('../models/KisanLedger');
 const KisanSeller = require('../models/KisanSeller');
 const LandPurchaser = require('../models/LandPurchaser');
+const PlotProject = require('../models/PlotProject');
 const Counter = require('../models/Counter');
 const ApiError = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
@@ -211,10 +212,33 @@ class KisanLandService {
             }))
         : [];
 
+      // Parse projectId & projectName if provided
+      let resolvedProjectId = null;
+      let resolvedProjectName = '';
+      if (data.projectId) {
+        resolvedProjectId = data.projectId;
+        if (data.projectName) {
+          resolvedProjectName = data.projectName.trim();
+        } else {
+          const proj = await PlotProject.findById(data.projectId).session(session || null);
+          if (proj) resolvedProjectName = proj.name;
+        }
+      } else if (data.projectName && data.projectName.trim()) {
+        resolvedProjectName = data.projectName.trim();
+        // Check if project exists or auto-link
+        const proj = await PlotProject.findOne({ name: { $regex: `^${resolvedProjectName}$`, $options: 'i' } }).session(session || null);
+        if (proj) {
+          resolvedProjectId = proj._id;
+          resolvedProjectName = proj.name;
+        }
+      }
+
       const agreement = new KisanLandAgreement({
         agreementNumber,
         agreementDate: agreementDate ? new Date(agreementDate) : new Date(),
         agreementEndDate: agreementEndDate ? new Date(agreementEndDate) : null,
+        projectId: resolvedProjectId,
+        projectName: resolvedProjectName,
         landParcels: parsedParcels,
         mauja: primaryMauja,
         thanaNumber: primaryThana,
@@ -569,9 +593,11 @@ class KisanLandService {
         { 'purchasers.contact': { $regex: s, $options: 'i' } },
         { 'purchasers.mobile': { $regex: s, $options: 'i' } },
         { 'registryDeeds.deedNumber': { $regex: s, $options: 'i' } },
+        { projectName: { $regex: s, $options: 'i' } },
       ];
     }
     if (query.status) filter.status = query.status;
+    if (query.projectId) filter.projectId = query.projectId;
 
     const page = parseInt(query.page) || 1;
     const limit = parseInt(query.limit) || 20;
@@ -726,10 +752,12 @@ class KisanLandService {
           sourceType: 'AGREEMENT',
           agreementId: agr._id,
           agreementNumber: agr.agreementNumber,
+          projectId: agr.projectId || null,
+          projectName: agr.projectName || '',
           parcelId: null,
           deedId: null,
           deedNumber: '',
-          label: agr.agreementNumber,
+          label: agr.projectName ? `${agr.agreementNumber} (${agr.projectName})` : agr.agreementNumber,
           mauja: agr.mauja || agr.landParcels?.[0]?.mauja || '',
           khataNumber: agr.khataNumber || agr.landParcels?.[0]?.khataNumber || '',
           khesraNumber: agr.khesraNumber || agr.landParcels?.[0]?.khesraNumber || '',
@@ -933,6 +961,29 @@ class KisanLandService {
         if (jamabandiNumber !== undefined) agreement.jamabandiNumber = jamabandiNumber.trim();
         if (totalAgreementAmount !== undefined && totalAgreementAmount !== '' && totalAgreementAmount !== null) {
           agreement.totalAgreementAmount = Number(totalAgreementAmount) || 0;
+        }
+      }
+
+      if (data.projectId !== undefined) {
+        agreement.projectId = data.projectId || null;
+        if (data.projectName) {
+          agreement.projectName = data.projectName.trim();
+        } else if (data.projectId) {
+          const proj = await PlotProject.findById(data.projectId).session(session || null);
+          if (proj) agreement.projectName = proj.name;
+        } else {
+          agreement.projectName = '';
+        }
+      } else if (data.projectName !== undefined) {
+        agreement.projectName = data.projectName ? data.projectName.trim() : '';
+        if (agreement.projectName) {
+          const proj = await PlotProject.findOne({ name: { $regex: `^${agreement.projectName}$`, $options: 'i' } }).session(session || null);
+          if (proj) {
+            agreement.projectId = proj._id;
+            agreement.projectName = proj.name;
+          }
+        } else {
+          agreement.projectId = null;
         }
       }
 
@@ -1529,6 +1580,120 @@ class KisanLandService {
     await doc.deleteOne();
     return { message: 'Purchaser deleted successfully' };
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── PROJECT MASTER DIRECTORY ─────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * Get all Projects with counts
+   */
+  async getProjects(query = {}) {
+    const filter = {};
+    if (query.search) {
+      const regex = new RegExp(query.search.trim(), 'i');
+      filter.$or = [{ name: regex }, { code: regex }, { location: regex }];
+    }
+    if (query.status) {
+      filter.status = query.status;
+    }
+
+    const projects = await PlotProject.find(filter)
+      .populate('createdById', 'name email')
+      .sort({ name: 1, createdAt: -1 })
+      .lean();
+
+    return projects;
+  }
+
+  /**
+   * Get single Project by ID
+   */
+  async getProjectById(id) {
+    const project = await PlotProject.findById(id).populate('createdById', 'name email').lean();
+    if (!project) throw ApiError.notFound('Project not found');
+    return project;
+  }
+
+  /**
+   * Create a new Project
+   */
+  async createProject(data, userId = null) {
+    const { name, code, location, description, status } = data;
+    if (!name || !name.trim()) {
+      throw ApiError.badRequest('Project name is required');
+    }
+
+    const existing = await PlotProject.findOne({ name: { $regex: `^${name.trim()}$`, $options: 'i' } });
+    if (existing) {
+      throw ApiError.badRequest(`Project "${name.trim()}" already exists`);
+    }
+
+    const project = new PlotProject({
+      name: name.trim(),
+      code: code ? code.trim().toUpperCase() : '',
+      location: location ? location.trim() : '',
+      description: description ? description.trim() : '',
+      status: status || 'ACTIVE',
+      createdById: userId,
+    });
+
+    await project.save();
+    return project;
+  }
+
+  /**
+   * Update an existing Project
+   */
+  async updateProject(id, data, userId = null) {
+    const project = await PlotProject.findById(id);
+    if (!project) throw ApiError.notFound('Project not found');
+
+    if (data.name && data.name.trim() !== project.name) {
+      const existing = await PlotProject.findOne({
+        name: { $regex: `^${data.name.trim()}$`, $options: 'i' },
+        _id: { $ne: id },
+      });
+      if (existing) {
+        throw ApiError.badRequest(`Project with name "${data.name.trim()}" already exists`);
+      }
+      project.name = data.name.trim();
+    }
+
+    if (data.code !== undefined) project.code = data.code ? data.code.trim().toUpperCase() : '';
+    if (data.location !== undefined) project.location = data.location ? data.location.trim() : '';
+    if (data.description !== undefined) project.description = data.description ? data.description.trim() : '';
+    if (data.status !== undefined) project.status = data.status;
+    project.updatedById = userId;
+
+    await project.save();
+    return project;
+  }
+
+  /**
+   * Delete a Project
+   */
+  async deleteProject(id) {
+    const project = await PlotProject.findById(id);
+    if (!project) throw ApiError.notFound('Project not found');
+
+    // Check if any Kisan Agreements, Series, Plots, or Products are tied to it
+    const [agrCount, plotCount, prdCount] = await Promise.all([
+      KisanLandAgreement.countDocuments({ projectId: id }),
+      Plot.countDocuments({ projectId: id }),
+      PlotProduct.countDocuments({ projectId: id }),
+    ]);
+
+    if (agrCount > 0 || plotCount > 0 || prdCount > 0) {
+      throw ApiError.badRequest(
+        `Cannot delete project "${project.name}". It is associated with ${agrCount} Land Agreement(s), ${plotCount} Plot(s), and ${prdCount} Product(s).`
+      );
+    }
+
+    await project.deleteOne();
+    return { message: 'Project deleted successfully' };
+  }
 }
 
 module.exports = new KisanLandService();
+

@@ -39,15 +39,19 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 
 ### Z. Plot Product Fractional Units EMI, Land Sourcing & Full-Page Booking Architecture
 - **Micro-Plot Fractional Units**: Plot Products configured in `/dashboard/plots/products` allow booking fractional unit pieces with North/South/East/West dimensions on flexible RD/EMI tenure plans (12, 24, 36, 48, 60 months).
-- **Dedicated Full-Page Booking Workflow**:
-  - Route: `/dashboard/plots/products/book` (`ProductBookingPage.jsx`).
-  - Follows the standard plot booking (`/dashboard/plots/addbooking`) interactive standard: Verified Customer search with auto-resolved BA/Sponsor detection, Product Specifications, Kisan Land Agreement stock selection/deduction, and Payment Plan configuration with a sticky live calculation sidebar.
-  - **Land Sourcing Deduction**: Sourced from active Kisan Land Agreements (`GET /plots/kisan-agreements/sources`). Automatically checks parcel availability, validates area against unit square footage ($qty \times unitAreaSqFt$), increments `totalAllocatedSqFt` and decrements `totalAvailableSqFt` upon creation, and restores the area to the agreement if the booking is deleted.
+- **Dedicated Full-Page Booking, Certificate & Agreement Viewers**:
+  - Full-Page Booking Route: `/dashboard/plots/products/book` (`ProductBookingPage.jsx`).
+  - Full-Page Certificate & Sale Receipt Route: `/dashboard/plots/certificates/:id` and `/dashboard/plots/product-certificates/:id` (`BookingCertificateViewer.jsx`).
+  - Full-Page Product Agreement Route: `/dashboard/plots/product-agreements/:id` (`ProductAgreementViewer.jsx`).
+  - Added dedicated "Print Product Agreement" button (`FileText` icon) on the Product Sales table in `ProductSalesTab.jsx`.
+  - Replaced previous modal popups with unified full-page print viewers matching the standard plot documents layout (with print media styling, company watermark, structured parties, specifications, terms, and execution signatories).
+- **Land Sourcing Deduction**: Sourced from active Kisan Land Agreements (`GET /plots/kisan-agreements/sources`). Automatically checks parcel availability, validates area against unit square footage ($qty \times unitAreaSqFt$), increments `totalAllocatedSqFt` and decrements `totalAvailableSqFt` upon creation, and restores the area to the agreement if the booking is deleted.
 - **EMI & 24% P.A. Late Fine Calculation**:
   - Unpaid installments past their scheduled due date plus grace period (15 days default from `PlotRateConfiguration`) accrue a 24% annual late fine (`(24/365)%` daily).
   - Waterfall collection rule: Late fine rebate reduces unpaid fine first; collected amount settles remaining unpaid late fine first, then principal.
 - **Enriched Sales & Statement Tracking**:
-  - `ProductSalesTab.jsx` displays overdue EMI counts, pending EMIs, and real-time accrued late fine amounts.
+  - `ProductSalesTab.jsx` displays a streamlined 7-column table (Booking # & Date, Customer & BA, Product & Qty, Total Valuation, Paid / Due, Status, Actions).
+  - Added an 👁️ **Eye (View Details)** button in the Actions column opening a rich, structured **Product Booking Details Modal** containing Customer/Guardian info, BA/Supervisor details, item dimensions (North/South/East/West), Kisan land sourcing references, and real-time EMI/overdue late fine progress.
   - `ProductCustomerLedgerModal.jsx` provides an itemized statement with overdue days, late fine, rebate, and paid receipts.
   - `ProductInstallmentCollectModal.jsx` supports multi-installment selection, quick-fill buttons, late fine rebate, cheque 6-digit validation, and real-time payment calculations.
   - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
@@ -821,5 +825,22 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - When **One Time** is selected, downpayment is automatically set to 100% of net contract value, EMI fields are omitted (`installmentCount: 0`, `tenureMonths: 0`), and the schedule card displays a confirmation banner.
   - When **EMI** is selected, the total duration (`8 Months total duration`) is rendered in a prominent, bold, and larger highlighted container badge.
 
-
-
+### KK. Plot & Land Purchase Project Management Architecture
+- **Isolated Branch**: Developed and tested on branch `feature/project-management-plots`.
+- **Lightweight Project Master Entity (`PlotProject`)**:
+  - Contains `name`, `code`, `location`, `description`, `status: ['ACTIVE', 'INACTIVE']`, `createdById`, `updatedById`.
+  - Intentionally kept simple without enforcing restrictive area caps, allowing projects to act as an organizational umbrella for both purchases and sales.
+- **Land Purchase Integration**:
+  - `PlotPurchasePage.jsx` has a dedicated **Project Master** tab (Tab 5) alongside Kisan Master, Land Purchase Agreements, Payment Vouchers, and Land Ledger.
+  - When creating or editing a Kisan Land Agreement (`CreateAgreementModal.jsx`, `EditAgreementModal.jsx`), users can select a Project from a dropdown or quickly create a new project inline without leaving the modal.
+  - Agreements and Land Sources store `projectId` and `projectName` for tracking and filtering.
+- **Plot Inventory & Series Master Integration**:
+  - `PlotSeriesMaster.jsx`, `CreateSeriesModal.jsx`, and `EditSeriesModal.jsx` allow selecting a project when creating or editing a Series block.
+  - Generated plots inherit the project (`projectId`, `projectName`) automatically from their series or can be assigned individually.
+  - `SeriesLayoutGrid.jsx` displays a distinct Project column in the summary table and an emerald project badge in the visual grid.
+- **Plot Sales & Bookings Integration**:
+  - Step 2 in the Plot Booking Wizard (`StepPlot.jsx`, `PlotBooking.jsx`) features a **Filter by Project** selector to let sales staff immediately filter and select plots belonging to a specific project before selling.
+  - Selected plot's `projectId` and `projectName` are locked into the `PlotBooking` record.
+- **Plot Products & Micro-Unit Sales Integration**:
+  - `PlotProductsPage.jsx` and `ProductCatalogTab.jsx` support assigning a project when defining a micro-plot product and display project badges on catalog cards.
+  - `ProductBookingPage.jsx` provides a **Project Selection** dropdown in Card 2 that auto-filters products and locks `projectId`/`projectName` onto `PlotProductBooking`.

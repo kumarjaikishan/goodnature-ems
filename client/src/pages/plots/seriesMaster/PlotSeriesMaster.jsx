@@ -20,6 +20,7 @@ const PlotSeriesMaster = () => {
   const [activeTab, setActiveTab] = useState('layout');
   const [seriesList, setSeriesList] = useState([]);
   const [plots, setPlots] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [rateConfig, setRateConfig] = useState({
     baseSqFtRate: 500,
     cornerExtraPercent: 20,
@@ -53,6 +54,8 @@ const PlotSeriesMaster = () => {
 
   // Form states
   const [form, setForm] = useState({
+    projectId: '',
+    projectName: '',
     name: '',
     prefix: '',
     startNumber: '',
@@ -68,6 +71,8 @@ const PlotSeriesMaster = () => {
   });
 
   const [editForm, setEditForm] = useState({
+    projectId: '',
+    projectName: '',
     name: '',
     plotArea: '',
     defaultPlotType: 'NORMAL',
@@ -81,6 +86,8 @@ const PlotSeriesMaster = () => {
   });
 
   const [plotForm, setPlotForm] = useState({
+    projectId: '',
+    projectName: '',
     seriesId: '',
     plotNumber: '',
     plotSize: '',
@@ -103,10 +110,11 @@ const PlotSeriesMaster = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [seriesRes, rateRes, plotsRes] = await Promise.all([
+      const [seriesRes, rateRes, plotsRes, projectsRes] = await Promise.all([
         api.get('/plots/series'),
         api.get('/plots/rate-config'),
         api.get('/plots?limit=5000'),
+        api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
       ]);
 
       setSeriesList(seriesRes.data.data || []);
@@ -114,6 +122,7 @@ const PlotSeriesMaster = () => {
         setRateConfig(rateRes.data.data);
       }
       setPlots(plotsRes.data.data || []);
+      setProjects(projectsRes.data?.data || []);
     } catch {
       toast.error('Failed to load plot series and inventory');
     } finally {
@@ -159,6 +168,8 @@ const PlotSeriesMaster = () => {
       toast.success('Plot series registered & plots generated successfully');
       setShowModal(false);
       setForm({
+        projectId: '',
+        projectName: '',
         name: '',
         prefix: '',
         startNumber: '',
@@ -182,6 +193,8 @@ const PlotSeriesMaster = () => {
   const openEditSeries = (series) => {
     setSelectedSeries(series);
     setEditForm({
+      projectId: series.projectId || '',
+      projectName: series.projectName || '',
       name: series.name,
       plotArea: series.plotArea,
       defaultPlotType: series.defaultPlotType || 'NORMAL',
@@ -579,6 +592,7 @@ const PlotSeriesMaster = () => {
         onClose={() => setShowModal(false)}
         form={form}
         setForm={setForm}
+        projects={projects}
         handleCreateSeries={handleCreateSeries}
         rateConfig={rateConfig}
         submitLoading={submitLoading}
@@ -592,6 +606,7 @@ const PlotSeriesMaster = () => {
         selectedSeries={selectedSeries}
         editForm={editForm}
         setEditForm={setEditForm}
+        projects={projects}
         handleUpdateSeries={handleUpdateSeries}
         rateConfig={rateConfig}
         submitLoading={submitLoading}

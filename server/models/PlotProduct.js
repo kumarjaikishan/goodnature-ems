@@ -19,6 +19,17 @@ const plotProductSchema = new mongoose.Schema(
       default: 'MICRO_PLOT',
       trim: true,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProject',
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     dimensions: {
       north: {
         type: Number,

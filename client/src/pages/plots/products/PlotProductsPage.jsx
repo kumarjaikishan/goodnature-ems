@@ -10,7 +10,6 @@ import ProductCatalogTab from './components/ProductCatalogTab';
 import ProductSalesTab from './components/ProductSalesTab';
 import ProductSchemeRulesTab from './components/ProductSchemeRulesTab';
 import CommissionPolicyMatrix from '../seriesMaster/components/CommissionPolicyMatrix';
-import ProductBookingCertificateModal from './components/ProductBookingCertificateModal';
 import ProductCustomerLedgerModal from './components/ProductCustomerLedgerModal';
 
 const PlotProductsPage = () => {
@@ -24,25 +23,27 @@ const PlotProductsPage = () => {
   const [customers, setCustomers] = useState([]);
   const [tenures, setTenures] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [projects, setProjects] = useState([]);
 
   // Modals state
-  const [selectedCertificateBooking, setSelectedCertificateBooking] = useState(null);
   const [selectedLedgerBooking, setSelectedLedgerBooking] = useState(null);
 
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [prdRes, custRes, tenureRes, bkRes] = await Promise.all([
+      const [prdRes, custRes, tenureRes, bkRes, projRes] = await Promise.all([
         api.get('/plots/products'),
         api.get('/plots/customers'),
         api.get('/plots/products/tenures'),
         api.get('/plots/product-bookings'),
+        api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
       ]);
 
       setProducts(prdRes.data?.data || []);
       setCustomers(custRes.data?.data?.customers || custRes.data?.data || []);
       setTenures(tenureRes.data?.data || []);
       setBookings(bkRes.data?.data || []);
+      setProjects(projRes.data?.data || []);
     } catch (err) {
       console.error('Failed to load plot products data:', err);
       toast.error('Failed to load plot products & sales data');
@@ -57,12 +58,14 @@ const PlotProductsPage = () => {
 
   const handleRefresh = async () => {
     try {
-      const [prdRes, bkRes] = await Promise.all([
+      const [prdRes, bkRes, projRes] = await Promise.all([
         api.get('/plots/products'),
         api.get('/plots/product-bookings'),
+        api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
       ]);
       setProducts(prdRes.data?.data || []);
       setBookings(bkRes.data?.data || []);
+      setProjects(projRes.data?.data || []);
     } catch (err) {
       console.error('Failed to refresh data:', err);
     }
@@ -150,6 +153,7 @@ const PlotProductsPage = () => {
       {activeTab === 'catalog' && (
         <ProductCatalogTab
           products={products}
+          projects={projects}
           loading={loading}
           onRefresh={handleRefresh}
         />
@@ -162,7 +166,7 @@ const PlotProductsPage = () => {
           bookings={bookings}
           loading={loading}
           onRefresh={handleRefresh}
-          onOpenCertificate={(b) => setSelectedCertificateBooking(b)}
+          onOpenCertificate={(b) => navigate(`/dashboard/plots/certificates/${b._id}`)}
           onOpenLedger={(b) => setSelectedLedgerBooking(b)}
           onOpenCollect={(b) => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
         />
@@ -182,18 +186,8 @@ const PlotProductsPage = () => {
         />
       )}
 
-
       {/* ── MODALS ── */}
-      {/* 1. Booking Certificate Modal */}
-      {selectedCertificateBooking && (
-        <ProductBookingCertificateModal
-          open={!!selectedCertificateBooking}
-          onClose={() => setSelectedCertificateBooking(null)}
-          booking={selectedCertificateBooking}
-        />
-      )}
-
-      {/* 2. Customer Ledger Modal */}
+      {/* Customer Ledger Modal */}
       {selectedLedgerBooking && (
         <ProductCustomerLedgerModal
           open={!!selectedLedgerBooking}

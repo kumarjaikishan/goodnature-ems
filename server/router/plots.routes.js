@@ -167,6 +167,13 @@ router.put('/purchasers/:id', checkPermission('plot_inventory', 3), ctrl.updateP
 router.put('/purchasers/:id/set-default', checkPermission('plot_inventory', 3), ctrl.setDefaultPurchaser);
 router.delete('/purchasers/:id', checkPermission('plot_inventory', 4), ctrl.deletePurchaser);
 
+// ── Project Master Directory ──
+router.get('/projects', checkPermission('plot_inventory', 1), ctrl.getProjects);
+router.get('/projects/:id', checkPermission('plot_inventory', 1), ctrl.getProjectById);
+router.post('/projects', checkPermission('plot_inventory', 2), ctrl.createProject);
+router.put('/projects/:id', checkPermission('plot_inventory', 3), ctrl.updateProject);
+router.delete('/projects/:id', checkPermission('plot_inventory', 4), ctrl.deleteProject);
+
 // ── Booking Restructuring, Customer Refund & Revisions ──
 router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctrl.restructureBooking);
 router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);

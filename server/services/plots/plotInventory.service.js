@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const PlotSeriesMaster = require('../../models/PlotSeriesMaster');
 const Plot = require('../../models/Plot');
+const PlotProject = require('../../models/PlotProject');
 const PlotBooking = require('../../models/PlotBooking');
 const PlotRateConfiguration = require('../../models/PlotRateConfiguration');
 const PlotAuditLog = require('../../models/PlotAuditLog');
@@ -36,9 +37,24 @@ class PlotInventoryService {
       else if (resolvedFreq === 'MONTHLY') resolvedDailyPercent = resolvedRate / 30;
       else resolvedDailyPercent = resolvedRate;
 
+      let resolvedProjectId = data.projectId || null;
+      let resolvedProjectName = data.projectName || '';
+      if (resolvedProjectId && !resolvedProjectName) {
+        const proj = await PlotProject.findById(resolvedProjectId).session(session);
+        if (proj) resolvedProjectName = proj.name;
+      } else if (!resolvedProjectId && resolvedProjectName) {
+        const proj = await PlotProject.findOne({ name: { $regex: `^${resolvedProjectName.trim()}$`, $options: 'i' } }).session(session);
+        if (proj) {
+          resolvedProjectId = proj._id;
+          resolvedProjectName = proj.name;
+        }
+      }
+
       // Create series master
       const series = new PlotSeriesMaster({
         name,
+        projectId: resolvedProjectId,
+        projectName: resolvedProjectName,
         prefix,
         startNumber,
         endNumber,
@@ -78,6 +94,8 @@ class PlotInventoryService {
         plotsToCreate.push({
           plotNumber,
           seriesId: series._id,
+          projectId: resolvedProjectId,
+          projectName: resolvedProjectName,
           sequenceNumber: i,
           plotSize: plotArea,
           plotType: defaultPlotType || 'NORMAL',
@@ -300,6 +318,7 @@ class PlotInventoryService {
   async getPlots(filters = {}) {
     const query = {};
     if (filters.seriesId) query.seriesId = filters.seriesId;
+    if (filters.projectId) query.projectId = filters.projectId;
     if (filters.status) query.status = filters.status;
     if (filters.plotType) query.plotType = filters.plotType;
     if (filters.search) {

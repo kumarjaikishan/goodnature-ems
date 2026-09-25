@@ -5,13 +5,15 @@ import { toast } from '../../../../utils/toast';
 import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
 
-const ProductCatalogTab = ({ products, loading, onRefresh }) => {
+const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const initialForm = {
+    projectId: '',
+    projectName: '',
     productName: '',
     category: 'MICRO_PLOT',
     north: 1,
@@ -47,6 +49,8 @@ const ProductCatalogTab = ({ products, loading, onRefresh }) => {
   const openEditModal = (product) => {
     setEditingProduct(product);
     setForm({
+      projectId: product.projectId || '',
+      projectName: product.projectName || '',
       productName: product.productName || '',
       category: product.category || 'MICRO_PLOT',
       north: product.dimensions?.north ?? 1,
@@ -209,9 +213,16 @@ const ProductCatalogTab = ({ products, loading, onRefresh }) => {
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="font-mono text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/60">
-                        {p.productCode}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/60">
+                          {p.productCode}
+                        </span>
+                        {p.projectName && (
+                          <span className="font-sans text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                            {p.projectName}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="font-bold text-slate-900 text-base mt-1 group-hover:text-teal-800 transition">
                         {p.productName}
                       </h3>
@@ -312,6 +323,33 @@ const ProductCatalogTab = ({ products, loading, onRefresh }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {/* Project Selection (Optional) */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Project Name <span className="text-slate-400 font-normal">(Optional / Specific Project)</span>
+              </label>
+              <select
+                value={form.projectId}
+                onChange={(e) => {
+                  const selProjId = e.target.value;
+                  const selProj = projects.find((p) => p._id === selProjId);
+                  setForm({
+                    ...form,
+                    projectId: selProjId,
+                    projectName: selProj?.name || '',
+                  });
+                }}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800"
+              >
+                <option value="">-- All Projects / General Portfolio --</option>
+                {projects.map((proj) => (
+                  <option key={proj._id} value={proj._id}>
+                    {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">

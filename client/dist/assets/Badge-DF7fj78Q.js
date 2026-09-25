@@ -1,6 +1,0 @@
-import"./rolldown-runtime-hePW80VL.js";import{Hn as e,t}from"./vendor-react-DzR06GDk.js";e();var n=t(),r=({children:e,variant:t=`default`,size:r=`md`,dot:i=!1,className:a=``,...o})=>{let s={sm:`text-[11px] px-2 py-0.5 font-medium`,md:`text-xs px-2.5 py-0.5 font-semibold`,lg:`text-sm px-3 py-1 font-semibold`},c={default:`bg-slate-100 text-slate-700 border-slate-200/80`,neutral:`bg-slate-100 text-slate-600 border-slate-200`,primary:`bg-teal-50 text-teal-800 border-teal-200/80`,success:`bg-emerald-50 text-emerald-800 border-emerald-200/80`,warning:`bg-amber-50 text-amber-800 border-amber-200/80`,danger:`bg-rose-50 text-rose-800 border-rose-200/80`,info:`bg-sky-50 text-sky-800 border-sky-200/80`},l={default:`bg-slate-400`,neutral:`bg-slate-400`,primary:`bg-teal-500`,success:`bg-emerald-500`,warning:`bg-amber-500`,danger:`bg-rose-500`,info:`bg-sky-500`};return(0,n.jsxs)(`span`,{className:`
-        inline-flex items-center gap-1.5 rounded-full border shadow-2xs transition-colors
-        ${s[r]||s.md}
-        ${c[t]||c.default}
-        ${a}
-      `,...o,children:[i&&(0,n.jsx)(`span`,{className:`w-1.5 h-1.5 rounded-full ${l[t]||l.default}`}),e]})};export{r as t};

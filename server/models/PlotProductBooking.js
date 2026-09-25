@@ -131,6 +131,17 @@ const plotProductBookingSchema = new mongoose.Schema(
       ref: 'Plot',
       required: false,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProject',
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotCustomer',
