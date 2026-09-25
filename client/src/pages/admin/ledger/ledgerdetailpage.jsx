@@ -245,12 +245,12 @@ const LedgerDetailPage = () => {
                                 {ledgerName}
                             </h1>
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wider">
-                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'sponsor' ? 'Sponsor Account' : 'Custom Ledger'}
+                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller / Kisan Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : 'Custom Ledger'}
                             </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-medium">
                             {empId && empId !== 'null' && (
-                                <span>{ledgerType === 'sponsor' ? 'Sponsor ID' : 'Employee ID'}: <strong className="font-mono text-slate-800">{empId}</strong></span>
+                                <span>{ledgerType === 'kisan' ? 'PAN / Mobile' : ledgerType === 'sponsor' || ledgerType === 'partner' || ledgerType === 'associate' ? 'Code / ID' : 'Employee ID'}: <strong className="font-mono text-slate-800">{empId}</strong></span>
                             )}
                             <span>Total Transactions: <strong className="text-slate-800 font-bold">{filtered.length}</strong></span>
                         </div>
@@ -261,10 +261,10 @@ const LedgerDetailPage = () => {
                     {!isSponsorUser && (
                         <>
                             <button
-                                onClick={() => navigate('/dashboard/ledger')}
+                                onClick={() => navigate(-1)}
                                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
                             >
-                                <ArrowLeft size={15} /> All Ledgers
+                                <ArrowLeft size={15} /> Back
                             </button>
                             <button
                                 onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}

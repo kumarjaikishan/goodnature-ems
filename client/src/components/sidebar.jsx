@@ -104,7 +104,18 @@ const Sidebar = () => {
             { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"], resource: "salary" },
             { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "manager", "demo"], resource: "advance" },
             { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"], resource: "voucher" },
-            { menu: "Ledger", link: "/dashboard/ledger", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
+          ],
+        },
+        {
+          menu: "Ledger",
+          icon: <BookOpen size={20} />,
+          roles: ["admin", "superadmin", "manager", "demo"],
+          children: [
+            { menu: "Employee", link: "/dashboard/ledger/employees", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
+            { menu: "Seller (Kisan)", link: "/dashboard/ledger/sellers", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
+            { menu: "Business Associate", link: "/dashboard/ledger/business-associates", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
+            { menu: "Business Partner", link: "/dashboard/ledger/business-partners", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
+            { menu: "Branch Partner", link: "/dashboard/ledger/branch-partners", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
           ],
         },
         {

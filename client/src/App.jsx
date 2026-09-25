@@ -47,6 +47,11 @@ const PayrollEdit = lazy(() => import('./pages/common/payroll/payrollEdit'));
 const PayslipPrintPage = lazy(() => import('./pages/common/payroll/payrollprint'));
 const EmployeeAdvancePage = lazy(() => import('./pages/advance/advance'));
 const LedgerListPage = lazy(() => import('./pages/admin/ledger/ledgerpagelist'));
+const EmployeeLedgerPage = lazy(() => import('./pages/admin/ledger/EmployeeLedgerPage'));
+const SellerLedgerPage = lazy(() => import('./pages/admin/ledger/SellerLedgerPage'));
+const BusinessAssociateLedgerPage = lazy(() => import('./pages/admin/ledger/BusinessAssociateLedgerPage'));
+const BusinessPartnerLedgerPage = lazy(() => import('./pages/admin/ledger/BusinessPartnerLedgerPage'));
+const BranchPartnerLedgerPage = lazy(() => import('./pages/admin/ledger/BranchPartnerLedgerPage'));
 const LedgerDetailPage = lazy(() => import('./pages/admin/ledger/ledgerdetailpage'));
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
 const VoucherList = lazy(() => import('./pages/vouchers/VoucherList'));
@@ -130,7 +135,12 @@ const routesByRole = {
       <Route path="advance" element={<EmployeeAdvancePage />} />
       <Route path="setting" element={<Setting />} />
       <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<LedgerListPage />} />
+      <Route path="ledger" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
+      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
+      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
+      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
       <Route path="ledger/:id" element={<LedgerDetailPage />} />
       <Route path="performance/:userid" element={<AttenPerformance />} />
       <Route path="payroll" element={<PayrollPage />} />
@@ -219,7 +229,12 @@ const routesByRole = {
       <Route path="advance" element={<EmployeeAdvancePage />} />
       <Route path="setting" element={<Setting />} />
       <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<LedgerListPage />} />
+      <Route path="ledger" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
+      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
+      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
+      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
       <Route path="ledger/:id" element={<LedgerDetailPage />} />
       <Route path="performance/:userid" element={<AttenPerformance />} />
       <Route path="payroll" element={<PayrollPage />} />
@@ -308,7 +323,12 @@ const routesByRole = {
       <Route path="advance" element={<EmployeeAdvancePage />} />
       <Route path="setting" element={<Setting />} />
       <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<LedgerListPage />} />
+      <Route path="ledger" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
+      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
+      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
+      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
       <Route path="ledger/:id" element={<LedgerDetailPage />} />
       <Route path="performance/:userid" element={<AttenPerformance />} />
       <Route path="payroll" element={<PayrollPage />} />
@@ -384,7 +404,12 @@ const routesByRole = {
       <Route path="advance" element={<EmployeeAdvancePage />} />
       <Route path="profile" element={<AdminManagerProfile />} />
       <Route path="setting" element={<Setting />} />
-      <Route path="ledger" element={<LedgerListPage />} />
+      <Route path="ledger" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
+      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
+      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
+      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
+      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
       <Route path="ledger/:id" element={<LedgerDetailPage />} />
       <Route path="performance/:userid" element={<AttenPerformance />} />
       <Route path="payroll" element={<PayrollPage />} />

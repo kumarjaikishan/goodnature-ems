@@ -821,5 +821,20 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - When **One Time** is selected, downpayment is automatically set to 100% of net contract value, EMI fields are omitted (`installmentCount: 0`, `tenureMonths: 0`), and the schedule card displays a confirmation banner.
   - When **EMI** is selected, the total duration (`8 Months total duration`) is rendered in a prominent, bold, and larger highlighted container badge.
 
+### KK. Dedicated Multi-Entity Ledger Pages & Sidebar Submenu Architecture
+- **Categorized Ledger Subpages**:
+  - Split the single generic ledger view into 5 dedicated subpages sharing the identical high-fidelity UI/UX, summary cards (Total Payable, Total Receivable, Net Balance), view switchers (Cards vs Table), filters (Balance status, Sorting, Search), and statement modals:
+    1. **Employee Ledgers**: `/dashboard/ledger/employees` (via [EmployeeLedgerPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/EmployeeLedgerPage.jsx))
+    2. **Seller / Kisan Land Purchase Ledgers**: `/dashboard/ledger/sellers` (via [SellerLedgerPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/SellerLedgerPage.jsx))
+    3. **Business Associates Commission Ledgers**: `/dashboard/ledger/business-associates` (via [BusinessAssociateLedgerPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/BusinessAssociateLedgerPage.jsx))
+    4. **Business Partners Commission Ledgers**: `/dashboard/ledger/business-partners` (via [BusinessPartnerLedgerPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/BusinessPartnerLedgerPage.jsx))
+    5. **Branch Partners Commission Ledgers**: `/dashboard/ledger/branch-partners` (via [BranchPartnerLedgerPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/BranchPartnerLedgerPage.jsx))
+- **Sidebar Integration**:
+  - In [sidebar.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx), created a dedicated **Ledger** sidebar item with expandable submenus for Employee, Seller (Kisan), Business Associate, Business Partner, and Branch Partner.
+- **Statement & Detail View**:
+  - Statement detail view at `/dashboard/ledger/:id?...` ([ledgerdetailpage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx)) works consistently across all entities with dynamic title badges and intuitive back navigation.
+- **Backend Auto-Sync & Populate**:
+  - Added `createLedgerForKisans()` in [server/controllers/ledger.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/controllers/ledger.js) and enriched population for `kisanSellerId` and `sponsorId` (including branch associations and parent sponsors).
+
 
 

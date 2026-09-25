@@ -198,10 +198,63 @@ const createLedgerForSponsors = async () => {
   }
 };
 
+const createLedgerForKisans = async () => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const KisanSeller = mongoose.model('KisanSeller');
+    const sellers = await KisanSeller.find({}, null, { session });
+
+    for (const seller of sellers) {
+      let ledger = await Ledger.findOne({ kisanSellerId: seller._id }).session(session);
+
+      if (!ledger) {
+        await Ledger.create(
+          [
+            {
+              name: seller.name || "Kisan Seller",
+              kisanSellerId: seller._id,
+              empId: seller.panNumber || seller.mobile || "",
+              ledgerType: 'kisan',
+              isVoucherLedger: false
+            },
+          ],
+          { session }
+        );
+      } else {
+        let updated = false;
+        if (ledger.name !== seller.name) {
+          ledger.name = seller.name;
+          updated = true;
+        }
+        if (seller.panNumber && ledger.empId !== seller.panNumber) {
+          ledger.empId = seller.panNumber;
+          updated = true;
+        }
+        if (ledger.ledgerType !== 'kisan') {
+          ledger.ledgerType = 'kisan';
+          updated = true;
+        }
+        if (updated) await ledger.save({ session });
+      }
+    }
+
+    await session.commitTransaction();
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction();
+    console.error("Kisan/Seller Ledger creation error:", error);
+  } finally {
+    session.endSession();
+  }
+};
+
 const ledger = async (req, res) => {
   try {
     await createLedgerForEmployee();
     await createLedgerForSponsors();
+    await createLedgerForKisans();
 
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 0;
@@ -211,6 +264,7 @@ const ledger = async (req, res) => {
         { ledgerType: 'custom' },
         { ledgerType: 'employee' },
         { ledgerType: 'sponsor' },
+        { ledgerType: 'kisan' },
         { userId: req.userid },
         { userId: { $exists: false } },
         { userId: null }
@@ -223,8 +277,16 @@ const ledger = async (req, res) => {
         select: 'status employeeName empId profileimage'
       })
       .populate({
+        path: 'kisanSellerId',
+        select: 'name mobile panNumber aadhaarNumber address'
+      })
+      .populate({
         path: 'sponsorId',
-        select: 'name sponsorCode customerId email mobile role sponsorId photo profileImage'
+        select: 'name sponsorCode customerId email mobile role sponsorId branchIds photo profileImage',
+        populate: [
+          { path: 'sponsorId', select: 'name sponsorCode role' },
+          { path: 'branchIds', select: 'name location branchCode' }
+        ]
       });
 
     const { view } = req.query;
@@ -232,7 +294,7 @@ const ledger = async (req, res) => {
     const ledgers = await query;
 
     const visibleLedgers = ledgers.filter(l => {
-      const type = l.ledgerType || (l.employeeId ? 'employee' : (l.sponsorId ? 'sponsor' : 'custom'));
+      const type = l.ledgerType || (l.employeeId ? 'employee' : (l.sponsorId ? 'sponsor' : (l.kisanSellerId ? 'kisan' : 'custom')));
       if (type === 'custom') {
         if (view === 'ledger') {
           return l.isVoucherLedger !== true;
@@ -247,6 +309,9 @@ const ledger = async (req, res) => {
       }
       if (type === 'sponsor') {
         return Boolean(l.sponsorId);
+      }
+      if (type === 'kisan') {
+        return Boolean(l.kisanSellerId);
       }
       return true;
     });

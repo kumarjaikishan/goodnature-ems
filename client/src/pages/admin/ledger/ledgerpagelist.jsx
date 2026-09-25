@@ -14,7 +14,7 @@ import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edi
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 
-const LedgerListPage = () => {
+const LedgerListPage = ({ category = "all" }) => {
     const [ledgers, setLedgers] = useState([]);
     const [filteredLedgers, setFilteredLedgers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -30,7 +30,7 @@ const LedgerListPage = () => {
     const { handleImage } = useImageUpload();
     const [loading, setLoading] = useState(false);
     const [activeMenuId, setActiveMenuId] = useState(null);
-    const [viewType, setViewType] = useState(localStorage.getItem('ledgerViewType') || 'card');
+    const [viewType, setViewType] = useState(localStorage.getItem('ledgerViewType') || 'table');
     const menuRef = useRef(null);
 
     // Close menu when clicked outside
@@ -46,13 +46,33 @@ const LedgerListPage = () => {
 
     useEffect(() => {
         fetchLedgers();
-    }, []);
+    }, [category]);
 
     useEffect(() => {
         if (!ledgers) return;
         let result = [...ledgers];
 
-        // Search query filter (name or empId)
+        // 1. First enforce page category if specific page
+        if (category && category !== "all") {
+            result = result.filter((l) => {
+                const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId && !l.kisanSellerId);
+                const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
+                const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
+                const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);
+                const isBranchPartner = isSponsor && hasBranch;
+                const isPartner = isSponsor && !l.sponsorId?.sponsorId;
+
+                if (category === 'employee') return isEmployee && !isSponsor && !isKisan;
+                if (category === 'seller' || category === 'kisan') return isKisan;
+                if (category === 'associate') return isAssociate;
+                if (category === 'partner') return isPartner && !isBranchPartner;
+                if (category === 'branch_partner') return isBranchPartner;
+                return true;
+            });
+        }
+
+        // 2. Search query filter (name or empId)
         if (searchQuery.trim() !== "") {
             const lower = searchQuery.toLowerCase().trim();
             result = result.filter((l) => 
@@ -61,34 +81,29 @@ const LedgerListPage = () => {
             );
         }
 
-        // Ledger Type Filter (employee, partner, associate, custom, etc.)
-        if (typeFilter !== "all") {
+        // 3. Ledger Type Filter (when category is all)
+        if (category === "all" && typeFilter !== "all") {
             result = result.filter((l) => {
-                const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId);
-                const isPartner = (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && (!l.sponsorId?.sponsorId);
-                const isAssociate = (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId);
+                const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId && !l.kisanSellerId);
+                const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);
+                const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
+                const isBranchPartner = isSponsor && hasBranch;
+                const isPartner = isSponsor && !l.sponsorId?.sponsorId && !isBranchPartner;
                 
-                if (typeFilter === 'employee') {
-                    return isEmployee && !isSponsor;
-                }
-                if (typeFilter === 'partner') {
-                    return isPartner;
-                }
-                if (typeFilter === 'associate') {
-                    return isAssociate;
-                }
-                if (typeFilter === 'sponsor') {
-                    return isSponsor;
-                }
-                if (typeFilter === 'custom') {
-                    return !isEmployee && !isSponsor;
-                }
+                if (typeFilter === 'employee') return isEmployee && !isSponsor && !isKisan;
+                if (typeFilter === 'seller' || typeFilter === 'kisan') return isKisan;
+                if (typeFilter === 'partner') return isPartner;
+                if (typeFilter === 'branch_partner') return isBranchPartner;
+                if (typeFilter === 'associate') return isAssociate;
+                if (typeFilter === 'sponsor') return isSponsor;
+                if (typeFilter === 'custom') return !isEmployee && !isSponsor && !isKisan;
                 return true;
             });
         }
 
-        // Balance Status Filter
+        // 4. Balance Status Filter
         if (balanceFilter === "payable") {
             result = result.filter((l) => (l.netBalance || 0) > 0);
         } else if (balanceFilter === "receivable") {
@@ -97,7 +112,7 @@ const LedgerListPage = () => {
             result = result.filter((l) => (l.netBalance || 0) === 0);
         }
 
-        // Sorting
+        // 5. Sorting
         result.sort((a, b) => {
             if (sortBy === "name_asc") {
                 return (a.name || "").localeCompare(b.name || "");
@@ -112,7 +127,7 @@ const LedgerListPage = () => {
         });
 
         setFilteredLedgers(result);
-    }, [searchQuery, typeFilter, balanceFilter, sortBy, ledgers]);
+    }, [searchQuery, typeFilter, balanceFilter, sortBy, ledgers, category]);
 
     const fetchLedgers = async () => {
         setLoading(true);
@@ -198,16 +213,15 @@ const LedgerListPage = () => {
 
     const handleNavigate = (ledgerItem) => {
         if (ledgerItem) {
-            let url = `./${ledgerItem._id}?name=${encodeURIComponent(ledgerItem.name)}`;
+            let url = `/dashboard/ledger/${ledgerItem._id}?name=${encodeURIComponent(ledgerItem.name)}`;
             if (ledgerItem.profileImage) {
                 url += `&profileimage=${encodeURIComponent(ledgerItem.profileImage)}`;
             }
             if (ledgerItem.empId) {
                 url += `&empid=${encodeURIComponent(ledgerItem.empId)}`;
             }
-            if (ledgerItem.ledgerType) {
-                url += `&ledgertype=${encodeURIComponent(ledgerItem.ledgerType)}`;
-            }
+            const itemType = ledgerItem.ledgerType || (ledgerItem.employeeId ? 'employee' : ledgerItem.sponsorId ? 'sponsor' : ledgerItem.kisanSellerId ? 'kisan' : 'custom');
+            url += `&ledgertype=${encodeURIComponent(itemType)}`;
             return navigate(url);
         }
     };
@@ -226,8 +240,27 @@ const LedgerListPage = () => {
 
     const netBalance = stats.payable - stats.receivable;
 
+    const pageTitles = {
+        employee: "Employee Financial Ledgers",
+        seller: "Kisan / Seller Land Purchase Ledgers",
+        associate: "Business Associates Commission Ledgers",
+        partner: "Business Partners Commission Ledgers",
+        branch_partner: "Branch Partners Commission Ledgers",
+        all: "Account Ledgers Overview"
+    };
+
     return (
         <div className="w-full max-w-6xl mx-auto space-y-4">
+            {/* Page Header */}
+            {category !== "all" && (
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900">{pageTitles[category] || "Ledgers"}</h1>
+                        <p className="text-xs text-slate-500 mt-0.5">Real-time balances, credits, debits & statement tracking</p>
+                    </div>
+                </div>
+            )}
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Total Payable Card */}
@@ -353,29 +386,37 @@ const LedgerListPage = () => {
                 {/* Filter Controls Bar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Type Filter */}
-                        <div className="flex items-center gap-1.5">
-                            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Type:</label>
-                            <select
-                                value={typeFilter}
-                                onChange={(e) => setTypeFilter(e.target.value)}
-                                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer"
-                            >
-                                <option value="all">All Ledgers ({ledgers.length})</option>
-                                <option value="employee">
-                                    Employees ({ledgers.filter(l => (l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId))).length})
-                                </option>
-                                <option value="partner">
-                                    Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId).length})
-                                </option>
-                                <option value="associate">
-                                    Business Associates ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId)).length})
-                                </option>
-                                <option value="custom">
-                                    Custom Ledgers ({ledgers.filter(l => !(l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId)) && !(l.ledgerType === 'sponsor' || Boolean(l.sponsorId))).length})
-                                </option>
-                            </select>
-                        </div>
+                        {/* Type Filter (Shown only in All view) */}
+                        {category === "all" && (
+                            <div className="flex items-center gap-1.5">
+                                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Type:</label>
+                                <select
+                                    value={typeFilter}
+                                    onChange={(e) => setTypeFilter(e.target.value)}
+                                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer"
+                                >
+                                    <option value="all">All Ledgers ({ledgers.length})</option>
+                                    <option value="employee">
+                                        Employees ({ledgers.filter(l => (l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId && !l.kisanSellerId))).length})
+                                    </option>
+                                    <option value="seller">
+                                        Sellers / Kisans ({ledgers.filter(l => (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
+                                    </option>
+                                    <option value="partner">
+                                        Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId && (!l.sponsorId?.branchIds || l.sponsorId.branchIds.length === 0)).length})
+                                    </option>
+                                    <option value="branch_partner">
+                                        Branch Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0)).length})
+                                    </option>
+                                    <option value="associate">
+                                        Business Associates ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId)).length})
+                                    </option>
+                                    <option value="custom">
+                                        Custom Ledgers ({ledgers.filter(l => !(l.ledgerType === 'employee' || Boolean(l.employeeId)) && !(l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !(l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
+                                    </option>
+                                </select>
+                            </div>
+                        )}
 
                         {/* Balance Filter */}
                         <div className="flex items-center gap-1.5">
@@ -437,12 +478,19 @@ const LedgerListPage = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {filteredLedgers.map((l, ind) => {
                                 const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
+                                const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                                 const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
                                 const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
-                                const isPartner = isSpon && !l.sponsorId?.sponsorId;
+                                const isBranchPartner = isSpon && hasBranch;
+                                const isPartner = isSpon && !l.sponsorId?.sponsorId && !isBranchPartner;
 
                                 const tagLabel = isEmp
                                     ? 'Employee'
+                                    : isKisan
+                                    ? 'Seller/Kisan'
+                                    : isBranchPartner
+                                    ? 'Branch Partner'
                                     : isPartner
                                     ? 'Partner'
                                     : isAssociate
@@ -451,23 +499,29 @@ const LedgerListPage = () => {
 
                                 const tagClass = isEmp
                                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                    : isKisan
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : isBranchPartner
+                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
                                     : isPartner
                                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                     : isAssociate
                                     ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-100';
+                                    : 'bg-slate-50 text-slate-700 border border-slate-200';
 
                                 return (
                                 <div
                                     key={ind}
                                     onClick={() => handleNavigate(l)}
-                                    className="relative cursor-pointer overflow-hidden rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-3.5 bg-white flex flex-col justify-between h-[120px]"
+                                    className={`relative cursor-pointer rounded-xl border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all p-3.5 bg-white flex flex-col justify-between h-[125px] ${
+                                        activeMenuId === l._id ? 'z-30 ring-1 ring-teal-500/20' : 'z-0'
+                                    }`}
                                 >
                                     <div className="flex justify-between items-start">
                                         <div className="flex gap-2.5 items-center">
                                             {l.profileImage ? (
                                                 <img
-                                                    className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm"
+                                                    className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
                                                     alt={l.name}
                                                     src={cloudinaryUrl(l.profileImage, {
                                                         format: "webp",
@@ -476,13 +530,13 @@ const LedgerListPage = () => {
                                                     })}
                                                 />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs border border-teal-200">
+                                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs border border-teal-200 shrink-0">
                                                     {l.name?.charAt(0)?.toUpperCase() || 'L'}
                                                 </div>
                                             )}
 
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="text-xs font-bold text-slate-800 capitalize leading-tight">
+                                            <div className="flex flex-col gap-0.5 min-w-0">
+                                                <div className="text-xs font-bold text-slate-800 capitalize leading-tight truncate">
                                                     {l.name}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -499,7 +553,7 @@ const LedgerListPage = () => {
                                         </div>
 
                                         {/* Dropdown Action Menu */}
-                                        <div className="relative" ref={activeMenuId === l._id ? menuRef : null}>
+                                        <div className="relative shrink-0" ref={activeMenuId === l._id ? menuRef : null}>
                                             <button
                                                 type="button"
                                                 onClick={(e) => {
@@ -511,7 +565,7 @@ const LedgerListPage = () => {
                                                 <MoreVertical size={16} />
                                             </button>
                                             {activeMenuId === l._id && (
-                                                <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-30 animate-in fade-in zoom-in-95 duration-100">
+                                                <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -519,7 +573,7 @@ const LedgerListPage = () => {
                                                             setActiveMenuId(null);
                                                             handleNavigate(l);
                                                         }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <Eye size={14} /> View
                                                     </button>
@@ -530,7 +584,7 @@ const LedgerListPage = () => {
                                                             setActiveMenuId(null);
                                                             handleOpenLedgerDialog(l);
                                                         }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <Edit2 size={14} /> Edit
                                                     </button>
@@ -541,7 +595,7 @@ const LedgerListPage = () => {
                                                             setActiveMenuId(null);
                                                             deleteLedger(l);
                                                         }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <Trash2 size={14} /> Delete
                                                     </button>
@@ -565,7 +619,7 @@ const LedgerListPage = () => {
                                     </div>
 
                                     {/* Left Accent Bar */}
-                                    <span className={`w-[4px] h-full absolute left-0 top-0 ${
+                                    <span className={`w-[4px] h-full absolute left-0 top-0 rounded-l-xl ${
                                         l.netBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
                                     }`}></span>
                                 </div>
@@ -589,7 +643,7 @@ const LedgerListPage = () => {
                                         <th scope="col" className="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
                                             Net Balance
                                         </th>
-                                        <th scope="col" className="px-6 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-16">
+                                        <th scope="col" className="px-6 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-36">
                                             Actions
                                         </th>
                                     </tr>
@@ -633,12 +687,19 @@ const LedgerListPage = () => {
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 {(() => {
                                                     const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
+                                                    const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                                                     const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                                    const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
                                                     const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
-                                                    const isPartner = isSpon && !l.sponsorId?.sponsorId;
+                                                    const isBranchPartner = isSpon && hasBranch;
+                                                    const isPartner = isSpon && !l.sponsorId?.sponsorId && !isBranchPartner;
 
                                                     const tagLabel = isEmp
                                                         ? 'Employee'
+                                                        : isKisan
+                                                        ? 'Seller/Kisan'
+                                                        : isBranchPartner
+                                                        ? 'Branch Partner'
                                                         : isPartner
                                                         ? 'Partner'
                                                         : isAssociate
@@ -647,11 +708,15 @@ const LedgerListPage = () => {
 
                                                     const tagClass = isEmp
                                                         ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                                        : isKisan
+                                                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                                        : isBranchPartner
+                                                        ? 'bg-teal-50 text-teal-800 border border-teal-200'
                                                         : isPartner
                                                         ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                                         : isAssociate
                                                         ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                        : 'bg-amber-50 text-amber-700 border border-amber-100';
+                                                        : 'bg-slate-50 text-slate-700 border border-slate-200';
 
                                                     return (
                                                         <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
@@ -675,39 +740,31 @@ const LedgerListPage = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                                                <div className="relative inline-block" ref={activeMenuId === l._id ? menuRef : null}>
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setActiveMenuId(activeMenuId === l._id ? null : l._id)}
-                                                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                                        title="View Ledger Statement"
+                                                        onClick={() => handleNavigate(l)}
+                                                        className="p-1.5 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 hover:text-teal-900 border border-teal-200 transition-colors cursor-pointer"
                                                     >
-                                                        <MoreVertical size={16} />
+                                                        <Eye size={14} />
                                                     </button>
-                                                    {activeMenuId === l._id && (
-                                                        <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-30 text-left animate-in fade-in zoom-in-95 duration-100">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => { setActiveMenuId(null); handleNavigate(l); }}
-                                                                className="w-full px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                                            >
-                                                                <Eye size={14} /> View
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => { setActiveMenuId(null); handleOpenLedgerDialog(l); }}
-                                                                className="w-full px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                                            >
-                                                                <Edit2 size={14} /> Edit
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => { setActiveMenuId(null); deleteLedger(l); }}
-                                                                className="w-full px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                                                            >
-                                                                <Trash2 size={14} /> Delete
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        title="Edit Ledger"
+                                                        onClick={() => handleOpenLedgerDialog(l)}
+                                                        className="p-1.5 rounded-lg text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        title="Delete Ledger"
+                                                        onClick={() => deleteLedger(l)}
+                                                        className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
