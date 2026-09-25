@@ -8,7 +8,7 @@ const AdminManagerPage = () => {
 
     if (!['superadmin'].includes(profile?.role)) {
         return (
-            <OrganizationLayout title="User Management">
+            <OrganizationLayout>
                 <div className="p-6 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl">
                     <p className="font-bold text-sm">Access Denied</p>
                     <p className="text-xs mt-1">You do not have administrative privileges to manage system accounts.</p>
@@ -18,7 +18,7 @@ const AdminManagerPage = () => {
     }
 
     return (
-        <OrganizationLayout title="User Management">
+        <OrganizationLayout>
             <div className="w-full">
                 <SuperAdminDashboard />
             </div>

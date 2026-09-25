@@ -58,11 +58,13 @@ const Navbar = () => {
     "devices": "Device Management",
     "telegram": "Telegram Integration",
     "admin": "User Management",
+    "users": "User Management",
     "rules": "Attendance Rules",
     "leave-policies": "Leave Policies",
     "attandence-import": "Attendance Import",
     "add": "Create Payroll",
     "vouchers": "Vouchers",
+    "activity-logs": "Activity Logs",
     // Plot Management Titles
     "plots": "Plot Management",
     "inventory": "Plots Inventory",
@@ -75,8 +77,12 @@ const Navbar = () => {
     "addbooking": "Create Booking",
     "installments": "Collections",
     "series-master": "Plot Series Master",
+    "products": "Plot Products",
+    "book": "Product Booking",
     "reports": "Plot Reports",
     "payout-ledger": "Payout Ledger",
+    "incentives": "Incentive Matrix",
+    "closings": "Incentive Closings",
     "interest-calculator": "Plot Refund & Settlement Calculator",
   };
 
@@ -132,7 +138,18 @@ const Navbar = () => {
 
   // special handling for dynamic routes like ledger/:id, plots/customers/new, plots/booking/:id
   let pageTitle;
-  if (pathParts.includes("plots")) {
+  if (pathParts.includes("organization")) {
+    if (pathParts.includes("company")) pageTitle = "Company Info";
+    else if (pathParts.includes("branches")) pageTitle = "Branch Manager";
+    else if (pathParts.includes("departments")) pageTitle = "Departments";
+    else if (pathParts.includes("devices")) pageTitle = "Device Management";
+    else if (pathParts.includes("telegram")) pageTitle = "Telegram Integration";
+    else if (pathParts.includes("admin") || pathParts.includes("users")) pageTitle = "User Management";
+    else if (pathParts.includes("rules")) pageTitle = "Attendance Rules";
+    else if (pathParts.includes("payroll")) pageTitle = "Payroll Policies";
+    else if (pathParts.includes("leave-policies")) pageTitle = "Leave Policies";
+    else pageTitle = "Organization Settings";
+  } else if (pathParts.includes("plots")) {
     if (pathParts.includes("customers")) {
       if (pathParts.includes("new")) pageTitle = "Add New Customer";
       else if (pathParts.includes("edit")) pageTitle = "Edit Customer";

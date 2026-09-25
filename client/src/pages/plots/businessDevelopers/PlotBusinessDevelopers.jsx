@@ -8,15 +8,19 @@ import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
 import {
+  Pencil,
   Edit2,
   Search,
   Eye,
+  EyeOff,
   Trash2,
   Lock,
   Unlock,
-  Banknote,
+  BookOpen,
   KeyRound,
-  TrendingUp,
+  BarChart3,
+  UserCheck,
+  UserX,
   Camera,
   PenTool,
   User,
@@ -48,6 +52,12 @@ const PlotBusinessDevelopers = () => {
   const [viewingDeveloper, setViewingDeveloper] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingSign, setUploadingSign] = useState(false);
+
+  // Reset Password Modal State
+  const [resetPasswordTarget, setResetPasswordTarget] = useState(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState('123456');
+  const [showResetPasswordText, setShowResetPasswordText] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const customStyles = useCustomStyles();
 
@@ -338,19 +348,30 @@ const PlotBusinessDevelopers = () => {
     }
   };
 
-  const handleResetPassword = async (developer) => {
-    const newPwd = window.prompt(`Enter new password for business developer "${developer.name}" (Leave empty for default "123456"):`, '123456');
-    if (newPwd === null) return; // user cancelled
+  const handleOpenResetPassword = (developer) => {
+    setResetPasswordTarget(developer);
+    setResetPasswordValue('123456');
+    setShowResetPasswordText(false);
+  };
 
+  const handleConfirmResetPassword = async (e) => {
+    if (e) e.preventDefault();
+    if (!resetPasswordTarget) return;
+    const finalPassword = (resetPasswordValue || '').trim() || '123456';
+
+    setResettingPassword(true);
     try {
       const res = await request({
-        url: `plots/sponsors/${developer._id}/reset-password`,
+        url: `plots/sponsors/${resetPasswordTarget._id}/reset-password`,
         method: 'POST',
-        body: { password: newPwd.trim() || '123456' },
+        body: { password: finalPassword },
       });
-      toast.success(res.data?.message || `Password reset successfully to: ${newPwd.trim() || '123456'}`);
+      toast.success(res.data?.message || `Password reset successfully to: ${finalPassword}`);
+      setResetPasswordTarget(null);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -488,22 +509,22 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Actions',
-      width: '260px',
+      width: '280px',
       cell: (row) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => handleOpenViewModal(row)}
-            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-            title="View Details"
+            className="p-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition cursor-pointer"
+            title="View Developer Profile Details"
           >
-            <Eye size={17} />
+            <Eye size={15} />
           </button>
           <button
             onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/business-report`)}
-            className="p-1.5 text-blue-700 hover:bg-blue-50 rounded-lg transition cursor-pointer"
-            title="View Date-Wise Business & Commission Report (Self + Downlines)"
+            className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg transition cursor-pointer"
+            title="View Date-Wise Business & Commission Report"
           >
-            <TrendingUp size={17} className="text-blue-700" />
+            <BarChart3 size={15} />
           </button>
           <button
             onClick={() => {
@@ -513,40 +534,42 @@ const PlotBusinessDevelopers = () => {
               const imgParam = row.profileImage ? `&profileimage=${encodeURIComponent(row.profileImage)}` : '';
               navigate(`/dashboard/ledger/${targetLedgerId}?name=${nameParam}&empid=${empIdParam}&ledgertype=sponsor${imgParam}`);
             }}
-            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
-            title="View Financial Ledger"
+            className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg transition cursor-pointer"
+            title="View Universal Account Ledger"
           >
-            <Banknote size={17} className="text-teal-700" />
+            <BookOpen size={15} />
           </button>
           <button
-            onClick={() => handleResetPassword(row)}
-            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+            onClick={() => handleOpenResetPassword(row)}
+            className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
             title="Reset Login Password"
           >
-            <KeyRound size={17} />
+            <KeyRound size={15} />
           </button>
           <button
             onClick={() => handleOpenModal(row)}
-            className="p-1.5 text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-            title="Edit Business Developer"
+            className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
+            title="Edit Developer Information"
           >
-            <Edit2 size={17} />
+            <Pencil size={15} />
           </button>
           <button
             onClick={() => handleToggleBlock(row)}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
-              row.isBlocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+              row.isBlocked
+                ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
+                : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
             }`}
             title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
           >
-            {row.isBlocked ? <Unlock size={17} /> : <Lock size={17} />}
+            {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
           </button>
           <button
             onClick={() => handleDeleteDeveloper(row)}
-            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+            className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
             title="Delete Business Developer"
           >
-            <Trash2 size={17} />
+            <Trash2 size={15} />
           </button>
         </div>
       ),
@@ -658,7 +681,7 @@ const PlotBusinessDevelopers = () => {
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 {editingDeveloper ? (
                   <>
-                    <Edit2 size={20} className="text-slate-600" />
+                    <Pencil size={20} className="text-slate-600" />
                     <span>Edit Business Developer ({editingDeveloper.sponsorCode || ''})</span>
                   </>
                 ) : createMode === 'partner' ? (
@@ -676,8 +699,53 @@ const PlotBusinessDevelopers = () => {
             </div>
 
             <div className="modalcontent space-y-4">
+              {/* Role / Developer Type Selector (Identical in both Create and Edit) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  Designation / Role *
+                </label>
+                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateMode('partner');
+                      setFormData((prev) => ({ ...prev, sponsorId: 'direct' }));
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      createMode === 'partner'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Crown size={15} className={createMode === 'partner' ? 'text-amber-600' : 'text-slate-400'} />
+                    <span>👑 Business Partner (BP)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateMode('associate');
+                      const firstPartner = businessDevelopers.find((s) => !s.sponsorId && s._id !== editingDeveloper?._id);
+                      const partnerBranchId = firstPartner?.branchIds?.[0]?._id || firstPartner?.branchIds?.[0] || '';
+                      setFormData((prev) => ({
+                        ...prev,
+                        sponsorId: prev.sponsorId && prev.sponsorId !== 'direct' ? prev.sponsorId : (firstPartner?._id || ''),
+                        branchId: partnerBranchId || prev.branchId || (availableBranches[0]?._id || ''),
+                      }));
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      createMode === 'associate'
+                        ? 'bg-white text-teal-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Users size={15} className={createMode === 'associate' ? 'text-teal-700' : 'text-slate-400'} />
+                    <span>👥 Business Associate (BA)</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Partner Mode: Branch Selection */}
-              {!editingDeveloper && createMode === 'partner' && (
+              {createMode === 'partner' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Select Branch *
@@ -685,7 +753,7 @@ const PlotBusinessDevelopers = () => {
                   <SearchableSelect
                     required
                     value={formData.branchId}
-                    onChange={(val) => setFormData({ ...formData, branchId: val })}
+                    onChange={(val) => setFormData({ ...formData, branchId: val, sponsorId: 'direct' })}
                     options={availableBranches.map((b) => ({
                       value: b._id,
                       label: b.name,
@@ -698,15 +766,15 @@ const PlotBusinessDevelopers = () => {
               )}
 
               {/* Associate Mode: Partner & Branch Selection */}
-              {!editingDeveloper && createMode === 'associate' && (
+              {createMode === 'associate' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Business Partner *
+                      Parent Business Partner *
                     </label>
                     <SearchableSelect
                       required
-                      value={formData.sponsorId}
+                      value={formData.sponsorId === 'direct' ? '' : formData.sponsorId}
                       onChange={(selPartnerId) => {
                         const partner = businessDevelopers.find((s) => s._id === selPartnerId);
                         const partnerBranchId = partner?.branchIds?.[0]?._id || partner?.branchIds?.[0] || '';
@@ -717,7 +785,7 @@ const PlotBusinessDevelopers = () => {
                         }));
                       }}
                       options={businessDevelopers
-                        .filter((s) => !s.sponsorId)
+                        .filter((s) => !s.sponsorId && s._id !== editingDeveloper?._id)
                         .map((sp) => {
                           const bName = sp.branchIds?.[0]?.name ? ` (${sp.branchIds[0].name})` : '';
                           return {
@@ -746,56 +814,11 @@ const PlotBusinessDevelopers = () => {
                                 ? ` (${availableBranches.find((b) => b._id === formData.branchId)?.location})`
                                 : ''
                             }`
-                          : formData.sponsorId
+                          : formData.sponsorId && formData.sponsorId !== 'direct'
                           ? 'No Branch Mapped'
                           : 'Select Business Partner First...'
                       }
                       className="h-10 w-full px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed select-none"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* In Edit Mode, allow modifying hierarchy and branch */}
-              {editingDeveloper && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Hierarchy Role / Parent Partner *
-                    </label>
-                    <SearchableSelect
-                      required
-                      value={formData.sponsorId}
-                      onChange={(val) => setFormData({ ...formData, sponsorId: val })}
-                      options={[
-                        { value: 'direct', label: 'Company Direct (Business Partner)' },
-                        ...businessDevelopers
-                          .filter((s) => s._id !== editingDeveloper._id && !s.sponsorId)
-                          .map((sp) => ({
-                            value: sp._id,
-                            label: `${sp.name} (${sp.sponsorCode || 'Business Partner'})`,
-                          })),
-                      ]}
-                      placeholder="Select Parent / Hierarchy..."
-                      searchPlaceholder="Search partner..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Assigned Branch *
-                    </label>
-                    <SearchableSelect
-                      required
-                      value={formData.branchId}
-                      onChange={(val) => setFormData({ ...formData, branchId: val })}
-                      options={availableBranches.map((b) => ({
-                        value: b._id,
-                        label: b.name,
-                        subtitle: b.location || '',
-                      }))}
-                      placeholder="Select Branch..."
-                      searchPlaceholder="Search branch..."
                     />
                   </div>
                 </div>
@@ -1285,6 +1308,99 @@ const PlotBusinessDevelopers = () => {
             </div>
           </div>
         </div>
+      </Modalbox>
+
+      {/* Modern Reset Password Modal */}
+      <Modalbox
+        open={Boolean(resetPasswordTarget)}
+        onClose={() => !resettingPassword && setResetPasswordTarget(null)}
+        title="Reset Login Password"
+        subtitle={
+          resetPasswordTarget
+            ? `Set portal credentials for ${resetPasswordTarget.name} (${resetPasswordTarget.sponsorCode || 'No ID'})`
+            : ''
+        }
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setResetPasswordTarget(null)}
+              disabled={resettingPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmResetPassword}
+              loading={resettingPassword}
+              startIcon={KeyRound}
+            >
+              Update Password
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleConfirmResetPassword} className="space-y-4">
+          <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3.5 text-xs text-purple-900 flex items-start gap-2.5">
+            <span className="p-1 bg-purple-100 text-purple-800 rounded-lg shrink-0 mt-0.5">
+              <KeyRound size={14} />
+            </span>
+            <div>
+              <p className="font-bold">Portal Login Credentials</p>
+              <p className="text-[11px] text-purple-800/80 mt-0.5">
+                The developer will use this password along with their Business Dev ID (<strong>{resetPasswordTarget?.sponsorCode || 'ID'}</strong>) or registered email to log in to the portal.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              New Password <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showResetPasswordText ? 'text' : 'password'}
+                className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none pr-10"
+                value={resetPasswordValue}
+                onChange={(e) => setResetPasswordValue(e.target.value)}
+                placeholder="Enter new password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowResetPasswordText(!showResetPasswordText)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                title={showResetPasswordText ? 'Hide password' : 'Show password'}
+              >
+                {showResetPasswordText ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setResetPasswordValue('123456')}
+              className="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition cursor-pointer"
+            >
+              Default (123456)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const randomPass = Math.random().toString(36).slice(-8) + '@2026';
+                setResetPasswordValue(randomPass);
+                setShowResetPasswordText(true);
+              }}
+              className="text-xs px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold rounded-lg transition cursor-pointer"
+            >
+              Generate Strong Password
+            </button>
+          </div>
+        </form>
       </Modalbox>
     </div>
   );

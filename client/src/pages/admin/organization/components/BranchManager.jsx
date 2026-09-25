@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import DataTable from '@/components/common/DataTable';
 import {
-    Building2, MapPin, Users, User, Edit2, Trash2, Plus,
-    Search, LayoutGrid, List, Clock, Settings, ShieldCheck,
-    CheckCircle2, Sparkles, Building
+    Building2, MapPin, User, Edit2, Trash2, Plus,
+    Search, LayoutGrid, List, Clock
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
@@ -38,26 +37,6 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
         }
     };
 
-    // Summary stats
-    const stats = useMemo(() => {
-        const total = branch?.length || 0;
-        let totalAssignedManagers = 0;
-        let customTimings = 0;
-        const locationsSet = new Set();
-
-        (branch || []).forEach((b) => {
-            if (b.location) locationsSet.add(b.location.trim().toLowerCase());
-            if (b.managerIds?.length > 0) totalAssignedManagers += b.managerIds.length;
-            if (!b.defaultsetting) customTimings++;
-        });
-
-        return {
-            total,
-            totalAssignedManagers,
-            customTimings,
-            locationsCovered: locationsSet.size,
-        };
-    }, [branch]);
 
     // Filtered branches
     const filteredBranches = useMemo(() => {
@@ -188,56 +167,6 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
 
     return (
         <div className="w-full space-y-6">
-            {/* Stat Summary Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Total Branches */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Branches</p>
-                        <h4 className="text-2xl font-bold text-slate-800 mt-1">{stats.total}</h4>
-                        <span className="text-[11px] text-teal-600 font-medium">{stats.locationsCovered} unique cities/zones</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center border border-teal-100">
-                        <Building2 size={22} />
-                    </div>
-                </div>
-
-                {/* Assigned Managers */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Managers Active</p>
-                        <h4 className="text-2xl font-bold text-emerald-800 mt-1">{stats.totalAssignedManagers}</h4>
-                        <span className="text-[11px] text-emerald-600 font-medium">Assigned oversight leaders</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
-                        <Users size={22} />
-                    </div>
-                </div>
-
-                {/* Custom Timings */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Custom Rules</p>
-                        <h4 className="text-2xl font-bold text-sky-800 mt-1">{stats.customTimings}</h4>
-                        <span className="text-[11px] text-sky-600 font-medium">Branch timing overrides</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center border border-sky-100">
-                        <Clock size={22} />
-                    </div>
-                </div>
-
-                {/* System Policy Coverage */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Default Policy</p>
-                        <h4 className="text-2xl font-bold text-slate-700 mt-1">{stats.total - stats.customTimings}</h4>
-                        <span className="text-[11px] text-slate-500 font-medium">Company policy sync</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200">
-                        <Settings size={22} />
-                    </div>
-                </div>
-            </div>
 
             {/* Toolbar & Search Bar */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3">

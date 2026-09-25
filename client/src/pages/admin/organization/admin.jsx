@@ -3,7 +3,7 @@ import {
     Edit2, Trash2, ChevronUp, ChevronDown, KeyRound, User, Plus,
     Building2, CheckCircle2, XCircle, ShieldCheck, Shield, Users,
     Search, LayoutGrid, List, Lock, Unlock, Mail, Copy, Check,
-    Sparkles, ShieldAlert, CheckSquare, Square
+    Sparkles, CheckSquare, Square
 } from "lucide-react";
 import useImageUpload from "../../../utils/imageresizer";
 import { apiClient } from "../../../utils/apiClient";
@@ -481,15 +481,6 @@ export default function SuperAdminDashboard() {
         setTimeout(() => setCopiedEmail(null), 2000);
     };
 
-    // Calculate Summary Stats
-    const stats = useMemo(() => {
-        const total = admins.length;
-        const totalAdmins = admins.filter(a => a.role === 'admin').length;
-        const totalManagers = admins.filter(a => a.role === 'manager').length;
-        const totalBlocked = admins.filter(a => a.isBlocked).length;
-        const totalActive = total - totalBlocked;
-        return { total, totalAdmins, totalManagers, totalBlocked, totalActive };
-    }, [admins]);
 
     // Filtered Admins
     const filteredAdmins = useMemo(() => {
@@ -534,56 +525,6 @@ export default function SuperAdminDashboard() {
 
     return (
         <div className="w-full space-y-6">
-            {/* Top Stat Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Total Users */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Accounts</p>
-                        <h4 className="text-2xl font-bold text-slate-800 mt-1">{stats.total}</h4>
-                        <span className="text-[11px] text-teal-600 font-medium">{stats.totalActive} active in system</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center border border-teal-100">
-                        <Users size={22} />
-                    </div>
-                </div>
-
-                {/* Administrators */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Administrators</p>
-                        <h4 className="text-2xl font-bold text-emerald-800 mt-1">{stats.totalAdmins}</h4>
-                        <span className="text-[11px] text-emerald-600 font-medium">Full organization scope</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
-                        <ShieldCheck size={22} />
-                    </div>
-                </div>
-
-                {/* Branch Managers */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Branch Managers</p>
-                        <h4 className="text-2xl font-bold text-sky-800 mt-1">{stats.totalManagers}</h4>
-                        <span className="text-[11px] text-sky-600 font-medium">Branch oversight</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center border border-sky-100">
-                        <Building2 size={22} />
-                    </div>
-                </div>
-
-                {/* Inactive / Blocked */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Disabled Accounts</p>
-                        <h4 className="text-2xl font-bold text-rose-700 mt-1">{stats.totalBlocked}</h4>
-                        <span className="text-[11px] text-rose-500 font-medium">Access revoked</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center border border-rose-100">
-                        <ShieldAlert size={22} />
-                    </div>
-                </div>
-            </div>
 
             {/* Action Bar & Filter Toolbar */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3">

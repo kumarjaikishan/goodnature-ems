@@ -171,15 +171,29 @@ class PlotConfigService {
     if (!policy) {
       policy = new CommissionPolicyConfig(defaultData);
       await policy.save();
-    } else {
-      // Auto-migrate: ensure BRANCH_PARTNER exists if policy was saved previously
+      // Auto-migrate: ensure BRANCH_PARTNER and extraSlabs exist if policy was saved previously
+      let modified = false;
       const hasBranchPartner = (policy.roles || []).some((r) => r.roleName === 'BRANCH_PARTNER');
       if (!hasBranchPartner) {
         const branchPartnerDefault = defaultData.roles.find((r) => r.roleName === 'BRANCH_PARTNER');
         if (branchPartnerDefault) {
           policy.roles.push(branchPartnerDefault);
-          await policy.save();
+          modified = true;
         }
+      }
+
+      (policy.roles || []).forEach((r) => {
+        if (!Array.isArray(r.extraSlabs) || r.extraSlabs.length === 0) {
+          const roleDef = defaultData.roles.find((dr) => dr.roleName === r.roleName);
+          if (roleDef && roleDef.extraSlabs) {
+            r.extraSlabs = roleDef.extraSlabs;
+            modified = true;
+          }
+        }
+      });
+
+      if (modified) {
+        await policy.save();
       }
     }
     return policy;

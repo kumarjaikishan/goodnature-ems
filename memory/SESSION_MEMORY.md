@@ -53,12 +53,14 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
   - For Monthly EMI plans, downpayment is eliminated ($0$) and the entire total valuation is divided equally into monthly installments over the chosen tenure. For One-Time Full Payment, the deposit/holding tenure period (12, 24, 36, 48, 60 months) is explicitly recorded to track the contract duration for product delivery or money-back refund on completion.
 
-### AC. Plot Product Fixed Commission & Target Slabs Separation
-- **Tenure-Based Fixed Commission Matrix**: Fixed commissions for Plot Products are configured directly on a tenure/period basis (e.g., 12, 24, 36, 48, 60 months) with distinct EMI vs One-Time FD percentages for all three hierarchy tiers:
-  - **Business Associate (BA)**: Direct booking commission (`rdPromoterCommissionPercent` & `fdPromoterCommissionPercent`).
-  - **Business Partner (BP)**: Parent partner override commission (`bpRdCommissionPercent` & `bpFdCommissionPercent`).
-  - **Branch Partner**: Branch franchise / regional head commission (`branchRdCommissionPercent` & `branchFdCommissionPercent`).
-- **Target Incentive Slabs**: Slabs in `CommissionPolicyMatrix.jsx` are strictly reserved for **Period Closing Target Incentive %** and **Additional Rewards / Physical Gifts** evaluated at monthly/quarterly closing.
+### AC. Plot Product & Series Target Slabs vs Extra Incentive Slabs Separation
+- **Tenure-Based Fixed Commission Matrix**: Fixed commissions for Plot Products are configured directly on a tenure/period basis (e.g., 12, 24, 36, 48, 60 months) with distinct EMI vs One-Time FD percentages for all three hierarchy tiers (BA, BP, Branch Partner).
+- **Target & Extra Incentive Policy Tab Standardization**:
+  - Unified tab naming across `/dashboard/plots/series-master` and `/dashboard/plots/products` to standardize on `Target & Extra Incentive Policy`.
+  - Both pages utilize `CommissionPolicyMatrix.jsx` with separate business collection volume slabs:
+    1. **Target Incentive Slabs (`targetSlabs`)**: Dedicated `minAmount` to `maxAmount` collection thresholds evaluating regular closing target incentive % (and fixed base rates if applicable).
+    2. **Extra Incentive & Campaign Rewards Slabs (`extraSlabs`)**: Independent `minAmount` to `maxAmount` collection thresholds evaluating campaign bonuses, festive rewards (Bikes, Cars, Tours), and extra closing bonus %.
+- **Dual Slab Resolution**: `CommissionPolicyConfig.resolveSlab(policy, roleName, volumeAmount, isExtra)` resolves from `extraSlabs` when `isExtra === true` (used during Extra Incentive closings) and from `targetSlabs` when `isExtra === false` (used during Target Incentive closings).
 - **Redundant Fixed Base Removal**: The fixed base % column and header inputs are conditionally hidden via `shouldHideFixed` (`hideFixedCommission || businessType === 'PLOT_PRODUCT'`), eliminating duplicate/confusing fixed inputs while ensuring seamless data persistence.
 
 ### AB. Business Associate, Business Partner & Branch Partner Portal Architecture
@@ -91,9 +93,9 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 ### U. Organization Settings Architecture & Relative Import Depths
 - **Gotcha**: Files in `client/src/pages/admin/organization/pages/` (4 directory levels deep within `src`) require `../../../../utils/...` for utilities (`apiClient`, `toast`, `confirmDialog`) and `../../../../../store/...` (5 levels) to reach `client/store/userSlice.js`. Incorrect depth will cause dynamic import 500 errors in Vite lazy routes.
 - **Organization Pages Redesign**:
-  - `/dashboard/organization/branches`: Upgraded to 4 summary stat cards, live search, manager/timing filter tabs, dual card grid & DataTable views, and safe deletion checks.
-  - `/dashboard/organization/departments`: Modernized with branch tabs, statistics, dual card/table views, and emerald accent theme.
-  - `/dashboard/organization/admin`: Redesigned with 4 summary stat cards, active toggle, branch pills, 1-click permission presets, and dual card grid/table views.
+  - `/dashboard/organization/branches`: Modernized with live search, manager/timing filter tabs, dual card grid & DataTable views, and safe deletion checks. Redundant page header & top stat cards removed for clean alignment with top navbar.
+  - `/dashboard/organization/departments`: Modernized with branch tabs, dual card/table views, and emerald accent theme.
+  - `/dashboard/organization/users` (`/dashboard/organization/admin`): Redesigned with active toggle, branch pills, 1-click permission presets, and dual card grid/table views. Top navbar title auto-resolves to "User Management".
 
 # SESSION_MEMORY.md — Persistent Discoveries & Context for Future Sessions
 

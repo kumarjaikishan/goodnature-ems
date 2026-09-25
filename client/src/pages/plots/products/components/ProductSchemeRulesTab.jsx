@@ -10,7 +10,6 @@ import {
 import api from '../../../../api/axios';
 import PageLoader from '../../../../components/common/PageLoader';
 import { toast } from '../../../../utils/toast';
-import CommissionPolicyMatrix from '../../seriesMaster/components/CommissionPolicyMatrix';
 
 const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const [loading, setLoading] = useState(true);
@@ -347,17 +346,6 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           </div>
         </div>
       </form>
-
-      {/* Plot Product Target Incentive & Closing Policy Matrix */}
-      <div className="pt-2">
-        <CommissionPolicyMatrix
-          initialBusinessType="PLOT_PRODUCT"
-          showTypeToggle={false}
-          hideFixedCommission={true}
-          title="Plot Product Target Incentive &amp; Closing Policy"
-          subtitle="Configure Plot Product period closing collection target slabs, tiered performance incentive %, and closing rewards for Business Associates, Business Partners, and Branch Partners."
-        />
-      </div>
     </div>
   );
 };

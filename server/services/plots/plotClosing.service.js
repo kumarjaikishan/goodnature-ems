@@ -245,9 +245,9 @@ class PlotClosingService {
       const roleName = !sp.isDeveloper ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
 
       // Slabs resolution for Plot, Investment, and Plot Product policies based on sponsor's total period volume
-      const plotSlab = CommissionPolicyConfig.resolveSlab(plotPolicyConfig, roleName, sp.totalBusiness);
-      const invSlab = CommissionPolicyConfig.resolveSlab(investmentPolicyConfig, roleName, sp.totalBusiness);
-      const prdSlab = CommissionPolicyConfig.resolveSlab(productPolicyConfig, roleName, sp.totalBusiness);
+      const plotSlab = CommissionPolicyConfig.resolveSlab(plotPolicyConfig, roleName, sp.totalBusiness, isExtra);
+      const invSlab = CommissionPolicyConfig.resolveSlab(investmentPolicyConfig, roleName, sp.totalBusiness, isExtra);
+      const prdSlab = CommissionPolicyConfig.resolveSlab(productPolicyConfig, roleName, sp.totalBusiness, isExtra);
 
       const defaultFixedPct = !sp.isDeveloper ? 5.0 : 2.0;
       const defaultIncPct = isExtra ? plotSlab.extraIncentivePercent : plotSlab.baseIncentivePercent;

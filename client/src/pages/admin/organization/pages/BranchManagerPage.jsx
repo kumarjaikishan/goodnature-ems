@@ -63,7 +63,7 @@ const BranchManagerPage = () => {
     };
 
     return (
-        <OrganizationLayout title="Branches & Managers">
+        <OrganizationLayout>
             <div className="w-full">
                 <BranchManager
                     branch={branch}

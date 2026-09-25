@@ -496,19 +496,6 @@ const PlotSeriesMaster = () => {
 
         <button
           type="button"
-          onClick={() => setActiveTab('commissions')}
-          className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'commissions'
-              ? 'border-teal-800 text-teal-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Award size={17} className="text-teal-700" />
-          Target Incentive Policy &amp; Slabs
-        </button>
-
-        <button
-          type="button"
           onClick={() => setActiveTab('rates')}
           className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'rates'
@@ -517,7 +504,20 @@ const PlotSeriesMaster = () => {
           }`}
         >
           <SlidersHorizontal size={17} />
-          Plot Configuration &amp; Policy
+          Plot Configuration &amp; Rates
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('commissions')}
+          className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'commissions'
+              ? 'border-teal-800 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Award size={17} className="text-teal-700" />
+          Target &amp; Extra Incentive Policy
         </button>
       </div>
 
@@ -551,17 +551,7 @@ const PlotSeriesMaster = () => {
         </div>
       )}
 
-      {/* ── TAB 2: TARGET INCENTIVE & FIXED COMMISSION POLICY (PLOT SALES) ── */}
-      {activeTab === 'commissions' && (
-        <CommissionPolicyMatrix
-          initialBusinessType="PLOT_SALE"
-          showTypeToggle={false}
-          title="Plot Sales Target Incentive & Fixed Commission Policy"
-          subtitle="Configure collection target slabs, fixed base rates, and tiered incentive percentages for Plot sales."
-        />
-      )}
-
-      {/* ── TAB 3: CONFIGURATION & POLICY ── */}
+      {/* ── TAB 2: CONFIGURATION & RATES ── */}
       {activeTab === 'rates' && (
         <TenurePlotRatesMatrix
           rateConfig={rateConfig}
@@ -570,6 +560,16 @@ const PlotSeriesMaster = () => {
           submitLoading={submitLoading}
           inputCls={inputCls}
           labelCls={labelCls}
+        />
+      )}
+
+      {/* ── TAB 3: TARGET & EXTRA INCENTIVE POLICY (PLOT SALES) ── */}
+      {activeTab === 'commissions' && (
+        <CommissionPolicyMatrix
+          initialBusinessType="PLOT_SALE"
+          showTypeToggle={false}
+          title="Plot Sales Target & Extra Incentive Policy"
+          subtitle="Configure collection target slabs, fixed base rates, tiered incentive percentages, and closing rewards for Plot sales."
         />
       )}
 

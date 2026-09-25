@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingCart, Layers, ArrowLeft } from 'lucide-react';
+import { Package, ShoppingCart, SlidersHorizontal, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -9,16 +9,15 @@ import PageLoader from '../../../components/common/PageLoader';
 import ProductCatalogTab from './components/ProductCatalogTab';
 import ProductSalesTab from './components/ProductSalesTab';
 import ProductSchemeRulesTab from './components/ProductSchemeRulesTab';
+import CommissionPolicyMatrix from '../seriesMaster/components/CommissionPolicyMatrix';
 import ProductBookingCertificateModal from './components/ProductBookingCertificateModal';
 import ProductCustomerLedgerModal from './components/ProductCustomerLedgerModal';
-import { SlidersHorizontal } from 'lucide-react';
 
 const PlotProductsPage = () => {
   const navigate = useNavigate();
 
-  // Active Tab: 'catalog' (Product Master) vs 'sales' (Sales & Bookings) vs 'schemes' (Scheme Rules & Returns)
+  // Active Tab: 'catalog' | 'sales' | 'schemes' | 'incentives'
   const [activeTab, setActiveTab] = useState('catalog');
-
 
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
@@ -89,7 +88,7 @@ const PlotProductsPage = () => {
             Plot Products &amp; Fractional Unit Master
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Configure micro-plot piece products with North/South/East/West dimensions, unit pricing, and customer maturity returns for EMI (R.D.) &amp; Full Payment (F.D.).
+            Configure micro-plot piece products with North/South/East/West dimensions, unit pricing, customer returns, and target commission policies.
           </p>
         </div>
       </div>
@@ -134,17 +133,28 @@ const PlotProductsPage = () => {
         >
           <SlidersHorizontal size={16} /> Scheme Rules &amp; Returns Matrix
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('incentives')}
+          className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'incentives'
+              ? 'border-teal-800 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Award size={16} className="text-teal-700" /> Target &amp; Extra Incentive Policy
+        </button>
       </div>
 
-
       {/* Tab Contents */}
-      {activeTab === 'catalog' ? (
+      {activeTab === 'catalog' && (
         <ProductCatalogTab
           products={products}
           loading={loading}
           onRefresh={handleRefresh}
         />
-      ) : activeTab === 'sales' ? (
+      )}
+      {activeTab === 'sales' && (
         <ProductSalesTab
           products={products}
           customers={customers}
@@ -156,9 +166,19 @@ const PlotProductsPage = () => {
           onOpenLedger={(b) => setSelectedLedgerBooking(b)}
           onOpenCollect={(b) => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
         />
-      ) : (
+      )}
+      {activeTab === 'schemes' && (
         <ProductSchemeRulesTab
           onSchemeUpdated={fetchInitialData}
+        />
+      )}
+      {activeTab === 'incentives' && (
+        <CommissionPolicyMatrix
+          initialBusinessType="PLOT_PRODUCT"
+          showTypeToggle={false}
+          hideFixedCommission={true}
+          title="Plot Product Target & Extra Incentive Policy"
+          subtitle="Configure Plot Product period closing collection target slabs, tiered performance incentive %, and closing rewards for Business Associates, Business Partners, and Branch Partners."
         />
       )}
 

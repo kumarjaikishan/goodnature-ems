@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { setlogin } from "../../store/authSlice";
 import { useNavigate } from "react-router-dom";
 import { setuser } from "../../store/userSlice";
-import { Eye, EyeOff, Building2, Users2, ShieldCheck, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Building2, Users2 } from "lucide-react";
 
 const Login = () => {
     const [loginType, setLoginType] = useState("admin"); // 'admin' | 'sponsor'
@@ -48,36 +48,37 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-b from-green-200 to-white p-4 select-none">
-            <div className="flex flex-col md:flex-row items-center md:items-stretch shadow-xl bg-white rounded-2xl overflow-hidden w-full max-w-fit border border-slate-200">
-                {/* Left Side Illustration Image */}
-                <div className="w-full md:w-[350px] h-[200px] md:h-auto flex-shrink-0 bg-slate-50 flex items-center justify-center p-4">
+        <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-b from-green-200 to-white p-4 sm:p-6 select-none">
+            {/* Main Card - Kept Exact Original Theme & Look, Widened to Prevent Congestion */}
+            <div className="flex flex-col md:flex-row items-center md:items-stretch shadow-xl bg-white rounded-3xl overflow-hidden w-full max-w-[820px] border border-slate-200">
+                {/* Left Side Illustration Image - Covers Whole Left Side Area */}
+                <div className="w-full md:w-[380px] min-h-[260px] md:min-h-full flex-shrink-0 bg-slate-50 flex items-center justify-center p-0 overflow-hidden border-b md:border-b-0 md:border-r border-slate-100">
                     <img
                         src="https://res.cloudinary.com/dusxlxlvm/image/upload/v1756013721/ems/assets/10782895_19199299_1_q2oxsf.svg"
                         alt="Login Illustration"
-                        className="w-full h-full max-h-[360px] object-contain"
+                        className="w-full h-full min-h-[260px] md:min-h-[440px] object-cover object-center"
                     />
                 </div>
 
                 {/* Right Side Form with Login Mode Switch */}
-                <div className="flex items-center justify-center w-full md:w-[340px] p-6 md:p-8">
-                    <div className="w-full space-y-4">
-                        {/* Mode Selector Tabs */}
-                        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200 gap-1">
+                <div className="flex items-center justify-center w-full md:w-[440px] p-6 sm:p-8 md:p-10">
+                    <div className="w-full space-y-5">
+                        {/* Mode Selector Tabs - Spacious & Uncramped */}
+                        <div className="grid grid-cols-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 gap-1.5">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setLoginType("admin");
                                     setIdentifier("");
                                 }}
-                                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                                className={`flex items-center justify-center gap-2 py-2.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                                     !isSponsor
                                         ? "bg-white text-slate-900 shadow-xs border border-slate-200/80"
                                         : "text-slate-500 hover:text-slate-800"
                                 }`}
                             >
                                 <Building2 size={15} className={!isSponsor ? "text-teal-700" : "text-slate-400"} />
-                                <span>Staff / Admin</span>
+                                <span className="whitespace-nowrap">Staff / Admin</span>
                             </button>
 
                             <button
@@ -86,23 +87,23 @@ const Login = () => {
                                     setLoginType("sponsor");
                                     setIdentifier("");
                                 }}
-                                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                                className={`flex items-center justify-center gap-2 py-2.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                                     isSponsor
-                                        ? "bg-teal-700 text-white shadow-xs"
+                                        ? "bg-teal-700 text-white shadow-xs font-extrabold"
                                         : "text-slate-500 hover:text-slate-800"
                                 }`}
                             >
                                 <Users2 size={15} className={isSponsor ? "text-teal-200" : "text-slate-400"} />
-                                <span>Partner & Associate</span>
+                                <span className="whitespace-nowrap">Partner &amp; Associate</span>
                             </button>
                         </div>
 
                         {/* Title Header */}
                         <div>
-                            <h2 className="text-xl font-black text-slate-900">
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
                                 {isSponsor ? "Associate & Partner Login" : "Staff & Admin Sign In"}
                             </h2>
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p className="text-xs sm:text-sm text-slate-500 mt-1">
                                 {isSponsor
                                     ? "Enter your Associate ID, Partner ID (e.g. BA-..., BP-...), or mobile"
                                     : "Enter your registered email and password to access"}
@@ -112,7 +113,7 @@ const Login = () => {
                         {/* Login Form */}
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                                     {isSponsor ? "Login ID / Mobile / Email" : "Email Address"}
                                 </label>
                                 <input
@@ -126,7 +127,7 @@ const Login = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5">Password</label>
                                 <div className="relative">
                                     <input
                                         type={showPassword ? "text" : "password"}
@@ -144,24 +145,21 @@ const Login = () => {
                                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                     </button>
                                 </div>
-                                {isSponsor && (
-                                    <p className="text-[11px] text-slate-400 mt-1 font-medium">
-                                        Default password is <span className="font-mono font-bold text-slate-600">123456</span>
-                                    </p>
-                                )}
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
-                                    isSponsor
-                                        ? "bg-teal-700 hover:bg-teal-800 shadow-teal-700/20"
-                                        : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
-                                }`}
-                            >
-                                {isLoading ? "Authenticating..." : isSponsor ? "Sign In to Portal" : "Sign In to Workspace"}
-                            </button>
+                            <div className="pt-1">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
+                                        isSponsor
+                                            ? "bg-teal-700 hover:bg-teal-800 shadow-teal-700/20"
+                                            : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
+                                    }`}
+                                >
+                                    {isLoading ? "Authenticating..." : isSponsor ? "Sign In to Portal" : "Sign In to Workspace"}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
