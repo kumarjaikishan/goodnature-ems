@@ -220,13 +220,6 @@ const BusinessDeveloperReportPage = () => {
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-600">Active Commission:</span>
-              <span className="px-3 py-1 bg-teal-800 text-white font-mono font-bold text-xs rounded-xl shadow-2xs">
-                {summary.targetTierInfo.fixedPercent}% Fix + {summary.targetTierInfo.incentivePercent}% Incentive = {summary.targetTierInfo.totalPercent}% Total
-              </span>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -477,7 +470,6 @@ const BusinessDeveloperReportPage = () => {
                     <th className="p-3">Source, Downline & Commission %</th>
                     <th className="p-3 text-right">Collection Amount</th>
                     <th className="p-3 text-right">Commission Earned</th>
-                    <th className="p-3 text-center">Closing Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -579,17 +571,6 @@ const BusinessDeveloperReportPage = () => {
                             )}
                           </div>
                         </td>
-                        <td className="p-3 text-center">
-                          {row.isClosed ? (
-                            <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
-                              Closed ({row.closingNumber})
-                            </span>
-                          ) : (
-                            <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold">
-                              Pending Closing
-                            </span>
-                          )}
-                        </td>
                       </tr>
                     );
                   })}
@@ -605,7 +586,6 @@ const BusinessDeveloperReportPage = () => {
                     <td className="p-3 text-right font-black font-mono text-emerald-700 text-[14px]">
                       ₹{(summary.totalCommission || 0).toLocaleString('en-IN')}
                     </td>
-                    <td className="p-3"></td>
                   </tr>
                 </tfoot>
               </table>
