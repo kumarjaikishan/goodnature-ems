@@ -14,6 +14,17 @@ const plotSchema = new mongoose.Schema(
       ref: 'PlotSeriesMaster',
       required: false,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProject',
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     sequenceNumber: {
       type: Number,
       required: false,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Building2, Plus, FileText, ShieldCheck, Users } from 'lucide-react';
+import { Building2, Plus, FileText, ShieldCheck, Users, FolderKanban } from 'lucide-react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import confirmDialog from '../../../utils/confirmDialog';
@@ -10,6 +10,7 @@ import KisanAgreementsTable from './components/KisanAgreementsTable';
 import RegistryDeedsTable from './components/RegistryDeedsTable';
 import KisanSellersTable from './components/KisanSellersTable';
 import PurchasersTable from './components/PurchasersTable';
+import ProjectsTable from './components/ProjectsTable';
 import CreateAgreementModal from './components/CreateAgreementModal';
 import EditAgreementModal from './components/EditAgreementModal';
 import CreateDeedModal from './components/CreateDeedModal';
@@ -38,6 +39,10 @@ const PlotPurchasePage = () => {
   const [purchasers, setPurchasers] = useState([]);
   const [purchasersLoading, setPurchasersLoading] = useState(false);
 
+  // Projects Master State
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+
   // Selected Agreement Detail Drawer / Modal
   const [selectedAgrId, setSelectedAgrId] = useState(null);
   const [detailData, setDetailData] = useState(null);
@@ -53,6 +58,8 @@ const PlotPurchasePage = () => {
     agreementNumber: '',
     agreementDate: new Date().toISOString().split('T')[0],
     agreementEndDate: '',
+    projectId: '',
+    projectName: '',
     remarks: '',
     landParcels: [
       {
@@ -100,6 +107,8 @@ const PlotPurchasePage = () => {
     agreementNumber: '',
     agreementDate: '',
     agreementEndDate: '',
+    projectId: '',
+    projectName: '',
     remarks: '',
     landParcels: [],
     farmers: [],
@@ -188,6 +197,20 @@ const PlotPurchasePage = () => {
     }
   };
 
+  // Fetch Projects master
+  const fetchProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      const res = await api.get('/plots/projects');
+      const list = res.data?.data || res.data || [];
+      setProjects(Array.isArray(list) ? list : []);
+    } catch {
+      // silent
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchAgreements();
   }, [page, statusFilter]);
@@ -195,6 +218,7 @@ const PlotPurchasePage = () => {
   useEffect(() => {
     fetchSellers();
     fetchPurchasers();
+    fetchProjects();
   }, []);
 
   // Load Agreement Full Ledgers
@@ -308,6 +332,8 @@ const PlotPurchasePage = () => {
       agreementNumber: agr.agreementNumber || '',
       agreementDate: agr.agreementDate ? new Date(agr.agreementDate).toISOString().split('T')[0] : '',
       agreementEndDate: agr.agreementEndDate ? new Date(agr.agreementEndDate).toISOString().split('T')[0] : '',
+      projectId: agr.projectId?._id || agr.projectId || '',
+      projectName: agr.projectName || '',
       remarks: agr.remarks || '',
       landParcels: parcels,
       farmers: Array.isArray(agr.farmers) && agr.farmers.length > 0
@@ -621,6 +647,18 @@ const PlotPurchasePage = () => {
           <Building2 size={16} />
           Purchasers / Buyers Master ({purchasers.length})
         </button>
+
+        <button
+          onClick={() => setMainTab('projects')}
+          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
+            mainTab === 'projects'
+              ? 'border-teal-800 text-teal-900 bg-teal-50/50 rounded-t-lg'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <FolderKanban size={16} />
+          Project Master ({projects.length})
+        </button>
       </div>
 
       {/* ── TAB 1: PLOT PURCHASE AGREEMENTS ── */}
@@ -673,6 +711,15 @@ const PlotPurchasePage = () => {
         />
       )}
 
+      {/* ── TAB 5: PROJECT MASTER DIRECTORY ── */}
+      {mainTab === 'projects' && (
+        <ProjectsTable
+          projects={projects}
+          loading={projectsLoading}
+          fetchProjects={fetchProjects}
+        />
+      )}
+
       {/* ── MODALS ── */}
       <CreateAgreementModal
         open={createOpen}
@@ -684,8 +731,10 @@ const PlotPurchasePage = () => {
         fetchAgreements={fetchAgreements}
         sellers={sellers}
         purchasers={purchasers}
+        projects={projects}
         fetchSellers={fetchSellers}
         fetchPurchasers={fetchPurchasers}
+        fetchProjects={fetchProjects}
       />
 
       <EditAgreementModal
@@ -698,8 +747,10 @@ const PlotPurchasePage = () => {
         handleSaveAgreementEdit={handleSaveAgreementEdit}
         sellers={sellers}
         purchasers={purchasers}
+        projects={projects}
         fetchSellers={fetchSellers}
         fetchPurchasers={fetchPurchasers}
+        fetchProjects={fetchProjects}
       />
 
       <CreateDeedModal

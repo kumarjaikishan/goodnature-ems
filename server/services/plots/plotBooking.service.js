@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const PlotBooking = require('../../models/PlotBooking');
 const Plot = require('../../models/Plot');
+const PlotProject = require('../../models/PlotProject');
 const PlotCustomer = require('../../models/PlotCustomer');
 const User = require('../../models/user');
 const Counter = require('../../models/Counter');
@@ -267,6 +268,13 @@ class PlotBookingService {
         emiRatePerSqFt = plot.plotSize > 0 ? Math.round((emiPrincipalAmt / plot.plotSize) * 100) / 100 : 0;
       }
 
+      const resolvedProjectId = data.projectId || plot.projectId || null;
+      let resolvedProjectName = data.projectName || plot.projectName || '';
+      if (resolvedProjectId && !resolvedProjectName) {
+        const proj = await PlotProject.findById(resolvedProjectId).session(session);
+        if (proj) resolvedProjectName = proj.name;
+      }
+
       const booking = new PlotBooking({
         bookingNumber,
         agreementNumber,
@@ -274,6 +282,8 @@ class PlotBookingService {
         customerId: finalCustomerId,
         sponsorId: finalSponsorId,
         plotId,
+        projectId: resolvedProjectId,
+        projectName: resolvedProjectName,
         plotValue,
         scheme: resolvedScheme,
         bookingAmount: 0,

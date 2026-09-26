@@ -7,6 +7,17 @@ const plotSeriesMasterSchema = new mongoose.Schema(
       required: [true, 'Series Name is required'],
       trim: true,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProject',
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     prefix: {
       type: String,
       required: [true, 'Prefix is required'],

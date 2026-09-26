@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const ApiError = require('../../utils/apiError');
 const PlotProduct = require('../../models/PlotProduct');
+const PlotProject = require('../../models/PlotProject');
 const PlotProductBooking = require('../../models/PlotProductBooking');
 const PlotCustomer = require('../../models/PlotCustomer');
 const User = require('../../models/user');
@@ -175,12 +176,14 @@ class PlotProductService {
   async getProducts(query = {}) {
     const filter = {};
     if (query.status) filter.status = query.status;
+    if (query.projectId) filter.projectId = query.projectId;
     if (query.search) {
       const q = query.search.trim();
       filter.$or = [
         { productName: { $regex: q, $options: 'i' } },
         { productCode: { $regex: q, $options: 'i' } },
         { dimensionLabel: { $regex: q, $options: 'i' } },
+        { projectName: { $regex: q, $options: 'i' } },
       ];
     }
 
@@ -236,10 +239,25 @@ class PlotProductService {
     const seq = await Counter.getNextSequence('PLOT_PRODUCT_CODE', null, 3);
     const productCode = `PRD-${seq}`;
 
+    let resolvedProjectId = data.projectId || null;
+    let resolvedProjectName = data.projectName || '';
+    if (resolvedProjectId && !resolvedProjectName) {
+      const proj = await PlotProject.findById(resolvedProjectId);
+      if (proj) resolvedProjectName = proj.name;
+    } else if (!resolvedProjectId && resolvedProjectName) {
+      const proj = await PlotProject.findOne({ name: { $regex: `^${resolvedProjectName.trim()}$`, $options: 'i' } });
+      if (proj) {
+        resolvedProjectId = proj._id;
+        resolvedProjectName = proj.name;
+      }
+    }
+
     const product = new PlotProduct({
       productName: productName.trim(),
       productCode,
       category: category.trim(),
+      projectId: resolvedProjectId,
+      projectName: resolvedProjectName,
       dimensions: {
         north: n,
         south: s,
@@ -271,6 +289,29 @@ class PlotProductService {
     if (data.category) product.category = data.category.trim();
     if (data.description !== undefined) product.description = data.description.trim();
     if (data.status) product.status = data.status;
+
+    if (data.projectId !== undefined) {
+      product.projectId = data.projectId || null;
+      if (data.projectName) {
+        product.projectName = data.projectName.trim();
+      } else if (data.projectId) {
+        const proj = await PlotProject.findById(data.projectId);
+        if (proj) product.projectName = proj.name;
+      } else {
+        product.projectName = '';
+      }
+    } else if (data.projectName !== undefined) {
+      product.projectName = data.projectName ? data.projectName.trim() : '';
+      if (product.projectName) {
+        const proj = await PlotProject.findOne({ name: { $regex: `^${product.projectName}$`, $options: 'i' } });
+        if (proj) {
+          product.projectId = proj._id;
+          product.projectName = proj.name;
+        }
+      } else {
+        product.projectId = null;
+      }
+    }
 
     if (data.unitPrice !== undefined) {
       const price = Number(data.unitPrice);
@@ -568,11 +609,20 @@ class PlotProductService {
       });
     }
 
+    const resolvedProjectId = data.projectId || product.projectId || null;
+    let resolvedProjectName = data.projectName || product.projectName || '';
+    if (resolvedProjectId && !resolvedProjectName) {
+      const proj = await PlotProject.findById(resolvedProjectId);
+      if (proj) resolvedProjectName = proj.name;
+    }
+
     const bookingDoc = new PlotProductBooking({
       bookingNumber,
       bookingDate: bDate,
       productId: product._id,
       plotId: plotId || null,
+      projectId: resolvedProjectId,
+      projectName: resolvedProjectName,
       customerId: customer._id,
       sponsorId,
       quantity: qty,

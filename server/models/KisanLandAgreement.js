@@ -334,6 +334,17 @@ const kisanLandAgreementSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlotProject',
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     // Multi-Parcel Land Particulars (One or more)
     landParcels: [landParcelSchema],
 

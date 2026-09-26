@@ -27,7 +27,6 @@ import {
   X,
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
-import ProductBookingCertificateModal from './components/ProductBookingCertificateModal';
 
 const ProductBookingPage = () => {
   const navigate = useNavigate();
@@ -44,6 +43,8 @@ const ProductBookingPage = () => {
   const [customers, setCustomers] = useState([]);
   const [tenures, setTenures] = useState([]);
   const [allLandSources, setAllLandSources] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
   // Customer search & selection
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -71,14 +72,12 @@ const ProductBookingPage = () => {
     };
   }, []);
 
-  // Success Allotment Certificate Modal
-  const [completedBooking, setCompletedBooking] = useState(null);
-  const [showCertificateModal, setShowCertificateModal] = useState(false);
-
   // Form State
   const [form, setForm] = useState({
     customerId: '',
     productId: '',
+    projectId: '',
+    projectName: '',
     quantity: 1,
     customUnitPrice: '',
     tenureMonths: 24,
@@ -97,22 +96,25 @@ const ProductBookingPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [prodRes, custRes, tenureRes, sourcesRes] = await Promise.all([
+        const [prodRes, custRes, tenureRes, sourcesRes, projectsRes] = await Promise.all([
           api.get('/plots/products'),
           api.get('/plots/customers?limit=1000'),
           api.get('/plots/products/tenures'),
           api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
+          api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
         ]);
 
         const prodList = prodRes.data?.data?.products || prodRes.data?.data || [];
         const custList = custRes.data?.data?.customers || custRes.data?.data || [];
         const tenureList = tenureRes.data?.data?.tenures || tenureRes.data?.data || [];
         const srcList = sourcesRes.data?.data || [];
+        const projList = projectsRes.data?.data || [];
 
         setProducts(prodList);
         setCustomers(custList);
         setTenures(tenureList);
         setAllLandSources(srcList);
+        setProjects(projList);
 
         // Pre-select product or customer if in query params
         const targetProd = prodList.find((p) => p._id === initialProductId) || prodList[0];
@@ -315,8 +317,7 @@ const ProductBookingPage = () => {
       toast.success(res.data?.message || 'Plot Product Booking created successfully!');
 
       if (created) {
-        setCompletedBooking(created);
-        setShowCertificateModal(true);
+        navigate(`/dashboard/plots/certificates/${created._id}`);
       } else {
         navigate('/dashboard/plots/products');
       }
@@ -513,6 +514,33 @@ const ProductBookingPage = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Project Selection (Optional / Pre-filter) */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Project Selection <span className="text-slate-400 font-normal">(Optional / Under Project)</span>
+                </label>
+                <select
+                  value={form.projectId || ''}
+                  onChange={(e) => {
+                    const selProjId = e.target.value;
+                    const selProj = projects.find((p) => p._id === selProjId);
+                    setForm((prev) => ({
+                      ...prev,
+                      projectId: selProjId,
+                      projectName: selProj?.name || '',
+                    }));
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 text-xs"
+                >
+                  <option value="">-- All Projects / General Portfolio --</option>
+                  {projects.map((proj) => (
+                    <option key={proj._id} value={proj._id}>
+                      {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Product Selection */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -523,11 +551,15 @@ const ProductBookingPage = () => {
                   onChange={(e) => {
                     const prdId = e.target.value;
                     const prd = products.find((p) => p._id === prdId);
-                    setForm({
-                      ...form,
+                    setForm((prev) => ({
+                      ...prev,
                       productId: prdId,
                       customUnitPrice: prd?.unitPrice || '',
-                    });
+                      // If product has a project and no project is explicitly selected, pre-populate
+                      ...(prd?.projectId && !prev.projectId
+                        ? { projectId: prd.projectId, projectName: prd.projectName || '' }
+                        : {}),
+                    }));
                     if (prd) {
                       updateQuantityAndSyncArea(form.quantity || 1, prd);
                     }
@@ -536,11 +568,14 @@ const ProductBookingPage = () => {
                   required
                 >
                   <option value="">-- Choose Plot Product --</option>
-                  {products.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} ({p.areaSqFt} Sq.Ft) • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
-                    </option>
-                  ))}
+                  {products
+                    .filter((p) => !form.projectId || !p.projectId || p.projectId === form.projectId)
+                    .map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} ({p.areaSqFt} Sq.Ft) • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
+                        {p.projectName ? ` [Project: ${p.projectName}]` : ''}
+                      </option>
+                    ))}
                 </select>
 
                 {selectedProduct && (
@@ -1253,17 +1288,6 @@ const ProductBookingPage = () => {
         </div>
       </form>
 
-      {/* Official Allotment Certificate Modal */}
-      {showCertificateModal && completedBooking && (
-        <ProductBookingCertificateModal
-          open={showCertificateModal}
-          onClose={() => {
-            setShowCertificateModal(false);
-            navigate('/dashboard/plots/products');
-          }}
-          booking={completedBooking}
-        />
-      )}
     </div>
   );
 };

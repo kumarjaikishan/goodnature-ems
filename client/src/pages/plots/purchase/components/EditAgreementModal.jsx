@@ -25,11 +25,47 @@ const EditAgreementModal = ({
   handleSaveAgreementEdit,
   sellers = [],
   purchasers = [],
+  projects = [],
   fetchSellers,
   fetchPurchasers,
+  fetchProjects,
 }) => {
   const [activeChaudhiIdx, setActiveChaudhiIdx] = useState(null);
   const [uploadingIdx, setUploadingIdx] = useState(null);
+  const [quickProjectOpen, setQuickProjectOpen] = useState(false);
+  const [quickProjectName, setQuickProjectName] = useState('');
+  const [quickProjectCode, setQuickProjectCode] = useState('');
+  const [quickProjectSubmitting, setQuickProjectSubmitting] = useState(false);
+
+  const handleQuickCreateProject = async (e) => {
+    e.preventDefault();
+    if (!quickProjectName.trim()) {
+      toast.error('Project Name is required');
+      return;
+    }
+    try {
+      setQuickProjectSubmitting(true);
+      const res = await api.post('/plots/projects', {
+        name: quickProjectName.trim(),
+        code: quickProjectCode.trim().toUpperCase(),
+      });
+      const newProj = res.data?.data || res.data;
+      toast.success(`Project "${newProj.name}" created!`);
+      if (fetchProjects) await fetchProjects();
+      setEditAgrForm((prev) => ({
+        ...prev,
+        projectId: newProj._id,
+        projectName: newProj.name,
+      }));
+      setQuickProjectName('');
+      setQuickProjectCode('');
+      setQuickProjectOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create Project');
+    } finally {
+      setQuickProjectSubmitting(false);
+    }
+  };
 
   const handleSelectExistingFarmer = (idx, sellerId) => {
     const selectedSeller = (sellers || []).find((s) => s._id === sellerId);
@@ -303,53 +339,96 @@ const EditAgreementModal = ({
         </div>
 
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Agreement Number, Date & Remarks */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Number *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. AGR001 or AGR-2627-001"
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-teal-900 placeholder:text-slate-400 placeholder:font-normal"
-                value={editAgrForm.agreementNumber || ''}
-                onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementNumber: e.target.value })}
-              />
+          {/* Project & Agreement Details */}
+          <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+            {/* Project Selection / Creation */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+              <div className="flex-1">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Edit3 size={13} className="text-teal-700" />
+                  Select Project / Colony Name <span className="text-[10px] font-normal text-slate-500">(All plots & plot sales will be mapped under this project)</span>
+                </label>
+                <SearchableSelect
+                  placeholder="-- Select Existing Project (or click + New Project) --"
+                  searchPlaceholder="Search project by name or code..."
+                  options={[
+                    { value: '', label: '-- None / Standalone Land Purchase --' },
+                    ...(projects || []).map((p) => ({
+                      value: p._id,
+                      label: p.code ? `${p.name} [${p.code}]` : p.name,
+                      subLabel: p.location ? `Location: ${p.location}` : undefined,
+                    })),
+                  ]}
+                  value={editAgrForm.projectId || ''}
+                  onChange={(val) => {
+                    const selProj = (projects || []).find((p) => p._id === val);
+                    setEditAgrForm({
+                      ...editAgrForm,
+                      projectId: val || '',
+                      projectName: selProj ? selProj.name : '',
+                    });
+                  }}
+                  className="w-full"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setQuickProjectOpen(true)}
+                className="inline-flex items-center gap-1 px-3 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition cursor-pointer self-end shrink-0 shadow-xs"
+              >
+                <Plus size={14} />
+                <span>+ Create New Project</span>
+              </button>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Date *</label>
-              <input
-                type="date"
-                required
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
-                value={editAgrForm.agreementDate || ''}
-                onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementDate: e.target.value })}
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Number *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. AGR001 or AGR-2627-001"
+                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-teal-900 placeholder:text-slate-400 placeholder:font-normal"
+                  value={editAgrForm.agreementNumber || ''}
+                  onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementNumber: e.target.value })}
+                />
+              </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                End / Expiry Date <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
-              </label>
-              <input
-                type="date"
-                min={editAgrForm.agreementDate || undefined}
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
-                value={editAgrForm.agreementEndDate || ''}
-                onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementEndDate: e.target.value })}
-              />
-            </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Date *</label>
+                <input
+                  type="date"
+                  required
+                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
+                  value={editAgrForm.agreementDate || ''}
+                  onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementDate: e.target.value })}
+                />
+              </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">Remarks / Legal Notes</label>
-              <input
-                type="text"
-                placeholder="Optional remarks about this agreement..."
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
-                value={editAgrForm.remarks || ''}
-                onChange={(e) => setEditAgrForm({ ...editAgrForm, remarks: e.target.value })}
-              />
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  End / Expiry Date <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
+                </label>
+                <input
+                  type="date"
+                  min={editAgrForm.agreementDate || undefined}
+                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
+                  value={editAgrForm.agreementEndDate || ''}
+                  onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementEndDate: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Remarks / Legal Notes</label>
+                <input
+                  type="text"
+                  placeholder="Optional remarks about this agreement..."
+                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
+                  value={editAgrForm.remarks || ''}
+                  onChange={(e) => setEditAgrForm({ ...editAgrForm, remarks: e.target.value })}
+                />
+              </div>
             </div>
           </div>
 
@@ -964,6 +1043,60 @@ const EditAgreementModal = ({
           </div>
         </form>
       </div>
+
+      {/* Quick Create Project Modal */}
+      <Modalbox
+        open={quickProjectOpen}
+        onClose={() => setQuickProjectOpen(false)}
+        title="Create New Project"
+        maxWidth="max-w-sm"
+      >
+        <form onSubmit={handleQuickCreateProject} className="space-y-4 pt-2">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Project Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Good Nature City Phase 1"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-600 font-semibold text-slate-800"
+              value={quickProjectName}
+              onChange={(e) => setQuickProjectName(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Project Code <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. GNC-01"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-600 uppercase font-bold text-teal-900"
+              value={quickProjectCode}
+              onChange={(e) => setQuickProjectCode(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setQuickProjectOpen(false)}
+              className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={quickProjectSubmitting}
+              className="px-4 py-1.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-60"
+            >
+              {quickProjectSubmitting ? 'Creating...' : 'Create & Select'}
+            </button>
+          </div>
+        </form>
+      </Modalbox>
     </Modalbox>
   );
 };

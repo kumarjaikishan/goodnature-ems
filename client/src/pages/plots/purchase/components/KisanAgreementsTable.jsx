@@ -123,6 +123,11 @@ const KisanAgreementsTable = ({
                       {/* Agreement No */}
                       <td className="p-3.5">
                         <span className="font-mono font-bold text-teal-800 block text-xs">{agr.agreementNumber}</span>
+                        {agr.projectName && (
+                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-900 border border-teal-200/80">
+                            Project: {agr.projectName}
+                          </span>
+                        )}
                         <div className="space-y-0.5 mt-0.5">
                           <span className="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
                             <Calendar size={11} className="text-teal-700" />

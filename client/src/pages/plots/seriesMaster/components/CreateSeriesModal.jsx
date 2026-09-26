@@ -5,6 +5,7 @@ const CreateSeriesModal = ({
   onClose,
   form,
   setForm,
+  projects = [],
   handleCreateSeries,
   submitLoading,
   inputCls = 'h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition',
@@ -53,6 +54,8 @@ const CreateSeriesModal = ({
         {/* Scrollable Form Body */}
         <form onSubmit={handleCreateSeries} className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
+
+
             <div className="flex flex-col gap-1 col-span-2">
               <label className={labelCls}>Series Name</label>
               <input

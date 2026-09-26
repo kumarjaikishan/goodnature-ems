@@ -39,15 +39,19 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 
 ### Z. Plot Product Fractional Units EMI, Land Sourcing & Full-Page Booking Architecture
 - **Micro-Plot Fractional Units**: Plot Products configured in `/dashboard/plots/products` allow booking fractional unit pieces with North/South/East/West dimensions on flexible RD/EMI tenure plans (12, 24, 36, 48, 60 months).
-- **Dedicated Full-Page Booking Workflow**:
-  - Route: `/dashboard/plots/products/book` (`ProductBookingPage.jsx`).
-  - Follows the standard plot booking (`/dashboard/plots/addbooking`) interactive standard: Verified Customer search with auto-resolved BA/Sponsor detection, Product Specifications, Kisan Land Agreement stock selection/deduction, and Payment Plan configuration with a sticky live calculation sidebar.
-  - **Land Sourcing Deduction**: Sourced from active Kisan Land Agreements (`GET /plots/kisan-agreements/sources`). Automatically checks parcel availability, validates area against unit square footage ($qty \times unitAreaSqFt$), increments `totalAllocatedSqFt` and decrements `totalAvailableSqFt` upon creation, and restores the area to the agreement if the booking is deleted.
+- **Dedicated Full-Page Booking, Certificate & Agreement Viewers**:
+  - Full-Page Booking Route: `/dashboard/plots/products/book` (`ProductBookingPage.jsx`).
+  - Full-Page Certificate & Sale Receipt Route: `/dashboard/plots/certificates/:id` and `/dashboard/plots/product-certificates/:id` (`BookingCertificateViewer.jsx`).
+  - Full-Page Product Agreement Route: `/dashboard/plots/product-agreements/:id` (`ProductAgreementViewer.jsx`).
+  - Added dedicated "Print Product Agreement" button (`FileText` icon) on the Product Sales table in `ProductSalesTab.jsx`.
+  - Replaced previous modal popups with unified full-page print viewers matching the standard plot documents layout (with print media styling, company watermark, structured parties, specifications, terms, and execution signatories).
+- **Land Sourcing Deduction**: Sourced from active Kisan Land Agreements (`GET /plots/kisan-agreements/sources`). Automatically checks parcel availability, validates area against unit square footage ($qty \times unitAreaSqFt$), increments `totalAllocatedSqFt` and decrements `totalAvailableSqFt` upon creation, and restores the area to the agreement if the booking is deleted.
 - **EMI & 24% P.A. Late Fine Calculation**:
   - Unpaid installments past their scheduled due date plus grace period (15 days default from `PlotRateConfiguration`) accrue a 24% annual late fine (`(24/365)%` daily).
   - Waterfall collection rule: Late fine rebate reduces unpaid fine first; collected amount settles remaining unpaid late fine first, then principal.
 - **Enriched Sales & Statement Tracking**:
-  - `ProductSalesTab.jsx` displays overdue EMI counts, pending EMIs, and real-time accrued late fine amounts.
+  - `ProductSalesTab.jsx` displays a streamlined 7-column table (Booking # & Date, Customer & BA, Product & Qty, Total Valuation, Paid / Due, Status, Actions).
+  - Added an 👁️ **Eye (View Details)** button in the Actions column opening a rich, structured **Product Booking Details Modal** containing Customer/Guardian info, BA/Supervisor details, item dimensions (North/South/East/West), Kisan land sourcing references, and real-time EMI/overdue late fine progress.
   - `ProductCustomerLedgerModal.jsx` provides an itemized statement with overdue days, late fine, rebate, and paid receipts.
   - `ProductInstallmentCollectModal.jsx` supports multi-installment selection, quick-fill buttons, late fine rebate, cheque 6-digit validation, and real-time payment calculations.
   - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
@@ -864,3 +868,16 @@ This file records crucial patterns, bugs solved, and architectural caveats found
     - Direct "Review & Approve", "Reject", and "Record Payment" buttons.
     - Payment Tranches / Disbursements History table below the printable card.
     - Classic, Executive Teal, and Modern Minimal printable slip templates preserved intact.
+
+### MM. Plot & Land Purchase Project Management Architecture
+- **Lightweight Project Master Entity (`PlotProject`)**:
+  - Contains `name`, `code`, `location`, `description`, `status: ['ACTIVE', 'INACTIVE']`, `createdById`, `updatedById`.
+  - Projects act as an organizational umbrella for both purchases and sales.
+- **Land Purchase Integration (Place 1)**:
+  - `PlotPurchasePage.jsx` has a dedicated **Project Master** tab (Tab 5) alongside Kisan Master, Land Purchase Agreements, Payment Vouchers, and Land Ledger.
+  - When creating or editing a Kisan Land Agreement (`CreateAgreementModal.jsx`, `EditAgreementModal.jsx`), users select a Project from a dropdown or quickly create a new project inline without leaving the modal.
+  - Agreements and Land Sources store `projectId` and `projectName` for tracking and filtering.
+- **Plot Booking Integration (Place 2 - Step 3 only)**:
+  - Project selection is asked strictly in **Step 3 (Terms, Dynamic Rates & Downpayment)** of Plot Booking (`StepTermsAndPayment.jsx`, `PlotBooking.jsx`).
+  - Selecting a project in Step 3 auto-filters available land sources by project and locks `projectId` and `projectName` onto the `PlotBooking` record.
+  - Removed project selection from Series Creation/Edit modals and Plot selection (Step 2) to maintain a seamless workflow.

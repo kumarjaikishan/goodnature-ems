@@ -45,3 +45,4 @@ This document tracks known tasks, technical debt, and pending improvements ident
 - [x] Dedicated Downpayment Collections and EMI Collections pages in Sidebar and Router.
 - [x] Plot Products micro-plot fractional units module with full-page booking workflow (`/dashboard/plots/products/book`), verified customer search, BA auto-detection, and Allotment Certificate.
 - [x] Plot Products Kisan Land Agreement sourcing & parcel area deduction/restoration synchronization.
+- [x] Project Management System: Dedicated Project Master tab in Land Purchase, project tagging across Kisan Land Purchase agreements, Series Master creation, Plot bookings (Step 2 selection filter), and Plot Product sales & catalog.

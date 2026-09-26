@@ -29,6 +29,8 @@ export default function PlotBooking() {
   // Master Data
   const [seriesList, setSeriesList] = useState([]);
   const [plots, setPlots] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [rateConfig, setRateConfig] = useState(null);
   const [availableLandSources, setAvailableLandSources] = useState([]);
 
@@ -61,6 +63,8 @@ export default function PlotBooking() {
   const [form, setForm] = useState({
     customerId: '',
     plotId: '',
+    projectId: '',
+    projectName: '',
     bookingDate: new Date().toISOString().split('T')[0],
     tenureMonths: 1,
     bookingType: 'BOOKING',
@@ -82,22 +86,25 @@ export default function PlotBooking() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [seriesRes, plotsRes, ratesRes, landSourcesRes] = await Promise.all([
+      const [seriesRes, plotsRes, ratesRes, landSourcesRes, projectsRes] = await Promise.all([
         api.get('/plots/series'),
         api.get('/plots?limit=5000'),
         api.get('/plots/rate-config').catch(() => ({ data: { data: null } })),
-        api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } }))
+        api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
+        api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
       ]);
 
       const seriesData = seriesRes.data?.data || seriesRes.data || [];
       const plotsData = plotsRes.data?.data || plotsRes.data || [];
       const configData = ratesRes.data?.data || ratesRes.data || null;
       const landSourcesData = landSourcesRes.data?.data || landSourcesRes.data || [];
+      const projectsData = projectsRes.data?.data || projectsRes.data || [];
 
       setSeriesList(seriesData);
       setPlots(plotsData);
       setRateConfig(configData);
       setAvailableLandSources(landSourcesData);
+      setProjects(projectsData);
 
       setCustomSqFtRate(1000);
       setDpType('SQFT_RATE');
@@ -164,7 +171,12 @@ export default function PlotBooking() {
     }
 
     setSelectedPlot(p);
-    setForm((f) => ({ ...f, plotId: p._id }));
+    setForm((f) => ({
+      ...f,
+      plotId: p._id,
+      projectId: p.projectId?._id || p.projectId || f.projectId || '',
+      projectName: p.projectName || f.projectName || '',
+    }));
 
     // Initialize premium heads with default checked (active: true)
     const heads = [];
@@ -359,6 +371,8 @@ export default function PlotBooking() {
       const payload = {
         customerId: selectedCustomer._id,
         plotId: selectedPlot._id,
+        projectId: form.projectId || selectedPlot.projectId?._id || selectedPlot.projectId || null,
+        projectName: form.projectName || selectedPlot.projectName || '',
         bookingType: form.bookingType || 'BOOKING',
         bookingDate: form.bookingDate,
         scheme: isOneTime ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT',
@@ -472,6 +486,9 @@ export default function PlotBooking() {
               selectedPlot={selectedPlot}
               plots={plots}
               seriesList={seriesList}
+              projects={projects}
+              selectedProjectId={selectedProjectId}
+              setSelectedProjectId={setSelectedProjectId}
               handlePlotSelect={handlePlotSelect}
               form={form}
               rateConfig={rateConfig}
@@ -520,6 +537,7 @@ export default function PlotBooking() {
               effectiveSqFtRate={effectiveSqFtRate}
               calculatedPlotValue={calculatedPlotValue}
               selectedPlot={selectedPlot}
+              projects={projects}
               selectedPremiumHeads={selectedPremiumHeads}
               togglePremiumHead={togglePremiumHead}
               totalPremiumExtra={totalPremiumExtra}

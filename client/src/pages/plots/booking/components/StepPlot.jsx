@@ -1,14 +1,13 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { toast } from '@/utils/toast';
 
 export const StepPlot = ({
   prevStep,
   nextStep,
   selectedPlot,
-  seriesList,
-  plots,
+  seriesList = [],
+  plots = [],
   form,
   handlePlotSelect,
 }) => {
@@ -19,7 +18,7 @@ export const StepPlot = ({
           <h3 className="text-base font-bold text-slate-800">2. Select Plot</h3>
           {selectedPlot && (
             <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-              Selected: Plot #{selectedPlot.plotNumber}
+              Selected: Plot #{selectedPlot.plotNumber} {selectedPlot.projectName ? `(${selectedPlot.projectName})` : ''}
             </span>
           )}
         </div>

@@ -999,6 +999,52 @@ const deleteProductCollection = async (req, res, next) => {
   }
 };
 
+// ── Project Master Directory ──
+const getProjects = async (req, res, next) => {
+  try {
+    const projects = await kisanLandService.getProjects(req.query);
+    ApiResponse.success(res, projects);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProjectById = async (req, res, next) => {
+  try {
+    const project = await kisanLandService.getProjectById(req.params.id);
+    ApiResponse.success(res, project);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createProject = async (req, res, next) => {
+  try {
+    const project = await kisanLandService.createProject(req.body, req.user?._id || req.user?.id);
+    ApiResponse.created(res, project, 'Project created successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProject = async (req, res, next) => {
+  try {
+    const project = await kisanLandService.updateProject(req.params.id, req.body, req.user?._id || req.user?.id);
+    ApiResponse.success(res, project, 'Project updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteProject = async (req, res, next) => {
+  try {
+    const result = await kisanLandService.deleteProject(req.params.id);
+    ApiResponse.success(res, result, result.message);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRateConfig,
   updateRateConfig,
@@ -1100,4 +1146,10 @@ module.exports = {
   collectProductInstallment,
   getProductCollections,
   deleteProductCollection,
+  // Project Master Exports
+  getProjects,
+  getProjectById,
+  createProject,
+  updateProject,
+  deleteProject,
 };
