@@ -221,6 +221,12 @@ router.route('/vouchers/:id')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("voucher", 1), voucher.getVoucherDetails)
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.editVoucher)
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 4), voucher.deleteVoucher);
+router.route('/vouchers/:id/approve')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.approveVoucher);
+router.route('/vouchers/:id/reject')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.rejectVoucher);
+router.route('/vouchers/:id/payments')
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 2), voucher.recordVoucherPayment);
 
 // Weekly Off Work Ledger Routes
 const weeklyOffLedger = require('../controllers/weeklyOffLedger');

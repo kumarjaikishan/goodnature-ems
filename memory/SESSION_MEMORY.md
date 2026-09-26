@@ -836,5 +836,27 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Default List View (Table Mode)**:
   - All ledger subpages default to the comprehensive **Table View** (`defaultView="table"`), with view preference stored per category (`ledgerViewType_${category}`). Users can still toggle to Card view anytime.
 
-
-
+### LL. Voucher Approval & Partial Disbursement Lifecycle Workflow
+- **Industry-Standard Voucher Lifecycle (`PENDING` -> `APPROVED` -> `PARTIALLY_PAID` / `PAID` / `REJECTED`)**:
+  - `Voucher` model (`server/models/Voucher.js`):
+    - Added `totalAmount`, `paidAmount`, `remainingAmount`, `status` (`['PENDING', 'APPROVED', 'PARTIALLY_PAID', 'PAID', 'REJECTED']`).
+    - Added audit stamps: `approvedBy`, `approvedAt`, `rejectionReason`, `rejectedBy`, `rejectedAt`, `createdBy`, `updatedBy`.
+    - Added `paymentTranches: [{ amount, paymentDate, paymentMode, referenceNo, remarks, paidBy, createdAt }]`.
+  - Financial posting rule:
+    - Vouchers in `PENDING` status do not post debit entries to financial ledgers until approved or disbursed.
+    - When approved/disbursed, financial ledger records debit entry for disbursed amount (or approved total) synchronized with `accountingService`.
+  - Backend endpoints (`server/controllers/voucher.js` & `server/router/route.js`):
+    - `POST /vouchers`: Defaults to `status: 'PENDING'` unless auto-approved; supports initial partial payment.
+    - `PUT /vouchers/:id/approve`: Allows reviewing, editing approved amount/ledger/narration, and authorizing optional immediate partial/full disbursement.
+    - `PUT /vouchers/:id/reject`: Records rejection reason, cleans up unapproved entries, sets status `REJECTED`.
+    - `POST /vouchers/:id/payments`: Appends payment tranches, updates `paidAmount` & `remainingAmount`, sets `PARTIALLY_PAID` or `PAID`, posts to financial ledger.
+- **Frontend Voucher List & Details UI**:
+  - [VoucherList.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/vouchers/VoucherList.jsx):
+    - Status filter pills (`All`, `Pending Approval`, `Approved / Unpaid`, `Partially Paid`, `Fully Paid`, `Rejected`).
+    - Create modal filters and prioritizes Custom Ledgers by default for cleaner categorization.
+    - Inline Approve & Edit modal, Reject modal, and Record Payment modal.
+  - [VoucherDetails.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/vouchers/VoucherDetails.jsx):
+    - Top lifecycle banner with financial summary (Total, Paid, Remaining Balance Due) and audit info.
+    - Direct "Review & Approve", "Reject", and "Record Payment" buttons.
+    - Payment Tranches / Disbursements History table below the printable card.
+    - Classic, Executive Teal, and Modern Minimal printable slip templates preserved intact.
