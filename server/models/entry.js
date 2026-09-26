@@ -9,7 +9,7 @@ const entrySchema = new mongoose.Schema({
   balance: Number,
   source: { 
     type: String, 
-    enum: ['ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll', 'commission_closing', 'commission_fixed', 'plot_payout', 'investment'], 
+    enum: ['ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll', 'commission_closing', 'commission_fixed', 'plot_payout', 'investment', 'kisan_agreement', 'kisan_payment', 'kisan'], 
     default: 'ledger' 
   },
   referenceId: { type: mongoose.Schema.Types.ObjectId }, // Link to Advance, Payroll, etc.

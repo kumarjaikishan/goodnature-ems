@@ -6,6 +6,7 @@ const KisanLandAgreement = require('../models/KisanLandAgreement');
 const KisanLedger = require('../models/KisanLedger');
 const fs = require("fs");
 const accountingService = require('../services/accountingService');
+const { withTransaction } = require('../utils/transaction');
 
 const getEmployeeLedger = async (req, res, next) => {
   try {
@@ -48,10 +49,6 @@ const getMyLedger = async (req, res, next) => {
     // Fetch entries (latest-first; stable ordering for same-day entries)
     const entries = await Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 });
     
-    // Map entries to the format expected by the new UI
-    // Note: Balance = Debit - Credit from admin view.
-    // For Employee POV, we show it consistently but can flip if needed.
-    // User wants "look alike" LedgerDetailPage, so we provide exact fields.
     const formattedEntries = entries.map(entry => ({
       _id: entry._id,
       date: entry.date || entry.createdAt,
@@ -78,25 +75,23 @@ cloudinary.config({
 });
 
 const createLedgerForEmployee = async () => {
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
+  return await withTransaction(async (session) => {
     const employees = await employee.find(
       { status: true },
       null,
-      { session }
+      session ? { session } : {}
     ).populate({
       path: 'userid',
       select: 'name'
     });
 
     for (const emp of employees) {
-      let ledger = await Ledger.findOne({ employeeId: emp._id }).session(session);
+      const q = Ledger.findOne({ employeeId: emp._id });
+      if (session) q.session(session);
+      let ledger = await q;
       
       if (!ledger) {
-        [ledger] = await Ledger.create(
+        const [newLedger] = await Ledger.create(
           [
             {
               name: emp?.employeeName || emp?.userid?.name || "Unknown",
@@ -106,45 +101,37 @@ const createLedgerForEmployee = async () => {
               ledgerType: 'employee'
             },
           ],
-          { session }
+          session ? { session } : {}
         );
+        ledger = newLedger;
       } else {
         let updated = false;
         if (ledger.empId !== emp.empId) { ledger.empId = emp.empId; updated = true; }
         if (ledger.ledgerType !== 'employee') { ledger.ledgerType = 'employee'; updated = true; }
-        if (updated) await ledger.save({ session });
+        if (updated) await ledger.save(session ? { session } : {});
       }
 
       if (!emp.ledgerId || emp.ledgerId.toString() !== ledger._id.toString()) {
         emp.ledgerId = ledger._id;
-        await emp.save({ session });
+        await emp.save(session ? { session } : {});
       }
     }
-
-    await session.commitTransaction();
-  } catch (error) {
-    if (session.inTransaction()) await session.abortTransaction();
-    console.error("Ledger creation error:", error);
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const createLedgerForSponsors = async () => {
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
+  return await withTransaction(async (session) => {
     const User = mongoose.model('User');
     const sponsors = await User.find(
       { role: { $in: ['sponsor', 'agent'] } },
       null,
-      { session }
+      session ? { session } : {}
     );
 
     for (const sp of sponsors) {
-      let ledger = await Ledger.findOne({ sponsorId: sp._id }).session(session);
+      const q = Ledger.findOne({ sponsorId: sp._id });
+      if (session) q.session(session);
+      let ledger = await q;
 
       if (!ledger) {
         const [newLedger] = await Ledger.create(
@@ -158,7 +145,7 @@ const createLedgerForSponsors = async () => {
               isVoucherLedger: true
             },
           ],
-          { session }
+          session ? { session } : {}
         );
         ledger = newLedger;
       } else {
@@ -183,32 +170,21 @@ const createLedgerForSponsors = async () => {
           ledger.isVoucherLedger = true;
           updated = true;
         }
-        if (updated) await ledger.save({ session });
+        if (updated) await ledger.save(session ? { session } : {});
       }
 
       if (!sp.ledgerId || sp.ledgerId.toString() !== ledger._id.toString()) {
         sp.ledgerId = ledger._id;
-        await sp.save({ session });
+        await sp.save(session ? { session } : {});
       }
     }
-
-    await session.commitTransaction();
-  } catch (error) {
-    if (session.inTransaction()) await session.abortTransaction();
-    console.error("Sponsor/Partner Ledger creation error:", error);
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const createLedgerForKisans = async () => {
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
+  return await withTransaction(async (session) => {
     // 1. Ensure all farmers from KisanLandAgreement exist in KisanSeller
-    const agreements = await KisanLandAgreement.find({}, null, { session });
+    const agreements = await KisanLandAgreement.find({}, null, session ? { session } : {});
     for (const agr of agreements) {
       if (Array.isArray(agr.farmers) && agr.farmers.length > 0) {
         for (const f of agr.farmers) {
@@ -217,13 +193,15 @@ const createLedgerForKisans = async () => {
           const cleanMobile = f.mobile ? f.mobile.trim() : '';
           const cleanPan = f.panNumber ? f.panNumber.trim().toUpperCase() : '';
 
-          let seller = await KisanSeller.findOne({
+          const q = KisanSeller.findOne({
             $or: [
               ...(cleanPan ? [{ panNumber: cleanPan }] : []),
               ...(cleanMobile ? [{ mobile: cleanMobile }] : []),
               { name: new RegExp(`^${cleanName}$`, 'i') }
             ]
-          }).session(session);
+          });
+          if (session) q.session(session);
+          let seller = await q;
 
           if (!seller) {
             const [newSeller] = await KisanSeller.create(
@@ -239,7 +217,7 @@ const createLedgerForKisans = async () => {
                   bankDetails: f.bankDetails || {}
                 }
               ],
-              { session }
+              session ? { session } : {}
             );
             seller = newSeller;
           }
@@ -248,16 +226,18 @@ const createLedgerForKisans = async () => {
     }
 
     // 2. Ensure all KisanSellers have a Ledger account
-    const sellers = await KisanSeller.find({}, null, { session });
+    const sellers = await KisanSeller.find({}, null, session ? { session } : {});
     for (const seller of sellers) {
-      let ledger = await Ledger.findOne({
+      const lq = Ledger.findOne({
         $or: [
           { kisanSellerId: seller._id },
           ...(seller.panNumber ? [{ empId: seller.panNumber, ledgerType: 'kisan' }] : []),
           ...(seller.mobile ? [{ empId: seller.mobile, ledgerType: 'kisan' }] : []),
           { name: seller.name, ledgerType: 'kisan' }
         ]
-      }).session(session);
+      });
+      if (session) lq.session(session);
+      let ledger = await lq;
 
       if (!ledger) {
         const [newLedger] = await Ledger.create(
@@ -270,7 +250,7 @@ const createLedgerForKisans = async () => {
               isVoucherLedger: false
             },
           ],
-          { session }
+          session ? { session } : {}
         );
         ledger = newLedger;
       } else {
@@ -292,7 +272,7 @@ const createLedgerForKisans = async () => {
           ledger.ledgerType = 'kisan';
           updated = true;
         }
-        if (updated) await ledger.save({ session });
+        if (updated) await ledger.save(session ? { session } : {});
       }
 
       // 3. Sync KisanLedger entries for this seller/farmer into Entry collection
@@ -304,10 +284,12 @@ const createLedgerForKisans = async () => {
         ]
       };
 
-      const kEntries = await KisanLedger.find(kisanLedgerQuery).sort({ date: 1, createdAt: 1 }).session(session);
+      const kq = KisanLedger.find(kisanLedgerQuery).sort({ date: 1, createdAt: 1 });
+      if (session) kq.session(session);
+      const kEntries = await kq;
 
       for (const k of kEntries) {
-        const existingEntry = await Entry.findOne({
+        const eq = Entry.findOne({
           $or: [
             { referenceId: k._id },
             {
@@ -317,7 +299,9 @@ const createLedgerForKisans = async () => {
               source: k.type === 'CREDIT' ? 'kisan_agreement' : 'kisan_payment'
             }
           ]
-        }).session(session);
+        });
+        if (session) eq.session(session);
+        const existingEntry = await eq;
 
         if (!existingEntry) {
           const newEntry = new Entry({
@@ -331,33 +315,28 @@ const createLedgerForKisans = async () => {
             referenceId: k._id,
             status: 'active'
           });
-          await newEntry.save({ session });
+          await newEntry.save(session ? { session } : {});
         }
       }
 
       // 4. Recalculate running balances for this seller's ledger entries
-      const allEntries = await Entry.find({ ledgerId: ledger._id }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
+      const aeq = Entry.find({ ledgerId: ledger._id }).sort({ date: 1, createdAt: 1, _id: 1 });
+      if (session) aeq.session(session);
+      const allEntries = await aeq;
       let running = 0;
       for (const e of allEntries) {
         running += (e.credit || 0) - (e.debit || 0);
         if (e.balance !== running) {
           e.balance = running;
-          await e.save({ session });
+          await e.save(session ? { session } : {});
         }
       }
       if (ledger.advance !== running) {
         ledger.advance = running;
-        await ledger.save({ session });
+        await ledger.save(session ? { session } : {});
       }
     }
-
-    await session.commitTransaction();
-  } catch (error) {
-    if (session.inTransaction()) await session.abortTransaction();
-    console.error("Kisan/Seller Ledger creation & sync error:", error);
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const ledger = async (req, res) => {
