@@ -8,11 +8,12 @@ import { useSelector } from "react-redux";
 import Modalbox from "../../../components/custommodal/Modalbox";
 import Loader from "../../../utils/loader";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2, Plus, X } from "lucide-react";
+import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2, Plus, X, CreditCard } from "lucide-react";
 
 // Custom UI Components
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
+import PayLedgerModal from "./PayLedgerModal";
 
 const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const [ledgers, setLedgers] = useState([]);
@@ -30,10 +31,17 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const { handleImage } = useImageUpload();
     const [loading, setLoading] = useState(false);
     const [activeMenuId, setActiveMenuId] = useState(null);
+    const [payModalOpen, setPayModalOpen] = useState(false);
+    const [selectedPayLedger, setSelectedPayLedger] = useState(null);
     const [viewType, setViewType] = useState(() => {
         return localStorage.getItem(`ledgerViewType_${category}`) || defaultView;
     });
     const menuRef = useRef(null);
+
+    const handleOpenPayModal = (ledgerItem) => {
+        setSelectedPayLedger(ledgerItem);
+        setPayModalOpen(true);
+    };
 
     // Sync viewType when category changes
     useEffect(() => {
@@ -589,7 +597,18 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                         }}
                                                         className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
                                                     >
-                                                        <Eye size={14} /> View
+                                                        <Eye size={14} /> View Statement
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setActiveMenuId(null);
+                                                            handleOpenPayModal(l);
+                                                        }}
+                                                        className="w-full text-left px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
+                                                    >
+                                                        <CreditCard size={14} className="text-emerald-600" /> Pay / Voucher
                                                     </button>
                                                     <button
                                                         type="button"
@@ -657,7 +676,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         <th scope="col" className="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
                                             Net Balance
                                         </th>
-                                        <th scope="col" className="px-6 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-36">
+                                        <th scope="col" className="px-6 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-44">
                                             Actions
                                         </th>
                                     </tr>
@@ -755,6 +774,15 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex items-center justify-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        title="Pay / Create Voucher"
+                                                        onClick={() => handleOpenPayModal(l)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
+                                                    >
+                                                        <CreditCard size={13} />
+                                                        <span>Pay</span>
+                                                    </button>
                                                     <button
                                                         type="button"
                                                         title="View Ledger Statement"
@@ -875,6 +903,17 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                     </div>
                 </div>
             </Modalbox>
+
+            {/* Pay Ledger / Issue Voucher Modal */}
+            <PayLedgerModal
+                open={payModalOpen}
+                onClose={() => {
+                    setPayModalOpen(false);
+                    setSelectedPayLedger(null);
+                }}
+                ledger={selectedPayLedger}
+                onSuccess={() => fetchLedgers()}
+            />
         </div>
     );
 };

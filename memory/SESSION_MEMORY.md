@@ -833,8 +833,9 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - In [sidebar.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx), created a dedicated **Ledger** sidebar item with expandable submenus for Employee, Seller (Kisan), Business Associate, Business Partner, and Branch Partner.
 - **Statement & Detail View**:
   - Statement detail view at `/dashboard/ledger/:id?...` ([ledgerdetailpage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx)) works consistently across all entities with dynamic title badges and intuitive back navigation.
-- **Default List View (Table Mode)**:
-  - All ledger subpages default to the comprehensive **Table View** (`defaultView="table"`), with view preference stored per category (`ledgerViewType_${category}`). Users can still toggle to Card view anytime.
+- **Direct Pay / Issue Voucher Integration**:
+  - Added dedicated **Pay** buttons across Table and Card actions in [ledgerpagelist.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerpagelist.jsx) and on the statement detail header in [ledgerdetailpage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx).
+  - Integrated [PayLedgerModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/PayLedgerModal.jsx) which pre-populates the target ledger's name, type badge, and current balance (Payable/Receivable), with one-click "Pay Full Balance" shortcuts, customizable payment modes (Cash, Bank Transfer, UPI, Cheque), reference numbers, and immediate disbursement vs pending approval authorization, automatically generating official vouchers and updating ledger running balances in real-time.
 
 ### LL. Voucher Approval & Partial Disbursement Lifecycle Workflow
 - **Industry-Standard Voucher Lifecycle (`PENDING` -> `APPROVED` -> `PARTIALLY_PAID` / `PAID` / `REJECTED`)**:

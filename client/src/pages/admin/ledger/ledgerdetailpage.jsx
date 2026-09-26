@@ -15,12 +15,14 @@ import {
     TrendingUp, TrendingDown, Wallet, User, Calendar, CreditCard
 } from 'lucide-react';
 import { swal } from '../../../utils/confirmDialog';
+import PayLedgerModal from './PayLedgerModal';
 
 const LedgerDetailPage = () => {
     const { id: ledgerId } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [payModalOpen, setPayModalOpen] = useState(false);
 
     const { employee } = useSelector((state) => state.user);
 
@@ -257,7 +259,7 @@ const LedgerDetailPage = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 w-full md:w-auto">
+                <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
                     {!isSponsorUser && (
                         <>
                             <button
@@ -265,6 +267,12 @@ const LedgerDetailPage = () => {
                                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
                             >
                                 <ArrowLeft size={15} /> Back
+                            </button>
+                            <button
+                                onClick={() => setPayModalOpen(true)}
+                                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                            >
+                                <CreditCard size={15} /> Pay / Issue Voucher
                             </button>
                             <button
                                 onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}
@@ -502,6 +510,21 @@ const LedgerDetailPage = () => {
                     </form>
                 </div>
             </Modalbox>
+
+            {/* Pay Ledger / Issue Voucher Modal */}
+            <PayLedgerModal
+                open={payModalOpen}
+                onClose={() => setPayModalOpen(false)}
+                ledger={{
+                    _id: ledgerId,
+                    name: ledgerName,
+                    netBalance: totalBalance,
+                    empId: empId,
+                    profileImage: profile,
+                    ledgerType: ledgerType
+                }}
+                onSuccess={() => fetchEnteries()}
+            />
         </div>
     );
 };
