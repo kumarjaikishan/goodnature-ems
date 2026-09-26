@@ -836,6 +836,9 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 - **Direct Pay / Issue Voucher Integration**:
   - Added dedicated **Pay** buttons across Table and Card actions in [ledgerpagelist.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerpagelist.jsx) and on the statement detail header in [ledgerdetailpage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx).
   - Integrated [PayLedgerModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/PayLedgerModal.jsx) which pre-populates the target ledger's name, type badge, and current balance (Payable/Receivable), with one-click "Pay Full Balance" shortcuts, customizable payment modes (Cash, Bank Transfer, UPI, Cheque), reference numbers, and immediate disbursement vs pending approval authorization, automatically generating official vouchers and updating ledger running balances in real-time.
+- **Kisan Land Purchase & Seller Accounting Sync**:
+  - Synchronized `KisanLedger` financial entries (Agreed Land Value credits & payment debits) directly into the central accounting `Ledger` & `Entry` models.
+  - Ensures `/dashboard/ledger/sellers` accurately calculates and displays real-time balances (e.g. ₹ 67,00,000.00 Payable) for farmers and land sellers across all agreements.
 
 ### LL. Voucher Approval & Partial Disbursement Lifecycle Workflow
 - **Industry-Standard Voucher Lifecycle (`PENDING` -> `APPROVED` -> `PARTIALLY_PAID` / `PAID` / `REJECTED`)**:

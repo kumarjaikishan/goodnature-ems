@@ -1,6 +1,9 @@
 const Ledger = require("../models/ledger");
 const employee = require('../models/employee');
 const Entry = require("../models/entry");
+const KisanSeller = require('../models/KisanSeller');
+const KisanLandAgreement = require('../models/KisanLandAgreement');
+const KisanLedger = require('../models/KisanLedger');
 const fs = require("fs");
 const accountingService = require('../services/accountingService');
 
@@ -204,14 +207,60 @@ const createLedgerForKisans = async () => {
   try {
     session.startTransaction();
 
-    const KisanSeller = mongoose.model('KisanSeller');
-    const sellers = await KisanSeller.find({}, null, { session });
+    // 1. Ensure all farmers from KisanLandAgreement exist in KisanSeller
+    const agreements = await KisanLandAgreement.find({}, null, { session });
+    for (const agr of agreements) {
+      if (Array.isArray(agr.farmers) && agr.farmers.length > 0) {
+        for (const f of agr.farmers) {
+          if (!f.name) continue;
+          const cleanName = f.name.trim();
+          const cleanMobile = f.mobile ? f.mobile.trim() : '';
+          const cleanPan = f.panNumber ? f.panNumber.trim().toUpperCase() : '';
 
+          let seller = await KisanSeller.findOne({
+            $or: [
+              ...(cleanPan ? [{ panNumber: cleanPan }] : []),
+              ...(cleanMobile ? [{ mobile: cleanMobile }] : []),
+              { name: new RegExp(`^${cleanName}$`, 'i') }
+            ]
+          }).session(session);
+
+          if (!seller) {
+            const [newSeller] = await KisanSeller.create(
+              [
+                {
+                  name: cleanName,
+                  guardianName: f.guardianName || '',
+                  relation: f.relation || 'Father',
+                  mobile: cleanMobile,
+                  aadhaarNumber: f.aadhaarNumber || '',
+                  panNumber: cleanPan,
+                  address: f.address || '',
+                  bankDetails: f.bankDetails || {}
+                }
+              ],
+              { session }
+            );
+            seller = newSeller;
+          }
+        }
+      }
+    }
+
+    // 2. Ensure all KisanSellers have a Ledger account
+    const sellers = await KisanSeller.find({}, null, { session });
     for (const seller of sellers) {
-      let ledger = await Ledger.findOne({ kisanSellerId: seller._id }).session(session);
+      let ledger = await Ledger.findOne({
+        $or: [
+          { kisanSellerId: seller._id },
+          ...(seller.panNumber ? [{ empId: seller.panNumber, ledgerType: 'kisan' }] : []),
+          ...(seller.mobile ? [{ empId: seller.mobile, ledgerType: 'kisan' }] : []),
+          { name: seller.name, ledgerType: 'kisan' }
+        ]
+      }).session(session);
 
       if (!ledger) {
-        await Ledger.create(
+        const [newLedger] = await Ledger.create(
           [
             {
               name: seller.name || "Kisan Seller",
@@ -223,14 +272,20 @@ const createLedgerForKisans = async () => {
           ],
           { session }
         );
+        ledger = newLedger;
       } else {
         let updated = false;
+        if (!ledger.kisanSellerId) {
+          ledger.kisanSellerId = seller._id;
+          updated = true;
+        }
         if (ledger.name !== seller.name) {
           ledger.name = seller.name;
           updated = true;
         }
-        if (seller.panNumber && ledger.empId !== seller.panNumber) {
-          ledger.empId = seller.panNumber;
+        const expectedEmpId = seller.panNumber || seller.mobile || "";
+        if (expectedEmpId && ledger.empId !== expectedEmpId) {
+          ledger.empId = expectedEmpId;
           updated = true;
         }
         if (ledger.ledgerType !== 'kisan') {
@@ -239,12 +294,67 @@ const createLedgerForKisans = async () => {
         }
         if (updated) await ledger.save({ session });
       }
+
+      // 3. Sync KisanLedger entries for this seller/farmer into Entry collection
+      const kisanLedgerQuery = {
+        $or: [
+          { farmerId: seller._id },
+          ...(seller.mobile ? [{ farmerMobile: seller.mobile }] : []),
+          { farmerName: new RegExp(`^${seller.name}$`, 'i') }
+        ]
+      };
+
+      const kEntries = await KisanLedger.find(kisanLedgerQuery).sort({ date: 1, createdAt: 1 }).session(session);
+
+      for (const k of kEntries) {
+        const existingEntry = await Entry.findOne({
+          $or: [
+            { referenceId: k._id },
+            {
+              ledgerId: ledger._id,
+              credit: k.type === 'CREDIT' ? k.amount : 0,
+              debit: k.type === 'DEBIT' ? k.amount : 0,
+              source: k.type === 'CREDIT' ? 'kisan_agreement' : 'kisan_payment'
+            }
+          ]
+        }).session(session);
+
+        if (!existingEntry) {
+          const newEntry = new Entry({
+            ledgerId: ledger._id,
+            date: k.date || new Date(),
+            particular: k.remarks || (k.type === 'CREDIT' ? `Agreed Land Value - Agreement #${k.agreementNumber}` : `Payment to Kisan - Ref: ${k.receiptNumber || k.transactionReference || ''}`),
+            debit: k.type === 'DEBIT' ? k.amount : 0,
+            credit: k.type === 'CREDIT' ? k.amount : 0,
+            balance: 0,
+            source: k.type === 'CREDIT' ? 'kisan_agreement' : 'kisan_payment',
+            referenceId: k._id,
+            status: 'active'
+          });
+          await newEntry.save({ session });
+        }
+      }
+
+      // 4. Recalculate running balances for this seller's ledger entries
+      const allEntries = await Entry.find({ ledgerId: ledger._id }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
+      let running = 0;
+      for (const e of allEntries) {
+        running += (e.credit || 0) - (e.debit || 0);
+        if (e.balance !== running) {
+          e.balance = running;
+          await e.save({ session });
+        }
+      }
+      if (ledger.advance !== running) {
+        ledger.advance = running;
+        await ledger.save({ session });
+      }
     }
 
     await session.commitTransaction();
   } catch (error) {
     if (session.inTransaction()) await session.abortTransaction();
-    console.error("Kisan/Seller Ledger creation error:", error);
+    console.error("Kisan/Seller Ledger creation & sync error:", error);
   } finally {
     session.endSession();
   }
@@ -449,11 +559,12 @@ const Entries = async (req, res) => {
     // Check if req.params.id is a Ledger _id
     let ledgerExists = await Ledger.findById(ledgerId);
     if (!ledgerExists) {
-      // Fallback: check if id is sponsorId or employeeId
+      // Fallback: check if id is sponsorId, employeeId, or kisanSellerId
       const foundLedger = await Ledger.findOne({
         $or: [
           { sponsorId: ledgerId },
-          { employeeId: ledgerId }
+          { employeeId: ledgerId },
+          { kisanSellerId: ledgerId }
         ]
       });
       if (foundLedger) {

@@ -28,6 +28,92 @@ class KisanLandService {
   }
 
   /**
+   * Helper: Synchronize KisanLedger financial entries into the central accounting Ledger & Entry system
+   */
+  async syncKisanLedgerToAccounting(kLedger, session = null) {
+    try {
+      const Ledger = require('../models/ledger');
+      const Entry = require('../models/entry');
+      const KisanSeller = require('../models/KisanSeller');
+
+      let seller = await KisanSeller.findOne({
+        $or: [
+          ...(kLedger.farmerId ? [{ _id: kLedger.farmerId }] : []),
+          ...(kLedger.farmerMobile ? [{ mobile: kLedger.farmerMobile }] : []),
+          { name: new RegExp(`^${kLedger.farmerName}$`, 'i') }
+        ]
+      }).session(session);
+
+      if (!seller && kLedger.farmerName) {
+        const [newSeller] = await KisanSeller.create(
+          [
+            {
+              name: kLedger.farmerName.trim(),
+              mobile: kLedger.farmerMobile || '',
+            }
+          ],
+          { session }
+        );
+        seller = newSeller;
+      }
+
+      let ledger = await Ledger.findOne({
+        $or: [
+          ...(seller ? [{ kisanSellerId: seller._id }] : []),
+          ...(kLedger.farmerMobile ? [{ empId: kLedger.farmerMobile, ledgerType: 'kisan' }] : []),
+          { name: kLedger.farmerName, ledgerType: 'kisan' }
+        ]
+      }).session(session);
+
+      if (!ledger) {
+        const [newLedger] = await Ledger.create(
+          [
+            {
+              name: kLedger.farmerName || 'Kisan Seller',
+              kisanSellerId: seller?._id || null,
+              empId: seller?.panNumber || kLedger.farmerMobile || '',
+              ledgerType: 'kisan',
+              isVoucherLedger: false
+            }
+          ],
+          { session }
+        );
+        ledger = newLedger;
+      }
+
+      const existing = await Entry.findOne({ referenceId: kLedger._id }).session(session);
+      if (!existing) {
+        const entry = new Entry({
+          ledgerId: ledger._id,
+          date: kLedger.date || new Date(),
+          particular: kLedger.remarks || (kLedger.type === 'CREDIT' ? `Agreed Land Value - Agreement #${kLedger.agreementNumber}` : `Payment to Kisan - Ref: ${kLedger.receiptNumber || kLedger.transactionReference || ''}`),
+          debit: kLedger.type === 'DEBIT' ? kLedger.amount : 0,
+          credit: kLedger.type === 'CREDIT' ? kLedger.amount : 0,
+          balance: 0,
+          source: kLedger.type === 'CREDIT' ? 'kisan_agreement' : 'kisan_payment',
+          referenceId: kLedger._id,
+          status: 'active'
+        });
+        await entry.save({ session });
+
+        const allEntries = await Entry.find({ ledgerId: ledger._id }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
+        let running = 0;
+        for (const e of allEntries) {
+          running += (e.credit || 0) - (e.debit || 0);
+          if (e.balance !== running) {
+            e.balance = running;
+            await e.save({ session });
+          }
+        }
+        ledger.advance = running;
+        await ledger.save({ session });
+      }
+    } catch (err) {
+      console.error('Error syncing kisan ledger to accounting entry:', err);
+    }
+  }
+
+  /**
    * 1. Create a new Kisan Land Agreement
    */
   async createAgreement(data, userId) {
@@ -280,6 +366,7 @@ class KisanLandService {
           processedBy: userId,
         });
         await kLedger.save(session ? { session } : {});
+        await this.syncKisanLedgerToAccounting(kLedger, session);
       }
 
       return agreement;
@@ -543,6 +630,7 @@ class KisanLandService {
       });
 
       await kLedger.save(session ? { session } : {});
+      await this.syncKisanLedgerToAccounting(kLedger, session);
       return kLedger;
     });
   }
