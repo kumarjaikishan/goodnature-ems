@@ -833,8 +833,8 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - In [sidebar.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/sidebar.jsx), created a dedicated **Ledger** sidebar item with expandable submenus for Employee, Seller (Kisan), Business Associate, Business Partner, and Branch Partner.
 - **Statement & Detail View**:
   - Statement detail view at `/dashboard/ledger/:id?...` ([ledgerdetailpage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx)) works consistently across all entities with dynamic title badges and intuitive back navigation.
-- **Backend Auto-Sync & Populate**:
-  - Added `createLedgerForKisans()` in [server/controllers/ledger.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/controllers/ledger.js) and enriched population for `kisanSellerId` and `sponsorId` (including branch associations and parent sponsors).
+- **Default List View (Table Mode)**:
+  - All ledger subpages default to the comprehensive **Table View** (`defaultView="table"`), with view preference stored per category (`ledgerViewType_${category}`). Users can still toggle to Card view anytime.
 
 
 

@@ -14,7 +14,7 @@ import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edi
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 
-const LedgerListPage = ({ category = "all" }) => {
+const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const [ledgers, setLedgers] = useState([]);
     const [filteredLedgers, setFilteredLedgers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -30,8 +30,20 @@ const LedgerListPage = ({ category = "all" }) => {
     const { handleImage } = useImageUpload();
     const [loading, setLoading] = useState(false);
     const [activeMenuId, setActiveMenuId] = useState(null);
-    const [viewType, setViewType] = useState(localStorage.getItem('ledgerViewType') || 'table');
+    const [viewType, setViewType] = useState(() => {
+        return localStorage.getItem(`ledgerViewType_${category}`) || defaultView;
+    });
     const menuRef = useRef(null);
+
+    // Sync viewType when category changes
+    useEffect(() => {
+        const savedView = localStorage.getItem(`ledgerViewType_${category}`);
+        if (savedView) {
+            setViewType(savedView);
+        } else {
+            setViewType(defaultView);
+        }
+    }, [category, defaultView]);
 
     // Close menu when clicked outside
     useEffect(() => {
@@ -343,6 +355,7 @@ const LedgerListPage = ({ category = "all" }) => {
                                 type="button"
                                 onClick={() => {
                                     setViewType('card');
+                                    localStorage.setItem(`ledgerViewType_${category}`, 'card');
                                     localStorage.setItem('ledgerViewType', 'card');
                                 }}
                                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
@@ -358,6 +371,7 @@ const LedgerListPage = ({ category = "all" }) => {
                                 type="button"
                                 onClick={() => {
                                     setViewType('table');
+                                    localStorage.setItem(`ledgerViewType_${category}`, 'table');
                                     localStorage.setItem('ledgerViewType', 'table');
                                 }}
                                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
