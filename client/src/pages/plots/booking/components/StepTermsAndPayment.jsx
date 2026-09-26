@@ -68,8 +68,8 @@ export const StepTermsAndPayment = ({
   // Filter land sources by selected project if chosen in form
   const allLandSources = form.projectId
     ? (availableLandSources || []).filter(
-        (src) => !src.projectId || String(src.projectId._id || src.projectId) === String(form.projectId)
-      )
+      (src) => !src.projectId || String(src.projectId._id || src.projectId) === String(form.projectId)
+    )
     : availableLandSources || [];
 
   return (
@@ -101,7 +101,7 @@ export const StepTermsAndPayment = ({
       <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-2">
         <label className="block text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
           <Building2 size={15} className="text-teal-700" />
-          Project Name (Under Project / Colony)
+          Project Name
         </label>
         <div className="flex flex-col gap-1.5">
           <select
@@ -152,11 +152,10 @@ export const StepTermsAndPayment = ({
               setDpType('PERCENT');
               setDpVal(100);
             }}
-            className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
-              paymentPlanMode === 'ONE_TIME'
+            className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${paymentPlanMode === 'ONE_TIME'
                 ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-600/20'
                 : 'bg-white/70 border-slate-200 hover:border-teal-300 hover:bg-white'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between">
               <span className={`text-xs font-bold ${paymentPlanMode === 'ONE_TIME' ? 'text-teal-950 font-extrabold' : 'text-slate-700'}`}>
@@ -180,11 +179,10 @@ export const StepTermsAndPayment = ({
               setDpType('SQFT_RATE');
               setDpVal(500);
             }}
-            className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
-              paymentPlanMode === 'EMI'
+            className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${paymentPlanMode === 'EMI'
                 ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-600/20'
                 : 'bg-white/70 border-slate-200 hover:border-teal-300 hover:bg-white'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-between">
               <span className={`text-xs font-bold ${paymentPlanMode === 'EMI' ? 'text-teal-950 font-extrabold' : 'text-slate-700'}`}>
@@ -288,11 +286,10 @@ export const StepTermsAndPayment = ({
                 return (
                   <label
                     key={idx}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      head.active
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${head.active
                         ? 'bg-white border-amber-400 shadow-xs ring-1 ring-amber-400'
                         : 'bg-white/60 border-slate-200 opacity-60 hover:opacity-100'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <input
@@ -375,8 +372,8 @@ export const StepTermsAndPayment = ({
                 discountType === 'PERCENT'
                   ? 'e.g. 10 (%)'
                   : discountType === 'SQFT_RATE'
-                  ? 'e.g. 50 (₹/sqft)'
-                  : 'e.g. 25000 (Flat ₹)'
+                    ? 'e.g. 50 (₹/sqft)'
+                    : 'e.g. 25000 (Flat ₹)'
               }
             />
           </div>
@@ -398,10 +395,10 @@ export const StepTermsAndPayment = ({
               {paymentPlanMode === 'ONE_TIME'
                 ? '100% Full Net Value'
                 : dpType === 'SQFT_RATE'
-                ? `₹${dpVal || 0}/sqft`
-                : dpType === 'PERCENT'
-                ? `${dpVal || 0}%`
-                : `Flat ₹`}
+                  ? `₹${dpVal || 0}/sqft`
+                  : dpType === 'PERCENT'
+                    ? `${dpVal || 0}%`
+                    : `Flat ₹`}
             </span>
           </div>
 
@@ -448,8 +445,8 @@ export const StepTermsAndPayment = ({
                   dpType === 'PERCENT'
                     ? 'e.g. 25 (%)'
                     : dpType === 'SQFT_RATE'
-                    ? 'e.g. 500 (₹/sqft)'
-                    : 'e.g. 200000 (Flat ₹)'
+                      ? 'e.g. 500 (₹/sqft)'
+                      : 'e.g. 200000 (Flat ₹)'
                 }
                 required
               />
@@ -538,7 +535,7 @@ export const StepTermsAndPayment = ({
                   placeholder="1"
                   required
                 />
-                
+
                 {/* Highlighted Bold & Larger EMI Duration */}
                 <div className="mt-1.5 flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl w-fit">
                   <span className="text-sm font-black text-teal-950 font-mono tracking-tight">
@@ -630,41 +627,13 @@ export const StepTermsAndPayment = ({
           </div>
 
           {landSourcing.length === 0 ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>
-                  {allLandSources.length === 0
-                    ? 'No active agreements or registry deeds with available stock found. Please add or verify agreements in Purchase & Land Master.'
-                    : 'No agreement or registry deed selected. Click "+ Add Land Source" or choose from available land stock.'}
-                </span>
-              </div>
-              {allLandSources.length > 0 && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    setLandSourcing([
-                      {
-                        sourceType: 'AGREEMENT',
-                        agreementId: '',
-                        agreementNumber: '',
-                        parcelId: null,
-                        khesraNumber: '',
-                        mauja: '',
-                        thanaNumber: '',
-                        khataNumber: '',
-                        deedId: null,
-                        deedNumber: '',
-                        allocatedSqFt: plotArea,
-                      },
-                    ]);
-                  }}
-                >
-                  + Add Land Source
-                </Button>
-              )}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-2 text-xs text-amber-900">
+              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                {allLandSources.length === 0
+                  ? 'No active agreements or registry deeds with available stock found. Please add or verify agreements in Purchase & Land Master.'
+                  : 'No agreement or registry deed selected. Click "+ Add Land Source" above to allocate land stock.'}
+              </span>
             </div>
           ) : (
             <div className="space-y-3 mt-2">
@@ -680,7 +649,7 @@ export const StepTermsAndPayment = ({
                 // Find active parcel
                 const selectedParcel = availableParcels.find(
                   (p) => (src.parcelId && String(p.parcelId) === String(src.parcelId)) ||
-                         (src.khesraNumber && String(p.khesraNumber) === String(src.khesraNumber))
+                    (src.khesraNumber && String(p.khesraNumber) === String(src.khesraNumber))
                 ) || availableParcels[0];
 
                 const parcelAvailableSqFt = selectedParcel?.availableSqFt ?? selectedAgr?.availableSqFt ?? 0;
@@ -915,8 +884,8 @@ export const StepTermsAndPayment = ({
                               {landSourcing.some((s) => !s.agreementId)
                                 ? '⚠️ Please choose an agreement for all rows'
                                 : isExceeded
-                                ? `⚠️ Allocated Area Exceeds Plot Size by ${(totalAllocatedArea - plotArea).toLocaleString('en-IN')} Sq.Ft.:`
-                                : `⚠️ Underallocated: Remaining ${(plotArea - totalAllocatedArea).toLocaleString('en-IN')} Sq.Ft. needed:`}
+                                  ? `⚠️ Allocated Area Exceeds Plot Size by ${(totalAllocatedArea - plotArea).toLocaleString('en-IN')} Sq.Ft.:`
+                                  : `⚠️ Underallocated: Remaining ${(plotArea - totalAllocatedArea).toLocaleString('en-IN')} Sq.Ft. needed:`}
                             </span>
                           </>
                         )}
