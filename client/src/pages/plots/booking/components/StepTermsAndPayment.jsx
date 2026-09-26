@@ -99,38 +99,31 @@ export const StepTermsAndPayment = ({
 
       {/* Project Assignment Section */}
       <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
-            <Building2 size={15} className="text-teal-700" />
-            Project Name (Under Project / Colony)
-          </label>
-          <span className="text-[10px] text-teal-800 font-bold bg-teal-100/90 border border-teal-300 px-2.5 py-0.5 rounded-full">
-            Phase 3 Allocation
-          </span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-          <div>
-            <select
-              className="w-full h-11 px-3.5 bg-white border border-teal-300 rounded-xl text-sm font-semibold text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs cursor-pointer"
-              value={form.projectId || ''}
-              onChange={(e) => {
-                const selProjId = e.target.value;
-                const selProj = projects.find((p) => String(p._id) === String(selProjId));
-                setForm({
-                  ...form,
-                  projectId: selProjId,
-                  projectName: selProj?.name || '',
-                });
-              }}
-            >
-              <option value="">-- All Projects / General Project --</option>
-              {projects.map((proj) => (
-                <option key={proj._id} value={proj._id}>
-                  {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+        <label className="block text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
+          <Building2 size={15} className="text-teal-700" />
+          Project Name (Under Project / Colony)
+        </label>
+        <div className="flex flex-col gap-1.5">
+          <select
+            className="w-full h-11 px-3.5 bg-white border border-teal-300 rounded-xl text-sm font-semibold text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs cursor-pointer"
+            value={form.projectId || ''}
+            onChange={(e) => {
+              const selProjId = e.target.value;
+              const selProj = projects.find((p) => String(p._id) === String(selProjId));
+              setForm({
+                ...form,
+                projectId: selProjId,
+                projectName: selProj?.name || '',
+              });
+            }}
+          >
+            <option value="">-- All Projects / General Project --</option>
+            {projects.map((proj) => (
+              <option key={proj._id} value={proj._id}>
+                {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
+              </option>
+            ))}
+          </select>
           <p className="text-[11px] text-teal-800/90 font-medium">
             Select the project colony for this plot contract. This links the booking to project revenue & land stock.
           </p>
