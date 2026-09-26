@@ -1276,15 +1276,7 @@ const ProductBookingPage = () => {
             </div>
           </div>
 
-          {/* Helper Tips Card */}
-          <div className="p-4 bg-teal-50/70 border border-teal-200/80 rounded-2xl text-xs text-teal-950 space-y-1.5">
-            <div className="font-bold flex items-center gap-1 text-teal-900">
-              <Info size={14} /> Operational Summary
-            </div>
-            <p className="text-[11px] text-teal-800 leading-relaxed">
-              Upon booking submission, the system will deduct <b>{totalAllocatedArea || totalRequiredSqFt} Sq.Ft</b> directly from the selected Kisan Agreement stock, record the customer ledger, and issue an allotment certificate.
-            </p>
-          </div>
+
         </div>
       </form>
 
