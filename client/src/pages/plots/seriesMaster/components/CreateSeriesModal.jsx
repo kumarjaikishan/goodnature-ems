@@ -54,32 +54,7 @@ const CreateSeriesModal = ({
         {/* Scrollable Form Body */}
         <form onSubmit={handleCreateSeries} className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* Project Selection (Optional) */}
-            <div className="flex flex-col gap-1 col-span-2">
-              <label className={labelCls}>
-                Project Name <span className="text-slate-400 font-normal">(Optional / Under Project)</span>
-              </label>
-              <select
-                className={inputCls}
-                value={form.projectId || ''}
-                onChange={(e) => {
-                  const selProjId = e.target.value;
-                  const selProj = projects.find((p) => p._id === selProjId);
-                  setForm({
-                    ...form,
-                    projectId: selProjId,
-                    projectName: selProj?.name || '',
-                  });
-                }}
-              >
-                <option value="">-- All Projects / General Layout --</option>
-                {projects.map((proj) => (
-                  <option key={proj._id} value={proj._id}>
-                    {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+
 
             <div className="flex flex-col gap-1 col-span-2">
               <label className={labelCls}>Series Name</label>

@@ -1,7 +1,6 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Building, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { toast } from '@/utils/toast';
 
 export const StepPlot = ({
   prevStep,
@@ -9,17 +8,9 @@ export const StepPlot = ({
   selectedPlot,
   seriesList = [],
   plots = [],
-  projects = [],
-  selectedProjectId,
-  setSelectedProjectId,
   form,
   handlePlotSelect,
 }) => {
-  // Filter series & plots by selected project if chosen
-  const filteredSeriesList = selectedProjectId
-    ? seriesList.filter((s) => (s.projectId?._id || s.projectId) === selectedProjectId)
-    : seriesList;
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
@@ -41,37 +32,6 @@ export const StepPlot = ({
         </div>
       </div>
 
-      {/* Project Filter Selection */}
-      <div className="bg-teal-50/70 border border-teal-200/80 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Building size={18} className="text-teal-800 shrink-0" />
-          <div>
-            <label className="block text-xs font-bold text-teal-950">
-              Filter by Project / Colony:
-            </label>
-            <span className="text-[11px] text-teal-800/80 font-medium">
-              Choose a project to filter plots and series
-            </span>
-          </div>
-        </div>
-
-        <select
-          value={selectedProjectId || ''}
-          onChange={(e) => setSelectedProjectId && setSelectedProjectId(e.target.value)}
-          className="h-9 px-3 bg-white border border-teal-300 rounded-xl text-xs font-bold text-teal-950 outline-none focus:ring-2 focus:ring-teal-600 shadow-2xs min-w-[200px]"
-        >
-          <option value="">-- All Projects ({plots.length} plots) --</option>
-          {projects.map((proj) => {
-            const count = plots.filter((p) => (p.projectId?._id || p.projectId) === proj._id).length;
-            return (
-              <option key={proj._id} value={proj._id}>
-                {proj.name} ({count} plots)
-              </option>
-            );
-          })}
-        </select>
-      </div>
-
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-600 border border-slate-200 p-3.5 rounded-xl bg-slate-50">
         <span className="flex items-center gap-1.5">
@@ -90,12 +50,8 @@ export const StepPlot = ({
 
       {/* Plot Series Maps */}
       <div className="flex flex-col gap-6 max-h-[500px] overflow-y-auto pr-1">
-        {filteredSeriesList.map((s) => {
-          const seriesPlots = plots.filter((p) => {
-            const matchSeries = (p.seriesId?._id || p.seriesId) === s._id;
-            const matchProj = selectedProjectId ? (p.projectId?._id || p.projectId) === selectedProjectId : true;
-            return matchSeries && matchProj;
-          });
+        {seriesList.map((s) => {
+          const seriesPlots = plots.filter((p) => (p.seriesId?._id || p.seriesId) === s._id);
           return (
             <div key={s._id} className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col gap-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">

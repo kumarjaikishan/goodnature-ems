@@ -371,6 +371,8 @@ export default function PlotBooking() {
       const payload = {
         customerId: selectedCustomer._id,
         plotId: selectedPlot._id,
+        projectId: form.projectId || selectedPlot.projectId?._id || selectedPlot.projectId || null,
+        projectName: form.projectName || selectedPlot.projectName || '',
         bookingType: form.bookingType || 'BOOKING',
         bookingDate: form.bookingDate,
         scheme: isOneTime ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT',
@@ -535,6 +537,7 @@ export default function PlotBooking() {
               effectiveSqFtRate={effectiveSqFtRate}
               calculatedPlotValue={calculatedPlotValue}
               selectedPlot={selectedPlot}
+              projects={projects}
               selectedPremiumHeads={selectedPremiumHeads}
               togglePremiumHead={togglePremiumHead}
               totalPremiumExtra={totalPremiumExtra}
