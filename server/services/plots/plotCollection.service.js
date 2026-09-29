@@ -12,6 +12,7 @@ const PlotRateConfiguration = require('../../models/PlotRateConfiguration');
 const PlotPayoutSchedule = require('../../models/PlotPayoutSchedule');
 const Counter = require('../../models/Counter');
 const Entry = require('../../models/entry');
+const Ledger = require('../../models/ledger');
 const accountingService = require('../accountingService');
 const plotDeveloperService = require('./plotDeveloper.service');
 
@@ -347,7 +348,7 @@ class PlotCollectionService {
   }
 
   // ── INSTALLMENT / COLLECTIONS PAYMENTS ──────────────────────────
-  async collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate = 0, remarks = '', customDate = null, bankDetails = null) {
+  async collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate = 0, remarks = '', customDate = null, bankDetails = null, ledgerId = null) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -355,6 +356,21 @@ class PlotCollectionService {
       if (!booking) throw ApiError.notFound('Booking not found');
       if (booking.status !== 'ACTIVE') {
         throw ApiError.badRequest(`Booking status is ${booking.status}. Can only collect on active bookings.`);
+      }
+
+      // Resolve target Bank or Cash Ledger
+      const isCash = String(paymentMode).toLowerCase() === 'cash';
+      let resolvedLedgerId = null;
+      if (isCash) {
+        // Cash receipts ALWAYS enter the physical custody of the collecting cashier
+        const userCashLedger = await Ledger.findOne({ assignedUserId: processedBy, ledgerType: 'user_cash' }).session(session);
+        resolvedLedgerId = userCashLedger?._id || ledgerId || null;
+      } else {
+        resolvedLedgerId = ledgerId || null;
+        if (!resolvedLedgerId) {
+          const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+          if (defaultBank) resolvedLedgerId = defaultBank._id;
+        }
       }
 
       // If bank details are provided for cheque/bank payment, also update PlotCustomer profile
@@ -376,6 +392,7 @@ class PlotCollectionService {
       // Record PlotPayment transaction
       const payment = new PlotPayment({
         bookingId: booking._id,
+        ledgerId: resolvedLedgerId,
         amount: Number(amountPaid),
         paymentDate,
         paymentMode,
@@ -534,7 +551,6 @@ class PlotCollectionService {
       }
 
       // Non-cash collections require admin approval before realizing into ledger
-      const isCash = String(paymentMode).toLowerCase() === 'cash';
       const initialStatus = isCash ? 'APPROVED' : 'PENDING';
 
       // Create Receipt
@@ -542,6 +558,7 @@ class PlotCollectionService {
         receiptNumber,
         receiptType: resolvedReceiptType,
         bookingId: booking._id,
+        ledgerId: resolvedLedgerId,
         amount: Number(amountPaid),
         lateFinePaid: isCash ? totalLateFinePaid : 0,
         lateFineRebate: Number(lateFineRebate),
@@ -561,6 +578,19 @@ class PlotCollectionService {
         receipt.createdAt = paymentDate;
       }
       await receipt.save({ session });
+
+      // If approved (e.g. cash collection), immediately record CREDIT entry in Treasury / Cash Ledger
+      if (isCash && resolvedLedgerId) {
+        await accountingService.recordLedgerEntry({
+          ledgerId: resolvedLedgerId,
+          date: customDate ? paymentDate : new Date(),
+          type: 'CREDIT',
+          amount: Number(amountPaid),
+          source: 'receipt',
+          referenceId: receipt._id,
+          remarks: `Collection Receipt #${receiptNumber} - Booking #${booking.bookingNumber || ''} (${resolvedReceiptType})`
+        }, session);
+      }
 
       // Rebuild entire ledger state for 100% accuracy (only processes APPROVED receipts)
       await this.rebuildBookingInstallmentsState(booking._id, session);
@@ -751,7 +781,7 @@ class PlotCollectionService {
 
       // 2. Clean up any ledger entries for this deleted receipt
       const existingEntries = await Entry.find({
-        source: 'commission_fixed',
+        source: { $in: ['commission_fixed', 'receipt'] },
         referenceId: receipt._id,
       }).session(session);
       for (const e of existingEntries) {
@@ -810,6 +840,29 @@ class PlotCollectionService {
       receipt.approvedBy = adminUserId;
       receipt.approvedAt = new Date();
       receipt.rejectionReason = '';
+
+      // Realize collection into ledger
+      let targetLedgerId = receipt.ledgerId;
+      if (!targetLedgerId) {
+        const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+        if (defaultBank) {
+          targetLedgerId = defaultBank._id;
+          receipt.ledgerId = defaultBank._id;
+        }
+      }
+
+      if (targetLedgerId) {
+        await accountingService.recordLedgerEntry({
+          ledgerId: targetLedgerId,
+          date: receipt.createdAt || new Date(),
+          type: 'CREDIT',
+          amount: Number(receipt.amount),
+          source: 'receipt',
+          referenceId: receipt._id,
+          remarks: `Collection Receipt #${receipt.receiptNumber} (${receipt.receiptType})`
+        }, session);
+      }
+
       await receipt.save({ session });
 
       // Rebuild ledger and sync commissions with approved receipt included

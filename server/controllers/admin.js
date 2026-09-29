@@ -397,18 +397,14 @@ const employeelist = async (req, res, next) => {
 const addAdmin = async (req, res, next) => {
     const { name, email, role, password, permissions, branchIds, isBlocked } = req.body;
 
-    if (!name || !email || !role || !password) {
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    if (!name || !normalizedEmail || !role || !password) {
         return res.status(400).json({ message: "All fields are required" });
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-        const existingUser = await usermodal.findOne({ email }).session(session);
+        const existingUser = await usermodal.findOne({ email: normalizedEmail });
         if (existingUser) {
-            await session.abortTransaction();
-            session.endSession();
             return res.status(409).json({ message: 'Email already in use.' });
         }
 
@@ -423,8 +419,8 @@ const addAdmin = async (req, res, next) => {
         }
 
         const fields = {
-            name,
-            email,
+            name: name.trim(),
+            email: normalizedEmail,
             role,
             password,
             companyId: req.user.companyId,
@@ -454,27 +450,21 @@ const addAdmin = async (req, res, next) => {
         }
 
         const createUser = new usermodal({ ...fields });
-        await createUser.save({ session });
+        await createUser.save();
 
         // Add this manager to selected branches
         if (parsedBranchIds.length > 0) {
             await branch.updateMany(
                 { _id: { $in: parsedBranchIds } },
-                { $addToSet: { managerIds: createUser._id } },
-                { session }
+                { $addToSet: { managerIds: createUser._id } }
             );
         }
 
-        await session.commitTransaction();
-        session.endSession();
-
-        res.status(200).json({
+        return res.status(200).json({
             message: `${role} Created Successfully`,
         });
 
     } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
         console.error(error.message);
         return res.status(500).json({
             message: error.message || 'Server error',
@@ -482,11 +472,13 @@ const addAdmin = async (req, res, next) => {
     }
 };
 
+const MANAGED_ROLES = ["admin", "manager", "accountant", "cashier", "operator", "hr", "sales", "auditor", "staff", "other"];
+
 const getAdmin = async (req, res, next) => {
     try {
         const admins = await usermodal.find({
             companyId: req.user.companyId,
-            role: { $in: ["admin", "manager"] },
+            role: { $in: MANAGED_ROLES },
             _id: { $ne: req.userid }
         })
         .populate('branchIds', 'name branchCode location')
@@ -551,29 +543,29 @@ const updateprofile = async (req, res, next) => {
 const editAdmin = async (req, res, next) => {
     const { name, email, role, permissions } = req.body;
     const { id } = req.params;
-    // console.log(req.body);
-    // return res.status(400).json({ message: "All fields are required" });
 
-    if (!name || !email || !role) {
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    if (!name || !normalizedEmail || !role) {
         return res.status(400).json({ message: "All fields are required" });
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-        const existingUser = await usermodal.findOne({ email }).session(session);
-        const oldprofile = existingUser.profileImage || undefined;
-
-        if (existingUser.companyId.toString() !== req.user.companyId.toString()) {
-            return res.status(403).json({ message: "Access denied: This user don't Belong to You" });
+        const targetUser = await usermodal.findById(id);
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found" });
         }
 
-        if (existingUser && existingUser._id.toString() !== id) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(409).json({ message: 'Email already in use.' });
+        if (targetUser.companyId && req.user.companyId && targetUser.companyId.toString() !== req.user.companyId.toString()) {
+            return res.status(403).json({ message: "Access denied: This user doesn't belong to your organization" });
         }
+
+        // Check if email belongs to another user
+        const duplicateEmailUser = await usermodal.findOne({ email: normalizedEmail, _id: { $ne: id } });
+        if (duplicateEmailUser) {
+            return res.status(409).json({ message: 'Email already in use by another user.' });
+        }
+
+        const oldprofile = targetUser.profileImage || undefined;
 
         let parsedBranchIds = undefined;
         if (req.body.branchIds !== undefined) {
@@ -586,8 +578,8 @@ const editAdmin = async (req, res, next) => {
         }
 
         const fields = {
-            name,
-            email,
+            name: name.trim(),
+            email: normalizedEmail,
             role,
             companyId: req.user.companyId
         };
@@ -627,30 +619,24 @@ const editAdmin = async (req, res, next) => {
             }
 
             if (oldprofile) {
-                await removePhotoBySecureUrl([oldprofile]);
+                await removePhotoBySecureUrl([oldprofile]).catch((e) => console.warn("Old photo delete skipped:", e.message));
             }
         }
 
         const updatedUser = await usermodal.findByIdAndUpdate(
             id,
             { $set: fields },
-            { new: true, session }
+            { new: true }
         );
-        await redisClient.del(`permissions:${id}`);
 
-        await session.commitTransaction();
-        session.endSession();
-
-        res.status(200).json({
+        return res.status(200).json({
             message: 'Admin updated successfully',
             user: updatedUser
         });
 
     } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        console.error(error.message);
-        return res.status(500).json({ message: 'Server error' });
+        console.error("Error updating admin:", error.message);
+        return res.status(500).json({ message: error.message || 'Server error' });
     }
 };
 
@@ -660,7 +646,7 @@ const deleteAdmin = async (req, res, next) => {
     try {
         const adminmanager = await usermodal.findOne({
             _id: id,
-            role: { $in: ['admin', 'manager'] }
+            role: { $in: MANAGED_ROLES }
         });
 
         if (!adminmanager) {
@@ -702,14 +688,15 @@ const deleteAdmin = async (req, res, next) => {
 
 const firstfetch = async (req, res, next) => {
     try {
-        const isManager = req.user.role === 'manager';
+        const isRestrictedRole = req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'developer';
         const allowedBranches = req.user.branchIds || [];
+        const hasBranchFilter = isRestrictedRole && allowedBranches.length > 0;
 
         const [user, companye, branches, departmentlist, notices] = await Promise.all([
             usermodal.findById(req.user.id).select('name email profileImage role permissions branchIds').lean(),
             company.findOne().lean(),
-            branch.find().populate({ path: 'managerIds', select: 'name profileImage profileimage' }).lean(),
-            departmentModal.find(isManager ? { branchId: { $in: allowedBranches } } : {})
+            branch.find(hasBranchFilter ? { _id: { $in: allowedBranches } } : {}).populate({ path: 'managerIds', select: 'name profileImage profileimage' }).lean(),
+            departmentModal.find(hasBranchFilter ? { branchId: { $in: allowedBranches } } : {})
                 .populate('branchId', 'name')
                 .select('department branchId')
                 .sort({ department: 1 })

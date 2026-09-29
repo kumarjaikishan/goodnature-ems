@@ -103,6 +103,10 @@ const collectionTransactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    ledgerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ledger',
+    },
   },
   { _id: true, timestamps: true }
 );

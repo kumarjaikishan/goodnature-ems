@@ -18,7 +18,7 @@ This file records crucial patterns, bugs solved, and architectural caveats found
 ### C. Permission Matrix Mapping
 - Permissions are stored in MongoDB as a `Map` of numbers (e.g., `employee: [1, 2, 3, 4]`).
 - Key Legend: `1 = Read`, `2 = Create`, `3 = Update`, `4 = Delete`.
-- When checked, Redis key `permissions:<userId>` is checked first. Superadmins and grant roles bypass checks.
+- When checked, permissions are evaluated directly from `req.user.permissions` (or fresh Mongo lookup) without external Redis caching. Superadmins and grant roles bypass checks.
 
 ### D. Duplicate Ledger Resolution (`fix_ledgers.js`)
 - An operational script `fix_ledgers.js` exists in the project root to detect and merge duplicate ledgers for employees where multiple ledger documents were historically created.
@@ -56,6 +56,34 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `ProductInstallmentCollectModal.jsx` supports multi-installment selection, quick-fill buttons, late fine rebate, cheque 6-digit validation, and real-time payment calculations.
   - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
   - For Monthly EMI plans, downpayment is eliminated ($0$) and the entire total valuation is divided equally into monthly installments over the chosen tenure. For One-Time Full Payment, the deposit/holding tenure period (12, 24, 36, 48, 60 months) is explicitly recorded to track the contract duration for product delivery or money-back refund on completion.
+
+### AF. System User Management & Operational Roles (Accountant, Cashier, HR, Sales, Auditor, Operator)
+- **Granular Operational Roles**: Superadmin can create dedicated staff login IDs for **Admin**, **Manager**, **Accountant** (`role: 'accountant'`), **Cashier / Billing Desk** (`role: 'cashier'`), **HR & Payroll** (`role: 'hr'`), **Sales Coordinator** (`role: 'sales'`), **System Operator** (`role: 'operator'`), **Internal Auditor** (`role: 'auditor'`), **Staff Executive** (`role: 'staff'`), and **Custom Role** (`role: 'other'`) in [admin.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/organization/admin.jsx).
+- **Default Role Presets**:
+  - **Accountant**: Full Finance, ledgers, vouchers, payouts, plot collections, investments, and salary management permissions.
+  - **Cashier / Billing Desk**: Receipt collection, installment collection, customer registration, voucher creation, and view-only permissions tailored for front-desk operators.
+  - **HR & Payroll**: Employees, attendance, leaves, holidays, salary processing, and notices.
+  - **Sales Coordinator**: Plot bookings, inventory, collections, customer records, and commission views.
+  - **Auditor**: Granular read-only inspection across vouchers, ledgers, salaries, and audit logs.
+- **Dynamic Branch Assignment & Shortcuts**: Branch selection dynamically adapts to the selected role with "Select All Branches" and "Clear All" shortcuts.
+- **Automated Treasury Cash Ledgers**: Whenever an operational staff ID is created or updated, `createLedgerForUsers` in `server/controllers/ledger.js` automatically creates and synchronizes their personal `user_cash` ledger for billing custody and maker-checker fund transfers.
+- **Unified Management Routing & Sidebar Scope**: In `client/src/App.jsx` and `client/src/components/sidebar.jsx`, `MANAGEMENT_ROLES` / `OPERATIONAL_ROLES` encompasses `['superadmin', 'admin', 'manager', 'accountant', 'cashier', 'hr', 'sales', 'operator', 'auditor', 'staff', 'other', 'demo']`. All operational staff route into the main `/dashboard` application while their menu items, page views, and API calls are automatically filtered by their granular RBAC permissions.
+- **Middleware & Security**: `Role_middleware.js` permits `accountant` and `cashier` users across standard administrative routes while enforcing granular module RBAC with `CheckPermission.js`.
+- **Strict Cash Custody**: When collecting payments in `cash` mode across all payment forms ([ReceivePaymentForm.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/installments/components/ReceivePaymentForm.jsx), [ProductReceivePaymentForm.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/ProductReceivePaymentForm.jsx), [ProductInstallmentCollectModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/components/ProductInstallmentCollectModal.jsx)), the receiving account is strictly locked to the authenticated cashier's own cash ledger (`myCashLedger`). Other staff's cash ledgers are NEVER listed or selectable, preventing accidental or fraudulent balance routing into another person's cash ledger.
+- **Inter-Account Transfer Source Scoping**: In [FundTransfersPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/FundTransfersPage.jsx) and `fundTransfer.js`, when initiating an Inter-Account Transfer, the **From Account (Source)** strictly only allows the user's own personal cash ledger (and Corporate Bank Accounts for administrators). Users cannot select or transfer funds out of another cashier's cash account.
+- **Backend Enforcement**: In `plotCollection.service.js`, `plotProduct.service.js`, and `fundTransfer.js`, all operations strictly enforce ownership of cash ledgers against `req.user`.
+- **Bank Account Selection**: Corporate bank accounts (Axis, IDBI, etc.) are only selectable for non-cash modes (Online, UPI, Bank Transfer, Cheque, RTGS), displaying clean identifiers `Bank Name (A/C: ...)` without exposing internal bank balance figures.
+- **Modular Component Architecture**: [admin.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/organization/admin.jsx) is decomposed into clean, specialized sub-components under `client/src/pages/admin/organization/components/admin/`:
+  - `userPermissionsConfig.js`: Permission labels, module categories, presets (`admin`, `manager`, `accountant`, `cashier`), and badge styling helpers.
+  - `UserFilterBar.jsx`: Search, Grid/Table view switcher, and Role/Status/Branch filters.
+  - `UserGridView.jsx`: Responsive user cards with permission drawers, status badges, and actions.
+  - `UserFormModal.jsx`: User creation/editing modal with branch assignments and permission matrix.
+  - `ResetPasswordModal.jsx`: Quick password reset modal.
+- **Bugfixes & Hardening**:
+  - `editAdmin` in `server/controllers/admin.js`: Fixed `Cannot read properties of null (reading 'profileImage')` by looking up the target record with `findById(id)` rather than `findOne({ email })`. Safely verifies company ownership and duplicate email collisions (`findOne({ email, _id: { $ne: id } })`).
+  - Trimmed & normalized email addresses to lowercase (`email.trim().toLowerCase()`) across user creation, updates, and signin lookups.
+  - `userLogin` in `server/controllers/user.js`: Ensured JWT signing (`tobe`) and login responses properly attach `permissions` and `branchIds` for all operational roles (`accountant`, `cashier`, `hr`, `sales`, `operator`, `auditor`, `staff`, etc.) rather than restricting them to `admin`/`manager`.
+  - `firstfetch` in `server/controllers/admin.js`: Scoped allowed branches and departments for non-admin/superadmin roles with `branchIds`.
 
 ### AC. Plot Product & Series Target Slabs vs Extra Incentive Slabs Separation
 - **Tenure-Based Fixed Commission Matrix**: Fixed commissions for Plot Products are configured directly on a tenure/period basis (e.g., 12, 24, 36, 48, 60 months) with distinct EMI vs One-Time FD percentages for all three hierarchy tiers (BA, BP, Branch Partner).
@@ -881,3 +909,35 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - Project selection is asked strictly in **Step 3 (Terms, Dynamic Rates & Downpayment)** of Plot Booking (`StepTermsAndPayment.jsx`, `PlotBooking.jsx`).
   - Selecting a project in Step 3 auto-filters available land sources by project and locks `projectId` and `projectName` onto the `PlotBooking` record.
   - Removed project selection from Series Creation/Edit modals and Plot selection (Step 2) to maintain a seamless workflow.
+
+### NN. Treasury Multi-Ledger, Cashier Wallets & Maker-Checker Fund Transfers Architecture
+- **Industry Standard Treasury & Cash-in-Hand Management**:
+  - `Ledger` model (`server/models/ledger.js`):
+    - Extended `ledgerType` enum to include `['bank', 'user_cash']`.
+    - Bank fields: `bankName`, `accountNumber`, `ifscCode`, `branchName`, `accountType`, `openingBalance`, `status: ['active', 'inactive']`.
+    - Cash Account fields: `assignedUserId` (linking individual billing operators/cashiers to their personal cash in custody).
+    - Added compound index `{ ledgerType: 1, assignedUserId: 1 }` and `{ ledgerType: 1, status: 1 }`.
+  - `Entry` model (`server/models/entry.js`):
+    - Extended `source` enum to include `['transfer', 'receipt', 'voucher_payment']`.
+  - `FundTransfer` model (`server/models/FundTransfer.js`):
+    - Maker-Checker 2-step transfer entity with unique sequence `TRF-YY-XXX`, `fromLedgerId`, `toLedgerId`, `fromUserId`, `toUserId`, `amount`, `transferMode`, `referenceNo`, `depositSlipUrl`, `narration`, `status: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']`, `approvedBy`, `rejectionReason`, `debitEntryId`, `creditEntryId`.
+- **In-Transit Held Balance Calculation**:
+  - Instead of debiting the database balance during `PENDING` status (which risks balance corruption upon rejection/cancellation), available balance is computed dynamically as:
+    $$\text{Available Balance} = \text{Net Ledger Balance} - \sum(\text{Pending Outgoing Transfers})$$
+  - Overdraft Protection: `requestTransfer` checks that $\text{Available Balance} \ge \text{Transfer Amount}$.
+- **Atomic Double-Entry Bookkeeping**:
+  - When approved (`PUT /ledger/transfers/:id/approve`), an atomic Mongo transaction executes:
+    1. DEBIT on the source ledger with `source: 'transfer'` and `referenceId: transfer._id`.
+    2. CREDIT on the destination ledger with `source: 'transfer'` and `referenceId: transfer._id`.
+    3. Stamps `debitEntryId` and `creditEntryId` onto the `FundTransfer` record.
+  - Rejection / Cancellation immediately releases the in-transit held lock without creating orphaned entries.
+- **Account-Linked Collections & Vouchers**:
+  - Plot collections (`PlotPayment`, `PlotReceipt`), Plot Product collections (`PlotProductBooking.collections`), and Investment receipts store `ledgerId`.
+  - All collection modals (`ReceivePaymentForm.jsx`, `ProductInstallmentCollectModal.jsx`, `ProductReceivePaymentForm.jsx`) provide an Account Selector grouped by Cashier Cash and Company Bank Accounts, auto-defaulting according to payment mode (Cash $\rightarrow$ Cashier's cash account, Online/Bank/Cheque $\rightarrow$ Primary Bank account) and auto-crediting the treasury ledger in real-time.
+- **Dedicated Treasury Frontend Pages & Navigation**:
+  - `/dashboard/ledger/banks` (`BankLedgersPage.jsx`): Corporate bank account management with summary balance KPI cards, Add/Edit Account modal, opening balance audit, and direct passbook links (Table view default).
+  - `/dashboard/ledger/cash-accounts` (`CashLedgersPage.jsx`): Cashier physical cash in hand, in-transit held funds, and available balance with quick transfer action (Table view default).
+  - `/dashboard/ledger/transfers` (`FundTransfersPage.jsx`): Maker-Checker transfer portal with pending/approved/rejected filter tabs, Initiate Transfer modal with deposit slip upload, inline Accept/Reject/Cancel actions, and slip preview modal.
+  - **Cashier Wallet Scoping**: Physical cash ledgers (`user_cash`) are strictly provisioned and listed for admin/management/billing users (`superadmin`, `admin`, `manager`, `developer`, `grant`), excluding general `employee` role staff (who retain only their standard payroll/salary ledger).
+  - Mounted across `adminRoutes`, `superadminRoutes`, and `managerRoutes` in `App.jsx`, and integrated under the **Ledger** navigation submenu in `sidebar.jsx`.
+

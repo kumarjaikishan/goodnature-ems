@@ -4,6 +4,7 @@ import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
 import { Plus, LayoutGrid, Award, SlidersHorizontal } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
+import usePermission from '../../../utils/CheckPermission';
 
 // Modular Subcomponents
 import SeriesFilterBar from './components/SeriesFilterBar';
@@ -16,6 +17,10 @@ import ConfigurePlotModal from './components/ConfigurePlotModal';
 import CreatePlotModal from './components/CreatePlotModal';
 
 const PlotSeriesMaster = () => {
+  const canCreate = usePermission('plot_series', 2);
+  const canUpdate = usePermission('plot_series', 3);
+  const canDelete = usePermission('plot_series', 4);
+
   // Navigation Tabs: 'layout', 'commissions', 'rates'
   const [activeTab, setActiveTab] = useState('layout');
   const [seriesList, setSeriesList] = useState([]);
@@ -474,22 +479,24 @@ const PlotSeriesMaster = () => {
             Configure series blocks, manage real-time inventory maps, configure target commission policy, and set global plot rates.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => openCreatePlot()}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
-          >
-            <Plus size={16} /> Create Plot
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
-          >
-            <Plus size={16} /> Create Series Block
-          </button>
-        </div>
+        {canCreate && (
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => openCreatePlot()}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
+            >
+              <Plus size={16} /> Create Plot
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
+            >
+              <Plus size={16} /> Create Series Block
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Navigation Tabs */}
@@ -560,6 +567,9 @@ const PlotSeriesMaster = () => {
             handleDeleteSeries={handleDeleteSeries}
             openCreatePlot={openCreatePlot}
             openConfigPlot={openConfigPlot}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
           />
         </div>
       )}

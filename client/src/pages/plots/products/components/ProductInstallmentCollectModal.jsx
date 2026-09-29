@@ -26,6 +26,49 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Treasury Accounts State
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [cashAccounts, setCashAccounts] = useState([]);
+  const [selectedLedgerId, setSelectedLedgerId] = useState('');
+  const [myCashLedger, setMyCashLedger] = useState(null);
+
+  useEffect(() => {
+    const fetchTreasury = async () => {
+      try {
+        const [treasuryRes, myCashRes] = await Promise.all([
+          api.get('/ledger/treasury'),
+          api.get('/ledger/my-cash-account').catch(() => null)
+        ]);
+        const bList = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
+        const cList = treasuryRes.data?.cashLedgers || treasuryRes.data?.cashAccounts || treasuryRes.data?.data?.cashAccounts || treasuryRes.data?.data?.cashLedgers || [];
+        setBankAccounts(bList);
+        setCashAccounts(cList);
+
+        const myCash = myCashRes?.data?.data || myCashRes?.data || null;
+        setMyCashLedger(myCash);
+
+        if (paymentMode === 'cash') {
+          setSelectedLedgerId(myCash?._id || cList[0]?._id || '');
+        } else {
+          setSelectedLedgerId(bList[0]?._id || '');
+        }
+      } catch (err) {
+        console.error('Error fetching treasury accounts:', err);
+      }
+    };
+    if (open) {
+      fetchTreasury();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (paymentMode === 'cash') {
+      setSelectedLedgerId(myCashLedger?._id || cashAccounts[0]?._id || '');
+    } else {
+      setSelectedLedgerId(bankAccounts[0]?._id || '');
+    }
+  }, [paymentMode, myCashLedger, cashAccounts, bankAccounts]);
+
   if (!booking) return null;
 
   const installments = booking.installments || [];
@@ -175,6 +218,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
         paymentMode,
         transactionReference: paymentMode === 'cash' ? '' : transactionReference.trim(),
         paymentDate,
+        ledgerId: selectedLedgerId || undefined,
         remarks,
       };
 
@@ -277,8 +321,8 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
           </div>
         </div>
 
-        {/* Date and Mode Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Date, Mode and Receiving Account Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block font-bold text-slate-700 mb-1">
               Collection Date <span className="text-rose-500">*</span>
@@ -303,6 +347,35 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
               <option value="upi">UPI / Online</option>
               <option value="bank_transfer">Bank Transfer / NEFT</option>
               <option value="cheque">Cheque</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">
+              {paymentMode === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'}
+            </label>
+            <select
+              value={selectedLedgerId}
+              disabled={paymentMode === 'cash'}
+              onChange={(e) => setSelectedLedgerId(e.target.value)}
+              className={`w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none text-xs font-semibold font-mono ${paymentMode === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-white cursor-pointer'}`}
+            >
+              {paymentMode === 'cash' ? (
+                <option value={myCashLedger?._id || ''}>
+                  {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
+                </option>
+              ) : (
+                <>
+                  {bankAccounts.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
+                    </option>
+                  ))}
+                  {bankAccounts.length === 0 && (
+                    <option value="">Default Company Bank</option>
+                  )}
+                </>
+              )}
             </select>
           </div>
         </div>

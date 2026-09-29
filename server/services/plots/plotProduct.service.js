@@ -13,6 +13,9 @@ const PlotAuditLog = require('../../models/PlotAuditLog');
 const PlotSponsorCommission = require('../../models/PlotSponsorCommission');
 const KisanLandAgreement = require('../../models/KisanLandAgreement');
 const Plot = require('../../models/Plot');
+const Ledger = require('../../models/ledger');
+const Entry = require('../../models/entry');
+const accountingService = require('../accountingService');
 const plotDeveloperService = require('./plotDeveloper.service');
 
 class PlotProductService {
@@ -593,7 +596,21 @@ class PlotProductService {
     const bookingStatus = isFullPayment ? 'COMPLETED' : 'ACTIVE';
 
     const collections = [];
+    let resolvedDpLedgerId = null;
     if (dp > 0) {
+      const isCash = String(data.paymentMode || 'cash').toLowerCase() === 'cash';
+      if (isCash) {
+        // Cash receipts ALWAYS enter the physical custody of the collecting cashier
+        const userCashLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' });
+        resolvedDpLedgerId = userCashLedger?._id || data.ledgerId || null;
+      } else {
+        resolvedDpLedgerId = data.ledgerId || null;
+        if (!resolvedDpLedgerId) {
+          const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' });
+          if (defaultBank) resolvedDpLedgerId = defaultBank._id;
+        }
+      }
+
       collections.push({
         receiptNumber: `PRD-DP-${bookingNumber}`,
         amountPaid: dp,
@@ -606,6 +623,7 @@ class PlotProductService {
         installmentNumbers: [],
         remarks: isFullPayment ? 'Full Payment recorded at time of booking' : 'Initial Downpayment at booking',
         collectedById: userId || null,
+        ledgerId: resolvedDpLedgerId,
       });
     }
 
@@ -652,6 +670,23 @@ class PlotProductService {
     });
 
     await bookingDoc.save();
+
+    // Auto-record double-entry credit in treasury ledger for downpayment
+    if (resolvedDpLedgerId && dp > 0) {
+      try {
+        await accountingService.recordLedgerEntry({
+          ledgerId: resolvedDpLedgerId,
+          date: bDate,
+          type: 'CREDIT',
+          amount: dp,
+          source: 'receipt',
+          referenceId: bookingDoc._id,
+          remarks: `Product Booking DP: PRD-DP-${bookingNumber} - Customer: ${customer.name || 'Customer'}`
+        });
+      } catch (e) {
+        console.error('Error recording ledger entry for product booking DP:', e);
+      }
+    }
 
     // Auto-sync sponsor fixed commission if sponsor is linked and downPayment / full payment > 0
     if (bookingDoc.sponsorId) {
@@ -1008,6 +1043,21 @@ class PlotProductService {
       booking.status = 'COMPLETED';
     }
 
+    // Resolve target Bank or Cash Ledger
+    const isCash = String(paymentMode).toLowerCase() === 'cash';
+    let resolvedLedgerId = null;
+    if (isCash) {
+      // Cash receipts ALWAYS enter the physical custody of the collecting cashier
+      const userCashLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' });
+      resolvedLedgerId = userCashLedger?._id || data.ledgerId || null;
+    } else {
+      resolvedLedgerId = data.ledgerId || null;
+      if (!resolvedLedgerId) {
+        const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' });
+        if (defaultBank) resolvedLedgerId = defaultBank._id;
+      }
+    }
+
     // Save collection transaction history record
     const touchedInstNumbers = targetInsts.map((i) => i.installmentNumber);
     if (!booking.collections) {
@@ -1025,9 +1075,26 @@ class PlotProductService {
       installmentNumbers: touchedInstNumbers,
       remarks,
       collectedById: userId || null,
+      ledgerId: resolvedLedgerId,
     });
 
     await booking.save();
+
+    if (resolvedLedgerId && colAmount > 0) {
+      try {
+        await accountingService.recordLedgerEntry({
+          ledgerId: resolvedLedgerId,
+          date: pDate,
+          type: 'CREDIT',
+          amount: colAmount,
+          source: 'receipt',
+          referenceId: booking._id,
+          remarks: `Product EMI Receipt: ${receiptNumber} (${booking.bookingNumber || ''}) - Customer: ${booking.customerId?.name || 'Customer'}`
+        });
+      } catch (err) {
+        console.error('Error recording ledger entry for product installment collection:', err);
+      }
+    }
 
     // Auto-sync sponsor fixed commission if sponsor is linked to this product booking
     if (booking.sponsorId) {
@@ -1294,6 +1361,19 @@ class PlotProductService {
       booking.collections = booking.collections.filter(
         (col) => col.receiptNumber !== receiptNumber
       );
+    }
+
+    // Clean up corresponding treasury ledger entry if any
+    try {
+      const entryToDelete = await Entry.findOne({
+        referenceId: booking._id,
+        remarks: { $regex: receiptNumber }
+      });
+      if (entryToDelete) {
+        await accountingService.deleteLedgerEntry(entryToDelete._id);
+      }
+    } catch (e) {
+      console.error('Error deleting product receipt ledger entry:', e);
     }
 
     // If it was down payment receipt

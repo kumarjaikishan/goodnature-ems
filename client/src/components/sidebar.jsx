@@ -48,11 +48,15 @@ const Sidebar = () => {
   const [hoveredMenu, setHoveredMenu] = useState(null); // for collapsed sidebar
   const [anchorEl, setAnchorEl] = useState(null);
 
+  const OPERATIONAL_ROLES = [
+    "admin", "superadmin", "manager", "accountant", "cashier", "hr", "sales", "operator", "auditor", "staff", "other", "demo"
+  ];
+
   const menu = [
     {
       title: "Menu",
       items: [
-        { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: ["developer", "admin", "superadmin", "manager", "employee", "demo", "sponsor"] },
+        { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: [...OPERATIONAL_ROLES, "employee", "sponsor", "developer"] },
         { menu: "Permissions", link: "/dashboard/permission", icon: <KeyRound size={20} />, roles: ["developer"] },
         { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <Gauge size={20} />, roles: ["developer"] },
         { menu: "Error Logs", link: "/dashboard/error-logs", icon: <ShieldAlert size={20} />, roles: ["developer"] },
@@ -75,69 +79,73 @@ const Sidebar = () => {
         {
           menu: "Employees",
           icon: <Users size={20} />,
-          roles: ["admin", "superadmin", "manager", "employee", "demo"],
+          roles: [...OPERATIONAL_ROLES, "employee"],
           children: [
-            { menu: "Employee", link: "/dashboard/employe", roles: ["admin", "superadmin", "manager", "demo"], resource: "employee" },
-            { menu: "Leave Request", link: "/dashboard/leave-request", roles: ["employee", "admin", "superadmin", "manager", "demo"], resource: "leave", icon: <FileText size={18} /> },
-            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: ["admin", "superadmin", "manager", "demo"], resource: "leave", icon: <History size={18} /> },
+            { menu: "Employee", link: "/dashboard/employe", roles: OPERATIONAL_ROLES, resource: "employee" },
+            { menu: "Leave Request", link: "/dashboard/leave-request", roles: [...OPERATIONAL_ROLES, "employee"], resource: "leave", icon: <FileText size={18} /> },
+            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: OPERATIONAL_ROLES, resource: "leave", icon: <History size={18} /> },
             { menu: "Leave Ledger", link: "/dashboard/my-leave-ledger", roles: ["employee"], icon: <History size={18} />, hidden: !company?.leaveSettings?.allowEmployeeToSeeLedger },
           ].filter(c => !c.hidden),
         },
         {
           menu: "Attendance",
           icon: <CalendarCheck2 size={20} />,
-          roles: ["admin", "superadmin", "manager", "employee", "demo"],
+          roles: [...OPERATIONAL_ROLES, "employee"],
           children: [
-            { menu: "Attendance", link: "/dashboard/attandence", roles: ["admin", "superadmin", "manager", "demo"], resource: "attandence" },
+            { menu: "Attendance", link: "/dashboard/attandence", roles: OPERATIONAL_ROLES, resource: "attandence" },
             { menu: "Emp Attendance", link: "/dashboard/empattandence", roles: ["employee"] },
-            { menu: "Report", link: "/dashboard/attandence_Report", roles: ["admin", "superadmin", "manager", "demo"], resource: "attandence" },
+            { menu: "Report", link: "/dashboard/attandence_Report", roles: OPERATIONAL_ROLES, resource: "attandence" },
           ],
         },
         {
           menu: "Account",
           icon: <Wallet size={20} />,
-          roles: ["admin", "superadmin", "manager", "demo"],
+          roles: OPERATIONAL_ROLES,
           children: [
-            { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_collection" },
-            { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_collection" },
-            { menu: "Product Collections", link: "/dashboard/plots/collections/products", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_collection" },
-            { menu: "Payroll", link: "/dashboard/payroll", roles: ["admin", "superadmin", "manager", "demo"], resource: "salary" },
-            { menu: "Advance", link: "/dashboard/advance", roles: ["admin", "superadmin", "manager", "demo"], resource: "advance" },
-            { menu: "Vouchers", link: "/dashboard/vouchers", roles: ["admin", "superadmin", "manager", "demo"], resource: "voucher" },
+            { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
+            { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
+            { menu: "Product Collections", link: "/dashboard/plots/collections/products", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
+            { menu: "Payroll", link: "/dashboard/payroll", roles: OPERATIONAL_ROLES, resource: "salary" },
+            { menu: "Advance", link: "/dashboard/advance", roles: OPERATIONAL_ROLES, resource: "advance" },
+            { menu: "Vouchers", link: "/dashboard/vouchers", roles: OPERATIONAL_ROLES, resource: "voucher" },
           ],
         },
         {
           menu: "Ledger",
           icon: <BookOpen size={20} />,
-          roles: ["admin", "superadmin", "manager", "demo"],
+          roles: OPERATIONAL_ROLES,
           children: [
-            { menu: "Employee", link: "/dashboard/ledger/employees", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
-            { menu: "Seller (Kisan)", link: "/dashboard/ledger/sellers", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
-            { menu: "Business Associate", link: "/dashboard/ledger/business-associates", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
-            { menu: "Business Partner", link: "/dashboard/ledger/business-partners", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
-            { menu: "Branch Partner", link: "/dashboard/ledger/branch-partners", roles: ["admin", "superadmin", "manager", "demo"], resource: "ledger" },
+            { menu: "All Ledgers", link: "/dashboard/ledger", roles: OPERATIONAL_ROLES, resource: "ledger" },
+            { menu: "Bank Accounts", link: "/dashboard/ledger/banks", roles: OPERATIONAL_ROLES, resource: "bank_ledger" },
+            { menu: "Cash Accounts", link: "/dashboard/ledger/cash-accounts", roles: OPERATIONAL_ROLES, resource: "cash_ledger" },
+            { menu: "Fund Transfers", link: "/dashboard/ledger/transfers", roles: OPERATIONAL_ROLES, resource: "fund_transfer" },
+            { menu: "Employee", link: "/dashboard/ledger/employees", roles: OPERATIONAL_ROLES, resource: "employee_ledger" },
+            { menu: "Seller (Kisan)", link: "/dashboard/ledger/sellers", roles: OPERATIONAL_ROLES, resource: "kisan_ledger" },
+            { menu: "Business Associate", link: "/dashboard/ledger/business-associates", roles: OPERATIONAL_ROLES, resource: "sponsor_ledger" },
+            { menu: "Business Partner", link: "/dashboard/ledger/business-partners", roles: OPERATIONAL_ROLES, resource: "sponsor_ledger" },
+            { menu: "Branch Partner", link: "/dashboard/ledger/branch-partners", roles: OPERATIONAL_ROLES, resource: "sponsor_ledger" },
           ],
         },
         {
           menu: "Plot Management",
           icon: <Building2 size={20} />,
-          roles: ["admin", "superadmin", "manager", "demo"],
+          roles: OPERATIONAL_ROLES,
           children: [
-            { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_reports" },
-            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
-            { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
-            { menu: "Plot Products", link: "/dashboard/plots/products", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
-            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_sponsor" },
-            { menu: "Customers", link: "/dashboard/plots/customers", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_customer" },
-            { menu: "Bookings", link: "/dashboard/plots/booking", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_booking" },
-            { menu: "Incentive", link: "/dashboard/plots/incentives", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_sponsor" },
-            { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_inventory" },
-            { menu: "Reports", link: "/dashboard/plots/reports", roles: ["admin", "superadmin", "manager", "demo"], resource: "plot_reports" },
+            { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
+            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
+            { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
+            { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
+            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: "plot_sponsor" },
+            { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
+            { menu: "Bookings", link: "/dashboard/plots/booking", roles: OPERATIONAL_ROLES, resource: "plot_booking" },
+            { menu: "Incentive", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_sponsor" },
+            { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
+            { menu: "Reports", link: "/dashboard/plots/reports", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
           ],
         },
-        { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: ["superadmin", "admin", "demo"], resource: "holiday" },
+        { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: OPERATIONAL_ROLES, resource: "holiday" },
 
-        { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer"], resource: "audit_log" },
+        { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer", "auditor"], resource: "audit_log" },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
@@ -146,9 +154,9 @@ const Sidebar = () => {
     {
       title: "Others",
       items: [
-        { menu: "Profile", link: "/dashboard/profile", icon: <UserCircle2 size={20} />, roles: ["admin", "superadmin", "manager", "employee", "grant", "demo", "sponsor"] },
-        { menu: "Setting", link: "/dashboard/setting", icon: <Settings size={20} />, roles: ["admin", "superadmin", "manager", "employee", "demo"] },
-        { menu: "Logout", isLogout: true, icon: <LogOut size={20} />, roles: ["admin", "employee", "superadmin", "developer", "manager", "grant", "demo", "sponsor"] },
+        { menu: "Profile", link: "/dashboard/profile", icon: <UserCircle2 size={20} />, roles: [...OPERATIONAL_ROLES, "employee", "grant", "sponsor"] },
+        { menu: "Setting", link: "/dashboard/setting", icon: <Settings size={20} />, roles: [...OPERATIONAL_ROLES, "employee"] },
+        { menu: "Logout", isLogout: true, icon: <LogOut size={20} />, roles: [...OPERATIONAL_ROLES, "employee", "developer", "grant", "sponsor"] },
       ],
     },
   ];
@@ -228,9 +236,19 @@ const Sidebar = () => {
 
       {/* Navigation Sections */}
       {menu.map((section, sIndex) => {
-        const filteredItems = section.items.filter((item) =>
-          item.roles.includes(role)
-        );
+        const filteredItems = section.items.filter((item) => {
+          if (!item.roles.includes(role)) return false;
+          if (item.children) {
+            const visibleChildren = item.children.filter((child) => {
+              if (!child.roles.includes(role)) return false;
+              if (child.resource && !hasPermission(profile, child.resource, 1)) return false;
+              return true;
+            });
+            return visibleChildren.length > 0;
+          }
+          if (item.resource && !hasPermission(profile, item.resource, 1)) return false;
+          return true;
+        });
         if (!filteredItems.length) return null;
 
         return (

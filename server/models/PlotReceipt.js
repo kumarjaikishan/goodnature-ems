@@ -23,6 +23,10 @@ const plotReceiptSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotInstallment',
     },
+    ledgerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ledger',
+    },
     amount: {
       type: Number,
       required: true,

@@ -27,6 +27,9 @@ const SeriesLayoutGrid = ({
   handleDeleteSeries,
   openCreatePlot,
   openConfigPlot,
+  canCreate = true,
+  canUpdate = true,
+  canDelete = true,
 }) => {
   return (
     <div className="space-y-6">
@@ -56,7 +59,7 @@ const SeriesLayoutGrid = ({
                   'Default Type',
                   'Format',
                   'Remarks',
-                  'Actions',
+                  ...(canUpdate || canDelete ? ['Actions'] : []),
                 ].map((h) => (
                   <th key={h} className="p-3.5">
                     {h}
@@ -96,26 +99,32 @@ const SeriesLayoutGrid = ({
                     </td>
                     <td className="p-3.5 font-mono text-slate-500">{s.numberFormat}</td>
                     <td className="p-3.5 text-slate-500 italic max-w-xs truncate">{s.remarks || '-'}</td>
-                    <td className="p-3.5">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEditSeries(s)}
-                          className="p-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl transition cursor-pointer"
-                          title="Edit Series"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSeries(s._id)}
-                          className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer"
-                          title="Delete Series"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+                    {(canUpdate || canDelete) && (
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-2">
+                          {canUpdate && (
+                            <button
+                              type="button"
+                              onClick={() => openEditSeries(s)}
+                              className="p-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl transition cursor-pointer"
+                              title="Edit Series"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSeries(s._id)}
+                              className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition cursor-pointer"
+                              title="Delete Series"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

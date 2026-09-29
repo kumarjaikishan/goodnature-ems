@@ -10,6 +10,7 @@ const leaveBalance = require('../controllers/leaveBalance');
 const advance = require('../controllers/advance');
 const leave = require('../controllers/leave');
 const voucher = require('../controllers/voucher');
+const fundTransfer = require('../controllers/fundTransfer');
 const developer = require('../controllers/developer');
 const apiMonitorController = require('../controllers/apiMonitorController');
 const holiday = require('../controllers/holiday');
@@ -212,6 +213,37 @@ router.route("/ledgerentry").post(authmiddlewre, authorizeRoles('superadmin', 'a
 router.route("/ledgerentry/:id")
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger_entry", 3), ledger.updateEntry)
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger_entry", 4), ledger.deleteEntry);
+
+// Treasury & Bank Ledger Routes
+router.route('/ledger/treasury')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), ledger.getTreasuryLedgers);
+
+router.route('/ledger/my-cash-account')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), ledger.getMyCashLedger);
+
+router.route('/ledger/banks')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant'), ledger.getTreasuryLedgers)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("ledger", 2), upload.single('image'), ledger.createBankLedger);
+
+router.route('/ledger/banks/:id')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("ledger", 3), upload.single('image'), ledger.updateBankLedger);
+
+// Inter-Ledger & Bank/Cash Fund Transfer Routes
+router.route('/ledger/transfers')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.getTransfers)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), upload.single('depositSlip'), fundTransfer.requestTransfer);
+
+router.route('/ledger/transfers/stats')
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.getTransferStats);
+
+router.route('/ledger/transfers/:id/approve')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.approveTransfer);
+
+router.route('/ledger/transfers/:id/reject')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.rejectTransfer);
+
+router.route('/ledger/transfers/:id/cancel')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.cancelTransfer);
 
 // Voucher Routes
 router.route('/vouchers')

@@ -47,11 +47,15 @@ const PayrollEdit = lazy(() => import('./pages/common/payroll/payrollEdit'));
 const PayslipPrintPage = lazy(() => import('./pages/common/payroll/payrollprint'));
 const EmployeeAdvancePage = lazy(() => import('./pages/advance/advance'));
 const LedgerListPage = lazy(() => import('./pages/admin/ledger/ledgerpagelist'));
+const AllLedgerPage = lazy(() => import('./pages/admin/ledger/AllLedgerPage'));
 const EmployeeLedgerPage = lazy(() => import('./pages/admin/ledger/EmployeeLedgerPage'));
 const SellerLedgerPage = lazy(() => import('./pages/admin/ledger/SellerLedgerPage'));
 const BusinessAssociateLedgerPage = lazy(() => import('./pages/admin/ledger/BusinessAssociateLedgerPage'));
 const BusinessPartnerLedgerPage = lazy(() => import('./pages/admin/ledger/BusinessPartnerLedgerPage'));
 const BranchPartnerLedgerPage = lazy(() => import('./pages/admin/ledger/BranchPartnerLedgerPage'));
+const BankLedgersPage = lazy(() => import('./pages/admin/ledger/BankLedgersPage'));
+const CashLedgersPage = lazy(() => import('./pages/admin/ledger/CashLedgersPage'));
+const FundTransfersPage = lazy(() => import('./pages/admin/ledger/FundTransfersPage'));
 const LedgerDetailPage = lazy(() => import('./pages/admin/ledger/ledgerdetailpage'));
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
 const VoucherList = lazy(() => import('./pages/vouchers/VoucherList'));
@@ -109,371 +113,190 @@ const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanL
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
 
 
+// 🔹 Operational / Management Roles Constant
+const MANAGEMENT_ROLES = [
+  'superadmin',
+  'admin',
+  'manager',
+  'accountant',
+  'cashier',
+  'hr',
+  'sales',
+  'operator',
+  'auditor',
+  'staff',
+  'other',
+  'demo'
+];
+
+const managementRoutes = (
+  <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={MANAGEMENT_ROLES} />}>
+    <Route index element={<AdminDashboard />} />
+    <Route path="employe" element={<Employe />} />
+    <Route path="organization" element={<OrganizationSettings />} />
+    <Route path="organization/company" element={<CompanyInfoPage />} />
+    <Route path="organization/branches" element={<BranchManagerPage />} />
+    <Route path="organization/departments" element={<DepartmentPage />} />
+    <Route path="organization/devices" element={<DeviceManagementPage />} />
+    <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
+    <Route path="organization/admin" element={<AdminManagerPage />} />
+    <Route path="organization/users" element={<AdminManagerPage />} />
+    <Route path="organization/rules" element={<AttendanceRulesPage />} />
+    <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
+    <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
+    <Route path="attandence" element={<Attandence />} />
+    <Route path="attandence-import" element={<AttendanceExcelImport />} />
+    <Route path="attandence_Report" element={<AttendanceReport />} />
+    <Route path="holiday" element={<HolidayForm />} />
+    <Route path="activity-logs" element={<ActivityLogs />} />
+    <Route path="leave-request" element={<Adminleave />} />
+    <Route path="leave-ledger" element={<LeaveBalancePage />} />
+    <Route path="advance" element={<EmployeeAdvancePage />} />
+    <Route path="setting" element={<Setting />} />
+    <Route path="profile" element={<AdminManagerProfile />} />
+    <Route path="ledger" element={<AllLedgerPage />} />
+    <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
+    <Route path="ledger/sellers" element={<SellerLedgerPage />} />
+    <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
+    <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
+    <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
+    <Route path="ledger/banks" element={<BankLedgersPage />} />
+    <Route path="ledger/cash-accounts" element={<CashLedgersPage />} />
+    <Route path="ledger/transfers" element={<FundTransfersPage />} />
+    <Route path="ledger/:id" element={<LedgerDetailPage />} />
+    <Route path="performance/:userid" element={<AttenPerformance />} />
+    <Route path="payroll" element={<PayrollPage />} />
+    <Route path="payroll/add" element={<PayrollCreatePage />} />
+    <Route path="payroll/print/:id" element={<PayslipPrintPage />} />
+    <Route path="payroll/edit/:id" element={<PayrollEdit />} />
+    <Route path="vouchers" element={<VoucherList />} />
+    <Route path="vouchers/:id" element={<VoucherDetails />} />
+    <Route path="plots/dashboard" element={<PlotDashboard />} />
+    <Route path="plots/purchase" element={<PlotPurchasePage />} />
+    <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
+    <Route path="plots/agreements" element={<PlotPurchasePage />} />
+    <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
+    <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
+    <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
+    <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
+    <Route path="plots/inventory" element={<PlotSeriesMaster />} />
+    <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
+    <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
+    <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
+    <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/customers" element={<PlotCustomers />} />
+    <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
+    <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
+    <Route path="plots/booking" element={<PlotReports />} />
+    <Route path="plots/addbooking" element={<PlotBooking />} />
+    <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
+    <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+    <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+    <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
+    <Route path="plots/installments" element={<InstallmentCollection />} />
+    <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
+    <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
+    <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
+    <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
+    <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
+    <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
+    <Route path="plots/series-master" element={<PlotSeriesMaster />} />
+    <Route path="plots/products" element={<PlotProductsPage />} />
+    <Route path="plots/products/book" element={<ProductBookingPage />} />
+    <Route path="plots/reports" element={<PlotReports />} />
+    <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
+    <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
+    <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
+    <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
+    <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
+    <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
+    <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
+    <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
+    <Route path="plots/incentives" element={<PlotIncentivesPage />} />
+    <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
+    <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
+    <Route path="plots/closings" element={<PlotIncentivesPage />} />
+    <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
+    <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
+
+    <Route path="*" element={<Errorpage />} />
+  </Route>
+);
+
+const employeeRoutes = (
+  <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['employee']} />}>
+    <Route index element={<EmployeeDashboard />} />
+    <Route path="empattandence" element={<EmpAttenPerformance />} />
+    <Route path="profile" element={<EmployeeProfile />} />
+    <Route path="leave-request" element={<EmpLeave />} />
+    <Route path="my-leave-ledger" element={<MyLeaveLedger />} />
+    <Route path="my-ledger" element={<EmployeeFinancialLedger />} />
+    <Route path="setting" element={<Setting />} />
+    <Route path="*" element={<Errorpage />} />
+  </Route>
+);
+
+const sponsorRoutes = (
+  <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['sponsor']} />}>
+    <Route index element={<BusinessDeveloperDashboard />} />
+    <Route path="sponsor-dashboard" element={<BusinessDeveloperDashboard />} />
+    <Route path="business-developer-dashboard" element={<BusinessDeveloperDashboard />} />
+    <Route path="ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="ledger/:id" element={<LedgerDetailPage />} />
+    <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
+    <Route path="my-business" element={<BusinessDeveloperReportPage />} />
+    <Route path="my-bookings" element={<BusinessDeveloperBookingsPage />} />
+    <Route path="plots/bookings" element={<BusinessDeveloperBookingsPage />} />
+    <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
+    <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+    <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
+    <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
+    <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
+    <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
+    <Route path="profile" element={<AdminManagerProfile />} />
+    <Route path="*" element={<Errorpage />} />
+  </Route>
+);
+
+const developerRoutes = (
+  <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['developer']} />}>
+    <Route index element={<DeveloperDashboard />} />
+    <Route path="permission" element={<Permission />} />
+    <Route path="api-monitor" element={<ApiMonitor />} />
+    <Route path="error-logs" element={<ErrorLogs />} />
+    <Route path="activity-logs" element={<ActivityLogs />} />
+  </Route>
+);
+
 // 🔹 Role-based route definitions
 const routesByRole = {
-  admin: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['admin']} />}>
-      <Route index element={<AdminDashboard />} />
-      <Route path="employe" element={<Employe />} />
-      <Route path="organization" element={<OrganizationSettings />} />
-      <Route path="organization/company" element={<CompanyInfoPage />} />
-      <Route path="organization/branches" element={<BranchManagerPage />} />
-      <Route path="organization/departments" element={<DepartmentPage />} />
-      <Route path="organization/devices" element={<DeviceManagementPage />} />
-      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
-      <Route path="organization/admin" element={<AdminManagerPage />} />
-      <Route path="organization/users" element={<AdminManagerPage />} />
-      <Route path="organization/rules" element={<AttendanceRulesPage />} />
-      <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
-      <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
-      <Route path="attandence" element={<Attandence />} />
-      <Route path="attandence-import" element={<AttendanceExcelImport />} />
-      <Route path="attandence_Report" element={<AttendanceReport />} />
-      <Route path="holiday" element={<HolidayForm />} />
-      <Route path="activity-logs" element={<ActivityLogs />} />
-      <Route path="leave-request" element={<Adminleave />} />
-      <Route path="leave-ledger" element={<LeaveBalancePage />} />
-      <Route path="advance" element={<EmployeeAdvancePage />} />
-      <Route path="setting" element={<Setting />} />
-      <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
-      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
-      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
-      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
-      <Route path="ledger/:id" element={<LedgerDetailPage />} />
-      <Route path="performance/:userid" element={<AttenPerformance />} />
-      <Route path="payroll" element={<PayrollPage />} />
-      <Route path="payroll/add" element={<PayrollCreatePage />} />
-      <Route path="payroll/print/:id" element={<PayslipPrintPage />} />
-      <Route path="payroll/edit/:id" element={<PayrollEdit />} />
-      <Route path="vouchers" element={<VoucherList />} />
-      <Route path="vouchers/:id" element={<VoucherDetails />} />
-      <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/purchase" element={<PlotPurchasePage />} />
-      <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/agreements" element={<PlotPurchasePage />} />
-      <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
-      <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-      <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/customers" element={<PlotCustomers />} />
-      <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
-      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
-      <Route path="plots/booking" element={<PlotReports />} />
-      <Route path="plots/addbooking" element={<PlotBooking />} />
-      <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
-      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-      <Route path="plots/installments" element={<InstallmentCollection />} />
-      <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
-      <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
-      <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
-      <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
-      <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
-      <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
-      <Route path="plots/series-master" element={<PlotSeriesMaster />} />
-      <Route path="plots/products" element={<PlotProductsPage />} />
-      <Route path="plots/products/book" element={<ProductBookingPage />} />
-      <Route path="plots/reports" element={<PlotReports />} />
-      <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
-      <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
-      <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
-      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
-      <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
-      <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
-      <Route path="plots/incentives" element={<PlotIncentivesPage />} />
-      <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/closings" element={<PlotIncentivesPage />} />
-      <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
-
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-
-  ),
-  demo: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['demo']} />}>
-      <Route index element={<AdminDashboard />} />
-      <Route path="employe" element={<Employe />} />
-      <Route path="organization" element={<OrganizationSettings />} />
-      <Route path="organization/company" element={<CompanyInfoPage />} />
-      <Route path="organization/branches" element={<BranchManagerPage />} />
-      <Route path="organization/departments" element={<DepartmentPage />} />
-      <Route path="organization/devices" element={<DeviceManagementPage />} />
-      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
-      <Route path="organization/admin" element={<AdminManagerPage />} />
-      <Route path="organization/users" element={<AdminManagerPage />} />
-      <Route path="organization/rules" element={<AttendanceRulesPage />} />
-      <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
-      <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
-      <Route path="attandence" element={<Attandence />} />
-      <Route path="attandence-import" element={<AttendanceExcelImport />} />
-      <Route path="attandence_Report" element={<AttendanceReport />} />
-      <Route path="holiday" element={<HolidayForm />} />
-      <Route path="leave-request" element={<Adminleave />} />
-      <Route path="leave-ledger" element={<LeaveBalancePage />} />
-      <Route path="advance" element={<EmployeeAdvancePage />} />
-      <Route path="setting" element={<Setting />} />
-      <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
-      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
-      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
-      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
-      <Route path="ledger/:id" element={<LedgerDetailPage />} />
-      <Route path="performance/:userid" element={<AttenPerformance />} />
-      <Route path="payroll" element={<PayrollPage />} />
-      <Route path="payroll/add" element={<PayrollCreatePage />} />
-      <Route path="payroll/print/:id" element={<PayslipPrintPage />} />
-      <Route path="payroll/edit/:id" element={<PayrollEdit />} />
-      <Route path="vouchers" element={<VoucherList />} />
-      <Route path="vouchers/:id" element={<VoucherDetails />} />
-      <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/purchase" element={<PlotPurchasePage />} />
-      <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/agreements" element={<PlotPurchasePage />} />
-      <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
-      <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-      <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/customers" element={<PlotCustomers />} />
-      <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
-      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
-      <Route path="plots/booking" element={<PlotReports />} />
-      <Route path="plots/addbooking" element={<PlotBooking />} />
-      <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
-      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-      <Route path="plots/installments" element={<InstallmentCollection />} />
-      <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
-      <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
-      <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
-      <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
-      <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
-      <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
-      <Route path="plots/series-master" element={<PlotSeriesMaster />} />
-      <Route path="plots/products" element={<PlotProductsPage />} />
-      <Route path="plots/products/book" element={<ProductBookingPage />} />
-      <Route path="plots/reports" element={<PlotReports />} />
-      <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
-      <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
-      <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
-      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
-      <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
-      <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
-      <Route path="plots/incentives" element={<PlotIncentivesPage />} />
-      <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/closings" element={<PlotIncentivesPage />} />
-      <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-  ),
-
-  superadmin: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['superadmin']} />}>
-      <Route index element={<AdminDashboard />} />
-      <Route path="employe" element={<Employe />} />
-      <Route path="organization" element={<OrganizationSettings />} />
-      <Route path="organization/company" element={<CompanyInfoPage />} />
-      <Route path="organization/branches" element={<BranchManagerPage />} />
-      <Route path="organization/departments" element={<DepartmentPage />} />
-      <Route path="organization/devices" element={<DeviceManagementPage />} />
-      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
-      <Route path="organization/admin" element={<AdminManagerPage />} />
-      <Route path="organization/users" element={<AdminManagerPage />} />
-      <Route path="organization/rules" element={<AttendanceRulesPage />} />
-      <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
-      <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
-      <Route path="attandence" element={<Attandence />} />
-      <Route path="attandence-import" element={<AttendanceExcelImport />} />
-      <Route path="attandence_Report" element={<AttendanceReport />} />
-      <Route path="holiday" element={<HolidayForm />} />
-      <Route path="activity-logs" element={<ActivityLogs />} />
-      <Route path="leave-request" element={<Adminleave />} />
-      <Route path="leave-ledger" element={<LeaveBalancePage />} />
-      <Route path="advance" element={<EmployeeAdvancePage />} />
-      <Route path="setting" element={<Setting />} />
-      <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="ledger" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
-      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
-      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
-      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
-      <Route path="ledger/:id" element={<LedgerDetailPage />} />
-      <Route path="performance/:userid" element={<AttenPerformance />} />
-      <Route path="payroll" element={<PayrollPage />} />
-      <Route path="payroll/add" element={<PayrollCreatePage />} />
-      <Route path="payroll/print/:id" element={<PayslipPrintPage />} />
-      <Route path="payroll/edit/:id" element={<PayrollEdit />} />
-      <Route path="vouchers" element={<VoucherList />} />
-      <Route path="vouchers/:id" element={<VoucherDetails />} />
-      <Route path="plots/dashboard" element={<PlotDashboard />} />
-      <Route path="plots/purchase" element={<PlotPurchasePage />} />
-      <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/agreements" element={<PlotPurchasePage />} />
-      <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
-      <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
-      <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-      <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
-      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/customers" element={<PlotCustomers />} />
-      <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
-      <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
-      <Route path="plots/booking" element={<PlotReports />} />
-      <Route path="plots/addbooking" element={<PlotBooking />} />
-      <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
-      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-      <Route path="plots/installments" element={<InstallmentCollection />} />
-      <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
-      <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
-      <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
-      <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
-      <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
-      <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
-      <Route path="plots/series-master" element={<PlotSeriesMaster />} />
-      <Route path="plots/products" element={<PlotProductsPage />} />
-      <Route path="plots/products/book" element={<ProductBookingPage />} />
-      <Route path="plots/reports" element={<PlotReports />} />
-      <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
-      <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
-      <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
-      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
-      <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
-      <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
-      <Route path="plots/incentives" element={<PlotIncentivesPage />} />
-      <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/closings" element={<PlotIncentivesPage />} />
-      <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
-      <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
-
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-  ),
-
-  manager: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['manager']} />}>
-      <Route index element={<ManagerDashboard />} />
-      <Route path="employe" element={<Employe />} />
-      <Route path="attandence" element={<Attandence />} />
-      <Route path="attandence_Report" element={<AttendanceReport />} />
-      <Route path="leave-request" element={<Adminleave />} />
-      <Route path="leave-ledger" element={<LeaveBalancePage />} />
-      <Route path="advance" element={<EmployeeAdvancePage />} />
-      <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="setting" element={<Setting />} />
-      <Route path="ledger" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
-      <Route path="ledger/sellers" element={<SellerLedgerPage />} />
-      <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
-      <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
-      <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
-      <Route path="ledger/:id" element={<LedgerDetailPage />} />
-      <Route path="performance/:userid" element={<AttenPerformance />} />
-      <Route path="payroll" element={<PayrollPage />} />
-      <Route path="payroll/add" element={<PayrollCreatePage />} />
-      <Route path="payroll/print/:id" element={<PayslipPrintPage />} />
-      <Route path="payroll/edit/:id" element={<PayrollEdit />} />
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-  ),
-  employee: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['employee']} />}>
-      <Route index element={<EmployeeDashboard />} />
-      <Route path="empattandence" element={<EmpAttenPerformance />} />
-      <Route path="profile" element={<EmployeeProfile />} />
-      <Route path="leave-request" element={<EmpLeave />} />
-      <Route path="my-leave-ledger" element={<MyLeaveLedger />} />
-      <Route path="my-ledger" element={<EmployeeFinancialLedger />} />
-      <Route path="setting" element={<Setting />} />
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-  ),
-  sponsor: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['sponsor']} />}>
-      <Route index element={<BusinessDeveloperDashboard />} />
-      <Route path="sponsor-dashboard" element={<BusinessDeveloperDashboard />} />
-      <Route path="business-developer-dashboard" element={<BusinessDeveloperDashboard />} />
-      <Route path="ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="ledger/:id" element={<LedgerDetailPage />} />
-      <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
-      <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
-      <Route path="my-business" element={<BusinessDeveloperReportPage />} />
-      <Route path="my-bookings" element={<BusinessDeveloperBookingsPage />} />
-      <Route path="plots/bookings" element={<BusinessDeveloperBookingsPage />} />
-      <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
-      <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
-      <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
-      <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
-      <Route path="profile" element={<AdminManagerProfile />} />
-      <Route path="*" element={<Errorpage />} />
-    </Route>
-  ),
-  developer: (
-    <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={['developer']} />}>
-      <Route index element={<DeveloperDashboard />} />
-      <Route path="permission" element={<Permission />} />
-      <Route path="api-monitor" element={<ApiMonitor />} />
-      <Route path="error-logs" element={<ErrorLogs />} />
-      <Route path="activity-logs" element={<ActivityLogs />} />
-    </Route>
-  ),
+  admin: managementRoutes,
+  superadmin: managementRoutes,
+  demo: managementRoutes,
+  manager: managementRoutes,
+  accountant: managementRoutes,
+  cashier: managementRoutes,
+  hr: managementRoutes,
+  sales: managementRoutes,
+  operator: managementRoutes,
+  auditor: managementRoutes,
+  staff: managementRoutes,
+  other: managementRoutes,
+  employee: employeeRoutes,
+  sponsor: sponsorRoutes,
+  developer: developerRoutes,
 };
 
 function App() {
@@ -510,7 +333,7 @@ function App() {
   useEffect(() => {
     const role = effectiveRole;
 
-    if (['superadmin', 'admin', 'manager', 'demo'].includes(role)) {
+    if (MANAGEMENT_ROLES.includes(role)) {
       dispatch(FirstFetch());
     } else if (role === 'employee') {
       dispatch(empFirstFetch());

@@ -26,6 +26,11 @@ const investmentReceiptSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    ledgerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ledger',
+      default: null,
+    },
     amount: {
       type: Number,
       required: true,

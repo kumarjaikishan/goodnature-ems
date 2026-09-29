@@ -339,11 +339,84 @@ const createLedgerForKisans = async () => {
   });
 };
 
+const createLedgerForUsers = async () => {
+  return await withTransaction(async (session) => {
+    const User = mongoose.model('User');
+    // Staff/billing users created by admin who have cash custody (e.g. manager, admin, accountant, cashier, operator, hr, sales, auditor, staff, superadmin, developer)
+    const allowedRoles = ['superadmin', 'admin', 'manager', 'accountant', 'cashier', 'operator', 'hr', 'sales', 'auditor', 'staff', 'other', 'developer', 'grant'];
+    const users = await User.find(
+      { role: { $in: allowedRoles } },
+      null,
+      session ? { session } : {}
+    );
+
+    for (const u of users) {
+      const q = Ledger.findOne({ assignedUserId: u._id, ledgerType: 'user_cash' });
+      if (session) q.session(session);
+      let ledger = await q;
+
+      if (!ledger) {
+        const [newLedger] = await Ledger.create(
+          [
+            {
+              name: `${u.name} (Cash Ledger)`,
+              assignedUserId: u._id,
+              empId: u.sponsorCode || u.customerId || u.email?.split('@')[0] || '',
+              profileImage: u.profileImage || u.photo || '',
+              ledgerType: 'user_cash',
+              status: 'active',
+              advance: 0
+            }
+          ],
+          session ? { session } : {}
+        );
+      } else {
+        const expectedName = `${u.name} (Cash Ledger)`;
+        let updated = false;
+        if (ledger.name !== expectedName && !ledger.name.includes('(Cash Ledger)')) {
+          ledger.name = expectedName;
+          updated = true;
+        }
+        if (u.profileImage && ledger.profileImage !== u.profileImage) {
+          ledger.profileImage = u.profileImage;
+          updated = true;
+        }
+        if (updated) await ledger.save(session ? { session } : {});
+      }
+    }
+
+    // Clean up any empty user_cash ledgers previously auto-created for non-management/non-billing staff (e.g. employee role)
+    const nonStaffUsers = await User.find(
+      { role: { $nin: allowedRoles } },
+      null,
+      session ? { session } : {}
+    );
+    const nonStaffUserIds = nonStaffUsers.map(u => u._id);
+    if (nonStaffUserIds.length > 0) {
+      const emptyCashLedgers = await Ledger.find(
+        {
+          ledgerType: 'user_cash',
+          assignedUserId: { $in: nonStaffUserIds }
+        },
+        null,
+        session ? { session } : {}
+      );
+      for (const ecl of emptyCashLedgers) {
+        const entryCount = await Entry.countDocuments({ ledgerId: ecl._id });
+        if (entryCount === 0 && (!ecl.advance || ecl.advance === 0)) {
+          await Ledger.findByIdAndDelete(ecl._id, session ? { session } : {});
+        }
+      }
+    }
+  });
+};
+
 const ledger = async (req, res) => {
   try {
     await createLedgerForEmployee();
     await createLedgerForSponsors();
     await createLedgerForKisans();
+    await createLedgerForUsers();
 
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 0;
@@ -354,6 +427,8 @@ const ledger = async (req, res) => {
         { ledgerType: 'employee' },
         { ledgerType: 'sponsor' },
         { ledgerType: 'kisan' },
+        { ledgerType: 'bank' },
+        { ledgerType: 'user_cash' },
         { userId: req.userid },
         { userId: { $exists: false } },
         { userId: null }
@@ -368,6 +443,10 @@ const ledger = async (req, res) => {
       .populate({
         path: 'kisanSellerId',
         select: 'name mobile panNumber aadhaarNumber address'
+      })
+      .populate({
+        path: 'assignedUserId',
+        select: 'name email role mobile profileImage'
       })
       .populate({
         path: 'sponsorId',
@@ -402,6 +481,12 @@ const ledger = async (req, res) => {
       if (type === 'kisan') {
         return Boolean(l.kisanSellerId);
       }
+      if (type === 'bank') {
+        return l.status !== 'inactive';
+      }
+      if (type === 'user_cash') {
+        return Boolean(l.assignedUserId);
+      }
       return true;
     });
 
@@ -412,14 +497,29 @@ const ledger = async (req, res) => {
       slicedLedgers = visibleLedgers.slice((page - 1) * limit, page * limit);
     }
 
+    const FundTransfer = mongoose.model('FundTransfer');
+
     const ledgersWithBalance = await Promise.all(
       slicedLedgers.map(async (ledger) => {
         const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
           .sort({ date: -1, createdAt: -1, _id: -1 });
 
+        let heldBalance = 0;
+        try {
+          const pendingTransfers = await FundTransfer.find({
+            fromLedgerId: ledger._id,
+            status: 'PENDING'
+          });
+          heldBalance = pendingTransfers.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        } catch (e) {}
+
+        const netBalance = lastEntry ? lastEntry.balance : (ledger.advance || 0);
+
         return {
           ...ledger.toObject(),
-          netBalance: lastEntry ? lastEntry.balance : 0
+          netBalance,
+          heldBalance,
+          availableBalance: netBalance - heldBalance
         };
       })
     );
@@ -431,6 +531,234 @@ const ledger = async (req, res) => {
   } catch (err) {
     console.error("Error fetching ledgers:", err);
     res.status(500).json({ error: "Failed to fetch ledgers" });
+  }
+};
+
+/**
+ * Get Treasury Ledgers (Bank Accounts + User Cash Ledgers)
+ * Used in Receipt collection, Vouchers disbursement, and Fund Transfers
+ */
+const getTreasuryLedgers = async (req, res) => {
+  try {
+    await createLedgerForUsers();
+
+    const ledgers = await Ledger.find({
+      ledgerType: { $in: ['bank', 'user_cash'] },
+      status: { $ne: 'inactive' }
+    })
+      .populate('assignedUserId', 'name email role mobile profileImage')
+      .sort({ ledgerType: 1, name: 1 });
+
+    const FundTransfer = mongoose.model('FundTransfer');
+
+    const enriched = await Promise.all(
+      ledgers.map(async (l) => {
+        const lastEntry = await Entry.findOne({ ledgerId: l._id })
+          .sort({ date: -1, createdAt: -1, _id: -1 });
+        
+        let heldBalance = 0;
+        try {
+          const pendingTransfers = await FundTransfer.find({
+            fromLedgerId: l._id,
+            status: 'PENDING'
+          });
+          heldBalance = pendingTransfers.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        } catch (e) {}
+
+        const netBalance = lastEntry ? lastEntry.balance : (l.advance || 0);
+
+        return {
+          ...l.toObject(),
+          netBalance,
+          heldBalance,
+          availableBalance: netBalance - heldBalance
+        };
+      })
+    );
+
+    const allowedRoles = ['superadmin', 'admin', 'manager', 'accountant', 'cashier', 'developer', 'grant'];
+    const bankLedgers = enriched.filter(l => l.ledgerType === 'bank');
+    const cashLedgers = enriched.filter(l => {
+      if (l.ledgerType !== 'user_cash') return false;
+      const role = l.assignedUserId?.role;
+      return allowedRoles.includes(role) || (l.netBalance !== 0 || (l.heldBalance || 0) !== 0);
+    });
+
+    return res.status(200).json({
+      success: true,
+      bankLedgers,
+      cashLedgers,
+      bankAccounts: bankLedgers,
+      cashAccounts: cashLedgers,
+      allTreasuryLedgers: enriched,
+      data: {
+        bankAccounts: bankLedgers,
+        cashAccounts: cashLedgers,
+        bankLedgers,
+        cashLedgers,
+        allTreasuryLedgers: enriched
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching treasury ledgers:", err);
+    return res.status(500).json({ error: "Failed to fetch treasury ledgers" });
+  }
+};
+
+/**
+ * Get the currently logged-in user's Cash Ledger
+ */
+const getMyCashLedger = async (req, res) => {
+  try {
+    await createLedgerForUsers();
+
+    let cashLedger = await Ledger.findOne({
+      assignedUserId: req.user.id,
+      ledgerType: 'user_cash'
+    }).populate('assignedUserId', 'name email role mobile profileImage');
+
+    if (!cashLedger) {
+      cashLedger = new Ledger({
+        name: `${req.user.name || 'My'} (Cash Ledger)`,
+        assignedUserId: req.user.id,
+        ledgerType: 'user_cash',
+        status: 'active',
+        advance: 0
+      });
+      await cashLedger.save();
+    }
+
+    const lastEntry = await Entry.findOne({ ledgerId: cashLedger._id })
+      .sort({ date: -1, createdAt: -1, _id: -1 });
+
+    const FundTransfer = mongoose.model('FundTransfer');
+    let heldBalance = 0;
+    try {
+      const pendingTransfers = await FundTransfer.find({
+        fromLedgerId: cashLedger._id,
+        status: 'PENDING'
+      });
+      heldBalance = pendingTransfers.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    } catch (e) {}
+
+    const netBalance = lastEntry ? lastEntry.balance : (cashLedger.advance || 0);
+
+    return res.status(200).json({
+      ...cashLedger.toObject(),
+      netBalance,
+      heldBalance,
+      availableBalance: netBalance - heldBalance
+    });
+  } catch (err) {
+    console.error("Error fetching user cash ledger:", err);
+    return res.status(500).json({ error: "Failed to fetch cash ledger" });
+  }
+};
+
+/**
+ * Create Bank Ledger
+ */
+const createBankLedger = async (req, res) => {
+  try {
+    const { name, bankName, accountNumber, ifscCode, branchName, accountType, openingBalance } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Ledger account name is required" });
+    }
+
+    const existing = await Ledger.findOne({
+      $or: [
+        { name: name.trim() },
+        ...(accountNumber ? [{ accountNumber: accountNumber.trim(), ledgerType: 'bank' }] : [])
+      ]
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: "A ledger or bank account with this name/account number already exists." });
+    }
+
+    const initialBal = Number(openingBalance) || 0;
+
+    const bankLedger = new Ledger({
+      name: name.trim(),
+      bankName: bankName ? bankName.trim() : '',
+      accountNumber: accountNumber ? accountNumber.trim() : '',
+      ifscCode: ifscCode ? ifscCode.trim().toUpperCase() : '',
+      branchName: branchName ? branchName.trim() : '',
+      accountType: accountType || 'CURRENT',
+      openingBalance: initialBal,
+      ledgerType: 'bank',
+      status: 'active',
+      userId: req.userid,
+      advance: 0
+    });
+
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'ems/ledger/banks'
+      });
+      bankLedger.profileImage = uploadResult.secure_url;
+      fs.unlink(req.file.path, () => {});
+    }
+
+    await bankLedger.save();
+
+    if (initialBal > 0) {
+      await accountingService.recordLedgerEntry({
+        ledgerId: bankLedger._id,
+        date: new Date(),
+        type: 'CREDIT',
+        amount: initialBal,
+        source: 'manual',
+        remarks: 'Opening Balance'
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Bank Ledger created successfully",
+      ledger: bankLedger
+    });
+  } catch (err) {
+    console.error("Create bank ledger error:", err);
+    return res.status(500).json({ error: "Failed to create bank ledger", details: err.message });
+  }
+};
+
+/**
+ * Update Bank Ledger
+ */
+const updateBankLedger = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, bankName, accountNumber, ifscCode, branchName, accountType, status } = req.body;
+
+    const bankLedger = await Ledger.findById(id);
+    if (!bankLedger) return res.status(404).json({ message: "Bank Ledger not found" });
+
+    if (name) bankLedger.name = name.trim();
+    if (bankName !== undefined) bankLedger.bankName = bankName.trim();
+    if (accountNumber !== undefined) bankLedger.accountNumber = accountNumber.trim();
+    if (ifscCode !== undefined) bankLedger.ifscCode = ifscCode.trim().toUpperCase();
+    if (branchName !== undefined) bankLedger.branchName = branchName.trim();
+    if (accountType) bankLedger.accountType = accountType;
+    if (status) bankLedger.status = status;
+
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'ems/ledger/banks'
+      });
+      bankLedger.profileImage = uploadResult.secure_url;
+      fs.unlink(req.file.path, () => {});
+    }
+
+    await bankLedger.save();
+    return res.status(200).json({
+      success: true,
+      message: "Bank Ledger updated successfully",
+      ledger: bankLedger
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to update bank ledger" });
   }
 };
 
@@ -705,5 +1033,10 @@ module.exports = {
   updateEntry,
   deleteEntry,
   recalculateBalances,
-  getMyLedger
+  getMyLedger,
+  createLedgerForUsers,
+  getTreasuryLedgers,
+  getMyCashLedger,
+  createBankLedger,
+  updateBankLedger
 };

@@ -29,16 +29,20 @@ import {
   Building2,
 } from 'lucide-react';
 import { toast } from '../../../utils/toast';
-import { confirmDialog } from '../../../utils/confirmDialog';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import useImageUpload from '../../../utils/imageresizer';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import usePermission from '../../../utils/CheckPermission';
 
 const PlotBusinessDevelopers = () => {
   const navigate = useNavigate();
   const { handleImage } = useImageUpload();
   const { branch, profile } = useSelector((state) => state.user || {});
+
+  const canCreate = usePermission('plot_developer', 2);
+  const canUpdate = usePermission('plot_developer', 3);
+  const canDelete = usePermission('plot_developer', 4);
 
   const [businessDevelopers, setBusinessDevelopers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -539,38 +543,46 @@ const PlotBusinessDevelopers = () => {
           >
             <BookOpen size={15} />
           </button>
-          <button
-            onClick={() => handleOpenResetPassword(row)}
-            className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
-            title="Reset Login Password"
-          >
-            <KeyRound size={15} />
-          </button>
-          <button
-            onClick={() => handleOpenModal(row)}
-            className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
-            title="Edit Developer Information"
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            onClick={() => handleToggleBlock(row)}
-            className={`p-1.5 rounded-lg border transition cursor-pointer ${
-              row.isBlocked
-                ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
-                : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
-            }`}
-            title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
-          >
-            {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
-          </button>
-          <button
-            onClick={() => handleDeleteDeveloper(row)}
-            className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
-            title="Delete Business Developer"
-          >
-            <Trash2 size={15} />
-          </button>
+          {canUpdate && (
+            <button
+              onClick={() => handleOpenResetPassword(row)}
+              className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
+              title="Reset Login Password"
+            >
+              <KeyRound size={15} />
+            </button>
+          )}
+          {canUpdate && (
+            <button
+              onClick={() => handleOpenModal(row)}
+              className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
+              title="Edit Developer Information"
+            >
+              <Pencil size={15} />
+            </button>
+          )}
+          {canUpdate && (
+            <button
+              onClick={() => handleToggleBlock(row)}
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                row.isBlocked
+                  ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
+                  : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
+              }`}
+              title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
+            >
+              {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => handleDeleteDeveloper(row)}
+              className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
+              title="Delete Business Developer"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -584,26 +596,28 @@ const PlotBusinessDevelopers = () => {
           <h1 className="text-2xl font-bold text-slate-800">Business Developers</h1>
           <p className="text-slate-500 text-sm">Manage plot project business partners, associates, and hierarchy</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            variant="primary"
-            size="md"
-            startIcon={Crown}
-            onClick={() => handleOpenModal(null, 'partner')}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-xs"
-          >
-            Create Business Partner
-          </Button>
-          <Button
-            variant="primary"
-            size="md"
-            startIcon={Users}
-            onClick={() => handleOpenModal(null, 'associate')}
-            className="bg-teal-700 hover:bg-teal-800 text-white font-semibold shadow-xs"
-          >
-            Create Business Associate
-          </Button>
-        </div>
+        {canCreate && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              variant="primary"
+              size="md"
+              startIcon={Crown}
+              onClick={() => handleOpenModal(null, 'partner')}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-xs"
+            >
+              Create Business Partner
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              startIcon={Users}
+              onClick={() => handleOpenModal(null, 'associate')}
+              className="bg-teal-700 hover:bg-teal-800 text-white font-semibold shadow-xs"
+            >
+              Create Business Associate
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filter & Search Bar */}

@@ -57,8 +57,6 @@ async function run() {
   console.log('✅ Connected to MongoDB');
 
   const User = require('../models/user');
-  let redisClient = null;
-
   const roles = Object.keys(PLOT_DEFAULTS_BY_ROLE);
   const users = await User.find({ role: { $in: roles } });
   console.log(`Found ${users.length} users to check (roles: ${roles.join(', ')}).`);
@@ -81,9 +79,6 @@ async function run() {
     if (changed) {
       await user.save();
       updated++;
-      if (redisClient && redisClient.isOpen) {
-        await redisClient.del(`permissions:${user._id}`).catch(() => {});
-      }
     } else {
       skipped++;
     }

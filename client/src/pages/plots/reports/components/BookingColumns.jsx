@@ -11,6 +11,8 @@ export const getBookingColumns = ({
   deletingId,
   setSetupPayoutBooking,
   setSetupPayoutForm,
+  canUpdate = true,
+  canDelete = true,
 }) => [
   {
     name: 'Booking Date',
@@ -199,65 +201,73 @@ export const getBookingColumns = ({
         })()}
 
         {/* 5. Edit Booking Contract */}
-        <button
-          onClick={() => {
-            if (handleEditClick) {
-              handleEditClick(b);
-            } else if (navigate) {
-              navigate(`/dashboard/plots/booking/edit/${b._id}`);
-            }
-          }}
-          title="Edit Booking Contract"
-          className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
-        >
-          <Edit3 size={15} />
-        </button>
+        {canUpdate && (
+          <button
+            onClick={() => {
+              if (handleEditClick) {
+                handleEditClick(b);
+              } else if (navigate) {
+                navigate(`/dashboard/plots/booking/edit/${b._id}`);
+              }
+            }}
+            title="Edit Booking Contract"
+            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
+          >
+            <Edit3 size={15} />
+          </button>
+        )}
 
         {/* 6. View Revision & Restructuring History */}
-        <button
-          onClick={() => openRevisionsModal(b)}
-          title="View Contract Revision History & Audits"
-          className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs relative"
-        >
-          <History size={15} />
-          {(b.revisionCount || 0) > 0 && (
-            <span className="absolute -top-1 -right-1 bg-teal-700 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-              {b.revisionCount}
-            </span>
-          )}
-        </button>
+        {canUpdate && (
+          <button
+            onClick={() => openRevisionsModal(b)}
+            title="View Contract Revision History & Audits"
+            className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs relative"
+          >
+            <History size={15} />
+            {(b.revisionCount || 0) > 0 && (
+              <span className="absolute -top-1 -right-1 bg-teal-700 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                {b.revisionCount}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* 7. Delete Booking */}
-        <button
-          onClick={() => openDeleteBookingModal(b)}
-          disabled={deletingId === b._id}
-          title="Delete Booking"
-          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
-        >
-          {deletingId === b._id ? (
-            <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Trash2 size={15} />
-          )}
-        </button>
+        {canDelete && (
+          <button
+            onClick={() => openDeleteBookingModal(b)}
+            disabled={deletingId === b._id}
+            title="Delete Booking"
+            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
+          >
+            {deletingId === b._id ? (
+              <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Trash2 size={15} />
+            )}
+          </button>
+        )}
 
         {/* 8. Money-Back Payouts Setup / Ledger */}
         {b.scheme === 'FULL_PAYMENT' && b.remainingAmount === 0 && (
           <>
             {!b.payoutStatus || b.payoutStatus === 'INACTIVE' ? (
-              <button
-                onClick={() => {
-                  setSetupPayoutBooking(b);
-                  setSetupPayoutForm({
-                    startDate: new Date().toISOString().split('T')[0],
-                    weeklyAmount: Math.round((b.plotValue / 500) * 100) / 100,
-                  });
-                }}
-                title="Setup Weekly Money-Back Payouts"
-                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200 shadow-2xs"
-              >
-                <CalendarPlus size={15} />
-              </button>
+              canUpdate && (
+                <button
+                  onClick={() => {
+                    setSetupPayoutBooking(b);
+                    setSetupPayoutForm({
+                      startDate: new Date().toISOString().split('T')[0],
+                      weeklyAmount: Math.round((b.plotValue / 500) * 100) / 100,
+                    });
+                  }}
+                  title="Setup Weekly Money-Back Payouts"
+                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200 shadow-2xs"
+                >
+                  <CalendarPlus size={15} />
+                </button>
+              )
             ) : (
               <button
                 onClick={() => navigate(`/dashboard/plots/payout-ledger?bookingId=${b._id}`)}

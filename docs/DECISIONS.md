@@ -32,3 +32,8 @@ This document lists foundational architectural decisions that must not be altere
 - **Decision**: Sponsor commissions are earned and credited strictly on a **Collection Basis** (per receipt / payment collected, e.g. downpayment or monthly EMI installment) using the booking's locked tenure matrix slab percentages, rather than on the gross plot value upfront.
 - **Rationale**: Ensures commission payouts are synchronized with real incoming cash flow.
 
+## 8. Treasury Multi-Ledger & In-Transit Maker-Checker Transfer Architecture
+- **Decision**: Cashier physical cash is modeled via dedicated `ledgerType: 'user_cash'` ledgers assigned to staff, corporate bank accounts via `ledgerType: 'bank'`, and inter-account movements require Maker-Checker 2-step approvals (`FundTransfer`). During `PENDING` transfers, available balance is calculated as $\text{Available} = \text{Current Balance} - \text{Pending In-Transit Transfers}$ without prematurely writing ledger entries.
+- **Rationale**: Prevents ledger balance drift upon transfer rejection/cancellation, prevents double-spending / overdrafts, and guarantees mathematical balance integrity through atomic double-entry bookkeeping upon approval.
+
+

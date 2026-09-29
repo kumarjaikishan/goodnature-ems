@@ -52,8 +52,12 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
     paymentMode: 'cash',
     transactionReference: '',
     remarks: '',
+    ledgerId: '',
   });
 
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [cashAccounts, setCashAccounts] = useState([]);
+  const [myCashLedger, setMyCashLedger] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Fetch active bookings list
@@ -61,13 +65,29 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
     const fetchActiveBookings = async () => {
       setBookingsLoading(true);
       try {
-        const [bookingsRes, rateRes] = await Promise.all([
+        const [bookingsRes, rateRes, treasuryRes, myCashRes] = await Promise.all([
           api.get('/plots/product-bookings?status=ACTIVE'),
           api.get('/plots/rate-config'),
+          api.get('/ledger/treasury').catch(() => ({ data: { data: {} } })),
+          api.get('/ledger/my-cash-account').catch(() => null),
         ]);
 
         const bList = bookingsRes.data?.data || [];
         setBookings(bList);
+
+        const bAccs = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
+        const cAccs = treasuryRes.data?.cashLedgers || treasuryRes.data?.cashAccounts || treasuryRes.data?.data?.cashAccounts || treasuryRes.data?.data?.cashLedgers || [];
+        setBankAccounts(bAccs);
+        setCashAccounts(cAccs);
+
+        const myCash = myCashRes?.data?.data || myCashRes?.data || null;
+        setMyCashLedger(myCash);
+
+        const isCash = String(form.paymentMode).toLowerCase() === 'cash';
+        const defaultLedger = isCash ? (myCash?._id || cAccs[0]?._id || '') : (bAccs[0]?._id || '');
+        if (defaultLedger) {
+          setForm((f) => ({ ...f, ledgerId: defaultLedger }));
+        }
 
         const rData = rateRes.data?.data || {};
         const emiGrace = rData.emiGracePeriodDays ?? rData.lateFineGraceDays ?? 15;
@@ -288,6 +308,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
         paymentMode: form.paymentMode,
         transactionReference: form.transactionReference.trim(),
         paymentDate: form.paymentDate,
+        ledgerId: form.ledgerId || undefined,
         remarks: form.remarks.trim(),
       };
 
@@ -788,7 +809,12 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 </label>
                 <select
                   value={form.paymentMode}
-                  onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
+                  onChange={(e) => {
+                    const newMode = e.target.value;
+                    const isCash = String(newMode).toLowerCase() === 'cash';
+                    const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
+                    setForm({ ...form, paymentMode: newMode, ledgerId: defaultId });
+                  }}
                   required
                   className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
                 >
@@ -796,6 +822,36 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                   <option value="online">Online / UPI</option>
                   <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
                   <option value="cheque">Cheque</option>
+                </select>
+              </div>
+
+              {/* Receiving Account */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'} *
+                </label>
+                <select
+                  value={form.ledgerId || ''}
+                  disabled={String(form.paymentMode).toLowerCase() === 'cash'}
+                  onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
+                  className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
+                >
+                  {String(form.paymentMode).toLowerCase() === 'cash' ? (
+                    <option value={myCashLedger?._id || ''}>
+                      {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
+                    </option>
+                  ) : (
+                    <>
+                      {bankAccounts.map((b) => (
+                        <option key={b._id} value={b._id}>
+                          {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
+                        </option>
+                      ))}
+                      {bankAccounts.length === 0 && (
+                        <option value="">Default Company Bank</option>
+                      )}
+                    </>
+                  )}
                 </select>
               </div>
 

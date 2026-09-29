@@ -97,3 +97,19 @@ graph TD
 - Endpoint: `GET /events?token=<jwt>`
 - Server maintains connected clients with metadata (`companyId`, `branchId`, `role`).
 - `sendToClients(data, companyId, branchId)` delivers selective event payloads (e.g. punch-in, checkout, system notifications) only to relevant branch managers and company admins.
+
+### D. Multi-Ledger Treasury & Inter-Ledger Fund Transfer Flow
+```
+1. Maker (Cashier/Staff) Initiates Transfer (e.g., Cash-in-Hand ──> Corporate Bank Deposit)
+   │ Validates Available Balance: NetBalance - InTransitHeld >= TransferAmount
+   ▼
+2. FundTransfer Created (Status: 'PENDING', Unique Code: TRF-YY-XXX, Deposit Slip Uploaded)
+   │ Available Balance on Source Ledger automatically locks 'InTransitHeld' amount
+   ▼
+3. Checker (Recipient Cashier or Admin / Superadmin) Reviews Request & Deposit Slip
+   ├── [REJECT / CANCEL]: Status ──> 'REJECTED'/'CANCELLED', In-Transit lock released immediately
+   └── [APPROVE]: Executes Atomic Mongo Transaction:
+         ├── DEBIT Source Ledger Entry (source: 'transfer', refId: transfer._id)
+         ├── CREDIT Target Ledger Entry (source: 'transfer', refId: transfer._id)
+         └── Updates FundTransfer to 'APPROVED' with debitEntryId & creditEntryId
+```

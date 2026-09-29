@@ -179,7 +179,15 @@ export const getDueColumns = ({ navigate }) => [
   },
 ];
 
-export const getHoldColumns = ({ navigate, handleEditClick, handleDeleteBooking, deletingId, getHoldHoursLeft }) => [
+export const getHoldColumns = ({
+  navigate,
+  handleEditClick,
+  handleDeleteBooking,
+  deletingId,
+  getHoldHoursLeft,
+  canUpdate = true,
+  canDelete = true,
+}) => [
   {
     name: 'Plot #',
     selector: (row) => row.plotId?.plotNumber || '',
@@ -271,25 +279,29 @@ export const getHoldColumns = ({ navigate, handleEditClick, handleDeleteBooking,
             <Receipt size={15} />
           </button>
         )}
-        <button
-          onClick={() => handleEditClick(h)}
-          title="Edit Hold Reservation"
-          className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
-        >
-          <Edit3 size={15} />
-        </button>
-        <button
-          onClick={() => handleDeleteBooking(h._id)}
-          disabled={deletingId === h._id}
-          title="Delete Hold Reservation"
-          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
-        >
-          {deletingId === h._id ? (
-            <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Trash2 size={15} />
-          )}
-        </button>
+        {canUpdate && (
+          <button
+            onClick={() => handleEditClick(h)}
+            title="Edit Hold Reservation"
+            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
+          >
+            <Edit3 size={15} />
+          </button>
+        )}
+        {canDelete && (
+          <button
+            onClick={() => handleDeleteBooking(h._id)}
+            disabled={deletingId === h._id}
+            title="Delete Hold Reservation"
+            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
+          >
+            {deletingId === h._id ? (
+              <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Trash2 size={15} />
+            )}
+          </button>
+        )}
       </div>
     ),
   },

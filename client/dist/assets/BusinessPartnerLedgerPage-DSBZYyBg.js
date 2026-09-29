@@ -1,0 +1,1 @@
+import"./rolldown-runtime-hePW80VL.js";import{Kn as e,t}from"./vendor-react-SA2V7MfT.js";import n from"./ledgerpagelist-BnKL-BDb.js";e();var r=t(),i=()=>(0,r.jsx)(n,{category:`partner`,defaultView:`table`});export{i as default};

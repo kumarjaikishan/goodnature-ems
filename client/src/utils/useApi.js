@@ -42,14 +42,17 @@ export const useApi = () => {
             const currentPath = window.location.pathname;
             const isAuthPage = currentPath === "/logout" || currentPath === "/login";
             const msg = (err?.message || "").toLowerCase();
+            
+            // Only 401 (Unauthorized / Invalid or Expired Token) should force a redirect to /logout.
+            // 403 (Forbidden / Permission Denied) is an RBAC restriction; the user remains logged in.
             const isAuthFailure =
-                [401, 403, 405].includes(err?.status) ||
+                err?.status === 401 ||
                 msg.includes("jwt expired") ||
                 msg.includes("session expired") ||
                 msg.includes("unauthorized");
 
             if (err.isApiError && !isAuthPage) {
-                toast.warn(err.message, { autoClose: 2500, toastId: isAuthFailure ? "auth-toast" : undefined });
+                toast.warn(err.message, { autoClose: 3500, toastId: isAuthFailure ? "auth-toast" : undefined });
             } else if (!isAuthPage) {
                 toast.error(err.message || "Unexpected error occurred", { toastId: isAuthFailure ? "auth-toast" : undefined });
             }

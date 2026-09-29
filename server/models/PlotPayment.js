@@ -7,6 +7,10 @@ const plotPaymentSchema = new mongoose.Schema(
       ref: 'PlotBooking',
       required: true,
     },
+    ledgerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ledger',
+    },
     amount: {
       type: Number,
       required: true,

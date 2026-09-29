@@ -8,6 +8,7 @@ import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import Button from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
+import usePermission from '../../../utils/CheckPermission';
 
 import { getBookingColumns } from './components/BookingColumns';
 import { getDueColumns, getHoldColumns } from './components/DueAndHoldColumns';
@@ -21,6 +22,10 @@ const PlotReports = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isReportsPage = location.pathname.includes('/reports');
+
+  const canCreate = usePermission('plot_booking', 2);
+  const canUpdate = usePermission('plot_booking', 3);
+  const canDelete = usePermission('plot_booking', 4);
 
   const [activeTab, setActiveTab] = useState(isReportsPage ? 'dues' : 'bookings');
 
@@ -254,8 +259,10 @@ const PlotReports = () => {
         deletingId,
         setSetupPayoutBooking,
         setSetupPayoutForm,
+        canUpdate,
+        canDelete,
       }),
-    [navigate, deletingId]
+    [navigate, deletingId, canUpdate, canDelete]
   );
 
   const dueColumns = useMemo(() => getDueColumns({ navigate }), [navigate]);
@@ -268,8 +275,10 @@ const PlotReports = () => {
         handleDeleteBooking,
         deletingId,
         getHoldHoursLeft,
+        canUpdate,
+        canDelete,
       }),
-    [navigate, deletingId]
+    [navigate, deletingId, canUpdate, canDelete]
   );
 
   return (
@@ -286,16 +295,18 @@ const PlotReports = () => {
               : 'Browse, verify, and export booking schedules, collections, and liability records.'}
           </p>
         </div>
-        <div>
-          <Button
-            variant="primary"
-            size="md"
-            startIcon={Plus}
-            onClick={() => navigate('/dashboard/plots/addbooking')}
-          >
-            New Booking
-          </Button>
-        </div>
+        {canCreate && (
+          <div>
+            <Button
+              variant="primary"
+              size="md"
+              startIcon={Plus}
+              onClick={() => navigate('/dashboard/plots/addbooking')}
+            >
+              New Booking
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

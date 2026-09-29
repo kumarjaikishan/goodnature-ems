@@ -11,6 +11,7 @@ import { confirmDialog } from '../../../utils/confirmDialog';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import usePermission from '../../../utils/CheckPermission';
 
 const PlotCustomers = () => {
   const navigate = useNavigate();
@@ -19,6 +20,10 @@ const PlotCustomers = () => {
   const [search, setSearch] = useState('');
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
+
+  const canCreate = usePermission('plot_customer', 2);
+  const canUpdate = usePermission('plot_customer', 3);
+  const canDelete = usePermission('plot_customer', 4);
 
   const customStyles = useCustomStyles();
   const { request } = useApi();
@@ -126,25 +131,29 @@ const PlotCustomers = () => {
         <div className="flex items-center gap-1">
           <button
             onClick={() => openViewModal(row)}
-            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             title="View Details"
           >
             <Eye size={18} />
           </button>
-          <button
-            onClick={() => navigate(`/dashboard/plots/customers/edit/${row._id}`)}
-            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition"
-            title="Edit Customer"
-          >
-            <Edit2 size={18} />
-          </button>
-          <button
-            onClick={() => handleDeleteCustomer(row)}
-            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
-            title="Delete Customer"
-          >
-            <Trash2 size={18} />
-          </button>
+          {canUpdate && (
+            <button
+              onClick={() => navigate(`/dashboard/plots/customers/edit/${row._id}`)}
+              className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+              title="Edit Customer"
+            >
+              <Edit2 size={18} />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => handleDeleteCustomer(row)}
+              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+              title="Delete Customer"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -158,14 +167,16 @@ const PlotCustomers = () => {
           <h1 className="text-2xl font-bold text-slate-800">Customers</h1>
           <p className="text-slate-500 text-sm">Manage customers registered under plot projects</p>
         </div>
-        <Button
-          variant="primary"
-          size="md"
-          startIcon={Plus}
-          onClick={() => navigate('/dashboard/plots/customers/new')}
-        >
-          Add New Customer
-        </Button>
+        {canCreate && (
+          <Button
+            variant="primary"
+            size="md"
+            startIcon={Plus}
+            onClick={() => navigate('/dashboard/plots/customers/new')}
+          >
+            Add New Customer
+          </Button>
+        )}
       </div>
 
       {/* Search Bar */}

@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import api from '@/api/axios';
 import Button from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import numberToWords from '@/utils/numToWord';
-import { Banknote, CheckCircle, Clock, AlertTriangle, ArrowRight, Building2 } from 'lucide-react';
+import { Banknote, CheckCircle, Clock, AlertTriangle, ArrowRight, Building2, Wallet } from 'lucide-react';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
 const inputCls =
@@ -36,6 +37,45 @@ const ReceivePaymentForm = ({
   const isDownpaymentMode = mode === 'DOWNPAYMENT';
   const effectiveDpGrace = dpGracePeriod ?? gracePeriod ?? 15;
   const effectiveEmiGrace = emiGracePeriod ?? gracePeriod ?? 15;
+
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [cashAccounts, setCashAccounts] = useState([]);
+  const [myCashLedger, setMyCashLedger] = useState(null);
+
+  useEffect(() => {
+    const fetchTreasury = async () => {
+      try {
+        const [treasuryRes, myCashRes] = await Promise.all([
+          api.get('/ledger/treasury'),
+          api.get('/ledger/my-cash-account').catch(() => null)
+        ]);
+        const bList = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
+        const cList = treasuryRes.data?.cashLedgers || treasuryRes.data?.cashAccounts || treasuryRes.data?.data?.cashAccounts || treasuryRes.data?.data?.cashLedgers || [];
+        setBankAccounts(bList);
+        setCashAccounts(cList);
+
+        const myCash = myCashRes?.data?.data || myCashRes?.data || null;
+        setMyCashLedger(myCash);
+
+        const isCash = String(form.paymentMode).toLowerCase() === 'cash';
+        const defaultId = isCash ? (myCash?._id || cList[0]?._id || '') : (bList[0]?._id || '');
+        if (defaultId && !form.ledgerId) {
+          setForm((prev) => ({ ...prev, ledgerId: defaultId }));
+        }
+      } catch (err) {
+        console.error('Error fetching treasury accounts in ReceivePaymentForm:', err);
+      }
+    };
+    fetchTreasury();
+  }, []);
+
+  useEffect(() => {
+    const isCash = String(form.paymentMode).toLowerCase() === 'cash';
+    const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
+    if (defaultId) {
+      setForm((prev) => ({ ...prev, ledgerId: prev.ledgerId || defaultId }));
+    }
+  }, [form.paymentMode, myCashLedger, cashAccounts, bankAccounts]);
 
   const bookingOptions = useMemo(() => {
     return (bookings || []).map((b) => {
@@ -570,13 +610,47 @@ const ReceivePaymentForm = ({
                   <select
                     className={inputCls}
                     value={form.paymentMode}
-                    onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
+                    onChange={(e) => {
+                      const newMode = e.target.value;
+                      const isCash = String(newMode).toLowerCase() === 'cash';
+                      const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
+                      setForm({ ...form, paymentMode: newMode, ledgerId: defaultId });
+                    }}
                   >
                     <option value="cash">Cash</option>
                     <option value="upi">UPI / Online</option>
                     <option value="bank_transfer">Bank Transfer</option>
                     <option value="cheque">Cheque</option>
                     <option value="neft_rtgs">NEFT / RTGS</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelCls}>
+                    {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'}
+                  </label>
+                  <select
+                    className={`${inputCls} ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : ''}`}
+                    value={form.ledgerId || ''}
+                    disabled={String(form.paymentMode).toLowerCase() === 'cash'}
+                    onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
+                  >
+                    {String(form.paymentMode).toLowerCase() === 'cash' ? (
+                      <option value={myCashLedger?._id || ''}>
+                        {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
+                      </option>
+                    ) : (
+                      <>
+                        {bankAccounts.map((b) => (
+                          <option key={b._id} value={b._id}>
+                            {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
+                          </option>
+                        ))}
+                        {bankAccounts.length === 0 && (
+                          <option value="">Default Company Bank</option>
+                        )}
+                      </>
+                    )}
                   </select>
                 </div>
 

@@ -18,7 +18,8 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall, reportAttendance, r
     monthStart.date(i + 1)
   );
 
-  const { employee, attandence, holidays, company, leaveBalance } = useSelector((e) => e.user);
+  const { employee, attandence, holidays, company, leaveBalance } = useSelector((e) => e.user || {});
+  const employeeList = Array.isArray(employee) ? employee : [];
 
   useEffect(() => {
     if (!csvcall) return;
@@ -45,8 +46,8 @@ const RegisterView = ({ filters, theme, setcsvcall, csvcall, reportAttendance, r
   }, [filters, leaveBalance])
 
   // 👉 Apply same filters
-  const filteredEmployees = employee.filter((emp) => {
-    if (!emp.status) return false;
+  const filteredEmployees = employeeList.filter((emp) => {
+    if (!emp || !emp.status) return false;
 
     const nameMatch =
       filters.searchText.trim() === "" ||

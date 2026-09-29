@@ -12,8 +12,19 @@ router.use(authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant', 'sp
 // ── Media Upload (Photos, Signatures, etc.) ──
 router.post('/upload-media', upload.single('file'), ctrl.uploadMedia);
 
-// ── Rate Config (part of inventory setup) ──
-router.get('/rate-config', checkPermission('plot_inventory', 1), ctrl.getRateConfig);
+// ── Rate Config (part of inventory setup & billing rate calculation) ──
+router.get('/rate-config', (req, res, next) => {
+  // Rate config is required for billing (downpayment/EMI collection) as well as booking and inventory
+  if (req.user?.role === 'superadmin' || req.user?.role === 'grant' || req.user?.role === 'developer' || req.user?.role === 'sponsor') {
+    return next();
+  }
+  const perms = req.user?.permissions instanceof Map ? Object.fromEntries(req.user.permissions) : (req.user?.permissions || {});
+  const hasAccess = ['plot_collection', 'plot_booking', 'plot_inventory'].some(resName => Array.isArray(perms[resName]) && perms[resName].includes(1));
+  if (hasAccess) {
+    return next();
+  }
+  return checkPermission('plot_inventory', 1)(req, res, next);
+}, ctrl.getRateConfig);
 router.put('/rate-config', checkPermission('plot_inventory', 3), ctrl.updateRateConfig);
 
 // ── Commission Policy Config (Quarterly Target & Fixed Slabs) ──

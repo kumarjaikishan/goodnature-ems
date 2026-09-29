@@ -10,8 +10,25 @@ const { generateVoucherNo } = require('../utils/voucherHelper');
 exports.getVouchers = async (req, res, next) => {
   try {
     const query = { type: 'MANUAL' };
-    if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-      query.branchId = { $in: req.user.branchIds };
+
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (isGlobalAdmin) {
+      // Global admins/superadmins can see all manual vouchers (optional branch filter in query)
+      if (req.query.branchId && req.query.branchId !== 'all') {
+        query.branchId = req.query.branchId;
+      }
+    } else if (isBranchManager) {
+      // Branch manager sees all vouchers within their assigned branches
+      if (Array.isArray(req.user.branchIds) && req.user.branchIds.length > 0) {
+        query.branchId = { $in: req.user.branchIds };
+      }
+    } else {
+      // Individual operational roles (Cashier, Accountant, Operator, Sales, Staff, etc.)
+      // only see vouchers they themselves created.
+      query.createdBy = req.userid;
     }
 
     if (req.query.status && req.query.status !== 'all') {
@@ -61,6 +78,25 @@ exports.getVoucherDetails = async (req, res, next) => {
       .populate('paymentTranches.paidBy', 'name email role');
 
     if (!voucher) return res.status(404).json({ message: 'Voucher not found' });
+
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (!isGlobalAdmin) {
+      if (isBranchManager) {
+        const hasBranchAccess = Array.isArray(req.user.branchIds) && req.user.branchIds.some(b => b.toString() === voucher.branchId?.toString());
+        if (!hasBranchAccess) {
+          return res.status(403).json({ message: 'Permission denied: Voucher belongs to another branch' });
+        }
+      } else {
+        const isOwner = voucher.createdBy?._id?.toString() === req.userid?.toString() || voucher.createdBy?.toString() === req.userid?.toString();
+        if (!isOwner) {
+          return res.status(403).json({ message: 'Permission denied: You can only view your own created vouchers' });
+        }
+      }
+    }
+
     return res.status(200).json(voucher);
   } catch (error) {
     return next({ status: 500, message: error.message });
@@ -494,6 +530,24 @@ exports.editVoucher = async (req, res, next) => {
       return res.status(404).json({ message: "Voucher not found" });
     }
 
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (!isGlobalAdmin) {
+      if (isBranchManager) {
+        const hasBranchAccess = Array.isArray(req.user.branchIds) && req.user.branchIds.some(b => b.toString() === voucher.branchId?.toString());
+        if (!hasBranchAccess) {
+          return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
+        }
+      } else {
+        const isOwner = voucher.createdBy?.toString() === req.userid?.toString();
+        if (!isOwner) {
+          return res.status(403).json({ message: "Permission denied: You can only edit your own created vouchers" });
+        }
+      }
+    }
+
     if (voucher.referenceType !== 'MANUAL') {
       return res.status(400).json({ message: "Only manual vouchers can be edited" });
     }
@@ -596,6 +650,24 @@ exports.deleteVoucher = async (req, res, next) => {
     const voucher = await Voucher.findById(id).session(session);
     if (!voucher) {
       return res.status(404).json({ message: "Voucher not found" });
+    }
+
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (!isGlobalAdmin) {
+      if (isBranchManager) {
+        const hasBranchAccess = Array.isArray(req.user.branchIds) && req.user.branchIds.some(b => b.toString() === voucher.branchId?.toString());
+        if (!hasBranchAccess) {
+          return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
+        }
+      } else {
+        const isOwner = voucher.createdBy?.toString() === req.userid?.toString();
+        if (!isOwner) {
+          return res.status(403).json({ message: "Permission denied: You can only delete your own created vouchers" });
+        }
+      }
     }
 
     if (voucher.referenceType !== 'MANUAL') {

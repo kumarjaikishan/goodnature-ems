@@ -15,6 +15,7 @@ import DataTable from '@/components/common/DataTable';
 import { useNavigate } from "react-router-dom";
 import EmployeeProfile from "./profile";
 import { useDispatch, useSelector } from "react-redux";
+import { setEmployees } from "../../../../store/userSlice";
 import { toast } from "../../../utils/toast";
 import useImageUpload from "../../../utils/imageresizer";
 import CheckPermission from "../../../utils/CheckPermission";

@@ -1,0 +1,401 @@
+// Permission labels and constants for RBAC configuration
+export const PERMISSION_LABELS = {
+    1: "Read",
+    2: "Create",
+    3: "Update",
+    4: "Delete",
+};
+
+export const AllPermissionNames = [
+    "branch",
+    "department",
+    "employee",
+    "attandence",
+    "holiday",
+    "leave",
+    "salary",
+    "advance",
+    "voucher",
+    "bank_ledger",
+    "cash_ledger",
+    "fund_transfer",
+    "employee_ledger",
+    "kisan_ledger",
+    "sponsor_ledger",
+    "ledger",
+    "ledger_entry",
+    "weekly_off_ledger",
+    "plot_inventory",
+    "plot_booking",
+    "plot_collection",
+    "plot_sponsor",
+    "plot_customer",
+    "plot_payout",
+    "plot_reports",
+    "investment",
+    "audit_log",
+    "notification"
+];
+
+// User-friendly descriptive display names for the permission matrix
+export const MODULE_DISPLAY_NAMES = {
+    branch: "Branches Master",
+    department: "Departments Master",
+    employee: "Employee Master & Directory",
+    attandence: "Attendance & Bio Logs",
+    holiday: "Company Holidays",
+    leave: "Leaves & Approvals",
+    salary: "Salary & Payroll Processing",
+    advance: "Employee Advance Management",
+    voucher: "Payment Vouchers & Expenses",
+    bank_ledger: "Bank Accounts Ledger",
+    cash_ledger: "Cash Accounts / In-Hand Cash Ledger",
+    fund_transfer: "Inter-Account Fund Transfers",
+    employee_ledger: "Employee Financial Ledgers",
+    kisan_ledger: "Kisan / Land Seller Ledgers",
+    sponsor_ledger: "Business Associate & Partner Ledgers",
+    ledger: "Master All Ledgers Overview (Accounting)",
+    ledger_entry: "Financial Journal & Ledger Entries (Accounts)",
+    weekly_off_ledger: "Employee Weekly-Off (WO/CO) Attendance Ledger",
+    plot_inventory: "Plot Inventory & Series Master",
+    plot_booking: "Plot & Product Bookings",
+    plot_collection: "Installments & Payment Collections",
+    plot_sponsor: "Business Associates & Partners",
+    plot_customer: "Plot Customers Directory",
+    plot_payout: "Commission Payouts & Schedules",
+    plot_reports: "Plot Analytics & Business Reports",
+    investment: "Investments Management",
+    audit_log: "System Audit Activity Logs",
+    notification: "Announcements & Notifications",
+};
+
+// Module Categorization for Enterprise UX
+export const MODULE_CATEGORIES = [
+    {
+        id: "all",
+        label: "All Modules",
+        modules: AllPermissionNames
+    },
+    {
+        id: "hrms",
+        label: "HRMS & Staff",
+        modules: ["employee", "attandence", "leave", "salary", "holiday", "weekly_off_ledger"]
+    },
+    {
+        id: "finance",
+        label: "Finance & Accounts",
+        modules: ["cash_ledger", "bank_ledger", "fund_transfer", "employee_ledger", "kisan_ledger", "sponsor_ledger", "voucher", "advance", "ledger_entry", "ledger"]
+    },
+    {
+        id: "realestate",
+        label: "Real Estate & Plots",
+        modules: ["plot_booking", "plot_collection", "plot_inventory", "plot_customer", "plot_sponsor", "plot_payout", "plot_reports"]
+    },
+    {
+        id: "admin",
+        label: "Admin & Settings",
+        modules: ["investment", "branch", "department", "audit_log", "notification"]
+    }
+];
+
+export const ROLE_OPTIONS = [
+    { label: 'Administrator (Full Organizational Scope)', value: 'admin' },
+    { label: 'Branch Manager (Branch Operations)', value: 'manager' },
+    { label: 'Accountant (Financial Ledgers, Vouchers & Payouts)', value: 'accountant' },
+    { label: 'Cashier / Billing Desk (Receipts, Collections & Cash Desk)', value: 'cashier' },
+    { label: 'HR & Payroll Executive (Staff, Attendance & Leaves)', value: 'hr' },
+    { label: 'Sales Coordinator (Plot Bookings, Leads & Customers)', value: 'sales' },
+    { label: 'System Operator / Data Entry Desk', value: 'operator' },
+    { label: 'Internal Auditor / Compliance (Read-Only Inspection)', value: 'auditor' },
+    { label: 'Staff Executive / Operations', value: 'staff' },
+    { label: 'Custom / Other Operational Role', value: 'other' },
+];
+
+export const adminPermission = {
+    branch: [1, 2, 3, 4],
+    department: [1, 2, 3, 4],
+    employee: [1, 2, 3, 4],
+    attandence: [1, 2, 3, 4],
+    holiday: [1, 2, 3, 4],
+    leave: [1, 2, 3, 4],
+    salary: [1, 2, 3, 4],
+    advance: [1, 2, 3, 4],
+    voucher: [1, 2, 3, 4],
+    bank_ledger: [1, 2, 3, 4],
+    cash_ledger: [1, 2, 3, 4],
+    fund_transfer: [1, 2, 3, 4],
+    employee_ledger: [1, 2, 3, 4],
+    kisan_ledger: [1, 2, 3, 4],
+    sponsor_ledger: [1, 2, 3, 4],
+    ledger: [1, 2, 3, 4],
+    ledger_entry: [1, 2, 3, 4],
+    weekly_off_ledger: [1, 2, 3, 4],
+    plot_inventory: [1, 2, 3, 4],
+    plot_booking: [1, 2, 3, 4],
+    plot_collection: [1, 2, 3, 4],
+    plot_sponsor: [1, 2, 3, 4],
+    plot_customer: [1, 2, 3, 4],
+    plot_payout: [1, 2, 3, 4],
+    plot_reports: [1, 2, 3, 4],
+    investment: [1, 2, 3, 4],
+    audit_log: [1],
+    notification: [1, 2, 3, 4],
+};
+
+export const managerPermission = {
+    branch: [1],
+    department: [1, 2, 3],
+    employee: [1, 2, 3],
+    attandence: [1, 2, 3],
+    holiday: [1, 2],
+    leave: [1, 2, 3],
+    salary: [1],
+    advance: [1, 2, 3],
+    voucher: [1, 2, 3],
+    cash_ledger: [1],
+    fund_transfer: [1, 2],
+    bank_ledger: [],
+    employee_ledger: [1],
+    kisan_ledger: [],
+    sponsor_ledger: [1],
+    ledger: [],
+    ledger_entry: [1],
+    weekly_off_ledger: [1, 2, 3],
+    plot_inventory: [1],
+    plot_booking: [1, 2, 3],
+    plot_collection: [1, 2, 3],
+    plot_sponsor: [1],
+    plot_customer: [1, 2, 3],
+    plot_payout: [1],
+    plot_reports: [1],
+    investment: [1, 2],
+    audit_log: [1],
+    notification: [1, 2],
+};
+
+export const accountantPermission = {
+    branch: [1],
+    department: [1],
+    employee: [1],
+    attandence: [1],
+    holiday: [1],
+    leave: [1],
+    salary: [1, 2, 3],
+    advance: [1, 2, 3, 4],
+    voucher: [1, 2, 3, 4],
+    cash_ledger: [1],
+    bank_ledger: [1],
+    fund_transfer: [1, 2],
+    employee_ledger: [1],
+    kisan_ledger: [],
+    sponsor_ledger: [],
+    ledger: [],
+    ledger_entry: [1, 2, 3],
+    weekly_off_ledger: [1],
+    plot_inventory: [],
+    plot_booking: [1],
+    plot_collection: [1, 2, 3],
+    plot_sponsor: [],
+    plot_customer: [1],
+    plot_payout: [1, 2, 3],
+    plot_reports: [1],
+    investment: [1, 2],
+    audit_log: [1],
+    notification: [1, 2],
+};
+
+export const cashierPermission = {
+    branch: [1],
+    department: [1],
+    employee: [1],
+    attandence: [1],
+    holiday: [1],
+    leave: [1],
+    salary: [],
+    advance: [1, 2],
+    voucher: [1, 2],
+    cash_ledger: [1],
+    fund_transfer: [1, 2],
+    bank_ledger: [],
+    employee_ledger: [],
+    kisan_ledger: [],
+    sponsor_ledger: [],
+    ledger: [],
+    ledger_entry: [],
+    weekly_off_ledger: [],
+    plot_inventory: [],
+    plot_booking: [1, 2],
+    plot_collection: [1, 2, 3],
+    plot_sponsor: [],
+    plot_customer: [1, 2, 3],
+    plot_payout: [],
+    plot_reports: [],
+    investment: [],
+    audit_log: [],
+    notification: [1],
+};
+
+export const hrPermission = {
+    branch: [1],
+    department: [1, 2, 3],
+    employee: [1, 2, 3, 4],
+    attandence: [1, 2, 3, 4],
+    holiday: [1, 2, 3, 4],
+    leave: [1, 2, 3, 4],
+    salary: [1, 2, 3],
+    advance: [1, 2, 3],
+    voucher: [1],
+    cash_ledger: [1],
+    bank_ledger: [],
+    fund_transfer: [],
+    employee_ledger: [1],
+    kisan_ledger: [],
+    sponsor_ledger: [],
+    ledger: [],
+    ledger_entry: [],
+    weekly_off_ledger: [1, 2, 3, 4],
+    plot_inventory: [],
+    plot_booking: [],
+    plot_collection: [],
+    plot_sponsor: [],
+    plot_customer: [],
+    plot_payout: [],
+    plot_reports: [],
+    investment: [],
+    audit_log: [1],
+    notification: [1, 2, 3],
+};
+
+export const salesPermission = {
+    branch: [1],
+    department: [1],
+    employee: [1],
+    attandence: [1],
+    holiday: [1],
+    leave: [1],
+    salary: [],
+    advance: [],
+    voucher: [],
+    cash_ledger: [1],
+    bank_ledger: [],
+    fund_transfer: [],
+    employee_ledger: [],
+    kisan_ledger: [],
+    sponsor_ledger: [],
+    ledger: [],
+    ledger_entry: [],
+    weekly_off_ledger: [],
+    plot_inventory: [1],
+    plot_booking: [1, 2, 3],
+    plot_collection: [1, 2],
+    plot_sponsor: [1, 2],
+    plot_customer: [1, 2, 3, 4],
+    plot_payout: [],
+    plot_reports: [1],
+    investment: [],
+    audit_log: [],
+    notification: [1, 2],
+};
+
+export const auditorPermission = {
+    branch: [1],
+    department: [1],
+    employee: [1],
+    attandence: [1],
+    holiday: [1],
+    leave: [1],
+    salary: [1],
+    advance: [1],
+    voucher: [1],
+    ledger: [1],
+    ledger_entry: [1],
+    weekly_off_ledger: [1],
+    plot_inventory: [1],
+    plot_booking: [1],
+    plot_collection: [1],
+    plot_sponsor: [1],
+    plot_customer: [1],
+    plot_payout: [1],
+    plot_reports: [1],
+    investment: [1],
+    audit_log: [1],
+    notification: [1],
+};
+
+export const getRoleBadgeStyle = (role) => {
+    switch (String(role).toLowerCase()) {
+        case 'admin':
+            return 'bg-purple-50 text-purple-800 border-purple-200';
+        case 'manager':
+            return 'bg-sky-50 text-sky-800 border-sky-200';
+        case 'accountant':
+            return 'bg-amber-50 text-amber-800 border-amber-200';
+        case 'cashier':
+            return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        case 'hr':
+            return 'bg-teal-50 text-teal-800 border-teal-200';
+        case 'sales':
+            return 'bg-violet-50 text-violet-800 border-violet-200';
+        case 'operator':
+            return 'bg-indigo-50 text-indigo-800 border-indigo-200';
+        case 'auditor':
+            return 'bg-rose-50 text-rose-800 border-rose-200';
+        case 'staff':
+            return 'bg-blue-50 text-blue-800 border-blue-200';
+        case 'other':
+            return 'bg-cyan-50 text-cyan-800 border-cyan-200';
+        default:
+            return 'bg-slate-50 text-slate-700 border-slate-200';
+    }
+};
+
+export const getRoleDisplayLabel = (role) => {
+    switch (String(role).toLowerCase()) {
+        case 'admin':
+            return 'Admin';
+        case 'manager':
+            return 'Manager';
+        case 'accountant':
+            return 'Accountant';
+        case 'cashier':
+            return 'Cashier / Billing';
+        case 'hr':
+            return 'HR & Payroll';
+        case 'sales':
+            return 'Sales Coordinator';
+        case 'operator':
+            return 'System Operator';
+        case 'auditor':
+            return 'Internal Auditor';
+        case 'staff':
+            return 'Staff Executive';
+        case 'other':
+            return 'Custom Role';
+        default:
+            return role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
+    }
+};
+
+export const getPresetPermissions = (role) => {
+    switch (String(role).toLowerCase()) {
+        case 'admin':
+            return { ...adminPermission };
+        case 'manager':
+            return { ...managerPermission };
+        case 'accountant':
+            return { ...accountantPermission };
+        case 'cashier':
+            return { ...cashierPermission };
+        case 'hr':
+            return { ...hrPermission };
+        case 'sales':
+            return { ...salesPermission };
+        case 'auditor':
+            return { ...auditorPermission };
+        case 'operator':
+        case 'staff':
+        case 'other':
+        default:
+            return { ...managerPermission };
+    }
+};

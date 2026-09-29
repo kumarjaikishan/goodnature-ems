@@ -52,3 +52,7 @@
    - Use sparse unique indexes for optional user codes (`sponsorCode`, `customerCode`, `email`).
 2. **Schema Separation**:
    - Keep business logic in dedicated services (`services/plots.service.js`, `services/attendanceService.js`, `services/accountingService.js`) rather than stuffing heavy aggregation logic into controllers.
+3. **Treasury Overdraft Protection & Atomic Double-Entry**:
+   - Inter-ledger transfers and disbursement payouts must check available funds ($\text{Available} = \text{NetBalance} - \text{InTransitPending}$). Never allow transfers if requested amount exceeds available balance.
+   - All Inter-ledger transfers (`TRF-*`) must execute as atomic ACID transactions using `accountingService.recordLedgerEntry` with `source: 'transfer'` to ensure simultaneous debit and credit records.
+

@@ -74,10 +74,10 @@ const userLogin = async (req, res, next) => {
     if (isUser.role !== 'admin' && isUser.role !== 'superadmin') {
       tobe.employeeId = isUser.employeeId;
     }
-    if (isUser.role == 'admin' || isUser.role == 'manager') {
+    if (isUser.permissions) {
       tobe.permissions = isUser.permissions;
     }
-    if (isUser.role == 'manager') {
+    if (isUser.branchIds && isUser.branchIds.length > 0) {
       tobe.branchIds = isUser.branchIds;
     }
     if (isUser.companyId) {
@@ -97,8 +97,9 @@ const userLogin = async (req, res, next) => {
       role: isUser.role,
       sponsorCode: isUser.sponsorCode || isUser.customerId,
       mobile: isUser.mobile,
+      branchIds: isUser.branchIds || [],
     };
-    if (isUser.role == 'admin' || isUser.role == 'manager') {
+    if (isUser.permissions) {
       send.permissions = isUser.permissions;
     }
 

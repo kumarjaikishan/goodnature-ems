@@ -258,8 +258,8 @@ class PlotsService {
     return plotCollectionService.recalculateBookingBalance(bookingId, session);
   }
 
-  collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate = 0, remarks = '', customDate = null) {
-    return plotCollectionService.collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate, remarks, customDate);
+  collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate = 0, remarks = '', customDate = null, bankDetails = null, ledgerId = null) {
+    return plotCollectionService.collectInstallment(bookingId, installmentIds, amountPaid, paymentMode, transactionReference, processedBy, lateFineRebate, remarks, customDate, bankDetails, ledgerId);
   }
 
   updateReceipt(receiptId, updateData, processedBy) {

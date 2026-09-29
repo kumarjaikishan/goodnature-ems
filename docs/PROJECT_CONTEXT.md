@@ -59,14 +59,20 @@
 - **Installment Collection & Receipts**: Real-time receipt numbering, ledger tracking, print-ready receipts and certificates.
 - **Commission Ledger**: Direct and indirect sponsor commissions with monthly closing and voucher payout workflows.
 
-### E. Investment Management (Recurring & Fixed Deposits)
+### E. Treasury, Multi-Ledger & Cash Management System
+- **Corporate Bank Accounts**: Admin-configured bank ledgers (Axis, IDBI, HDFC, SBI, etc.) tracking verified opening balance, account/IFSC details, and real-time bank passbook.
+- **Cashier Personal Cash Ledgers (`user_cash`)**: Auto-provisioned physical cash-in-hand accounts for billing operators/cashiers (e.g., Ravi Accountant) tracking cash collected vs disbursed.
+- **Receipt & Voucher Account Resolution**: All Plot Collections, Plot Product Collections, Investment Receipts, and Payout Vouchers are explicitly linked to receiving/disbursing Bank or Cash accounts with instant double-entry credits/debits.
+- **Maker-Checker Inter-Ledger Fund Transfers**: Secure 2-step workflow for Cashier $\rightarrow$ Bank, Cashier $\rightarrow$ Cashier, and Bank $\rightarrow$ Bank transfers with deposit slip proof attachments, in-transit balance locks, and atomic double-entry execution upon approval.
+
+### F. Investment Management (Recurring & Fixed Deposits)
 - **Schemes**: Recurring Deposit (R.D., min ₹1,000/mo) and Fixed Deposit (F.D., min ₹10,000 lump sum).
 - **Maturity Matrices**: 24M (112% RD / 121% FD) up to 120M (200% RD / 350% FD).
 - **Sponsor Earnings**: Collection-linked sponsor commission split (Sub-Sponsor Promoter % + Developer Sponsor 1.0% override).
 - **Documents & Passbooks**: Official Certificate of Deposit / Bond printouts and customer passbook statements.
 - **Settlement Engine**: Premature simple interest calculation and maturity payout processing.
 
-### F. Developer & Observability
+### G. Developer & Observability
 - **In-Memory API Performance Monitor**: Measures response time, p95 latency, error rates per route pattern (`/api/api-monitor/stats`).
 - **Telegram Bot Notifications**: Real-time punch and system alert broadcasting.
 - **Server-Sent Events (SSE)**: Live event feed (`/events`) pushing real-time check-in/out updates to active dashboards.
