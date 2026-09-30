@@ -24,7 +24,7 @@ const checkTransactionSupport = async () => {
       supportsTransactions = true;
     } catch (err) {
       supportsTransactions = false;
-      console.log("ℹ️ Running on standalone MongoDB (Transactions safely bypassed for local development)");
+      console.warn("⚠️ [TRANSACTION NOTICE] Running on standalone MongoDB: ACID transactions are bypassed as no-ops. For multi-document ACID atomicity, run on a Replica Set or MongoDB Atlas.");
     } finally {
       await session.endSession().catch(() => {});
     }

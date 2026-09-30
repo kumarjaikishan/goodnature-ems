@@ -3,20 +3,22 @@
 let eventSource = null;
 let reconnectTimeout = null;
 let reconnectDelay = 1000;
-const MAX_RECONNECT_DELAY = 10000;
+const MAX_RECONNECT_DELAY = 30000;
+let consecutiveFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 5; // Stop retrying after 5 consecutive failures (auth issue)
 
 export const connectSSE = (onMessage, onError) => {
     if (eventSource) return eventSource; // Prevent multiple active connections
 
     const token = localStorage.getItem("emstoken");
-    if (!token) return null;
+    if (!token) return null; // No token — don't connect
 
     const url = `${import.meta.env.VITE_SSE_ADDRESS}events?token=${token}`;
     eventSource = new EventSource(url);
 
     eventSource.onopen = () => {
-        console.log("✅ SSE connected from utils");
         reconnectDelay = 1000; // Reset retry delay on success
+        consecutiveFailures = 0; // Reset failure count on successful connect
         if (reconnectTimeout) {
             clearTimeout(reconnectTimeout);
             reconnectTimeout = null;
@@ -33,15 +35,24 @@ export const connectSSE = (onMessage, onError) => {
     };
 
     eventSource.onerror = (err) => {
-        console.warn(`⚠️ SSE error, retrying in ${reconnectDelay}ms`, err);
-        
         if (eventSource) {
             eventSource.close();
             eventSource = null;
         }
 
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        
+
+        // Stop reconnecting if token is gone (logged out) or too many consecutive failures
+        // (which indicates an auth problem like invalid signature after JWT rotation)
+        const currentToken = localStorage.getItem("emstoken");
+        consecutiveFailures++;
+
+        if (!currentToken || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            consecutiveFailures = 0;
+            if (onError) onError(err);
+            return; // Stop retrying — auth failure or logged out
+        }
+
         reconnectTimeout = setTimeout(() => {
             reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
             connectSSE(onMessage, onError);
@@ -58,10 +69,12 @@ export const closeSSE = () => {
         clearTimeout(reconnectTimeout);
         reconnectTimeout = null;
     }
-    
+
     if (eventSource) {
         eventSource.close();
         eventSource = null;
-        console.log("❌ SSE disconnected");
     }
+
+    consecutiveFailures = 0;
+    reconnectDelay = 1000;
 };

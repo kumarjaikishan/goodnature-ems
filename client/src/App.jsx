@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, Suspense, lazy } from 'react';
 import { FirstFetch } from '../store/userSlice';
@@ -46,8 +46,6 @@ const PayrollCreatePage = lazy(() => import('./pages/common/payroll/payrollCreat
 const PayrollEdit = lazy(() => import('./pages/common/payroll/payrollEdit'));
 const PayslipPrintPage = lazy(() => import('./pages/common/payroll/payrollprint'));
 const EmployeeAdvancePage = lazy(() => import('./pages/advance/advance'));
-const LedgerListPage = lazy(() => import('./pages/admin/ledger/ledgerpagelist'));
-const AllLedgerPage = lazy(() => import('./pages/admin/ledger/AllLedgerPage'));
 const EmployeeLedgerPage = lazy(() => import('./pages/admin/ledger/EmployeeLedgerPage'));
 const SellerLedgerPage = lazy(() => import('./pages/admin/ledger/SellerLedgerPage'));
 const BusinessAssociateLedgerPage = lazy(() => import('./pages/admin/ledger/BusinessAssociateLedgerPage'));
@@ -82,7 +80,6 @@ const EmployeeProfile = lazy(() => import('./pages/profile/profile'));
 const AdminManagerProfile = lazy(() => import('./pages/profile/adminManagerProfile'));
 
 // Plots
-const PlotDashboard = lazy(() => import('./pages/plots/dashboard/PlotDashboard'));
 const PlotBusinessDevelopers = lazy(() => import('./pages/plots/businessDevelopers/PlotBusinessDevelopers'));
 const PlotCustomers = lazy(() => import('./pages/plots/customers/PlotCustomers'));
 const PlotCustomerFormPage = lazy(() => import('./pages/plots/customers/PlotCustomerFormPage'));
@@ -154,7 +151,7 @@ const managementRoutes = (
     <Route path="advance" element={<EmployeeAdvancePage />} />
     <Route path="setting" element={<Setting />} />
     <Route path="profile" element={<AdminManagerProfile />} />
-    <Route path="ledger" element={<AllLedgerPage />} />
+    <Route path="ledger" element={<Navigate to="/dashboard/ledger/banks" replace />} />
     <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
     <Route path="ledger/sellers" element={<SellerLedgerPage />} />
     <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
@@ -171,7 +168,7 @@ const managementRoutes = (
     <Route path="payroll/edit/:id" element={<PayrollEdit />} />
     <Route path="vouchers" element={<VoucherList />} />
     <Route path="vouchers/:id" element={<VoucherDetails />} />
-    <Route path="plots/dashboard" element={<PlotDashboard />} />
+
     <Route path="plots/purchase" element={<PlotPurchasePage />} />
     <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
     <Route path="plots/agreements" element={<PlotPurchasePage />} />
@@ -342,7 +339,6 @@ function App() {
 
   useEffect(() => {
     islogin && jwtcheck();
-    console.log("islogin", islogin);
   }, [islogin]);
 
   const tokenErrors = {
@@ -362,7 +358,6 @@ function App() {
       });
       // console.log(responsee)
       const data = await responsee.json();
-      console.log("jwt check", data);
 
       if (tokenErrors[data.message]) {
         const title = tokenErrors[data.message][0];
@@ -413,7 +408,6 @@ function App() {
               { duration: 20000 }
             );
             window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
-            dispatch(FirstFetch());
           }
 
           if (data.payload.action === "checkOut") {
@@ -439,7 +433,6 @@ function App() {
               { duration: 20000 }
             );
             window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
-            dispatch(FirstFetch());
           }
         }
       });

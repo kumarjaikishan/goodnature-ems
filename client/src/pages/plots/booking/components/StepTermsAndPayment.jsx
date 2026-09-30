@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Sparkles, Building2, ChevronLeft, Edit3, Calculator, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
@@ -52,25 +52,36 @@ export const StepTermsAndPayment = ({
   togglePremiumHead,
   totalPremiumExtra = 0,
 }) => {
-  // Compute land stock allocation validity
-  const totalAllocatedArea = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
-  const isLandStockValid =
-    landSourcing.length > 0 &&
-    landSourcing.every((s) => Boolean(s.agreementId) && Number(s.allocatedSqFt) > 0) &&
-    Math.abs(totalAllocatedArea - plotArea) <= 0.5;
+  // Compute land stock allocation validity (memoized for performance)
+  const totalAllocatedArea = useMemo(() => {
+    return landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+  }, [landSourcing]);
 
-  const isFormValid =
-    Boolean(form.bookingDate) &&
-    Number(customSqFtRate) > 0 &&
-    Number(downpaymentAmt) > 0 &&
-    isLandStockValid;
+  const isLandStockValid = useMemo(() => {
+    return (
+      landSourcing.length > 0 &&
+      landSourcing.every((s) => Boolean(s.agreementId) && Number(s.allocatedSqFt) > 0) &&
+      Math.abs(totalAllocatedArea - plotArea) <= 0.5
+    );
+  }, [landSourcing, totalAllocatedArea, plotArea]);
 
-  // Filter land sources by selected project if chosen in form
-  const allLandSources = form.projectId
-    ? (availableLandSources || []).filter(
-      (src) => !src.projectId || String(src.projectId._id || src.projectId) === String(form.projectId)
-    )
-    : availableLandSources || [];
+  const isFormValid = useMemo(() => {
+    return (
+      Boolean(form.bookingDate) &&
+      Number(customSqFtRate) > 0 &&
+      Number(downpaymentAmt) > 0 &&
+      isLandStockValid
+    );
+  }, [form.bookingDate, customSqFtRate, downpaymentAmt, isLandStockValid]);
+
+  // Filter land sources by selected project if chosen in form (memoized)
+  const allLandSources = useMemo(() => {
+    return form.projectId
+      ? (availableLandSources || []).filter(
+        (src) => !src.projectId || String(src.projectId._id || src.projectId) === String(form.projectId)
+      )
+      : availableLandSources || [];
+  }, [form.projectId, availableLandSources]);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">

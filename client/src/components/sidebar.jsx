@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { swal } from "../utils/confirmDialog";
+import { apiClient } from "../utils/apiClient";
 import {
   LayoutDashboard,
   Network,
@@ -47,10 +48,31 @@ const Sidebar = () => {
   const [openSubmenu, setOpenSubmenu] = useState(null); // for expanded sidebar
   const [hoveredMenu, setHoveredMenu] = useState(null); // for collapsed sidebar
   const [anchorEl, setAnchorEl] = useState(null);
+  const [pendingFundCount, setPendingFundCount] = useState(0);
 
   const OPERATIONAL_ROLES = [
     "admin", "superadmin", "manager", "accountant", "cashier", "hr", "sales", "operator", "auditor", "staff", "other", "demo"
   ];
+
+  // Fetch pending fund transfers count
+  const fetchPendingTransfers = useCallback(async () => {
+    try {
+      if (!profile || !OPERATIONAL_ROLES.includes(role)) return;
+      const res = await apiClient({ url: "ledger/transfers/stats" });
+      if (res && typeof res.pendingCount === "number") {
+        setPendingFundCount(res.pendingCount);
+      }
+    } catch {
+      // Silently fail on background badge check
+    }
+  }, [profile, role]);
+
+  useEffect(() => {
+    fetchPendingTransfers();
+    // Poll every 30 seconds for live updates
+    const interval = setInterval(fetchPendingTransfers, 30000);
+    return () => clearInterval(interval);
+  }, [fetchPendingTransfers, location.pathname]);
 
   const menu = [
     {
@@ -115,7 +137,6 @@ const Sidebar = () => {
           icon: <BookOpen size={20} />,
           roles: OPERATIONAL_ROLES,
           children: [
-            { menu: "All Ledgers", link: "/dashboard/ledger", roles: OPERATIONAL_ROLES, resource: "ledger" },
             { menu: "Bank Accounts", link: "/dashboard/ledger/banks", roles: OPERATIONAL_ROLES, resource: "bank_ledger" },
             { menu: "Cash Accounts", link: "/dashboard/ledger/cash-accounts", roles: OPERATIONAL_ROLES, resource: "cash_ledger" },
             { menu: "Fund Transfers", link: "/dashboard/ledger/transfers", roles: OPERATIONAL_ROLES, resource: "fund_transfer" },
@@ -131,7 +152,7 @@ const Sidebar = () => {
           icon: <Building2 size={20} />,
           roles: OPERATIONAL_ROLES,
           children: [
-            { menu: "Dashboard", link: "/dashboard/plots/dashboard", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
+
             { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
@@ -274,6 +295,8 @@ const Sidebar = () => {
                     return false;
                   });
 
+                  const hasPendingInGroup = item.menu === "Ledger" && pendingFundCount > 0;
+
                   return (
                     <div
                       key={item.menu}
@@ -307,15 +330,28 @@ const Sidebar = () => {
                           }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <span className={`text-[17px] transition-colors ${isChildActive ? "text-teal-700" : isOpen ? "text-teal-600" : "text-slate-500"}`}>
+                          <span className={`relative text-[17px] transition-colors ${isChildActive ? "text-teal-700" : isOpen ? "text-teal-600" : "text-slate-500"}`}>
                             {item.icon}
+                            {!showText && hasPendingInGroup && (
+                              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 border-2 border-white"></span>
+                              </span>
+                            )}
                           </span>
                           {showText && <span className="truncate">{item.menu}</span>}
                         </div>
                         {showText && (
-                          <span className={`${isChildActive ? "text-teal-700" : "text-slate-400"}`}>
-                            {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {hasPendingInGroup && (
+                              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300/80 rounded-full shadow-2xs">
+                                {pendingFundCount}
+                              </span>
+                            )}
+                            <span className={`${isChildActive ? "text-teal-700" : "text-slate-400"}`}>
+                              {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                            </span>
+                          </div>
                         )}
                       </button>
 
@@ -328,6 +364,7 @@ const Sidebar = () => {
                           {item.children.map((child) => {
                             if (!child.roles.includes(role)) return null;
                             if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
+                            const isFundTransfer = child.link === "/dashboard/ledger/transfers" && pendingFundCount > 0;
                             return (
                               <div key={child.menu} className="relative flex items-center">
                                 {/* Tree horizontal branch connector line */}
@@ -337,13 +374,26 @@ const Sidebar = () => {
                                   to={child.link}
                                   onClick={() => setOpenSubmenu(menuId)}
                                   className={({ isActive }) =>
-                                    `w-full block px-2.5 py-1.5 text-xs rounded-lg transition-all ${isActive
+                                    `w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-all ${isActive
                                       ? "bg-teal-700 text-white font-semibold shadow-xs"
                                       : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
                                     }`
                                   }
                                 >
-                                  {child.menu}
+                                  {({ isActive }) => (
+                                    <>
+                                      <span className="truncate">{child.menu}</span>
+                                      {isFundTransfer && (
+                                        <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full transition-colors ${
+                                          isActive
+                                            ? 'bg-amber-400 text-teal-950 shadow-2xs font-extrabold'
+                                            : 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
+                                        }`}>
+                                          {pendingFundCount}
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
                                 </NavLink>
                               </div>
                             );
@@ -358,26 +408,43 @@ const Sidebar = () => {
                           onMouseLeave={() => setHoveredMenu(null)}
                           className="absolute left-full top-0 ml-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 min-w-[200px] py-1.5 animate-in fade-in zoom-in-95 duration-100"
                         >
-                          <div className="px-3 py-1.5 text-[10px] font-extrabold text-teal-800 uppercase tracking-wider border-b border-slate-100 bg-teal-50/50">
-                            {item.menu}
+                          <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-extrabold text-teal-800 uppercase tracking-wider border-b border-slate-100 bg-teal-50/50">
+                            <span>{item.menu}</span>
+                            {hasPendingInGroup && (
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-full">
+                                {pendingFundCount} Pending
+                              </span>
+                            )}
                           </div>
                           <div className="p-1 space-y-0.5">
                             {item.children.map((child) => {
                               if (!child.roles.includes(role)) return null;
                               if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
+                              const isFundTransfer = child.link === "/dashboard/ledger/transfers" && pendingFundCount > 0;
                               return (
                                 <NavLink
                                   to={child.link}
                                   key={child.menu}
                                   onClick={() => setHoveredMenu(null)}
                                   className={({ isActive }) =>
-                                    `block px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${isActive
+                                    `flex items-center justify-between px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${isActive
                                       ? "bg-teal-700 text-white font-semibold shadow-xs"
                                       : "text-slate-700 hover:text-teal-900 hover:bg-teal-50"
                                     }`
                                   }
                                 >
-                                  {child.menu}
+                                  {({ isActive }) => (
+                                    <>
+                                      <span>{child.menu}</span>
+                                      {isFundTransfer && (
+                                        <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full ${
+                                          isActive ? 'bg-amber-400 text-teal-950' : 'bg-amber-100 text-amber-900 border border-amber-300/80'
+                                        }`}>
+                                          {pendingFundCount}
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
                                 </NavLink>
                               );
                             })}

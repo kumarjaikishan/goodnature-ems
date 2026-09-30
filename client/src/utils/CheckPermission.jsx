@@ -16,7 +16,7 @@ export const usePermission = (resource, action = 1) => {
  */
 export const hasPermission = (profile, resource, action = 1) => {
     if (!profile) return false;
-    if (profile.role === 'superadmin' || profile.role === 'developer' || profile.role === 'admin') return true;
+    if (profile.role === 'superadmin' || profile.role === 'developer' || profile.role === 'grant') return true;
 
     const permissions = profile.permissions;
     if (!permissions) return false;

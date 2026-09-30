@@ -14,12 +14,17 @@ router.post('/upload-media', upload.single('file'), ctrl.uploadMedia);
 
 // ── Rate Config (part of inventory setup & billing rate calculation) ──
 router.get('/rate-config', (req, res, next) => {
-  // Rate config is required for billing (downpayment/EMI collection) as well as booking and inventory
-  if (req.user?.role === 'superadmin' || req.user?.role === 'grant' || req.user?.role === 'developer' || req.user?.role === 'sponsor') {
+  // Rate config is required for billing (downpayment/EMI collection) as well as booking, products, and inventory
+  const role = req.user?.role;
+  const allowedStaffRoles = [
+    'superadmin', 'grant', 'developer', 'sponsor', 'admin', 'manager',
+    'accountant', 'cashier', 'operator', 'sales', 'auditor', 'staff', 'other'
+  ];
+  if (allowedStaffRoles.includes(role)) {
     return next();
   }
   const perms = req.user?.permissions instanceof Map ? Object.fromEntries(req.user.permissions) : (req.user?.permissions || {});
-  const hasAccess = ['plot_collection', 'plot_booking', 'plot_inventory'].some(resName => Array.isArray(perms[resName]) && perms[resName].includes(1));
+  const hasAccess = ['plot_collection', 'plot_booking', 'plot_inventory', 'cash_ledger', 'voucher', 'ledger'].some(resName => Array.isArray(perms[resName]) && perms[resName].includes(1));
   if (hasAccess) {
     return next();
   }

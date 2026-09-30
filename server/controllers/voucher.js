@@ -56,7 +56,7 @@ exports.getVouchers = async (req, res, next) => {
       voucherQuery = voucherQuery.skip((page - 1) * limit).limit(limit);
     }
 
-    const vouchers = await voucherQuery;
+    const vouchers = await voucherQuery.lean();
     return res.status(200).json({
       list: vouchers,
       ...(limit > 0 ? { pagination: { page, limit, total, pages } } : {})
@@ -107,7 +107,7 @@ exports.createVoucher = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    let { ledgerId, newLedgerName, date, amount, narration, autoApprove = false, initialPayment = 0, paymentMode = 'CASH', referenceNo = '' } = req.body;
+    let { ledgerId, newLedgerName, date, amount, narration, autoApprove = false, initialPayment = 0, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '' } = req.body;
     const amountNum = Number(amount) || 0;
     if (amountNum <= 0) {
       return res.status(400).json({ message: "Amount must be greater than 0" });
@@ -141,6 +141,25 @@ exports.createVoucher = async (req, res, next) => {
       return res.status(404).json({ message: "Ledger not found" });
     }
 
+    // Resolve treasury source ledger (Cash / Bank account to disburse from)
+    let resolvedPaymentLedger = null;
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+
+    if (paymentLedgerId) {
+      resolvedPaymentLedger = await Ledger.findById(paymentLedgerId).session(session);
+      if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'user_cash' && !isGlobalAdmin) {
+        const isOwnCash = resolvedPaymentLedger.assignedUserId?.toString() === req.userid?.toString();
+        if (!isOwnCash) {
+          return res.status(403).json({ message: "Security Warning: You can only disburse cash from your own assigned cash ledger." });
+        }
+      }
+    } else if (paymentMode === 'CASH') {
+      resolvedPaymentLedger = await Ledger.findOne({ assignedUserId: req.userid, ledgerType: 'user_cash' }).session(session);
+    } else {
+      resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+    }
+
     let branchId;
     if (targetLedger.ledgerType === 'employee' && targetLedger.employeeId) {
       const emp = await employee.findById(targetLedger.employeeId).session(session);
@@ -162,7 +181,7 @@ exports.createVoucher = async (req, res, next) => {
 
     // Initial status: PENDING unless autoApprove is explicitly requested by superadmin/admin
     const initialStatus = autoApprove ? 'APPROVED' : 'PENDING';
-    const initPaidNum = Math.min(Math.max(Number(initialPayment) || 0, 0), amountNum);
+    const initPaidNum = autoApprove ? Math.min(Math.max(Number(initialPayment) || 0, 0), amountNum) : 0;
     const remainingNum = amountNum - initPaidNum;
 
     let tranches = [];
@@ -171,6 +190,7 @@ exports.createVoucher = async (req, res, next) => {
         amount: initPaidNum,
         paymentDate: date ? new Date(date) : new Date(),
         paymentMode,
+        paymentLedgerId: resolvedPaymentLedger?._id || null,
         referenceNo,
         remarks: 'Initial disbursement on creation',
         paidBy: req.userid
@@ -181,6 +201,8 @@ exports.createVoucher = async (req, res, next) => {
       ? 'PENDING' 
       : (initPaidNum >= amountNum ? 'PAID' : (initPaidNum > 0 ? 'PARTIALLY_PAID' : 'APPROVED'));
 
+    const sourceAccountName = resolvedPaymentLedger ? resolvedPaymentLedger.name : (paymentMode === 'CASH' ? 'Cash Account' : 'Bank Account');
+
     const voucher = new Voucher({
       branchId,
       voucherNo,
@@ -188,6 +210,7 @@ exports.createVoucher = async (req, res, next) => {
       employeeId: targetLedger.employeeId || null,
       sponsorId: targetLedger.sponsorId || null,
       ledgerId: targetLedger._id,
+      paymentLedgerId: resolvedPaymentLedger?._id || null,
       date: date ? new Date(date) : new Date(),
       totalAmount: amountNum,
       paidAmount: initPaidNum,
@@ -204,7 +227,7 @@ exports.createVoucher = async (req, res, next) => {
           amount: amountNum
         },
         {
-          accountName: 'Cash/Bank',
+          accountName: sourceAccountName,
           type: 'CREDIT',
           amount: amountNum
         }
@@ -215,7 +238,7 @@ exports.createVoucher = async (req, res, next) => {
 
     await voucher.save({ session });
 
-    // If auto-approved or initial payment made, record ledger entry
+    // If auto-approved or initial payment made, record expense ledger and debit treasury (cash/bank) ledger
     if (finalStatus !== 'PENDING') {
       const ledgerDebitAmount = initPaidNum > 0 ? initPaidNum : amountNum;
       await accountingService.recordLedgerEntry({
@@ -231,6 +254,20 @@ exports.createVoucher = async (req, res, next) => {
         referenceId: voucher._id,
         remarks: narration || `Voucher ${voucherNo}`
       }, session);
+
+      // Debit/deduct disbursement amount from Treasury Cash or Bank Ledger
+      if (initPaidNum > 0 && resolvedPaymentLedger) {
+        await accountingService.recordLedgerEntry({
+          ledgerId: resolvedPaymentLedger._id,
+          date: date ? new Date(date) : new Date(),
+          type: 'DEBIT',
+          amount: initPaidNum,
+          source: 'voucher',
+          voucherId: voucher._id,
+          referenceId: voucher._id,
+          remarks: `Voucher Disbursed #${voucherNo} - ${targetLedger.name} (${paymentMode})`
+        }, session);
+      }
     }
 
     await session.commitTransaction();
@@ -255,7 +292,7 @@ exports.approveVoucher = async (req, res, next) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { approvedAmount, date, narration, ledgerId, disbursementAmount = 0, paymentMode = 'CASH', referenceNo = '' } = req.body;
+    const { approvedAmount, date, narration, ledgerId, disbursementAmount = 0, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '' } = req.body;
 
     const voucher = await Voucher.findById(id).session(session);
     if (!voucher) {
@@ -281,11 +318,35 @@ exports.approveVoucher = async (req, res, next) => {
       }
     }
 
-    const finalTotal = approvedAmount ? Number(approvedAmount) : (voucher.totalAmount || voucher.entries?.[0]?.amount || 0);
+    // Resolve treasury source ledger (Cash / Bank account)
+    let resolvedPaymentLedger = null;
     const disbNum = Math.max(Number(disbursementAmount) || 0, 0);
+    if (disbNum > 0) {
+      const userRole = req.user?.role;
+      const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+
+      if (paymentLedgerId) {
+        resolvedPaymentLedger = await Ledger.findById(paymentLedgerId).session(session);
+        if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'user_cash' && !isGlobalAdmin) {
+          const isOwnCash = resolvedPaymentLedger.assignedUserId?.toString() === req.userid?.toString();
+          if (!isOwnCash) {
+            return res.status(403).json({ message: "Security Warning: You can only disburse cash from your own assigned cash ledger." });
+          }
+        }
+      } else if (paymentMode === 'CASH') {
+        resolvedPaymentLedger = await Ledger.findOne({ assignedUserId: req.userid, ledgerType: 'user_cash' }).session(session);
+      } else {
+        resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+      }
+    }
+
+    const finalTotal = approvedAmount ? Number(approvedAmount) : (voucher.totalAmount || voucher.entries?.[0]?.amount || 0);
+
+    // If approver specifies an amount, use disbNum; otherwise if voucher had an initialPayment requested on creation and has 0 paid so far, disburse that
+    const effectiveDisburse = disbNum > 0 ? disbNum : (Number(voucher.paidAmount) > 0 ? 0 : Math.min(Number(voucher.initialPayment || 0), finalTotal));
 
     const prevPaid = Number(voucher.paidAmount) || 0;
-    const newPaid = Math.min(prevPaid + disbNum, finalTotal);
+    const newPaid = Math.min(prevPaid + effectiveDisburse, finalTotal);
     const newRemaining = finalTotal - newPaid;
 
     let newStatus = 'APPROVED';
@@ -296,16 +357,19 @@ exports.approveVoucher = async (req, res, next) => {
     }
 
     // Add disbursement tranche if payment amount > 0
-    if (disbNum > 0) {
+    if (effectiveDisburse > 0) {
       voucher.paymentTranches.push({
-        amount: disbNum,
+        amount: effectiveDisburse,
         paymentDate: date ? new Date(date) : new Date(),
         paymentMode: paymentMode || 'CASH',
+        paymentLedgerId: resolvedPaymentLedger?._id || null,
         referenceNo: referenceNo || '',
         remarks: `Disbursement approved by ${req.user?.name || 'Admin'}`,
         paidBy: req.userid
       });
     }
+
+    const sourceAccountName = resolvedPaymentLedger ? resolvedPaymentLedger.name : (paymentMode === 'CASH' ? 'Cash Account' : 'Bank Account');
 
     voucher.totalAmount = finalTotal;
     voucher.paidAmount = newPaid;
@@ -315,6 +379,9 @@ exports.approveVoucher = async (req, res, next) => {
     voucher.approvedAt = new Date();
     voucher.date = date ? new Date(date) : voucher.date;
     voucher.remarks = narration || voucher.remarks;
+    if (resolvedPaymentLedger) {
+      voucher.paymentLedgerId = resolvedPaymentLedger._id;
+    }
 
     if (targetLedger) {
       voucher.ledgerId = targetLedger._id;
@@ -322,15 +389,15 @@ exports.approveVoucher = async (req, res, next) => {
       voucher.sponsorId = targetLedger.sponsorId || null;
       voucher.entries = [
         { accountName: targetLedger.name, type: 'DEBIT', amount: finalTotal },
-        { accountName: 'Cash/Bank', type: 'CREDIT', amount: finalTotal }
+        { accountName: sourceAccountName, type: 'CREDIT', amount: finalTotal }
       ];
     }
 
     await voucher.save({ session });
 
-    // Sync financial ledger with disbursed amount or approved total
+    // Sync financial expense ledger with disbursed amount or approved total
     if (targetLedger) {
-      const existingEntry = await Entry.findOne({ referenceId: voucher._id }).session(session);
+      const existingEntry = await Entry.findOne({ referenceId: voucher._id, ledgerId: targetLedger._id }).session(session);
       const ledgerAmountToRecord = newPaid > 0 ? newPaid : finalTotal;
 
       if (existingEntry) {
@@ -355,6 +422,20 @@ exports.approveVoucher = async (req, res, next) => {
           remarks: voucher.remarks || `Voucher ${voucher.voucherNo} (${newStatus})`
         }, session);
       }
+    }
+
+    // Debit/deduct disbursement amount from Treasury Cash or Bank Ledger
+    if (effectiveDisburse > 0 && resolvedPaymentLedger) {
+      await accountingService.recordLedgerEntry({
+        ledgerId: resolvedPaymentLedger._id,
+        date: date ? new Date(date) : new Date(),
+        type: 'DEBIT',
+        amount: effectiveDisburse,
+        source: 'voucher',
+        voucherId: voucher._id,
+        referenceId: voucher._id,
+        remarks: `Voucher Disbursed #${voucher.voucherNo} - ${targetLedger?.name || 'Expense'} (${paymentMode || 'CASH'})`
+      }, session);
     }
 
     await session.commitTransaction();
@@ -398,9 +479,9 @@ exports.rejectVoucher = async (req, res, next) => {
     await voucher.save({ session });
 
     // Clean up any ledger entry if previously recorded
-    const existingEntry = await Entry.findOne({ referenceId: voucher._id }).session(session);
-    if (existingEntry) {
-      await accountingService.deleteLedgerEntry(existingEntry._id, session);
+    const existingEntries = await Entry.find({ referenceId: voucher._id }).session(session);
+    for (const ent of existingEntries) {
+      await accountingService.deleteLedgerEntry(ent._id, session);
     }
 
     await session.commitTransaction();
@@ -425,7 +506,7 @@ exports.recordVoucherPayment = async (req, res, next) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { amount, paymentDate, paymentMode = 'CASH', referenceNo = '', remarks = '' } = req.body;
+    const { amount, paymentDate, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '', remarks = '' } = req.body;
     const payNum = Number(amount) || 0;
 
     if (payNum <= 0) {
@@ -446,11 +527,34 @@ exports.recordVoucherPayment = async (req, res, next) => {
     }
 
     const total = Number(voucher.totalAmount) || voucher.entries?.[0]?.amount || 0;
-    const currentPaid = Number(voucher.paidAmount) || 0;
-    const remaining = total - currentPaid;
+    // Calculate actual disbursed total from recorded payment tranches
+    const tranchesPaid = Array.isArray(voucher.paymentTranches)
+      ? voucher.paymentTranches.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+      : 0;
+    const currentPaid = tranchesPaid > 0 ? tranchesPaid : (Number(voucher.paidAmount) || 0);
+    const remaining = Math.max(total - currentPaid, 0);
 
     if (payNum > remaining) {
       return res.status(400).json({ message: `Amount exceeds remaining balance of ₹${remaining.toLocaleString('en-IN')}` });
+    }
+
+    // Resolve treasury source ledger (Cash / Bank account)
+    let resolvedPaymentLedger = null;
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+
+    if (paymentLedgerId) {
+      resolvedPaymentLedger = await Ledger.findById(paymentLedgerId).session(session);
+      if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'user_cash' && !isGlobalAdmin) {
+        const isOwnCash = resolvedPaymentLedger.assignedUserId?.toString() === req.userid?.toString();
+        if (!isOwnCash) {
+          return res.status(403).json({ message: "Security Warning: You can only disburse cash from your own assigned cash ledger." });
+        }
+      }
+    } else if (paymentMode === 'CASH') {
+      resolvedPaymentLedger = await Ledger.findOne({ assignedUserId: req.userid, ledgerType: 'user_cash' }).session(session);
+    } else {
+      resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
     }
 
     const updatedPaid = currentPaid + payNum;
@@ -461,6 +565,7 @@ exports.recordVoucherPayment = async (req, res, next) => {
       amount: payNum,
       paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
       paymentMode,
+      paymentLedgerId: resolvedPaymentLedger?._id || null,
       referenceNo,
       remarks,
       paidBy: req.userid
@@ -469,13 +574,16 @@ exports.recordVoucherPayment = async (req, res, next) => {
     voucher.paidAmount = updatedPaid;
     voucher.remainingAmount = updatedRemaining;
     voucher.status = newStatus;
+    if (resolvedPaymentLedger) {
+      voucher.paymentLedgerId = resolvedPaymentLedger._id;
+    }
 
     await voucher.save({ session });
 
-    // Update financial ledger
+    // Update financial expense ledger
     let targetLedger = voucher.ledgerId ? await Ledger.findById(voucher.ledgerId).session(session) : null;
     if (targetLedger) {
-      const existingEntry = await Entry.findOne({ referenceId: voucher._id }).session(session);
+      const existingEntry = await Entry.findOne({ referenceId: voucher._id, ledgerId: targetLedger._id }).session(session);
       if (existingEntry) {
         await accountingService.updateLedgerEntry(existingEntry._id, {
           debit: updatedPaid,
@@ -496,6 +604,20 @@ exports.recordVoucherPayment = async (req, res, next) => {
           remarks: `Voucher ${voucher.voucherNo} (Paid ₹${updatedPaid.toLocaleString('en-IN')} of ₹${total.toLocaleString('en-IN')})`
         }, session);
       }
+    }
+
+    // Debit/deduct payment amount from Treasury Cash or Bank Ledger
+    if (resolvedPaymentLedger) {
+      await accountingService.recordLedgerEntry({
+        ledgerId: resolvedPaymentLedger._id,
+        date: paymentDate ? new Date(paymentDate) : new Date(),
+        type: 'DEBIT',
+        amount: payNum,
+        source: 'voucher',
+        voucherId: voucher._id,
+        referenceId: voucher._id,
+        remarks: `Voucher Payment #${voucher.voucherNo} - ${targetLedger?.name || 'Expense'} (${paymentMode})`
+      }, session);
     }
 
     await session.commitTransaction();

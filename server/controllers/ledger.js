@@ -47,7 +47,7 @@ const getMyLedger = async (req, res, next) => {
     }
 
     // Fetch entries (latest-first; stable ordering for same-day entries)
-    const entries = await Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 });
+    const entries = await Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 }).lean();
     
     const formattedEntries = entries.map(entry => ({
       _id: entry._id,
@@ -66,13 +66,7 @@ const getMyLedger = async (req, res, next) => {
 
 const removePhotoBySecureUrl = require("../utils/cloudinaryremove");
 const { default: mongoose } = require("mongoose");
-const cloudinary = require("cloudinary").v2;
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const cloudinary = require("../utils/cloudinary");
 
 const createLedgerForEmployee = async () => {
   return await withTransaction(async (session) => {
@@ -576,12 +570,17 @@ const getTreasuryLedgers = async (req, res) => {
       })
     );
 
-    const allowedRoles = ['superadmin', 'admin', 'manager', 'accountant', 'cashier', 'developer', 'grant'];
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+
     const bankLedgers = enriched.filter(l => l.ledgerType === 'bank');
     const cashLedgers = enriched.filter(l => {
       if (l.ledgerType !== 'user_cash') return false;
-      const role = l.assignedUserId?.role;
-      return allowedRoles.includes(role) || (l.netBalance !== 0 || (l.heldBalance || 0) !== 0);
+      if (isGlobalAdmin) {
+        return true;
+      }
+      // Non-superadmin users (accountant, cashier, employee, etc.) can ONLY see and debit from their OWN cash ledger
+      return l.assignedUserId?._id?.toString() === req.userid?.toString() || l.assignedUserId?.toString() === req.userid?.toString();
     });
 
     return res.status(200).json({
@@ -765,15 +764,15 @@ const updateBankLedger = async (req, res) => {
 const createLedger = async (req, res) => {
   try {
     const { name, isVoucherLedger } = req.body;
-    if (!req.userid) return res.status(400).json({ message: "Creating User is required." });
+    if (!name || !name.trim()) return res.status(400).json({ message: "Ledger name is required." });
 
-    const existing = await Ledger.findOne({ name, userId: req.userid });
+    const existing = await Ledger.findOne({ name: name.trim() });
     if (existing) {
       return res.status(400).json({ message: "Ledger with this name already exists." });
     }
 
     const ledger = new Ledger({ 
-      name, 
+      name: name.trim(), 
       userId: req.userid,
       ledgerType: 'custom',
       isVoucherLedger: isVoucherLedger === 'true' || isVoucherLedger === true ? true : false
@@ -864,7 +863,7 @@ const Entries = async (req, res) => {
     let ledgerId = req.params.id;
 
     // Check if req.params.id is a Ledger _id
-    let ledgerExists = await Ledger.findById(ledgerId);
+    let ledgerExists = await Ledger.findById(ledgerId).lean();
     if (!ledgerExists) {
       // Fallback: check if id is sponsorId, employeeId, or kisanSellerId
       const foundLedger = await Ledger.findOne({
@@ -873,17 +872,32 @@ const Entries = async (req, res) => {
           { employeeId: ledgerId },
           { kisanSellerId: ledgerId }
         ]
-      });
+      }).lean();
       if (foundLedger) {
         ledgerId = foundLedger._id;
       }
     }
 
-    const entries = await Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 });
+    const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : null;
+    const limit = req.query.limit ? Math.max(1, parseInt(req.query.limit, 10)) : null;
 
-    res.json({ entries });
+    let query = Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 }).lean();
+    let total = null;
+
+    if (page && limit) {
+      total = await Entry.countDocuments({ ledgerId });
+      query = query.skip((page - 1) * limit).limit(limit);
+    }
+
+    const entries = await query;
+
+    return res.status(200).json({
+      entries,
+      ...(total !== null ? { total, page, limit, pages: Math.ceil(total / limit) } : {})
+    });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch ledgers" });
+    console.error("Failed to fetch ledger entries:", err);
+    res.status(500).json({ error: "Failed to fetch ledgers", details: err.message });
   }
 };
 

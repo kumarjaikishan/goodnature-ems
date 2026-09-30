@@ -57,6 +57,22 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - `ProductCollectionsPage.jsx` supports receipt deletion (`DELETE /plots/product-collections/:bookingId/:receiptNumber`) with confirmation dialog, monthly payout closing guard, waterfall installment ledger recalculation, and sponsor commission auto-sync.
   - For Monthly EMI plans, downpayment is eliminated ($0$) and the entire total valuation is divided equally into monthly installments over the chosen tenure. For One-Time Full Payment, the deposit/holding tenure period (12, 24, 36, 48, 60 months) is explicitly recorded to track the contract duration for product delivery or money-back refund on completion.
 
+### AG. System Deep Audit Implementation & Security/Index Hardening (Sept 2026)
+- **Live Permission Fallback & Cache Invalidation**:
+  - `checkpermission.js` now features an in-memory TTL cache with direct database fallback (`getFreshUserPermissions`). If an admin updates user permissions in User Management, the updated permissions apply immediately without requiring the user to log out and log in again.
+  - `invalidatePermissionCache(userId)` is triggered on `editAdmin` and `deleteAdmin` in `server/controllers/admin.js`.
+- **Plot Rate-Config Billing Whitelist**:
+  - `GET /plots/rate-config` allows all authenticated dashboard management and operational roles (`cashier`, `accountant`, `manager`, `operator`, `sales`, etc.) to fetch configuration needed for billing, downpayment, and EMI calculations without throwing 403 Forbidden.
+- **Deploy Endpoint Security**:
+  - `GET /deploy/:project` in `route.js` validates that `project` is strictly one of the recognized deployment keys, preventing undefined or arbitrary command execution.
+- **Database Compound Indexing**:
+  - `attandence.js`: Added compound indexes `{ branchId: 1, date: -1 }`.
+  - `entry.js`: Added compound indexes `{ ledgerId: 1, status: 1, date: -1 }`, `{ referenceId: 1 }`, and `{ source: 1, createdAt: -1 }`.
+  - `voucher.js`: Added compound indexes `{ branchId: 1, status: 1, date: -1 }`, `{ employeeId: 1, date: -1 }`, and `{ sponsorId: 1, date: -1 }`.
+  - `user.js`: Added compound indexes `{ companyId: 1, role: 1, isBlocked: 1 }`, `{ branchIds: 1 }`, and `{ role: 1, sponsorId: 1 }`.
+- **User Management Permission Matrix Drawer**:
+  - In `UserGridView.jsx`, the RBAC drawer displays all canonical system modules (`AllPermissionNames`) with clean human-readable names (`MODULE_DISPLAY_NAMES`), giving managers and admins full visibility into all options regardless of user role.
+
 ### AF. System User Management & Operational Roles (Accountant, Cashier, HR, Sales, Auditor, Operator)
 - **Granular Operational Roles**: Superadmin can create dedicated staff login IDs for **Admin**, **Manager**, **Accountant** (`role: 'accountant'`), **Cashier / Billing Desk** (`role: 'cashier'`), **HR & Payroll** (`role: 'hr'`), **Sales Coordinator** (`role: 'sales'`), **System Operator** (`role: 'operator'`), **Internal Auditor** (`role: 'auditor'`), **Staff Executive** (`role: 'staff'`), and **Custom Role** (`role: 'other'`) in [admin.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/organization/admin.jsx).
 - **Default Role Presets**:
@@ -941,3 +957,94 @@ This file records crucial patterns, bugs solved, and architectural caveats found
   - **Cashier Wallet Scoping**: Physical cash ledgers (`user_cash`) are strictly provisioned and listed for admin/management/billing users (`superadmin`, `admin`, `manager`, `developer`, `grant`), excluding general `employee` role staff (who retain only their standard payroll/salary ledger).
   - Mounted across `adminRoutes`, `superadminRoutes`, and `managerRoutes` in `App.jsx`, and integrated under the **Ledger** navigation submenu in `sidebar.jsx`.
 
+
+---
+
+### AH. Fresh Full-Stack Deep Audit Findings (2026-09-30)
+
+**CRITICAL BUGS FOUND:**
+1. `updatepassword` crash (admin.js L984): `const { userid, pass } = req.body.pass` — crashes with TypeError on every call. Fix: change to `req.body`.
+2. Weak JWT Secret: `JWT_Key = merndeveloperjaikishan` in `.env` — predictable, short. Replace with 64-char random hex.
+
+**HIGH BUGS:**
+3. `toast` undefined in App.jsx — SSE punch events call `toast.info()` but only `Toaster` component is imported, not the imperative `toast` function. Fix: `import { Toaster, toast } from 'sonner'`.
+4. IDOR on `GET /api/plots/bookings/:id` — sponsor role passes `next()` without ownership check. Any sponsor can read any booking. Fix: check `booking.sponsorId === req.user.id` in controller.
+5. Insecure password reset token: uses `Math.random()` based function. Fix: `crypto.randomBytes(32).toString('hex')`.
+6. `apiClient.js` calls `POST /api/refresh` — this endpoint does NOT exist. 401 responses cause Session Expired errors. Fix: redirect to /login on 401.
+7. `/recordAttendanceFromLogs` has no role/permission guard — any authenticated user can trigger admin attendance recording.
+8. `/superfirstfetch` dead route — maps to `leave.addleave`, any user can create leaves. Delete this route.
+
+**PERMISSION SYSTEM:**
+9. `checkpermissionchange.js` is stale — only bypasses superadmin (misses developer/grant), no cache, imported but NEVER used on any route. Delete it.
+10. Frontend `hasPermission()` grants admin full bypass but backend `checkpermission.js` does not — admin users see all menu items but get 403. Align the two.
+
+**QUALITY/DUPLICATES:**
+11. `generateNextEmpId` duplicated in admin.js (race-condition-prone) vs employeeService.js (atomic). Delete from admin.js.
+12. Cloudinary config copy-pasted in 5 controllers. Create `server/utils/cloudinary.js` singleton.
+13. User model dual-registers both `user` and `User`, calls `dropIndex` every startup. Simplify to single registration.
+14. Duplicate `DELETE /api-monitor/stats` route at route.js L187-188.
+
+**N+1 QUERIES:**
+15. `leavehandle` loops sequential findOne/create per day of leave. Fix with bulkWrite/updateMany+insertMany.
+16. `deleteAdmin` loops findById/save per branch. Fix with updateMany + \\\\\.
+
+---
+
+### AH2. PROJECT_IMPROVEMENT_PLAN All 21 Plans Implemented (2026-09-30)
+
+All 21 plans from PROJECT_AUDIT_REPORT.md have been fully executed.
+
+IDOR-001 CORRECTION: The audit flagged GET /api/plots/bookings/:id as an IDOR. Investigation revealed getBookingById controller (plots.controller.js L225-235) ALREADY implements ownership check including downline sponsor hierarchy. The route-level next() only bypasses checkPermission guard. IDOR-001 does NOT exist. No change needed.
+
+PLAN-01: JWT rotated to 64-char hex in server/.env
+PLAN-02: updatepassword crash fixed - req.body.pass changed to req.body
+PLAN-03: App.jsx toast import fixed for SSE notifications
+PLAN-04: IDOR-001 confirmed already fixed in controller
+PLAN-05: user.js - Math.random token replaced with crypto.randomBytes(32)
+PLAN-06: recordAttendanceFromLogs secured with authorizeRoles+checkPermission
+PLAN-07: superfirstfetch dead route deleted
+PLAN-08: apiClient.js broken /refresh replaced with redirect-to-login on 401
+PLAN-09: CheckPermission.jsx admin removed from hasPermission bypass
+PLAN-10: checkpermissionchange.js import removed and file deleted
+PLAN-11: Duplicate DELETE api-monitor/stats route removed
+PLAN-12: CORS localhost wrapped in NODE_ENV !== production
+PLAN-13: N+1 leave approval loop replaced with updateMany+insertMany
+PLAN-14: N+1 deleteAdmin branch loop replaced with updateMany pull
+PLAN-15: user model dual registration fixed, dropIndex startup call removed
+PLAN-16: dispatch(FirstFetch()) removed from SSE handlers
+PLAN-17: Auth-leaking console.logs removed from App.jsx
+PLAN-18: Dead generateNextEmpId function removed from admin.js
+PLAN-19: server/utils/cloudinary.js created, centralized in 4 controllers
+PLAN-20: .lean() added to read-only queries in admin/ledger/voucher
+PLAN-21: 9x console.log(error) to console.error in admin.js
+
+
+### GOTCHA: User model 'User' alias must remain for populate() refs (2026-09-30)
+PLAN-15 originally removed mongoose.models.User alias completely. This broke ALL .populate() calls across 50+ fields in models that use ref: 'User' (PlotBooking, PlotReceipt, voucher, FundTransfer, ledger, KisanLandAgreement, InvestmentAccount, etc). Fix: use mongoose.models.User = user (assign same instance) instead of mongoose.model('User', schema) again. This registers the alias without schema duplication or OverwriteModelError. The dropIndex call removal is still correct and stays removed.
+
+## Dashboard Redesign — ERP Command Center (Session: 2026-09-30)
+
+### AdminDashboard.jsx Rewrite
+- **Location**: `client/src/pages/admin/AdminDashboard.jsx`
+- **Reason**: System evolved from attendance-centric EMS to full real estate ERP. Old dashboard only showed attendance KPIs and employee avatar grid.
+- **New Structure**: 4 sections:
+  1. **Real Estate — Plot Sales** (Gross Sales, Collected Funds, Outstanding Balance, Discounts + Inventory Status breakdown)
+  2. **Investment — RD & FD** (Active Accounts, Total Collected, Matured, Pending Approvals + RD/FD sub-panels)
+  3. **HR — Today's Attendance** (Employee KPIs + compact avatar strip with legend)
+  4. **Quick Navigation** (12 shortcut tiles to key ERP modules)
+- **Data Fetching**: All 4 sources (employees, attendance, plots stats, investment stats) fetched in parallel via `Promise.allSettled` — partial failures don't crash the page.
+- **APIs Used**:
+  - `/plots/dashboard/stats` — returns `{ plots, bookings, collections }`
+  - `/investment/dashboard-stats` — returns `{ activeAccounts, rdAccounts, fdAccounts, totalCollection, pendingApprovals, rd, fd }`
+- **Kept**: `updateAttendance` and `setEmployees` Redux dispatches still update global state so other pages that read from Redux stay consistent.
+
+## Dashboard — Role-Aware Permissions (Session: 2026-09-30)
+
+### Role-gated section logic in AdminDashboard.jsx
+- Sections are shown/hidden using a combination of: `profile.role` (hard role) + `profile.permissions` (per-module Map/object).
+- `hasPerm(permissions, module, action)` is the utility — handles both Map (Mongoose) and plain object (Redux serialised).
+- Role groups: FULL_ACCESS=['superadmin','admin','demo'], HR_ROLES=['hr','manager'], FIN_ROLES=['accountant','cashier','auditor'], OPS_ROLES=['sales','operator'].
+- Manager branch-scoping: employee list filtered to `profile.branchIds`; branch name shown in section header.
+- Finance section (Ledger/Vouchers/Transfers) surfaces only for finance roles and non-full-access; full-access sees these via Quick Nav tiles instead.
+- Quick Navigation tiles are also permission-gated: plot tiles hidden if no plot perm; payroll tile hidden if no payroll perm, etc.
+- `highlight` prop on KPICard adds amber ring when Outstanding Balance > 0, Pending Approvals > 0, or Absent > 0 — draws attention to actionable data.

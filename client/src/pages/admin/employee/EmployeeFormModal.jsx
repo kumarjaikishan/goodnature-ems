@@ -1,6 +1,6 @@
 import React from 'react';
 import { Send, Edit2, ChevronUp, ChevronDown, Trash2, User } from 'lucide-react';
-import Modalbox from '../../../components/custommodal/Modalbox';
+import Modal from '../../../components/ui/Modal';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
@@ -29,7 +29,7 @@ const EmployeeFormModal = ({
   resetPhoto
 }) => {
   return (
-    <Modalbox
+    <Modal
       open={open}
       onClose={onClose}
       title={isupdate ? "Update Employee" : "Add Employee"}
@@ -37,14 +37,18 @@ const EmployeeFormModal = ({
       maxWidth="max-w-2xl"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} type="button">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+          >
             Cancel
           </Button>
           <Button
+            type="submit"
+            form="employee-form"
             variant="primary"
             loading={isload}
-            onClick={adddepartcall}
-            type="button"
           >
             {isupdate ? "Update Employee" : "Add Employee"}
           </Button>
@@ -521,7 +525,7 @@ const EmployeeFormModal = ({
           )}
         </div>
       </form>
-    </Modalbox>
+    </Modal>
   );
 };
 

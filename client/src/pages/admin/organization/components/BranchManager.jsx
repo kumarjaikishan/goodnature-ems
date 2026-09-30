@@ -5,6 +5,7 @@ import {
     Search, LayoutGrid, List, Clock
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { getRoleBadgeStyle, getRoleDisplayLabel } from './admin/userPermissionsConfig';
 
 const getInitialBg = (name) => {
     const colors = [
@@ -110,7 +111,7 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
             )
         },
         {
-            name: "Manager(s)",
+            name: "Assigned Users / Managers",
             cell: row => (
                 <div className="flex flex-col gap-1.5 py-1">
                     {row?.managerIds?.length > 0 ? (
@@ -130,11 +131,18 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
                                         {manager?.name ? manager.name.charAt(0).toUpperCase() : <User size={12} />}
                                     </div>
                                 )}
-                                <span className="text-xs text-slate-700 font-medium">{manager?.name}</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs text-slate-700 font-medium">{manager?.name}</span>
+                                    {manager?.role && (
+                                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md border ${getRoleBadgeStyle(manager.role)}`}>
+                                            {getRoleDisplayLabel(manager.role)}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         ))
                     ) : (
-                        <span className="text-xs text-slate-400 italic">No manager assigned</span>
+                        <span className="text-xs text-slate-400 italic">No users assigned</span>
                     )}
                 </div>
             )
@@ -358,39 +366,44 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
                                         )}
                                     </div>
 
-                                    {/* Assigned Managers */}
+                                    {/* Assigned Users / Managers */}
                                     <div className="space-y-1.5">
                                         <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
-                                            Assigned Managers ({managers.length})
+                                            Assigned Users ({managers.length})
                                         </span>
                                         {managers.length > 0 ? (
                                             <div className="flex flex-wrap gap-1.5">
                                                 {managers.map((m, mIdx) => (
-                                                    <div
-                                                        key={mIdx}
-                                                        className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl text-xs"
-                                                    >
-                                                        {m?.profileImage ? (
-                                                            <img
-                                                                src={m.profileImage}
-                                                                alt={m.name}
-                                                                className="w-4.5 h-4.5 rounded-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold text-[9px] ${getInitialBg(m?.name)}`}>
-                                                                {m?.name?.charAt(0)?.toUpperCase() || 'M'}
-                                                            </div>
-                                                        )}
-                                                        <span className="text-slate-700 font-semibold text-[11px]">{m?.name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-slate-400 italic block">
-                                                No manager currently assigned to this branch.
-                                            </span>
-                                        )}
-                                    </div>
+                                                     <div
+                                                         key={mIdx}
+                                                         className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl text-xs"
+                                                     >
+                                                         {m?.profileImage ? (
+                                                             <img
+                                                                 src={m.profileImage}
+                                                                 alt={m.name}
+                                                                 className="w-4.5 h-4.5 rounded-full object-cover"
+                                                             />
+                                                         ) : (
+                                                             <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold text-[9px] ${getInitialBg(m?.name)}`}>
+                                                                 {m?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                             </div>
+                                                         )}
+                                                         <span className="text-slate-700 font-semibold text-[11px]">{m?.name}</span>
+                                                         {m?.role && (
+                                                             <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md border ${getRoleBadgeStyle(m.role)}`}>
+                                                                 {getRoleDisplayLabel(m.role)}
+                                                             </span>
+                                                         )}
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         ) : (
+                                             <span className="text-xs text-slate-400 italic block">
+                                                 No users currently assigned to this branch.
+                                             </span>
+                                         )}
+                                     </div>
                                 </div>
                             </div>
                         );

@@ -286,8 +286,8 @@ class PlotsService {
     return plotCollectionService.getPayoutSchedules(bookingId);
   }
 
-  getReceipts(filters = {}) {
-    return plotCollectionService.getReceipts(filters);
+  getReceipts(filters = {}, user = null) {
+    return plotCollectionService.getReceipts(filters, user);
   }
 
   getReceiptById(id) {

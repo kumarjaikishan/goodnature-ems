@@ -4,6 +4,7 @@ const paymentTrancheSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   paymentDate: { type: Date, default: Date.now },
   paymentMode: { type: String, enum: ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'UPI', 'NEFT_RTGS'], default: 'CASH' },
+  paymentLedgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger' },
   referenceNo: { type: String, default: '' },
   remarks: { type: String, default: '' },
   paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -17,6 +18,7 @@ const voucherSchema = new mongoose.Schema({
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee' },
   sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   ledgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger' },
+  paymentLedgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger' }, // default cash/bank ledger used
   date: { type: Date, default: Date.now },
   
   // Total bill/voucher amount
@@ -57,6 +59,9 @@ const voucherSchema = new mongoose.Schema({
 
 voucherSchema.index({ type: 1, voucherNo: -1 });
 voucherSchema.index({ branchId: 1, type: 1 });
+voucherSchema.index({ branchId: 1, status: 1, date: -1 });
+voucherSchema.index({ employeeId: 1, date: -1 });
+voucherSchema.index({ sponsorId: 1, date: -1 });
 voucherSchema.index({ referenceId: 1, referenceType: 1 });
 voucherSchema.index({ status: 1 });
 voucherSchema.index({ ledgerId: 1 });

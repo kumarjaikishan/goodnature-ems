@@ -41,7 +41,7 @@ app.use(cors({
       origin === 'http://demo.goodfeelsd.com' ||
       origin === 'https://demo.goodfeelsd.com' ||
       origin.endsWith('.vercel.app') ||
-      /^http:\/\/localhost:\d+$/.test(origin);
+      (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin));
 
     if (isAllowed) {
       return callback(null, true);
@@ -130,9 +130,19 @@ app.use((req, res, next) => {
 // ----------------------
 app.use(errorHandle);
 
+const { initPlotHoldScheduler } = require('./cron/plotHoldScheduler');
+const { initPlotPayoutScheduler } = require('./cron/plotPayoutScheduler');
+
 // ----------------------
 // Start server
 // ----------------------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running at http://localhost:${PORT} and http://127.0.0.1:${PORT}`);
+  try {
+    initPlotHoldScheduler();
+    initPlotPayoutScheduler();
+    console.log('⏰ Plot schedulers initialized (Hold Auto-Expiry & Weekly Payout Accruals)');
+  } catch (schedErr) {
+    console.error('Failed to initialize plot schedulers:', schedErr);
+  }
 });

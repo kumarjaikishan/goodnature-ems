@@ -11,9 +11,11 @@ export const Modal = ({
   title,
   subtitle,
   children,
+  footer,
   maxWidth = 'max-w-xl', // 'max-w-sm' | 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl' | 'max-w-4xl' | 'max-w-6xl'
   showClose = true,
   className = '',
+  bodyClassName = '',
 }) => {
   useEffect(() => {
     if (open) {
@@ -59,7 +61,7 @@ export const Modal = ({
       >
         {/* Header (optional) */}
         {(title || showClose) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0 select-none">
             <div>
               {title && <h3 className="text-base font-bold text-slate-800 tracking-tight">{title}</h3>}
               {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
@@ -68,7 +70,7 @@ export const Modal = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 p-1.5 rounded-lg transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -77,7 +79,14 @@ export const Modal = ({
         )}
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className={`p-6 overflow-y-auto flex-1 ${bodyClassName}`}>{children}</div>
+
+        {/* Fixed Footer (optional) */}
+        {footer && (
+          <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-2.5 shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body

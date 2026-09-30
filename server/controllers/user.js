@@ -1,6 +1,7 @@
 const user = require('../models/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { addtoqueue } = require('../utils/axiosRequest');
 const { logActivity } = require('../utils/auditLogger');
 
@@ -144,7 +145,7 @@ const userLogin = async (req, res, next) => {
 
 const passreset = async (req, res, next) => {
   try {
-    const temptoken = await random(20);
+    const temptoken = crypto.randomBytes(32).toString('hex');
     const query = await user.findByIdAndUpdate(req.user.id, { temptoken: temptoken });
     if (!query) {
       return next({ status: 400, message: "UserId is Not Valid" });
@@ -194,15 +195,5 @@ const setpassword = async (req, res, next) => {
     return next({ status: 500, message: error });
   }
 }
-
-const random = async (len) => {
-  const rand = 'abcdefghijklmnopqrstuvwxyz123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let result = '';
-  for (let i = 0; i < len; i++) {
-    const randomIndex = Math.floor(Math.random() * rand.length);
-    result += rand[randomIndex];
-  }
-  return result;
-};
 
 module.exports = { userRegister, userLogin, passreset, setpassword };

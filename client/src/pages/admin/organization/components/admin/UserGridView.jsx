@@ -4,7 +4,7 @@ import {
     Building2, CheckCircle2, XCircle, Shield,
     Lock, Unlock, Mail, Copy, Check
 } from "lucide-react";
-import { PERMISSION_LABELS, getRoleBadgeStyle, getRoleDisplayLabel } from "./userPermissionsConfig";
+import { PERMISSION_LABELS, getRoleBadgeStyle, getRoleDisplayLabel, AllPermissionNames, MODULE_DISPLAY_NAMES } from "./userPermissionsConfig";
 
 export default function UserGridView({
     admins,
@@ -187,37 +187,41 @@ export default function UserGridView({
                             </button>
 
                             {expandedIndex === index && (
-                                <div className="mt-2.5 overflow-x-auto rounded-xl border border-slate-200 max-h-56 overflow-y-auto">
+                                <div className="mt-2.5 overflow-x-auto rounded-xl border border-slate-200 max-h-64 overflow-y-auto shadow-inner">
                                     <table className="w-full text-left text-xs border-collapse">
-                                        <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-50">
+                                        <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-100 z-10">
                                             <tr>
-                                                <th className="py-2 px-3">Module</th>
+                                                <th className="py-2.5 px-3">Module</th>
                                                 {Object.values(PERMISSION_LABELS).map((label) => (
-                                                    <th key={label} className="py-2 px-3 text-center">
+                                                    <th key={label} className="py-2 px-2 text-center">
                                                         {label}
                                                     </th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 bg-white">
-                                            {Object.entries(admin.permissions || {}).map(([module, levels]) => (
-                                                <tr key={module} className="hover:bg-slate-50/60">
-                                                    <td className="py-2 px-3 font-semibold text-slate-800 capitalize text-[11px]">
-                                                        {module.replace(/_/g, ' ')}
-                                                    </td>
-                                                    {Object.keys(PERMISSION_LABELS).map((permKey) => (
-                                                        <td key={permKey} className="py-2 px-3 text-center">
-                                                            {levels.includes(Number(permKey)) ? (
-                                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-50 text-teal-800 font-bold text-xs border border-teal-200">
-                                                                    ✓
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-slate-300">-</span>
-                                                            )}
+                                            {AllPermissionNames.map((module) => {
+                                                const levels = admin.permissions?.[module] || [];
+                                                return (
+                                                    <tr key={module} className="hover:bg-slate-50/70 transition-colors">
+                                                        <td className="py-2 px-3 font-semibold text-slate-800 text-[11px]">
+                                                            <span>{MODULE_DISPLAY_NAMES[module] || module.replace(/_/g, ' ')}</span>
+                                                            <span className="text-[10px] text-slate-400 font-mono font-normal ml-1">({module})</span>
                                                         </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
+                                                        {Object.keys(PERMISSION_LABELS).map((permKey) => (
+                                                            <td key={permKey} className="py-2 px-2 text-center">
+                                                                {levels.includes(Number(permKey)) ? (
+                                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-teal-50 text-teal-800 font-bold text-xs border border-teal-200">
+                                                                        ✓
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-slate-300">-</span>
+                                                                )}
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

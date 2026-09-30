@@ -20,7 +20,6 @@ const authmiddlewre = require('../middleware/auth_middleware');
 const authorizeRoles = require('../middleware/Role_middleware')
 const upload = require('../middleware/multer_middleware')
 const checkPermission = require('../middleware/checkpermission');
-const checkpermissionchange = require('../middleware/checkpermissionchange');
 const employeemiddlewre = require('../middleware/employee_middleware');
 const { exec } = require("child_process");
 const rateLimit = require('express-rate-limit');
@@ -95,7 +94,7 @@ router.route('/employeeAttandence').get(authmiddlewre, authorizeRoles('superadmi
 router.route('/singleEmployeeAttendance').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getSingleEmployeeAttendance);
 router.route('/attendanceReport').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("attandence", 1), attendance.getAttendanceReport);
 router.route('/deleteattandence').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 4), attendance.deleteattandence);
-router.route('/recordAttendanceFromLogs').post(authmiddlewre, attendance.recordAttendanceFromLogs);
+router.route('/recordAttendanceFromLogs').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("attandence", 2), attendance.recordAttendanceFromLogs);
 
 router.route('/getholidays').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo'), checkPermission("holiday", 1), holiday.getholidays);
 router.route('/addholiday').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("holiday", 2), holiday.addholiday);
@@ -185,15 +184,25 @@ router.route('/permission').get(authmiddlewre, authorizeRoles('developer'), deve
 // /permission, /demo above).
 router.route('/api-monitor/stats').get(authmiddlewre, authorizeRoles('developer'), apiMonitorController.getApiStats)
 router.route('/api-monitor/stats').delete(authmiddlewre, authorizeRoles('developer'), apiMonitorController.clearApiStats)
-router.route('/api-monitor/stats').delete(authmiddlewre, authorizeRoles('developer'), apiMonitorController.clearApiStats)
 router.route('/permission/:id')
   .put(authmiddlewre, authorizeRoles('developer'), developer.updatedefaultpermission)
 
 
-router.route('/superfirstfetch').post(authmiddlewre, leave.addleave);
-
 router.route("/ledgerEntries").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), ledger.ledgerEntries);
-router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 1), ledger.ledger);
+router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), (req, res, next) => {
+  // If user is superadmin/developer/grant, proceed immediately
+  if (['superadmin', 'grant', 'developer'].includes(req.user?.role)) {
+    return next();
+  }
+  // Allow if user has either 'ledger' permission or 'voucher' permission (for voucher creation/selection in vouchers view)
+  const perms = req.user?.permissions instanceof Map
+    ? Object.fromEntries(req.user.permissions)
+    : (req.user?.permissions || {});
+
+  const hasVoucherPerm = (Array.isArray(perms.voucher) && (perms.voucher.includes(1) || perms.voucher.includes(2)));
+  if (hasVoucherPerm) return next();
+  return checkPermission("ledger", 1)(req, res, next);
+}, ledger.ledger);
 router.route("/entries/:id").get(authmiddlewre, (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own ledger entries, allow access
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
@@ -296,6 +305,12 @@ router.route('/developer/errors')
 
 router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"), (req, res) => {
   const { project } = req.params;
+  if (!project || !deploy_script[project]) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid project identifier. Allowed: ${Object.keys(deploy_script).join(', ')}`
+    });
+  }
   exec(`bash ${deploy_script[project]}`, (error, stdout, stderr) => {
     if (error) {
       console.error("Deployment error:", error.message);

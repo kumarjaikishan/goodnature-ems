@@ -8,6 +8,8 @@ export const getReceiptColumns = ({
   setRejectingReceipt,
   setRejectionReason,
   setDeletingReceipt,
+  canUpdate = true,
+  canDelete = true,
 }) => [
     {
       name: 'Date',
@@ -127,7 +129,7 @@ export const getReceiptColumns = ({
         const isPending = (r.status || 'APPROVED').toUpperCase() === 'PENDING';
         return (
           <div className="flex items-center gap-1.5 py-1">
-            {isPending && (
+            {isPending && canUpdate && (
               <>
                 <button
                   onClick={() => setApprovingReceipt(r)}
@@ -155,13 +157,15 @@ export const getReceiptColumns = ({
             >
               <Printer size={15} />
             </button>
-            <button
-              onClick={() => setDeletingReceipt(r)}
-              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center shadow-2xs"
-              title="Delete / Reverse"
-            >
-              <Trash2 size={15} />
-            </button>
+            {canDelete && (
+              <button
+                onClick={() => setDeletingReceipt(r)}
+                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold border border-rose-200 transition cursor-pointer flex items-center justify-center shadow-2xs"
+                title="Delete / Reverse"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
           </div>
         );
       },

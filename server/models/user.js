@@ -91,8 +91,11 @@ const userSchema = new mongoose.Schema({
     ifscCode: { type: String, default: '' },
     photo: { type: String, default: '' },
     signature: { type: String, default: '' }
-}, { timestamps: true })
+}, { timestamps: true });
 
+userSchema.index({ companyId: 1, role: 1, isBlocked: 1 });
+userSchema.index({ branchIds: 1 });
+userSchema.index({ role: 1, sponsorId: 1 });
 
 // secure the password
 userSchema.pre("save", async function (next) {
@@ -136,14 +139,12 @@ userSchema.methods.checkpassword = async function (pass) {
     }
 };
 
-const user = mongoose.models.User || mongoose.models.user || mongoose.model("user", userSchema);
-if (!mongoose.models.User) {
-    mongoose.model("User", userSchema);
-}
+const user = mongoose.models.user || mongoose.model("user", userSchema);
 
-// Drop legacy non-sparse index if present and sync indexes
-user.collection.dropIndex('email_1')
-    .then(() => user.syncIndexes())
-    .catch(() => {});
+// Register 'User' (capital-U) as an alias of the same model instance so that
+// all Mongoose schemas using ref: 'User' for .populate() continue to work.
+if (!mongoose.models.User) {
+    mongoose.models.User = user;
+}
 
 module.exports = user;

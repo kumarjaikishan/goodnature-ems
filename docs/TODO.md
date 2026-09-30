@@ -6,8 +6,8 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
-- [ ] **Plot Schedulers Integration**:
-  - `server/cron/plotHoldScheduler.js` (`initPlotHoldScheduler`) and `server/cron/plotPayoutScheduler.js` (`initPlotPayoutScheduler`) are defined, but verify if they are explicitly invoked in `server/index.js` during server startup.
+- [x] **Plot Schedulers Integration**:
+  - `server/cron/plotHoldScheduler.js` (`initPlotHoldScheduler`) and `server/cron/plotPayoutScheduler.js` (`initPlotPayoutScheduler`) are explicitly invoked on server startup in `server/index.js` with fail-safe error boundaries.
 - [ ] **Redis Connection Reliability**:
   - Ensure graceful handling and reconnection strategies if Redis becomes unavailable during peak load without blocking permission checks.
 - [ ] **Controller Refactoring**:
@@ -47,3 +47,9 @@ This document tracks known tasks, technical debt, and pending improvements ident
 - [x] Plot Products Kisan Land Agreement sourcing & parcel area deduction/restoration synchronization.
 - [x] Project Management System: Dedicated Project Master tab in Land Purchase, project tagging across Kisan Land Purchase agreements, Series Master creation, Plot bookings (Step 2 selection filter), and Plot Product sales & catalog.
 - [x] Multi-Ledger Treasury & Cash Management System: Configurable Corporate Bank Accounts (Axis, IDBI, HDFC, etc.) with opening balances & statement views, Auto-provisioned Cashier Personal Cash Ledgers (`user_cash`), Account-linked Receipt & Voucher collections with instant double-entry credits/debits, and Maker-Checker 2-Step Inter-Ledger Fund Transfers with deposit slip uploads and in-transit held balance safeguards.
+- [x] Full System Technical Audit & Hardening (Sept 2026): Dynamic permission fallback & live cache invalidation in `checkpermission.js` and `admin.js`, Rate-Config billing whitelist for cashiers/accountants, deploy route hardening, compound database indexing on `attandences`, `entries`, `vouchers`, and `users`, and legacy attendance company scope matching.
+- [x] **PROJECT_IMPROVEMENT_PLAN — All 21 Fixes Executed (2026-09-30)**:
+  - CRITICAL: JWT rotated to 64-char hex (PLAN-01). `updatepassword` crash fixed (PLAN-02).
+  - HIGH: `toast` import fixed in App.jsx SSE (PLAN-03). IDOR-001 on bookings — confirmed controller already had ownership check, no change needed (PLAN-04). Insecure `Math.random()` token → `crypto.randomBytes(32)` (PLAN-05). `/recordAttendanceFromLogs` secured with role+permission guard (PLAN-06). Dead `/superfirstfetch` route removed (PLAN-07). `apiClient.js` broken /refresh → redirect-to-login on 401 (PLAN-08).
+  - MEDIUM: `admin` removed from frontend `hasPermission()` bypass (PLAN-09). `checkpermissionchange.js` deleted (PLAN-10). Duplicate DELETE route removed (PLAN-11). CORS localhost wrapped in NODE_ENV check (PLAN-12). N+1 leave approval loop → `updateMany + insertMany` (PLAN-13). N+1 deleteAdmin branch loop → `updateMany $pull` (PLAN-14). User model dual registration fixed, startup `dropIndex` removed (PLAN-15). SSE `dispatch(FirstFetch())` removed (PLAN-16).
+  - LOW: Auth console.logs removed from App.jsx (PLAN-17). Dead `generateNextEmpId` removed from admin.js (PLAN-18). Cloudinary centralized to `server/utils/cloudinary.js` (PLAN-19). `.lean()` added to read-only queries in admin/ledger/voucher (PLAN-20). `console.log` → `console.error` in admin.js catch blocks (PLAN-21).

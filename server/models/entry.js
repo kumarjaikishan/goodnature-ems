@@ -12,7 +12,7 @@ const entrySchema = new mongoose.Schema({
     enum: [
       'ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll', 
       'commission_closing', 'commission_fixed', 'plot_payout', 'investment', 
-      'kisan_agreement', 'kisan_payment', 'kisan', 'transfer', 'receipt', 'voucher_payment'
+      'kisan_agreement', 'kisan_payment', 'kisan', 'transfer', 'receipt', 'voucher', 'voucher_payment'
     ], 
     default: 'ledger' 
   },
@@ -23,5 +23,8 @@ const entrySchema = new mongoose.Schema({
 
 // Support "latest entry per ledger" lookups (ledger balance) without a full scan
 entrySchema.index({ ledgerId: 1, date: -1, createdAt: -1 });
+entrySchema.index({ ledgerId: 1, status: 1, date: -1 });
+entrySchema.index({ referenceId: 1 });
+entrySchema.index({ source: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Entry', entrySchema);

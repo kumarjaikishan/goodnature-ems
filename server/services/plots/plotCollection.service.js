@@ -571,6 +571,7 @@ class PlotCollectionService {
         ifscCode: bankDetails?.ifscCode || '',
         remarks,
         status: initialStatus,
+        createdBy: processedBy || undefined,
         approvedBy: isCash ? processedBy : undefined,
         approvedAt: isCash ? (customDate ? paymentDate : new Date()) : undefined,
       });
@@ -935,10 +936,40 @@ class PlotCollectionService {
     return PlotPayoutSchedule.find({ bookingId }).sort({ weekNumber: 1 });
   }
 
-  async getReceipts(filters = {}) {
+  async getReceipts(filters = {}, user = null) {
     const query = {};
     if (filters.bookingId) query.bookingId = filters.bookingId;
     if (filters.receiptType) query.receiptType = filters.receiptType;
+
+    // Role-based visibility scoping:
+    // Superadmin, developer, admin, grant: see ALL receipts
+    // Other operational roles (accountant, cashier, sales, operator, staff): see only their OWN recorded receipts (or unassigned legacy ones)
+    if (user) {
+      const userRole = user.role;
+      const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+      const isBranchManager = userRole === 'manager';
+
+      if (!isGlobalAdmin) {
+        const userId = user._id || user.id;
+        if (isBranchManager && Array.isArray(user.branchIds) && user.branchIds.length > 0) {
+          // If branch manager, show receipts created by them OR bookings belonging to their branches
+          // Or receipts created by this user
+          query.$or = [
+            { createdBy: userId },
+            { approvedBy: userId },
+            { createdBy: { $exists: false } },
+            { createdBy: null },
+          ];
+        } else if (userId) {
+          // Individual staff, accountant, cashier: see receipts created by themselves (or legacy unassigned)
+          query.$or = [
+            { createdBy: userId },
+            { createdBy: { $exists: false } },
+            { createdBy: null },
+          ];
+        }
+      }
+    }
 
     const page = parseInt(filters.page) || 1;
     const limit = parseInt(filters.limit) || 20;

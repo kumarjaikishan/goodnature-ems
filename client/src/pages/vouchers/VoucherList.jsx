@@ -32,6 +32,7 @@ const VoucherList = () => {
 
   const [vouchers, setVouchers] = useState([]);
   const [ledgers, setLedgers] = useState([]);
+  const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
   const [loading, setLoading] = useState(true);
 
   // Search & Filter state
@@ -57,6 +58,7 @@ const VoucherList = () => {
   const [enableInitialPayment, setEnableInitialPayment] = useState(false);
   const [initialPaymentAmount, setInitialPaymentAmount] = useState("");
   const [initialPaymentMode, setInitialPaymentMode] = useState("CASH");
+  const [initialPaymentLedgerId, setInitialPaymentLedgerId] = useState("");
   const [initialReferenceNo, setInitialReferenceNo] = useState("");
 
   // Approval Modal State
@@ -69,6 +71,7 @@ const VoucherList = () => {
   const [approvedNarration, setApprovedNarration] = useState("");
   const [approveDisburseAmount, setApproveDisburseAmount] = useState("0");
   const [approvePaymentMode, setApprovePaymentMode] = useState("CASH");
+  const [approvePaymentLedgerId, setApprovePaymentLedgerId] = useState("");
   const [approveReferenceNo, setApproveReferenceNo] = useState("");
 
   // Rejection Modal State
@@ -84,6 +87,7 @@ const VoucherList = () => {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [paymentMode, setPaymentMode] = useState("CASH");
+  const [paymentLedgerId, setPaymentLedgerId] = useState("");
   const [paymentReferenceNo, setPaymentReferenceNo] = useState("");
   const [paymentRemarks, setPaymentRemarks] = useState("");
 
@@ -96,6 +100,7 @@ const VoucherList = () => {
   useEffect(() => {
     fetchVouchers();
     fetchLedgers();
+    fetchTreasury();
   }, []);
 
   const fetchVouchers = async () => {
@@ -120,6 +125,20 @@ const VoucherList = () => {
     }
   };
 
+  const fetchTreasury = async () => {
+    try {
+      const data = await apiClient({ url: "ledger/treasury" });
+      if (data) {
+        setTreasuryLedgers({
+          bankLedgers: data.bankLedgers || [],
+          cashLedgers: data.cashLedgers || []
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching treasury ledgers:", err);
+    }
+  };
+
   // ----------------------------------------------------
   // Voucher Operations
   // ----------------------------------------------------
@@ -133,6 +152,7 @@ const VoucherList = () => {
     setEnableInitialPayment(false);
     setInitialPaymentAmount("");
     setInitialPaymentMode("CASH");
+    setInitialPaymentLedgerId(treasuryLedgers.cashLedgers?.[0]?._id || "");
     setInitialReferenceNo("");
     setOpenModal(true);
   };
@@ -198,6 +218,7 @@ const VoucherList = () => {
         ledgerId: selectedLedgerId,
         initialPayment: enableInitialPayment ? (parseFloat(initialPaymentAmount) || 0) : 0,
         paymentMode: initialPaymentMode,
+        paymentLedgerId: enableInitialPayment ? initialPaymentLedgerId : null,
         referenceNo: initialReferenceNo,
         autoApprove: false
       };
@@ -221,6 +242,7 @@ const VoucherList = () => {
       setOpenModal(false);
       fetchVouchers();
       fetchLedgers();
+      fetchTreasury();
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to save voucher");
@@ -243,9 +265,16 @@ const VoucherList = () => {
 
     setApprovedDate(dayjs(v.date).format("YYYY-MM-DD"));
     setApprovedNarration(v.remarks || "");
-    setApproveDisburseAmount("0");
-    setApprovePaymentMode("CASH");
-    setApproveReferenceNo("");
+
+    // If creator requested an immediate disbursement on creation, populate it, otherwise 0 (Unpaid)
+    const initPaid = Number(v.paidAmount) || 0;
+    setApproveDisburseAmount(initPaid.toString());
+
+    const defPaymentLedger = v.paymentLedgerId?._id || v.paymentLedgerId || treasuryLedgers.cashLedgers?.[0]?._id || "";
+    const defPaymentMode = v.paymentTranches?.[0]?.paymentMode || "CASH";
+    setApprovePaymentMode(defPaymentMode);
+    setApprovePaymentLedgerId(defPaymentLedger);
+    setApproveReferenceNo(v.paymentTranches?.[0]?.referenceNo || "");
     setOpenApproveModal(true);
   };
 
@@ -274,6 +303,7 @@ const VoucherList = () => {
           narration: approvedNarration,
           disbursementAmount: disbAmt,
           paymentMode: approvePaymentMode,
+          paymentLedgerId: disbAmt > 0 ? approvePaymentLedgerId : null,
           referenceNo: approveReferenceNo
         }
       });
@@ -282,6 +312,7 @@ const VoucherList = () => {
       setOpenApproveModal(false);
       fetchVouchers();
       fetchLedgers();
+      fetchTreasury();
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to approve voucher");
@@ -317,6 +348,7 @@ const VoucherList = () => {
       setOpenRejectModal(false);
       fetchVouchers();
       fetchLedgers();
+      fetchTreasury();
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to reject voucher");
@@ -337,6 +369,7 @@ const VoucherList = () => {
     setPaymentAmount(remaining.toString());
     setPaymentDate(dayjs().format("YYYY-MM-DD"));
     setPaymentMode("CASH");
+    setPaymentLedgerId(treasuryLedgers.cashLedgers?.[0]?._id || "");
     setPaymentReferenceNo("");
     setPaymentRemarks("");
     setOpenPaymentModal(true);
@@ -368,6 +401,7 @@ const VoucherList = () => {
           amount: amt,
           paymentDate,
           paymentMode,
+          paymentLedgerId: paymentLedgerId || null,
           referenceNo: paymentReferenceNo,
           remarks: paymentRemarks
         }
@@ -377,6 +411,7 @@ const VoucherList = () => {
       setOpenPaymentModal(false);
       fetchVouchers();
       fetchLedgers();
+      fetchTreasury();
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to record payment");
@@ -417,6 +452,7 @@ const VoucherList = () => {
           toast.success("Custom ledger deleted successfully");
           fetchLedgers();
           fetchVouchers();
+          fetchTreasury();
         } catch (error) {
           console.error(error);
           toast.error(error.message || "Failed to delete custom ledger");
@@ -456,11 +492,30 @@ const VoucherList = () => {
 
       setOpenLedgerModal(false);
       fetchLedgers();
+      fetchTreasury();
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to save custom ledger");
     } finally {
       setSubmittingLedger(false);
+    }
+  };
+
+  const getTreasuryOptions = (mode) => {
+    if (mode === "CASH") {
+      const cashList = treasuryLedgers.cashLedgers || [];
+      if (cashList.length === 0) return [{ label: "Default Cash Custody", value: "" }];
+      return cashList.map(c => ({
+        label: `${c.name || c.assignedUserId?.name || 'Cash Account'} (₹ ${(c.availableBalance || 0).toLocaleString()})`,
+        value: c._id
+      }));
+    } else {
+      const bankList = treasuryLedgers.bankLedgers || [];
+      if (bankList.length === 0) return [{ label: "Default Bank Account", value: "" }];
+      return bankList.map(b => ({
+        label: `${b.name || b.bankDetails?.bankName || 'Bank Account'} (₹ ${(b.availableBalance || 0).toLocaleString()})`,
+        value: b._id
+      }));
     }
   };
 
@@ -1077,28 +1132,59 @@ const VoucherList = () => {
             />
           </div>
 
-          {/* Initial Disbursement Toggle (For New Vouchers) */}
+          {/* Payment & Source Treasury Account Selection */}
           {!editingVoucher && (
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={enableInitialPayment}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">Source Payment Account (Cash / Bank)</span>
+                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={enableInitialPayment}
+                    onChange={(e) => {
+                      setEnableInitialPayment(e.target.checked);
+                      if (e.target.checked && !initialPaymentAmount) {
+                        setInitialPaymentAmount(voucherAmount);
+                      }
+                    }}
+                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                  />
+                  <span>Disburse Immediately</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <Select
+                  label="Payment Mode"
+                  size="sm"
+                  options={[
+                    { label: "Cash", value: "CASH" },
+                    { label: "Bank Transfer", value: "BANK_TRANSFER" },
+                    { label: "UPI", value: "UPI" },
+                    { label: "Cheque", value: "CHEQUE" },
+                  ]}
+                  value={initialPaymentMode}
                   onChange={(e) => {
-                    setEnableInitialPayment(e.target.checked);
-                    if (e.target.checked && !initialPaymentAmount) {
-                      setInitialPaymentAmount(voucherAmount);
-                    }
+                    const newMode = e.target.value;
+                    setInitialPaymentMode(newMode);
+                    const opts = getTreasuryOptions(newMode);
+                    setInitialPaymentLedgerId(opts[0]?.value || "");
                   }}
-                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
                 />
-                <span>Record Immediate Partial / Full Payment Disbursement</span>
-              </label>
+                <Select
+                  label={initialPaymentMode === "CASH" ? "Debit From Cash Ledger" : "Debit From Bank Account"}
+                  size="sm"
+                  required
+                  options={getTreasuryOptions(initialPaymentMode)}
+                  value={initialPaymentLedgerId}
+                  onChange={(e) => setInitialPaymentLedgerId(e.target.value)}
+                />
+              </div>
 
               {enableInitialPayment && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-200/60">
                   <NumberInput
-                    label="Paid Amount (₹)"
+                    label="Immediate Disbursed Amount (₹)"
                     size="sm"
                     currency
                     min="1"
@@ -1106,18 +1192,6 @@ const VoucherList = () => {
                     placeholder="Disbursed"
                     value={initialPaymentAmount}
                     onChange={(e) => setInitialPaymentAmount(e.target.value)}
-                  />
-                  <Select
-                    label="Payment Mode"
-                    size="sm"
-                    options={[
-                      { label: "Cash", value: "CASH" },
-                      { label: "Bank Transfer", value: "BANK_TRANSFER" },
-                      { label: "UPI", value: "UPI" },
-                      { label: "Cheque", value: "CHEQUE" },
-                    ]}
-                    value={initialPaymentMode}
-                    onChange={(e) => setInitialPaymentMode(e.target.value)}
                   />
                   <Input
                     label="Reference / Cheque No"
@@ -1229,7 +1303,12 @@ const VoucherList = () => {
                   { label: "Cheque", value: "CHEQUE" },
                 ]}
                 value={approvePaymentMode}
-                onChange={(e) => setApprovePaymentMode(e.target.value)}
+                onChange={(e) => {
+                  const newMode = e.target.value;
+                  setApprovePaymentMode(newMode);
+                  const opts = getTreasuryOptions(newMode);
+                  setApprovePaymentLedgerId(opts[0]?.value || "");
+                }}
               />
               <Input
                 label="Reference No"
@@ -1239,6 +1318,18 @@ const VoucherList = () => {
                 onChange={(e) => setApproveReferenceNo(e.target.value)}
               />
             </div>
+            {parseFloat(approveDisburseAmount) > 0 && (
+              <div className="pt-2">
+                <Select
+                  label={approvePaymentMode === "CASH" ? "Source Cash Ledger" : "Source Bank Account"}
+                  size="sm"
+                  required
+                  options={getTreasuryOptions(approvePaymentMode)}
+                  value={approvePaymentLedgerId}
+                  onChange={(e) => setApprovePaymentLedgerId(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1381,15 +1472,28 @@ const VoucherList = () => {
                 { label: "Cheque", value: "CHEQUE" },
               ]}
               value={paymentMode}
-              onChange={(e) => setPaymentMode(e.target.value)}
+              onChange={(e) => {
+                const newMode = e.target.value;
+                setPaymentMode(newMode);
+                const opts = getTreasuryOptions(newMode);
+                setPaymentLedgerId(opts[0]?.value || "");
+              }}
             />
-            <Input
-              label="Reference / Transaction No"
-              placeholder="e.g. UTR / Cheque #"
-              value={paymentReferenceNo}
-              onChange={(e) => setPaymentReferenceNo(e.target.value)}
+            <Select
+              label={paymentMode === "CASH" ? "Source Cash Ledger" : "Source Bank Account"}
+              required
+              options={getTreasuryOptions(paymentMode)}
+              value={paymentLedgerId}
+              onChange={(e) => setPaymentLedgerId(e.target.value)}
             />
           </div>
+
+          <Input
+            label="Reference / Transaction No"
+            placeholder="e.g. UTR / Cheque #"
+            value={paymentReferenceNo}
+            onChange={(e) => setPaymentReferenceNo(e.target.value)}
+          />
 
           <Input
             label="Payment Remarks / Notes"

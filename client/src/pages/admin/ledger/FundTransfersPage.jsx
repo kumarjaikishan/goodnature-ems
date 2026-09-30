@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
 import { confirmDialog } from "../../../utils/confirmDialog";
-import Modalbox from "../../../components/custommodal/Modalbox";
+import Modal from "../../../components/ui/Modal";
 import PageLoader from "../../../components/common/PageLoader";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
@@ -66,8 +66,9 @@ export default function FundTransfersPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
 
-  // Slip Preview Modal State
+  // Slip Preview & Details Modal State
   const [previewSlipUrl, setPreviewSlipUrl] = useState(null);
+  const [viewTransferDetail, setViewTransferDetail] = useState(null);
 
   useEffect(() => {
     fetchTransfers();
@@ -474,9 +475,7 @@ export default function FundTransfersPage() {
                 <th className="px-5 py-3.5 text-center w-8"></th>
                 <th className="px-5 py-3.5 text-left">To (Destination)</th>
                 <th className="px-5 py-3.5 text-right">Amount</th>
-                <th className="px-5 py-3.5 text-left">Mode & Ref</th>
                 <th className="px-5 py-3.5 text-center">Status</th>
-                <th className="px-5 py-3.5 text-center">Slip</th>
                 <th className="px-5 py-3.5 text-center">Actions</th>
               </tr>
             </thead>
@@ -570,18 +569,6 @@ export default function FundTransfersPage() {
                       ₹ {(Number(t.amount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </td>
 
-                    {/* Mode & Ref */}
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200 block w-fit">
-                        {t.transferMode?.replace("_", " ") || "TRANSFER"}
-                      </span>
-                      {t.referenceNo && (
-                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">
-                          Ref: {t.referenceNo}
-                        </div>
-                      )}
-                    </td>
-
                     {/* Status Badge */}
                     <td className="px-5 py-3.5 text-center whitespace-nowrap">
                       {isPending && (
@@ -618,25 +605,19 @@ export default function FundTransfersPage() {
                       )}
                     </td>
 
-                    {/* Challan / Deposit Slip */}
-                    <td className="px-5 py-3.5 text-center">
-                      {t.depositSlipUrl ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewSlipUrl(t.depositSlipUrl)}
-                          className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
-                          title="View Deposit Slip"
-                        >
-                          <Eye size={15} />
-                        </button>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-
                     {/* Actions */}
                     <td className="px-5 py-3.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
+                        {/* Eye Icon to view full details (narration, mode, ref, slip, status) */}
+                        <button
+                          type="button"
+                          onClick={() => setViewTransferDetail(t)}
+                          className="p-1.5 text-slate-500 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                          title="View Details & Narration"
+                        >
+                          <Eye size={16} />
+                        </button>
+
                         {canApprove && (
                           <>
                             <button
@@ -680,13 +661,35 @@ export default function FundTransfersPage() {
       )}
 
       {/* ── Modal: Initiate Fund Transfer ── */}
-      <Modalbox
+      <Modal
         open={transferModalOpen}
         onClose={() => setTransferModalOpen(false)}
-        size="lg"
+        maxWidth="max-w-2xl"
         title="Initiate Inter-Account Transfer"
+        subtitle="Move liquidity between cash drawers and corporate bank accounts"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setTransferModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              form="transfer-form"
+              loading={submitting}
+            >
+              Submit Transfer Request
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSubmitTransfer} className="p-6 space-y-4">
+        <form id="transfer-form" onSubmit={handleSubmitTransfer} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Source Ledger */}
             <div>
@@ -851,31 +854,39 @@ export default function FundTransfersPage() {
               />
             </div>
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              variant="secondary"
-              size="sm"
-              type="button"
-              onClick={() => setTransferModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" loading={submitting}>
-              Submit Transfer Request
-            </Button>
-          </div>
         </form>
-      </Modalbox>
+      </Modal>
 
       {/* ── Modal: Reject Transfer Reason ── */}
-      <Modalbox
+      <Modal
         open={rejectModalOpen}
         onClose={() => setRejectModalOpen(false)}
-        size="md"
+        maxWidth="max-w-md"
         title={`Reject Transfer ${selectedTransfer?.transferNo || ""}`}
+        subtitle="Provide a reason for rejecting this transfer request"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setRejectModalOpen(false)}
+            >
+              Back
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              type="submit"
+              form="reject-form"
+              loading={rejecting}
+            >
+              Confirm Rejection
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleConfirmReject} className="p-6 space-y-4">
+        <form id="reject-form" onSubmit={handleConfirmReject} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Reason for Rejection <span className="text-rose-500">*</span>
@@ -889,43 +900,181 @@ export default function FundTransfersPage() {
               className="w-full bg-white border border-slate-300 focus:ring-2 focus:ring-rose-500 outline-none p-3 rounded-xl font-medium text-xs text-slate-800 transition"
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button
-              variant="secondary"
-              size="sm"
-              type="button"
-              onClick={() => setRejectModalOpen(false)}
-            >
-              Back
-            </Button>
-            <Button variant="danger" size="sm" type="submit" loading={rejecting}>
-              Confirm Rejection
-            </Button>
-          </div>
         </form>
-      </Modalbox>
+      </Modal>
 
       {/* ── Modal: Preview Deposit Slip ── */}
-      <Modalbox
+      <Modal
         open={Boolean(previewSlipUrl)}
         onClose={() => setPreviewSlipUrl(null)}
-        size="lg"
+        maxWidth="max-w-2xl"
         title="Bank Deposit Slip / Proof"
+        footer={
+          <Button variant="outline" size="sm" onClick={() => setPreviewSlipUrl(null)}>
+            Close
+          </Button>
+        }
       >
-        <div className="p-6 text-center space-y-4">
+        <div className="text-center space-y-4">
           <img
             src={previewSlipUrl}
             alt="Bank Deposit Slip"
             className="max-h-[500px] w-auto mx-auto rounded-xl border border-slate-200 shadow-sm"
           />
-          <div className="flex justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setPreviewSlipUrl(null)}>
-              Close
-            </Button>
-          </div>
         </div>
-      </Modalbox>
+      </Modal>
+
+      {/* ── Modal: Full Transfer Details & Narration ── */}
+      <Modal
+        open={Boolean(viewTransferDetail)}
+        onClose={() => setViewTransferDetail(null)}
+        maxWidth="max-w-2xl"
+        title={`Fund Transfer #${viewTransferDetail?.transferNo || ""}`}
+        subtitle="Detailed audit breakdown and attached proof"
+        footer={
+          <Button variant="outline" size="sm" onClick={() => setViewTransferDetail(null)}>
+            Close
+          </Button>
+        }
+      >
+        {viewTransferDetail && (
+          <div className="space-y-5">
+            {/* Top Stat Ribbon */}
+            <div className="bg-gradient-to-r from-teal-50 via-slate-50 to-emerald-50 p-4 rounded-2xl border border-teal-100 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Transfer Amount
+                </span>
+                <span className="text-2xl font-black text-slate-900 tracking-tight">
+                  ₹ {(Number(viewTransferDetail.amount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border bg-white shadow-2xs">
+                  {viewTransferDetail.transferMode?.replace("_", " ")}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
+                  viewTransferDetail.status === "APPROVED"
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                    : viewTransferDetail.status === "REJECTED"
+                    ? "bg-rose-100 text-rose-800 border border-rose-300"
+                    : viewTransferDetail.status === "CANCELLED"
+                    ? "bg-slate-100 text-slate-700 border border-slate-300"
+                    : "bg-amber-100 text-amber-800 border border-amber-300"
+                }`}>
+                  {viewTransferDetail.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Source & Destination Movement Card */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Source Account (From)
+                </span>
+                <div className="font-bold text-sm text-slate-900">
+                  {viewTransferDetail.fromLedgerId?.name || "Source Account"}
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Type: <span className="font-semibold">{viewTransferDetail.fromLedgerId?.ledgerType === "bank" ? "Bank Account" : "Cash Drawer"}</span>
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Initiated By: <span className="font-semibold text-slate-800">{viewTransferDetail.fromUserId?.name || "System"}</span> ({viewTransferDetail.fromUserId?.role || "Staff"})
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Destination Account (To)
+                </span>
+                <div className="font-bold text-sm text-slate-900">
+                  {viewTransferDetail.toLedgerId?.name || "Destination Account"}
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Type: <span className="font-semibold">{viewTransferDetail.toLedgerId?.ledgerType === "bank" ? "Bank Account" : "Cash Drawer"}</span>
+                </div>
+                {viewTransferDetail.toUserId && (
+                  <div className="text-xs text-slate-500 mt-1">
+                    Assigned Holder: <span className="font-semibold text-slate-800">{viewTransferDetail.toUserId.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Narration & Important Notes */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Narration / Transfer Remarks
+              </label>
+              <div className="p-4 bg-teal-50/50 border border-teal-200/80 rounded-2xl text-xs text-slate-800 font-medium whitespace-pre-wrap leading-relaxed">
+                {viewTransferDetail.narration || "No transfer remarks provided."}
+              </div>
+            </div>
+
+            {/* Meta & Reference Breakdown */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
+              <div>
+                <span className="text-[10px] font-semibold text-slate-400 block">Transfer Date</span>
+                <span className="font-bold text-slate-800">
+                  {new Date(viewTransferDetail.transferDate || viewTransferDetail.createdAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric"
+                  })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-semibold text-slate-400 block">Challan / UTR Ref #</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {viewTransferDetail.referenceNo || "—"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-semibold text-slate-400 block">Created At</span>
+                <span className="font-semibold text-slate-700">
+                  {new Date(viewTransferDetail.createdAt).toLocaleTimeString("en-IN", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* Rejection / Approver Signature Notes if present */}
+            {viewTransferDetail.approvedBy && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs flex items-center justify-between">
+                <span className="text-emerald-800 font-medium">
+                  Verified & Approved by <span className="font-bold">{viewTransferDetail.approvedBy.name}</span>
+                </span>
+                <span className="text-[11px] text-emerald-700">
+                  {new Date(viewTransferDetail.approvedAt || viewTransferDetail.updatedAt).toLocaleDateString("en-IN")}
+                </span>
+              </div>
+            )}
+            {viewTransferDetail.rejectionReason && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs">
+                <span className="font-bold text-rose-800 block mb-0.5">Rejection Reason:</span>
+                <p className="text-rose-700">{viewTransferDetail.rejectionReason}</p>
+              </div>
+            )}
+
+            {/* Deposit Slip Attachment Preview */}
+            {viewTransferDetail.depositSlipUrl && (
+              <div className="space-y-1.5">
+                <span className="block text-xs font-bold text-slate-700">Attached Slip / Challan:</span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewSlipUrl(viewTransferDetail.depositSlipUrl)}
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-teal-50 text-teal-800 rounded-xl text-xs font-bold transition border border-slate-200 cursor-pointer"
+                >
+                  <Eye size={14} /> View Attached Deposit Slip / Receipt
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

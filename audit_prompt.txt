@@ -1,0 +1,125 @@
+Perform a **complete deep audit of my entire project** before making any code changes.
+
+Analyze the current codebase, architecture, system design, performance, scalability, security, maintainability, and existing business logic.
+
+### Frontend
+
+Check:
+
+* Page/component size and complexity.
+* Break large pages into small maintainable components where genuinely needed.
+* Clean menu/submenu-based folder structure.
+* React hooks, state management, Redux, re-renders, lazy loading, code splitting, bundle/page size, unnecessary API calls, and performance.
+* Centralized API calling and consistent API handling.
+* Loading, error, and empty states.
+
+### Backend
+
+Check:
+
+* Routes, controllers, services, middleware, models, queries, and database access.
+* Large/complex controllers and duplicated logic.
+* Query performance, indexes, pagination, N+1 queries, and unnecessary DB calls.
+* Validation, API response consistency, error handling, and logging.
+
+### 🔐 Permission & Authorization — VERY IMPORTANT
+
+Deeply audit the **entire permission system**.
+
+Check every layer:
+
+* Roles and permissions
+* RBAC/ABAC implementation
+* User → Role → Permission relationships
+* Menu/submenu permissions
+* Frontend permission checks
+* Backend authorization middleware
+* API-level access control
+* Create/Read/Update/Delete permissions
+* Resource/record-level permissions
+* Admin/super-admin restrictions
+* Permission inheritance
+* Default permissions
+* Permission conflicts
+* Unauthorized API access
+* IDOR/broken access-control vulnerabilities
+* Whether frontend-hidden actions are also protected on the backend
+* Whether permissions are duplicated or inconsistently implemented
+
+Verify that a user **cannot bypass frontend restrictions by directly calling APIs**.
+
+If the permission system is incorrect, incomplete, insecure, duplicated, or poorly designed, provide the exact correction/restructuring required.
+
+Treat permission/security issues as **high priority** and do not change existing access rules unless the current implementation is clearly incorrect or insecure.
+
+### Security
+
+Audit:
+
+* Authentication/JWT/token handling
+* Authorization
+* CORS/CSRF/XSS
+* Injection vulnerabilities
+* Rate limiting
+* Input validation
+* File uploads
+* Sensitive data/secrets
+* API access control
+* Security headers
+* Dependency vulnerabilities
+
+### Bugs & Code Quality
+
+Find:
+
+* Confirmed bugs
+* Potential bugs/edge cases
+* Race conditions
+* Memory/performance issues
+* Duplicate/dead code
+* Poor naming
+* Unnecessary complexity
+* Scalability and maintainability problems
+
+Clearly distinguish:
+
+**Confirmed Bug / Potential Issue / Improvement Recommendation**
+
+For every issue provide:
+
+1. Issue ID
+2. Severity
+3. Exact file/function/component
+4. What is wrong
+5. Why it matters
+6. How to fix it
+7. Files to modify/create
+8. Risk of the change
+9. How to verify the fix
+
+### Important Rules
+
+* **Do NOT modify code during the initial audit.**
+* First understand the entire project and business logic.
+* **Do not break existing functionality or business logic.**
+* Do not refactor just for personal preference.
+* Do not over-engineer.
+* Recommend changes only when they provide real benefit.
+* If something is already correct, explicitly say so.
+* Do not invent issues.
+
+### Deliverables
+
+Create:
+
+`PROJECT_IMPROVEMENT_PLAN.md`
+
+and
+
+`PROJECT_AUDIT_REPORT.md`
+
+The improvement plan must be detailed enough that **another AI coding agent can implement the changes directly without re-analyzing the project**.
+
+Include exact files, locations, implementation steps, dependencies, risks, and verification steps.
+
+**First complete the audit and documentation. Only after that should implementation begin.**

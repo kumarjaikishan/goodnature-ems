@@ -96,6 +96,10 @@ const plotReceiptSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
   },
   {
     timestamps: true,
@@ -103,6 +107,7 @@ const plotReceiptSchema = new mongoose.Schema(
 );
 
 plotReceiptSchema.index({ bookingId: 1 });
+plotReceiptSchema.index({ createdBy: 1 });
 // Receipt reports/lists sort by createdAt.
 plotReceiptSchema.index({ createdAt: -1 });
 

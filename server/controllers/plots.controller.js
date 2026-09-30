@@ -2,14 +2,7 @@ const plotsService = require('../services/plots.service');
 const kisanLandService = require('../services/kisanLand.service');
 const plotProductService = require('../services/plots/plotProduct.service');
 const ApiResponse = require('../utils/apiResponse');
-const cloudinary = require('cloudinary').v2;
-const fs = require('fs');
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const cloudinary = require('../utils/cloudinary');
 
 const uploadMedia = async (req, res, next) => {
   try {
@@ -309,7 +302,7 @@ const collectInstallment = async (req, res, next) => {
 
 const getReceipts = async (req, res, next) => {
   try {
-    const result = await plotsService.getReceipts(req.query);
+    const result = await plotsService.getReceipts(req.query, req.user);
     ApiResponse.paginated(res, result.receipts, result.pagination);
   } catch (error) {
     next(error);

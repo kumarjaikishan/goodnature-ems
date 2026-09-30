@@ -4,14 +4,7 @@ const Entry = require('../models/entry');
 const Counter = require('../models/Counter');
 const accountingService = require('../services/accountingService');
 const { withTransaction } = require('../utils/transaction');
-const cloudinary = require('cloudinary').v2;
-const fs = require('fs');
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const cloudinary = require('../utils/cloudinary');
 
 /**
  * 1. Request a Fund Transfer (Inter-Ledger / Cash to Bank / Cashier to Cashier / Bank to Bank)
@@ -79,31 +72,73 @@ exports.requestTransfer = async (req, res, next) => {
       fs.unlink(req.file.path, () => {});
     }
 
-    // Generate sequence number TRF-2627-XXX
+    // Generate sequence number TRF-2627-XXX (auto-recovering counter from highest DB entry)
     const now = new Date();
     const curYear = now.getFullYear() % 100;
     const nextYear = (curYear + 1) % 100;
     const fyKey = `${curYear}${nextYear}`;
-    const seq = await Counter.getNextSequence(`TRF-${fyKey}`, null, 3);
-    const transferNo = `TRF-${fyKey}-${String(seq).padStart(3, '0')}`;
+    const sequenceKey = `TRF-${fyKey}`;
 
-    const transfer = new FundTransfer({
-      transferNo,
-      fromLedgerId: fromLedger._id,
-      toLedgerId: toLedger._id,
-      fromUserId: req.user.id,
-      toUserId: toLedger.assignedUserId || null,
-      amount: amountNum,
-      transferDate: transferDate ? new Date(transferDate) : new Date(),
-      transferMode: transferMode || 'CASH_DEPOSIT',
-      referenceNo: referenceNo || '',
-      depositSlipUrl,
-      narration: narration || `Transfer from ${fromLedger.name} to ${toLedger.name}`,
-      status: 'PENDING',
-      branchId: req.user.branchIds?.[0] || null
-    });
+    let transfer = null;
+    let transferNo = '';
+    let attempts = 0;
 
-    await transfer.save();
+    while (!transfer && attempts < 5) {
+      attempts++;
+      let seq = await Counter.getNextSequence(sequenceKey, null, 0);
+
+      // Check if this transferNo already exists in database (e.g. from manual inserts / legacy DB restore)
+      let candidateNo = `TRF-${fyKey}-${String(seq).padStart(3, '0')}`;
+      const exists = await FundTransfer.findOne({ transferNo: candidateNo });
+      if (exists) {
+        // Find highest existing sequence for this prefix and sync counter forward
+        const highestTransfer = await FundTransfer.findOne({
+          transferNo: new RegExp(`^TRF-${fyKey}-\\d+`)
+        }).sort({ transferNo: -1 }).select('transferNo').lean();
+
+        if (highestTransfer?.transferNo) {
+          const parts = highestTransfer.transferNo.split('-');
+          const lastNum = parseInt(parts[parts.length - 1], 10) || 0;
+          await Counter.findByIdAndUpdate(
+            sequenceKey,
+            { $set: { sequence: Math.max(seq, lastNum) + 1 } },
+            { upsert: true }
+          );
+          seq = Math.max(seq, lastNum) + 1;
+          candidateNo = `TRF-${fyKey}-${String(seq).padStart(3, '0')}`;
+        }
+      }
+
+      transferNo = candidateNo;
+
+      try {
+        const newTransfer = new FundTransfer({
+          transferNo,
+          fromLedgerId: fromLedger._id,
+          toLedgerId: toLedger._id,
+          fromUserId: req.user.id,
+          toUserId: toLedger.assignedUserId || null,
+          amount: amountNum,
+          transferDate: transferDate ? new Date(transferDate) : new Date(),
+          transferMode: transferMode || 'CASH_DEPOSIT',
+          referenceNo: referenceNo || '',
+          depositSlipUrl,
+          narration: narration || `Transfer from ${fromLedger.name} to ${toLedger.name}`,
+          status: 'PENDING',
+          branchId: req.user.branchIds?.[0] || null
+        });
+
+        await newTransfer.save();
+        transfer = newTransfer;
+      } catch (saveErr) {
+        if (saveErr.code === 11000 && attempts < 5) {
+          // Increment counter and retry loop
+          await Counter.findByIdAndUpdate(sequenceKey, { $inc: { sequence: 1 } }, { upsert: true });
+        } else {
+          throw saveErr;
+        }
+      }
+    }
 
     return res.status(201).json({
       success: true,

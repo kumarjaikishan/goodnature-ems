@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
-import { Send, User, X, AlertCircle } from "lucide-react";
+import { Send, User, X, AlertCircle, Search } from "lucide-react";
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
@@ -17,7 +17,7 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
     const [fetchingAttendance, setFetchingAttendance] = useState(false);
     const [existingRecord, setExistingRecord] = useState(null);
     const [employeeSearch, setEmployeeSearch] = useState('');
-    const [showDropdown, setShowDropdown] = useState(false);
+    const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
 
     // Fetch existing attendance record when modal is open, employeeId is selected, and date is present
     useEffect(() => {
@@ -74,7 +74,7 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
         if (!openmodal) {
             setExistingRecord(null);
             setEmployeeSearch('');
-            setShowDropdown(false);
+            setEmployeeDropdownOpen(false);
         }
     }, [openmodal]);
 

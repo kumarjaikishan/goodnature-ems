@@ -48,6 +48,7 @@ const rulesSnapshotSchema = new mongoose.Schema({
 }, { _id: false });
 
 const attendanceSchema = new mongoose.Schema({
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'company' },
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee', required: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   attendanceById: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
@@ -96,5 +97,7 @@ attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
 // Support date-range and branch-wide list queries
 attendanceSchema.index({ date: -1 });
 attendanceSchema.index({ branchId: 1, date: -1 });
+attendanceSchema.index({ companyId: 1, date: -1 });
+attendanceSchema.index({ companyId: 1, branchId: 1, date: -1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

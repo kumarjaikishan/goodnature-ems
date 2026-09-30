@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import api from "../../../api/axios";
+import Modal from "../../../components/ui/Modal";
 import {
   History,
   Search,
@@ -441,96 +442,79 @@ const ActivityLogs = () => {
       </div>
 
       {/* ── DETAIL MODAL ── */}
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Audit Log Details</h3>
-                  <p className="text-xs text-slate-400">ID: {selectedLog._id}</p>
-                </div>
+      <Modal
+        open={Boolean(selectedLog)}
+        onClose={() => setSelectedLog(null)}
+        title="Audit Log Details"
+        subtitle={selectedLog ? `ID: ${selectedLog._id}` : ""}
+        maxWidth="max-w-2xl"
+        footer={
+          <button
+            type="button"
+            onClick={() => setSelectedLog(null)}
+            className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        }
+      >
+        {selectedLog && (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Timestamp</span>
+                <span className="font-semibold text-slate-800">
+                  {dayjs(selectedLog.createdAt).format("DD MMMM YYYY, hh:mm:ss A")}
+                </span>
               </div>
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Timestamp</span>
-                  <span className="font-semibold text-slate-800">
-                    {dayjs(selectedLog.createdAt).format("DD MMMM YYYY, hh:mm:ss A")}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">User</span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedLog.userName || "System"} ({selectedLog.userRole || "system"})
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Module</span>
-                  <span className="font-semibold text-slate-800">{selectedLog.module}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Action</span>
-                  <span className="font-semibold text-slate-800">{selectedLog.action}</span>
-                </div>
-                {selectedLog.modelName && (
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Target Model</span>
-                    <span className="font-semibold text-slate-800">{selectedLog.modelName}</span>
-                  </div>
-                )}
-                {selectedLog.documentId && (
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Target Document ID</span>
-                    <span className="font-semibold text-slate-800 font-mono text-[11px]">
-                      {selectedLog.documentId}
-                    </span>
-                  </div>
-                )}
+              <div>
+                <span className="text-slate-400 block text-[11px]">User</span>
+                <span className="font-semibold text-slate-800">
+                  {selectedLog.userName || "System"} ({selectedLog.userRole || "system"})
+                </span>
               </div>
-
-              {selectedLog.description && (
+              <div>
+                <span className="text-slate-400 block text-[11px]">Module</span>
+                <span className="font-semibold text-slate-800">{selectedLog.module}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Action</span>
+                <span className="font-semibold text-slate-800">{selectedLog.action}</span>
+              </div>
+              {selectedLog.modelName && (
                 <div>
-                  <h4 className="font-bold text-slate-700 mb-1">Description</h4>
-                  <p className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-slate-700">
-                    {selectedLog.description}
-                  </p>
+                  <span className="text-slate-400 block text-[11px]">Target Model</span>
+                  <span className="font-semibold text-slate-800">{selectedLog.modelName}</span>
                 </div>
               )}
-
-              <div>
-                <h4 className="font-bold text-slate-700 mb-1">Payload / Changes (JSON)</h4>
-                <pre className="p-4 bg-slate-900 text-emerald-400 rounded-2xl overflow-x-auto text-[11px] font-mono leading-relaxed">
-                  {JSON.stringify(selectedLog.details || {}, null, 2)}
-                </pre>
-              </div>
+              {selectedLog.documentId && (
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Target Document ID</span>
+                  <span className="font-semibold text-slate-800 font-mono text-[11px]">
+                    {selectedLog.documentId}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-100 flex justify-end bg-slate-50">
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors"
-              >
-                Close
-              </button>
+            {selectedLog.description && (
+              <div>
+                <h4 className="font-bold text-slate-700 mb-1">Description</h4>
+                <p className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-slate-700">
+                  {selectedLog.description}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <h4 className="font-bold text-slate-700 mb-1">Payload / Changes (JSON)</h4>
+              <pre className="p-4 bg-slate-900 text-emerald-400 rounded-2xl overflow-x-auto text-[11px] font-mono leading-relaxed">
+                {JSON.stringify(selectedLog.details || {}, null, 2)}
+              </pre>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

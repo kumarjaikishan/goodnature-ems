@@ -7,6 +7,7 @@ import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import Button from '@/components/ui/Button';
 import { Plus, ArrowLeft, Search } from 'lucide-react';
+import usePermission from '../../../utils/CheckPermission';
 
 import { getReceiptColumns } from './components/ReceiptColumns';
 import ReceivePaymentForm from './components/ReceivePaymentForm';
@@ -21,6 +22,10 @@ const InstallmentCollection = ({ type, initialView }) => {
   const location = useLocation();
   const isAddRoute = location.pathname.endsWith('/add');
   const mode = type || (location.pathname.includes('/collections/downpayment') ? 'DOWNPAYMENT' : location.pathname.includes('/collections/emi') ? 'EMI' : 'ALL');
+
+  const canCreate = usePermission('plot_collection', 2);
+  const canUpdate = usePermission('plot_collection', 3);
+  const canDelete = usePermission('plot_collection', 4);
 
   const customStyles = useCustomStyles();
   const [view, setView] = useState(initialView || (isAddRoute ? 'add' : 'list'));
@@ -637,8 +642,10 @@ const InstallmentCollection = ({ type, initialView }) => {
         setRejectingReceipt,
         setRejectionReason,
         setDeletingReceipt,
+        canUpdate,
+        canDelete,
       }),
-    [navigate]
+    [navigate, canUpdate, canDelete]
   );
 
   const pageTitle = mode === 'DOWNPAYMENT'
@@ -674,21 +681,23 @@ const InstallmentCollection = ({ type, initialView }) => {
         </div>
         <div>
           {view === 'list' ? (
-            <Button
-              variant="primary"
-              size="md"
-              startIcon={Plus}
-              onClick={() => {
-                const basePath = mode === 'DOWNPAYMENT'
-                  ? '/dashboard/plots/collections/downpayment'
-                  : mode === 'EMI'
-                  ? '/dashboard/plots/collections/emi'
-                  : '/dashboard/plots/installments';
-                navigate(`${basePath}/add`);
-              }}
-            >
-              {addBtnLabel}
-            </Button>
+            canCreate && (
+              <Button
+                variant="primary"
+                size="md"
+                startIcon={Plus}
+                onClick={() => {
+                  const basePath = mode === 'DOWNPAYMENT'
+                    ? '/dashboard/plots/collections/downpayment'
+                    : mode === 'EMI'
+                    ? '/dashboard/plots/collections/emi'
+                    : '/dashboard/plots/installments';
+                  navigate(`${basePath}/add`);
+                }}
+              >
+                {addBtnLabel}
+              </Button>
+            )
           ) : (
             <Button
               variant="secondary"

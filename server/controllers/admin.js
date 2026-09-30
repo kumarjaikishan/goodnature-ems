@@ -11,7 +11,7 @@ const notificationmodal = require('../models/notification')
 const attendanceModal = require('../models/attandence');
 const noticeModal = require('../models/notice');
 const LeavePolicy = require('../models/leavePolicy');
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require('../utils/cloudinary');
 const fs = require('fs');
 const { default: mongoose } = require('mongoose');
 const company = require('../models/company');
@@ -23,36 +23,7 @@ const EsslEvent = require('../models/esslEvent');
 const Counter = require('../models/Counter');
 const dayjs = require('dayjs');
 const { logActivity } = require('../utils/auditLogger');
-
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// generateNextEmpId moved to employeeService
-
-async function generateNextEmpId(prefix = "EMP", padding = 3) {
-    try {
-        const lastEmployee = await employeeModal.findOne()
-            .sort({ empId: -1 })
-            .lean();
-
-        let nextNumber = 1;
-        if (lastEmployee && lastEmployee.empId) {
-            const match = lastEmployee.empId.match(/\d+$/);
-            if (match) {
-                nextNumber = parseInt(match[0], 10) + 1;
-            }
-        }
-
-        const nextEmpId = prefix + String(nextNumber).padStart(padding, "0");
-        return nextEmpId;
-    } catch (err) {
-        console.error("Error generating next empId:", err);
-        throw new Error("Failed to generate employee ID");
-    }
-}
+const checkPermission = require('../middleware/checkpermission');
 
 const addDepartment = async (req, res, next) => {
     try {
@@ -117,7 +88,7 @@ const updatedepartment = async (req, res, next) => {
             message: 'Department Updated Successfully'
         });
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -139,7 +110,7 @@ const deletedepartment = async (req, res, next) => {
             message: 'Department Deleted Successfully'
         });
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -151,14 +122,14 @@ const departmentlist = async (req, res, next) => {
             filter.branchId = { $in: req.user.branchIds };
         }
 
-        const query = await departmentModal.find(filter).populate('branchId', 'name');
+        const query = await departmentModal.find(filter).populate('branchId', 'name').lean();
 
         res.status(200).json({
             list: query
         });
 
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -270,7 +241,7 @@ const enrollFace = async (req, res, next) => {
             message: 'Face enrolled Successfully'
         });
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -300,7 +271,7 @@ const deletefaceenroll = async (req, res, next) => {
             message: 'Enrolled face deleted Successfully'
         });
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -346,7 +317,7 @@ const deleteemployee = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -389,7 +360,7 @@ const employeelist = async (req, res, next) => {
         });
 
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return next({ status: 500, message: error.message });
     }
 };
@@ -629,6 +600,10 @@ const editAdmin = async (req, res, next) => {
             { new: true }
         );
 
+        if (checkPermission?.invalidatePermissionCache) {
+            checkPermission.invalidatePermissionCache(id);
+        }
+
         return res.status(200).json({
             message: 'Admin updated successfully',
             user: updatedUser
@@ -658,21 +633,19 @@ const deleteAdmin = async (req, res, next) => {
         }
 
         await usermodal.deleteOne({ _id: id });
+        if (checkPermission?.invalidatePermissionCache) {
+            checkPermission.invalidatePermissionCache(id);
+        }
 
         if (adminmanager.profileImage) {
             await removePhotoBySecureUrl([adminmanager.profileImage]);
         }
 
-        if (adminmanager.role === 'manager') {
-            for (const element of adminmanager.branchIds) {
-                let previousmanager = await branch.findById(element);
-                if (previousmanager) {
-                    previousmanager.managerIds = previousmanager.managerIds.filter(
-                        e => e.toString() !== adminmanager._id.toString()
-                    );
-                    await previousmanager.save();
-                }
-            }
+        if (adminmanager.role === 'manager' && adminmanager.branchIds?.length > 0) {
+            await branch.updateMany(
+                { _id: { $in: adminmanager.branchIds } },
+                { $pull: { managerIds: adminmanager._id } }
+            );
         }
 
         res.status(200).json({
@@ -695,7 +668,7 @@ const firstfetch = async (req, res, next) => {
         const [user, companye, branches, departmentlist, notices] = await Promise.all([
             usermodal.findById(req.user.id).select('name email profileImage role permissions branchIds').lean(),
             company.findOne().lean(),
-            branch.find(hasBranchFilter ? { _id: { $in: allowedBranches } } : {}).populate({ path: 'managerIds', select: 'name profileImage profileimage' }).lean(),
+            branch.find(hasBranchFilter ? { _id: { $in: allowedBranches } } : {}).populate({ path: 'managerIds', select: 'name role profileImage profileimage' }).lean(),
             departmentModal.find(hasBranchFilter ? { branchId: { $in: allowedBranches } } : {})
                 .populate('branchId', 'name')
                 .select('department branchId')
@@ -973,12 +946,10 @@ const getemployee = async (req, res, next) => {
     }
 };
 const updatepassword = async (req, res, next) => {
-    const { userid, pass } = req.body.pass;
+    const { userid, pass } = req.body;
 
     if (!userid || !pass) {
-        if (!user) {
-            return res.status(400).json({ message: 'User ID and password are required' });
-        }
+        return res.status(400).json({ message: 'User ID and password are required' });
     }
 
     try {
@@ -1034,35 +1005,40 @@ const leavehandle = async (req, res, next) => {
             const employeeId = query.employeeId._id;
             const branchId = query.branchId;
 
-            // Iterate from fromDate to toDate
-            for (let date = new Date(fromDate); date <= toDate; date.setDate(date.getDate() + 1)) {
-                // Clone date to avoid reference issue
-                const currentDate = new Date(date);
-                currentDate.setHours(0, 0, 0, 0);
+            // Collect all dates in the leave range
+            const leaveDates = [];
+            for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+                leaveDates.push(new Date(d));
+            }
 
-                // Check if attendance already exists
-                const existing = await attendanceModal.findOne({ employeeId, date: currentDate });
-                if (existing) {
-                    if (existing.status === 'absent') {
-                        // Update status from 'absent' to 'leave'
-                        existing.status = 'leave';
-                        existing.source = 'leaveApproval';
-                        await existing.save();
-                    }
-                    // If status is already 'leave' or 'present', skip
-                } else {
-                    // Insert new leave attendance
-                    const attendanceData = {
-                        companyId: req.user.companyId,
-                        employeeId,
-                        branchId,
-                        date: currentDate,
-                        status: 'leave',
-                        leave: leaveid,
-                        source: 'leaveApproval'
-                    };
-                    await attendanceModal.create(attendanceData);
-                }
+            // Bulk update existing 'absent' records to 'leave' (single DB call)
+            await attendanceModal.updateMany(
+                { employeeId, date: { $in: leaveDates }, status: 'absent' },
+                { $set: { status: 'leave', source: 'leaveApproval' } }
+            );
+
+            // Find all dates that already have any attendance record (single DB call)
+            const existing = await attendanceModal.find(
+                { employeeId, date: { $in: leaveDates } },
+                { date: 1 }
+            ).lean();
+            const existingDateTimes = new Set(existing.map(e => e.date.getTime()));
+
+            // Insert leave records only for dates with NO attendance record (single DB call)
+            const toInsert = leaveDates
+                .filter(d => !existingDateTimes.has(d.getTime()))
+                .map(d => ({
+                    companyId: req.user.companyId,
+                    employeeId,
+                    branchId,
+                    date: d,
+                    status: 'leave',
+                    leave: leaveid,
+                    source: 'leaveApproval'
+                }));
+
+            if (toInsert.length > 0) {
+                await attendanceModal.insertMany(toInsert, { ordered: false });
             }
         }
 
@@ -1087,7 +1063,7 @@ const leavehandle = async (req, res, next) => {
             message: 'Updated Successfully'
         })
     } catch (error) {
-        console.log(error.message)
+        console.error(error.message)
         return next({ status: 500, message: error.message });
     }
 }
@@ -1102,7 +1078,7 @@ const deleteleave = async (req, res, next) => {
             message: 'Deleted Successfully'
         })
     } catch (error) {
-        console.log(error.message)
+        console.error(error.message)
         return next({ status: 500, message: error.message });
     }
 }

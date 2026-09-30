@@ -157,7 +157,7 @@ const Login = () => {
                                             : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
                                     }`}
                                 >
-                                    {isLoading ? "Authenticating..." : isSponsor ? "Sign In to Portal" : "Sign In to Workspace"}
+                                    {isLoading ? "Authenticating..." : "Sign In"}
                                 </button>
                             </div>
                         </form>

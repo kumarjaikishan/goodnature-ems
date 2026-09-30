@@ -1203,8 +1203,24 @@ const facecheckout = async (req, res, next) => {
 // so a stray call can never pull an entire collection into memory.
 // New code should use getAttendanceList (paginated + filtered) instead.
 const allAttandence = async (req, res, next) => {
-  const data = await Attendance.find().populate('employeeId', 'name email').limit(2000);
-  res.json(data);
+  try {
+    const filter = {};
+    if (req.user?.companyId) {
+      filter.companyId = req.user.companyId;
+    }
+    if (req.user?.role === 'manager') {
+      const allowedBranches = (req.user.branchIds || []).map(String);
+      filter.branchId = { $in: allowedBranches };
+    }
+    const data = await Attendance.find(filter)
+      .populate('employeeId', 'name email empId')
+      .sort({ date: -1 })
+      .limit(500)
+      .lean();
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to fetch attendance", error: err.message });
+  }
 };
 
 // Paginated, filtered attendance list.
@@ -1230,7 +1246,9 @@ const getAttendanceList = async (req, res, next) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
     const skip = (page - 1) * limit;
 
-    const attendanceFilter = { companyId };
+    const attendanceFilter = companyId
+      ? { $or: [{ companyId }, { companyId: { $exists: false } }] }
+      : {};
 
     // --- Branch scoping (Attendance stores branchId directly, no join needed) ---
     if (req.user.role === 'manager') {
@@ -1761,7 +1779,7 @@ const getAttendanceReport = async (req, res, next) => {
     const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
 
     const attendanceFilter = {
-      companyId,
+      ...(companyId ? { $or: [{ companyId }, { companyId: { $exists: false } }] } : {}),
       date: { $gte: startDate, $lte: endDate }
     };
 

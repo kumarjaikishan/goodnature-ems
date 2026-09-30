@@ -20,6 +20,7 @@ import {
 import PageLoader from '../../../components/common/PageLoader';
 import ProductReceivePaymentForm from './ProductReceivePaymentForm';
 import ProductReceiptModal from './components/ProductReceiptModal';
+import usePermission from '../../../utils/CheckPermission';
 
 const ProductCollectionsPage = ({ initialView }) => {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ const ProductCollectionsPage = ({ initialView }) => {
   const isAddRoute = location.pathname.endsWith('/add');
   const [view, setView] = useState(initialView || (isAddRoute ? 'add' : 'list'));
   const [targetBookingId, setTargetBookingId] = useState(null);
+
+  const canCreate = usePermission('plot_collection', 2);
+  const canDelete = usePermission('plot_collection', 4);
 
   const [collections, setCollections] = useState([]);
   const [summary, setSummary] = useState({
@@ -222,13 +226,15 @@ const ProductCollectionsPage = ({ initialView }) => {
           <span>Refresh</span>
         </button>
 
-        <button
-          onClick={() => handleOpenAddCollection()}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Add New Collection</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => handleOpenAddCollection()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Add New Collection</span>
+          </button>
+        )}
       </div>
 
       {/* KPI Metric Summary Cards */}
@@ -444,18 +450,20 @@ const ProductCollectionsPage = ({ initialView }) => {
                           <Printer className="w-3.5 h-3.5" />
                         </button>
 
-                        <button
-                          onClick={() => handleDeleteCollection(col)}
-                          disabled={deletingReceiptId === col.receiptNumber}
-                          className="p-1.5 text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 rounded-lg border border-rose-200 transition-colors cursor-pointer"
-                          title="Delete Receipt"
-                        >
-                          {deletingReceiptId === col.receiptNumber ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-700" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDeleteCollection(col)}
+                            disabled={deletingReceiptId === col.receiptNumber}
+                            className="p-1.5 text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 rounded-lg border border-rose-200 transition-colors cursor-pointer"
+                            title="Delete Receipt"
+                          >
+                            {deletingReceiptId === col.receiptNumber ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-700" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
