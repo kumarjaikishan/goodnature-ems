@@ -194,9 +194,8 @@ const managementRoutes = (
     <Route path="plots/addbooking" element={<PlotBooking />} />
     <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
     <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
-    <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
     <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
-    <Route path="plots/installments" element={<InstallmentCollection />} />
+    <Route path="plots/installments" element={<Navigate to="/dashboard/plots/collections/emi" replace />} />
     <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
     <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
     <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />

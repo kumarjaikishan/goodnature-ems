@@ -3,6 +3,7 @@ const ApiError = require('../../utils/apiError');
 const Plot = require('../../models/Plot');
 const PlotSeriesMaster = require('../../models/PlotSeriesMaster');
 const PlotBooking = require('../../models/PlotBooking');
+const PlotCustomer = require('../../models/PlotCustomer');
 const PlotInstallment = require('../../models/PlotInstallment');
 const PlotPayment = require('../../models/PlotPayment');
 const PlotReceipt = require('../../models/PlotReceipt');

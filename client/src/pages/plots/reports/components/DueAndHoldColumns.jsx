@@ -166,16 +166,21 @@ export const getDueColumns = ({ navigate }) => [
   {
     name: 'Action',
     minWidth: '85px',
-    cell: (b) => (
-      <Button
-        size="sm"
-        variant="primary"
-        onClick={() => navigate(`/dashboard/plots/installments?bookingId=${b._id}`)}
-        className="text-xs font-semibold py-1 px-3"
-      >
-        Collect
-      </Button>
-    ),
+    cell: (b) => {
+      const targetPath = b.scheme === 'MONTHLY_INSTALLMENT'
+        ? `/dashboard/plots/collections/emi/add?bookingId=${b._id}`
+        : `/dashboard/plots/collections/downpayment/add?bookingId=${b._id}`;
+      return (
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => navigate(targetPath)}
+          className="text-xs font-semibold py-1 px-3"
+        >
+          Collect
+        </Button>
+      );
+    },
   },
 ];
 

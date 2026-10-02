@@ -316,7 +316,13 @@ const PlotBookingDetails = () => {
           )}
           {!isSponsor && booking.status !== 'CANCELLED' && (
             <button
-              onClick={() => navigate('/dashboard/plots/installments')}
+              onClick={() => {
+                const isEmi = booking.scheme === 'MONTHLY_INSTALLMENT' && (booking.downpaymentCleared || (booking.bookingAmount && booking.bookingAmount > 0));
+                const target = isEmi
+                  ? `/dashboard/plots/collections/emi/add?bookingId=${booking._id}`
+                  : `/dashboard/plots/collections/downpayment/add?bookingId=${booking._id}`;
+                navigate(target);
+              }}
               className="flex items-center gap-1.5 px-3.5 py-2 text-white font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs bg-primary"
             >
               <Banknote size={16} /> Collect Payment

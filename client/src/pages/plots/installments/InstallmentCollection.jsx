@@ -222,8 +222,16 @@ const InstallmentCollection = ({ type, initialView }) => {
   const fetchBookings = async () => {
     try {
       const res = await api.get('/plots/bookings/list?status=ACTIVE');
-      setBookings(res.data.data || []);
+      const loadedBookings = res.data.data || [];
+      setBookings(loadedBookings);
       setLoading(false);
+
+      // If bookingId query param is present, select it automatically
+      const params = new URLSearchParams(location.search);
+      const queryBookingId = params.get('bookingId');
+      if (queryBookingId) {
+        handleBookingSelect(queryBookingId);
+      }
     } catch {
       toast.error('Failed to load active contracts');
       setLoading(false);
@@ -689,9 +697,7 @@ const InstallmentCollection = ({ type, initialView }) => {
                 onClick={() => {
                   const basePath = mode === 'DOWNPAYMENT'
                     ? '/dashboard/plots/collections/downpayment'
-                    : mode === 'EMI'
-                    ? '/dashboard/plots/collections/emi'
-                    : '/dashboard/plots/installments';
+                    : '/dashboard/plots/collections/emi';
                   navigate(`${basePath}/add`);
                 }}
               >
@@ -706,9 +712,7 @@ const InstallmentCollection = ({ type, initialView }) => {
               onClick={() => {
                 const basePath = mode === 'DOWNPAYMENT'
                   ? '/dashboard/plots/collections/downpayment'
-                  : mode === 'EMI'
-                  ? '/dashboard/plots/collections/emi'
-                  : '/dashboard/plots/installments';
+                  : '/dashboard/plots/collections/emi';
                 navigate(basePath);
               }}
             >

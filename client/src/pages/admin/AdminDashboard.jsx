@@ -310,11 +310,11 @@ const AdminDashboard = () => {
               color="teal" onClick={() => navigate('/dashboard/plots/reports')} />
             <KPICard icon={HiOutlineBanknotes} label="Collected Funds"
               value={fmt(collections.totalCollection)} sub="Total receipts received"
-              color="emerald" onClick={() => navigate('/dashboard/plots/installments')} />
+              color="emerald" onClick={() => navigate('/dashboard/plots/collections/downpayment')} />
             <KPICard icon={HiOutlineExclamationCircle} label="Outstanding Balance"
               value={fmt(bookings.remainingAmount)} sub="Pending receivables"
               color="amber" highlight={bookings.remainingAmount > 0}
-              onClick={() => navigate('/dashboard/plots/installments')} />
+              onClick={() => navigate('/dashboard/plots/collections/emi')} />
             <KPICard icon={HiOutlineTag} label="Total Discounts"
               value={fmt(bookings.totalDiscount)} sub="Applied across all bookings" color="rose" />
           </div>

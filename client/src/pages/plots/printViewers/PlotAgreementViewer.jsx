@@ -158,7 +158,7 @@ const PlotAgreementViewer = () => {
               Back
             </button>
             <button
-              onClick={() => navigate(`/dashboard/plots/installments`)}
+              onClick={() => navigate(`/dashboard/plots/collections/downpayment/add?bookingId=${booking._id}`)}
               className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
             >
               Collect Downpayment
