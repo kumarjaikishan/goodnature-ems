@@ -262,7 +262,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
 
     const pageTitles = {
         employee: "Employee Financial Ledgers",
-        seller: "Kisan / Seller Land Purchase Ledgers",
+        seller: "Seller Land Purchase Ledgers",
         associate: "Business Associates Commission Ledgers",
         partner: "Business Partners Commission Ledgers",
         branch_partner: "Branch Partners Commission Ledgers",
@@ -422,7 +422,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         Employees ({ledgers.filter(l => (l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId && !l.kisanSellerId))).length})
                                     </option>
                                     <option value="seller">
-                                        Sellers / Kisans ({ledgers.filter(l => (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
+                                        Sellers ({ledgers.filter(l => (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
                                     </option>
                                     <option value="partner">
                                         Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId && (!l.sponsorId?.branchIds || l.sponsorId.branchIds.length === 0)).length})
@@ -510,7 +510,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 const tagLabel = isEmp
                                     ? 'Employee'
                                     : isKisan
-                                    ? 'Seller/Kisan'
+                                    ? 'Seller'
                                     : isBranchPartner
                                     ? 'Branch Partner'
                                     : isPartner
@@ -730,7 +730,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                     const tagLabel = isEmp
                                                         ? 'Employee'
                                                         : isKisan
-                                                        ? 'Seller/Kisan'
+                                                        ? 'Seller'
                                                         : isBranchPartner
                                                         ? 'Branch Partner'
                                                         : isPartner

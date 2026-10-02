@@ -8,7 +8,7 @@ import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import { empFirstFetch } from '../../../../store/employee';
 import { useApi } from '../../../utils/useApi';
 import { apiClient } from '../../../utils/apiClient';
-import Modal from '@/components/ui/Modal';
+import Modalbox from '@/components/custommodal/Modalbox';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import DateInput from '@/components/ui/DateInput';
@@ -108,7 +108,7 @@ const EmpLeave = () => {
             </div>
 
             {/* Apply Leave Modal */}
-            <Modal
+            <Modalbox
                 open={openmodal}
                 onClose={() => {
                     setopenmodal(false);
@@ -117,8 +117,27 @@ const EmpLeave = () => {
                 title="Apply for Leave"
                 subtitle="Submit your leave application for manager approval"
                 maxWidth="max-w-md"
+                footer={
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => { setopenmodal(false); setinp(init); }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            form="leave-application-form"
+                            variant="primary"
+                            loading={loading}
+                        >
+                            Submit Application
+                        </Button>
+                    </>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form id="leave-application-form" onSubmit={handleSubmit} className="space-y-4">
                     <Select
                         label="Leave Policy"
                         required
@@ -157,25 +176,8 @@ const EmpLeave = () => {
                             onChange={(e) => changehandle(e.target.value, 'reason')}
                         />
                     </div>
-
-                    <div className='flex justify-end gap-2 pt-4 border-t border-slate-100'>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => { setopenmodal(false); setinp(init); }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            loading={loading}
-                        >
-                            Submit Application
-                        </Button>
-                    </div>
                 </form>
-            </Modal>
+            </Modalbox>
         </div>
     );
 };

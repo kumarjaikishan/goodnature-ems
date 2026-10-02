@@ -12,8 +12,7 @@ import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import DateInput from "@/components/ui/DateInput";
 import NumberInput from "@/components/ui/NumberInput";
-import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
+import Modalbox from "@/components/custommodal/Modalbox";
 import { swal } from "../../utils/confirmDialog";
 
 const getInitialBg = (name) => {
@@ -572,7 +571,7 @@ const EmployeeAdvancePage = () => {
             </div>
 
             {/* Add / Edit Advance Modal */}
-            <Modal
+            <Modalbox
                 open={open}
                 onClose={handleClose}
                 title={editingId ? "Edit Advance Entry" : "Record Employee Advance"}
@@ -582,8 +581,18 @@ const EmployeeAdvancePage = () => {
                         : "Grant or recover advance for an employee"
                 }
                 maxWidth="max-w-md"
+                footer={
+                    <>
+                        <Button variant="outline" type="button" onClick={handleClose}>
+                            Cancel
+                        </Button>
+                        <Button form="advance-form" variant="primary" type="submit" loading={loading}>
+                            {editingId ? "Update Advance" : "Save Advance"}
+                        </Button>
+                    </>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form id="advance-form" onSubmit={handleSubmit} className="space-y-4">
                     {!editingId && (
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1">
@@ -680,17 +689,8 @@ const EmployeeAdvancePage = () => {
                             onChange={(e) => handleChange('remarks', e.target.value)}
                         />
                     </div>
-
-                    <div className='flex justify-end gap-2 pt-4 border-t border-slate-100'>
-                        <Button variant="outline" type="button" onClick={handleClose}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" type="submit" loading={loading}>
-                            {editingId ? "Update Advance" : "Save Advance"}
-                        </Button>
-                    </div>
                 </form>
-            </Modal>
+            </Modalbox>
         </div>
     );
 };

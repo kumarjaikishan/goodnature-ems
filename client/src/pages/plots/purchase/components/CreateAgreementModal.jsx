@@ -11,7 +11,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { SearchableSelect } from '../../../../components/ui';
+import { SearchableSelect, DateInput } from '../../../../components/ui';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 
@@ -436,29 +436,21 @@ const CreateAgreementModal = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Date *</label>
-                <input
-                  type="date"
-                  required
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
-                  value={createForm.agreementDate}
-                  onChange={(e) => setCreateForm({ ...createForm, agreementDate: e.target.value })}
-                />
-              </div>
+              <DateInput
+                label="Agreement Date *"
+                size="sm"
+                required
+                value={createForm.agreementDate}
+                onChange={(e) => setCreateForm({ ...createForm, agreementDate: e.target.value })}
+              />
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  End / Expiry Date <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
-                </label>
-                <input
-                  type="date"
-                  min={createForm.agreementDate || undefined}
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
-                  value={createForm.agreementEndDate || ''}
-                  onChange={(e) => setCreateForm({ ...createForm, agreementEndDate: e.target.value })}
-                />
-              </div>
+              <DateInput
+                label="End / Expiry Date (Optional)"
+                size="sm"
+                min={createForm.agreementDate || undefined}
+                value={createForm.agreementEndDate || ''}
+                onChange={(e) => setCreateForm({ ...createForm, agreementEndDate: e.target.value })}
+              />
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">General Remarks / Notes</label>

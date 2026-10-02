@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import api from "../../../api/axios";
-import Modal from "../../../components/ui/Modal";
+import Modalbox from "../../../components/custommodal/Modalbox";
+import DateInput from "../../../components/ui/DateInput";
 import {
   History,
   Search,
@@ -236,9 +237,9 @@ const ActivityLogs = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 pt-2 border-t border-slate-100 items-center">
           {/* Search Box */}
-          <div className="relative">
+          <div className="relative md:col-span-5">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
@@ -248,43 +249,45 @@ const ActivityLogs = () => {
                 setPage(1);
               }}
               placeholder="Search user, action, description..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              className="w-full h-9 pl-9 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
             />
           </div>
 
           {/* Date Range Start */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium">From:</span>
-            <input
-              type="date"
+          <div className="md:col-span-3">
+            <DateInput
+              size="sm"
+              placeholder="From Date"
               value={startDate}
               onChange={(e) => {
-                setStartDate(e.target.value);
+                const val = e?.target?.value !== undefined ? e.target.value : e;
+                setStartDate(val);
                 setPage(1);
               }}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              className="!h-9 !py-0 !rounded-xl !bg-slate-50 !border-slate-200 text-xs"
             />
           </div>
 
           {/* Date Range End */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium">To:</span>
-            <input
-              type="date"
+          <div className="md:col-span-3">
+            <DateInput
+              size="sm"
+              placeholder="To Date"
               value={endDate}
               onChange={(e) => {
-                setEndDate(e.target.value);
+                const val = e?.target?.value !== undefined ? e.target.value : e;
+                setEndDate(val);
                 setPage(1);
               }}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              className="!h-9 !py-0 !rounded-xl !bg-slate-50 !border-slate-200 text-xs"
             />
           </div>
 
           {/* Reset Filters */}
-          <div className="flex justify-end items-center">
+          <div className="md:col-span-1 flex justify-end items-center">
             <button
               onClick={handleClearFilters}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer px-3 py-2"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer whitespace-nowrap"
             >
               Clear Filters
             </button>
@@ -442,7 +445,7 @@ const ActivityLogs = () => {
       </div>
 
       {/* ── DETAIL MODAL ── */}
-      <Modal
+      <Modalbox
         open={Boolean(selectedLog)}
         onClose={() => setSelectedLog(null)}
         title="Audit Log Details"
@@ -514,7 +517,7 @@ const ActivityLogs = () => {
             </div>
           </div>
         )}
-      </Modal>
+      </Modalbox>
     </div>
   );
 };

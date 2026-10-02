@@ -14,8 +14,7 @@ import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
-import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
+import Modalbox from "@/components/custommodal/Modalbox";
 import Badge from "@/components/ui/Badge";
 
 const getInitialBg = (name) => {
@@ -403,14 +402,24 @@ const Leaveledger = () => {
             </div>
 
             {/* Add / Edit / Bulk Modal */}
-            <Modal
+            <Modalbox
                 open={open}
                 onClose={handleClose}
                 title={isBulk ? "Bulk Add Leave Balance" : editingId ? "Edit Leave Balance" : "Add Leave Balance"}
                 subtitle="Allot or debit employee leave balances"
                 maxWidth="max-w-lg"
+                footer={
+                    <>
+                        <Button variant="outline" type="button" onClick={handleClose}>
+                            Cancel
+                        </Button>
+                        <Button form="leave-ledger-form" variant="primary" type="submit" loading={loading}>
+                            {editingId ? "Update Balance" : "Save Balance"}
+                        </Button>
+                    </>
+                }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form id="leave-ledger-form" onSubmit={handleSubmit} className="space-y-4">
                     {isBulk ? (
                         <Input
                             label="Target Employees"
@@ -469,17 +478,8 @@ const Leaveledger = () => {
                             onChange={(e) => handleChange('remarks', e.target.value)}
                         />
                     </div>
-
-                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                        <Button variant="outline" type="button" onClick={handleClose}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" type="submit" loading={loading}>
-                            {editingId ? "Update Balance" : "Save Balance"}
-                        </Button>
-                    </div>
                 </form>
-            </Modal>
+            </Modalbox>
 
             <LeaveHistoryModal 
                 open={historyOpen} 

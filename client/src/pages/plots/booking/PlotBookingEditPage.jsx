@@ -15,6 +15,7 @@ import {
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
 import Button from '../../../components/ui/Button';
+import { DateInput } from '../../../components/ui/DateInput';
 import { toast } from '../../../utils/toast';
 import { BookingSummarySidebar } from './components/BookingSummarySidebar';
 
@@ -677,13 +678,8 @@ export default function PlotBookingEditPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* 1. Booking Date */}
               <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800">Booking Date *</label>
-                  <span className="text-[10px] text-slate-400 font-semibold">Start Date</span>
-                </div>
-                <input
-                  className={inputCls}
-                  type="date"
+                <DateInput
+                  label="Booking Date *"
                   value={form.bookingDate}
                   onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                   required
@@ -1251,16 +1247,18 @@ export default function PlotBookingEditPage() {
                 </select>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Transaction Ref / Cheque No.</label>
-                <input
-                  type="text"
-                  value={form.transactionReference}
-                  onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                  className={inputCls}
-                  placeholder="e.g. TXN987654321 / CHQ-1002"
-                />
-              </div>
+              {form.paymentMode !== 'cash' && (
+                <div className="flex flex-col gap-1">
+                  <label className={labelCls}>Transaction Ref / Cheque No.</label>
+                  <input
+                    type="text"
+                    value={form.transactionReference}
+                    onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                    className={inputCls}
+                    placeholder="e.g. TXN987654321 / CHQ-1002"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Admin Audit Reason */}

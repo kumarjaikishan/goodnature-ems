@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
+import DateInput from '../../../components/ui/DateInput';
 import {
   ArrowLeft,
   Printer,
@@ -375,26 +376,20 @@ const BusinessDeveloperReportPage = () => {
 
         <form onSubmit={handleApplyFilters} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
           {/* From Date */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-600">From Date</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
-            />
-          </div>
+          <DateInput
+            label="From Date"
+            size="sm"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+          />
 
           {/* To Date */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-600">To Date</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
-            />
-          </div>
+          <DateInput
+            label="To Date"
+            size="sm"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+          />
 
           {/* Type Filter */}
           <div className="flex flex-col gap-1">

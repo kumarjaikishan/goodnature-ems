@@ -1,6 +1,7 @@
 import React from 'react';
 import Modalbox from '@/components/custommodal/Modalbox';
 import Button from '@/components/ui/Button';
+import { DateInput } from '@/components/ui/DateInput';
 import { X, Building2, Edit3, Calculator, AlertCircle, CheckCircle2, Sparkles, Trash2 } from 'lucide-react';
 
 const formatIndianDate = (d) => {
@@ -259,16 +260,12 @@ const EditBookingModal = ({
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Booking Date *</label>
-            <input
-              type="date"
-              value={editForm.bookingDate || ''}
-              onChange={(e) => setEditForm({ ...editForm, bookingDate: e.target.value })}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-              required
-            />
-          </div>
+          <DateInput
+            label="Booking Date *"
+            value={editForm.bookingDate || ''}
+            onChange={(e) => setEditForm({ ...editForm, bookingDate: e.target.value })}
+            required
+          />
         </div>
 
         {/* 3. Scheme, Dynamic Rates & Pricing */}
@@ -805,16 +802,18 @@ const EditBookingModal = ({
             </select>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Transaction Ref / Cheque No.</label>
-            <input
-              type="text"
-              value={editForm.transactionReference}
-              onChange={(e) => setEditForm({ ...editForm, transactionReference: e.target.value })}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
-              placeholder="e.g. TXN987654321 / CHQ-1002"
-            />
-          </div>
+          {editForm.paymentMode !== 'cash' && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600">Transaction Ref / Cheque No.</label>
+              <input
+                type="text"
+                value={editForm.transactionReference}
+                onChange={(e) => setEditForm({ ...editForm, transactionReference: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-teal-600 outline-none"
+                placeholder="e.g. TXN987654321 / CHQ-1002"
+              />
+            </div>
+          )}
         </div>
 
         {/* Fixed Sponsor Info */}

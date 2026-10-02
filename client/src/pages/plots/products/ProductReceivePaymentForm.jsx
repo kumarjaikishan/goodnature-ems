@@ -19,6 +19,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
+import { DateInput } from '../../../components/ui/DateInput';
 import Button from '../../../components/ui/Button';
 import numberToWords from '../../../utils/numToWord';
 import PageLoader from '../../../components/common/PageLoader';
@@ -620,18 +621,12 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Payment Date */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Collection / Payment Date *
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={form.paymentDate}
-                    onChange={(e) => setForm({ ...form, paymentDate: e.target.value })}
-                    required
-                    className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                  />
-                </div>
+                <DateInput
+                  label="Collection / Payment Date *"
+                  value={form.paymentDate}
+                  onChange={(e) => setForm({ ...form, paymentDate: e.target.value })}
+                  required
+                />
                 <p className="text-[11px] text-slate-400">
                   Changing collection date dynamically adjusts overdue days &amp; 24% late fine.
                 </p>
@@ -855,19 +850,21 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 </select>
               </div>
 
-              {/* Transaction Reference */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Transaction Reference / Cheque #
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. UPI-1234567890 or Cheque No."
-                  value={form.transactionReference}
-                  onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                />
-              </div>
+              {/* Transaction Reference (Non-Cash only) */}
+              {form.paymentMode !== 'cash' && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Transaction Reference / Cheque #
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UPI-1234567890 or Cheque No."
+                    value={form.transactionReference}
+                    onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                  />
+                </div>
+              )}
 
               {/* Remarks */}
               <div className="space-y-1.5">

@@ -345,12 +345,10 @@ const createLedgerForUsers = async () => {
     );
 
     for (const u of users) {
-      const q = Ledger.findOne({ assignedUserId: u._id, ledgerType: 'user_cash' });
-      if (session) q.session(session);
-      let ledger = await q;
-
-      if (!ledger) {
-        const [newLedger] = await Ledger.create(
+      const allUserCash = await Ledger.find({ assignedUserId: u._id, ledgerType: 'user_cash' }, null, session ? { session } : {}).sort({ advance: -1, createdAt: 1 });
+      
+      if (!allUserCash || allUserCash.length === 0) {
+        await Ledger.create(
           [
             {
               name: `${u.name} (Cash Ledger)`,
@@ -365,17 +363,28 @@ const createLedgerForUsers = async () => {
           session ? { session } : {}
         );
       } else {
+        // Keep the primary ledger (prefer the one with balance/entries)
+        const primaryLedger = allUserCash[0];
         const expectedName = `${u.name} (Cash Ledger)`;
         let updated = false;
-        if (ledger.name !== expectedName && !ledger.name.includes('(Cash Ledger)')) {
-          ledger.name = expectedName;
+        if (primaryLedger.name !== expectedName && !primaryLedger.name.includes('(Cash Ledger)')) {
+          primaryLedger.name = expectedName;
           updated = true;
         }
-        if (u.profileImage && ledger.profileImage !== u.profileImage) {
-          ledger.profileImage = u.profileImage;
+        if (u.profileImage && primaryLedger.profileImage !== u.profileImage) {
+          primaryLedger.profileImage = u.profileImage;
           updated = true;
         }
-        if (updated) await ledger.save(session ? { session } : {});
+        if (updated) await primaryLedger.save(session ? { session } : {});
+
+        // If duplicate user_cash ledgers exist for this same user, migrate any entries to primary and remove the duplicates
+        if (allUserCash.length > 1) {
+          for (let i = 1; i < allUserCash.length; i++) {
+            const dupLedger = allUserCash[i];
+            await Entry.updateMany({ ledgerId: dupLedger._id }, { $set: { ledgerId: primaryLedger._id } }, session ? { session } : {});
+            await Ledger.findByIdAndDelete(dupLedger._id, session ? { session } : {});
+          }
+        }
       }
     }
 
@@ -479,6 +488,11 @@ const ledger = async (req, res) => {
         return l.status !== 'inactive';
       }
       if (type === 'user_cash') {
+        const assignedRole = l.assignedUserId?.role;
+        const currentRole = req.user?.role;
+        if (assignedRole === 'developer' && currentRole !== 'developer') {
+          return false;
+        }
         return Boolean(l.assignedUserId);
       }
       return true;
@@ -571,11 +585,19 @@ const getTreasuryLedgers = async (req, res) => {
     );
 
     const userRole = req.user?.role;
+    const isDeveloper = userRole === 'developer';
     const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
 
     const bankLedgers = enriched.filter(l => l.ledgerType === 'bank');
     const cashLedgers = enriched.filter(l => {
       if (l.ledgerType !== 'user_cash') return false;
+
+      // Developer accounts are supreme and private: never show developer cash accounts to superadmin, admin, cashier, or accountants unless the logged-in user is developer
+      const assignedRole = l.assignedUserId?.role;
+      if (assignedRole === 'developer' && !isDeveloper) {
+        return false;
+      }
+
       if (isGlobalAdmin) {
         return true;
       }

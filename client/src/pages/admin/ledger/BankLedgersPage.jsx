@@ -197,19 +197,19 @@ export default function BankLedgersPage() {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-teal-800 to-teal-950 text-white rounded-2xl p-5 shadow-sm space-y-1 relative overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-1 relative overflow-hidden">
           <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-teal-200 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               Total Bank Treasury
             </span>
-            <span className="p-2 bg-white/10 rounded-xl">
-              <Landmark className="w-5 h-5 text-teal-200" />
+            <span className="p-2 bg-teal-50 text-teal-700 rounded-xl">
+              <Landmark className="w-5 h-5" />
             </span>
           </div>
-          <p className="text-2xl md:text-3xl font-black tracking-tight">
+          <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
             ₹ {totalBankBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-teal-300/80 font-medium">
+          <p className="text-[11px] text-slate-400 font-medium">
             Across {bankLedgers.length} registered corporate accounts
           </p>
         </div>
@@ -344,7 +344,7 @@ export default function BankLedgersPage() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                       Verified Balance
                     </span>
-                    <p className="text-xl font-black text-slate-900">
+                    <p className="text-xl font-bold text-slate-800 tracking-tight">
                       ₹ {netBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -421,7 +421,7 @@ export default function BankLedgersPage() {
                       {bank.accountType || "CURRENT"}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-right font-black text-slate-900 text-sm">
+                  <td className="px-5 py-3.5 text-right font-semibold text-slate-700 text-xs sm:text-sm tracking-tight">
                     ₹ {(Number(bank.netBalance) || 0).toLocaleString("en-IN", {
                       minimumFractionDigits: 2
                     })}

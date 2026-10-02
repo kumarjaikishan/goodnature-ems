@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Edit2, User, Building2, ShieldCheck, CheckSquare, Square, Eye, EyeOff } from "lucide-react";
-import Modal from "@/components/ui/Modal";
+import Modalbox from "@/components/custommodal/Modalbox";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
@@ -36,14 +36,34 @@ export default function UserFormModal({
     const allBranchesSelected = branchList && branchList.length > 0 && branchList.every(b => form.branchIds?.includes(b._id));
 
     return (
-        <Modal
+        <Modalbox
             open={isOpen}
             onClose={onClose}
             title={editingIndex !== null ? `Edit ${roleDisplayName}` : `Create ${roleDisplayName} / Operator`}
             subtitle="Configure credentials, operational branch scopes, and granular RBAC permissions"
             maxWidth="max-w-2xl"
+            footer={
+                <>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={isload}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="user-form-modal"
+                        variant="primary"
+                        loading={isload}
+                    >
+                        {editingIndex !== null ? "Update Account" : "Create Account"}
+                    </Button>
+                </>
+            }
         >
-            <form onSubmit={onSave} className="space-y-4">
+            <form id="user-form-modal" onSubmit={onSave} className="space-y-4">
                 {/* Profile Photo */}
                 <div className="flex justify-center">
                     <div className="relative w-20 h-20">
@@ -409,25 +429,7 @@ export default function UserFormModal({
                         </table>
                     </div>
                 </div>
-
-                {/* Form Action Buttons */}
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onClose}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="primary"
-                        loading={isload}
-                    >
-                        {editingIndex !== null ? "Update Account" : "Create Account"}
-                    </Button>
-                </div>
             </form>
-        </Modal>
+        </Modalbox>
     );
 }

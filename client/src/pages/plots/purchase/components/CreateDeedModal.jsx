@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, CheckSquare, Square, Check, AlertCircle } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import { DateInput } from '../../../../components/ui/DateInput';
 import { toast } from '../../../../utils/toast';
 
 const CreateDeedModal = ({
@@ -196,18 +197,13 @@ const CreateDeedModal = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Registry Date *
-              </label>
-              <input
-                type="date"
-                required
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-purple-600 outline-none px-3 rounded-xl text-xs font-medium text-slate-800"
-                value={deedForm.deedDate || ''}
-                onChange={(e) => setDeedForm({ ...deedForm, deedDate: e.target.value })}
-              />
-            </div>
+            <DateInput
+              label="Registry Date *"
+              size="sm"
+              required
+              value={deedForm.deedDate || ''}
+              onChange={(e) => setDeedForm({ ...deedForm, deedDate: e.target.value })}
+            />
 
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">

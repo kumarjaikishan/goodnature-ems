@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreditCard } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import { DateInput } from '../../../../components/ui/DateInput';
 
 const RecordPaymentModal = ({
   open,
@@ -60,28 +61,26 @@ const RecordPaymentModal = ({
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Date *</label>
-              <input
-                type="date"
-                required
-                className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none px-3.5 rounded-xl text-xs font-medium"
-                value={paymentForm.date}
-                onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Reference / Cheque Number</label>
-            <input
-              type="text"
-              placeholder="UTR / Cheque No."
-              className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none px-3.5 rounded-xl text-xs font-medium"
-              value={paymentForm.transactionReference}
-              onChange={(e) => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
+            <DateInput
+              label="Payment Date *"
+              required
+              value={paymentForm.date}
+              onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
             />
           </div>
+
+          {paymentForm.paymentMode !== 'CASH' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Reference / Cheque Number</label>
+              <input
+                type="text"
+                placeholder="UTR / Cheque No."
+                className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none px-3.5 rounded-xl text-xs font-medium"
+                value={paymentForm.transactionReference}
+                onChange={(e) => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Remarks</label>

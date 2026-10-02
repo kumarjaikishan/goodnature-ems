@@ -8,7 +8,7 @@ import DataTable from '@/components/common/DataTable';
 import { adddepartment, delette, update } from './departmenthelper';
 import { useCustomStyles } from '../../attandence/attandencehelper';
 import { useDispatch, useSelector } from 'react-redux';
-import Modal from '@/components/ui/Modal';
+import Modalbox from '@/components/custommodal/Modalbox';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
@@ -373,14 +373,33 @@ const Department = () => {
       )}
 
       {/* Add / Edit Department Modal */}
-      <Modal
+      <Modalbox
         open={openmodal}
         onClose={() => setopenmodal(false)}
         title={isupdate ? 'Edit Department' : 'Create New Department'}
         subtitle="Configure department name, branch linkage, and operational responsibilities"
         maxWidth="max-w-md"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setopenmodal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="department-form"
+              variant="primary"
+              loading={isload}
+            >
+              {isupdate ? 'Update Department' : 'Create Department'}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={isupdate ? updatee : adddepartcall} className="space-y-4">
+        <form id="department-form" onSubmit={isupdate ? updatee : adddepartcall} className="space-y-4">
           <Select
             label="Branch Location"
             required
@@ -408,25 +427,8 @@ const Department = () => {
               onChange={(e) => setInp({ ...inp, description: e.target.value })}
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setopenmodal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={isload}
-            >
-              {isupdate ? 'Update Department' : 'Create Department'}
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
     </div>
   );
 };

@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
-import { confirmDialog } from "../../../utils/confirmDialog";
-import Modal from "../../../components/ui/Modal";
+import Modalbox from "../../../components/custommodal/Modalbox";
 import PageLoader from "../../../components/common/PageLoader";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
+import DateInput from "../../../components/ui/DateInput";
 import {
   ArrowRightLeft,
   Plus,
@@ -20,7 +20,6 @@ import {
   Landmark,
   Wallet,
   ArrowRight,
-  ShieldCheck,
   AlertTriangle,
   Receipt,
   Eye
@@ -332,7 +331,7 @@ export default function FundTransfersPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Pending Approvals */}
         <div
           onClick={() => setStatusTab("PENDING")}
@@ -383,22 +382,6 @@ export default function FundTransfersPage() {
           <p className="text-[11px] text-emerald-700/80 font-medium mt-0.5">
             Successfully credited into destination ledgers
           </p>
-        </div>
-
-        {/* Quick Balance Status */}
-        <div className="bg-gradient-to-br from-teal-800 to-teal-950 text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-teal-200 uppercase tracking-wider">
-              Settlement Safeguard
-            </span>
-            <ShieldCheck className="w-5 h-5 text-teal-300" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-teal-100">Zero Overdraft Protection</p>
-            <p className="text-[11px] text-teal-300/80 mt-0.5">
-              All transfers lock in-transit amounts until checker verifies physical cash or bank deposit.
-            </p>
-          </div>
         </div>
       </div>
 
@@ -661,7 +644,7 @@ export default function FundTransfersPage() {
       )}
 
       {/* ── Modal: Initiate Fund Transfer ── */}
-      <Modal
+      <Modalbox
         open={transferModalOpen}
         onClose={() => setTransferModalOpen(false)}
         maxWidth="max-w-2xl"
@@ -818,11 +801,13 @@ export default function FundTransfersPage() {
 
             {/* Transfer Date */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Transfer Date</label>
-              <Input
-                type="date"
+              <DateInput
+                label="Transfer Date"
                 value={transferDate}
-                onChange={(e) => setTransferDate(e.target.value)}
+                onChange={(e) => {
+                  const val = e?.target?.value !== undefined ? e.target.value : e;
+                  setTransferDate(val);
+                }}
                 required
               />
             </div>
@@ -855,10 +840,10 @@ export default function FundTransfersPage() {
             </div>
           </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── Modal: Reject Transfer Reason ── */}
-      <Modal
+      <Modalbox
         open={rejectModalOpen}
         onClose={() => setRejectModalOpen(false)}
         maxWidth="max-w-md"
@@ -901,10 +886,10 @@ export default function FundTransfersPage() {
             />
           </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── Modal: Preview Deposit Slip ── */}
-      <Modal
+      <Modalbox
         open={Boolean(previewSlipUrl)}
         onClose={() => setPreviewSlipUrl(null)}
         maxWidth="max-w-2xl"
@@ -922,10 +907,10 @@ export default function FundTransfersPage() {
             className="max-h-[500px] w-auto mx-auto rounded-xl border border-slate-200 shadow-sm"
           />
         </div>
-      </Modal>
+      </Modalbox>
 
       {/* ── Modal: Full Transfer Details & Narration ── */}
-      <Modal
+      <Modalbox
         open={Boolean(viewTransferDetail)}
         onClose={() => setViewTransferDetail(null)}
         maxWidth="max-w-2xl"
@@ -1074,7 +1059,7 @@ export default function FundTransfersPage() {
             )}
           </div>
         )}
-      </Modal>
+      </Modalbox>
     </div>
   );
 }

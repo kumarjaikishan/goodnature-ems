@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import DataTable from '@/components/common/DataTable';
+import DateInput from '@/components/ui/DateInput';
 import { toast } from '../../../utils/toast';
 import dayjs from 'dayjs';
 import { getLedgerColumns } from './ledgerhelper';
@@ -247,7 +248,7 @@ const LedgerDetailPage = () => {
                                 {ledgerName}
                             </h1>
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wider">
-                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller / Kisan Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : 'Custom Ledger'}
+                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : 'Custom Ledger'}
                             </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-medium">
@@ -355,24 +356,28 @@ const LedgerDetailPage = () => {
                     </div>
 
                     {/* Date Range: From */}
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-600">From:</span>
-                        <input
-                            type="date"
+                    <div className="w-36">
+                        <DateInput
+                            label="From"
+                            size="sm"
                             value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="h-9 px-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                            onChange={(e) => {
+                                const val = e?.target?.value !== undefined ? e.target.value : e;
+                                setStartDate(val);
+                            }}
                         />
                     </div>
 
                     {/* Date Range: To */}
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-600">To:</span>
-                        <input
-                            type="date"
+                    <div className="w-36">
+                        <DateInput
+                            label="To"
+                            size="sm"
                             value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="h-9 px-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                            onChange={(e) => {
+                                const val = e?.target?.value !== undefined ? e.target.value : e;
+                                setEndDate(val);
+                            }}
                         />
                     </div>
 
@@ -439,16 +444,15 @@ const LedgerDetailPage = () => {
                     </div>
 
                     <form onSubmit={saveEntry} className="flex flex-col gap-3.5">
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-bold text-slate-600">Transaction Date</label>
-                            <input
-                                type="date"
-                                className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
-                                value={entry.date || ''}
-                                onChange={(e) => setEntry({ ...entry, date: e.target.value })}
-                                required
-                            />
-                        </div>
+                        <DateInput
+                            label="Transaction Date"
+                            value={entry.date || ''}
+                            onChange={(e) => {
+                                const val = e?.target?.value !== undefined ? e.target.value : e;
+                                setEntry({ ...entry, date: val });
+                            }}
+                            required
+                        />
 
                         <div className="flex flex-col gap-1">
                             <label className="text-xs font-bold text-slate-600">Particular / Description</label>

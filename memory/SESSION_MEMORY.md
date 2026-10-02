@@ -1089,3 +1089,75 @@ PLAN-15 originally removed mongoose.models.User alias completely. This broke ALL
 3. **VoucherList.jsx & VoucherDetails.jsx**:
    - Enhanced bank account label rendering to include [b.bankName, b.name], ccountNumber, and current balance.
    - Added etchTreasury call whenever create/approve/payment modals open, ensuring newly created banks (like Axis Bank) appear immediately without full page reloads.
+
+## [2026-10-02] Due Reports Collect Navigation & Installment Auto-Selection Sync
+
+### Problems
+1. From Plot Reports & Audits (/dashboard/plots/reports), clicking "Collect" for a contract with pending Downpayment navigated to /collections/emi/add instead of /collections/downpayment/add.
+   - Cause: DueAndHoldColumns.jsx hardcoded scheme === 'MONTHLY_INSTALLMENT' to the EMI route without checking if Downpayment was cleared (.hasDownpayment && !b.downpaymentPaid).
+2. When navigating to /dashboard/plots/collections/emi/add?bookingId=... or /dashboard/plots/collections/downpayment/add?bookingId=..., the "Select Booking Number *" field remained empty (placeholder "Search or enter Booking Number..."), and contract summary card did not appear, even though "Collection Amount" was populated (e.g. 41666).
+   - Cause: etchBookings() in InstallmentCollection.jsx called setBookings(loadedBookings) and immediately triggered handleBookingSelect(queryBookingId) without passing the loaded array. Because React state updates are asynchronous, ookings was still []. handleBookingSelect evaluated ookings.find(...) as undefined and set selectedBooking(null). Then it loaded /plots/bookings/:id/installments directly using the query ID, populating mountPaid while leaving selectedBooking null.
+3. If navigation occurred between query parameters or routes while InstallmentCollection remained mounted, etchBookings() was never re-triggered because its effect had [] dependencies, and the route sync effect only cleared state when !queryBookingId.
+
+### Fix
+1. **DueAndHoldColumns.jsx**:
+   - Check const isDpDue = b.hasDownpayment ? !b.downpaymentPaid : false;.
+   - If isDpDue or FULL_PAYMENT, route to /dashboard/plots/collections/downpayment/add?bookingId=.
+   - If DP is cleared on MONTHLY_INSTALLMENT, route to /dashboard/plots/collections/emi/add?bookingId=.
+2. **InstallmentCollection.jsx**:
+   - Added useRef tracker lastProcessedBookingIdRef and ctiveSelectRequestId.
+   - Updated etchBookings with limit=500 and passes loadedBookings directly to handleBookingSelect(queryBookingId, loadedBookings).
+   - Added useEffect listening to [location.search, bookings] to guarantee auto-selection on route / query updates.
+   - In handleBookingSelect, added fallback to fetch /plots/bookings/:id directly if the booking is not present in the active list (e.g. status edge cases or pagination).
+   - ilteredBookings memo prepends selectedBooking if not present, ensuring SearchableSelect displays the booking number, customer name, plot number, and renders the contract summary card and installment ledger.
+3. **ReceivePaymentForm.jsx**:
+   - Converted cross-collection redirects ("Collect Monthly EMI Instead" and "Collect Downpayment Now") to React Router Link components preserving ?bookingId=... for instant SPA navigation without full page reload.
+
+## [2026-10-02] PayLedgerModal Amount Decimal Precision & Mobile Numeric Keypad
+
+### Problems
+1. In PayLedgerModal.jsx, pre-filling positive payable balance or clicking "Pay Full" put raw floating-point numbers like 344466.9399999999 directly into the input field because .toString() was invoked directly on ledger.netBalance.
+2. Input was <input type="number" step="any" min="1">, which didn't restrict decimal places to paise (maximum 2 decimals), permitted e, +, -, and didn't open the numeric/decimal keypad on mobile devices as requested by the user (	ype="tel").
+
+### Fix
+1. **PayLedgerModal.jsx**:
+   - Added oundAmount(val) helper: Rounds value to 2 decimal places using Math.round(num * 100) / 100, returning integer strings for whole numbers (e.g. "5000") and 2 decimal places for fractional amounts (e.g. "344466.94").
+   - In useEffect and "Pay Full" button click: Used setAmount(roundAmount(...)).
+   - Updated Amount Input to 	ype="tel" inputMode="decimal" pattern="[0-9]*[.]?[0-9]*".
+   - Added handleAmountKeyDown and handleAmountChange: Strictly permits only digits  -9 and at most one decimal point with a maximum of 2 digits after the dot (paise), blocking all alphabetic/special characters.
+   - Cleansed payload.amount and payload.initialPayment before submitting to API via Math.round(numAmount * 100) / 100.
+   - Formatted submit button amount with { minimumFractionDigits: 2, maximumFractionDigits: 2 }.
+
+## [2026-10-02] PayLedgerModal ID Label Update
+
+### Request
+- In the highlighted ledger header card of PayLedgerModal.jsx, change ID / Code: <empId> to ID: <empId> (remove the word "Code").
+
+### Fix
+- Updated [PayLedgerModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/PayLedgerModal.jsx) to display ID: {ledger.empId} instead of ID / Code: {ledger.empId}.
+
+## [2026-10-02] Standardized Modalbox in PayLedgerModal
+
+### Changes
+- Updated [PayLedgerModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/PayLedgerModal.jsx) to use the centralized common modal component [Modalbox](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/custommodal/Modalbox.jsx) (matching BulkMark.jsx and the rest of the project).
+
+## [2026-10-02] PayLedgerModal Fixed Footer Alignment
+
+### Issue
+- In BulkMark.jsx, modal action buttons ("Cancel" and "Save") were pinned at the bottom in the fixed modal footer because they were passed to the ooter={...} prop of Modalbox.
+- In PayLedgerModal.jsx, the "Cancel" and "Pay" buttons were placed inside the scrollable <form> body, causing the buttons to scroll with the content instead of remaining anchored at the bottom.
+
+### Fix
+- Updated [PayLedgerModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/admin/ledger/PayLedgerModal.jsx) to pass its action buttons into the ooter={...} prop of <Modalbox>.
+- Added id="pay-ledger-form" to <form> and orm="pay-ledger-form" to the submit <Button> so form validation and submission trigger on click while keeping the footer fixed.
+
+## [2026-10-02] Global Modal Select & SearchableSelect Dropdown Clipping Fix
+
+### Issue
+- Custom <Select> and <SearchableSelect> dropdown menus were getting clipped/cut off at the bottom when rendered inside any modal (e.g. Modalbox, Modal) or containers with overflow: hidden / overflow-y: auto.
+
+### Fix
+- Refactored [client/src/components/ui/Select.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/Select.jsx) and [client/src/components/ui/SearchableSelect.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/SearchableSelect.jsx) to render their floating dropdown menus via React createPortal(..., document.body).
+- Implemented smart viewport collision detection (spaceBelow < dropdownHeight + 12 && spaceAbove > spaceBelow) so options flip upwards automatically when near the bottom of the viewport or modal.
+- Added live window/container scroll and resize tracking to maintain exact pixel positioning without being confined to modal scroll boundaries.
+- All modals and pages across the entire project now automatically benefit from zero clipping without individual page workarounds.

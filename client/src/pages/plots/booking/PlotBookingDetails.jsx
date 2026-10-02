@@ -1063,16 +1063,18 @@ const PlotBookingDetails = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Transaction Ref / Cheque #</label>
-                <input
-                  type="text"
-                  className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-rose-600 outline-none px-3.5 rounded-xl text-xs font-medium"
-                  placeholder="e.g. UTR1084920"
-                  value={refundForm.transactionReference}
-                  onChange={(e) => setRefundForm({ ...refundForm, transactionReference: e.target.value })}
-                />
-              </div>
+              {refundForm.paymentMode !== 'CASH' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Transaction Ref / Cheque #</label>
+                  <input
+                    type="text"
+                    className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-rose-600 outline-none px-3.5 rounded-xl text-xs font-medium"
+                    placeholder="e.g. UTR1084920"
+                    value={refundForm.transactionReference}
+                    onChange={(e) => setRefundForm({ ...refundForm, transactionReference: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
 
             <div>

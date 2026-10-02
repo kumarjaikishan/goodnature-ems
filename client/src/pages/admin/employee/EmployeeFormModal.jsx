@@ -1,7 +1,8 @@
 import React from 'react';
 import { Send, Edit2, ChevronUp, ChevronDown, Trash2, User } from 'lucide-react';
-import Modal from '../../../components/ui/Modal';
+import Modalbox from '../../../components/custommodal/Modalbox';
 import Input from '../../../components/ui/Input';
+import DateInput from '../../../components/ui/DateInput';
 import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
 
@@ -29,7 +30,7 @@ const EmployeeFormModal = ({
   resetPhoto
 }) => {
   return (
-    <Modal
+    <Modalbox
       open={open}
       onClose={onClose}
       title={isupdate ? "Update Employee" : "Add Employee"}
@@ -254,7 +255,14 @@ const EmployeeFormModal = ({
                   <Input label="Blood Group" value={inp.bloodGroup || ''} onChange={(e) => handleChange(e, 'bloodGroup')} />
                   <Input label="Aadhaar No." value={inp.adhaar || ''} maxLength={12} onChange={(e) => handleChange(e, 'adhaar')} />
                   <Input label="PAN No." value={inp.pan || ''} maxLength={10} onChange={(e) => handleChange(e, 'pan')} />
-                  <Input label="Date of Birth" type="date" value={inp.dob || ''} onChange={(e) => handleChange(e, 'dob')} />
+                  <DateInput
+                    label="Date of Birth"
+                    value={inp.dob || ''}
+                    onChange={(e) => {
+                      const val = e?.target?.value !== undefined ? e.target.value : e;
+                      handleChange({ target: { value: val } }, 'dob');
+                    }}
+                  />
                   
                   <Select
                     label="Marital Status"
@@ -333,9 +341,8 @@ const EmployeeFormModal = ({
                           value={ach.description || ''}
                           onChange={(e) => handleNestedChange(e, 'achievements', idx, 'description')}
                         />
-                        <input
-                          type="date"
-                          className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                        <DateInput
+                          size="sm"
                           value={ach.date || ''}
                           onChange={(e) => handleNestedChange(e, 'achievements', idx, 'date')}
                         />
@@ -373,9 +380,8 @@ const EmployeeFormModal = ({
                           value={edu.institution || ''}
                           onChange={(e) => handleNestedChange(e, 'education', idx, 'institution')}
                         />
-                        <input
-                          type="date"
-                          className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium outline-none"
+                        <DateInput
+                          size="sm"
                           value={edu.date || ''}
                           onChange={(e) => handleNestedChange(e, 'education', idx, 'date')}
                         />
@@ -525,7 +531,7 @@ const EmployeeFormModal = ({
           )}
         </div>
       </form>
-    </Modal>
+    </Modalbox>
   );
 };
 

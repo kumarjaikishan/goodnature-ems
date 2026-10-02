@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
+import { DateInput } from '../../../components/ui/DateInput';
 
 const ProductBookingPage = () => {
   const navigate = useNavigate();
@@ -779,12 +780,10 @@ const ProductBookingPage = () => {
                     </div>
 
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1">Booking &amp; Payment Date <span className="text-rose-500">*</span></label>
-                      <input
-                        type="date"
+                      <DateInput
+                        label="Booking & Payment Date *"
                         value={form.bookingDate}
                         onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
                         required
                       />
                     </div>
@@ -805,26 +804,26 @@ const ProductBookingPage = () => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1 text-[11px]">Transaction Ref / Cheque # (Optional)</label>
-                      <input
-                        type="text"
-                        value={form.transactionReference || ''}
-                        onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                        placeholder="e.g. UTR / Cheque / Ref #"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-teal-600"
-                      />
-                    </div>
+                    {form.paymentMode !== 'cash' && (
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1 text-[11px]">Transaction Ref / Cheque # (Optional)</label>
+                        <input
+                          type="text"
+                          value={form.transactionReference || ''}
+                          onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                          placeholder="e.g. UTR / Cheque / Ref #"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-teal-600"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
                 <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Booking / Start Date <span className="text-rose-500">*</span></label>
-                  <input
-                    type="date"
+                  <DateInput
+                    label="Booking / Start Date *"
                     value={form.bookingDate}
                     onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
                     required
                   />
                 </div>

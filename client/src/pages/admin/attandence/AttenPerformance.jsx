@@ -4,6 +4,7 @@ import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import DataTable from '@/components/common/DataTable';
+import DateInput from '@/components/ui/DateInput';
 import { useSelector } from 'react-redux';
 import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
 import EmployeeProfileCard from '../../../components/performanceCard';
@@ -428,22 +429,26 @@ const AttenPerformance = () => {
                         </div>
 
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
-                            <input
-                                type="date"
+                            <DateInput
+                                label="From Date"
+                                size="sm"
                                 value={fromDate}
-                                onChange={(e) => setFromDate(e.target.value)}
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                                onChange={(e) => {
+                                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                                    setFromDate(val);
+                                }}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
-                            <input
-                                type="date"
+                            <DateInput
+                                label="To Date"
+                                size="sm"
                                 value={toDate}
-                                onChange={(e) => setToDate(e.target.value)}
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                                onChange={(e) => {
+                                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                                    setToDate(val);
+                                }}
                             />
                         </div>
 

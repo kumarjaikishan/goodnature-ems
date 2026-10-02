@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '@/api/axios';
 import Button from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DateInput } from '@/components/ui/DateInput';
 import numberToWords from '@/utils/numToWord';
 import { Banknote, CheckCircle, Clock, AlertTriangle, ArrowRight, Building2, Wallet } from 'lucide-react';
 
@@ -223,12 +225,12 @@ const ReceivePaymentForm = ({
                       </div>
                     </div>
                     {selectedBooking?.scheme === 'MONTHLY_INSTALLMENT' && (
-                      <a
-                        href="/dashboard/plots/collections/emi/add"
+                      <Link
+                        to={`/dashboard/plots/collections/emi/add?bookingId=${selectedBooking._id}`}
                         className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl text-xs transition shrink-0 self-start sm:self-auto shadow-sm inline-flex items-center gap-1.5"
                       >
                         Collect Monthly EMI Instead →
-                      </a>
+                      </Link>
                     )}
                   </div>
                 ) : (
@@ -322,13 +324,13 @@ const ReceivePaymentForm = ({
                       </p>
                     </div>
                   </div>
-                  <a
-                    href={`/dashboard/plots/collections/downpayment/add`}
+                  <Link
+                    to={`/dashboard/plots/collections/downpayment/add?bookingId=${selectedBooking?._id || ''}`}
                     className="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-bold rounded-xl text-xs transition shrink-0 self-start sm:self-auto shadow-sm inline-flex items-center gap-2 cursor-pointer whitespace-nowrap"
                   >
                     <span>Collect Downpayment Now</span>
                     <ArrowRight size={14} />
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 /* Dedicated EMI Summary & Schedule Panel */
@@ -654,16 +656,12 @@ const ReceivePaymentForm = ({
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className={labelCls}>Collection Date</label>
-                  <input
-                    type="date"
-                    className={inputCls}
-                    value={form.createdAt}
-                    onChange={(e) => handleCollectionDateChange(e.target.value)}
-                    required
-                  />
-                </div>
+                <DateInput
+                  label="Collection Date"
+                  value={form.createdAt}
+                  onChange={(e) => handleCollectionDateChange(e.target.value)}
+                  required
+                />
 
                 {form.paymentMode !== 'cash' && (
                   <div className="flex flex-col gap-1">

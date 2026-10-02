@@ -7,6 +7,7 @@ import Modalbox from '../../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
+import { DateInput } from '../../../components/ui/DateInput';
 import {
   Pencil,
   Edit2,
@@ -354,7 +355,7 @@ const PlotBusinessDevelopers = () => {
 
   const handleOpenResetPassword = (developer) => {
     setResetPasswordTarget(developer);
-    setResetPasswordValue('123456');
+    setResetPasswordValue('');
     setShowResetPasswordText(false);
   };
 
@@ -688,31 +689,49 @@ const PlotBusinessDevelopers = () => {
       </div>
 
       {/* Create/Edit Modal */}
-      <Modalbox open={showModal} onClose={() => setShowModal(false)} size="xl" outside={false}>
-        <div className="w-full p-6">
-          <form onSubmit={handleSubmit}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                {editingDeveloper ? (
-                  <>
-                    <Pencil size={20} className="text-slate-600" />
-                    <span>Edit Business Developer ({editingDeveloper.sponsorCode || ''})</span>
-                  </>
-                ) : createMode === 'partner' ? (
-                  <>
-                    <Crown size={20} className="text-amber-600" />
-                    <span>Create Business Partner</span>
-                  </>
-                ) : (
-                  <>
-                    <Users size={20} className="text-teal-700" />
-                    <span>Create Business Associate</span>
-                  </>
-                )}
-              </h2>
-            </div>
-
-            <div className="modalcontent space-y-4">
+      <Modalbox
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        size="2xl"
+        title={
+          editingDeveloper
+            ? `Edit Business Developer (${editingDeveloper.sponsorCode || ''})`
+            : createMode === 'partner'
+            ? 'Create Business Partner'
+            : 'Create Business Associate'
+        }
+        subtitle={
+          editingDeveloper
+            ? 'Update profile details, contact info, and nominee information'
+            : 'Register a new business partner or associate'
+        }
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setShowModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              form="developer-form"
+              loading={submitLoading}
+            >
+              {editingDeveloper
+                ? 'Update Business Developer'
+                : createMode === 'partner'
+                ? 'Create Business Partner'
+                : 'Create Business Associate'}
+            </Button>
+          </>
+        }
+      >
+        <form id="developer-form" onSubmit={handleSubmit} className="space-y-4">
               {/* Role / Developer Type Selector (Identical in both Create and Edit) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
@@ -910,12 +929,10 @@ const PlotBusinessDevelopers = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Date of Birth</label>
-                  <input
-                    type="date"
+                  <DateInput
+                    label="Date of Birth"
                     value={formData.dob}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
                   />
                 </div>
                 <div>
@@ -1122,206 +1139,177 @@ const PlotBusinessDevelopers = () => {
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="btn border-t border-slate-100 mt-6 pt-4 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitLoading}
-                className="px-5 py-2 text-sm bg-primary text-white rounded-lg font-medium shadow-sm transition disabled:opacity-50 cursor-pointer"
-              >
-                {submitLoading
-                  ? 'Saving...'
-                  : editingDeveloper
-                  ? 'Update Business Developer'
-                  : createMode === 'partner'
-                  ? 'Create Business Partner'
-                  : 'Create Business Associate'}
-              </button>
-            </div>
           </form>
-        </div>
       </Modalbox>
 
       {/* View Details Modal */}
-      <Modalbox open={showViewModal} onClose={() => setShowViewModal(false)} size="xl" outside={false}>
-        <div className="w-full p-6">
-          <div className="whole">
-            <h2 className="flex items-center justify-between pb-3 border-b border-slate-100 text-lg font-bold text-slate-800">
-              <span>Business Developer Details</span>
-              <span className="font-mono text-xs font-semibold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md">
-                {viewingDeveloper?.sponsorCode || 'N/A'}
-              </span>
-            </h2>
-
-            {viewingDeveloper && (
-              <div className="modalcontent space-y-4 text-sm mt-4">
-                <div className="flex items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-indigo-200 flex-shrink-0 flex items-center justify-center shadow-xs">
-                      {viewingDeveloper.photo || viewingDeveloper.profileImage ? (
-                        <img
-                          src={cloudinaryUrl(viewingDeveloper.photo || viewingDeveloper.profileImage, { format: 'webp', width: 140, height: 140, crop: 'fill' })}
-                          alt={viewingDeveloper.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User size={24} className="text-slate-400" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase">Full Name</p>
-                      <p className="font-bold text-slate-900 text-base">{viewingDeveloper.name}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Hierarchy Role</p>
-                    <p className="font-bold text-teal-800">
-                      {viewingDeveloper.sponsorId?.name
-                        ? `👥 Business Associate (under ${viewingDeveloper.sponsorId.name})`
-                        : '👑 Business Partner (Direct Company)'}
-                    </p>
-                  </div>
+      <Modalbox
+        open={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        size="xl"
+        outside={false}
+        title="Business Developer Details"
+        subtitle={viewingDeveloper ? `${viewingDeveloper.name} (${viewingDeveloper.sponsorCode || 'No ID'})` : ''}
+        footer={
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => setShowViewModal(false)}
+          >
+            Close
+          </Button>
+        }
+      >
+        {viewingDeveloper && (
+          <div className="modalcontent space-y-4 text-sm">
+            <div className="flex items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-indigo-200 flex-shrink-0 flex items-center justify-center shadow-xs">
+                  {viewingDeveloper.photo || viewingDeveloper.profileImage ? (
+                    <img
+                      src={cloudinaryUrl(viewingDeveloper.photo || viewingDeveloper.profileImage, { format: 'webp', width: 140, height: 140, crop: 'fill' })}
+                      alt={viewingDeveloper.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={24} className="text-slate-400" />
+                  )}
                 </div>
+                <div>
+                  <p className="text-xs text-slate-400 font-semibold uppercase">Full Name</p>
+                  <p className="font-bold text-slate-900 text-base">{viewingDeveloper.name}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-400 font-semibold uppercase">Hierarchy Role</p>
+                <p className="font-bold text-teal-800">
+                  {viewingDeveloper.sponsorId?.name
+                    ? `👥 Business Associate (under ${viewingDeveloper.sponsorId.name})`
+                    : '👑 Business Partner (Direct Company)'}
+                </p>
+              </div>
+            </div>
 
-                {/* Branch & Sponsoring Partner info */}
-                <div className="grid grid-cols-2 gap-4 bg-teal-50/50 p-3 rounded-xl border border-teal-100">
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Assigned Branch</p>
-                    <p className="font-semibold text-teal-900 flex items-center gap-1.5 mt-0.5">
-                      <Building2 size={15} className="text-teal-700" />
+            {/* Branch & Sponsoring Partner info */}
+            <div className="grid grid-cols-2 gap-4 bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Assigned Branch</p>
+                <p className="font-semibold text-teal-900 flex items-center gap-1.5 mt-0.5">
+                  <Building2 size={15} className="text-teal-700" />
+                  {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
+                    ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
+                    : 'Company Head Office / All'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Parent Partner / Branch</p>
+                <p className="font-semibold text-slate-800 mt-0.5">
+                  {viewingDeveloper.sponsorId?.name ? (
+                    `${viewingDeveloper.sponsorId.name} (${viewingDeveloper.sponsorId.sponsorCode || ''})`
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-teal-800">
+                      <Building2 size={13} className="text-teal-700 shrink-0" />
                       {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
                         ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
-                        : 'Company Head Office / All'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Parent Partner / Branch</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">
-                      {viewingDeveloper.sponsorId?.name ? (
-                        `${viewingDeveloper.sponsorId.name} (${viewingDeveloper.sponsorId.sponsorCode || ''})`
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-teal-800">
-                          <Building2 size={13} className="text-teal-700 shrink-0" />
-                          {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
-                            ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
-                            : (viewingDeveloper.branchId?.name || 'Head Office')}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
+                        : (viewingDeveloper.branchId?.name || 'Head Office')}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Gender</p>
-                    <p className="font-medium text-slate-700">{viewingDeveloper.gender || 'Male'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Date of Birth</p>
-                    <p className="font-medium text-slate-700">{viewingDeveloper.dob || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Occupation</p>
-                    <p className="font-medium text-slate-700">{viewingDeveloper.occupation || 'N/A'}</p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Gender</p>
+                <p className="font-medium text-slate-700">{viewingDeveloper.gender || 'Male'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Date of Birth</p>
+                <p className="font-medium text-slate-700">{viewingDeveloper.dob || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Occupation</p>
+                <p className="font-medium text-slate-700">{viewingDeveloper.occupation || 'N/A'}</p>
+              </div>
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Mobile Number</p>
-                    <p className="font-medium text-slate-700">{viewingDeveloper.mobile || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Email Address</p>
-                    <p className="font-medium text-slate-700 break-all">{viewingDeveloper.email || 'N/A'}</p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Mobile Number</p>
+                <p className="font-medium text-slate-700">{viewingDeveloper.mobile || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Email Address</p>
+                <p className="font-medium text-slate-700 break-all">{viewingDeveloper.email || 'N/A'}</p>
+              </div>
+            </div>
 
-                {/* ID Cards */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">PAN Card</p>
-                    <p className="font-medium text-slate-700 uppercase">{viewingDeveloper.panCard || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-semibold uppercase">Aadhaar Card</p>
-                    <p className="font-medium text-slate-700">{viewingDeveloper.aadhaarCard || 'N/A'}</p>
-                  </div>
-                </div>
+            {/* ID Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">PAN Card</p>
+                <p className="font-medium text-slate-700 uppercase">{viewingDeveloper.panCard || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase">Aadhaar Card</p>
+                <p className="font-medium text-slate-700">{viewingDeveloper.aadhaarCard || 'N/A'}</p>
+              </div>
+            </div>
 
-                {/* Signature Card */}
-                {viewingDeveloper.signature && (
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase">Digital Signature</p>
-                      <p className="text-[11px] text-slate-500">Verified digital record</p>
-                    </div>
-                    <div className="h-12 w-32 bg-white border border-slate-200 rounded-lg p-1 flex items-center justify-center">
-                      <img
-                        src={cloudinaryUrl(viewingDeveloper.signature, { format: 'webp', width: 200, height: 80, crop: 'fit' })}
-                        alt="Signature"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Nominee details preview */}
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Nominee Details</p>
-                  <p className="font-semibold text-slate-800">
-                    {viewingDeveloper.nomineeName ? (
-                      <>
-                        {viewingDeveloper.nomineeName}
-                        {viewingDeveloper.nomineeRelation ? ` (${viewingDeveloper.nomineeRelation})` : ''}
-                        {viewingDeveloper.nomineeAge ? ` - ${viewingDeveloper.nomineeAge} yrs` : ''}
-                      </>
-                    ) : (
-                      'N/A'
-                    )}
-                  </p>
-                </div>
-
+            {/* Signature Card */}
+            {viewingDeveloper.signature && (
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-400 font-semibold uppercase">Current / Temporary Address</p>
-                  <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
-                    {viewingDeveloper.currentAddress || viewingDeveloper.address || 'N/A'}
-                  </p>
+                  <p className="text-xs text-slate-400 font-semibold uppercase">Digital Signature</p>
+                  <p className="text-[11px] text-slate-500">Verified digital record</p>
                 </div>
-
-                <div>
-                  <p className="text-xs text-slate-400 font-semibold uppercase">Permanent Address</p>
-                  <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
-                    {viewingDeveloper.permanentAddress || viewingDeveloper.currentAddress || viewingDeveloper.address || 'N/A'}
-                  </p>
-                </div>
-
-                <div className="pt-2 text-xs text-slate-400 flex justify-between border-t border-slate-100">
-                  <span>Created: {new Date(viewingDeveloper.createdAt).toLocaleDateString('en-IN')}</span>
-                  <span>Role: {viewingDeveloper.role}</span>
+                <div className="h-12 w-32 bg-white border border-slate-200 rounded-lg p-1 flex items-center justify-center">
+                  <img
+                    src={cloudinaryUrl(viewingDeveloper.signature, { format: 'webp', width: 200, height: 80, crop: 'fit' })}
+                    alt="Signature"
+                    className="max-h-full max-w-full object-contain"
+                  />
                 </div>
               </div>
             )}
 
-            <div className="btn border-t border-slate-100 mt-6 pt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition cursor-pointer"
-              >
-                Close
-              </button>
+            {/* Nominee details preview */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Nominee Details</p>
+              <p className="font-semibold text-slate-800">
+                {viewingDeveloper.nomineeName ? (
+                  <>
+                    {viewingDeveloper.nomineeName}
+                    {viewingDeveloper.nomineeRelation ? ` (${viewingDeveloper.nomineeRelation})` : ''}
+                    {viewingDeveloper.nomineeAge ? ` - ${viewingDeveloper.nomineeAge} yrs` : ''}
+                  </>
+                ) : (
+                  'N/A'
+                )}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400 font-semibold uppercase">Current / Temporary Address</p>
+              <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
+                {viewingDeveloper.currentAddress || viewingDeveloper.address || 'N/A'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400 font-semibold uppercase">Permanent Address</p>
+              <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
+                {viewingDeveloper.permanentAddress || viewingDeveloper.currentAddress || viewingDeveloper.address || 'N/A'}
+              </p>
+            </div>
+
+            <div className="pt-2 text-xs text-slate-400 flex justify-between border-t border-slate-100">
+              <span>Created: {new Date(viewingDeveloper.createdAt).toLocaleDateString('en-IN')}</span>
+              <span>Role: {viewingDeveloper.role}</span>
             </div>
           </div>
-        </div>
+        )}
       </Modalbox>
 
       {/* Modern Reset Password Modal */}
@@ -1401,17 +1389,6 @@ const PlotBusinessDevelopers = () => {
               className="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition cursor-pointer"
             >
               Default (123456)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const randomPass = Math.random().toString(36).slice(-8) + '@2026';
-                setResetPasswordValue(randomPass);
-                setShowResetPasswordText(true);
-              }}
-              className="text-xs px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold rounded-lg transition cursor-pointer"
-            >
-              Generate Strong Password
             </button>
           </div>
         </form>

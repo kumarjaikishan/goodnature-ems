@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
-import Modal from '../../../components/ui/Modal';
+import Modalbox from '../../../components/custommodal/Modalbox';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import DateInput from '../../../components/ui/DateInput';
@@ -63,6 +63,14 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
         }
     };
 
+    const roundAmount = (val) => {
+        if (val === null || val === undefined || val === '') return '';
+        const num = Number(val);
+        if (isNaN(num)) return '';
+        const rounded = Math.round(num * 100) / 100;
+        return (rounded % 1 === 0) ? rounded.toString() : rounded.toFixed(2);
+    };
+
     // Populate default values when ledger changes or modal opens
     useEffect(() => {
         if (open && ledger) {
@@ -76,7 +84,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
             // Pre-fill positive balance if payable
             const currentNet = Number(ledger.netBalance) || 0;
             if (currentNet > 0) {
-                setAmount(currentNet.toString());
+                setAmount(roundAmount(currentNet));
                 setNarration(`Payment towards ledger payable balance for ${ledger.name}`);
             } else {
                 setAmount('');
@@ -136,7 +144,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     const tagLabel = isEmp
         ? 'Employee'
         : isKisan
-        ? 'Seller / Kisan'
+        ? 'Seller'
         : isBranchPartner
         ? 'Branch Partner'
         : isPartner
@@ -157,6 +165,56 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
         ? 'bg-purple-50 text-purple-700 border-purple-200'
         : 'bg-slate-50 text-slate-700 border-slate-200';
 
+    const handleAmountChange = (e) => {
+        let val = e.target.value;
+        // Keep only digits and decimal point
+        val = val.replace(/[^0-9.]/g, '');
+
+        // Allow at most one decimal point
+        const parts = val.split('.');
+        if (parts.length > 2) {
+            val = `${parts[0]}.${parts.slice(1).join('')}`;
+        }
+
+        // Allow at most 2 decimal places after the dot
+        if (val.includes('.')) {
+            const [intPart, decPart] = val.split('.');
+            val = `${intPart}.${decPart.slice(0, 2)}`;
+        }
+
+        setAmount(val);
+    };
+
+    const handleAmountKeyDown = (e) => {
+        // Allow control keys
+        if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+            return;
+        }
+        // Allow Ctrl / Cmd combinations
+        if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) {
+            return;
+        }
+        // Allow single decimal point
+        if (e.key === '.' && !amount.includes('.')) {
+            return;
+        }
+        // Allow digits 0-9
+        if (/^[0-9]$/.test(e.key)) {
+            if (amount.includes('.')) {
+                const decPart = amount.split('.')[1];
+                const input = e.target;
+                const dotIndex = amount.indexOf('.');
+                if (decPart && decPart.length >= 2 && input.selectionStart > dotIndex && input.selectionStart === input.selectionEnd) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+            return;
+        }
+        // Disallow everything else
+        e.preventDefault();
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -175,13 +233,14 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
 
         try {
             setSubmitting(true);
+            const cleanAmount = Math.round(numAmount * 100) / 100;
             const payload = {
                 ledgerId: ledger._id,
                 date: voucherDate,
-                amount: numAmount,
+                amount: cleanAmount,
                 narration: narration.trim() || `Voucher payment to ${ledger.name}`,
                 autoApprove: autoDisburse,
-                initialPayment: autoDisburse ? numAmount : 0,
+                initialPayment: autoDisburse ? cleanAmount : 0,
                 paymentMode: autoDisburse ? paymentMode : 'CASH',
                 paymentLedgerId: autoDisburse ? (paymentLedgerId || null) : null,
                 referenceNo: autoDisburse ? referenceNo.trim() : ''
@@ -212,14 +271,39 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     };
 
     return (
-        <Modal
+        <Modalbox
             open={open}
             onClose={onClose}
             title="Make Payment / Issue Voucher"
             subtitle="Create an official payment voucher and disburse funds to this ledger"
             maxWidth="max-w-xl"
+            footer={
+                <>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={onClose}
+                        disabled={submitting}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="pay-ledger-form"
+                        variant="primary"
+                        size="sm"
+                        icon={<CreditCard size={15} />}
+                        loading={submitting}
+                    >
+                        {autoDisburse
+                            ? `Pay ₹${amount && !isNaN(Number(amount)) ? Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`
+                            : 'Create Voucher'}
+                    </Button>
+                </>
+            }
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form id="pay-ledger-form" onSubmit={handleSubmit} className="space-y-4">
                 {/* Highlighted Ledger Card */}
                 <div className="bg-gradient-to-br from-teal-50/70 via-slate-50 to-emerald-50/50 border border-teal-100/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-3">
@@ -248,7 +332,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                             </div>
                             {ledger.empId && (
                                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                    ID / Code: <span className="font-semibold text-slate-700">{ledger.empId}</span>
+                                    ID: <span className="font-semibold text-slate-700">{ledger.empId}</span>
                                 </p>
                             )}
                         </div>
@@ -295,20 +379,21 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                             {netBalance > 0 && (
                                 <button
                                     type="button"
-                                    onClick={() => setAmount(netBalance.toString())}
+                                    onClick={() => setAmount(roundAmount(netBalance))}
                                     className="text-[11px] font-bold text-teal-700 hover:text-teal-900 hover:underline cursor-pointer"
                                 >
-                                    Pay Full (₹{netBalance.toLocaleString('en-IN')})
+                                    Pay Full (₹{Number(roundAmount(netBalance)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                 </button>
                             )}
                         </div>
                         <Input
-                            type="number"
-                            step="any"
-                            min="1"
+                            type="tel"
+                            inputMode="decimal"
+                            pattern="[0-9]*[.]?[0-9]*"
                             placeholder="e.g. 5000"
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            onChange={handleAmountChange}
+                            onKeyDown={handleAmountKeyDown}
                             required
                         />
                     </div>
@@ -361,16 +446,18 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                                    Ref / Cheque / UTR No.
-                                </label>
-                                <Input
-                                    placeholder="e.g. UTR / Cheque / Txn ID"
-                                    value={referenceNo}
-                                    onChange={(e) => setReferenceNo(e.target.value)}
-                                />
-                            </div>
+                            {paymentMode !== 'CASH' && (
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
+                                        Ref / Cheque / UTR No.
+                                    </label>
+                                    <Input
+                                        placeholder="e.g. UTR / Cheque / Txn ID"
+                                        value={referenceNo}
+                                        onChange={(e) => setReferenceNo(e.target.value)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
@@ -393,32 +480,8 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                         className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-all resize-none bg-white text-slate-800"
                     />
                 </div>
-
-                {/* Footer Buttons */}
-                <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={onClose}
-                        disabled={submitting}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="primary"
-                        size="sm"
-                        icon={<CreditCard size={15} />}
-                        loading={submitting}
-                    >
-                        {autoDisburse
-                            ? `Pay ₹${amount ? Number(amount).toLocaleString('en-IN') : '0.00'}`
-                            : 'Create Voucher'}
-                    </Button>
-                </div>
             </form>
-        </Modal>
+        </Modalbox>
     );
 };
 

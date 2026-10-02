@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import OrganizationLayout from '../OrganizationLayout';
 import BranchManager from '../components/BranchManager';
 import { useOrganization } from '../useOrganization';
-import Modal from '@/components/ui/Modal';
+import Modalbox from '@/components/custommodal/Modalbox';
 import Addbranch from '../addbranch';
 import { useCustomStyles } from '../../attandence/attandencehelper';
 import { FirstFetch } from '../../../../../store/userSlice';
@@ -74,7 +74,7 @@ const BranchManagerPage = () => {
                 />
             </div>
 
-            <Modal
+            <Modalbox
                 open={openviewmodal}
                 onClose={() => {
                     setopenviewmodal(false);
@@ -92,7 +92,7 @@ const BranchManagerPage = () => {
                     company={company}
                     employee={employee}
                 />
-            </Modal>
+            </Modalbox>
         </OrganizationLayout>
     );
 };

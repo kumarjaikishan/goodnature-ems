@@ -48,29 +48,40 @@ export const DateInput = forwardRef(({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const popoverWidth = 285;
-    const popoverHeight = 315;
+    // Measure rendered popover height or default to compact 285px
+    const popoverHeight = popoverRef.current ? popoverRef.current.offsetHeight : 285;
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
 
-    // Determine if it should open above or below
-    const shouldOpenAbove = spaceBelow < popoverHeight + 10 && spaceAbove > spaceBelow;
+    // Open above only if there is genuinely not enough space below AND more space above
+    const shouldOpenAbove = spaceBelow < popoverHeight + 8 && spaceAbove > spaceBelow;
 
-    let top = shouldOpenAbove ? rect.top - popoverHeight - 6 : rect.bottom + 6;
+    // Position tightly against the trigger input (4px gap)
+    let top = shouldOpenAbove
+      ? rect.top - popoverHeight - 4
+      : rect.bottom + 4;
+
+    // Viewport top/bottom bounds clamping
+    if (top < 8) {
+      top = 8;
+    } else if (top + popoverHeight > window.innerHeight - 8) {
+      top = window.innerHeight - popoverHeight - 8;
+    }
 
     // Determine horizontal placement
     let left = align === 'right' ? rect.right - popoverWidth : rect.left;
 
     // Horizontal viewport boundaries
-    if (left + popoverWidth > window.innerWidth - 10) {
-      left = window.innerWidth - popoverWidth - 10;
+    if (left + popoverWidth > window.innerWidth - 8) {
+      left = window.innerWidth - popoverWidth - 8;
     }
-    if (left < 10) {
-      left = 10;
+    if (left < 8) {
+      left = 8;
     }
 
     setCoords({
-      top: Math.max(10, top),
-      left: Math.max(10, left),
+      top: Math.round(top),
+      left: Math.round(left),
       openAbove: shouldOpenAbove,
     });
   }, [align]);
@@ -82,6 +93,11 @@ export const DateInput = forwardRef(({
         setViewDate(parsedValue);
       }
       updatePosition();
+      // Re-measure after DOM paint to snap tightly with actual popover DOM height
+      const raf = requestAnimationFrame(() => {
+        updatePosition();
+      });
+      return () => cancelAnimationFrame(raf);
     }
   }, [isOpen, isValidDate, updatePosition]);
 

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, forwardRef, useMemo } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X, Check } from 'lucide-react';
 
 /**
@@ -41,8 +42,11 @@ export const SearchableSelect = forwardRef(({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, openAbove: false });
 
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
   const optionsListRef = useRef(null);
 
@@ -84,29 +88,66 @@ export const SearchableSelect = forwardRef(({
     );
   }, [normalizedOptions, search]);
 
-  // Handle outside clicks to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-        setSearch('');
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  // Viewport collision positioning
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = dropdownRef.current ? dropdownRef.current.offsetHeight : 250;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    const shouldOpenAbove = spaceBelow < dropdownHeight + 12 && spaceAbove > spaceBelow;
+
+    const top = shouldOpenAbove
+      ? Math.max(10, rect.top - dropdownHeight - 6)
+      : Math.min(window.innerHeight - 30, rect.bottom + 6);
+
+    const left = Math.max(10, Math.min(rect.left, window.innerWidth - rect.width - 10));
+
+    setCoords({
+      top,
+      left,
+      width: rect.width,
+      openAbove: shouldOpenAbove,
+    });
   }, []);
 
-  // Focus search input when dropdown opens
+  // Handle outside clicks, ESC, and scroll/resize
   useEffect(() => {
     if (isOpen) {
+      updatePosition();
       setHighlightedIndex(0);
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
+
+      const handleClickOutside = (e) => {
+        const clickedTrigger = triggerRef.current && triggerRef.current.contains(e.target);
+        const clickedDropdown = dropdownRef.current && dropdownRef.current.contains(e.target);
+        if (!clickedTrigger && !clickedDropdown) {
+          setIsOpen(false);
+          setSearch('');
+        }
+      };
+
+      const handleScrollOrResize = (e) => {
+        if (dropdownRef.current && dropdownRef.current.contains(e.target)) return;
+        updatePosition();
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', handleScrollOrResize, true);
+      window.addEventListener('resize', handleScrollOrResize);
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        window.removeEventListener('scroll', handleScrollOrResize, true);
+        window.removeEventListener('resize', handleScrollOrResize);
+      };
     } else {
       setSearch('');
     }
-  }, [isOpen]);
+  }, [isOpen, updatePosition]);
 
   // Select an option
   const handleSelect = (opt) => {
@@ -191,13 +232,22 @@ export const SearchableSelect = forwardRef(({
 
       {/* Combobox Trigger Button */}
       <div
-        ref={ref}
+        ref={(node) => {
+          triggerRef.current = node;
+          if (typeof ref === 'function') ref(node);
+          else if (ref) ref.current = node;
+        }}
         id={selectId}
         role="combobox"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         tabIndex={disabled ? -1 : 0}
-        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        onClick={() => {
+          if (!disabled) {
+            updatePosition();
+            setIsOpen((prev) => !prev);
+          }
+        }}
         className={`
           relative flex items-center justify-between w-full rounded-lg border bg-white text-slate-800 transition-all duration-150 outline-none select-none
           ${sizeClasses[size] || sizeClasses.md}
@@ -234,87 +284,99 @@ export const SearchableSelect = forwardRef(({
         </div>
       </div>
 
-      {/* Floating Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col">
-          {/* Search Box Input */}
-          <div className="p-2 border-b border-slate-100 bg-slate-50/60 relative flex items-center">
-            <Search size={13} className="absolute left-4 text-slate-400 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setHighlightedIndex(0);
-              }}
-              placeholder={searchPlaceholder}
-              className="w-full pl-7 pr-7 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-all"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                className="absolute right-4 text-slate-400 hover:text-slate-600 p-0.5"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-
-          {/* Options List */}
+      {/* Floating Dropdown Menu rendered via Portal to prevent modal clipping */}
+      {isOpen &&
+        createPortal(
           <div
-            ref={optionsListRef}
-            role="listbox"
-            className="max-h-56 overflow-y-auto p-1 space-y-0.5 scrollbar-thin"
+            ref={dropdownRef}
+            style={{
+              position: 'fixed',
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              width: `${coords.width}px`,
+              zIndex: 99999,
+            }}
+            className="min-w-[160px] bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 flex flex-col backdrop-blur-sm"
           >
-            {filteredOptions.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-slate-400">
-                No matching options found
-              </div>
-            ) : (
-              filteredOptions.map((opt, index) => {
-                const isSelected = selectedOption && String(selectedOption.value) === String(opt.value);
-                const isHighlighted = index === highlightedIndex;
+            {/* Search Box Input */}
+            <div className="p-2 border-b border-slate-100 bg-slate-50/60 relative flex items-center">
+              <Search size={13} className="absolute left-4 text-slate-400 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setHighlightedIndex(0);
+                }}
+                placeholder={searchPlaceholder}
+                className="w-full pl-7 pr-7 py-1 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-all"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-4 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
 
-                return (
-                  <div
-                    key={opt.value ?? index}
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => handleSelect(opt)}
-                    onMouseEnter={() => setHighlightedIndex(index)}
-                    className={`
-                      px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors
-                      ${opt.disabled ? 'opacity-40 cursor-not-allowed bg-transparent' : ''}
-                      ${isSelected ? 'bg-teal-700 text-white font-semibold' : isHighlighted ? 'bg-teal-50 text-teal-900' : 'text-slate-700 hover:bg-slate-50'}
-                    `}
-                  >
-                    <div className="flex flex-col truncate pr-2">
-                      {renderOption ? (
-                        renderOption(opt.raw, isSelected)
-                      ) : (
-                        <>
-                          <span className="truncate">{opt.label}</span>
-                          {opt.subtitle && (
-                            <span className={`text-[10px] truncate ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
-                              {opt.subtitle}
-                            </span>
-                          )}
-                        </>
+            {/* Options List */}
+            <div
+              ref={optionsListRef}
+              role="listbox"
+              className="max-h-56 overflow-y-auto p-1 space-y-0.5 scrollbar-thin"
+            >
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-slate-400">
+                  No matching options found
+                </div>
+              ) : (
+                filteredOptions.map((opt, index) => {
+                  const isSelected = selectedOption && String(selectedOption.value) === String(opt.value);
+                  const isHighlighted = index === highlightedIndex;
+
+                  return (
+                    <div
+                      key={opt.value ?? index}
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => handleSelect(opt)}
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                      className={`
+                        px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors
+                        ${opt.disabled ? 'opacity-40 cursor-not-allowed bg-transparent' : ''}
+                        ${isSelected ? 'bg-teal-700 text-white font-semibold' : isHighlighted ? 'bg-teal-50 text-teal-900' : 'text-slate-700 hover:bg-slate-50'}
+                      `}
+                    >
+                      <div className="flex flex-col truncate pr-2">
+                        {renderOption ? (
+                          renderOption(opt.raw, isSelected)
+                        ) : (
+                          <>
+                            <span className="truncate">{opt.label}</span>
+                            {opt.subtitle && (
+                              <span className={`text-[10px] truncate ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
+                                {opt.subtitle}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {isSelected && (
+                        <Check size={14} className="shrink-0 text-white ml-2" />
                       )}
                     </div>
-
-                    {isSelected && (
-                      <Check size={14} className="shrink-0 text-white ml-2" />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
+                  );
+                })
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {(error || helperText) && (
         <p className={`text-xs ${error ? 'text-red-500 font-medium' : 'text-slate-500'} mt-0.5`}>

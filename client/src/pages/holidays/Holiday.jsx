@@ -22,7 +22,7 @@ import { toast } from '../../utils/toast';
 import { swal } from '../../utils/confirmDialog';
 import { useCustomStyles } from '../admin/attandence/attandencehelper';
 import HolidayCalander from './holidayCalander';
-import Modal from '../../components/ui/Modal';
+import Modalbox from '../../components/custommodal/Modalbox';
 import HolidayPrintable from './HolidayPrintable';
 import { exportJsonToExcel, parseExcelFile } from '../../utils/excelHelper';
 import { apiClient } from '../../utils/apiClient';
@@ -534,7 +534,7 @@ const HolidayForm = () => {
       </div>
 
       {/* Calendar View Modal */}
-      <Modal
+      <Modalbox
         open={holidaymodal}
         onClose={() => setholidaymodal(false)}
         title="Holiday Calendar View"
@@ -544,15 +544,35 @@ const HolidayForm = () => {
         <div className="w-full">
           <HolidayCalander highlightedDates={holidaylist.map(dateObj => ({ date: dayjs(dateObj.date), name: dateObj.name }))} weeklyOffs={weeklyOffs} />
         </div>
-      </Modal>
+      </Modalbox>
 
       {/* Import Spreadsheet Modal */}
-      <Modal
+      {/* Import Modal */}
+      <Modalbox
         open={importModal}
         onClose={() => { setImportModal(false); setImportPreview([]); }}
         title="Import Preview"
         subtitle={`${importPreview.length} holiday records parsed from spreadsheet`}
         maxWidth="max-w-2xl"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setImportModal(false); setImportPreview([]); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={importing}
+              onClick={handleImportSubmit}
+            >
+              Import {importPreview.length} Holiday{importPreview.length !== 1 ? 's' : ''}
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <div className="overflow-auto max-h-[380px] rounded-xl border border-slate-200">
@@ -585,29 +605,11 @@ const HolidayForm = () => {
               </tbody>
             </table>
           </div>
-
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setImportModal(false); setImportPreview([]); }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              loading={importing}
-              onClick={handleImportSubmit}
-            >
-              Import {importPreview.length} Holiday{importPreview.length !== 1 ? 's' : ''}
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </Modalbox>
 
       {/* Add / Edit Holiday Modal */}
-      <Modal
+      <Modalbox
         open={open}
         onClose={() => {
           setIsUpdate(false);
@@ -617,8 +619,33 @@ const HolidayForm = () => {
         title={isUpdate ? 'Edit Holiday' : 'Add New Holiday'}
         subtitle="Set official company holidays, festival leaves and public observances"
         maxWidth="max-w-lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsUpdate(false);
+                setopen(false);
+                setForm({ name: '', type: 'Public', fromDate: '', toDate: '', description: '' });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="holiday-form"
+              variant="primary"
+              size="sm"
+              loading={saving}
+            >
+              {isUpdate ? 'Update Holiday' : 'Save Holiday'}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSave} className="space-y-4">
+        <form id="holiday-form" onSubmit={handleSave} className="space-y-4">
           <div className="space-y-3.5">
             <Input
               label="Holiday Name"
@@ -674,31 +701,8 @@ const HolidayForm = () => {
               />
             </div>
           </div>
-
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsUpdate(false);
-                setopen(false);
-                setForm({ name: '', type: 'Public', fromDate: '', toDate: '', description: '' });
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              loading={saving}
-            >
-              {isUpdate ? 'Update Holiday' : 'Save Holiday'}
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* Hidden printable component */}
       <HolidayPrintable ref={printRef} holidays={filteredHolidays} company={company} />

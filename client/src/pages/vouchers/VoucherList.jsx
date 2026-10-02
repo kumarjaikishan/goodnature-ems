@@ -17,7 +17,7 @@ import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import DateInput from "@/components/ui/DateInput";
 import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
+import Modalbox from "@/components/custommodal/Modalbox";
 import Badge from "@/components/ui/Badge";
 
 const VoucherList = () => {
@@ -622,25 +622,23 @@ const VoucherList = () => {
       width: "55px",
     },
     {
-      name: "Voucher No",
+      name: "Voucher / Date",
       selector: (row) => row.voucherNo,
       cell: (row) => (
-        <button
-          onClick={() => navigate(`/dashboard/vouchers/${row._id}`)}
-          className="font-mono text-teal-800 hover:text-teal-950 font-bold text-xs hover:underline cursor-pointer text-left"
-        >
-          {(row.voucherNo || "").replace(/^(GN-)?INV-/, "INV-")}
-        </button>
+        <div className="flex flex-col py-1">
+          <button
+            onClick={() => navigate(`/dashboard/vouchers/${row._id}`)}
+            className="font-mono text-teal-800 hover:text-teal-950 font-bold text-xs hover:underline cursor-pointer text-left leading-tight"
+          >
+            {(row.voucherNo || "").replace(/^(GN-)?INV-/, "INV-")}
+          </button>
+          <span className="text-[11px] text-slate-500 mt-0.5 font-medium">
+            {dayjs(row.date).format("DD MMM YYYY")}
+          </span>
+        </div>
       ),
       sortable: true,
-      width: "125px"
-    },
-    {
-      name: "Date",
-      selector: (row) => row.date,
-      cell: (row) => dayjs(row.date).format("DD MMM YYYY"),
-      sortable: true,
-      width: "105px"
+      width: "140px"
     },
     {
       name: "Ledger",
@@ -655,7 +653,7 @@ const VoucherList = () => {
         const isEmployee = Boolean(row.employeeId);
 
         return (
-          <div className="flex flex-col">
+          <div className="flex flex-col py-1">
             <span className="font-semibold text-slate-800 text-xs">{name}</span>
             {isSponsor && (
               <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2 w-fit mt-0.5 font-medium">
@@ -672,48 +670,42 @@ const VoucherList = () => {
       },
       sortable: true,
       wrap: true,
-      width: "160px",
+      width: "180px",
     },
     {
-      name: "Total Amount",
+      name: "Amount",
       selector: (row) => row.totalAmount || row.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0,
-      cell: (row) => {
-        const amt = row.totalAmount || row.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
-        return <span className="font-bold text-slate-900">₹ {amt.toLocaleString()}</span>;
-      },
-      sortable: true,
-      width: "115px"
-    },
-    {
-      name: "Payment Status",
-      selector: (row) => row.paidAmount || 0,
       cell: (row) => {
         const total = row.totalAmount || row.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
         const paid = Number(row.paidAmount) || 0;
         const remaining = row.remainingAmount !== undefined ? Number(row.remainingAmount) : Math.max(total - paid, 0);
         const status = row.status || "APPROVED";
 
-        if (status === 'REJECTED') {
-          return <span className="text-xs text-rose-600 font-medium">Cancelled</span>;
-        }
-
         return (
-          <div className="flex flex-col text-[11px] leading-tight">
-            <span className="text-emerald-700 font-semibold">Paid: ₹{paid.toLocaleString()}</span>
-            {remaining > 0 && status !== 'PENDING' && (
-              <span className="text-amber-700 font-medium">Due: ₹{remaining.toLocaleString()}</span>
+          <div className="flex flex-col py-1">
+            <span className="font-bold text-slate-900 text-xs">₹ {total.toLocaleString('en-IN')}</span>
+            {status === 'REJECTED' ? (
+              <span className="text-[11px] text-rose-600 font-medium">Cancelled</span>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[10.5px] leading-tight mt-0.5">
+                <span className="text-emerald-700 font-medium">Paid: ₹{paid.toLocaleString('en-IN')}</span>
+                {remaining > 0 && status !== 'PENDING' && (
+                  <span className="text-amber-700 font-medium">· Due: ₹{remaining.toLocaleString('en-IN')}</span>
+                )}
+              </div>
             )}
           </div>
         );
       },
-      width: "125px"
+      sortable: true,
+      width: "170px"
     },
     {
       name: "Status",
       selector: (row) => row.status || "APPROVED",
       cell: (row) => renderStatusBadge(row.status),
       sortable: true,
-      width: "140px"
+      width: "135px"
     },
     {
       name: "Narration",
@@ -722,7 +714,7 @@ const VoucherList = () => {
     },
     {
       name: "Actions",
-      width: "160px",
+      width: "130px",
       cell: (row) => {
         const isManual = row.referenceType === "MANUAL";
         const status = row.status || "APPROVED";
@@ -1097,14 +1089,34 @@ const VoucherList = () => {
       </div>
 
       {/* ── CREATE / EDIT VOUCHER MODAL ── */}
-      <Modal
+      <Modalbox
         open={openModal}
         onClose={() => !submitting && setOpenModal(false)}
         title={editingVoucher ? `Edit Voucher [${editingVoucher.voucherNo}]` : "Create Financial Voucher"}
         subtitle="Custom expense voucher creation & approval submission"
         maxWidth="max-w-lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenModal(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="voucher-form"
+              variant="primary"
+              loading={submitting}
+            >
+              {editingVoucher ? "Update Voucher" : "Submit for Approval"}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSubmitVoucher} className="space-y-4">
+        <form id="voucher-form" onSubmit={handleSubmitVoucher} className="space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-700 tracking-wide">
               Select Ledger <span className="text-rose-500">*</span>
@@ -1219,13 +1231,15 @@ const VoucherList = () => {
                     value={initialPaymentAmount}
                     onChange={(e) => setInitialPaymentAmount(e.target.value)}
                   />
-                  <Input
-                    label="Reference / Cheque No"
-                    size="sm"
-                    placeholder="Ref No."
-                    value={initialReferenceNo}
-                    onChange={(e) => setInitialReferenceNo(e.target.value)}
-                  />
+                  {initialPaymentMode !== "CASH" && (
+                    <Input
+                      label="Reference / Cheque No"
+                      size="sm"
+                      placeholder="Ref No."
+                      value={initialReferenceNo}
+                      onChange={(e) => setInitialReferenceNo(e.target.value)}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -1241,36 +1255,39 @@ const VoucherList = () => {
               className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpenModal(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={submitting}
-            >
-              {editingVoucher ? "Update Voucher" : "Submit for Approval"}
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── APPROVE & EDIT VOUCHER MODAL ── */}
-      <Modal
+      <Modalbox
         open={openApproveModal}
         onClose={() => !submittingApproval && setOpenApproveModal(false)}
         title={approvingVoucher ? `Review & Approve Voucher [${approvingVoucher.voucherNo}]` : "Approve Voucher"}
         subtitle="Verify amount, ledger account, and optionally authorize disbursement"
         maxWidth="max-w-lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenApproveModal(false)}
+              disabled={submittingApproval}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="approve-voucher-form"
+              variant="primary"
+              startIcon={Check}
+              loading={submittingApproval}
+            >
+              Approve Voucher
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleConfirmApprove} className="space-y-4">
+        <form id="approve-voucher-form" onSubmit={handleConfirmApprove} className="space-y-4">
           <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-lg flex items-center justify-between">
             <div>
               <span className="text-xs text-teal-800 font-bold block">Voucher Authorization</span>
@@ -1340,13 +1357,15 @@ const VoucherList = () => {
                   }
                 }}
               />
-              <Input
-                label="Reference No"
-                size="sm"
-                placeholder="Ref / Cheque #"
-                value={approveReferenceNo}
-                onChange={(e) => setApproveReferenceNo(e.target.value)}
-              />
+              {approvePaymentMode !== "CASH" && (
+                <Input
+                  label="Reference No"
+                  size="sm"
+                  placeholder="Ref / Cheque #"
+                  value={approveReferenceNo}
+                  onChange={(e) => setApproveReferenceNo(e.target.value)}
+                />
+              )}
             </div>
             {parseFloat(approveDisburseAmount) > 0 && (
               <div className="pt-2">
@@ -1376,37 +1395,39 @@ const VoucherList = () => {
               className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpenApproveModal(false)}
-              disabled={submittingApproval}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              startIcon={Check}
-              loading={submittingApproval}
-            >
-              Approve Voucher
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── REJECT VOUCHER MODAL ── */}
-      <Modal
+      <Modalbox
         open={openRejectModal}
         onClose={() => !submittingReject && setOpenRejectModal(false)}
         title={rejectingVoucher ? `Reject Voucher [${rejectingVoucher.voucherNo}]` : "Reject Voucher"}
         subtitle="Please provide a reason for rejecting this financial voucher"
         maxWidth="max-w-md"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenRejectModal(false)}
+              disabled={submittingReject}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reject-voucher-form"
+              variant="danger"
+              startIcon={XCircle}
+              loading={submittingReject}
+            >
+              Confirm Rejection
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleConfirmReject} className="space-y-4">
+        <form id="reject-voucher-form" onSubmit={handleConfirmReject} className="space-y-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-700 tracking-wide">
               Rejection Reason <span className="text-rose-500">*</span>
@@ -1420,37 +1441,39 @@ const VoucherList = () => {
               className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-rose-600 focus:ring-2 focus:ring-rose-100 p-3 text-sm text-slate-800 outline-none transition"
             />
           </div>
+        </form>
+      </Modalbox>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+      {/* ── RECORD PAYMENT / DISBURSEMENT MODAL ── */}
+      <Modalbox
+        open={openPaymentModal}
+        onClose={() => !submittingPayment && setOpenPaymentModal(false)}
+        title={payingVoucher ? `Record Payment [${payingVoucher.voucherNo}]` : "Record Voucher Payment"}
+        subtitle="Disburse partial or full funds against this approved voucher"
+        size="xl"
+        footer={
+          <>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpenRejectModal(false)}
-              disabled={submittingReject}
+              onClick={() => setOpenPaymentModal(false)}
+              disabled={submittingPayment}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant="danger"
-              startIcon={XCircle}
-              loading={submittingReject}
+              form="payment-voucher-form"
+              variant="primary"
+              startIcon={CreditCard}
+              loading={submittingPayment}
             >
-              Confirm Rejection
+              Record Payment
             </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* ── RECORD PAYMENT / DISBURSEMENT MODAL ── */}
-      <Modal
-        open={openPaymentModal}
-        onClose={() => !submittingPayment && setOpenPaymentModal(false)}
-        title={payingVoucher ? `Record Payment [${payingVoucher.voucherNo}]` : "Record Voucher Payment"}
-        subtitle="Disburse partial or full funds against this approved voucher"
-        maxWidth="max-w-md"
+          </>
+        }
       >
-        <form onSubmit={handleConfirmPayment} className="space-y-4">
+        <form id="payment-voucher-form" onSubmit={handleConfirmPayment} className="space-y-4">
           {payingVoucher && (
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
               <div className="flex justify-between">
@@ -1530,12 +1553,14 @@ const VoucherList = () => {
             />
           </div>
 
-          <Input
-            label="Reference / Transaction No"
-            placeholder="e.g. UTR / Cheque #"
-            value={paymentReferenceNo}
-            onChange={(e) => setPaymentReferenceNo(e.target.value)}
-          />
+          {paymentMode !== "CASH" && (
+            <Input
+              label="Reference / Transaction No"
+              placeholder="e.g. UTR / Cheque #"
+              value={paymentReferenceNo}
+              onChange={(e) => setPaymentReferenceNo(e.target.value)}
+            />
+          )}
 
           <Input
             label="Payment Remarks / Notes"
@@ -1543,46 +1568,18 @@ const VoucherList = () => {
             value={paymentRemarks}
             onChange={(e) => setPaymentRemarks(e.target.value)}
           />
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpenPaymentModal(false)}
-              disabled={submittingPayment}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              startIcon={CreditCard}
-              loading={submittingPayment}
-            >
-              Record Payment
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── CREATE / EDIT CUSTOM LEDGER MODAL ── */}
-      <Modal
+      <Modalbox
         open={openLedgerModal}
         onClose={() => !submittingLedger && setOpenLedgerModal(false)}
         title={editingLedger ? "Edit Custom Ledger" : "Create Custom Ledger"}
         subtitle="Manage standalone custom expense ledger accounts"
         maxWidth="max-w-md"
-      >
-        <form onSubmit={handleSubmitLedger} className="space-y-4">
-          <Input
-            label="Ledger Name"
-            placeholder="Enter custom ledger name (e.g. Tea, Newspaper, Generator Fuel)"
-            required
-            value={ledgerNameInput}
-            onChange={(e) => setLedgerNameInput(e.target.value)}
-          />
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+        footer={
+          <>
             <Button
               type="button"
               variant="outline"
@@ -1593,14 +1590,25 @@ const VoucherList = () => {
             </Button>
             <Button
               type="submit"
+              form="ledger-modal-form"
               variant="primary"
               loading={submittingLedger}
             >
               {editingLedger ? "Save Changes" : "Create"}
             </Button>
-          </div>
+          </>
+        }
+      >
+        <form id="ledger-modal-form" onSubmit={handleSubmitLedger} className="space-y-4">
+          <Input
+            label="Ledger Name"
+            placeholder="Enter custom ledger name (e.g. Tea, Newspaper, Generator Fuel)"
+            required
+            value={ledgerNameInput}
+            onChange={(e) => setLedgerNameInput(e.target.value)}
+          />
         </form>
-      </Modal>
+      </Modalbox>
     </div>
   );
 };

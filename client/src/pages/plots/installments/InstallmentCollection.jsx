@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -40,6 +40,8 @@ const InstallmentCollection = ({ type, initialView }) => {
   const [lateFineRate, setLateFineRate] = useState(24);
   const [lateFineDailyPercent, setLateFineDailyPercent] = useState(24 / 365);
   const [searchQuery, setSearchQuery] = useState('');
+  const lastProcessedBookingIdRef = useRef(null);
+  const activeSelectRequestId = useRef(0);
 
   // Collection form state
   const [form, setForm] = useState({
@@ -201,36 +203,54 @@ const InstallmentCollection = ({ type, initialView }) => {
   useEffect(() => {
     const shouldBeAdd = Boolean(initialView === 'add' || location.pathname.endsWith('/add'));
     setView(shouldBeAdd ? 'add' : 'list');
-    setSelectedBooking(null);
-    setInstallments([]);
-    setSelectedInstIds([]);
-    setForm({
-      amountPaid: '',
-      paymentMode: 'cash',
-      transactionReference: '',
-      remarks: '',
-      createdAt: new Date().toISOString().split('T')[0],
-      lateFineRebate: '',
-      bankName: '',
-      bankBranch: '',
-      accountNumber: '',
-      accountHolderName: '',
-      ifscCode: '',
-    });
-  }, [location.pathname, mode, initialView]);
+    const params = new URLSearchParams(location.search);
+    const queryBookingId = params.get('bookingId');
+    if (!queryBookingId) {
+      lastProcessedBookingIdRef.current = null;
+      setSelectedBooking(null);
+      setInstallments([]);
+      setSelectedInstIds([]);
+      setForm({
+        amountPaid: '',
+        paymentMode: 'cash',
+        transactionReference: '',
+        remarks: '',
+        createdAt: new Date().toISOString().split('T')[0],
+        lateFineRebate: '',
+        bankName: '',
+        bankBranch: '',
+        accountNumber: '',
+        accountHolderName: '',
+        ifscCode: '',
+      });
+    }
+  }, [location.pathname, mode, initialView, location.search]);
+
+  // Automatically select booking if bookingId is in query params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const queryBookingId = params.get('bookingId');
+    if (queryBookingId && queryBookingId !== lastProcessedBookingIdRef.current) {
+      lastProcessedBookingIdRef.current = queryBookingId;
+      handleBookingSelect(queryBookingId, bookings.length > 0 ? bookings : null);
+    } else if (!queryBookingId) {
+      lastProcessedBookingIdRef.current = null;
+    }
+  }, [location.search, bookings]);
 
   const fetchBookings = async () => {
     try {
-      const res = await api.get('/plots/bookings/list?status=ACTIVE');
+      const res = await api.get('/plots/bookings/list?status=ACTIVE&limit=500');
       const loadedBookings = res.data.data || [];
       setBookings(loadedBookings);
       setLoading(false);
 
-      // If bookingId query param is present, select it automatically
+      // If bookingId query param is present, select it automatically with loaded bookings
       const params = new URLSearchParams(location.search);
       const queryBookingId = params.get('bookingId');
-      if (queryBookingId) {
-        handleBookingSelect(queryBookingId);
+      if (queryBookingId && queryBookingId !== lastProcessedBookingIdRef.current) {
+        lastProcessedBookingIdRef.current = queryBookingId;
+        handleBookingSelect(queryBookingId, loadedBookings);
       }
     } catch {
       toast.error('Failed to load active contracts');
@@ -239,7 +259,7 @@ const InstallmentCollection = ({ type, initialView }) => {
   };
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter(b => {
+    const list = bookings.filter(b => {
       if (mode === 'DOWNPAYMENT') {
         return true;
       }
@@ -248,12 +268,15 @@ const InstallmentCollection = ({ type, initialView }) => {
       }
       return true;
     });
-  }, [bookings, mode]);
+    if (selectedBooking && !list.some(item => String(item._id) === String(selectedBooking._id))) {
+      list.unshift(selectedBooking);
+    }
+    return list;
+  }, [bookings, mode, selectedBooking]);
 
-  const activeSelectRequestId = useState({ current: 0 })[0];
-
-  const handleBookingSelect = async (bookingId) => {
+  const handleBookingSelect = async (bookingId, customBookingsList = null) => {
     const currentReqId = ++activeSelectRequestId.current;
+    lastProcessedBookingIdRef.current = bookingId || null;
 
     if (!bookingId) {
       setSelectedBooking(null);
@@ -273,8 +296,25 @@ const InstallmentCollection = ({ type, initialView }) => {
       return;
     }
 
-    const b = bookings.find((item) => item._id === bookingId);
-    setSelectedBooking(b);
+    const list = customBookingsList || bookings;
+    let b = list.find((item) => String(item._id) === String(bookingId));
+
+    if (!b && bookingId) {
+      try {
+        const singleBRes = await api.get(`/plots/bookings/${bookingId}`);
+        b = singleBRes.data?.data || singleBRes.data;
+        if (b) {
+          setBookings((prev) => {
+            if (prev.some((item) => String(item._id) === String(b._id))) return prev;
+            return [b, ...prev];
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching single booking:', err);
+      }
+    }
+
+    setSelectedBooking(b || null);
     setInstallments([]);
     setSelectedInstIds([]);
     const cust = b?.customerId;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Edit2, Trash2, Pin, Bell, Calendar } from 'lucide-react';
 import Modalbox from './custommodal/Modalbox';
 import Input from './ui/Input';
+import DateInput from './ui/DateInput';
 import Select from './ui/Select';
 import Button from './ui/Button';
 import dayjs from 'dayjs';
@@ -166,9 +167,8 @@ const OfficialNoticeBoard = ({ notices = [], onDelete, onSave, employees = [], i
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Input
+                <DateInput
                   label="Post Date"
-                  type="date"
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
+import { DateInput } from '../../../components/ui/DateInput';
 import {
   Search,
   Calendar,
@@ -257,42 +258,47 @@ const PlotInterestCalculator = () => {
     <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
       {/* Top Header & Search Bar (hidden in print) */}
       <div className="print:hidden bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-200">
-                <Sparkles size={20} />
-              </span>
-              Plot Refund & Settlement Calculator
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Enter any Booking Number to calculate total deposited amount refund with annual interest rate from each billing/deposit date till today.
-            </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center shrink-0 shadow-2xs">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-tight">
+                Plot Refund & Settlement Calculator
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Enter any Booking Number to calculate total deposited amount refund with annual interest rate from each billing/deposit date till today.
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => navigate('/dashboard/plots/booking')}
               className="px-3.5 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             >
-              <ArrowLeft size={16} /> Bookings
+              <ArrowLeft size={15} /> Bookings
             </button>
             {selectedBooking && (
               <button
                 onClick={handlePrint}
                 className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
               >
-                <Printer size={16} /> Print Statement
+                <Printer size={15} /> Print Statement
               </button>
             )}
           </div>
         </div>
 
         {/* Search and Control Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1">
           {/* Booking Search Input with Live Dropdown */}
-          <div className="md:col-span-6 relative" ref={searchContainerRef}>
-            <form onSubmit={handleSearchSubmit} className="relative flex">
+          <div className="md:col-span-6 relative flex flex-col gap-1" ref={searchContainerRef}>
+            <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1">
+              Search Booking
+            </label>
+            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -303,13 +309,13 @@ const PlotInterestCalculator = () => {
                     setSearchInput(e.target.value);
                     setShowSuggestions(true);
                   }}
-                  className="w-full h-11 bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none pl-10 pr-4 rounded-xl font-semibold text-sm text-slate-800 transition"
+                  className="w-full h-11 bg-white border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none pl-10 pr-4 rounded-xl font-medium text-sm text-slate-800 shadow-2xs transition"
                 />
-                <Search size={18} className="text-slate-400 absolute left-3 top-3" />
+                <Search size={18} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
               <button
                 type="submit"
-                className="ml-2 px-5 h-11 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1 cursor-pointer shrink-0"
+                className="ml-2 px-5 h-11 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
               >
                 {loading ? <Loader2 size={16} className="animate-spin text-white" /> : 'Search'}
               </button>
@@ -317,7 +323,7 @@ const PlotInterestCalculator = () => {
 
             {/* Suggestions Dropdown */}
             {showSuggestions && bookingSuggestions.length > 0 && (
-              <div className="absolute top-12 left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
+              <div className="absolute top-full mt-1.5 left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
                 <div className="p-2 bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Matching Bookings ({bookingSuggestions.length})
                 </div>
@@ -350,9 +356,16 @@ const PlotInterestCalculator = () => {
           </div>
 
           {/* Rate Controller */}
-          <div className="md:col-span-3">
-            <div className="flex items-center bg-slate-50 border border-slate-300 rounded-xl px-3 h-11">
-              <span className="text-xs font-semibold text-slate-500 mr-2 whitespace-nowrap">Annual Rate:</span>
+          <div className="md:col-span-3 flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700 tracking-wide">
+                Annual Rate
+              </label>
+              <span className="text-[10px] font-mono text-teal-700/80 font-medium">
+                % P.A.
+              </span>
+            </div>
+            <div className="flex items-center bg-white border border-slate-300 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100 rounded-xl px-3.5 h-11 shadow-2xs transition">
               <input
                 type="number"
                 step="0.01"
@@ -360,24 +373,21 @@ const PlotInterestCalculator = () => {
                 max="100"
                 value={annualRate}
                 onChange={(e) => setAnnualRate(e.target.value)}
-                className="w-full bg-transparent font-bold text-sm text-teal-800 outline-none text-right"
+                className="w-full bg-transparent font-bold text-sm text-teal-900 outline-none"
+                placeholder="10.88"
               />
-              <span className="text-xs font-bold text-slate-500 ml-1">% P.A.</span>
+              <span className="text-xs font-bold text-slate-400 whitespace-nowrap ml-1">% P.A.</span>
             </div>
           </div>
 
           {/* As on Date picker */}
           <div className="md:col-span-3">
-            <div className="flex items-center bg-slate-50 border border-slate-300 rounded-xl px-3 h-11">
-              <Calendar size={16} className="text-slate-400 mr-2 shrink-0" />
-              <span className="text-xs font-semibold text-slate-500 mr-2 whitespace-nowrap">As on Date:</span>
-              <input
-                type="date"
-                value={asOnDate}
-                onChange={(e) => setAsOnDate(e.target.value)}
-                className="w-full bg-transparent font-bold text-xs text-slate-800 outline-none cursor-pointer"
-              />
-            </div>
+            <DateInput
+              label="As on Date"
+              value={asOnDate}
+              onChange={(e) => setAsOnDate(e.target.value)}
+              className="h-11 rounded-xl !py-0 shadow-2xs"
+            />
           </div>
         </div>
       </div>

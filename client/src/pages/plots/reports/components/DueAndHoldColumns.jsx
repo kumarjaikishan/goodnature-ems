@@ -167,7 +167,8 @@ export const getDueColumns = ({ navigate }) => [
     name: 'Action',
     minWidth: '85px',
     cell: (b) => {
-      const targetPath = b.scheme === 'MONTHLY_INSTALLMENT'
+      const isDpDue = b.hasDownpayment ? !b.downpaymentPaid : false;
+      const targetPath = (b.scheme === 'MONTHLY_INSTALLMENT' && !isDpDue)
         ? `/dashboard/plots/collections/emi/add?bookingId=${b._id}`
         : `/dashboard/plots/collections/downpayment/add?bookingId=${b._id}`;
       return (

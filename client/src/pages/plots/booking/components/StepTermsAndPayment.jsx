@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Sparkles, Building2, ChevronLeft, Edit3, Calculator, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { DateInput } from '@/components/ui/DateInput';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
 const inputCls =
@@ -213,13 +214,8 @@ export const StepTermsAndPayment = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 1. Booking Date */}
         <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800">Booking Date *</label>
-            <span className="text-[10px] text-slate-400 font-semibold">Start Date</span>
-          </div>
-          <input
-            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
-            type="date"
+          <DateInput
+            label="Booking Date *"
             value={form.bookingDate}
             onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
             required

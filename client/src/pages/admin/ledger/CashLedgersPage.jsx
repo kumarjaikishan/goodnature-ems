@@ -44,8 +44,22 @@ export default function CashLedgersPage() {
       if (!isSuperAccess && authUser?._id) {
         cash = cash.filter(c => c.assignedUserId?._id === authUser._id || c.assignedUserId === authUser._id);
       }
-      setCashLedgers(cash);
-      setFilteredLedgers(cash);
+      const isDevUser = authUser?.role === 'developer';
+      if (!isDevUser) {
+        cash = cash.filter(c => c.assignedUserId?.role !== 'developer');
+      }
+      // Ensure unique staff cash accounts
+      const seen = new Set();
+      const uniqueCash = [];
+      for (const item of cash) {
+        const key = item.assignedUserId?._id || item.assignedUserId || item._id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueCash.push(item);
+        }
+      }
+      setCashLedgers(uniqueCash);
+      setFilteredLedgers(uniqueCash);
     } catch (err) {
       console.error("Error fetching cash ledgers:", err);
       toast.error("Failed to load cashier cash accounts");
@@ -118,19 +132,19 @@ export default function CashLedgersPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-emerald-800 to-emerald-950 text-white rounded-2xl p-5 shadow-sm space-y-1 relative overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-1 relative overflow-hidden">
           <div className="flex justify-between items-start">
-            <span className="text-[11px] font-bold text-emerald-200 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               Total Cash In Custody
             </span>
-            <span className="p-2 bg-white/10 rounded-xl">
-              <Wallet className="w-5 h-5 text-emerald-200" />
+            <span className="p-2 bg-teal-50 text-teal-700 rounded-xl">
+              <Wallet className="w-5 h-5" />
             </span>
           </div>
-          <p className="text-2xl md:text-3xl font-black tracking-tight">
+          <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
             ₹ {totalCashInCustody.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-emerald-300/80 font-medium">
+          <p className="text-[11px] text-slate-400 font-medium">
             Across {cashLedgers.length} staff cashiers & operators
           </p>
         </div>
@@ -343,17 +357,17 @@ export default function CashLedgersPage() {
                         {user.role || "Staff"}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right font-black text-slate-900 text-sm">
+                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700 text-xs sm:text-sm tracking-tight">
                       ₹ {(Number(cash.netBalance) || 0).toLocaleString("en-IN", {
                         minimumFractionDigits: 2
                       })}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-bold text-amber-700">
+                    <td className="px-5 py-3.5 text-right font-medium text-amber-700">
                       ₹ {(Number(cash.heldBalance) || 0).toLocaleString("en-IN", {
                         minimumFractionDigits: 2
                       })}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-black text-teal-800 text-sm">
+                    <td className="px-5 py-3.5 text-right font-semibold text-teal-800 text-xs sm:text-sm tracking-tight">
                       ₹ {(Number(cash.availableBalance) || 0).toLocaleString("en-IN", {
                         minimumFractionDigits: 2
                       })}

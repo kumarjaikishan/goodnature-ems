@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import Modal from "@/components/ui/Modal";
+import Modalbox from "@/components/custommodal/Modalbox";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
@@ -14,14 +14,32 @@ export default function ResetPasswordModal({
     const [showPassword, setShowPassword] = useState(true);
 
     return (
-        <Modal
+        <Modalbox
             open={isOpen}
             onClose={onClose}
             title="Reset User Password"
             subtitle="Set a new secure password for this administrative account"
             maxWidth="max-w-md"
+            footer={
+                <>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="reset-password-form"
+                        variant="primary"
+                    >
+                        Update Password
+                    </Button>
+                </>
+            }
         >
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form id="reset-password-form" onSubmit={onSubmit} className="space-y-4">
                 <div className="relative">
                     <Input
                         label="New Password"
@@ -43,23 +61,7 @@ export default function ResetPasswordModal({
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                 </div>
-
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onClose}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="primary"
-                    >
-                        Update Password
-                    </Button>
-                </div>
             </form>
-        </Modal>
+        </Modalbox>
     );
 }

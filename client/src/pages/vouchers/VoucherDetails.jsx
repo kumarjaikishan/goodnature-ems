@@ -14,7 +14,7 @@ import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import dayjs from "dayjs";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
-import Modal from "@/components/ui/Modal";
+import Modalbox from "@/components/custommodal/Modalbox";
 import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
@@ -984,14 +984,35 @@ const VoucherDetails = () => {
       </div>
 
       {/* ── APPROVE VOUCHER MODAL ── */}
-      <Modal
+      <Modalbox
         open={openApproveModal}
         onClose={() => !submittingApproval && setOpenApproveModal(false)}
         title={`Review & Approve Voucher [${voucher.voucherNo}]`}
         subtitle="Verify amount, date, and authorize disbursement"
         maxWidth="max-w-lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenApproveModal(false)}
+              disabled={submittingApproval}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="approve-voucher-detail-form"
+              variant="primary"
+              startIcon={CheckCircle2}
+              loading={submittingApproval}
+            >
+              Approve Voucher
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleConfirmApprove} className="space-y-4">
+        <form id="approve-voucher-detail-form" onSubmit={handleConfirmApprove} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <DateInput
               label="Approved Date"
@@ -1044,13 +1065,15 @@ const VoucherDetails = () => {
                   }
                 }}
               />
-              <Input
-                label="Reference No"
-                size="sm"
-                placeholder="Ref / Cheque #"
-                value={approveReferenceNo}
-                onChange={(e) => setApproveReferenceNo(e.target.value)}
-              />
+              {approvePaymentMode !== 'CASH' && (
+                <Input
+                  label="Reference No"
+                  size="sm"
+                  placeholder="Ref / Cheque #"
+                  value={approveReferenceNo}
+                  onChange={(e) => setApproveReferenceNo(e.target.value)}
+                />
+              )}
             </div>
             {parseFloat(approveDisburseAmount) > 0 && (
               <div className="pt-1">
@@ -1080,37 +1103,39 @@ const VoucherDetails = () => {
               className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpenApproveModal(false)}
-              disabled={submittingApproval}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              startIcon={CheckCircle2}
-              loading={submittingApproval}
-            >
-              Approve Voucher
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── REJECT VOUCHER MODAL ── */}
-      <Modal
+      <Modalbox
         open={openRejectModal}
         onClose={() => !submittingReject && setOpenRejectModal(false)}
         title={`Reject Voucher [${voucher.voucherNo}]`}
         subtitle="Please provide a reason for rejecting this voucher"
         maxWidth="max-w-md"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenRejectModal(false)}
+              disabled={submittingReject}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reject-voucher-detail-form"
+              variant="danger"
+              startIcon={XCircle}
+              loading={submittingReject}
+            >
+              Confirm Rejection
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleConfirmReject} className="space-y-4">
+        <form id="reject-voucher-detail-form" onSubmit={handleConfirmReject} className="space-y-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-700 tracking-wide">
               Rejection Reason <span className="text-rose-500">*</span>
@@ -1124,37 +1149,39 @@ const VoucherDetails = () => {
               className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-rose-600 focus:ring-2 focus:ring-rose-100 p-3 text-sm text-slate-800 outline-none transition"
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpenRejectModal(false)}
-              disabled={submittingReject}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="danger"
-              startIcon={XCircle}
-              loading={submittingReject}
-            >
-              Confirm Rejection
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
 
       {/* ── RECORD PAYMENT MODAL ── */}
-      <Modal
+      <Modalbox
         open={openPaymentModal}
         onClose={() => !submittingPayment && setOpenPaymentModal(false)}
         title={`Record Payment [${voucher.voucherNo}]`}
         subtitle="Disburse partial or full funds against this voucher"
         maxWidth="max-w-md"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenPaymentModal(false)}
+              disabled={submittingPayment}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="record-payment-detail-form"
+              variant="primary"
+              startIcon={CreditCard}
+              loading={submittingPayment}
+            >
+              Record Payment
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleConfirmPayment} className="space-y-4">
+        <form id="record-payment-detail-form" onSubmit={handleConfirmPayment} className="space-y-4">
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
             <div className="flex justify-between">
               <span className="text-slate-500">Total Approved:</span>
@@ -1230,12 +1257,14 @@ const VoucherDetails = () => {
             />
           </div>
 
-          <Input
-            label="Reference / Transaction No"
-            placeholder="e.g. UTR / Cheque #"
-            value={paymentReferenceNo}
-            onChange={(e) => setPaymentReferenceNo(e.target.value)}
-          />
+          {paymentMode !== 'CASH' && (
+            <Input
+              label="Reference / Transaction No"
+              placeholder="e.g. UTR / Cheque #"
+              value={paymentReferenceNo}
+              onChange={(e) => setPaymentReferenceNo(e.target.value)}
+            />
+          )}
 
           <Input
             label="Payment Remarks / Notes"
@@ -1243,27 +1272,8 @@ const VoucherDetails = () => {
             value={paymentRemarks}
             onChange={(e) => setPaymentRemarks(e.target.value)}
           />
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpenPaymentModal(false)}
-              disabled={submittingPayment}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              startIcon={CreditCard}
-              loading={submittingPayment}
-            >
-              Record Payment
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Modalbox>
     </div>
   );
 };

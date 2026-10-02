@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { apiClient } from '../../../utils/apiClient';
-import Modal from '@/components/ui/Modal';
+import Modalbox from '@/components/custommodal/Modalbox';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/utils/loader';
 
@@ -40,7 +40,7 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
     };
 
     return (
-        <Modal
+        <Modalbox
             open={open}
             onClose={onClose}
             title="Leave Audit Log"
@@ -104,7 +104,7 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
                     </div>
                 )}
             </div>
-        </Modal>
+        </Modalbox>
     );
 };
 
