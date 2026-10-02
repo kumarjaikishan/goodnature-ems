@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { apiClient } from "../../utils/apiClient";
+import api from "@/api/axios";
 import Loader from "../../utils/loader";
 import {
   ArrowLeft, Printer, CheckCircle2, XCircle, CreditCard,
@@ -38,6 +39,7 @@ const VoucherDetails = () => {
   const [approvedNarration, setApprovedNarration] = useState("");
   const [approveDisburseAmount, setApproveDisburseAmount] = useState("0");
   const [approvePaymentMode, setApprovePaymentMode] = useState("CASH");
+  const [approvePaymentLedgerId, setApprovePaymentLedgerId] = useState("");
   const [approveReferenceNo, setApproveReferenceNo] = useState("");
 
   const [openRejectModal, setOpenRejectModal] = useState(false);
@@ -49,8 +51,13 @@ const VoucherDetails = () => {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [paymentMode, setPaymentMode] = useState("CASH");
+  const [paymentLedgerId, setPaymentLedgerId] = useState("");
   const [paymentReferenceNo, setPaymentReferenceNo] = useState("");
   const [paymentRemarks, setPaymentRemarks] = useState("");
+
+  // Treasury state
+  const [myCashLedger, setMyCashLedger] = useState(null);
+  const [bankLedgers, setBankLedgers] = useState([]);
 
   const { company } = useSelector((state) => state.user);
 
@@ -62,7 +69,49 @@ const VoucherDetails = () => {
 
   useEffect(() => {
     fetchVoucher();
+    fetchTreasuryAccounts();
   }, [id]);
+
+  const fetchTreasuryAccounts = async () => {
+    try {
+      const [treasuryRes, myCashRes] = await Promise.all([
+        api.get('/ledger/treasury').catch(() => null),
+        api.get('/ledger/my-cash-account').catch(() => null)
+      ]);
+      const banks = treasuryRes?.data?.bankLedgers || treasuryRes?.data?.bankAccounts || [];
+      setBankLedgers(banks);
+      const myCash = myCashRes?.data?.data || myCashRes?.data || null;
+      setMyCashLedger(myCash);
+      // Default payment ledger IDs to own cash
+      setApprovePaymentLedgerId(myCash?._id || "");
+      setPaymentLedgerId(myCash?._id || "");
+    } catch (err) {
+      console.error("Error fetching treasury accounts in VoucherDetails:", err);
+    }
+  };
+
+  // Helper: treasury options based on payment mode
+  const getTreasuryOpts = (mode) => {
+    if (mode === 'CASH') {
+      if (!myCashLedger) return [{ label: 'My Cash Account (Personal Custody)', value: '' }];
+      const bal = myCashLedger.availableBalance ?? myCashLedger.netBalance ?? 0;
+      return [{
+        label: `${myCashLedger.name || 'My Cash Account'} (₹ ${Number(bal).toLocaleString('en-IN')})`,
+        value: myCashLedger._id
+      }];
+    }
+    const banks = bankLedgers || [];
+    if (banks.length === 0) return [{ label: 'No Company Bank Accounts Found', value: '' }];
+    return banks.map(b => {
+      const bankTitle = [b.bankName, b.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ') || 'Bank Account';
+      const accSuffix = b.accountNumber ? ` (A/C: ${b.accountNumber})` : '';
+      const balSuffix = ` - ₹ ${(b.availableBalance ?? b.netBalance ?? 0).toLocaleString('en-IN')}`;
+      return {
+        label: `${bankTitle}${accSuffix}${balSuffix}`,
+        value: b._id
+      };
+    });
+  };
 
   const fetchVoucher = async () => {
     try {
@@ -89,12 +138,14 @@ const VoucherDetails = () => {
   // Approval Handlers
   const handleOpenApprove = () => {
     if (!voucher) return;
+    fetchTreasuryAccounts();
     const totalAmt = voucher.totalAmount || voucher.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
     setApprovedAmount(totalAmt.toString());
     setApprovedDate(dayjs(voucher.date).format("YYYY-MM-DD"));
     setApprovedNarration(voucher.remarks || "");
     setApproveDisburseAmount("0");
     setApprovePaymentMode("CASH");
+    setApprovePaymentLedgerId(myCashLedger?._id || "");
     setApproveReferenceNo("");
     setOpenApproveModal(true);
   };
@@ -123,6 +174,7 @@ const VoucherDetails = () => {
           narration: approvedNarration,
           disbursementAmount: disbAmt,
           paymentMode: approvePaymentMode,
+          paymentLedgerId: disbAmt > 0 ? (approvePaymentLedgerId || null) : null,
           referenceNo: approveReferenceNo
         }
       });
@@ -172,6 +224,7 @@ const VoucherDetails = () => {
   // Payment Disbursement Handlers
   const handleOpenPayment = () => {
     if (!voucher) return;
+    fetchTreasuryAccounts();
     const total = voucher.totalAmount || voucher.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
     const paid = Number(voucher.paidAmount) || 0;
     const remaining = voucher.remainingAmount !== undefined ? Number(voucher.remainingAmount) : Math.max(total - paid, 0);
@@ -179,6 +232,7 @@ const VoucherDetails = () => {
     setPaymentAmount(remaining.toString());
     setPaymentDate(dayjs().format("YYYY-MM-DD"));
     setPaymentMode("CASH");
+    setPaymentLedgerId(myCashLedger?._id || "");
     setPaymentReferenceNo("");
     setPaymentRemarks("");
     setOpenPaymentModal(true);
@@ -210,6 +264,7 @@ const VoucherDetails = () => {
           amount: amt,
           paymentDate,
           paymentMode,
+          paymentLedgerId: paymentLedgerId || null,
           referenceNo: paymentReferenceNo,
           remarks: paymentRemarks
         }
@@ -978,7 +1033,16 @@ const VoucherDetails = () => {
                   { label: "Cheque", value: "CHEQUE" },
                 ]}
                 value={approvePaymentMode}
-                onChange={(e) => setApprovePaymentMode(e.target.value)}
+                onChange={(e) => {
+                  const newMode = e?.target?.value !== undefined ? e.target.value : e;
+                  setApprovePaymentMode(newMode);
+                  if (newMode === 'CASH') {
+                    setApprovePaymentLedgerId(myCashLedger?._id || "");
+                  } else {
+                    const banks = bankLedgers || [];
+                    setApprovePaymentLedgerId(banks[0]?._id || "");
+                  }
+                }}
               />
               <Input
                 label="Reference No"
@@ -988,6 +1052,22 @@ const VoucherDetails = () => {
                 onChange={(e) => setApproveReferenceNo(e.target.value)}
               />
             </div>
+            {parseFloat(approveDisburseAmount) > 0 && (
+              <div className="pt-1">
+                <Select
+                  label={approvePaymentMode === 'CASH' ? 'Source: My Cash Account' : 'Source Bank Account'}
+                  size="sm"
+                  required
+                  disabled={approvePaymentMode === 'CASH'}
+                  options={getTreasuryOpts(approvePaymentMode)}
+                  value={approvePaymentLedgerId}
+                  onChange={(e) => {
+                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                    setApprovePaymentLedgerId(val);
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1126,15 +1206,36 @@ const VoucherDetails = () => {
                 { label: "Cheque", value: "CHEQUE" },
               ]}
               value={paymentMode}
-              onChange={(e) => setPaymentMode(e.target.value)}
+              onChange={(e) => {
+                const newMode = e?.target?.value !== undefined ? e.target.value : e;
+                setPaymentMode(newMode);
+                if (newMode === 'CASH') {
+                  setPaymentLedgerId(myCashLedger?._id || "");
+                } else {
+                  const banks = bankLedgers || [];
+                  setPaymentLedgerId(banks[0]?._id || "");
+                }
+              }}
             />
-            <Input
-              label="Reference / Transaction No"
-              placeholder="e.g. UTR / Cheque #"
-              value={paymentReferenceNo}
-              onChange={(e) => setPaymentReferenceNo(e.target.value)}
+            <Select
+              label={paymentMode === 'CASH' ? 'Source: My Cash Account' : 'Source Bank Account'}
+              required
+              disabled={paymentMode === 'CASH'}
+              options={getTreasuryOpts(paymentMode)}
+              value={paymentLedgerId}
+              onChange={(e) => {
+                const val = e?.target?.value !== undefined ? e.target.value : e;
+                setPaymentLedgerId(val);
+              }}
             />
           </div>
+
+          <Input
+            label="Reference / Transaction No"
+            placeholder="e.g. UTR / Cheque #"
+            value={paymentReferenceNo}
+            onChange={(e) => setPaymentReferenceNo(e.target.value)}
+          />
 
           <Input
             label="Payment Remarks / Notes"

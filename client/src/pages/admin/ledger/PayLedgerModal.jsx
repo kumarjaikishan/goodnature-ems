@@ -33,14 +33,43 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     const [narration, setNarration] = useState('');
     const [autoDisburse, setAutoDisburse] = useState(true);
     const [paymentMode, setPaymentMode] = useState('CASH');
+    const [paymentLedgerId, setPaymentLedgerId] = useState('');
     const [referenceNo, setReferenceNo] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
+    const [myCashLedger, setMyCashLedger] = useState(null);
+
+    const fetchTreasury = async () => {
+        try {
+            const [treasuryData, myCashData] = await Promise.all([
+                apiClient({ url: 'ledger/treasury' }),
+                apiClient({ url: 'ledger/my-cash-account' }).catch(() => null)
+            ]);
+            const banks = treasuryData?.bankLedgers || treasuryData?.bankAccounts || [];
+            const cash = treasuryData?.cashLedgers || treasuryData?.cashAccounts || [];
+            setTreasuryLedgers({ bankLedgers: banks, cashLedgers: cash });
+
+            const myCash = myCashData?.data || myCashData || null;
+            setMyCashLedger(myCash);
+
+            setPaymentLedgerId(prev => {
+                if (paymentMode === 'CASH') {
+                    return myCash?._id || '';
+                }
+                return prev || banks[0]?._id || '';
+            });
+        } catch (err) {
+            console.error('Error fetching treasury in PayLedgerModal:', err);
+        }
+    };
 
     // Populate default values when ledger changes or modal opens
     useEffect(() => {
         if (open && ledger) {
+            fetchTreasury();
             setVoucherDate(dayjs().format('YYYY-MM-DD'));
             setPaymentMode('CASH');
+            setPaymentLedgerId(myCashLedger?._id || '');
             setReferenceNo('');
             setAutoDisburse(true);
 
@@ -55,6 +84,40 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
             }
         }
     }, [open, ledger]);
+
+    const getTreasuryOptions = (mode) => {
+        if (mode === 'CASH') {
+            if (!myCashLedger) return [{ label: 'My Cash Account (Personal Custody)', value: '' }];
+            const bal = myCashLedger.availableBalance ?? myCashLedger.netBalance ?? 0;
+            return [{
+                label: `${myCashLedger.name || 'My Cash Account'} (₹ ${Number(bal).toLocaleString('en-IN')})`,
+                value: myCashLedger._id
+            }];
+        } else {
+            const banks = treasuryLedgers.bankLedgers || [];
+            if (banks.length === 0) return [{ label: 'No Company Bank Accounts Found', value: '' }];
+            return banks.map((b) => {
+                const bankTitle = [b.bankName, b.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ') || 'Bank Account';
+                const accSuffix = b.accountNumber ? ` (A/C: ${b.accountNumber})` : '';
+                const balSuffix = ` - ₹ ${(b.availableBalance ?? b.netBalance ?? 0).toLocaleString('en-IN')}`;
+                return {
+                    label: `${bankTitle}${accSuffix}${balSuffix}`,
+                    value: b._id
+                };
+            });
+        }
+    };
+
+    const handlePaymentModeChange = (e) => {
+        const newMode = e?.target?.value !== undefined ? e.target.value : e;
+        setPaymentMode(newMode);
+        if (newMode === 'CASH') {
+            setPaymentLedgerId(myCashLedger?._id || '');
+        } else {
+            const banks = treasuryLedgers.bankLedgers || [];
+            setPaymentLedgerId(banks[0]?._id || '');
+        }
+    };
 
     if (!ledger) return null;
 
@@ -106,6 +169,10 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
             return toast.warn('Please select a valid date');
         }
 
+        if (autoDisburse && paymentMode !== 'CASH' && !paymentLedgerId) {
+            return toast.warn('Please select a company bank account to disburse payment from');
+        }
+
         try {
             setSubmitting(true);
             const payload = {
@@ -116,6 +183,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                 autoApprove: autoDisburse,
                 initialPayment: autoDisburse ? numAmount : 0,
                 paymentMode: autoDisburse ? paymentMode : 'CASH',
+                paymentLedgerId: autoDisburse ? (paymentLedgerId || null) : null,
                 referenceNo: autoDisburse ? referenceNo.trim() : ''
             };
 
@@ -264,16 +332,33 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                     </label>
 
                     {autoDisburse ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/80">
-                            <div>
-                                <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                                    Payment Mode *
-                                </label>
-                                <Select
-                                    value={paymentMode}
-                                    onChange={(val) => setPaymentMode(val)}
-                                    options={PAYMENT_MODES}
-                                />
+                        <div className="space-y-3 pt-2 border-t border-slate-200/80">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
+                                        Payment Mode *
+                                    </label>
+                                    <Select
+                                        value={paymentMode}
+                                        onChange={handlePaymentModeChange}
+                                        options={PAYMENT_MODES}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
+                                        {paymentMode === 'CASH' ? 'Disbursing From (My Cash)' : 'Disbursing Bank Account *'}
+                                    </label>
+                                    <Select
+                                        value={paymentLedgerId}
+                                        disabled={paymentMode === 'CASH'}
+                                        onChange={(e) => {
+                                            const val = e?.target?.value !== undefined ? e.target.value : e;
+                                            setPaymentLedgerId(val);
+                                        }}
+                                        options={getTreasuryOptions(paymentMode)}
+                                    />
+                                </div>
                             </div>
 
                             <div>

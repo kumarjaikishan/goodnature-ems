@@ -75,7 +75,13 @@ export const Select = forwardRef(({
   // Find currently selected option
   const selectedOption = useMemo(() => {
     if (value === undefined || value === null) return null;
-    return normalizedOptions.find((opt) => String(opt.value) === String(value));
+    const resolvedValue =
+      typeof value === 'object' && value !== null && 'target' in value
+        ? value.target?.value
+        : (typeof value === 'object' && value !== null && 'value' in value
+          ? value.value
+          : value);
+    return normalizedOptions.find((opt) => String(opt.value) === String(resolvedValue));
   }, [normalizedOptions, value]);
 
   // Close on outside click and reset search
@@ -97,12 +103,24 @@ export const Select = forwardRef(({
   const handleSelect = (opt) => {
     if (opt.disabled) return;
     if (onChange) {
-      onChange({
+      const syntheticEvent = {
         target: {
           value: opt.value,
           name: name || selectId,
-        }
-      });
+        },
+        currentTarget: {
+          value: opt.value,
+          name: name || selectId,
+        },
+        value: opt.value,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        toString: () => String(opt.value),
+        valueOf: () => opt.value,
+      };
+      syntheticEvent[Symbol.toPrimitive] = () => String(opt.value);
+
+      onChange(syntheticEvent, opt.value);
     }
     setIsOpen(false);
   };

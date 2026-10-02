@@ -1048,3 +1048,44 @@ PLAN-15 originally removed mongoose.models.User alias completely. This broke ALL
 - Finance section (Ledger/Vouchers/Transfers) surfaces only for finance roles and non-full-access; full-access sees these via Quick Nav tiles instead.
 - Quick Navigation tiles are also permission-gated: plot tiles hidden if no plot perm; payroll tile hidden if no payroll perm, etc.
 - `highlight` prop on KPICard adds amber ring when Outstanding Balance > 0, Pending Approvals > 0, or Absent > 0 — draws attention to actionable data.
+
+## [2026-10-02] Voucher Cash Ledger Restriction Fix
+
+### Problem
+- VoucherList.jsx called \/ledger/treasury\ and used all \cashLedgers\ for payment source selection.
+- For admin/superadmin users, \getTreasuryLedgers\ returns ALL user_cash ledgers (every employee's personal cash), so admins saw other people's cash in the payment dropdown.
+- VoucherDetails.jsx had no ledger selector at all in payment/approve modals and did not send \paymentLedgerId\ in API calls.
+
+### Fix Applied
+- **VoucherList.jsx**: Added \myCashLedger\ state + fetch from \/ledger/my-cash-account\. Updated \getTreasuryOptions('CASH')\ to always return only the logged-in user's own cash as a single locked option. Cash select is now \disabled\ (read-only display). Bank modes still show all company bank accounts.
+- **VoucherDetails.jsx**: Same pattern - added \myCashLedger\ + \ankLedgers\ states, \etchTreasuryAccounts()\ on mount, \getTreasuryOpts()\ helper, and source ledger selectors in both approve and payment modals. \paymentLedgerId\ is now sent in all API calls.
+
+### Pattern Reference
+- ReceivePaymentForm.jsx (installments) was already doing this correctly and served as the pattern to mirror.
+- Server-side: voucher.js controller already had security check (line 151-155) blocking non-admins from using other people's cash via paymentLedgerId. Fix ensures admin UI also only shows own cash.
+
+### Key Insight
+- \getTreasuryLedgers\ intentionally returns all cash for admin (used in CashLedgersPage for reporting). The restriction must be enforced client-side for payment UI contexts by using \/ledger/my-cash-account\ separately.
+
+## [2026-10-02] PayLedgerModal & Select Resiliency Fix: Bank and Cash Ledger Disbursals
+
+### Problems
+1. In PayLedgerModal.jsx (used for paying Business Associates, Partners, Branch Partners, Kisan, and Employees from ledger pages), selecting any Payment Mode other than Cash caused the dropdown to revert to placeholder ("Select an option...") and nothing appeared selected.
+   - Cause: Select.jsx passed synthetic event { target: { value: opt.value } } to onChange. PayLedgerModal.jsx wrote onChange={(val) => setPaymentMode(val)}, putting the whole object into state. Comparing opt.value === value failed ('BANK_TRANSFER' === '[object Object]').
+2. Added bank (e.g., Axis Bank) was not showing:
+   - PayLedgerModal.jsx had NO treasury accounts fetch and NO Bank Account / Cash Ledger selector at all! It only had a payment mode and reference number input, and never passed paymentLedgerId in the voucher payload.
+3. In VoucherList.jsx and VoucherDetails.jsx, bank options were labeled using only .name || b.bankDetails?.bankName, which could fail to highlight specific bank names (like Axis Bank) if named generically, and didn't display the bank account number.
+
+### Fix
+1. **Select.jsx**:
+   - selectedOption now unwraps alue.target?.value or alue.value if an object is passed, ensuring backwards-compatibility when callers store the synthetic event in state.
+   - handleSelect sets 	oString(), alueOf(), and [Symbol.toPrimitive] on the synthetic event, and passes (syntheticEvent, opt.value) to onChange.
+2. **PayLedgerModal.jsx**:
+   - Added treasury accounts fetching (/ledger/treasury and /ledger/my-cash-account) on modal open.
+   - Added paymentLedgerId state and getTreasuryOptions helper.
+   - When payment mode is CASH, it locks to the logged-in user's own cash account.
+   - When payment mode is non-cash (Bank Transfer, UPI, Cheque, Online), it enables selection of company bank accounts (e.g. Axis Bank) with full labels: Bank Name, Account Number, and Available Balance.
+   - Sends paymentLedgerId in the /api/vouchers payload for immediate ledger debiting.
+3. **VoucherList.jsx & VoucherDetails.jsx**:
+   - Enhanced bank account label rendering to include [b.bankName, b.name], ccountNumber, and current balance.
+   - Added etchTreasury call whenever create/approve/payment modals open, ensuring newly created banks (like Axis Bank) appear immediately without full page reloads.

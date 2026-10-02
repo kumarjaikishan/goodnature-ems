@@ -33,6 +33,7 @@ const VoucherList = () => {
   const [vouchers, setVouchers] = useState([]);
   const [ledgers, setLedgers] = useState([]);
   const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
+  const [myCashLedger, setMyCashLedger] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter state
@@ -127,12 +128,18 @@ const VoucherList = () => {
 
   const fetchTreasury = async () => {
     try {
-      const data = await apiClient({ url: "ledger/treasury" });
-      if (data) {
+      const [treasuryData, myCashData] = await Promise.all([
+        apiClient({ url: "ledger/treasury" }),
+        apiClient({ url: "ledger/my-cash-account" }).catch(() => null)
+      ]);
+      if (treasuryData) {
         setTreasuryLedgers({
-          bankLedgers: data.bankLedgers || [],
-          cashLedgers: data.cashLedgers || []
+          bankLedgers: treasuryData.bankLedgers || treasuryData.bankAccounts || [],
+          cashLedgers: treasuryData.cashLedgers || treasuryData.cashAccounts || []
         });
+      }
+      if (myCashData) {
+        setMyCashLedger(myCashData?.data || myCashData || null);
       }
     } catch (err) {
       console.error("Error fetching treasury ledgers:", err);
@@ -143,6 +150,7 @@ const VoucherList = () => {
   // Voucher Operations
   // ----------------------------------------------------
   const handleOpenCreate = () => {
+    fetchTreasury();
     setEditingVoucher(null);
     setSelectedLedgerId("");
     setVoucherDate(dayjs().format("YYYY-MM-DD"));
@@ -152,7 +160,7 @@ const VoucherList = () => {
     setEnableInitialPayment(false);
     setInitialPaymentAmount("");
     setInitialPaymentMode("CASH");
-    setInitialPaymentLedgerId(treasuryLedgers.cashLedgers?.[0]?._id || "");
+    setInitialPaymentLedgerId(myCashLedger?._id || "");
     setInitialReferenceNo("");
     setOpenModal(true);
   };
@@ -255,6 +263,7 @@ const VoucherList = () => {
   // Approval Operations
   // ----------------------------------------------------
   const handleOpenApprove = (v) => {
+    fetchTreasury();
     setApprovingVoucher(v);
     const totalAmt = v.totalAmount || v.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
     setApprovedAmount(totalAmt.toString());
@@ -270,8 +279,10 @@ const VoucherList = () => {
     const initPaid = Number(v.paidAmount) || 0;
     setApproveDisburseAmount(initPaid.toString());
 
-    const defPaymentLedger = v.paymentLedgerId?._id || v.paymentLedgerId || treasuryLedgers.cashLedgers?.[0]?._id || "";
     const defPaymentMode = v.paymentTranches?.[0]?.paymentMode || "CASH";
+    const isCashMode = defPaymentMode === "CASH";
+    const defPaymentLedger = v.paymentLedgerId?._id || v.paymentLedgerId ||
+      (isCashMode ? (myCashLedger?._id || "") : (treasuryLedgers.bankLedgers?.[0]?._id || ""));
     setApprovePaymentMode(defPaymentMode);
     setApprovePaymentLedgerId(defPaymentLedger);
     setApproveReferenceNo(v.paymentTranches?.[0]?.referenceNo || "");
@@ -361,6 +372,7 @@ const VoucherList = () => {
   // Disburse / Payment Operations
   // ----------------------------------------------------
   const handleOpenPayment = (v) => {
+    fetchTreasury();
     setPayingVoucher(v);
     const total = v.totalAmount || v.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
     const paid = Number(v.paidAmount) || 0;
@@ -369,7 +381,7 @@ const VoucherList = () => {
     setPaymentAmount(remaining.toString());
     setPaymentDate(dayjs().format("YYYY-MM-DD"));
     setPaymentMode("CASH");
-    setPaymentLedgerId(treasuryLedgers.cashLedgers?.[0]?._id || "");
+    setPaymentLedgerId(myCashLedger?._id || "");
     setPaymentReferenceNo("");
     setPaymentRemarks("");
     setOpenPaymentModal(true);
@@ -503,19 +515,25 @@ const VoucherList = () => {
 
   const getTreasuryOptions = (mode) => {
     if (mode === "CASH") {
-      const cashList = treasuryLedgers.cashLedgers || [];
-      if (cashList.length === 0) return [{ label: "Default Cash Custody", value: "" }];
-      return cashList.map(c => ({
-        label: `${c.name || c.assignedUserId?.name || 'Cash Account'} (₹ ${(c.availableBalance || 0).toLocaleString()})`,
-        value: c._id
-      }));
+      // Always lock to the logged-in user's own cash ledger only
+      if (!myCashLedger) return [{ label: "My Cash Account (Personal Custody)", value: "" }];
+      const bal = myCashLedger.availableBalance ?? myCashLedger.netBalance ?? 0;
+      return [{
+        label: `${myCashLedger.name || 'My Cash Account'} (₹ ${Number(bal).toLocaleString('en-IN')})`,
+        value: myCashLedger._id
+      }];
     } else {
       const bankList = treasuryLedgers.bankLedgers || [];
-      if (bankList.length === 0) return [{ label: "Default Bank Account", value: "" }];
-      return bankList.map(b => ({
-        label: `${b.name || b.bankDetails?.bankName || 'Bank Account'} (₹ ${(b.availableBalance || 0).toLocaleString()})`,
-        value: b._id
-      }));
+      if (bankList.length === 0) return [{ label: "No Company Bank Accounts Found", value: "" }];
+      return bankList.map(b => {
+        const bankTitle = [b.bankName, b.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ') || 'Bank Account';
+        const accSuffix = b.accountNumber ? ` (A/C: ${b.accountNumber})` : '';
+        const balSuffix = ` - ₹ ${(b.availableBalance ?? b.netBalance ?? 0).toLocaleString('en-IN')}`;
+        return {
+          label: `${bankTitle}${accSuffix}${balSuffix}`,
+          value: b._id
+        };
+      });
     }
   };
 
@@ -1165,19 +1183,27 @@ const VoucherList = () => {
                   ]}
                   value={initialPaymentMode}
                   onChange={(e) => {
-                    const newMode = e.target.value;
+                    const newMode = e?.target?.value !== undefined ? e.target.value : e;
                     setInitialPaymentMode(newMode);
-                    const opts = getTreasuryOptions(newMode);
-                    setInitialPaymentLedgerId(opts[0]?.value || "");
+                    if (newMode === "CASH") {
+                      setInitialPaymentLedgerId(myCashLedger?._id || "");
+                    } else {
+                      const bankList = treasuryLedgers.bankLedgers || [];
+                      setInitialPaymentLedgerId(bankList[0]?._id || "");
+                    }
                   }}
                 />
                 <Select
-                  label={initialPaymentMode === "CASH" ? "Debit From Cash Ledger" : "Debit From Bank Account"}
+                  label={initialPaymentMode === "CASH" ? "Source: My Cash Account" : "Debit From Bank Account"}
                   size="sm"
                   required
+                  disabled={initialPaymentMode === "CASH"}
                   options={getTreasuryOptions(initialPaymentMode)}
                   value={initialPaymentLedgerId}
-                  onChange={(e) => setInitialPaymentLedgerId(e.target.value)}
+                  onChange={(e) => {
+                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                    setInitialPaymentLedgerId(val);
+                  }}
                 />
               </div>
 
@@ -1304,10 +1330,14 @@ const VoucherList = () => {
                 ]}
                 value={approvePaymentMode}
                 onChange={(e) => {
-                  const newMode = e.target.value;
+                  const newMode = e?.target?.value !== undefined ? e.target.value : e;
                   setApprovePaymentMode(newMode);
-                  const opts = getTreasuryOptions(newMode);
-                  setApprovePaymentLedgerId(opts[0]?.value || "");
+                  if (newMode === "CASH") {
+                    setApprovePaymentLedgerId(myCashLedger?._id || "");
+                  } else {
+                    const bankList = treasuryLedgers.bankLedgers || [];
+                    setApprovePaymentLedgerId(bankList[0]?._id || "");
+                  }
                 }}
               />
               <Input
@@ -1321,12 +1351,16 @@ const VoucherList = () => {
             {parseFloat(approveDisburseAmount) > 0 && (
               <div className="pt-2">
                 <Select
-                  label={approvePaymentMode === "CASH" ? "Source Cash Ledger" : "Source Bank Account"}
+                  label={approvePaymentMode === "CASH" ? "Source: My Cash Account" : "Source Bank Account"}
                   size="sm"
                   required
+                  disabled={approvePaymentMode === "CASH"}
                   options={getTreasuryOptions(approvePaymentMode)}
                   value={approvePaymentLedgerId}
-                  onChange={(e) => setApprovePaymentLedgerId(e.target.value)}
+                  onChange={(e) => {
+                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                    setApprovePaymentLedgerId(val);
+                  }}
                 />
               </div>
             )}
@@ -1473,18 +1507,26 @@ const VoucherList = () => {
               ]}
               value={paymentMode}
               onChange={(e) => {
-                const newMode = e.target.value;
+                const newMode = e?.target?.value !== undefined ? e.target.value : e;
                 setPaymentMode(newMode);
-                const opts = getTreasuryOptions(newMode);
-                setPaymentLedgerId(opts[0]?.value || "");
+                if (newMode === "CASH") {
+                  setPaymentLedgerId(myCashLedger?._id || "");
+                } else {
+                  const bankList = treasuryLedgers.bankLedgers || [];
+                  setPaymentLedgerId(bankList[0]?._id || "");
+                }
               }}
             />
             <Select
-              label={paymentMode === "CASH" ? "Source Cash Ledger" : "Source Bank Account"}
+              label={paymentMode === "CASH" ? "Source: My Cash Account" : "Source Bank Account"}
               required
+              disabled={paymentMode === "CASH"}
               options={getTreasuryOptions(paymentMode)}
               value={paymentLedgerId}
-              onChange={(e) => setPaymentLedgerId(e.target.value)}
+              onChange={(e) => {
+                const val = e?.target?.value !== undefined ? e.target.value : e;
+                setPaymentLedgerId(val);
+              }}
             />
           </div>
 
