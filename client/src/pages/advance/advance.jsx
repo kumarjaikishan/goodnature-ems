@@ -8,6 +8,7 @@ import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import dayjs from "dayjs";
 import { Edit2, Trash2, Plus, User, Search, X } from "lucide-react";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
+import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import DateInput from "@/components/ui/DateInput";
@@ -580,7 +581,7 @@ const EmployeeAdvancePage = () => {
                         ? `Employee: ${employee?.find(e => e._id === form.employeeId)?.userid?.name || selectedEmployee?.userid?.name || 'Selected Employee'}`
                         : "Grant or recover advance for an employee"
                 }
-                maxWidth="max-w-md"
+                maxWidth="max-w-xl"
                 footer={
                     <>
                         <Button variant="outline" type="button" onClick={handleClose}>

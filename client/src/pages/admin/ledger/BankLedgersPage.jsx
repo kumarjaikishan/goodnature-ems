@@ -6,6 +6,8 @@ import Modalbox from "../../../components/custommodal/Modalbox";
 import PageLoader from "../../../components/common/PageLoader";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
+import Select from "../../../components/ui/Select";
+import NumberInput from "../../../components/ui/NumberInput";
 import {
   Landmark,
   Plus,
@@ -461,16 +463,36 @@ export default function BankLedgersPage() {
       <Modalbox
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        size="lg"
+        size="xl"
         title={editId ? "Edit Bank Account" : "Add New Corporate Bank Account"}
+        subtitle={editId ? "Update bank account details and ledger settings" : "Create a new corporate bank ledger with opening balance"}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              form="bank-ledger-form"
+              variant="primary"
+              size="sm"
+              type="submit"
+              loading={saving}
+            >
+              {editId ? "Update Account" : "Create Bank Account"}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSaveBank} className="p-6 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form id="bank-ledger-form" onSubmit={handleSaveBank} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Account / Ledger Display Name <span className="text-rose-500">*</span>
-              </label>
               <Input
+                label="Account / Ledger Display Name"
                 placeholder="e.g. Axis Bank - Corporate A/c (1234)"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -479,10 +501,8 @@ export default function BankLedgersPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Bank Name <span className="text-rose-500">*</span>
-              </label>
               <Input
+                label="Bank Name"
                 placeholder="e.g. Axis Bank, IDBI Bank, HDFC Bank"
                 value={formData.bankName}
                 onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
@@ -491,10 +511,8 @@ export default function BankLedgersPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Account Number <span className="text-rose-500">*</span>
-              </label>
               <Input
+                label="Account Number"
                 placeholder="e.g. 918020012345678"
                 value={formData.accountNumber}
                 onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
@@ -503,10 +521,8 @@ export default function BankLedgersPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                IFSC Code
-              </label>
               <Input
+                label="IFSC Code"
                 placeholder="e.g. UTIB0001234"
                 value={formData.ifscCode}
                 onChange={(e) =>
@@ -516,10 +532,8 @@ export default function BankLedgersPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Branch Location
-              </label>
               <Input
+                label="Branch Location"
                 placeholder="e.g. Main City Branch"
                 value={formData.branchName}
                 onChange={(e) => setFormData({ ...formData, branchName: e.target.value })}
@@ -527,50 +541,32 @@ export default function BankLedgersPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Account Type
-              </label>
-              <select
+              <Select
+                label="Account Type"
                 value={formData.accountType}
                 onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-                className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs md:text-sm text-slate-800 transition"
-              >
-                <option value="CURRENT">Current Account</option>
-                <option value="SAVINGS">Savings Account</option>
-                <option value="OVERDRAFT">Overdraft (OD)</option>
-                <option value="CASH">Cash Credit (CC)</option>
-                <option value="OTHER">Other</option>
-              </select>
+                options={[
+                  { label: "Current Account", value: "CURRENT" },
+                  { label: "Savings Account", value: "SAVINGS" },
+                  { label: "Overdraft (OD)", value: "OVERDRAFT" },
+                  { label: "Cash Credit (CC)", value: "CASH" },
+                  { label: "Other", value: "OTHER" },
+                ]}
+              />
             </div>
 
             {!editId && (
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Initial / Opening Balance (₹)
-                </label>
-                <Input
-                  type="number"
+                <NumberInput
+                  label="Initial / Opening Balance (₹)"
+                  currency
                   min="0"
                   placeholder="0.00"
                   value={formData.openingBalance}
-                  onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
+                  onChange={(val) => setFormData({ ...formData, openingBalance: val })}
                 />
               </div>
             )}
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              variant="secondary"
-              size="sm"
-              type="button"
-              onClick={() => setModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit" loading={saving}>
-              {editId ? "Update Account" : "Create Bank Account"}
-            </Button>
           </div>
         </form>
       </Modalbox>

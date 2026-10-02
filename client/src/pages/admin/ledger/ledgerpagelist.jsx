@@ -824,65 +824,14 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             )}
 
             {/* Add / Edit Ledger Modal */}
-            <Modalbox open={editOpen} onClose={() => setEditOpen(false)}>
-                <div className="w-full max-w-sm p-6 space-y-4">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <h3 className="text-base font-bold text-slate-900">
-                            {editLedgerId ? "Edit Ledger" : "Add New Ledger"}
-                        </h3>
-                        <button
-                            type="button"
-                            onClick={() => setEditOpen(false)}
-                            className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-
-                    <div className="space-y-4">
-                        <Input
-                            autoFocus
-                            label="Ledger Name"
-                            value={editLedgerName}
-                            onChange={(e) => setEditLedgerName(e.target.value)}
-                            placeholder="Enter account / ledger name"
-                        />
-
-                        <div className="flex flex-col items-center justify-center pt-2">
-                            <input
-                                style={{ display: "none" }}
-                                type="file"
-                                onChange={(e) => setEditLedgerImage(e.target.files[0])}
-                                ref={inputref}
-                                accept="image/*"
-                                id="fileInput"
-                            />
-
-                            <div className="relative group cursor-pointer" onClick={() => inputref.current?.click()}>
-                                {editLedgerImage ? (
-                                    <img
-                                        className="w-20 h-20 rounded-full object-cover border-2 border-teal-500 shadow-md"
-                                        alt={editLedgerName}
-                                        src={
-                                            editLedgerImage instanceof File
-                                                ? URL.createObjectURL(editLedgerImage)
-                                                : editLedgerImage
-                                        }
-                                    />
-                                ) : (
-                                    <div className="w-20 h-20 rounded-full bg-slate-100 text-slate-400 border-2 border-dashed border-slate-300 flex items-center justify-center font-bold text-xl">
-                                        {editLedgerName?.charAt(0)?.toUpperCase() || '+'}
-                                    </div>
-                                )}
-                                <span className="absolute -bottom-1 -right-1 rounded-full bg-teal-800 text-white p-1.5 shadow-md">
-                                    <Edit2 size={13} />
-                                </span>
-                            </div>
-                            <span className="text-[11px] text-slate-400 mt-2">Click to upload avatar / image</span>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+            <Modalbox
+                open={editOpen}
+                onClose={() => setEditOpen(false)}
+                size="md"
+                title={editLedgerId ? "Edit Ledger" : "Add New Ledger"}
+                subtitle={editLedgerId ? "Update ledger account profile and details" : "Create a new financial ledger account"}
+                footer={
+                    <>
                         <Button
                             type="button"
                             variant="outline"
@@ -892,16 +841,67 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                             Cancel
                         </Button>
                         <Button
-                            type="button"
+                            form="ledger-edit-form"
+                            type="submit"
                             variant="primary"
                             size="sm"
                             loading={loading}
-                            onClick={handleSaveLedger}
                         >
                             {editLedgerId ? "Update Ledger" : "Create Ledger"}
                         </Button>
+                    </>
+                }
+            >
+                <form
+                    id="ledger-edit-form"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveLedger();
+                    }}
+                    className="space-y-4"
+                >
+                    <Input
+                        autoFocus
+                        label="Ledger Name"
+                        required
+                        value={editLedgerName}
+                        onChange={(e) => setEditLedgerName(e.target.value)}
+                        placeholder="Enter account / ledger name"
+                    />
+
+                    <div className="flex flex-col items-center justify-center pt-2">
+                        <input
+                            style={{ display: "none" }}
+                            type="file"
+                            onChange={(e) => setEditLedgerImage(e.target.files[0])}
+                            ref={inputref}
+                            accept="image/*"
+                            id="fileInput"
+                        />
+
+                        <div className="relative group cursor-pointer" onClick={() => inputref.current?.click()}>
+                            {editLedgerImage ? (
+                                <img
+                                    className="w-20 h-20 rounded-full object-cover border-2 border-teal-500 shadow-md"
+                                    alt={editLedgerName}
+                                    src={
+                                        editLedgerImage instanceof File
+                                            ? URL.createObjectURL(editLedgerImage)
+                                            : editLedgerImage
+                                    }
+                                />
+                            ) : (
+                                <div className="w-20 h-20 rounded-full bg-slate-100 text-slate-400 border-2 border-dashed border-slate-300 flex items-center justify-center font-bold text-xl">
+                                    {editLedgerName?.charAt(0)?.toUpperCase() || '+'}
+                                </div>
+                            )}
+                            <span className="absolute -bottom-1 -right-1 rounded-full bg-teal-800 text-white p-1.5 shadow-md">
+                                <Edit2 size={13} />
+                            </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 mt-2">Click to upload avatar / image</span>
                     </div>
-                </div>
+                </form>
             </Modalbox>
 
             {/* Pay Ledger / Issue Voucher Modal */}
