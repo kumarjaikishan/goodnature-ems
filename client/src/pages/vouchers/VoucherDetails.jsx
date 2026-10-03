@@ -299,6 +299,48 @@ const VoucherDetails = () => {
   const status = voucher.status || "APPROVED";
   const logoUrl = company?.logo ? cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 }) : null;
 
+  // Dynamically resolve payment mode & bank/cash source
+  const getVoucherPaymentMode = () => {
+    if (voucher.paymentTranches && voucher.paymentTranches.length > 0) {
+      const modes = [];
+      voucher.paymentTranches.forEach(t => {
+        let label = "";
+        const mode = t.paymentMode || "CASH";
+        const ledger = t.paymentLedgerId;
+        if (mode === "CASH") {
+          label = "CASH";
+        } else if (ledger) {
+          const bankName = ledger.bankName || ledger.name || "BANK";
+          label = `${mode.replace(/_/g, ' ')} (${bankName})`;
+        } else {
+          label = mode.replace(/_/g, ' ');
+        }
+        if (label && !modes.includes(label)) {
+          modes.push(label);
+        }
+      });
+      if (modes.length > 0) return modes.join(', ');
+    }
+
+    if (voucher.paymentLedgerId) {
+      const pl = voucher.paymentLedgerId;
+      if (pl.ledgerType === 'bank' || pl.bankName) {
+        return `ONLINE (${pl.bankName || pl.name})`;
+      }
+      return pl.name?.toUpperCase() || "CASH";
+    }
+
+    const creditEntry = voucher.entries?.find(e => e.type === 'CREDIT');
+    if (creditEntry && creditEntry.accountName) {
+      if (creditEntry.accountName.toLowerCase().includes('cash')) return 'CASH';
+      return creditEntry.accountName.toUpperCase();
+    }
+
+    return "CASH";
+  };
+
+  const paymentModeDisplay = getVoucherPaymentMode();
+
   const renderStatusBadge = (s) => {
     switch (s) {
       case "PENDING":
@@ -443,14 +485,14 @@ const VoucherDetails = () => {
           {voucher.createdBy && (
             <div className="flex items-center gap-1.5">
               <User size={14} className="text-slate-400" />
-              <span>Created by: <strong className="text-slate-700">{voucher.createdBy.name || voucher.createdBy.email}</strong></span>
+              <span>Created by: <strong className="text-slate-700">{voucher.createdBy.name || voucher.createdBy.email}</strong> on {dayjs(voucher.createdAt || voucher.date).format("DD MMM YYYY, hh:mm A")}</span>
             </div>
           )}
 
           {voucher.approvedBy && (
             <div className="flex items-center gap-1.5 text-teal-800">
               <ShieldCheck size={14} className="text-teal-600" />
-              <span>Approved by: <strong>{voucher.approvedBy.name || voucher.approvedBy.email}</strong> on {dayjs(voucher.approvedAt || voucher.date).format("DD MMM YYYY")}</span>
+              <span>Approved by: <strong>{voucher.approvedBy.name || voucher.approvedBy.email}</strong> on {dayjs(voucher.approvedAt || voucher.date).format("DD MMM YYYY, hh:mm A")}</span>
             </div>
           )}
 
@@ -616,7 +658,7 @@ const VoucherDetails = () => {
                 <div>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Mode</span>
                   <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f766e" }}>
-                    CASH
+                    {paymentModeDisplay}
                   </span>
                 </div>
                 <div>
@@ -732,7 +774,7 @@ const VoucherDetails = () => {
                 </div>
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "5px", padding: "6px 10px" }}>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Payment Mode</span>
-                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>CASH</span>
+                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>{paymentModeDisplay}</span>
                 </div>
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "5px", padding: "6px 10px" }}>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Voucher Date</span>
@@ -793,7 +835,7 @@ const VoucherDetails = () => {
 
               {/* Footer */}
               <div style={{ borderTop: "1px solid #ccfbf1", paddingTop: "4px", marginTop: "6px", textAlign: "center", fontSize: "8.5px", color: "#0f766e", fontWeight: "600" }}>
-                ** Please check cash balance before leaving cash counter **
+                ** Please check balance before leaving counter **
               </div>
             </div>
           )}
@@ -853,7 +895,7 @@ const VoucherDetails = () => {
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
                   <span style={{ fontSize: "8.5px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", display: "block" }}>Payment Mode</span>
                   <span style={{ fontSize: "11.5px", fontWeight: "800", color: "#1e293b" }}>
-                    CASH
+                    {paymentModeDisplay}
                   </span>
                 </div>
               </div>
@@ -939,9 +981,9 @@ const VoucherDetails = () => {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                   <th className="p-2.5">#</th>
-                  <th className="p-2.5">Date</th>
+                  <th className="p-2.5">Date & Time</th>
                   <th className="p-2.5">Amount</th>
-                  <th className="p-2.5">Mode</th>
+                  <th className="p-2.5">Mode / Source</th>
                   <th className="p-2.5">Reference / Cheque #</th>
                   <th className="p-2.5">Processed By</th>
                   <th className="p-2.5">Remarks</th>
@@ -951,15 +993,16 @@ const VoucherDetails = () => {
                 {voucher.paymentTranches.map((tranche, idx) => (
                   <tr key={tranche._id || idx} className="hover:bg-slate-50/60">
                     <td className="p-2.5 font-mono text-slate-500">{idx + 1}</td>
-                    <td className="p-2.5 font-medium text-slate-700">
-                      {dayjs(tranche.paymentDate || tranche.createdAt).format("DD MMM YYYY")}
+                    <td className="p-2.5 font-medium text-slate-700 whitespace-nowrap">
+                      <div>{dayjs(tranche.paymentDate || tranche.createdAt).format("DD MMM YYYY")}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">{dayjs(tranche.paymentDate || tranche.createdAt).format("hh:mm A")}</div>
                     </td>
                     <td className="p-2.5 font-bold text-emerald-700">
                       ₹ {Number(tranche.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="p-2.5">
                       <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700">
-                        {tranche.paymentMode || "CASH"}
+                        {tranche.paymentLedgerId?.bankName || tranche.paymentLedgerId?.name || (tranche.paymentMode || "CASH").replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td className="p-2.5 font-mono text-slate-600">

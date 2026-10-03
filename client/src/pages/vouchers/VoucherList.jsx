@@ -19,10 +19,20 @@ import DateInput from "@/components/ui/DateInput";
 import Button from "@/components/ui/Button";
 import Modalbox from "@/components/custommodal/Modalbox";
 import Badge from "@/components/ui/Badge";
+import { usePermission } from "../../utils/CheckPermission";
 
 const VoucherList = () => {
   const navigate = useNavigate();
   const themes = useCustomStyles();
+
+  // Granular RBAC permission checks (matches server-side checkPermission middleware)
+  // 1=Read, 2=Create, 3=Update, 4=Delete
+  const canCreate = usePermission('voucher', 2);  // create voucher & record payment
+  const canUpdate = usePermission('voucher', 3);  // edit, approve, reject
+  const canDelete = usePermission('voucher', 4);  // delete
+  const canCreateLedger = usePermission('ledger', 2);  // create custom ledger
+  const canUpdateLedger = usePermission('ledger', 3);  // edit custom ledger
+  const canDeleteLedger = usePermission('ledger', 4);  // delete custom ledger
 
   // Tab State: "vouchers" or "ledgers"
   const [activeTab, setActiveTab] = useState("vouchers");
@@ -595,6 +605,58 @@ const VoucherList = () => {
   }, 0);
   const totalPaidSum = filteredVouchers.reduce((sum, v) => sum + (Number(v.paidAmount) || 0), 0);
 
+  // Helper to extract Payment Source (Cash / Bank Account Name)
+  const getPaymentSource = (row) => {
+    // If not paid at all and pending, show dash
+    if (row.status === "PENDING" && (!row.paymentTranches || row.paymentTranches.length === 0) && !row.paidAmount) {
+      return null;
+    }
+
+    // Check tranches first (disbursements)
+    if (row.paymentTranches && row.paymentTranches.length > 0) {
+      const uniqueSources = [];
+      row.paymentTranches.forEach(t => {
+        let label = "";
+        const mode = t.paymentMode || "CASH";
+        const ledger = t.paymentLedgerId;
+        if (mode === "CASH") {
+          label = ledger?.name || "Cash";
+        } else if (ledger) {
+          const bankName = ledger.bankName || ledger.name || "Bank";
+          const accSuffix = ledger.accountNumber ? ` (${ledger.accountNumber.slice(-4)})` : "";
+          label = `${bankName}${accSuffix}`;
+        } else {
+          label = mode.replace(/_/g, " ");
+        }
+        if (label && !uniqueSources.includes(label)) {
+          uniqueSources.push(label);
+        }
+      });
+      if (uniqueSources.length > 0) {
+        return uniqueSources.join(", ");
+      }
+    }
+
+    // Top-level payment ledger or entries credit side
+    if (row.paymentLedgerId) {
+      const pl = row.paymentLedgerId;
+      if (pl.ledgerType === "user_cash" || pl.name?.toLowerCase().includes("cash")) {
+        return pl.name || "Cash";
+      }
+      const bankName = pl.bankName || pl.name || "Bank";
+      const accSuffix = pl.accountNumber ? ` (${pl.accountNumber.slice(-4)})` : "";
+      return `${bankName}${accSuffix}`;
+    }
+
+    // Fallback: check credit entries for source account name
+    const creditEntry = row.entries?.find(e => e.type === "CREDIT");
+    if (creditEntry && creditEntry.accountName) {
+      return creditEntry.accountName;
+    }
+
+    return row.paidAmount > 0 ? "Paid" : null;
+  };
+
   // Status Badge Helper
   const renderStatusBadge = (status) => {
     const s = status || "APPROVED";
@@ -632,13 +694,16 @@ const VoucherList = () => {
           >
             {(row.voucherNo || "").replace(/^(GN-)?INV-/, "INV-")}
           </button>
-          <span className="text-[11px] text-slate-500 mt-0.5 font-medium">
-            {dayjs(row.date).format("DD MMM YYYY")}
+          <span className="text-[11px] text-slate-500 mt-0.5 font-medium leading-tight">
+            {dayjs(row.date || row.createdAt).format("DD MMM YYYY")}
+          </span>
+          <span className="text-[10px] text-slate-400 font-normal leading-tight">
+            {dayjs(row.createdAt || row.date).format("hh:mm A")}
           </span>
         </div>
       ),
       sortable: true,
-      width: "140px"
+      width: "145px"
     },
     {
       name: "Ledger",
@@ -653,15 +718,15 @@ const VoucherList = () => {
         const isEmployee = Boolean(row.employeeId);
 
         return (
-          <div className="flex flex-col py-1">
-            <span className="font-semibold text-slate-800 text-xs">{name}</span>
+          <div className="flex flex-col py-1 min-w-0">
+            <span className="font-semibold text-slate-800 text-xs truncate" title={name}>{name}</span>
             {isSponsor && (
-              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2 w-fit mt-0.5 font-medium">
+              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap">
                 Sponsor {row.sponsorId?.sponsorCode ? `(${row.sponsorId.sponsorCode})` : ''}
               </span>
             )}
             {isEmployee && (
-              <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.2 w-fit mt-0.5 font-medium">
+              <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap">
                 Employee
               </span>
             )}
@@ -670,7 +735,7 @@ const VoucherList = () => {
       },
       sortable: true,
       wrap: true,
-      width: "180px",
+      width: "210px",
     },
     {
       name: "Amount",
@@ -698,7 +763,36 @@ const VoucherList = () => {
         );
       },
       sortable: true,
-      width: "170px"
+      width: "145px"
+    },
+    {
+      name: "Payment Source",
+      selector: (row) => getPaymentSource(row) || "—",
+      cell: (row) => {
+        const source = getPaymentSource(row);
+        if (!source) {
+          return <span className="text-slate-400 text-xs">—</span>;
+        }
+
+        const isCash = source.toLowerCase().includes("cash");
+        return (
+          <div className="flex items-center gap-1.5 py-1">
+            <span
+              title={source}
+              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md border max-w-full cursor-help transition-all ${
+                isCash
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80"
+                  : "bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100/80"
+              }`}
+            >
+              <CreditCard size={11} className={`shrink-0 ${isCash ? "text-emerald-600" : "text-teal-600"}`} />
+              <span className="truncate max-w-[170px]" title={source}>{source}</span>
+            </span>
+          </div>
+        );
+      },
+      sortable: true,
+      width: "190px"
     },
     {
       name: "Status",
@@ -721,7 +815,7 @@ const VoucherList = () => {
 
         return (
           <div className="flex gap-1 items-center flex-wrap">
-            {/* View Details */}
+            {/* View Details — always visible for anyone with read access */}
             <button
               title="View Details"
               onClick={() => navigate(`/dashboard/vouchers/${row._id}`)}
@@ -730,8 +824,8 @@ const VoucherList = () => {
               <Eye size={15} />
             </button>
 
-            {/* If PENDING: Show Approve & Reject */}
-            {status === "PENDING" && (
+            {/* Approve & Reject — only if canUpdate (voucher:3) and status is PENDING */}
+            {canUpdate && status === "PENDING" && (
               <>
                 <button
                   title="Review & Approve"
@@ -750,8 +844,8 @@ const VoucherList = () => {
               </>
             )}
 
-            {/* If APPROVED or PARTIALLY_PAID: Show Disburse Payment Button */}
-            {(status === "APPROVED" || status === "PARTIALLY_PAID") && (
+            {/* Record Payment — only if canCreate (voucher:2) */}
+            {canCreate && (status === "APPROVED" || status === "PARTIALLY_PAID") && (
               <button
                 title="Record / Disburse Payment"
                 onClick={() => handleOpenPayment(row)}
@@ -762,24 +856,26 @@ const VoucherList = () => {
               </button>
             )}
 
-            {/* Edit / Delete for Manual Vouchers before approval or by admin */}
-            {isManual && status === "PENDING" && (
-              <>
-                <button
-                  title="Edit Voucher"
-                  onClick={() => handleOpenEdit(row)}
-                  className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
-                >
-                  <Edit2 size={15} />
-                </button>
-                <button
-                  title="Delete Voucher"
-                  onClick={() => handleDeleteVoucher(row._id)}
-                  className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </>
+            {/* Edit — only for manual PENDING vouchers and canUpdate (voucher:3) */}
+            {canUpdate && isManual && status === "PENDING" && (
+              <button
+                title="Edit Voucher"
+                onClick={() => handleOpenEdit(row)}
+                className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+              >
+                <Edit2 size={15} />
+              </button>
+            )}
+
+            {/* Delete — only for manual PENDING vouchers and canDelete (voucher:4) */}
+            {canDelete && isManual && status === "PENDING" && (
+              <button
+                title="Delete Voucher"
+                onClick={() => handleDeleteVoucher(row._id)}
+                className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
+              >
+                <Trash2 size={15} />
+              </button>
             )}
           </div>
         );
@@ -805,20 +901,27 @@ const VoucherList = () => {
       width: "120px",
       cell: (row) => (
         <div className="flex gap-1.5 items-center">
-          <button
-            title="Edit Ledger Name"
-            onClick={() => handleOpenEditLedger(row)}
-            className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
-          >
-            <Edit2 size={15} />
-          </button>
-          <button
-            title="Delete Ledger"
-            onClick={() => handleDeleteLedger(row._id)}
-            className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
-          >
-            <Trash2 size={15} />
-          </button>
+          {canUpdateLedger && (
+            <button
+              title="Edit Ledger Name"
+              onClick={() => handleOpenEditLedger(row)}
+              className="p-1 rounded text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+            >
+              <Edit2 size={15} />
+            </button>
+          )}
+          {canDeleteLedger && (
+            <button
+              title="Delete Ledger"
+              onClick={() => handleDeleteLedger(row._id)}
+              className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
+          {!canUpdateLedger && !canDeleteLedger && (
+            <span className="text-xs text-slate-400 italic">—</span>
+          )}
         </div>
       )
     }
@@ -919,23 +1022,27 @@ const VoucherList = () => {
 
           <div className="pb-2">
             {activeTab === "vouchers" ? (
-              <Button
-                variant="primary"
-                size="sm"
-                startIcon={Plus}
-                onClick={handleOpenCreate}
-              >
-                Create Voucher
-              </Button>
+              canCreate && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  startIcon={Plus}
+                  onClick={handleOpenCreate}
+                >
+                  Create Voucher
+                </Button>
+              )
             ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                startIcon={Plus}
-                onClick={handleOpenCreateLedger}
-              >
-                Create Custom Ledger
-              </Button>
+              canCreateLedger && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  startIcon={Plus}
+                  onClick={handleOpenCreateLedger}
+                >
+                  Create Custom Ledger
+                </Button>
+              )
             )}
           </div>
         </div>
@@ -1183,63 +1290,65 @@ const VoucherList = () => {
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <Select
-                  label="Payment Mode"
-                  size="sm"
-                  options={[
-                    { label: "Cash", value: "CASH" },
-                    { label: "Bank Transfer", value: "BANK_TRANSFER" },
-                    { label: "UPI", value: "UPI" },
-                    { label: "Cheque", value: "CHEQUE" },
-                  ]}
-                  value={initialPaymentMode}
-                  onChange={(e) => {
-                    const newMode = e?.target?.value !== undefined ? e.target.value : e;
-                    setInitialPaymentMode(newMode);
-                    if (newMode === "CASH") {
-                      setInitialPaymentLedgerId(myCashLedger?._id || "");
-                    } else {
-                      const bankList = treasuryLedgers.bankLedgers || [];
-                      setInitialPaymentLedgerId(bankList[0]?._id || "");
-                    }
-                  }}
-                />
-                <Select
-                  label={initialPaymentMode === "CASH" ? "Source: My Cash Account" : "Debit From Bank Account"}
-                  size="sm"
-                  required
-                  disabled={initialPaymentMode === "CASH"}
-                  options={getTreasuryOptions(initialPaymentMode)}
-                  value={initialPaymentLedgerId}
-                  onChange={(e) => {
-                    const val = e?.target?.value !== undefined ? e.target.value : e;
-                    setInitialPaymentLedgerId(val);
-                  }}
-                />
-              </div>
-
               {enableInitialPayment && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-200/60">
-                  <NumberInput
-                    label="Immediate Disbursed Amount (₹)"
-                    size="sm"
-                    currency
-                    min="1"
-                    max={voucherAmount || undefined}
-                    placeholder="Disbursed"
-                    value={initialPaymentAmount}
-                    onChange={(e) => setInitialPaymentAmount(e.target.value)}
-                  />
-                  {initialPaymentMode !== "CASH" && (
-                    <Input
-                      label="Reference / Cheque No"
+                <div className="space-y-3 pt-1 border-t border-slate-200/60">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <Select
+                      label="Payment Mode"
                       size="sm"
-                      placeholder="Ref No."
-                      value={initialReferenceNo}
-                      onChange={(e) => setInitialReferenceNo(e.target.value)}
+                      options={[
+                        { label: "Cash", value: "CASH" },
+                        { label: "Bank Transfer", value: "BANK_TRANSFER" },
+                        { label: "UPI", value: "UPI" },
+                        { label: "Cheque", value: "CHEQUE" },
+                      ]}
+                      value={initialPaymentMode}
+                      onChange={(e) => {
+                        const newMode = e?.target?.value !== undefined ? e.target.value : e;
+                        setInitialPaymentMode(newMode);
+                        if (newMode === "CASH") {
+                          setInitialPaymentLedgerId(myCashLedger?._id || "");
+                        } else {
+                          const bankList = treasuryLedgers.bankLedgers || [];
+                          setInitialPaymentLedgerId(bankList[0]?._id || "");
+                        }
+                      }}
                     />
-                  )}
+                    <Select
+                      label={initialPaymentMode === "CASH" ? "Source: My Cash Account" : "Debit From Bank Account"}
+                      size="sm"
+                      required
+                      disabled={initialPaymentMode === "CASH"}
+                      options={getTreasuryOptions(initialPaymentMode)}
+                      value={initialPaymentLedgerId}
+                      onChange={(e) => {
+                        const val = e?.target?.value !== undefined ? e.target.value : e;
+                        setInitialPaymentLedgerId(val);
+                      }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <NumberInput
+                      label="Immediate Disbursed Amount (₹)"
+                      size="sm"
+                      currency
+                      min="1"
+                      max={voucherAmount || undefined}
+                      placeholder="Disbursed"
+                      value={initialPaymentAmount}
+                      onChange={(e) => setInitialPaymentAmount(e.target.value)}
+                    />
+                    {initialPaymentMode !== "CASH" && (
+                      <Input
+                        label="Reference / Cheque No"
+                        size="sm"
+                        placeholder="Ref No."
+                        value={initialReferenceNo}
+                        onChange={(e) => setInitialReferenceNo(e.target.value)}
+                      />
+                    )}
+                  </div>
                 </div>
               )}
             </div>

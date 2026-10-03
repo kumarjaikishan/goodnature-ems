@@ -42,10 +42,12 @@ exports.getVouchers = async (req, res, next) => {
       .sort({ voucherNo: -1, createdAt: -1 })
       .populate('employeeId')
       .populate('ledgerId', 'name ledgerType profileImage')
+      .populate('paymentLedgerId', 'name bankName accountNumber ledgerType')
       .populate('sponsorId', 'name sponsorCode customerId email mobile')
       .populate('approvedBy', 'name email role')
       .populate('createdBy', 'name email role')
-      .populate('paymentTranches.paidBy', 'name email');
+      .populate('paymentTranches.paidBy', 'name email')
+      .populate('paymentTranches.paymentLedgerId', 'name bankName accountNumber ledgerType');
 
     let total = 0;
     let pages = 1;
@@ -71,11 +73,13 @@ exports.getVoucherDetails = async (req, res, next) => {
     const voucher = await Voucher.findById(req.params.id)
       .populate('employeeId')
       .populate('ledgerId')
+      .populate('paymentLedgerId', 'name bankName accountNumber ledgerType')
       .populate('sponsorId', 'name sponsorCode customerId email mobile')
       .populate('approvedBy', 'name email role')
       .populate('rejectedBy', 'name email role')
       .populate('createdBy', 'name email role')
-      .populate('paymentTranches.paidBy', 'name email role');
+      .populate('paymentTranches.paidBy', 'name email role')
+      .populate('paymentTranches.paymentLedgerId', 'name bankName accountNumber ledgerType');
 
     if (!voucher) return res.status(404).json({ message: 'Voucher not found' });
 
