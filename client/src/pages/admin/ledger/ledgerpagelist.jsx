@@ -75,7 +75,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         // 1. First enforce page category if specific page
         if (category && category !== "all") {
             result = result.filter((l) => {
-                const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId && !l.kisanSellerId);
+                const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
+                const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
                 const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
@@ -104,7 +105,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         // 3. Ledger Type Filter (when category is all)
         if (category === "all" && typeFilter !== "all") {
             result = result.filter((l) => {
-                const isEmployee = l.ledgerType === 'employee' || Boolean(l.employeeId) || (Boolean(l.empId) && !l.sponsorId && !l.kisanSellerId);
+                const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
+                const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
                 const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);

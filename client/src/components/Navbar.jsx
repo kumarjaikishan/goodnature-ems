@@ -200,7 +200,7 @@ const Navbar = () => {
   const isMobile = window.innerWidth < 600;
 
   return (
-    <div className='navbar no-print h-[50px] w-full bg-white flex items-center justify-between px-2 md:px-4 py-2 border-b border-slate-100'>
+    <div className='navbar no-print sticky top-0 z-30 h-[50px] w-full bg-white flex items-center justify-between px-2 md:px-4 py-2 border-b border-slate-100 shadow-xs'>
       <div className='flex items-center gap-2.5'>
         <Menu onClick={() => dispatch(tooglesidebar())} className='cursor-pointer text-slate-700 hover:text-teal-700 transition-colors' size={22} />
         <p className='font-semibold text-[14px] md:text-lg text-slate-800 tracking-tight'>{pageTitle}</p>

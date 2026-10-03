@@ -239,7 +239,7 @@ export default function CashLedgersPage() {
                   <div className="flex items-center gap-3">
                     {user.profileImage ? (
                       <img
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0"
+                        className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
                         alt={user.name}
                         src={cloudinaryUrl(user.profileImage, {
                           format: "webp",
@@ -248,7 +248,7 @@ export default function CashLedgersPage() {
                         })}
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-base shadow-xs shrink-0 border border-emerald-200">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-base shadow-xs shrink-0 border border-emerald-200">
                         {user.name ? user.name.slice(0, 2).toUpperCase() : "CS"}
                       </div>
                     )}
@@ -343,9 +343,21 @@ export default function CashLedgersPage() {
                   <tr key={cash._id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-5 py-3.5 font-bold text-slate-800">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center">
-                          {user.name ? user.name.slice(0, 2).toUpperCase() : "CS"}
-                        </div>
+                        {user.profileImage ? (
+                          <img
+                            className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                            alt={user.name || cash.name}
+                            src={cloudinaryUrl(user.profileImage, {
+                              format: "webp",
+                              width: 80,
+                              height: 80
+                            })}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center shrink-0 border border-emerald-200">
+                            {user.name ? user.name.slice(0, 2).toUpperCase() : "CS"}
+                          </div>
+                        )}
                         <div>
                           <div className="font-bold text-slate-900">{user.name || cash.name}</div>
                           <div className="text-[11px] text-slate-400">{user.email || ""}</div>
