@@ -11,7 +11,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { SearchableSelect, DateInput } from '../../../../components/ui';
+import { SearchableSelect, DateInput, Input, Button } from '../../../../components/ui';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 
@@ -354,32 +354,44 @@ const CreateAgreementModal = ({
   };
 
   return (
-    <Modalbox open={open} onClose={onClose} outside={false} maxWidth="max-w-4xl" showClose={false}>
-      <div className="p-5 md:p-7 space-y-5">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
-              <Building2 size={22} />
-            </div>
-            <div>
-              <h3 className="text-base md:text-lg font-bold text-slate-900">
-                New Plot Purchase Agreement
-              </h3>
-              <p className="text-xs text-slate-500">
-                Record land & plot details, Chaudhi boundaries, Kisan owners, and upload document attachments.
-              </p>
-            </div>
+    <Modalbox
+      open={open}
+      onClose={onClose}
+      outside={false}
+      size="4xl"
+      title="New Plot Purchase Agreement"
+      subtitle="Record land & plot details, Chaudhi boundaries, Kisan owners, and upload document attachments."
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <div className="text-xs text-slate-500 font-medium">
+            Total Agreed: <strong className="text-emerald-700 font-bold">₹{calculatedTotalCost.toLocaleString('en-IN')}</strong> for{' '}
+            <strong className="text-teal-800 font-bold">{totalDismil} Dismil</strong> ({parcels.length} plots/land)
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold p-1 text-base cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex items-center gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              loading={createLoading}
+              disabled={createLoading || uploadingIdx !== null || parcels.length === 0}
+              onClick={handleSubmit}
+            >
+              Save Plot Purchase Agreement
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
           {/* Project & Agreement Details */}
           <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
             {/* Project Selection / Creation */}
@@ -423,21 +435,19 @@ const CreateAgreementModal = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Number *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. AGR001 or AGR-2627-001"
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-teal-900 placeholder:text-slate-400 placeholder:font-normal"
-                  value={createForm.agreementNumber || ''}
-                  onChange={(e) => setCreateForm({ ...createForm, agreementNumber: e.target.value })}
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1 items-start">
+              <Input
+                label="Agreement Number"
+                required
+                size="sm"
+                placeholder="e.g. AGR001 or AGR-2627-001"
+                className="uppercase font-bold text-teal-900 placeholder:font-normal"
+                value={createForm.agreementNumber || ''}
+                onChange={(e) => setCreateForm({ ...createForm, agreementNumber: e.target.value })}
+              />
 
               <DateInput
-                label="Agreement Date *"
+                label="Agreement Date"
                 size="sm"
                 required
                 value={createForm.agreementDate}
@@ -452,16 +462,13 @@ const CreateAgreementModal = ({
                 onChange={(e) => setCreateForm({ ...createForm, agreementEndDate: e.target.value })}
               />
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">General Remarks / Notes</label>
-                <input
-                  type="text"
-                  placeholder="Remarks / Notes..."
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-medium text-slate-800"
-                  value={createForm.remarks || ''}
-                  onChange={(e) => setCreateForm({ ...createForm, remarks: e.target.value })}
-                />
-              </div>
+              <Input
+                label="General Remarks / Notes"
+                size="sm"
+                placeholder="Remarks / Notes..."
+                value={createForm.remarks || ''}
+                onChange={(e) => setCreateForm({ ...createForm, remarks: e.target.value })}
+              />
             </div>
           </div>
 
@@ -896,15 +903,15 @@ const CreateAgreementModal = ({
                     <div className="p-3 bg-white border border-blue-200/70 rounded-xl shadow-2xs">
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs">
                         <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400">Buyer / Company Name</span>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Buyer / Entity Name</span>
                           <span className="font-bold text-blue-900 text-xs block truncate" title={purchaser.name}>
                             {purchaser.name}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400">Contact / Mobile</span>
-                          <span className="font-semibold text-slate-700 text-xs block truncate">
-                            {purchaser.contact || purchaser.mobile || '-'}
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Contact / Branch</span>
+                          <span className="font-semibold text-slate-700 text-xs block truncate" title={purchaser.contact || purchaser.mobile || '-'}>
+                            {purchaser.contact || (purchaser.mobile ? `Mob: ${purchaser.mobile}` : '-')}
                           </span>
                         </div>
                         <div>
@@ -920,7 +927,7 @@ const CreateAgreementModal = ({
                           </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400">Address</span>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Office Address</span>
                           <span className="font-medium text-slate-700 text-xs block truncate" title={purchaser.address || '-'}>
                             {purchaser.address || '-'}
                           </span>
@@ -1051,33 +1058,7 @@ const CreateAgreementModal = ({
               </div>
             )}
           </div>
-
-          {/* Modal Footer Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-            <div className="text-xs text-slate-500 font-medium">
-              Total Agreed: <strong className="text-emerald-700 font-bold">₹{calculatedTotalCost.toLocaleString('en-IN')}</strong> for{' '}
-              <strong className="text-teal-800 font-bold">{totalDismil} Dismil</strong> ({parcels.length} plots/land)
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={createLoading || uploadingIdx !== null || parcels.length === 0}
-                className="px-6 py-2.5 text-xs font-bold text-white bg-teal-700 hover:bg-teal-800 rounded-xl shadow-sm transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
-              >
-                {createLoading ? 'Saving Purchase Agreement...' : 'Save Plot Purchase Agreement'}
-              </button>
-            </div>
-          </div>
         </form>
-      </div>
 
       {/* Quick Create Project Modal */}
       <Modalbox

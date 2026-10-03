@@ -11,7 +11,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { SearchableSelect, DateInput } from '../../../../components/ui';
+import { SearchableSelect, DateInput, Input, Button } from '../../../../components/ui';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 
@@ -313,32 +313,44 @@ const EditAgreementModal = ({
   };
 
   return (
-    <Modalbox open={open} onClose={onClose} outside={false} maxWidth="max-w-4xl" showClose={false}>
-      <div className="p-5 md:p-7 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
-              <Edit3 size={20} />
-            </div>
-            <div>
-              <h3 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                Edit Plot Purchase Agreement #{editAgrTarget?.agreementNumber}
-              </h3>
-              <p className="text-xs text-slate-500">
-                Update land & plot details, rates, chaudhi boundaries, Kisan owners, and attachments.
-              </p>
-            </div>
+    <Modalbox
+      open={open}
+      onClose={onClose}
+      outside={false}
+      size="4xl"
+      title={`Edit Plot Purchase Agreement #${editAgrTarget?.agreementNumber || ''}`}
+      subtitle="Update land & plot details, rates, chaudhi boundaries, Kisan owners, and attachments."
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <div className="text-xs text-slate-500 font-medium">
+            Total Cost: <strong className="text-emerald-700 font-bold">₹{calculatedTotalCost.toLocaleString('en-IN')}</strong> for{' '}
+            <strong className="text-teal-800 font-bold">{totalDismil} Dismil</strong> ({parcels.length} plots/land)
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold p-1 text-base cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
 
-        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="flex items-center gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              loading={editAgrLoading}
+              disabled={editAgrLoading || uploadingIdx !== null || parcels.length === 0}
+              onClick={onSubmit}
+            >
+              Update Agreement
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <form onSubmit={onSubmit} className="space-y-6">
           {/* Project & Agreement Details */}
           <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
             {/* Project Selection / Creation */}
@@ -382,21 +394,19 @@ const EditAgreementModal = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Agreement Number *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. AGR001 or AGR-2627-001"
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-bold uppercase text-teal-900 placeholder:text-slate-400 placeholder:font-normal"
-                  value={editAgrForm.agreementNumber || ''}
-                  onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementNumber: e.target.value })}
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1 items-start">
+              <Input
+                label="Agreement Number"
+                required
+                size="sm"
+                placeholder="e.g. AGR001 or AGR-2627-001"
+                className="uppercase font-bold text-teal-900 placeholder:font-normal"
+                value={editAgrForm.agreementNumber || ''}
+                onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementNumber: e.target.value })}
+              />
 
               <DateInput
-                label="Agreement Date *"
+                label="Agreement Date"
                 size="sm"
                 required
                 value={editAgrForm.agreementDate || ''}
@@ -411,16 +421,13 @@ const EditAgreementModal = ({
                 onChange={(e) => setEditAgrForm({ ...editAgrForm, agreementEndDate: e.target.value })}
               />
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Remarks / Legal Notes</label>
-                <input
-                  type="text"
-                  placeholder="Optional remarks about this agreement..."
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3 rounded-xl text-xs font-semibold text-slate-800"
-                  value={editAgrForm.remarks || ''}
-                  onChange={(e) => setEditAgrForm({ ...editAgrForm, remarks: e.target.value })}
-                />
-              </div>
+              <Input
+                label="Remarks / Legal Notes"
+                size="sm"
+                placeholder="Optional remarks about this agreement..."
+                value={editAgrForm.remarks || ''}
+                onChange={(e) => setEditAgrForm({ ...editAgrForm, remarks: e.target.value })}
+              />
             </div>
           </div>
 
@@ -853,15 +860,15 @@ const EditAgreementModal = ({
                     <div className="p-3 bg-white border border-blue-200/70 rounded-xl shadow-2xs">
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs">
                         <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400">Buyer / Company Name</span>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Buyer / Entity Name</span>
                           <span className="font-bold text-blue-900 text-xs block truncate" title={purchaser.name}>
                             {purchaser.name}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400">Contact / Mobile</span>
-                          <span className="font-semibold text-slate-700 text-xs block truncate">
-                            {purchaser.contact || purchaser.mobile || '-'}
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Contact / Branch</span>
+                          <span className="font-semibold text-slate-700 text-xs block truncate" title={purchaser.contact || purchaser.mobile || '-'}>
+                            {purchaser.contact || (purchaser.mobile ? `Mob: ${purchaser.mobile}` : '-')}
                           </span>
                         </div>
                         <div>
@@ -877,7 +884,7 @@ const EditAgreementModal = ({
                           </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400">Address</span>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Office Address</span>
                           <span className="font-medium text-slate-700 text-xs block truncate" title={purchaser.address || '-'}>
                             {purchaser.address || '-'}
                           </span>
@@ -1008,33 +1015,7 @@ const EditAgreementModal = ({
               </div>
             )}
           </div>
-
-          {/* Modal Footer Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-            <div className="text-xs text-slate-500 font-medium">
-              Total Value: <strong className="text-emerald-700 font-bold">₹{calculatedTotalCost.toLocaleString('en-IN')}</strong> for{' '}
-              <strong className="text-teal-800 font-bold">{totalDismil} Dismil</strong> ({parcels.length} plots/land)
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={editAgrLoading || uploadingIdx !== null || parcels.length === 0}
-                className="px-6 py-2.5 text-xs font-bold text-white bg-teal-700 hover:bg-teal-800 rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
-              >
-                {editAgrLoading ? 'Saving Changes...' : 'Save Purchase Agreement Changes'}
-              </button>
-            </div>
-          </div>
         </form>
-      </div>
 
       {/* Quick Create Project Modal */}
       <Modalbox

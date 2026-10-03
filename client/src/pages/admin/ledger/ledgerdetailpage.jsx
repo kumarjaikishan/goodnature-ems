@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { swal } from '../../../utils/confirmDialog';
 import PayLedgerModal from './PayLedgerModal';
+import Button from '@/components/ui/Button';
 
 const LedgerDetailPage = () => {
     const { id: ledgerId } = useParams();
@@ -425,94 +426,84 @@ const LedgerDetailPage = () => {
                     setOpen(false);
                     setEditIndex(null);
                 }}
-            >
-                <div className="p-6 bg-white rounded-2xl w-[420px] max-w-[90vw] space-y-4">
-                    <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <div>
-                            <h3 className="text-base font-bold text-slate-800">
-                                {editIndex !== null ? "Edit Transaction Entry" : "Add Transaction Entry"}
-                            </h3>
-                            <p className="text-xs text-slate-400">Record a debit or credit entry in this account ledger.</p>
-                        </div>
-                        <button
+                size="md"
+                outside={false}
+                title={editIndex !== null ? "Edit Transaction Entry" : "Add Transaction Entry"}
+                subtitle="Record a debit or credit entry in this account ledger."
+                footer={
+                    <div className="flex items-center justify-end gap-2 w-full">
+                        <Button
                             type="button"
-                            className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer transition"
-                            onClick={() => { setOpen(false); setEditIndex(null); }}
+                            variant="outline"
+                            size="sm"
+                            disabled={savingEntry}
+                            onClick={() => { setOpen(false); setEntry(init); setEditIndex(null); }}
                         >
-                            ✕
-                        </button>
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            loading={savingEntry}
+                            disabled={savingEntry}
+                            onClick={saveEntry}
+                        >
+                            {editIndex !== null ? "Update Entry" : "Save Entry"}
+                        </Button>
                     </div>
+                }
+            >
+                <form onSubmit={saveEntry} className="flex flex-col gap-3.5 pt-1">
+                    <DateInput
+                        label="Transaction Date"
+                        size="sm"
+                        value={entry.date || ''}
+                        onChange={(e) => {
+                            const val = e?.target?.value !== undefined ? e.target.value : e;
+                            setEntry({ ...entry, date: val });
+                        }}
+                        required
+                    />
 
-                    <form onSubmit={saveEntry} className="flex flex-col gap-3.5">
-                        <DateInput
-                            label="Transaction Date"
-                            value={entry.date || ''}
-                            onChange={(e) => {
-                                const val = e?.target?.value !== undefined ? e.target.value : e;
-                                setEntry({ ...entry, date: val });
-                            }}
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-slate-700">Particular / Description <span className="text-red-500 font-bold">*</span></label>
+                        <textarea
+                            rows={2}
+                            className="w-full p-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800 resize-none"
+                            placeholder="Enter transaction details or notes..."
+                            value={entry.particular || ''}
+                            onChange={(e) => setEntry({ ...entry, particular: e.target.value })}
                             required
                         />
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1">
-                            <label className="text-xs font-bold text-slate-600">Particular / Description</label>
-                            <textarea
-                                rows={2}
-                                className="w-full p-2.5 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800 resize-none"
-                                placeholder="Enter transaction details or notes..."
-                                value={entry.particular || ''}
-                                onChange={(e) => setEntry({ ...entry, particular: e.target.value })}
-                                required
+                            <label className="text-xs font-semibold text-rose-700">Debit Amount (₹)</label>
+                            <input
+                                type="number"
+                                step="any"
+                                placeholder="0.00"
+                                className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-rose-500 outline-none rounded-xl text-xs font-mono font-bold text-rose-700"
+                                value={entry.debit || ''}
+                                onChange={(e) => setEntry({ ...entry, debit: e.target.value, credit: "" })}
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-bold text-rose-700">Debit Amount (₹)</label>
-                                <input
-                                    type="number"
-                                    placeholder="0.00"
-                                    className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-rose-500 outline-none rounded-xl text-xs font-mono font-bold text-rose-700"
-                                    value={entry.debit || ''}
-                                    onChange={(e) => setEntry({ ...entry, debit: e.target.value, credit: "" })}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-bold text-emerald-700">Credit Amount (₹)</label>
-                                <input
-                                    type="number"
-                                    placeholder="0.00"
-                                    className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none rounded-xl text-xs font-mono font-bold text-emerald-700"
-                                    value={entry.credit || ''}
-                                    onChange={(e) => setEntry({ ...entry, credit: e.target.value, debit: "" })}
-                                />
-                            </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-emerald-700">Credit Amount (₹)</label>
+                            <input
+                                type="number"
+                                step="any"
+                                placeholder="0.00"
+                                className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none rounded-xl text-xs font-mono font-bold text-emerald-700"
+                                value={entry.credit || ''}
+                                onChange={(e) => setEntry({ ...entry, credit: e.target.value, debit: "" })}
+                            />
                         </div>
-
-                        <div className="flex justify-end gap-2.5 mt-2 pt-3 border-t border-slate-100 shrink-0">
-                            <button
-                                type="button"
-                                disabled={savingEntry}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-600 transition cursor-pointer"
-                                onClick={() => { setOpen(false); setEntry(init); setEditIndex(null); }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={savingEntry}
-                                className="px-5 py-2 bg-teal-700 hover:bg-teal-800 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[100px] flex items-center justify-center cursor-pointer"
-                            >
-                                {savingEntry ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    editIndex !== null ? "Update Entry" : "Save Entry"
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </Modalbox>
 
             {/* Pay Ledger / Issue Voucher Modal */}

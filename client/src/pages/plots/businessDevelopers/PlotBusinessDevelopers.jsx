@@ -28,6 +28,15 @@ import {
   Crown,
   Users,
   Building2,
+  Phone,
+  Mail,
+  CreditCard,
+  Calendar,
+  Briefcase,
+  MapPin,
+  Award,
+  ShieldCheck,
+  Heart,
 } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
@@ -415,9 +424,9 @@ const PlotBusinessDevelopers = () => {
       name: 'Business Dev ID',
       selector: (row) => row.sponsorCode || 'N/A',
       sortable: true,
-      width: '150px',
+      width: '195px',
       cell: (row) => (
-        <span className={`font-mono font-bold text-xs px-2 py-0.5 rounded border ${
+        <span className={`font-mono font-bold text-xs px-2 py-0.5 rounded border whitespace-nowrap inline-block ${
           row.sponsorCode?.startsWith('P/') 
             ? 'bg-amber-50 text-amber-900 border-amber-200' 
             : row.sponsorCode?.startsWith('A/')
@@ -1146,10 +1155,10 @@ const PlotBusinessDevelopers = () => {
       <Modalbox
         open={showViewModal}
         onClose={() => setShowViewModal(false)}
-        size="xl"
+        size="2xl"
         outside={false}
-        title="Business Developer Details"
-        subtitle={viewingDeveloper ? `${viewingDeveloper.name} (${viewingDeveloper.sponsorCode || 'No ID'})` : ''}
+        title="Business Developer Profile"
+        subtitle={viewingDeveloper ? `${viewingDeveloper.name} • ${viewingDeveloper.sponsorCode || 'No ID'}` : ''}
         footer={
           <Button
             variant="outline"
@@ -1157,15 +1166,16 @@ const PlotBusinessDevelopers = () => {
             type="button"
             onClick={() => setShowViewModal(false)}
           >
-            Close
+            Close Profile
           </Button>
         }
       >
         {viewingDeveloper && (
-          <div className="modalcontent space-y-4 text-sm">
-            <div className="flex items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-full overflow-hidden bg-white border-2 border-indigo-200 flex-shrink-0 flex items-center justify-center shadow-xs">
+          <div className="space-y-4 text-xs">
+            {/* Top Profile Card Banner */}
+            <div className="p-4 bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 text-white rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/10 border-2 border-white/20 shrink-0 flex items-center justify-center backdrop-blur-xs shadow-inner">
                   {viewingDeveloper.photo || viewingDeveloper.profileImage ? (
                     <img
                       src={cloudinaryUrl(viewingDeveloper.photo || viewingDeveloper.profileImage, { format: 'webp', width: 140, height: 140, crop: 'fill' })}
@@ -1173,140 +1183,182 @@ const PlotBusinessDevelopers = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User size={24} className="text-slate-400" />
+                    <User size={30} className="text-teal-200" />
                   )}
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-semibold uppercase">Full Name</p>
-                  <p className="font-bold text-slate-900 text-base">{viewingDeveloper.name}</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white text-base tracking-tight">{viewingDeveloper.name}</h3>
+                    {viewingDeveloper.status === 'active' ? (
+                      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="bg-rose-500/20 text-rose-300 border border-rose-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {viewingDeveloper.status || 'Inactive'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-mono text-xs text-teal-200 mt-0.5 font-medium">
+                    ID: {viewingDeveloper.sponsorCode || 'N/A'}
+                  </p>
+                  <p className="text-[11px] text-teal-100/70 mt-0.5 flex items-center gap-1">
+                    <Calendar size={11} /> Joined: {new Date(viewingDeveloper.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-slate-400 font-semibold uppercase">Hierarchy Role</p>
-                <p className="font-bold text-teal-800">
-                  {viewingDeveloper.sponsorId?.name
-                    ? `👥 Business Associate (under ${viewingDeveloper.sponsorId.name})`
-                    : '👑 Business Partner (Direct Company)'}
-                </p>
+
+              {/* Role badge */}
+              <div className="sm:text-right bg-white/10 border border-white/15 px-3.5 py-2 rounded-xl backdrop-blur-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-200 block mb-0.5">
+                  Hierarchy Designation
+                </span>
+                <span className="font-bold text-xs text-white flex items-center gap-1.5 sm:justify-end">
+                  {viewingDeveloper.sponsorId?.name ? (
+                    <>
+                      <Users size={13} className="text-teal-300" />
+                      <span>Business Associate</span>
+                    </>
+                  ) : (
+                    <>
+                      <Crown size={13} className="text-amber-300" />
+                      <span>Business Partner</span>
+                    </>
+                  )}
+                </span>
               </div>
             </div>
 
-            {/* Branch & Sponsoring Partner info */}
-            <div className="grid grid-cols-2 gap-4 bg-teal-50/50 p-3 rounded-xl border border-teal-100">
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Assigned Branch</p>
-                <p className="font-semibold text-teal-900 flex items-center gap-1.5 mt-0.5">
-                  <Building2 size={15} className="text-teal-700" />
+            {/* Hierarchy & Mapping Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 bg-teal-50/70 border border-teal-200/70 rounded-xl">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 flex items-center gap-1 mb-1">
+                  <Building2 size={12} className="text-teal-700" /> Assigned Branch
+                </span>
+                <p className="font-bold text-slate-800 text-xs">
                   {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
                     ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
-                    : 'Company Head Office / All'}
+                    : 'Company Head Office / All Branches'}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Parent Partner / Branch</p>
-                <p className="font-semibold text-slate-800 mt-0.5">
+
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">
+                  <Users size={12} className="text-slate-600" /> Sponsoring Partner
+                </span>
+                <p className="font-bold text-slate-800 text-xs">
                   {viewingDeveloper.sponsorId?.name ? (
-                    `${viewingDeveloper.sponsorId.name} (${viewingDeveloper.sponsorId.sponsorCode || ''})`
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-teal-800">
-                      <Building2 size={13} className="text-teal-700 shrink-0" />
-                      {viewingDeveloper.branchIds && viewingDeveloper.branchIds.length > 0
-                        ? viewingDeveloper.branchIds.map((b) => b.name || b).join(', ')
-                        : (viewingDeveloper.branchId?.name || 'Head Office')}
+                    <span className="text-teal-900">
+                      {viewingDeveloper.sponsorId.name} <span className="font-mono text-teal-700 font-normal">({viewingDeveloper.sponsorId.sponsorCode || ''})</span>
                     </span>
+                  ) : (
+                    <span className="text-slate-600 font-medium italic">Direct Company Mapping (Self / Root)</span>
                   )}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Gender</p>
-                <p className="font-medium text-slate-700">{viewingDeveloper.gender || 'Male'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Date of Birth</p>
-                <p className="font-medium text-slate-700">{viewingDeveloper.dob || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Occupation</p>
-                <p className="font-medium text-slate-700">{viewingDeveloper.occupation || 'N/A'}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Mobile Number</p>
-                <p className="font-medium text-slate-700">{viewingDeveloper.mobile || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Email Address</p>
-                <p className="font-medium text-slate-700 break-all">{viewingDeveloper.email || 'N/A'}</p>
-              </div>
-            </div>
-
-            {/* ID Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">PAN Card</p>
-                <p className="font-medium text-slate-700 uppercase">{viewingDeveloper.panCard || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase">Aadhaar Card</p>
-                <p className="font-medium text-slate-700">{viewingDeveloper.aadhaarCard || 'N/A'}</p>
-              </div>
-            </div>
-
-            {/* Signature Card */}
-            {viewingDeveloper.signature && (
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+            {/* Contact & Personal Information Card */}
+            <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3">
+              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-teal-700" /> Personal & Contact Details
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <p className="text-xs text-slate-400 font-semibold uppercase">Digital Signature</p>
-                  <p className="text-[11px] text-slate-500">Verified digital record</p>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Phone Number</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1 font-mono">
+                    <Phone size={11} className="text-emerald-600 shrink-0" />
+                    {viewingDeveloper.mobile || '—'}
+                  </span>
                 </div>
-                <div className="h-12 w-32 bg-white border border-slate-200 rounded-lg p-1 flex items-center justify-center">
-                  <img
-                    src={cloudinaryUrl(viewingDeveloper.signature, { format: 'webp', width: 200, height: 80, crop: 'fit' })}
-                    alt="Signature"
-                    className="max-h-full max-w-full object-contain"
-                  />
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Email Address</span>
+                  <span className="font-medium text-slate-700 truncate block" title={viewingDeveloper.email || '—'}>
+                    {viewingDeveloper.email || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Gender</span>
+                  <span className="font-medium text-slate-700 capitalize">{viewingDeveloper.gender || 'Male'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Date of Birth</span>
+                  <span className="font-medium text-slate-700">{viewingDeveloper.dob || '—'}</span>
                 </div>
               </div>
-            )}
 
-            {/* Nominee details preview */}
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Nominee Details</p>
-              <p className="font-semibold text-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Occupation</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1">
+                    <Briefcase size={11} className="text-teal-600 shrink-0" />
+                    {viewingDeveloper.occupation || 'Business'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">PAN Card</span>
+                  <span className="font-mono font-bold text-slate-800 uppercase text-xs">
+                    {viewingDeveloper.panCard || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Aadhaar Card</span>
+                  <span className="font-mono font-bold text-slate-800 text-xs">
+                    {viewingDeveloper.aadhaarCard
+                      ? String(viewingDeveloper.aadhaarCard).replace(/\s+/g, '').replace(/(\d{4})(?=\d)/g, '$1 ')
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Nominee & Addresses in a clean split card */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Nominee */}
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                  <Heart size={12} className="text-rose-500" /> Nominee Details
+                </span>
                 {viewingDeveloper.nomineeName ? (
-                  <>
-                    {viewingDeveloper.nomineeName}
-                    {viewingDeveloper.nomineeRelation ? ` (${viewingDeveloper.nomineeRelation})` : ''}
-                    {viewingDeveloper.nomineeAge ? ` - ${viewingDeveloper.nomineeAge} yrs` : ''}
-                  </>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <p className="font-bold text-slate-800 text-xs">{viewingDeveloper.nomineeName}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Relation: <strong className="text-slate-700">{viewingDeveloper.nomineeRelation || 'Nominee'}</strong>
+                      {viewingDeveloper.nomineeAge ? ` • Age: ${viewingDeveloper.nomineeAge} yrs` : ''}
+                    </p>
+                  </div>
                 ) : (
-                  'N/A'
+                  <p className="text-slate-400 italic text-[11px]">No nominee registered</p>
                 )}
-              </p>
+              </div>
+
+              {/* Digital Signature */}
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5 flex flex-col justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                  <PenTool size={12} className="text-teal-700" /> Authorized Signature
+                </span>
+                {viewingDeveloper.signature ? (
+                  <div className="h-14 bg-white border border-slate-200 rounded-lg p-1.5 flex items-center justify-center">
+                    <img
+                      src={cloudinaryUrl(viewingDeveloper.signature, { format: 'webp', width: 200, height: 80, crop: 'fit' })}
+                      alt="Signature"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic text-[11px] py-3">No digital signature uploaded</p>
+                )}
+              </div>
             </div>
 
-            <div>
-              <p className="text-xs text-slate-400 font-semibold uppercase">Current / Temporary Address</p>
-              <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
-                {viewingDeveloper.currentAddress || viewingDeveloper.address || 'N/A'}
+            {/* Address Card */}
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <MapPin size={12} className="text-teal-700" /> Registered Residential Address
+              </span>
+              <p className="font-medium text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200 text-xs leading-relaxed">
+                {viewingDeveloper.currentAddress || viewingDeveloper.permanentAddress || viewingDeveloper.address || 'Address details not provided.'}
               </p>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-400 font-semibold uppercase">Permanent Address</p>
-              <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
-                {viewingDeveloper.permanentAddress || viewingDeveloper.currentAddress || viewingDeveloper.address || 'N/A'}
-              </p>
-            </div>
-
-            <div className="pt-2 text-xs text-slate-400 flex justify-between border-t border-slate-100">
-              <span>Created: {new Date(viewingDeveloper.createdAt).toLocaleDateString('en-IN')}</span>
-              <span>Role: {viewingDeveloper.role}</span>
             </div>
           </div>
         )}
