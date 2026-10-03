@@ -202,7 +202,7 @@ const Adminleave = () => {
         <div className='max-w-6xl mx-auto space-y-4'>
             {/* Filter Bar */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 flex-wrap flex-1">
+                <div className="flex items-end gap-2.5 flex-wrap flex-1">
                     <div className="w-full sm:w-[130px]">
                         <Select
                             size="sm"
@@ -250,15 +250,17 @@ const Adminleave = () => {
                         />
                     </div>
 
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="border border-slate-200 text-slate-600"
-                        icon={<RotateCcw size={14} />}
-                        onClick={resetFilters}
-                    >
-                        Reset
-                    </Button>
+                    <div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium"
+                            startIcon={RotateCcw}
+                            onClick={resetFilters}
+                        >
+                            Reset
+                        </Button>
+                    </div>
                 </div>
                 
                 <div className="text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">

@@ -21,6 +21,9 @@ import PageLoader from '../../../components/common/PageLoader';
 import ProductReceivePaymentForm from './ProductReceivePaymentForm';
 import ProductReceiptModal from './components/ProductReceiptModal';
 import usePermission from '../../../utils/CheckPermission';
+import Button from '../../../components/ui/Button';
+import Select from '../../../components/ui/Select';
+import Input from '../../../components/ui/Input';
 
 const ProductCollectionsPage = ({ initialView }) => {
   const navigate = useNavigate();
@@ -189,7 +192,7 @@ const ProductCollectionsPage = ({ initialView }) => {
   // If in 'add' view, render full-page collection form
   if (view === 'add') {
     return (
-      <div className="p-4 sm:p-6 lg:p-8">
+      <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
         <ProductReceivePaymentForm
           onBack={() => navigate('/dashboard/plots/collections/products')}
           onSuccess={handleCollectionSuccess}
@@ -213,127 +216,129 @@ const ProductCollectionsPage = ({ initialView }) => {
 
   // Otherwise render 'list' view
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto font-sans">
-      {/* Top Action Buttons */}
-      <div className="flex items-center justify-end gap-3">
-        <button
-          onClick={() => fetchCollections(true)}
-          disabled={refreshing}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 shadow-2xs transition cursor-pointer disabled:opacity-50"
-          title="Refresh Collections"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-
-        {canCreate && (
-          <button
-            onClick={() => handleOpenAddCollection()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+    <div className="p-4 sm:p-5 bg-slate-50 min-h-screen space-y-3.5 font-sans">
+      {/* Top Action Buttons - Compact Header Spacing */}
+      <div className="flex items-center justify-between gap-3 pt-0 pb-0.5">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Product Collections & Receipts</h1>
+          <p className="text-slate-500 text-xs mt-0.5">Manage plot product installment receipts, late fine waivers & collections</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fetchCollections(true)}
+            disabled={refreshing}
+            startIcon={RefreshCw}
+            className="border border-slate-200"
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Add New Collection</span>
-          </button>
-        )}
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+
+          {canCreate && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleOpenAddCollection()}
+              startIcon={Plus}
+            >
+              Add New Collection
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* KPI Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Collected</span>
-            <div className="p-2 bg-teal-50 text-teal-700 rounded-xl">
+            <div className="p-1.5 bg-teal-50 text-teal-700 rounded-lg">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 tracking-tight">
+          <div className="text-xl font-black text-slate-900 tracking-tight">
             ₹{summary.totalCollected.toLocaleString('en-IN')}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium mt-1">
+          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
             Principal: <span className="font-semibold text-slate-700">₹{summary.totalPrincipalPaid.toLocaleString('en-IN')}</span>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Late Fine Collected</span>
-            <div className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+            <div className="p-1.5 bg-amber-50 text-amber-700 rounded-lg">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-amber-700 tracking-tight">
+          <div className="text-xl font-black text-amber-700 tracking-tight">
             ₹{summary.totalLateFinePaid.toLocaleString('en-IN')}
           </div>
-          <div className="text-[11px] text-amber-600/90 font-medium mt-1">
+          <div className="text-[11px] text-amber-600/90 font-medium mt-0.5">
             Standard 24% p.a. Overdue Interest
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Late Fine Rebates</span>
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+            <div className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg">
               <Percent className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-emerald-700 tracking-tight">
+          <div className="text-xl font-black text-emerald-700 tracking-tight">
             ₹{summary.totalLateFineRebate.toLocaleString('en-IN')}
           </div>
-          <div className="text-[11px] text-emerald-600/90 font-medium mt-1">
+          <div className="text-[11px] text-emerald-600/90 font-medium mt-0.5">
             Waivers granted during collection
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Bills Issued</span>
-            <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+            <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-lg">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 tracking-tight">
+          <div className="text-xl font-black text-slate-900 tracking-tight">
             {summary.totalReceiptsCount}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium mt-1">
+          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
             Verified Customer Receipts
           </div>
         </div>
       </div>
 
       {/* Filter and Search Controls */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="w-full md:w-96">
+          <Input
+            size="sm"
+            startIcon={Search}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search receipt #, customer, mobile, booking #..."
-            className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <label className="text-xs font-semibold text-slate-500 shrink-0">Payment Mode:</label>
-          <select
-            value={paymentModeFilter}
-            onChange={(e) => setPaymentModeFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition cursor-pointer"
-          >
-            <option value="ALL">All Payment Modes</option>
-            <option value="cash">Cash</option>
-            <option value="online">Online / UPI</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="cheque">Cheque</option>
-          </select>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <span className="text-xs font-semibold text-slate-500 shrink-0">Payment Mode:</span>
+          <div className="w-44">
+            <Select
+              size="sm"
+              value={paymentModeFilter}
+              onChange={(e) => setPaymentModeFilter(e.target.value)}
+              options={[
+                { value: 'ALL', label: 'All Payment Modes' },
+                { value: 'cash', label: 'Cash' },
+                { value: 'online', label: 'Online / UPI' },
+                { value: 'bank_transfer', label: 'Bank Transfer' },
+                { value: 'cheque', label: 'Cheque' },
+              ]}
+            />
+          </div>
         </div>
       </div>
 

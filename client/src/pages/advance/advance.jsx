@@ -10,6 +10,7 @@ import { Edit2, Trash2, Plus, User, Search, X } from "lucide-react";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
+import Input from "@/components/ui/Input";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import DateInput from "@/components/ui/DateInput";
 import NumberInput from "@/components/ui/NumberInput";
@@ -437,18 +438,18 @@ const EmployeeAdvancePage = () => {
         <div className="p-2 md:p-6 max-w-7xl mx-auto space-y-4">
             <div className="flex flex-wrap gap-3 items-center justify-between">
                 <div className="flex flex-wrap gap-3 items-center flex-1">
-                    <div className="w-44">
+                    <div className="w-48">
                         <Select
-                            size="sm"
+                            size="md"
                             options={branchOptions}
                             value={filters.branch}
                             onChange={(e) => handleFilterChange("branch", e.target.value)}
                         />
                     </div>
 
-                    <div className="w-72">
+                    <div className="w-80">
                         <SearchableSelect
-                            size="sm"
+                            size="md"
                             options={employeeOptions}
                             placeholder="Select Employee..."
                             searchPlaceholder="Search employee..."
@@ -459,31 +460,20 @@ const EmployeeAdvancePage = () => {
                     </div>
 
                     {/* Search in employee advance entries */}
-                    <div className="relative min-w-[220px] max-w-xs flex-1">
-                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        <input
-                            type="text"
+                    <div className="min-w-[240px] max-w-xs flex-1">
+                        <Input
+                            size="md"
+                            startIcon={Search}
                             placeholder="Search advance entries..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700 shadow-2xs transition"
                         />
-                        {searchTerm && (
-                            <button
-                                type="button"
-                                onClick={() => setSearchTerm("")}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded transition cursor-pointer"
-                                title="Clear search"
-                            >
-                                <X size={13} />
-                            </button>
-                        )}
                     </div>
                 </div>
 
                 <Button 
                     variant="primary" 
-                    size="sm"
+                    size="md"
                     startIcon={Plus}
                     onClick={() => handleOpen()} 
                 >

@@ -35,6 +35,7 @@ const userSlice = createSlice({
         sidebar: typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
         extendedonMobile: false,
         liveAttandence: true,
+        notificationSoundEnabled: true,
         primaryColor: '#1e293b',
     },
     reducers: {
@@ -82,6 +83,9 @@ const userSlice = createSlice({
         toogleliveAttandence(state, action) {
             state.liveAttandence = !state.liveAttandence;
         },
+        togglenotificationSound(state, action) {
+            state.notificationSoundEnabled = state.notificationSoundEnabled === undefined ? false : !state.notificationSoundEnabled;
+        },
 
     },
     extraReducers: (builder) => {
@@ -100,5 +104,5 @@ const userSlice = createSlice({
     },
 });
 
-export const { userlogout, updateAttendance, setEmployees, setPrimaryColor, setpayroll, toogleliveAttandence, setuser, tooglesidebar, setSidebar, toogleextendedonMobile } = userSlice.actions;
+export const { userlogout, updateAttendance, setEmployees, setPrimaryColor, setpayroll, toogleliveAttandence, togglenotificationSound, setuser, tooglesidebar, setSidebar, toogleextendedonMobile } = userSlice.actions;
 export default userSlice.reducer;

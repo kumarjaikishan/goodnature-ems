@@ -428,10 +428,10 @@ const CreateAgreementModal = ({
               <button
                 type="button"
                 onClick={() => setQuickProjectOpen(true)}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition cursor-pointer self-end shrink-0 shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition cursor-pointer self-end shrink-0 shadow-xs"
               >
                 <Plus size={14} />
-                <span>+ Create New Project</span>
+                <span>Create New Project</span>
               </button>
             </div>
 

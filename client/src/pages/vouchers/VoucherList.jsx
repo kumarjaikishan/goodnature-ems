@@ -1124,19 +1124,19 @@ const VoucherList = () => {
           {activeTab === "vouchers" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
               <DateInput
-                size="sm"
+                size="md"
                 label="Start Date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
               <DateInput
-                size="sm"
+                size="md"
                 label="End Date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
               <SearchableSelect
-                size="sm"
+                size="md"
                 label="Filter by Ledger"
                 options={allLedgersSelectOptions}
                 placeholder="All Ledgers"
@@ -1145,7 +1145,7 @@ const VoucherList = () => {
                 allowClear
               />
               <Select
-                size="sm"
+                size="md"
                 label="Source Type"
                 options={[
                   { label: "All Vouchers", value: "all" },

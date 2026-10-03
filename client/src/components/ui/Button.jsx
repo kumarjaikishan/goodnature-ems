@@ -19,11 +19,11 @@ export const Button = forwardRef(({
   const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed';
 
   const sizeClasses = {
-    sm: 'text-xs px-2.5 py-1.5 gap-1.5',
-    md: 'text-sm px-3.5 py-2 gap-2',
-    lg: 'text-base px-4 py-2.5 gap-2.5',
-    icon: 'p-2 text-sm aspect-square',
-    'icon-sm': 'p-1.5 text-xs aspect-square',
+    sm: 'h-8 text-xs px-2.5 gap-1.5',
+    md: 'h-9 text-sm px-3.5 gap-2',
+    lg: 'h-10 text-base px-4 gap-2.5',
+    icon: 'h-9 w-9 p-0 text-sm',
+    'icon-sm': 'h-8 w-8 p-0 text-xs',
   };
 
   const variantClasses = {

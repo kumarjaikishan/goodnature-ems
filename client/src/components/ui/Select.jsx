@@ -182,9 +182,9 @@ export const Select = forwardRef(({
   };
 
   const sizeClasses = {
-    sm: 'py-1.5 text-xs px-2.5',
-    md: 'py-2 text-sm px-3',
-    lg: 'py-2.5 text-base px-3.5',
+    sm: 'h-8 text-xs px-2.5',
+    md: 'h-9 text-sm px-3',
+    lg: 'h-10 text-base px-3.5',
   };
 
   return (

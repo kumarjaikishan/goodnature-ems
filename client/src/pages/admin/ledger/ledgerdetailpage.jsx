@@ -245,18 +245,18 @@ const LedgerDetailPage = () => {
 
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <h1 className="text-xl sm:text-2xl font-black text-slate-900 capitalize">
+                            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 capitalize tracking-tight">
                                 {ledgerName}
                             </h1>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wider">
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200/80 uppercase tracking-wider">
                                 {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : 'Custom Ledger'}
                             </span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-medium">
+                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-normal">
                             {empId && empId !== 'null' && (
-                                <span>{ledgerType === 'kisan' ? 'PAN / Mobile' : ledgerType === 'sponsor' || ledgerType === 'partner' || ledgerType === 'associate' ? 'Code / ID' : 'Employee ID'}: <strong className="font-mono text-slate-800">{empId}</strong></span>
+                                <span>{ledgerType === 'kisan' ? 'PAN / Mobile' : ledgerType === 'sponsor' || ledgerType === 'partner' || ledgerType === 'associate' ? 'Code / ID' : 'Employee ID'}: <strong className="font-mono text-slate-700 font-semibold">{empId}</strong></span>
                             )}
-                            <span>Total Transactions: <strong className="text-slate-800 font-bold">{filtered.length}</strong></span>
+                            <span>Total Transactions: <strong className="text-slate-700 font-semibold">{filtered.length}</strong></span>
                         </div>
                     </div>
                 </div>

@@ -10,9 +10,10 @@ import BulkMark from "./BulkMark";
 import MarkAttandence from "./MarkAttandence";
 import MarkAttandenceedit from "./MarkAttandenceedit";
 import CheckPermission from "../../../utils/CheckPermission";
-import { cloudinaryUrl } from "../../../utils/imageurlsetter";
+import { swal } from "../../../utils/confirmDialog";
 import { Search, Filter, FileSpreadsheet, FileText, X, Trash2, Edit2, Clock, User } from "lucide-react";
 import { TableRowSkeleton } from "../../../components/skeletons";
+import Input from "@/components/ui/Input";
 import DateInput from "@/components/ui/DateInput";
 import Select from "@/components/ui/Select";
 
@@ -655,21 +656,18 @@ const AttendanceControls = React.memo(({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {/* Employee Search */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-2 relative">
-            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-              <Search size={13} />
-            </div>
-            <input
-              type="text"
+          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+            <Input
+              size="sm"
+              startIcon={Search}
               placeholder="Search employee name..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="w-full pl-7 pr-2.5 py-1 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
           {/* Branch Filter */}
-          <div className="relative">
+          <div>
             <Select
               size="sm"
               value={filtere.branch}
@@ -681,12 +679,11 @@ const AttendanceControls = React.memo(({
                   : (branch || []).map((list) => ({ label: list.name, value: list._id }))
                 )
               ]}
-              className="!py-1 !text-xs !bg-slate-50/50"
             />
           </div>
 
           {/* Department Filter */}
-          <div className="relative">
+          <div>
             <Select
               size="sm"
               value={filtere.departmente}
@@ -699,12 +696,11 @@ const AttendanceControls = React.memo(({
                   value: val._id
                 }))
               ]}
-              className="!py-1 !text-xs !bg-slate-50/50"
             />
           </div>
 
           {/* Status Filter */}
-          <div className="relative">
+          <div>
             <Select
               size="sm"
               value={filtere.status}
@@ -718,12 +714,11 @@ const AttendanceControls = React.memo(({
                 { label: "Holiday", value: "holiday" },
                 { label: "Half Day", value: "half day" },
               ]}
-              className="!py-1 !text-xs !bg-slate-50/50"
             />
           </div>
 
           {/* Month Filter */}
-          <div className="relative">
+          <div>
             <Select
               size="sm"
               value={filtere.month}
@@ -732,34 +727,31 @@ const AttendanceControls = React.memo(({
                 { label: "All Months", value: "all" },
                 ...months.map((m, idx) => ({ label: m, value: idx }))
               ]}
-              className="!py-1 !text-xs !bg-slate-50/50"
             />
           </div>
 
           {/* From Date */}
-          <div className="relative flex flex-col">
+          <div>
             <DateInput
               size="sm"
               placeholder="From Date"
               value={filtere.fromDate}
               onChange={(e) => setfiltere({ ...filtere, fromDate: e.target.value })}
-              className="!py-1 !text-xs !rounded-lg !bg-slate-50/50"
             />
           </div>
 
           {/* To Date */}
-          <div className="relative flex flex-col">
+          <div>
             <DateInput
               size="sm"
               placeholder="To Date"
               value={filtere.toDate}
               onChange={(e) => setfiltere({ ...filtere, toDate: e.target.value })}
-              className="!py-1 !text-xs !rounded-lg !bg-slate-50/50"
             />
           </div>
 
           {/* Year Filter */}
-          <div className="relative">
+          <div>
             <Select
               size="sm"
               value={filtere.year}
@@ -768,7 +760,6 @@ const AttendanceControls = React.memo(({
                 { label: "All Years", value: "all" },
                 ...Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map(y => ({ label: String(y), value: y }))
               ]}
-              className="!py-1 !text-xs !bg-slate-50/50"
             />
           </div>
         </div>

@@ -97,7 +97,7 @@ export const confirmDialog = (options = {}) => {
             </div>
 
             {/* Title */}
-            <h3 className="text-lg font-extrabold text-slate-900 tracking-tight mb-1.5">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-800 tracking-normal mb-1.5 px-2">
               {title}
             </h3>
 

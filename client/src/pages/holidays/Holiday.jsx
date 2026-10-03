@@ -360,9 +360,9 @@ const HolidayForm = () => {
   return (
     <div className='max-w-7xl mx-auto space-y-4'>
       {/* Top Filter and Action Bar */}
-      <div className="flex flex-wrap justify-between items-center gap-3 w-full bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-wrap justify-between items-end gap-3 w-full bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         {/* Filters */}
-        <div className='flex gap-2 flex-wrap items-center w-full md:w-auto'>
+        <div className='flex gap-2.5 flex-wrap items-end w-full md:w-auto'>
           <div className="w-full sm:w-[130px]">
             <Select
               label="Year"
@@ -403,10 +403,10 @@ const HolidayForm = () => {
           </div>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="text-slate-600 hover:text-slate-900 border border-slate-200"
-            icon={<RefreshCw size={14} />}
+            className="text-slate-600 hover:text-slate-900 border-slate-200 h-8"
+            icon={<RefreshCw size={13} />}
             onClick={() => {
               setFilterYear("All");
               setFilterMonth("All");
@@ -418,7 +418,7 @@ const HolidayForm = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
           <Button
             icon={<CalendarIcon size={15} />}
             variant="outline"

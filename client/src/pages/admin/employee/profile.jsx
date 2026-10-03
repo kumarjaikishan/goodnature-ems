@@ -45,42 +45,32 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden space-y-5 text-slate-800">
-      {/* Top Hero Card */}
-      <div className="p-4 rounded-xl border border-teal-100 bg-teal-50/40 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-        <div className="w-20 h-20 bg-white rounded-full border-2 border-teal-500/80 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-          {employee?.profileimage ? (
-            <img
-              src={cloudinaryUrl(employee.profileimage, {
-                format: "webp",
-                width: 160,
-                height: 160,
-              })}
-              alt="Profile"
-              className="w-full h-full object-cover rounded-full"
-            />
-          ) : (
-            <div className="w-full h-full rounded-full bg-teal-100 text-teal-800 font-bold text-xl flex items-center justify-center">
-              {employee?.userid?.name ? employee.userid.name.charAt(0).toUpperCase() : <User size={28} className="text-teal-700" />}
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0 text-center sm:text-left space-y-1.5 w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 capitalize truncate">
-                {employee?.userid?.name || employee?.name || 'Employee'}
+    <div className="w-full max-w-full overflow-x-hidden space-y-4 text-xs text-slate-800">
+      {/* Top Profile Card Banner (Clean White Background) */}
+      <div className="p-4 bg-white border border-slate-200 text-slate-800 rounded-2xl shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center shadow-inner">
+            {employee?.profileimage ? (
+              <img
+                src={cloudinaryUrl(employee.profileimage, {
+                  format: "webp",
+                  width: 140,
+                  height: 140,
+                  crop: "fill",
+                })}
+                alt={employee?.userid?.name || employee?.employeeName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User size={30} className="text-slate-400" />
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-slate-900 text-base tracking-tight capitalize">
+                {employee?.userid?.name || employee?.employeeName || 'Staff Member'}
               </h3>
-              <p className="text-xs font-medium text-slate-500 capitalize">
-                {employee?.designation || employee?.userid?.role || 'Staff Member'}
-              </p>
-            </div>
-            <div className="flex items-center justify-center sm:justify-end gap-1.5 shrink-0">
-              <span className="px-2.5 py-0.5 bg-white text-slate-700 text-xs font-semibold rounded-md border border-slate-200 shadow-2xs">
-                {employee?.department?.department || 'General'}
-              </span>
-              <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-md border shadow-2xs ${
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                 employee?.status
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -88,259 +78,234 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
                 {employee?.status ? 'Active' : 'Inactive'}
               </span>
             </div>
+            <p className="text-slate-600 text-xs font-medium mt-0.5 capitalize">
+              {employee?.designation || employee?.userid?.role || 'Staff Member'}
+            </p>
+            <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1 font-mono">
+              <span>ID: <strong className="text-slate-700">{employee?.empId || employee?.deviceUserId || 'N/A'}</strong></span>
+              <span>•</span>
+              <span>Joined: {employee?.userid?.createdAt ? dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY') : 'N/A'}</span>
+            </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <Mail size={14} className="text-slate-400 shrink-0" />
-              <span className="truncate">{employee?.userid?.email || 'N/A'}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <Phone size={14} className="text-slate-400 shrink-0" />
-              <span className="truncate">{employee?.phone || 'N/A'}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <Calendar size={14} className="text-slate-400 shrink-0" />
-              <span className="truncate">Joined: {employee?.userid?.createdAt ? dayjs(employee?.userid?.createdAt).format('DD MMM, YYYY') : 'N/A'}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <CreditCard size={14} className="text-slate-400 shrink-0" />
-              <span className="font-mono font-semibold text-slate-800 truncate">
-                ID: {employee?.empId || employee?.deviceUserId || 'N/A'}
-              </span>
-            </div>
-          </div>
+        {/* Department & Branch Pill */}
+        <div className="sm:text-right bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+            Department
+          </span>
+          <span className="font-bold text-xs text-slate-800">
+            {employee?.department?.department || 'General Department'}
+          </span>
         </div>
       </div>
 
       {/* Pill Navigation Tabs */}
-      <div className="bg-slate-100 p-1 rounded-xl flex gap-1 text-xs font-semibold select-none">
+      <div className="bg-slate-100 p-1 rounded-xl flex gap-1 text-xs font-semibold select-none border border-slate-200/60">
         <button
           type="button"
           onClick={() => setsubmenu(1)}
           className={`flex-1 py-1.5 px-2 text-center rounded-lg transition-all cursor-pointer ${
             submenu === 1
-              ? 'bg-teal-700 text-white shadow-xs font-bold'
+              ? 'bg-white text-teal-800 shadow-xs font-bold border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
-          Personal Info
+          Personal Details
         </button>
         <button
           type="button"
           onClick={() => setsubmenu(2)}
           className={`flex-1 py-1.5 px-2 text-center rounded-lg transition-all cursor-pointer ${
             submenu === 2
-              ? 'bg-teal-700 text-white shadow-xs font-bold'
+              ? 'bg-white text-teal-800 shadow-xs font-bold border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
-          Employment
+          Employment & Bank
         </button>
         <button
           type="button"
           onClick={() => setsubmenu(3)}
           className={`flex-1 py-1.5 px-2 text-center rounded-lg transition-all cursor-pointer ${
             submenu === 3
-              ? 'bg-teal-700 text-white shadow-xs font-bold'
+              ? 'bg-white text-teal-800 shadow-xs font-bold border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
           }`}
         >
-          Documents & Skills
+          Education & Skills
         </button>
       </div>
 
       {/* Tab 1: Personal Info */}
       {submenu === 1 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Cake size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Date of Birth</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.dob ? dayjs(employee?.dob).format('DD MMMM, YYYY') : 'N/A'}
-              </span>
+        <div className="space-y-3">
+          <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3">
+            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-teal-700" /> Contact & Identification Details
+            </h4>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Primary Phone</span>
+                <span className="font-semibold text-slate-800 font-mono">
+                  {employee?.phone || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Email Address</span>
+                <span className="font-medium text-slate-700 truncate block" title={employee?.userid?.email || '—'}>
+                  {employee?.userid?.email || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Emergency Contact</span>
+                <span className="font-semibold text-slate-800 font-mono">
+                  {employee?.Emergencyphone || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Blood Group</span>
+                <span className="font-semibold text-rose-600">
+                  {employee?.bloodGroup || '—'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Date of Birth</span>
+                <span className="font-medium text-slate-800">
+                  {employee?.dob ? dayjs(employee.dob).format('DD MMM, YYYY') : '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Gender</span>
+                <span className="font-medium text-slate-800 capitalize">
+                  {employee?.gender || 'Male'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">PAN Card</span>
+                <span className="font-mono font-bold text-slate-800 uppercase text-xs">
+                  {employee?.pan || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Aadhaar Card</span>
+                <span className="font-mono font-bold text-slate-800 text-xs">
+                  {employee?.adhaar
+                    ? String(employee.adhaar).replace(/\s+/g, '').replace(/(\d{4})(?=\d)/g, '$1 ')
+                    : '—'}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <MapPin size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Address</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.address || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <PhoneCall size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Emergency Contact</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.Emergencyphone || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Droplets size={16} className="text-rose-600 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Blood Group</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.bloodGroup || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <ShieldCheck size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Aadhaar No.</span>
-              <span className="font-mono font-bold text-slate-800 text-sm">
-                {employee?.adhaar || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <CreditCard size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">PAN No.</span>
-              <span className="font-mono font-bold text-slate-800 text-sm uppercase">
-                {employee?.pan || 'N/A'}
-              </span>
-            </div>
+          {/* Address Box */}
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+              <MapPin size={12} className="text-teal-700" /> Residential Address
+            </span>
+            <p className="font-medium text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200 text-xs leading-relaxed">
+              {employee?.address || 'No residential address registered'}
+            </p>
           </div>
         </div>
       )}
 
       {/* Tab 2: Employment & Banking */}
       {submenu === 2 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Briefcase size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Designation</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.designation || 'Staff'}
-              </span>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Designation</span>
+              <p className="font-bold text-slate-800 text-xs">{employee?.designation || 'Staff Member'}</p>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</span>
+              <p className="font-bold text-slate-800 text-xs">{employee?.department?.department || 'General'}</p>
+            </div>
+            <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800">Monthly Base Salary</span>
+              <p className="font-bold text-teal-900 text-xs">
+                ₹{Number(employee?.salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </p>
             </div>
           </div>
 
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Building2 size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Department</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.department?.department || 'General'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-xl flex items-start gap-2.5">
-            <IndianRupee size={16} className="text-teal-800 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-teal-800 uppercase block">Monthly Base Salary</span>
-              <span className="font-bold text-teal-900 text-sm">
-                ₹{Number(employee?.salary || 0).toLocaleString('en-IN')}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Building size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Bank Name</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.bankName || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <User size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Account Holder</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.acHolderName || employee?.userid?.name || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Building2 size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">Bank Branch</span>
-              <span className="font-semibold text-slate-800 text-sm">
-                {employee?.bankbranch || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <CreditCard size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">A/C Number</span>
-              <span className="font-mono font-bold text-slate-800 text-sm">
-                {employee?.acnumber || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
-            <Key size={16} className="text-teal-700 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase block">IFSC Code</span>
-              <span className="font-mono font-bold text-slate-800 text-sm uppercase">
-                {employee?.ifscCode || 'N/A'}
-              </span>
-            </div>
+          {/* Bank Details Card */}
+          <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+              <CreditCard size={13} className="text-teal-700" /> Bank Account Details
+            </span>
+            {employee?.acnumber || employee?.bankName ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Account Holder</span>
+                  <span className="font-medium text-slate-800">{employee?.acHolderName || employee?.userid?.name || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Bank Name</span>
+                  <span className="font-medium text-slate-800">{employee?.bankName || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">A/C Number</span>
+                  <span className="font-mono font-medium text-slate-800">{employee?.acnumber || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">IFSC Code</span>
+                  <span className="font-mono font-medium text-slate-800">{employee?.ifscCode || '—'}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-400 italic text-[11px] py-2">No bank account details provided</p>
+            )}
           </div>
         </div>
       )}
 
       {/* Tab 3: Documents & Achievements */}
       {submenu === 3 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Education Card */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-3">
-            <div className="flex items-center gap-2 font-bold text-slate-800 pb-2 border-b border-slate-200/70">
-              <GraduationCap size={16} className="text-teal-700" />
-              <span>Education</span>
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 pb-1.5 border-b border-slate-200/70 text-xs">
+              <GraduationCap size={14} className="text-teal-700" />
+              <span>Education Records</span>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {Array.isArray(employee?.education) && employee.education.length > 0 ? (
                 employee.education.map((edu, idx) => (
-                  <div key={idx} className="p-2.5 bg-white border border-slate-200 rounded-lg space-y-0.5 shadow-2xs">
+                  <div key={idx} className="p-2 bg-white border border-slate-200 rounded-lg space-y-0.5 shadow-2xs">
                     <p className="font-bold text-slate-800 text-xs">{edu.degree || 'Degree'}</p>
                     <p className="text-[11px] text-slate-600">{edu.institution || 'Institution'}</p>
                     {edu.date && <p className="text-[10px] text-slate-400 font-medium">{edu.date}</p>}
                   </div>
                 ))
               ) : (
-                <p className="text-slate-400 text-xs py-3 text-center">No education records added</p>
+                <p className="text-slate-400 text-xs py-3 text-center italic">No education records added</p>
               )}
             </div>
           </div>
 
           {/* Achievements Card */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col space-y-3">
-            <div className="flex items-center gap-2 font-bold text-slate-800 pb-2 border-b border-slate-200/70">
-              <Award size={16} className="text-amber-600" />
-              <span>Achievements & Certifications</span>
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 pb-1.5 border-b border-slate-200/70 text-xs">
+              <Award size={14} className="text-amber-600" />
+              <span>Certifications & Achievements</span>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {Array.isArray(employee?.achievements) && employee.achievements.length > 0 ? (
                 employee.achievements.map((ach, idx) => (
-                  <div key={idx} className="p-2.5 bg-white border border-slate-200 rounded-lg space-y-0.5 shadow-2xs">
+                  <div key={idx} className="p-2 bg-white border border-slate-200 rounded-lg space-y-0.5 shadow-2xs">
                     <p className="font-bold text-slate-800 text-xs">{ach.title || 'Achievement'}</p>
                     <p className="text-[11px] text-slate-600">{ach.description || 'Description'}</p>
                     {ach.date && <p className="text-[10px] text-slate-400 font-medium">{ach.date}</p>}
                   </div>
                 ))
               ) : (
-                <p className="text-slate-400 text-xs py-3 text-center">No achievements recorded</p>
+                <p className="text-slate-400 text-xs py-3 text-center italic">No achievements recorded</p>
               )}
             </div>
           </div>
@@ -349,7 +314,7 @@ const EmployeeProfile = ({ viewEmployee, onClose }) => {
 
       {/* Footer */}
       {onClose && (
-        <div className="pt-3 border-t border-slate-100 flex justify-end">
+        <div className="pt-2 border-t border-slate-100 flex justify-end">
           <Button variant="outline" size="sm" type="button" onClick={onClose}>
             Close
           </Button>

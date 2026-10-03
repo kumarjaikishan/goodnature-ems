@@ -20,6 +20,7 @@ export const DateInput = forwardRef(({
   helperText,
   className = '',
   containerClassName = '',
+  labelClassName = '',
   disabled = false,
   required = false,
   size = 'md',
@@ -196,9 +197,9 @@ export const DateInput = forwardRef(({
   const allCalendarDays = [...prevDays, ...currentDays, ...nextDays];
 
   const sizeClasses = {
-    sm: 'py-1.5 text-xs px-2.5',
-    md: 'py-2 text-sm px-3.5',
-    lg: 'py-2.5 text-base px-4',
+    sm: 'h-8 text-xs px-2.5',
+    md: 'h-9 text-sm px-3',
+    lg: 'h-10 text-base px-3.5',
   };
 
   const daysHeader = [
@@ -214,20 +215,13 @@ export const DateInput = forwardRef(({
   return (
     <div className={`relative flex flex-col gap-1 w-full ${containerClassName}`}>
       {label && (
-        <div className="flex items-center justify-between">
-          <label
-            htmlFor={inputId}
-            className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1"
-          >
-            {label}
-            {required && <span className="text-rose-500 font-bold">*</span>}
-          </label>
-          {isValidDate && (
-            <span className="text-[10px] font-mono text-teal-700/80">
-              {parsedValue.format('YYYY-MM-DD')}
-            </span>
-          )}
-        </div>
+        <label
+          htmlFor={inputId}
+          className={labelClassName || "text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1 select-none"}
+        >
+          {label}
+          {required && <span className="text-red-500 font-bold">*</span>}
+        </label>
       )}
 
       {/* Interactive Trigger Button Styled as an Input */}
@@ -248,20 +242,20 @@ export const DateInput = forwardRef(({
         }}
         className={`
           w-full rounded-lg border bg-white text-slate-800 transition-all duration-150 outline-none
-          flex items-center justify-between text-left cursor-pointer
+          flex items-center justify-between text-left select-none
           ${sizeClasses[size] || sizeClasses.md}
           ${error
-            ? 'border-rose-400 focus:border-rose-500 ring-2 ring-rose-100 bg-rose-50/20 text-rose-900'
+            ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100 bg-red-50/20 text-red-900'
             : isOpen
-            ? 'border-teal-600 ring-2 ring-teal-100 shadow-sm'
-            : 'border-slate-300 hover:border-slate-400 focus:border-teal-600 shadow-xs'}
-          ${disabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : ''}
+            ? 'border-teal-600 ring-2 ring-teal-100/80 shadow-xs'
+            : 'border-slate-300 hover:border-slate-400 focus:border-teal-600'}
+          ${disabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'cursor-pointer shadow-xs'}
           ${className}
         `}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Calendar size={16} className={isOpen ? 'text-teal-700 shrink-0' : 'text-slate-400 shrink-0'} />
-          <span className={`truncate font-medium ${isValidDate ? 'text-slate-900' : 'text-slate-400'}`}>
+        <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+          <Calendar size={14} className={`shrink-0 ${isOpen ? 'text-teal-600' : 'text-slate-400'}`} />
+          <span className={`truncate text-xs font-medium ${isValidDate ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
             {isValidDate ? parsedValue.format('DD MMM, YYYY') : placeholder}
           </span>
         </div>

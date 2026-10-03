@@ -1,5 +1,6 @@
 import { getEmployeeColumns, addemployee, employeedelette, employeeupdate } from "./employeehelper";
 import Input from "../../../components/ui/Input";
+import Select from "../../../components/ui/Select";
 import Button from "../../../components/ui/Button";
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
@@ -472,57 +473,47 @@ const Employe = () => {
 
         {/* Filter Inputs Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-          <div className="sm:col-span-1 lg:col-span-2 relative">
-            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-              <Search size={14} />
-            </div>
-            <input
-              type="text"
+          <div className="sm:col-span-1 lg:col-span-2">
+            <Input
+              size="sm"
+              startIcon={Search}
               placeholder="Search by Employee name..."
               value={filters.searchText}
               onChange={(e) => handleFilterChange("searchText", e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
           <div>
-            <select
+            <Select
+              size="sm"
               value={filters.branch}
               onChange={(e) => handleFilterChange("branch", e.target.value)}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer"
-            >
-              <option value="all">All Branches</option>
-              {profile?.role === 'manager'
-                ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                  ?.map((list) => (
-                    <option key={list._id} value={list._id}>
-                      {list.name}
-                    </option>
-                  ))
-                : branch?.map((list) => (
-                  <option key={list._id} value={list._id}>{list.name}</option>
-                ))}
-            </select>
+              options={[
+                { value: 'all', label: 'All Branches' },
+                ...((profile?.role === 'manager'
+                  ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
+                  : branch) || []).map((list) => ({
+                    value: list._id,
+                    label: list.name
+                  }))
+              ]}
+            />
           </div>
 
           <div>
-            <select
+            <Select
+              size="sm"
               disabled={filters.branch === "all"}
               value={filters.department}
               onChange={(e) => handleFilterChange("department", e.target.value)}
-              className="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium focus:bg-white focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-100"
-            >
-              <option value="all">All Departments</option>
-              {departmentlist.length > 0 ? (
-                departmentlist.map((list) => (
-                  <option key={list._id} value={list._id}>
-                    {list.department}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No departments found</option>
-              )}
-            </select>
+              options={[
+                { value: 'all', label: 'All Departments' },
+                ...(departmentlist || []).map((list) => ({
+                  value: list._id,
+                  label: list.department
+                }))
+              ]}
+            />
           </div>
         </div>
       </div>

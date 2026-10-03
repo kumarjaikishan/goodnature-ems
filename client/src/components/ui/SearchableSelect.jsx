@@ -209,9 +209,9 @@ export const SearchableSelect = forwardRef(({
   };
 
   const sizeClasses = {
-    sm: 'min-h-[30px] py-1 text-xs px-2.5',
-    md: 'min-h-[36px] py-1.5 text-sm px-3',
-    lg: 'min-h-[42px] py-2 text-base px-3.5',
+    sm: 'h-8 text-xs px-2.5',
+    md: 'h-9 text-sm px-3',
+    lg: 'h-10 text-base px-3.5',
   };
 
   return (

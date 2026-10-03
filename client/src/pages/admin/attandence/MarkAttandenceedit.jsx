@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
-import { Send, X } from "lucide-react";
+import { Send } from "lucide-react";
 import dayjs from 'dayjs';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
@@ -51,131 +51,125 @@ const MarkAttandenceedit = ({ openmodal, setisload, dispatch, isPunchIn, init, s
     const formattedDate = inp.date ? (dayjs.isDayjs(inp.date) ? inp.date.format('YYYY-MM-DD') : dayjs(inp.date).format('YYYY-MM-DD')) : '';
 
     return (
-        <Modalbox open={openmodal} onClose={() => setopenmodal(false)}>
-            <div className="w-full max-w-lg p-6 space-y-4 bg-white rounded-2xl">
-                <form onSubmit={editattandence} className="space-y-4">
-                    <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-                        <div>
-                            <h3 className="text-base font-bold text-slate-900 tracking-tight">Edit Attendance Record</h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Update punch times, status, or leave notes</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setopenmodal(false)}
-                            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
+        <Modalbox
+            open={openmodal}
+            onClose={() => {
+                setopenmodal(false);
+                setisUpdate(false);
+                setinp(init);
+            }}
+            title="Edit Attendance Record"
+            subtitle="Update punch times, status, or leave notes"
+            size="md"
+            footer={
+                <>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                            setopenmodal(false);
+                            setisUpdate(false);
+                            setinp(init);
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="primary"
+                        loading={isload}
+                        icon={<Send size={14} />}
+                        type="submit"
+                        form="edit-attendance-form"
+                    >
+                        Update Attendance
+                    </Button>
+                </>
+            }
+        >
+            <form id="edit-attendance-form" onSubmit={editattandence} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                        size="sm"
+                        label="Attendance Date"
+                        value={formattedDate}
+                        readOnly
+                    />
+                    <Input
+                        size="sm"
+                        label="Employee Name"
+                        value={inp.employeeName || ''}
+                        readOnly
+                    />
+                </div>
 
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                                size="sm"
-                                label="Attendance Date"
-                                value={formattedDate}
-                                readOnly
-                            />
-                            <Input
-                                size="sm"
-                                label="Employee Name"
-                                value={inp.employeeName || ''}
-                                readOnly
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-medium text-slate-700 mb-1">Punch In Time</label>
-                                <input
-                                    type="time"
-                                    disabled={["absent", 'leave'].includes(inp.status)}
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
-                                    value={inp.punchIn ? (dayjs.isDayjs(inp.punchIn) ? inp.punchIn.format('HH:mm') : dayjs(inp.punchIn).format('HH:mm')) : ''}
-                                    onChange={(e) => {
-                                        const timeStr = e.target.value;
-                                        setinp({
-                                            ...inp,
-                                            punchIn: timeStr ? dayjs(`${formattedDate}T${timeStr}`) : null
-                                        });
-                                    }}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-medium text-slate-700 mb-1">Punch Out Time</label>
-                                <input
-                                    type="time"
-                                    disabled={["absent", 'leave'].includes(inp.status)}
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
-                                    value={inp.punchOut ? (dayjs.isDayjs(inp.punchOut) ? inp.punchOut.format('HH:mm') : dayjs(inp.punchOut).format('HH:mm')) : ''}
-                                    onChange={(e) => {
-                                        const timeStr = e.target.value;
-                                        setinp({
-                                            ...inp,
-                                            punchOut: timeStr ? dayjs(`${formattedDate}T${timeStr}`) : null
-                                        });
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <Select
-                            size="sm"
-                            label="Attendance Status"
-                            required
-                            value={inp.status || 'present'}
-                            onChange={(e) => setinp({ ...inp, status: e.target.value })}
-                            options={[
-                                { value: 'present', label: 'Present' },
-                                { value: 'leave', label: 'Leave' },
-                                { value: 'absent', label: 'Absent' },
-                                { value: 'weekly off', label: 'Weekly off' },
-                                { value: 'holiday', label: 'Holiday' },
-                                { value: 'half day', label: 'Half Day' }
-                            ]}
-                        />
-
-                        {inp.status === 'leave' && (
-                            <div>
-                                <label className="block text-xs font-medium text-slate-700 mb-1">Leave Reason</label>
-                                <textarea
-                                    rows={2}
-                                    required
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 placeholder:text-slate-400 resize-none transition-colors"
-                                    value={inp.leaveReason || ''}
-                                    onChange={(e) => setinp({ ...inp, leaveReason: e.target.value })}
-                                    placeholder="Provide leave reason..."
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                                setopenmodal(false);
-                                setisUpdate(false);
-                                setinp(init);
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-700 tracking-wide mb-1">Punch In Time</label>
+                        <input
+                            type="time"
+                            disabled={["absent", 'leave'].includes(inp.status)}
+                            className="w-full h-8 rounded-lg border border-slate-300 px-2.5 text-xs text-slate-800 shadow-xs focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 outline-none disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
+                            value={inp.punchIn ? (dayjs.isDayjs(inp.punchIn) ? inp.punchIn.format('HH:mm') : dayjs(inp.punchIn).format('HH:mm')) : ''}
+                            onChange={(e) => {
+                                const timeStr = e.target.value;
+                                setinp({
+                                    ...inp,
+                                    punchIn: timeStr ? dayjs(`${formattedDate}T${timeStr}`) : null
+                                });
                             }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="primary"
-                            loading={isload}
-                            icon={<Send size={14} />}
-                            type="submit"
-                        >
-                            Update Attendance
-                        </Button>
+                        />
                     </div>
-                </form>
-            </div>
+
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-700 tracking-wide mb-1">Punch Out Time</label>
+                        <input
+                            type="time"
+                            disabled={["absent", 'leave'].includes(inp.status)}
+                            className="w-full h-8 rounded-lg border border-slate-300 px-2.5 text-xs text-slate-800 shadow-xs focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 outline-none disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
+                            value={inp.punchOut ? (dayjs.isDayjs(inp.punchOut) ? inp.punchOut.format('HH:mm') : dayjs(inp.punchOut).format('HH:mm')) : ''}
+                            onChange={(e) => {
+                                const timeStr = e.target.value;
+                                setinp({
+                                    ...inp,
+                                    punchOut: timeStr ? dayjs(`${formattedDate}T${timeStr}`) : null
+                                });
+                            }}
+                        />
+                    </div>
+                </div>
+
+                <Select
+                    size="sm"
+                    label="Attendance Status"
+                    required
+                    value={inp.status || 'present'}
+                    onChange={(e) => setinp({ ...inp, status: e.target.value })}
+                    options={[
+                        { value: 'present', label: 'Present' },
+                        { value: 'leave', label: 'Leave' },
+                        { value: 'absent', label: 'Absent' },
+                        { value: 'weekly off', label: 'Weekly off' },
+                        { value: 'holiday', label: 'Holiday' },
+                        { value: 'half day', label: 'Half Day' }
+                    ]}
+                />
+
+                {inp.status === 'leave' && (
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-700 tracking-wide mb-1">Leave Reason</label>
+                        <textarea
+                            rows={2}
+                            required
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800 shadow-xs focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 outline-none placeholder:text-slate-400 resize-none transition-colors"
+                            value={inp.leaveReason || ''}
+                            onChange={(e) => setinp({ ...inp, leaveReason: e.target.value })}
+                            placeholder="Provide leave reason..."
+                        />
+                    </div>
+                )}
+            </form>
         </Modalbox>
     );
 };

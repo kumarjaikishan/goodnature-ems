@@ -431,6 +431,7 @@ const AttenPerformance = () => {
                         <div>
                             <DateInput
                                 label="From Date"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider block"
                                 size="sm"
                                 value={fromDate}
                                 onChange={(e) => {
@@ -443,6 +444,7 @@ const AttenPerformance = () => {
                         <div>
                             <DateInput
                                 label="To Date"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider block"
                                 size="sm"
                                 value={toDate}
                                 onChange={(e) => {
@@ -472,8 +474,11 @@ const AttenPerformance = () => {
                             conditionalRowStyles={conditionalRowStyles}
                             highlightOnHover
                             noDataComponent={
-                                <div className="flex items-center gap-2 py-6 text-center text-gray-600 text-sm">
-                                    <MessageSquareWarning size={18} /> No records found matching your criteria.
+                                <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-slate-500 text-xs font-medium mx-auto">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                        <MessageSquareWarning size={20} />
+                                    </div>
+                                    <span>No records found matching your criteria.</span>
                                 </div>
                             }
                         />

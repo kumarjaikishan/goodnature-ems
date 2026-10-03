@@ -1,6 +1,6 @@
 import React from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
-import { Send, X } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
 
@@ -47,101 +47,95 @@ const Adminleavemodal = ({ firstfetch, inp, openmodal, isload, handleChange, set
     if (!openmodal) return null;
 
     return (
-        <Modalbox open={openmodal} onClose={() => {
-            setopenmodal(false); setInp(init);
-        }}>
-            <div className="w-full max-w-lg p-6 space-y-4">
-                <form onSubmit={adddepartcall} className="space-y-4">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <h3 className="text-base font-bold text-slate-900">Leave Management</h3>
-                        <button
-                            type="button"
-                            onClick={() => { setopenmodal(false); setInp(init); }}
-                            className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
+        <Modalbox
+            open={openmodal}
+            onClose={() => {
+                setopenmodal(false);
+                setInp(init);
+            }}
+            title="Leave Management"
+            subtitle={`Review and process leave request for ${inp.employeename || 'Employee'}`}
+            size="md"
+            footer={
+                <>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                            setopenmodal(false);
+                            setInp(init);
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        size="sm"
+                        loading={isload}
+                        icon={<Send size={14} />}
+                        variant="primary"
+                        type="submit"
+                        form="admin-leave-form"
+                    >
+                        Update
+                    </Button>
+                </>
+            }
+        >
+            <form id="admin-leave-form" onSubmit={adddepartcall} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                        size="sm"
+                        label="Branch"
+                        value={inp.branch || ''}
+                        readOnly
+                    />
+                    <Input
+                        size="sm"
+                        label="Employee Name"
+                        value={inp.employeename || ''}
+                        readOnly
+                    />
+                </div>
 
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                                size="sm"
-                                label="Branch"
-                                value={inp.branch || ''}
-                                readOnly
-                            />
-                            <Input
-                                size="sm"
-                                label="Employee Name"
-                                value={inp.employeename || ''}
-                                readOnly
-                            />
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                        size="sm"
+                        label="From Date"
+                        value={inp.showfrom || ''}
+                        readOnly
+                    />
+                    <Input
+                        size="sm"
+                        label="To Date"
+                        value={inp.showto || ''}
+                        readOnly
+                    />
+                </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                                size="sm"
-                                label="From"
-                                value={inp.showfrom || ''}
-                                readOnly
-                            />
-                            <Input
-                                size="sm"
-                                label="To"
-                                value={inp.showto || ''}
-                                readOnly
-                            />
-                        </div>
+                <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Reason for Leave</label>
+                    <textarea
+                        rows={2}
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-800 shadow-2xs focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 placeholder:text-slate-400 resize-none transition-colors"
+                        value={inp.reason || ''}
+                        onChange={(e) => handleChange(e, 'reason')}
+                        placeholder="Leave reason..."
+                    />
+                </div>
 
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Reason</label>
-                            <textarea
-                                rows={2}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 placeholder:text-slate-400 resize-none transition-colors"
-                                value={inp.reason || ''}
-                                onChange={(e) => handleChange(e, 'reason')}
-                            />
-                        </div>
-
-                        <Select
-                            size="sm"
-                            label="Status"
-                            required
-                            value={inp.status || ''}
-                            onChange={(e) => handleChange(e, 'status')}
-                            options={[
-                                { value: 'approved', label: 'Approve' },
-                                { value: 'rejected', label: 'Reject' }
-                            ]}
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                                setopenmodal(false);
-                                setInp(init);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-
-                        <Button
-                            size="sm"
-                            loading={isload}
-                            icon={<Send size={14} />}
-                            variant="primary"
-                            type="submit"
-                        >
-                            Update
-                        </Button>
-                    </div>
-                </form>
-            </div>
+                <Select
+                    size="sm"
+                    label="Action / Status"
+                    required
+                    value={inp.status || ''}
+                    onChange={(e) => handleChange(e, 'status')}
+                    options={[
+                        { value: 'approved', label: 'Approve' },
+                        { value: 'rejected', label: 'Reject' }
+                    ]}
+                />
+            </form>
         </Modalbox>
     );
 };

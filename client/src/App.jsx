@@ -8,6 +8,7 @@ import { setlogin } from '../store/authSlice';
 import ProtectedRoutes from './utils/protectedRoute';
 import { Settings, User } from 'lucide-react';
 import { connectSSE, closeSSE } from "./utils/sse";
+import { notificationSound } from "./utils/sound";
 import dayjs from 'dayjs';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -385,6 +386,9 @@ function App() {
           const emp = data.payload.data.employeeId;
 
           if (data.payload.action === "checkin") {
+            if (user?.notificationSoundEnabled ?? true) {
+              notificationSound.playSuccess();
+            }
             toast.info(
               <div className="flex items-center gap-2 pr-1">
                 {emp.profileimage ? (
@@ -410,6 +414,9 @@ function App() {
           }
 
           if (data.payload.action === "checkOut") {
+            if (user?.notificationSoundEnabled ?? true) {
+              notificationSound.playPunchOut();
+            }
             toast.info(
               <div className="flex items-center gap-2 pr-1">
                 {emp.profileimage ? (
@@ -440,7 +447,7 @@ function App() {
         closeSSE();
       };
     }
-  }, [user?.liveAttandence]);
+  }, [user?.liveAttandence, user?.notificationSoundEnabled]);
 
   return (
     <>
