@@ -137,6 +137,9 @@ const departmentlist = async (req, res, next) => {
 const addemployee = async (req, res, next) => {
     const { email } = req.body;
     if (!req.body.employeeName || !email || !req.body.department || !req.body.branchId) {
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlink(req.file.path, () => {});
+        }
         return res.status(400).json({ message: "Please Fill required Fields" });
     }
 
@@ -148,6 +151,9 @@ const addemployee = async (req, res, next) => {
         if (existingUser) {
             await session.abortTransaction();
             session.endSession();
+            if (req.file && fs.existsSync(req.file.path)) {
+                fs.unlink(req.file.path, () => {});
+            }
             return res.status(409).json({ message: 'Email already in use.' });
         }
 
@@ -162,7 +168,9 @@ const addemployee = async (req, res, next) => {
                     { fetch_format: 'auto' }
                 ]
             });
-            fs.unlink(req.file.path, (err) => { if (err) console.error('Failed to delete local file:', err); });
+            if (fs.existsSync(req.file.path)) {
+                fs.unlink(req.file.path, (err) => { if (err) console.error('Failed to delete local file:', err); });
+            }
         }
 
         await employeeService.createEmployee(req.body, uploadResult, session);
@@ -174,6 +182,9 @@ const addemployee = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlink(req.file.path, () => {});
+        }
         console.error("Employee Creation Error:", error.message);
         return res.status(500).json({ message: 'Server error during employee creation' });
     }
@@ -185,6 +196,9 @@ const updateemployee = async (req, res, next) => {
     try {
         const { employeeId, department, branchId } = req.body;
         if (!employeeId || !department || !branchId) {
+            if (req.file && fs.existsSync(req.file.path)) {
+                fs.unlink(req.file.path, () => {});
+            }
             return next({ status: 400, message: "Required fields (employeeId, department, branchId) are missing." });
         }
 
@@ -199,7 +213,9 @@ const updateemployee = async (req, res, next) => {
                     { fetch_format: 'auto' }
                 ]
             });
-            fs.unlink(req.file.path, err => { if (err) console.log("File delete error:", err.message); });
+            if (fs.existsSync(req.file.path)) {
+                fs.unlink(req.file.path, err => { if (err) console.log("File delete error:", err.message); });
+            }
         }
 
         await employeeService.updateEmployee(employeeId, req.body, uploadResult, session);
@@ -211,6 +227,9 @@ const updateemployee = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlink(req.file.path, () => {});
+        }
         console.error("Update employee error:", error.message);
         return next({ status: 500, message: error.message });
     }
@@ -502,6 +521,9 @@ const updateprofile = async (req, res, next) => {
             message: "Updated successfully",
         });
     } catch (error) {
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlink(req.file.path, () => {});
+        }
         console.error(error.message);
         return res.status(500).json({
             message: "Server error",
@@ -610,6 +632,9 @@ const editAdmin = async (req, res, next) => {
         });
 
     } catch (error) {
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlink(req.file.path, () => {});
+        }
         console.error("Error updating admin:", error.message);
         return res.status(500).json({ message: error.message || 'Server error' });
     }
