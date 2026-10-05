@@ -473,16 +473,17 @@ export default function PayrollCreatePage() {
     const fetchTargetAttendance = async () => {
       try {
         setLoadingAtt(true);
+        // Standard 1-based month (1 for Jan, 9 for Sept)
         const res = await apiClient({
-          url: "getAttendanceByUserId",
-          params: { userId: targetUserId, month, year }
+          url: "employeeAttandence",
+          params: { userid: targetUserId, month: Number(month), year }
         });
-        setTargetAttendance(res.attendances || []);
+        setTargetAttendance(res.attandence || []);
       } catch (err) {
         console.error("Error fetching targeted attendance:", err);
         const local = (attandence || []).filter(
           (a) =>
-            (a.userId?._id === targetUserId || a.userId === targetUserId) &&
+            (a.userId?._id === targetUserId || a.userId === targetUserId || a.employeeId?._id === selectedEmployee || a.employeeId === selectedEmployee) &&
             dayjs(a.date).month() + 1 === Number(month) &&
             dayjs(a.date).year() === Number(year)
         );
@@ -492,7 +493,7 @@ export default function PayrollCreatePage() {
       }
     };
     fetchTargetAttendance();
-  }, [targetUserId, month, year, attandence]);
+  }, [targetUserId, month, year, selectedEmployee, attandence]);
 
   // Attendance crunching
   useEffect(() => {
@@ -525,7 +526,7 @@ export default function PayrollCreatePage() {
           if (wMin > 0) {
             acc.weeklyOffWork += wMin;
           }
-        } else if (atten.status === "present") {
+        } else if (atten.status === "present" || atten.status === "half day") {
           if (dayType === "holiday") {
             if (workingMinutes > 0) {
               acc.overtime += workingMinutes;
@@ -625,8 +626,11 @@ export default function PayrollCreatePage() {
   }, [grossSalary, totalDeductions]);
 
   const handleArrayChange = (field, index, key, value) => {
+    const rawVal = (value !== null && typeof value === "object" && value.target !== undefined)
+      ? value.target.value
+      : value;
     const updated = [...form[field]];
-    updated[index][key] = value;
+    updated[index][key] = rawVal;
     setForm((prev) => ({ ...prev, [field]: updated }));
   };
 
@@ -1079,7 +1083,9 @@ export default function PayrollCreatePage() {
                       min={0}
                       max={Math.min(employeeleavebal, form.leaveDays)}
                       value={options.adjustedLeaveCount}
-                      onChange={(val) => {
+                      onChange={(e) => {
+                        const raw = (e !== null && typeof e === 'object' && e.target !== undefined) ? e.target.value : e;
+                        const val = Number(raw) || 0;
                         const max = Math.min(employeeleavebal, form.leaveDays);
                         setOptions((p) => ({
                           ...p,
@@ -1131,7 +1137,9 @@ export default function PayrollCreatePage() {
                           min={0}
                           max={previousAdvance}
                           value={options.adjustedAdvance}
-                          onChange={(val) => {
+                          onChange={(e) => {
+                            const raw = (e !== null && typeof e === 'object' && e.target !== undefined) ? e.target.value : e;
+                            const val = Number(raw) || 0;
                             if (val < 0) {
                               setOptions((p) => ({ ...p, adjustedAdvance: 0 }));
                             } else if (val > previousAdvance) {

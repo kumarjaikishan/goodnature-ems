@@ -725,7 +725,7 @@ const AttendanceControls = React.memo(({
               onChange={(e) => setfiltere({ ...filtere, month: e.target.value })}
               options={[
                 { label: "All Months", value: "all" },
-                ...months.map((m, idx) => ({ label: m, value: idx }))
+                ...months.map((m, idx) => ({ label: m, value: idx + 1 }))
               ]}
             />
           </div>

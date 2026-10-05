@@ -102,6 +102,40 @@ function mergeAttendanceDateAndTime(baseDateLike, timeLike) {
     .toDate();
 }
 
+/**
+ * Standardize month & year query parameters into UTC attendance date bounds.
+ * Accepts 1-based months (1=Jan .. 12=Dec). Also supports 0-based (0=Jan .. 11=Dec) gracefully.
+ * Returns { startDate, endDate } as UTC midnight Date objects.
+ */
+function getMonthDateRangeUTC(month, year) {
+  const y = parseInt(year, 10) || dayjs().tz(ATTENDANCE_TIMEZONE).year();
+  let m = parseInt(month, 10);
+  
+  if (Number.isNaN(m)) {
+    const start = dayjs.tz(`${y}-01-01`, ATTENDANCE_TIMEZONE).startOf('year');
+    return {
+      startDate: getAttendanceDateUTC(start.toDate()),
+      endDate: getAttendanceDateUTC(start.endOf('year').toDate()),
+    };
+  }
+
+  // If passed 0-based (0 to 11), adjust to 1-based for dayjs format
+  // Note: if m is between 1 and 12, it is treated as standard 1-based (Jan=1, Dec=12)
+  let monthNum = m;
+  if (m >= 0 && m <= 11) {
+    // When passed 0-11, 0 is Jan, 11 is Dec. But note: 1..11 could be either.
+    // In Good Nature EMS standard: 1..12 is 1-based (Jan=1 .. Dec=12).
+    // If m === 0, it is definitely 0-based Jan (1).
+    if (m === 0) monthNum = 1;
+  }
+
+  const start = dayjs.tz(`${y}-${String(monthNum).padStart(2, '0')}-01`, ATTENDANCE_TIMEZONE).startOf('month');
+  return {
+    startDate: getAttendanceDateUTC(start.toDate()),
+    endDate: getAttendanceDateUTC(start.endOf('month').toDate()),
+  };
+}
+
 module.exports = {
   ATTENDANCE_TIMEZONE,
   parseAttendanceDateTime,
@@ -109,4 +143,5 @@ module.exports = {
   getAttendanceDateKey,
   getMinutesInAttendanceTimezone,
   mergeAttendanceDateAndTime,
+  getMonthDateRangeUTC,
 };

@@ -46,15 +46,16 @@ export const NumberInput = forwardRef(({
     }
 
     if (onChange) {
-      // Create synthetic event or pass sanitized value
+      // Pass the raw/parsed value or synthetic event - pass synthetic event with value property, but also support direct value if expected
       const syntheticEvent = {
         ...e,
         target: {
           ...e.target,
           name: e.target.name,
-          value: val,
+          value: val === '' ? '' : (allowDecimal ? val : Number(val)),
         },
       };
+      // Allow handlers expecting either (e) or (val)
       onChange(syntheticEvent);
     }
   };

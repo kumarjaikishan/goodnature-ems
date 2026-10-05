@@ -20,6 +20,7 @@ const {
   getAttendanceDateUTC,
   getMinutesInAttendanceTimezone,
   mergeAttendanceDateAndTime,
+  getMonthDateRangeUTC,
   ATTENDANCE_TIMEZONE
 } = require('../utils/attendanceTime');
 const { getRulesSnapshot, calculateStats } = require('../services/attendanceService');
@@ -1285,11 +1286,10 @@ const getAttendanceList = async (req, res, next) => {
     } else if ((month && month !== 'all') || (year && year !== 'all')) {
       const y = year && year !== 'all' ? parseInt(year) : dayjs().tz(ATTENDANCE_TIMEZONE).year();
       if (month && month !== 'all') {
-        const m = parseInt(month); // 0-11, matches frontend convention
-        const start = dayjs.tz(`${y}-${String(m + 1).padStart(2, '0')}-01`, ATTENDANCE_TIMEZONE).startOf('month');
+        const { startDate, endDate } = getMonthDateRangeUTC(month, y);
         attendanceFilter.date = {
-          $gte: getAttendanceDateUTC(start.toDate()),
-          $lte: getAttendanceDateUTC(start.endOf('month').toDate()),
+          $gte: startDate,
+          $lte: endDate,
         };
       } else {
         const start = dayjs.tz(`${y}-01-01`, ATTENDANCE_TIMEZONE).startOf('year');
@@ -1615,16 +1615,15 @@ const employeeAttandence = async (req, res, next) => {
     const queryFilter = { employeeId: employeedetail._id };
 
     if (year && year !== 'all' && month !== undefined && month !== 'all') {
-      const m = parseInt(month, 10);
-      const y = parseInt(year, 10);
-      const startDate = new Date(Date.UTC(y, m, 1));
-      const endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+      const { startDate, endDate } = getMonthDateRangeUTC(month, year);
       queryFilter.date = { $gte: startDate, $lte: endDate };
     } else if (year && year !== 'all') {
       const y = parseInt(year, 10);
-      const startDate = new Date(Date.UTC(y, 0, 1));
-      const endDate = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
-      queryFilter.date = { $gte: startDate, $lte: endDate };
+      const start = dayjs.tz(`${y}-01-01`, ATTENDANCE_TIMEZONE).startOf('year');
+      queryFilter.date = {
+        $gte: getAttendanceDateUTC(start.toDate()),
+        $lte: getAttendanceDateUTC(start.endOf('year').toDate()),
+      };
     }
 
     const attandence = await Attendance.find(queryFilter)
@@ -1772,11 +1771,7 @@ const getAttendanceReport = async (req, res, next) => {
       return res.status(400).json({ message: 'Month and year are required.' });
     }
 
-    const m = parseInt(month, 10);
-    const y = parseInt(year, 10);
-
-    const startDate = new Date(Date.UTC(y, m - 1, 1));
-    const endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+    const { startDate, endDate } = getMonthDateRangeUTC(month, year);
 
     const attendanceFilter = {
       ...(companyId ? { $or: [{ companyId }, { companyId: { $exists: false } }] } : {}),
