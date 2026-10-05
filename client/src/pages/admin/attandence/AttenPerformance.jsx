@@ -401,12 +401,22 @@ const AttenPerformance = () => {
                 </div>
             )}
 
-            {/* Top Toolbar / Employee & Period Picker */}
-            <div className="p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200 shadow-sm bg-white">
-                <div className="flex items-center flex-wrap gap-2.5 flex-1">
+            {/* Top Toolbar / Header & Controls */}
+            <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200 shadow-sm bg-white">
+                <div className="flex flex-col">
+                    <h1 className="text-base font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                        <span>Attendance Performance Overview</span>
+                    </h1>
+                    <p className="text-xs text-slate-500 font-medium">
+                        Detailed attendance analytics, punch logs, overtime & deduction breakdown
+                    </p>
+                </div>
+
+                {/* Filter / Picker Controls */}
+                <div className="flex items-center flex-wrap gap-2.5">
                     {/* Employee Selector */}
                     {employeeOptions.length > 0 && (
-                        <div className="w-64 sm:w-72 min-w-[220px]">
+                        <div className="w-60 sm:w-64 min-w-[200px]">
                             <SearchableSelect
                                 size="md"
                                 placeholder="Select Employee..."
@@ -443,35 +453,6 @@ const AttenPerformance = () => {
                             </option>
                         ))}
                     </select>
-                </div>
-
-                {/* Active Employee Summary Card */}
-                <div className="flex items-center gap-3 shrink-0 self-end md:self-auto border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
-                    <div className="text-right">
-                        <p className="font-bold text-sm text-slate-800 leading-tight">
-                            {user?.name || employee?.name || 'Employee'}
-                        </p>
-                        <p className="text-[11px] text-slate-500 font-medium">
-                            {employee?.designation ? `${employee.designation} • ` : ''}{employee?.branchId?.name || (typeof employee?.branchId === 'string' ? employee.branchId : '')}
-                        </p>
-                    </div>
-
-                    {/* Avatar */}
-                    {employee?.profileimage ? (
-                        <img
-                            src={cloudinaryUrl(employee?.profileimage, {
-                                format: "webp",
-                                width: 100,
-                                height: 100,
-                            })}
-                            alt={employee?.name || user?.name || "Employee"}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs"
-                        />
-                    ) : (
-                        <div className="w-10 h-10 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                            {user?.name?.charAt(0) || <User size={18} />}
-                        </div>
-                    )}
                 </div>
             </div>
 
