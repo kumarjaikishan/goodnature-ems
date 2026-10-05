@@ -16,7 +16,6 @@ dayjs.extend(isBetween);
 
 const AttendanceReport = () => {
     const [departmentlist, setdepartmentlist] = useState([]);
-    const [theme, setTheme] = useState(true);
     const [csvcall, setcsvcall] = useState(false);
     const [reportAttendance, setReportAttendance] = useState([]);
     const [reportLoading, setReportLoading] = useState(false);
@@ -178,37 +177,22 @@ const AttendanceReport = () => {
             </div>
 
             {/* Attendance Matrix Register */}
-            <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-4">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-5">
                 <div className="flex flex-wrap justify-between items-center mb-4 pb-3 border-b border-slate-100 gap-2">
                     <div>
-                        <h3 className="text-base font-bold text-slate-800">
+                        <h3 className="text-base font-bold text-slate-800 tracking-tight">
                             Monthly Attendance Register
                         </h3>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 font-medium">
                             Period: {dayjs(`${filters.year}-${filters.month}-01`).format("MMMM YYYY")}
                         </p>
                     </div>
-
-                    {/* Toggle Switch */}
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                        <span className="text-xs font-semibold text-slate-600">
-                            {theme ? "Executive Matrix" : "High Contrast"}
-                        </span>
-                        <input
-                            type="checkbox"
-                            checked={theme}
-                            onChange={() => setTheme(!theme)}
-                            className="sr-only peer"
-                        />
-                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-700"></div>
-                    </label>
                 </div>
 
                 <RegisterView
                     csvcall={csvcall}
                     filters={filters}
                     setcsvcall={setcsvcall}
-                    theme={theme}
                     reportAttendance={reportAttendance}
                     reportLoading={reportLoading}
                 />

@@ -104,7 +104,7 @@ function mergeAttendanceDateAndTime(baseDateLike, timeLike) {
 
 /**
  * Standardize month & year query parameters into UTC attendance date bounds.
- * Accepts 1-based months (1=Jan .. 12=Dec). Also supports 0-based (0=Jan .. 11=Dec) gracefully.
+ * Accepts standard 1-based months (1=Jan .. 12=Dec). Also supports 0-based (0=Jan) gracefully.
  * Returns { startDate, endDate } as UTC midnight Date objects.
  */
 function getMonthDateRangeUTC(month, year) {
@@ -119,20 +119,9 @@ function getMonthDateRangeUTC(month, year) {
     };
   }
 
-  // Support both 0-based (0=Jan..11=Dec) and 1-based (1=Jan..12=Dec) callers:
-  // If m === 0, it is January.
-  // If m is 1..12, we treat 1 as Jan, ..., 12 as Dec (monthIndex = m - 1), 
-  // UNLESS m was explicitly intended as 0-based (which only differs for 1..11).
-  // In our app standard, month param passed to API is 0-based from dayjs (0..11) or 1-based (1..12).
-  // When m is 0..11, dayjs(new Date(y, m, 1)) starts at month m.
-  // When m === 12, it is December (index 11).
-  let monthIndex = m;
-  if (m === 12) {
-    monthIndex = 11;
-  } else if (m >= 0 && m <= 11) {
-    // 0 = Jan, 1 = Feb, ..., 8 = Sep, ..., 11 = Dec
-    monthIndex = m;
-  }
+  // If 1 <= m <= 12, standard 1-based month: 1=Jan (index 0) ... 7=Jul (index 6) ... 12=Dec (index 11)
+  // If m === 0, treat as 0-based January (index 0)
+  let monthIndex = m === 0 ? 0 : m - 1;
 
   const start = dayjs().tz(ATTENDANCE_TIMEZONE).year(y).month(monthIndex).date(1).startOf('day');
   return {

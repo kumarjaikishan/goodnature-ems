@@ -53,7 +53,7 @@ const AttenPerformance = () => {
     const queryYear = searchParams.get('year');
 
     const [selectedYear, setSelectedYear] = useState(queryYear ? parseInt(queryYear, 10) : dayjs().year());
-    const [selectedMonth, setSelectedMonth] = useState(queryMonth ? parseInt(queryMonth, 10) : dayjs().month());
+    const [selectedMonth, setSelectedMonth] = useState(queryMonth ? parseInt(queryMonth, 10) : dayjs().month() + 1);
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
     const [timeFilter, setTimeFilter] = useState('all');
@@ -69,7 +69,7 @@ const AttenPerformance = () => {
         () =>
             Array.from({ length: 12 }, (_, i) => ({
                 label: dayjs().month(i).format('MMMM'),
-                value: i,
+                value: i + 1,
             })),
         []
     );
@@ -248,7 +248,7 @@ const AttenPerformance = () => {
     const periodFilteredAttendance = useMemo(() => {
         return normalizedAttendance.filter((entry) => {
             const matchYear = selectedYear === 'all' || entry.dateObj.year() === selectedYear;
-            const matchMonth = selectedMonth === 'all' || entry.dateObj.month() === selectedMonth;
+            const matchMonth = selectedMonth === 'all' || (entry.dateObj.month() + 1) === selectedMonth;
             return matchYear && matchMonth;
         });
     }, [normalizedAttendance, selectedYear, selectedMonth]);

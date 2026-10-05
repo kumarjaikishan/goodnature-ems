@@ -1832,7 +1832,11 @@ const getAttendanceReport = async (req, res, next) => {
       .select('_id date employeeId status dayType workingMinutes shortMinutes overtimeMinutes weeklyOffMinutes remarks leave')
       .populate({
         path: 'leave',
-        select: 'reason'
+        select: 'reason type policyId',
+        populate: {
+          path: 'policyId',
+          select: 'name'
+        }
       })
       .sort({ date: 1 })
       .lean();
