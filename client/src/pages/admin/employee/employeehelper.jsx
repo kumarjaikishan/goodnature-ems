@@ -149,7 +149,7 @@ export const getEmployeeColumns = ({
                     type="button"
                     className="p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors cursor-pointer"
                     title="Attendance Report"
-                    onClick={() => onViewAttendance(row?.userid?._id || row?._id)}
+                    onClick={() => onViewAttendance(row?.rawname || row?.userid?._id || row?._id)}
                 >
                     <FileSpreadsheet size={15} />
                 </button>

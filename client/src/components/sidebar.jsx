@@ -115,6 +115,7 @@ const Sidebar = () => {
           roles: [...OPERATIONAL_ROLES, "employee"],
           children: [
             { menu: "Attendance", link: "/dashboard/attandence", roles: OPERATIONAL_ROLES, resource: "attandence" },
+            { menu: "Performance", link: "/dashboard/performance", roles: OPERATIONAL_ROLES, resource: "attandence" },
             { menu: "Emp Attendance", link: "/dashboard/empattandence", roles: ["employee"] },
             { menu: "Report", link: "/dashboard/attandence_Report", roles: OPERATIONAL_ROLES, resource: "attandence" },
           ],

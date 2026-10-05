@@ -162,6 +162,7 @@ const managementRoutes = (
     <Route path="ledger/cash-accounts" element={<CashLedgersPage />} />
     <Route path="ledger/transfers" element={<FundTransfersPage />} />
     <Route path="ledger/:id" element={<LedgerDetailPage />} />
+    <Route path="performance" element={<AttenPerformance />} />
     <Route path="performance/:userid" element={<AttenPerformance />} />
     <Route path="payroll" element={<PayrollPage />} />
     <Route path="payroll/add" element={<PayrollCreatePage />} />

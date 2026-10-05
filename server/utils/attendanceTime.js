@@ -111,7 +111,7 @@ function getMonthDateRangeUTC(month, year) {
   const y = parseInt(year, 10) || dayjs().tz(ATTENDANCE_TIMEZONE).year();
   let m = parseInt(month, 10);
   
-  if (Number.isNaN(m)) {
+  if (Number.isNaN(m) || month === 'all' || month === undefined || month === null) {
     const start = dayjs.tz(`${y}-01-01`, ATTENDANCE_TIMEZONE).startOf('year');
     return {
       startDate: getAttendanceDateUTC(start.toDate()),
@@ -119,17 +119,22 @@ function getMonthDateRangeUTC(month, year) {
     };
   }
 
-  // If passed 0-based (0 to 11), adjust to 1-based for dayjs format
-  // Note: if m is between 1 and 12, it is treated as standard 1-based (Jan=1, Dec=12)
-  let monthNum = m;
-  if (m >= 0 && m <= 11) {
-    // When passed 0-11, 0 is Jan, 11 is Dec. But note: 1..11 could be either.
-    // In Good Nature EMS standard: 1..12 is 1-based (Jan=1 .. Dec=12).
-    // If m === 0, it is definitely 0-based Jan (1).
-    if (m === 0) monthNum = 1;
+  // Support both 0-based (0=Jan..11=Dec) and 1-based (1=Jan..12=Dec) callers:
+  // If m === 0, it is January.
+  // If m is 1..12, we treat 1 as Jan, ..., 12 as Dec (monthIndex = m - 1), 
+  // UNLESS m was explicitly intended as 0-based (which only differs for 1..11).
+  // In our app standard, month param passed to API is 0-based from dayjs (0..11) or 1-based (1..12).
+  // When m is 0..11, dayjs(new Date(y, m, 1)) starts at month m.
+  // When m === 12, it is December (index 11).
+  let monthIndex = m;
+  if (m === 12) {
+    monthIndex = 11;
+  } else if (m >= 0 && m <= 11) {
+    // 0 = Jan, 1 = Feb, ..., 8 = Sep, ..., 11 = Dec
+    monthIndex = m;
   }
 
-  const start = dayjs.tz(`${y}-${String(monthNum).padStart(2, '0')}-01`, ATTENDANCE_TIMEZONE).startOf('month');
+  const start = dayjs().tz(ATTENDANCE_TIMEZONE).year(y).month(monthIndex).date(1).startOf('day');
   return {
     startDate: getAttendanceDateUTC(start.toDate()),
     endDate: getAttendanceDateUTC(start.endOf('month').toDate()),

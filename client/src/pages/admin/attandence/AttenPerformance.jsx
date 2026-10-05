@@ -2,15 +2,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import DataTable from '@/components/common/DataTable';
 import DateInput from '@/components/ui/DateInput';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useSelector } from 'react-redux';
 import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from './attandencehelper';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 dayjs.extend(isSameOrBefore);
 
 const initialHell = {
@@ -34,14 +39,15 @@ const initialHell = {
 const AttenPerformance = () => {
     const { userid } = useParams();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const customStyles = useCustomStyles();
-    const { company, holidays } = useSelector((state) => state.user);
+    const { company, holidays, employee: reduxEmployees, profile } = useSelector((state) => state.user);
 
     const [user, setuser] = useState(null);
     const [employee, setemployee] = useState({});
     const [attandence, setattandence] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [employeeList, setEmployeeList] = useState([]);
 
     const queryMonth = searchParams.get('month');
     const queryYear = searchParams.get('year');
@@ -68,6 +74,82 @@ const AttenPerformance = () => {
         []
     );
 
+    // Fetch employee list for selector
+    useEffect(() => {
+        if (reduxEmployees && reduxEmployees.length > 0) {
+            setEmployeeList(reduxEmployees);
+        } else {
+            apiClient({ url: 'employeelist' })
+                .then((res) => {
+                    const list = res.list || res.employees || res.data || (Array.isArray(res) ? res : []);
+                    setEmployeeList(list);
+                })
+                .catch((err) => {
+                    console.error('Failed to load employee list:', err);
+                });
+        }
+    }, [reduxEmployees]);
+
+    // Slug helper
+    const toSlug = (text = '') => {
+        return String(text)
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    };
+
+    // Active userId fallback: from URL params (slug or ID), or first employee in list
+    const activeUserId = useMemo(() => {
+        if (userid) return userid;
+        if (employeeList && employeeList.length > 0) {
+            const first = employeeList[0];
+            const empName = first?.userid?.name || first?.name || '';
+            return empName ? toSlug(empName) : (first?.userid?._id || first?.userid || first?._id);
+        }
+        return null;
+    }, [userid, employeeList]);
+
+    // Automatically navigate to URL with active employee slug if none in param
+    useEffect(() => {
+        if (!userid && activeUserId) {
+            const searchStr = window.location.search;
+            navigate(`/dashboard/performance/${activeUserId}${searchStr}`, { replace: true });
+        }
+    }, [userid, activeUserId, navigate]);
+
+    // Format employee options for SearchableSelect with clean subtitles and slug values
+    const employeeOptions = useMemo(() => {
+        return employeeList.map((emp) => {
+            const empName = emp?.userid?.name || emp?.name || 'Unnamed';
+            const slug = toSlug(empName) || emp?.userid?._id || emp?._id;
+            const branchName = emp?.branchId?.name || (typeof emp?.branchId === 'string' && !emp.branchId.match(/^[0-9a-fA-F]{24}$/) ? emp.branchId : '');
+            const desig = emp?.designation || '';
+            const sub = [desig, branchName].filter(Boolean).join(' • ');
+
+            return {
+                label: empName,
+                value: slug,
+                rawUserId: emp?.userid?._id || emp?.userid || emp?._id,
+                subtitle: sub ? `(${sub})` : '',
+            };
+        });
+    }, [employeeList]);
+
+    const handleEmployeeChange = (newVal) => {
+        if (!newVal) return;
+        const currentParams = new URLSearchParams(searchParams);
+        const searchString = currentParams.toString() ? `?${currentParams.toString()}` : '';
+        navigate(`/dashboard/performance/${newVal}${searchString}`);
+    };
+
+    // Selected value for SearchableSelect: match by slug, raw userId, or param
+    const selectedEmployeeValue = useMemo(() => {
+        const target = userid || activeUserId || '';
+        const found = employeeOptions.find(opt => opt.value === target || opt.rawUserId === target || toSlug(opt.label) === toSlug(target));
+        return found ? found.value : target;
+    }, [employeeOptions, userid, activeUserId]);
 
     const setting = useMemo(() => {
         if (!company) return null;
@@ -87,14 +169,14 @@ const AttenPerformance = () => {
         };
     }, [company, employee]);
 
-
     useEffect(() => {
-        if (!userid) return;
+        const targetId = userid || activeUserId;
+        if (!targetId) return;
 
         const fetchPerformanceData = async () => {
             try {
                 setLoading(true);
-                const params = { userid };
+                const params = { userid: targetId };
                 if (selectedMonth !== 'all') params.month = selectedMonth;
                 if (selectedYear !== 'all') params.year = selectedYear;
 
@@ -122,7 +204,7 @@ const AttenPerformance = () => {
         };
 
         fetchPerformanceData();
-    }, [userid, selectedMonth, selectedYear, navigate]);
+    }, [userid, activeUserId, selectedMonth, selectedYear, navigate]);
 
     const weeklyOffsList = useMemo(() => {
         if (!setting?.weeklyOffs) return [];
@@ -133,7 +215,7 @@ const AttenPerformance = () => {
         if (!attandence?.length) return [];
 
         return attandence.map((entry) => {
-            const dateObj = dayjs(entry.date);
+            const dateObj = dayjs.utc(entry.date);
             const dateKey = dateObj.format('YYYY-MM-DD');
             const dayOfWeek = dateObj.day();
 
@@ -312,15 +394,35 @@ const AttenPerformance = () => {
     };
 
     return (
-        <div className="p-1 md:p-4 capitalize bg-gray-200">
-            {loading && <p>Loading performance data...</p>}
+        <div className="p-3 md:p-6 bg-slate-100 min-h-screen space-y-4 max-w-7xl mx-auto">
+            {loading && (
+                <div className="text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-2 rounded-xl">
+                    Loading performance data...
+                </div>
+            )}
 
-            <div className="p-3 md:p-4 flex flex-wrap gap-3 items-center justify-between rounded-xl border border-slate-200 shadow-xs bg-white mb-4">
-                <div className="gap-3 flex items-center">
+            {/* Top Toolbar / Employee & Period Picker */}
+            <div className="p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200 shadow-sm bg-white">
+                <div className="flex items-center flex-wrap gap-2.5 flex-1">
+                    {/* Employee Selector */}
+                    {employeeOptions.length > 0 && (
+                        <div className="w-64 sm:w-72 min-w-[220px]">
+                            <SearchableSelect
+                                size="md"
+                                placeholder="Select Employee..."
+                                searchPlaceholder="Search employee..."
+                                value={selectedEmployeeValue}
+                                options={employeeOptions}
+                                allowClear={false}
+                                onChange={(val) => handleEmployeeChange(val)}
+                            />
+                        </div>
+                    )}
+
                     <select
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                        className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
                     >
                         {yearOptions.map((year) => (
                             <option key={year} value={year}>
@@ -332,7 +434,7 @@ const AttenPerformance = () => {
                     <select
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                        className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                        className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
                     >
                         <option value="all">All Months</option>
                         {monthOptions.map((month) => (
@@ -343,8 +445,18 @@ const AttenPerformance = () => {
                     </select>
                 </div>
 
-                <div className="flex items-center justify-end gap-3">
-                    {/* Avatar Image */}
+                {/* Active Employee Summary Card */}
+                <div className="flex items-center gap-3 shrink-0 self-end md:self-auto border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
+                    <div className="text-right">
+                        <p className="font-bold text-sm text-slate-800 leading-tight">
+                            {user?.name || employee?.name || 'Employee'}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                            {employee?.designation ? `${employee.designation} • ` : ''}{employee?.branchId?.name || (typeof employee?.branchId === 'string' ? employee.branchId : '')}
+                        </p>
+                    </div>
+
+                    {/* Avatar */}
                     {employee?.profileimage ? (
                         <img
                             src={cloudinaryUrl(employee?.profileimage, {
@@ -352,24 +464,14 @@ const AttenPerformance = () => {
                                 width: 100,
                                 height: 100,
                             })}
-                            alt={employee?.name || employee?.userid?.name || "Employee"}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                            alt={employee?.name || user?.name || "Employee"}
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs"
                         />
                     ) : (
-                        <div className="w-10 h-10 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-sm shadow-xs">
                             {user?.name?.charAt(0) || <User size={18} />}
                         </div>
                     )}
-
-                    {/* Employee Info */}
-                    <div className="text-end">
-                        <p className="font-bold text-sm md:text-base text-slate-800">
-                            {user?.name}
-                        </p>
-                        <p className="text-xs text-slate-500 font-medium">
-                            {employee?.designation ? `${employee.designation} • ` : ''}({employee?.branchId?.name})
-                        </p>
-                    </div>
                 </div>
             </div>
 
@@ -382,13 +484,14 @@ const AttenPerformance = () => {
                         hell={hell}
                     />
 
-                    <div className="p-4 print:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 rounded-xl border border-slate-200 shadow-xs bg-white my-4">
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Type</label>
+                    {/* Filter Bar */}
+                    <div className="p-4 print:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 rounded-2xl border border-slate-200 shadow-sm bg-white">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none">Type</label>
                             <select
                                 value={typeFilter}
                                 onChange={(e) => setTypeFilter(e.target.value)}
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                                className="w-full h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
                             >
                                 <option value="all">All Types</option>
                                 <option value="earlyLeave">Early Leave</option>
@@ -398,12 +501,12 @@ const AttenPerformance = () => {
                             </select>
                         </div>
 
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none">Status</label>
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                                className="w-full h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
                             >
                                 <option value="all">All Statuses</option>
                                 <option value="present">Present</option>
@@ -415,12 +518,12 @@ const AttenPerformance = () => {
                             </select>
                         </div>
 
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Over/Short</label>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none">Over/Short</label>
                             <select
                                 value={timeFilter}
                                 onChange={(e) => setTimeFilter(e.target.value)}
-                                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 cursor-pointer"
+                                className="w-full h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
                             >
                                 <option value="all">All</option>
                                 <option value="overtime">Overtime</option>
@@ -428,11 +531,11 @@ const AttenPerformance = () => {
                             </select>
                         </div>
 
-                        <div>
+                        <div className="flex flex-col">
                             <DateInput
                                 label="From Date"
-                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider block"
-                                size="sm"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none"
+                                size="md"
                                 value={fromDate}
                                 onChange={(e) => {
                                     const val = e?.target?.value !== undefined ? e.target.value : e;
@@ -441,11 +544,11 @@ const AttenPerformance = () => {
                             />
                         </div>
 
-                        <div>
+                        <div className="flex flex-col">
                             <DateInput
                                 label="To Date"
-                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider block"
-                                size="sm"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none"
+                                size="md"
                                 value={toDate}
                                 onChange={(e) => {
                                     const val = e?.target?.value !== undefined ? e.target.value : e;
@@ -454,18 +557,20 @@ const AttenPerformance = () => {
                             />
                         </div>
 
-                        <div className="flex items-end">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[11px] font-bold invisible select-none leading-none">Reset</span>
                             <button
                                 type="button"
                                 onClick={resetFilters}
-                                className="w-full h-10 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                className="w-full h-9 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                             >
                                 <RotateCcw size={14} /> Reset
                             </button>
                         </div>
                     </div>
 
-                    <div className='print:hidden'>
+                    {/* Table View */}
+                    <div className="print:hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                         <DataTable
                             columns={columns()}
                             data={filteredData}

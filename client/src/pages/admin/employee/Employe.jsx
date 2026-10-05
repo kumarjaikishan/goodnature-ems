@@ -156,8 +156,14 @@ const Employe = () => {
     setopenviewmodal(true);
   };
 
-  const handleViewAttendance = (userId) => {
-    navigate(`/dashboard/performance/${userId}`);
+  const handleViewAttendance = (identifier) => {
+    const slug = String(identifier)
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    navigate(`/dashboard/performance/${slug || identifier}`);
   };
 
   const handleViewWOLedger = (emp) => {

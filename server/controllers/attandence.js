@@ -1587,26 +1587,56 @@ const employeeAttandence = async (req, res, next) => {
   const { userid, month, year } = req.query;
   if (!userid) return res.status(400).json({ message: 'Employee Id is needed' });
 
-  if (!mongoose.Types.ObjectId.isValid(userid)) {
-    return res.status(400).json({ message: "Invalid Employee Id" });
-  }
-
   try {
-    const user = await User.findOne({ _id: userid })
-      .select('_id name email role')
-      .lean();
+    let user = null;
+    let employeedetail = null;
 
-    if (!user) {
-      return res.status(403).json({ message: 'Employee Not Found' });
+    if (mongoose.Types.ObjectId.isValid(userid)) {
+      user = await User.findOne({ _id: userid }).select('_id name email role').lean();
+      if (user) {
+        employeedetail = await employee.findOne({ userid: user._id })
+          .select('_id empId userid designation salary profileimage branchId department companyId')
+          .populate({ path: 'branchId', select: 'name defaultsetting setting' })
+          .lean();
+      } else {
+        // Maybe an employee document _id was passed directly
+        employeedetail = await employee.findById(userid)
+          .select('_id empId userid designation salary profileimage branchId department companyId')
+          .populate({ path: 'branchId', select: 'name defaultsetting setting' })
+          .lean();
+        if (employeedetail && employeedetail.userid) {
+          user = await User.findById(employeedetail.userid).select('_id name email role').lean();
+        }
+      }
     }
 
-    const employeedetail = await employee.findOne({ userid })
-      .select('_id empId userid designation salary profileimage branchId department companyId')
-      .populate({
-        path: 'branchId',
-        select: 'name defaultsetting setting'
-      })
-      .lean();
+    // If not found by ObjectId, lookup by name slug or empId
+    if (!user || !employeedetail) {
+      const cleanSlug = String(userid).replace(/[-_]+/g, ' ').trim();
+      const regex = new RegExp(`^${cleanSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      
+      const matchedUser = await User.findOne({ name: { $regex: regex } }).select('_id name email role').lean();
+      if (matchedUser) {
+        user = matchedUser;
+        employeedetail = await employee.findOne({ userid: user._id })
+          .select('_id empId userid designation salary profileimage branchId department companyId')
+          .populate({ path: 'branchId', select: 'name defaultsetting setting' })
+          .lean();
+      } else {
+        // Try searching employee by empId
+        employeedetail = await employee.findOne({ empId: { $regex: new RegExp(`^${userid}$`, 'i') } })
+          .select('_id empId userid designation salary profileimage branchId department companyId')
+          .populate({ path: 'branchId', select: 'name defaultsetting setting' })
+          .lean();
+        if (employeedetail && employeedetail.userid) {
+          user = await User.findById(employeedetail.userid).select('_id name email role').lean();
+        }
+      }
+    }
+
+    if (!user && !employeedetail) {
+      return res.status(404).json({ message: 'Employee Not Found' });
+    }
 
     if (!employeedetail) {
       return res.status(404).json({ message: 'Employee details not found' });

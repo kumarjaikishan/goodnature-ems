@@ -46,7 +46,7 @@ const Navbar = () => {
     "advance": "Advance",
     "setting": "Settings",
     "leave-ledger": "Leave",
-    "faceatten": "Face Attendance",
+    "performance": "Performance",
     "performance/:userid": "Performance",
     "empattandence": "Attendance",
     "attandence_Report": "Attendance Report",
