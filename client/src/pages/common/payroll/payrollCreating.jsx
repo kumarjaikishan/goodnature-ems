@@ -678,12 +678,11 @@ export default function PayrollCreatePage() {
       let updatedBonuses = prev.bonuses.filter(b => !b.inputDisabled);
       let updatedDeductions = prev.deductions.filter(d => !d.inputDisabled);
 
-      if (options.addOvertime && basic.overtime > basic.shortmin) {
-        const netOvertime = basic.overtime - basic.shortmin;
+      if (options.addOvertime && basic.overtime > 0) {
         updatedBonuses.push({
-          name: "Net Overtime",
-          amount: (netOvertime * perminuteRate).toFixed(2),
-          extraInfo: `${netOvertime} Min @ ₹${Number(perminuteRate).toFixed(2)}/min (OT: ${basic.overtime}m, ST: ${basic.shortmin}m)`,
+          name: "Overtime",
+          amount: (basic.overtime * perminuteRate).toFixed(2),
+          extraInfo: `${basic.overtime} Min @ ₹${Number(perminuteRate).toFixed(2)}/min`,
           inputDisabled: true
         });
       }
@@ -702,12 +701,11 @@ export default function PayrollCreatePage() {
         }
       }
 
-      if (options.deductShortTime && basic.shortmin > basic.overtime) {
-        const netShortTime = basic.shortmin - basic.overtime;
+      if (options.deductShortTime && basic.shortmin > 0) {
         updatedDeductions.push({
-          name: "Net Short Time",
-          amount: (netShortTime * perminuteRate).toFixed(2),
-          extraInfo: `${netShortTime} Min @ ₹${Number(perminuteRate).toFixed(2)}/min (OT: ${basic.overtime}m, ST: ${basic.shortmin}m)`,
+          name: "Short Time",
+          amount: (basic.shortmin * perminuteRate).toFixed(2),
+          extraInfo: `${basic.shortmin} Min @ ₹${Number(perminuteRate).toFixed(2)}/min`,
           inputDisabled: true
         });
       }
@@ -934,7 +932,7 @@ export default function PayrollCreatePage() {
           <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adjustments</h2>
 
           <div className="flex flex-col gap-2.5 pt-1">
-            {basic?.overtime > basic?.shortmin && (
+            {basic?.overtime > 0 && (
               <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
                 <input
                   type="checkbox"
@@ -943,12 +941,11 @@ export default function PayrollCreatePage() {
                     setOptions((p) => ({
                       ...p,
                       addOvertime: e.target.checked,
-                      deductShortTime: false,
                     }))
                   }
                   className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
                 />
-                <span>Add Net Overtime ({basic.overtime - basic.shortmin} min)</span>
+                <span>Add Overtime ({basic.overtime} min)</span>
               </label>
             )}
 
@@ -962,7 +959,7 @@ export default function PayrollCreatePage() {
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setOptions((p) => ({
-                          ...p,
+                           ...p,
                           addWeeklyOffWork: checked,
                           adjustedWeeklyOffMin: checked
                             ? (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin)
@@ -1024,7 +1021,7 @@ export default function PayrollCreatePage() {
               </div>
             )}
 
-            {basic?.shortmin > basic?.overtime && (
+            {basic?.shortmin > 0 && (
               <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
                 <input
                   type="checkbox"
@@ -1033,12 +1030,11 @@ export default function PayrollCreatePage() {
                     setOptions((p) => ({
                       ...p,
                       deductShortTime: e.target.checked,
-                      addOvertime: false,
                     }))
                   }
                   className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 border-slate-300"
                 />
-                <span>Deduct Net Short Time ({basic.shortmin - basic.overtime} min)</span>
+                <span>Deduct Short Time ({basic.shortmin} min)</span>
               </label>
             )}
 

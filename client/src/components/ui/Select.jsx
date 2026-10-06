@@ -11,6 +11,7 @@ import { ChevronDown, Check } from 'lucide-react';
  */
 export const Select = forwardRef(({
   label,
+  labelClassName = '',
   error,
   helperText,
   options = [], // [{ label: 'Name', value: '1' }] or strings ['A', 'B']
@@ -192,7 +193,7 @@ export const Select = forwardRef(({
       {label && (
         <label
           htmlFor={selectId}
-          className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1 select-none"
+          className={labelClassName || "text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1 select-none"}
         >
           {label}
           {required && <span className="text-red-500 font-bold">*</span>}

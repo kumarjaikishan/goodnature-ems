@@ -7,6 +7,7 @@ import timezone from 'dayjs/plugin/timezone';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import DataTable from '@/components/common/DataTable';
 import DateInput from '@/components/ui/DateInput';
+import Select from '@/components/ui/Select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useSelector } from 'react-redux';
 import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
@@ -429,30 +430,26 @@ const AttenPerformance = () => {
                         </div>
                     )}
 
-                    <select
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
-                    >
-                        {yearOptions.map((year) => (
-                            <option key={year} value={year}>
-                                {year}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="w-24 sm:w-28">
+                        <Select
+                            size="md"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            options={yearOptions.map((y) => ({ label: String(y), value: y }))}
+                        />
+                    </div>
 
-                    <select
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                        className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
-                    >
-                        <option value="all">All Months</option>
-                        {monthOptions.map((month) => (
-                            <option key={month.label} value={month.value}>
-                                {month.label}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="w-32 sm:w-36">
+                        <Select
+                            size="md"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                            options={[
+                                { label: 'All Months', value: 'all' },
+                                ...monthOptions.map((m) => ({ label: m.label, value: m.value }))
+                            ]}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -466,56 +463,62 @@ const AttenPerformance = () => {
                     />
 
                     {/* Filter Bar */}
-                    <div className="p-4 print:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 rounded-2xl border border-slate-200 shadow-sm bg-white">
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none">Type</label>
-                            <select
+                    <div className="p-4 print:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 rounded-2xl border border-slate-200 shadow-sm bg-white items-end">
+                        <div className="flex flex-col">
+                            <Select
+                                label="TYPE"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none mb-1"
+                                size="md"
                                 value={typeFilter}
                                 onChange={(e) => setTypeFilter(e.target.value)}
-                                className="w-full h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="earlyLeave">Early Leave</option>
-                                <option value="lateleave">Late Leave</option>
-                                <option value="earlyarrival">Early Arrival</option>
-                                <option value="latearrival">Late Arrival</option>
-                            </select>
+                                options={[
+                                    { label: 'All Types', value: 'all' },
+                                    { label: 'Early Leave', value: 'earlyLeave' },
+                                    { label: 'Late Leave', value: 'lateleave' },
+                                    { label: 'Early Arrival', value: 'earlyarrival' },
+                                    { label: 'Late Arrival', value: 'latearrival' }
+                                ]}
+                            />
                         </div>
 
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none">Status</label>
-                            <select
+                        <div className="flex flex-col">
+                            <Select
+                                label="STATUS"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none mb-1"
+                                size="md"
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="present">Present</option>
-                                <option value="leave">Leave</option>
-                                <option value="absent">Absent</option>
-                                <option value="weekly off">Weekly off</option>
-                                <option value="holiday">Holiday</option>
-                                <option value="half day">Half Day</option>
-                            </select>
+                                options={[
+                                    { label: 'All Statuses', value: 'all' },
+                                    { label: 'Present', value: 'present' },
+                                    { label: 'Leave', value: 'leave' },
+                                    { label: 'Absent', value: 'absent' },
+                                    { label: 'Weekly off', value: 'weekly off' },
+                                    { label: 'Holiday', value: 'holiday' },
+                                    { label: 'Half Day', value: 'half day' }
+                                ]}
+                            />
                         </div>
 
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none">Over/Short</label>
-                            <select
+                        <div className="flex flex-col">
+                            <Select
+                                label="OVER/SHORT"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none mb-1"
+                                size="md"
                                 value={timeFilter}
                                 onChange={(e) => setTimeFilter(e.target.value)}
-                                className="w-full h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-xs transition"
-                            >
-                                <option value="all">All</option>
-                                <option value="overtime">Overtime</option>
-                                <option value="short">Short Time</option>
-                            </select>
+                                options={[
+                                    { label: 'All', value: 'all' },
+                                    { label: 'Overtime', value: 'overtime' },
+                                    { label: 'Short Time', value: 'short' }
+                                ]}
+                            />
                         </div>
 
                         <div className="flex flex-col">
                             <DateInput
-                                label="From Date"
-                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none"
+                                label="FROM DATE"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none mb-1"
                                 size="md"
                                 value={fromDate}
                                 onChange={(e) => {
@@ -527,8 +530,8 @@ const AttenPerformance = () => {
 
                         <div className="flex flex-col">
                             <DateInput
-                                label="To Date"
-                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none"
+                                label="TO DATE"
+                                labelClassName="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none leading-none mb-1"
                                 size="md"
                                 value={toDate}
                                 onChange={(e) => {
@@ -538,12 +541,11 @@ const AttenPerformance = () => {
                             />
                         </div>
 
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[11px] font-bold invisible select-none leading-none">Reset</span>
+                        <div className="flex flex-col">
                             <button
                                 type="button"
                                 onClick={resetFilters}
-                                className="w-full h-9 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                                className="w-full h-9 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                             >
                                 <RotateCcw size={14} /> Reset
                             </button>
