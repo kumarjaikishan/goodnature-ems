@@ -170,18 +170,6 @@ exports.createPayroll = async (req, res, next) => {
         remainingToAdjust -= deduction;
       }
 
-      // Record in Ledger (CREDIT - Reduces the liability to pay salary)
-      await accountingService.recordLedgerEntry({
-        employeeId,
-        companyId,
-        date: entryDate,
-        type: 'CREDIT',
-        amount: amountToAdjust,
-        source: 'adjustment',
-        referenceId: payroll._id,
-        remarks: `Advance adjusted in Payroll ${getMonthName(month)}-${year}`
-      }, session);
-
       // 4. Create an 'adjusted' record in Advance collection for history visibility
       const adjustmentRecord = new Advance({
         employeeId,
@@ -454,15 +442,6 @@ exports.editPayroll = async (req, res, next) => {
           remainingToAdjust -= deduction;
         }
       } 
-      
-      // 🔹 Update the main adjustment entry directly to avoid "new entry" spam
-      const mainAdjEntry = await Entry.findOne({ referenceId: payroll._id, source: 'adjustment' }).session(session);
-      if (mainAdjEntry) {
-        mainAdjEntry.credit = newAdjustment;
-        mainAdjEntry.debit = 0;
-        mainAdjEntry.particular = `Advance adjusted in Payroll ${getMonthName(payroll.month)}-${payroll.year} (Edited)`;
-        await mainAdjEntry.save({ session });
-      }
 
       // 🔹 Sync the 'adjusted' record in Advance collection for history visibility
       let adjustmentRecord = await Advance.findOne({

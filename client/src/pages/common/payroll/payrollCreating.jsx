@@ -306,23 +306,25 @@ export default function PayrollCreatePage() {
     setemployeeleavebal(totalRemaining);
   }, [leaveBalance, selectedEmployeedetail]);
 
+  const targetEmpId = selectedEmployee || urlEmployeeId || stateEmployee?._id;
+
   useEffect(() => {
-    if (!selectedEmployeedetail?._id) {
+    if (!targetEmpId) {
       setpreviousAdvance(0);
       setActiveAdvanceInfo(null);
       return;
     }
 
-    const baseAdvance = Number(selectedEmployeedetail.advance || 0);
-    setpreviousAdvance(baseAdvance);
+    const empIdStr = targetEmpId.toString();
+    const baseAdvance = Number(selectedEmployeedetail?.advance || 0);
 
-    apiClient({ url: `advance/employee/${selectedEmployeedetail._id}` })
+    apiClient({ url: `advance/employee/${empIdStr}` })
       .then((res) => {
         if (res.success && res.data) {
           const advData = res.data;
           setActiveAdvanceInfo(advData);
 
-          const liveBal = advData.totalRemainingBalance !== undefined ? advData.totalRemainingBalance : baseAdvance;
+          const liveBal = advData.totalRemainingBalance !== undefined ? Number(advData.totalRemainingBalance) : baseAdvance;
           setpreviousAdvance(liveBal);
 
           // Auto-adjust advance with scheduled EMI if active advances exist and not in edit mode
@@ -337,12 +339,15 @@ export default function PayrollCreatePage() {
               adjustedAdvance: suggested,
             }));
           }
+        } else {
+          setpreviousAdvance(baseAdvance);
         }
       })
       .catch((err) => {
         console.error("Failed to fetch employee advance details:", err);
+        setpreviousAdvance(baseAdvance);
       });
-  }, [selectedEmployeedetail?._id, id]);
+  }, [targetEmpId, selectedEmployeedetail?.advance, id]);
 
   function formatRupee(amount) {
     const num = Number(amount);
@@ -396,6 +401,7 @@ export default function PayrollCreatePage() {
     adjustedWeeklyOffMin: undefined,
     deductShortTime: false,
     deductAbsent: false,
+    deductLeave: false,
     adjustLeave: false,
     adjustAdvance: false,
     adjustedLeaveCount: 0,
@@ -728,22 +734,31 @@ export default function PayrollCreatePage() {
         });
       }
 
-      if (options.adjustLeave && prev.leaveDays > 0) {
-        const adjusted = Math.min(options.adjustedLeaveCount, employeeleavebal, prev.leaveDays);
-        const unadjusted = prev.leaveDays - adjusted;
-        if (adjusted > 0) {
-          updatedDeductions.push({
-            name: "Paid Leave Adjustment",
-            amount: (adjusted * perDayRate).toFixed(2),
-            extraInfo: `${adjusted} Paid Leave(s) Adjusted`,
-            inputDisabled: true
-          });
-        }
-        if (unadjusted > 0) {
+      if (options.deductLeave && prev.leaveDays > 0) {
+        if (options.adjustLeave) {
+          const adjusted = Math.min(options.adjustedLeaveCount, employeeleavebal, prev.leaveDays);
+          const unadjusted = prev.leaveDays - adjusted;
+          if (adjusted > 0) {
+            updatedDeductions.push({
+              name: "Paid Leave Adjustment",
+              amount: (adjusted * perDayRate).toFixed(2),
+              extraInfo: `${adjusted} Paid Leave(s) Adjusted from balance`,
+              inputDisabled: true
+            });
+          }
+          if (unadjusted > 0) {
+            updatedDeductions.push({
+              name: "Unpaid Leave",
+              amount: (unadjusted * perDayRate).toFixed(2),
+              extraInfo: `${unadjusted} Unpaid Leave(s)`,
+              inputDisabled: true
+            });
+          }
+        } else {
           updatedDeductions.push({
             name: "Unpaid Leave",
-            amount: (unadjusted * perDayRate).toFixed(2),
-            extraInfo: `${unadjusted} Unpaid Leave(s)`,
+            amount: (prev.leaveDays * perDayRate).toFixed(2),
+            extraInfo: `${prev.leaveDays} Leave Day(s) @ ₹${Number(perDayRate).toFixed(2)}/day`,
             inputDisabled: true
           });
         }
@@ -926,59 +941,97 @@ export default function PayrollCreatePage() {
         </div>
       )}
 
-      {/* 3. Adjustments */}
+      {/* 3. Adjustments (Redesigned 2-Column Professional Theme Layout) */}
       {selectedEmployeedetail && !error && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-          <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adjustments</h2>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div>
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Adjustments</h2>
+              <p className="text-[11px] text-slate-500">Select additions or deductions to apply to this payroll</p>
+            </div>
+          </div>
 
-          <div className="flex flex-col gap-2.5 pt-1">
-            {basic?.overtime > 0 && (
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={options.addOvertime}
-                  onChange={(e) =>
-                    setOptions((p) => ({
-                      ...p,
-                      addOvertime: e.target.checked,
-                    }))
-                  }
-                  className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
-                />
-                <span>Add Overtime ({basic.overtime} min)</span>
-              </label>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* COLUMN 1: ADDITIONS / EARNINGS */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 pb-1 border-b border-emerald-100">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Additions (Earnings)</span>
+              </div>
 
-            {totalAvailableWeeklyOffMin > 0 && (
-              <div className="flex flex-col gap-1 border border-purple-200 bg-purple-50/60 p-3 rounded-xl">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-800">
+              {/* Add Overtime */}
+              {basic?.overtime > 0 && (
+                <div className={`p-3 rounded-xl border transition-all ${
+                  options.addOvertime
+                    ? "bg-emerald-50/70 border-emerald-300 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                }`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={options.addOvertime}
+                      onChange={(e) =>
+                        setOptions((p) => ({
+                          ...p,
+                          addOvertime: e.target.checked,
+                        }))
+                      }
+                      className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Add Overtime</span>
+                        <span className="text-xs font-black text-emerald-700">
+                          +{formatRupee(basic.overtime * perminuteRate)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {basic.overtime} min @ {formatRupee(perminuteRate)}/min
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Add Work on Weekly Off */}
+              {totalAvailableWeeklyOffMin > 0 && (
+                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                  options.addWeeklyOffWork
+                    ? "bg-purple-50/70 border-purple-300 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                }`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={options.addWeeklyOffWork || false}
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setOptions((p) => ({
-                           ...p,
+                          ...p,
                           addWeeklyOffWork: checked,
                           adjustedWeeklyOffMin: checked
                             ? (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin)
                             : (p.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin),
                         }));
                       }}
-                      className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 border-slate-300"
+                      className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
                     />
-                    <span>
-                      Add Work on Weekly Off
-                      <span className="text-purple-700 font-extrabold ml-1">
-                        (Total Available: {totalAvailableWeeklyOffMin} min / {(totalAvailableWeeklyOffMin / 60).toFixed(1)} hrs)
-                      </span>
-                    </span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Work on Weekly Off</span>
+                        <span className="text-xs font-black text-purple-700">
+                          +{formatRupee(((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0) * perminuteRate)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Available: <strong>{totalAvailableWeeklyOffMin} min</strong> ({(totalAvailableWeeklyOffMin / 60).toFixed(1)} hrs)
+                      </p>
+                    </div>
                   </label>
 
                   {options.addWeeklyOffWork && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-28">
+                    <div className="pl-6.5 pt-1 border-t border-purple-100 flex items-center justify-between gap-3">
+                      <div className="w-32">
                         <Input
                           size="sm"
                           label="Min to Pay"
@@ -993,111 +1046,195 @@ export default function PayrollCreatePage() {
                           }}
                         />
                       </div>
-                      <span className="text-xs font-bold text-purple-800 whitespace-nowrap">
-                        = {(((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0) / 60).toFixed(1)} hrs
-                      </span>
+                      <div className="text-right text-[11px] text-purple-700">
+                        <span>Carry Fwd: <strong>{Math.max(0, totalAvailableWeeklyOffMin - ((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0))} min</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pl-6.5 flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                    <span>This Mo: {basic?.weeklyOffWork || 0}m | Prev: {previousWeeklyOffAccumulated || 0}m</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowWOLedgerModal(true)}
+                      className="text-purple-700 font-semibold hover:underline cursor-pointer"
+                    >
+                      Ledger History →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty placeholder if no additions available */}
+              {!(basic?.overtime > 0) && !(totalAvailableWeeklyOffMin > 0) && (
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                  No overtime or weekly off work available this month.
+                </div>
+              )}
+            </div>
+
+            {/* COLUMN 2: DEDUCTIONS */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800 pb-1 border-b border-rose-100">
+                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span>Deductions</span>
+              </div>
+
+              {/* Deduct Short Time */}
+              {basic?.shortmin > 0 && (
+                <div className={`p-3 rounded-xl border transition-all ${
+                  options.deductShortTime
+                    ? "bg-rose-50/70 border-rose-300 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                }`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={options.deductShortTime}
+                      onChange={(e) =>
+                        setOptions((p) => ({
+                          ...p,
+                          deductShortTime: e.target.checked,
+                        }))
+                      }
+                      className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Deduct Short Time</span>
+                        <span className="text-xs font-black text-rose-700">
+                          -{formatRupee(basic.shortmin * perminuteRate)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {basic.shortmin} min @ {formatRupee(perminuteRate)}/min
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Deduct Absent Days */}
+              {form?.absentDays > 0 && (
+                <div className={`p-3 rounded-xl border transition-all ${
+                  options.deductAbsent
+                    ? "bg-rose-50/70 border-rose-300 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                }`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={options.deductAbsent}
+                      onChange={(e) =>
+                        setOptions((p) => ({
+                          ...p,
+                          deductAbsent: e.target.checked,
+                        }))
+                      }
+                      className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Deduct Absent Days</span>
+                        <span className="text-xs font-black text-rose-700">
+                          -{formatRupee(form.absentDays * perDayRate)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {form.absentDays} day(s) @ {formatRupee(perDayRate)}/day
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Deduct Leave Days & Paid Leave Adjustment */}
+              {form?.leaveDays > 0 && (
+                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                  options.deductLeave
+                    ? "bg-rose-50/70 border-rose-300 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                }`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={options.deductLeave}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setOptions((p) => ({
+                          ...p,
+                          deductLeave: checked,
+                          adjustLeave: checked && employeeleavebal > 0 ? p.adjustLeave : false,
+                          adjustedLeaveCount: checked && employeeleavebal > 0 ? (p.adjustedLeaveCount || Math.min(employeeleavebal, form.leaveDays)) : 0,
+                        }));
+                      }}
+                      className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Deduct Leave Days</span>
+                        <span className="text-xs font-black text-rose-700">
+                          -{formatRupee((options.adjustLeave ? Math.max(0, form.leaveDays - (options.adjustedLeaveCount || 0)) : form.leaveDays) * perDayRate)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Total Leaves: {form.leaveDays} day(s) • Quota: {employeeleavebal} available
+                      </p>
+                    </div>
+                  </label>
+
+                  {options.deductLeave && employeeleavebal > 0 && (
+                    <div className="pl-6.5 pt-2 border-t border-rose-100 flex items-center justify-between flex-wrap gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-teal-800">
+                        <input
+                          type="checkbox"
+                          checked={options.adjustLeave}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setOptions((p) => ({
+                              ...p,
+                              adjustLeave: checked,
+                              adjustedLeaveCount: checked ? (p.adjustedLeaveCount || Math.min(employeeleavebal, form.leaveDays)) : 0,
+                            }));
+                          }}
+                          className="rounded text-teal-600 focus:ring-teal-500 w-3.5 h-3.5 border-slate-300 cursor-pointer"
+                        />
+                        <span>Adjust from Paid Quota</span>
+                      </label>
+
+                      {options.adjustLeave && (
+                        <div className="w-24">
+                          <NumberInput
+                            size="sm"
+                            label="Paid Days"
+                            min={0}
+                            max={Math.min(employeeleavebal, form.leaveDays)}
+                            value={options.adjustedLeaveCount}
+                            onChange={(e) => {
+                              const raw = (e !== null && typeof e === 'object' && e.target !== undefined) ? e.target.value : e;
+                              const val = Number(raw) || 0;
+                              const max = Math.min(employeeleavebal, form.leaveDays);
+                              setOptions((p) => ({
+                                ...p,
+                                adjustedLeaveCount: Math.max(0, Math.min(val, max)),
+                              }));
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+              )}
 
-                <div className="text-[11px] text-slate-600 pl-6 flex items-center justify-between flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-purple-100/60 mt-1">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    <span>This Month: <strong className="text-slate-800">{basic?.weeklyOffWork || 0} min</strong></span>
-                    <span>Previous Carry Forward: <strong className="text-slate-800">{previousWeeklyOffAccumulated || 0} min</strong></span>
-                    {options.addWeeklyOffWork && (
-                      <span className="text-purple-700 font-semibold">
-                        Remaining: <strong>{Math.max(0, totalAvailableWeeklyOffMin - ((options.adjustedWeeklyOffMin ?? totalAvailableWeeklyOffMin) || 0))} min</strong>
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowWOLedgerModal(true)}
-                    className="text-purple-700 font-bold hover:underline text-[11px] cursor-pointer"
-                  >
-                    View Ledger History →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {basic?.shortmin > 0 && (
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={options.deductShortTime}
-                  onChange={(e) =>
-                    setOptions((p) => ({
-                      ...p,
-                      deductShortTime: e.target.checked,
-                    }))
-                  }
-                  className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 border-slate-300"
-                />
-                <span>Deduct Short Time ({basic.shortmin} min)</span>
-              </label>
-            )}
-
-            {form?.absentDays > 0 && (
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={options.deductAbsent}
-                  onChange={(e) =>
-                    setOptions((p) => ({
-                      ...p,
-                      deductAbsent: e.target.checked,
-                    }))
-                  }
-                  className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4 border-slate-300"
-                />
-                <span>Deduct Absent Days ({form.absentDays} days)</span>
-              </label>
-            )}
-
-            {form?.leaveDays > 0 && (
-              <div className="flex items-center flex-wrap gap-3 pt-1">
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={options.adjustLeave}
-                    onChange={(e) =>
-                      setOptions((p) => ({
-                        ...p,
-                        adjustLeave: e.target.checked,
-                      }))
-                    }
-                    className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
-                  />
-                  <span>Adjust Paid Leaves (Available: {employeeleavebal})</span>
-                </label>
-                {options.adjustLeave && (
-                  <div className="w-24">
-                    <NumberInput
-                      size="sm"
-                      label="Count"
-                      min={0}
-                      max={Math.min(employeeleavebal, form.leaveDays)}
-                      value={options.adjustedLeaveCount}
-                      onChange={(e) => {
-                        const raw = (e !== null && typeof e === 'object' && e.target !== undefined) ? e.target.value : e;
-                        const val = Number(raw) || 0;
-                        const max = Math.min(employeeleavebal, form.leaveDays);
-                        setOptions((p) => ({
-                          ...p,
-                          adjustedLeaveCount: Math.max(0, Math.min(val, max)),
-                        }));
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {previousAdvance > 0 && (
-              <div className="flex flex-col gap-1.5 border border-teal-200 bg-teal-50/50 p-3 rounded-xl">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-800">
+              {/* Adjust Advance Deduction */}
+              {previousAdvance > 0 && (
+                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                  options.adjustAdvance
+                    ? "bg-teal-50/70 border-teal-300 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                }`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={options.adjustAdvance}
@@ -1114,19 +1251,24 @@ export default function PayrollCreatePage() {
                             : (p.adjustedAdvance || 0),
                         }));
                       }}
-                      className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-300"
+                      className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
                     />
-                    <span>
-                      Adjust Advance Deduction
-                      <span className="text-teal-700 font-extrabold ml-1">
-                        (Total Balance Due: {formatRupee(previousAdvance)})
-                      </span>
-                    </span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Adjust Advance Deduction</span>
+                        <span className="text-xs font-black text-teal-700">
+                          -{formatRupee(options.adjustedAdvance || 0)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Total Balance Due: <strong className="text-slate-700">{formatRupee(previousAdvance)}</strong>
+                      </p>
+                    </div>
                   </label>
 
                   {options.adjustAdvance && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-32">
+                    <div className="pl-6.5 pt-1 border-t border-teal-100 flex items-center justify-between gap-3">
+                      <div className="w-36">
                         <NumberInput
                           size="sm"
                           label="Deduct Amount"
@@ -1146,33 +1288,36 @@ export default function PayrollCreatePage() {
                           }}
                         />
                       </div>
+                      <div className="text-right text-[11px] text-teal-800">
+                        <span>Remaining: <strong>{formatRupee(Math.max(0, previousAdvance - (options.adjustedAdvance || 0)))}</strong></span>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                <div className="text-[11px] text-slate-600 pl-6 flex items-center justify-between flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-teal-100 mt-1">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {activeAdvanceInfo?.suggestedMonthlyDeduction > 0 && (
-                      <span>
-                        Scheduled Monthly EMI: <strong className="text-teal-800 font-semibold">{formatRupee(activeAdvanceInfo.suggestedMonthlyDeduction)}</strong>
-                      </span>
+                  <div className="pl-6.5 flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                    {activeAdvanceInfo?.suggestedMonthlyDeduction > 0 ? (
+                      <span>Scheduled EMI: <strong className="text-teal-700">{formatRupee(activeAdvanceInfo.suggestedMonthlyDeduction)}</strong></span>
+                    ) : (
+                      <span>No monthly schedule</span>
                     )}
-                    {options.adjustAdvance && (
-                      <span className="text-teal-700 font-semibold">
-                        Remaining After Deduction: <strong>{formatRupee(Math.max(0, previousAdvance - (options.adjustedAdvance || 0)))}</strong>
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/advance?employeeId=${selectedEmployeedetail._id}`)}
+                      className="text-teal-700 font-semibold hover:underline cursor-pointer"
+                    >
+                      Advance Records →
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/dashboard/advance?employeeId=${selectedEmployeedetail._id}`)}
-                    className="text-teal-700 font-bold hover:underline text-[11px] cursor-pointer"
-                  >
-                    View Advance Records →
-                  </button>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Empty placeholder if no deductions available */}
+              {!(basic?.shortmin > 0) && !(form?.absentDays > 0) && !(form?.leaveDays > 0) && !(previousAdvance > 0) && (
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                  No deductions to adjust.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

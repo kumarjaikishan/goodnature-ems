@@ -186,30 +186,40 @@ export default function PlotBookingEditPage() {
     }
   };
 
-  // Search customers dynamically
+  // Search customers dynamically or fetch available
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
   useEffect(() => {
-    if (!searchQuery || searchQuery.trim().length < 2) {
-      setSearchResults([]);
+    if (
+      selectedCustomer &&
+      (searchQuery.trim().toLowerCase() === selectedCustomer.name?.trim().toLowerCase() ||
+        searchQuery.trim() === (selectedCustomer.customerCode || selectedCustomer.customerId || ''))
+    ) {
       return;
     }
 
     const timer = setTimeout(() => {
+      setIsSearchingCustomers(true);
+      const trimmed = searchQuery.trim();
+      const params = { limit: 15 };
+      if (trimmed.length > 0) {
+        params.search = trimmed;
+      }
+
       api
-        .get('/plots/customers', {
-          params: {
-            search: searchQuery.trim(),
-            limit: 10,
-          },
-        })
+        .get('/plots/customers', { params })
         .then((res) => {
-          const list = res.data?.data?.customers || res.data?.customers || res.data?.data || [];
+          const raw = res.data?.data ?? res.data?.customers ?? res.data ?? [];
+          const list = Array.isArray(raw) ? raw : (raw?.customers || []);
           setSearchResults(list);
         })
-        .catch(() => setSearchResults([]));
-    }, 250);
+        .catch(() => setSearchResults([]))
+        .finally(() => setIsSearchingCustomers(false));
+    }, searchQuery ? 250 : 0);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, selectedCustomer]);
 
   // Customer Selection Handler
   const selectCustomer = (cust) => {
@@ -495,40 +505,78 @@ export default function PlotBookingEditPage() {
             </div>
 
             <div className="relative">
-              <label className={labelCls}>Search & Change Customer</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>Search & Change Customer</label>
+                {isSearchingCustomers && (
+                  <span className="text-[11px] text-teal-600 font-semibold animate-pulse">Loading customers...</span>
+                )}
+              </div>
               <div className="relative">
                 <input
-                  className={`${inputCls} pl-10`}
+                  className={`${inputCls} pl-10 pr-10`}
                   placeholder="Search by name, customer ID, or mobile number..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                  onClick={() => setShowCustomerDropdown(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowCustomerDropdown(true);
+                  }}
                 />
                 <Search size={18} className="text-slate-400 absolute left-3.5 top-3" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setShowCustomerDropdown(true);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
 
               {/* Dropdown Results */}
-              {searchResults.length > 0 && (
+              {showCustomerDropdown && (
                 <div className="absolute z-20 top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-slate-100">
-                  {searchResults.map((cust) => (
-                    <div
-                      key={cust._id}
-                      onClick={() => selectCustomer(cust)}
-                      className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between text-xs"
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-800">{cust.name}</span>
-                        <span className="text-slate-500 font-mono text-[11px]">
-                          {cust.customerCode || cust.customerId}
-                        </span>
+                  <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>{searchQuery.trim() ? `Search Results (${searchResults?.length || 0})` : 'Available / Recent Customers'}</span>
+                    <span className="text-[10px] text-slate-400 font-normal lowercase">Click to select</span>
+                  </div>
+
+                  {searchResults.length > 0 ? (
+                    searchResults.map((cust) => (
+                      <div
+                        key={cust._id}
+                        onClick={() => {
+                          selectCustomer(cust);
+                          setShowCustomerDropdown(false);
+                        }}
+                        className="p-3 hover:bg-teal-50/70 cursor-pointer flex items-center justify-between text-xs transition"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800">{cust.name}</span>
+                          <span className="text-slate-500 font-mono text-[11px]">
+                            {cust.customerCode || cust.customerId}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-slate-600 font-medium block">{cust.mobile || '-'}</span>
+                          <span className="text-[10px] text-teal-700 font-bold uppercase">
+                            {cust.sponsorId?.name ? `Sponsor: ${cust.sponsorId.name}` : 'Direct Customer'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-slate-600 block">{cust.mobile}</span>
-                        <span className="text-[10px] text-teal-700 font-bold uppercase">
-                          {cust.sponsorId?.name ? `Sponsor: ${cust.sponsorId.name}` : 'Direct Customer'}
-                        </span>
-                      </div>
+                    ))
+                  ) : !isSearchingCustomers ? (
+                    <div className="p-4 text-center text-xs text-slate-500">
+                      {searchQuery.trim() ? `No customers found matching "${searchQuery}".` : 'No customers found.'}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="p-4 text-center text-xs text-slate-400">Loading customers...</div>
+                  )}
                 </div>
               )}
             </div>

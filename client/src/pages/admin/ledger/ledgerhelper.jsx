@@ -5,7 +5,7 @@ import { Edit2, Trash2, Lock, FileText, CreditCard } from "lucide-react";
  * Sources that are purely manual / hand-entered from the "+ Add Entry" button.
  * These are the ONLY entries that should be editable or deletable from this ledger detail page.
  */
-const MANUAL_SOURCES = new Set(['ledger', 'manual', 'adjustment', 'transfer', 'investment']);
+const MANUAL_SOURCES = new Set(['ledger', 'manual', 'transfer', 'investment']);
 
 /**
  * Sources that come from the Voucher module (VoucherList page).
@@ -184,7 +184,7 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, i
                 }
 
                 // ─── 2. PAYROLL / SALARY → link to payroll page ─────────────────
-                if (PAYROLL_SOURCES.has(src)) {
+                if (PAYROLL_SOURCES.has(src) || src === 'adjustment' || (row.particular && row.particular.toLowerCase().includes('payroll'))) {
                     return (
                         <div className="flex items-center gap-1 w-full">
                             <span

@@ -117,36 +117,37 @@ export default function PlotBooking() {
     }
   };
 
-  // Search customers dynamically
-  useEffect(() => {
-    if (!searchQuery || searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
+  // Customer search & recent customers loading
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
 
-    // Skip duplicate network search if search query matches currently selected customer
+  // Search or fetch available customers
+  useEffect(() => {
+    // If user has chosen a customer and query equals that customer's name/ID, no need to query
     if (
       selectedCustomer &&
       (searchQuery.trim().toLowerCase() === selectedCustomer.name?.trim().toLowerCase() ||
         searchQuery.trim() === (selectedCustomer.customerCode || selectedCustomer.customerId || ''))
     ) {
-      setSearchResults([]);
       return;
     }
 
     const timer = setTimeout(() => {
-      api.get('/plots/customers', {
-        params: {
-          search: searchQuery.trim(),
-          limit: 10,
-        },
-      })
+      setIsSearchingCustomers(true);
+      const trimmed = searchQuery.trim();
+      const params = { limit: 15 };
+      if (trimmed.length > 0) {
+        params.search = trimmed;
+      }
+
+      api.get('/plots/customers', { params })
         .then((res) => {
-          const list = res.data?.data?.customers || res.data?.customers || res.data?.data || [];
+          const raw = res.data?.data ?? res.data?.customers ?? res.data ?? [];
+          const list = Array.isArray(raw) ? raw : (raw?.customers || []);
           setSearchResults(list);
         })
-        .catch(() => setSearchResults([]));
-    }, 250);
+        .catch(() => setSearchResults([]))
+        .finally(() => setIsSearchingCustomers(false));
+    }, searchQuery ? 250 : 0);
 
     return () => clearTimeout(timer);
   }, [searchQuery, selectedCustomer]);
@@ -475,6 +476,7 @@ export default function PlotBooking() {
               selectCustomer={selectCustomer}
               form={form}
               setForm={setForm}
+              isSearchingCustomers={isSearchingCustomers}
             />
           )}
 

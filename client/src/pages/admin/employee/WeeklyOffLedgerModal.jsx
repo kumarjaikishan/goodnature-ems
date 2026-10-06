@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Trash2, Clock, Plus, Minus, X, AlertCircle } from "lucide-react";
+import { Trash2, Plus, Minus } from "lucide-react";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
 import { confirmDialog } from "../../../utils/confirmDialog";
@@ -9,7 +9,6 @@ import dayjs from "dayjs";
 import Modalbox from "../../../components/custommodal/Modalbox";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
-import NumberInput from "../../../components/ui/NumberInput";
 import Select from "../../../components/ui/Select";
 
 const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
@@ -169,33 +168,23 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
 
   if (!open) return null;
 
-  return (
-    <Modalbox open={open} onClose={onClose}>
-      <div className="w-full max-w-2xl p-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
-              <Clock size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 leading-tight">
-                Weekly Off Work Ledger
-              </h3>
-              <p className="text-xs text-slate-500 font-normal">
-                {employee?.userid?.name || employee?.rawname || employee?.name} ({employee?.empId || "EMP"})
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
+  const empName = employee?.userid?.name || employee?.rawname || employee?.name || "Employee";
+  const empIdText = employee?.empId || "EMP";
 
+  return (
+    <Modalbox
+      open={open}
+      onClose={onClose}
+      title="Weekly Off Work Ledger"
+      subtitle={`${empName} (${empIdText})`}
+      size="2xl"
+      footer={
+        <Button onClick={onClose} variant="outline" size="sm">
+          Close
+        </Button>
+      }
+    >
+      <div className="space-y-4">
         {/* Balance Overview Card */}
         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -337,13 +326,6 @@ const WeeklyOffLedgerModal = ({ open, onClose, employee }) => {
               </table>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end pt-2">
-          <Button onClick={onClose} variant="outline" size="sm">
-            Close
-          </Button>
         </div>
       </div>
     </Modalbox>

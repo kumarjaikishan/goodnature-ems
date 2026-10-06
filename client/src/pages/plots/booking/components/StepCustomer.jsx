@@ -17,6 +17,7 @@ export const StepCustomer = ({
   selectedCustomer,
   setSelectedCustomer,
   setForm,
+  isSearchingCustomers,
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
@@ -45,8 +46,7 @@ export const StepCustomer = ({
   const handleClear = () => {
     setSearchQuery('');
     if (setSelectedCustomer) setSelectedCustomer(null);
-    if (setSearchResults) setSearchResults([]);
-    setShowDropdown(false);
+    setShowDropdown(true);
     setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
     if (inputRef.current) {
       inputRef.current.focus();
@@ -56,7 +56,6 @@ export const StepCustomer = ({
   const handleCustomerSelect = (cust) => {
     selectCustomer(cust);
     setShowDropdown(false);
-    if (setSearchResults) setSearchResults([]);
   };
 
   const handleInputChange = (e) => {
@@ -66,6 +65,12 @@ export const StepCustomer = ({
     if (selectedCustomer && val.trim().toLowerCase() !== selectedCustomer.name?.trim().toLowerCase()) {
       if (setSelectedCustomer) setSelectedCustomer(null);
       setForm((f) => ({ ...f, customerId: '', sponsorId: '' }));
+    }
+  };
+
+  const handleFocus = () => {
+    if (!selectedCustomer) {
+      setShowDropdown(true);
     }
   };
 
@@ -88,18 +93,20 @@ export const StepCustomer = ({
 
       {/* Customer Search Bar */}
       <div className="relative" ref={containerRef}>
-        <label className={labelCls}>Search Existing Customer</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className={labelCls}>Search Existing Customer</label>
+          {isSearchingCustomers && (
+            <span className="text-[11px] text-teal-600 font-semibold animate-pulse">Loading customers...</span>
+          )}
+        </div>
         <div className="relative">
           <input
             ref={inputRef}
             className={`${inputCls} pl-10 pr-10`}
             placeholder="Search by name, customer ID, or mobile number..."
             value={searchQuery}
-            onFocus={() => {
-              if (!selectedCustomer && searchResults && searchResults.length > 0) {
-                setShowDropdown(true);
-              }
-            }}
+            onFocus={handleFocus}
+            onClick={handleFocus}
             onChange={handleInputChange}
           />
           <Search size={18} className="text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
@@ -116,28 +123,44 @@ export const StepCustomer = ({
         </div>
 
         {/* Search Dropdown Results */}
-        {showDropdown && !selectedCustomer && searchResults && searchResults.length > 0 && (
-          <div className="absolute z-30 top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
-            {searchResults.map((cust) => (
-              <div
-                key={cust._id}
-                onClick={() => handleCustomerSelect(cust)}
-                className="p-3 hover:bg-teal-50/70 cursor-pointer flex items-center justify-between text-xs transition"
-              >
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-800">{cust.name}</span>
-                  <span className="text-slate-500 font-mono text-[11px]">
-                    {cust.customerCode || cust.customerId}
-                  </span>
+        {showDropdown && !selectedCustomer && (
+          <div className="absolute z-30 top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto divide-y divide-slate-100">
+            {/* Header indicator */}
+            <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span>{searchQuery.trim() ? `Search Results (${searchResults?.length || 0})` : 'Available / Recent Customers'}</span>
+              <span className="text-[10px] text-slate-400 font-normal lowercase">Click to select</span>
+            </div>
+
+            {searchResults && searchResults.length > 0 ? (
+              searchResults.map((cust) => (
+                <div
+                  key={cust._id}
+                  onClick={() => handleCustomerSelect(cust)}
+                  className="p-3 hover:bg-teal-50/70 cursor-pointer flex items-center justify-between text-xs transition"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-800">{cust.name}</span>
+                    <span className="text-slate-500 font-mono text-[11px]">
+                      {cust.customerCode || cust.customerId}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-600 font-medium block">{cust.mobile || cust.phone || '—'}</span>
+                    <span className="text-[10px] text-teal-700 font-bold uppercase">
+                      {cust.sponsorId?.name ? `Sponsor: ${cust.sponsorId.name}` : 'Direct Customer'}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-600 font-medium block">{cust.mobile}</span>
-                  <span className="text-[10px] text-teal-700 font-bold uppercase">
-                    {cust.sponsorId?.name ? `Sponsor: ${cust.sponsorId.name}` : 'Direct Customer'}
-                  </span>
-                </div>
+              ))
+            ) : !isSearchingCustomers ? (
+              <div className="p-4 text-center text-xs text-slate-500">
+                {searchQuery.trim()
+                  ? `No customers found matching "${searchQuery}".`
+                  : 'No customer records found. You can register a new customer above.'}
               </div>
-            ))}
+            ) : (
+              <div className="p-4 text-center text-xs text-slate-400">Loading customer list...</div>
+            )}
           </div>
         )}
       </div>
