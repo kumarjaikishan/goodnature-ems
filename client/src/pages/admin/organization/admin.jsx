@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Users } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import useImageUpload from "../../../utils/imageresizer";
+import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
 import { FirstFetch } from "../../../../store/userSlice";
@@ -12,23 +12,14 @@ import {
     UserFilterBar,
     UserGridView,
     UserTableView,
-    UserFormModal,
     ResetPasswordModal,
-    AllPermissionNames,
-    adminPermission,
-    managerPermission,
-    accountantPermission,
-    cashierPermission,
-    hrPermission,
-    salesPermission,
-    auditorPermission,
-    getPresetPermissions,
 } from "./components/admin";
 
 export default function SuperAdminDashboard() {
+    const navigate = useNavigate();
     const [admins, setAdmins] = useState([]);
     const [isload, setisload] = useState(false);
-    const { branch: branchList } = useSelector((state) => state.user);
+    const { branch: branchList } = useSelector((state) => state.user || {});
     const dispatch = useDispatch();
 
     const canCreate = usePermission('admin', 2);
@@ -51,25 +42,8 @@ export default function SuperAdminDashboard() {
         }
     };
 
-    const [form, setForm] = useState({
-        name: "",
-        email: "",
-        password: "",
-        role: "admin",
-        branchIds: [],
-        isBlocked: false,
-        profileImage: null,
-        profilePreview: "",
-        permissions: { ...adminPermission },
-    });
-
-    const inputref = useRef(null);
-    const { handleImage } = useImageUpload();
-    const [editingIndex, setEditingIndex] = useState(null);
-    const [showForm, setShowForm] = useState(false);
-    const [newModule, setNewModule] = useState("");
-    const [activePermTab, setActivePermTab] = useState("all");
     const [passmodal, setpassmodal] = useState(false);
+    const [targetUser, setTargetUser] = useState(null);
     const [expandedIndex, setExpandedIndex] = useState(null);
     const [copiedEmail, setCopiedEmail] = useState(null);
 
@@ -86,23 +60,6 @@ export default function SuperAdminDashboard() {
         setExpandedIndex((prev) => (prev === index ? null : index));
     };
 
-    const resetForm = () => {
-        setForm({
-            name: "",
-            email: "",
-            password: "",
-            role: "admin",
-            branchIds: [],
-            isBlocked: false,
-            profileImage: null,
-            profilePreview: "",
-            permissions: { ...adminPermission },
-        });
-        setNewModule("");
-        setEditingIndex(null);
-        setShowForm(false);
-    };
-
     const fetech = async () => {
         try {
             setisload(true);
@@ -112,54 +69,6 @@ export default function SuperAdminDashboard() {
             setAdmins(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching admins:', error);
-        } finally {
-            setisload(false);
-        }
-    };
-
-    const handleSave = async (e) => {
-        if (e) e.preventDefault();
-        const newEntry = { ...form };
-        const formData = new FormData();
-        setisload(true);
-        try {
-            const resizedFile = newEntry.profileImage
-                ? await handleImage(240, newEntry.profileImage)
-                : null;
-
-            if (resizedFile) {
-                formData.append("photo", resizedFile);
-            }
-
-            formData.append("name", newEntry.name);
-            formData.append("email", newEntry.email);
-            formData.append("role", newEntry.role);
-            if (newEntry.password) {
-                formData.append("password", newEntry.password);
-            }
-            formData.append("isBlocked", newEntry.isBlocked ? "true" : "false");
-            formData.append("branchIds", JSON.stringify(newEntry.branchIds || []));
-            formData.append("permissions", JSON.stringify(newEntry.permissions));
-
-            const url = editingIndex !== null
-                ? `editAdmin/${admins[editingIndex]._id}`
-                : `addAdmin`;
-
-            const data = await apiClient({
-                url,
-                method: "POST",
-                body: formData
-            });
-
-            toast.success(data.message || "Saved successfully!", { autoClose: 1200 });
-
-            resetForm();
-            fetech();
-            dispatch(FirstFetch());
-
-        } catch (error) {
-            console.error('Error saving admin:', error);
-            toast.error(error.message || "Failed to save admin");
         } finally {
             setisload(false);
         }
@@ -210,35 +119,34 @@ export default function SuperAdminDashboard() {
         });
     };
 
-    const handleEdit = (index) => {
-        const current = admins[index];
-        const assignedBranchIds = (current.branchIds || []).map(b => (typeof b === 'object' ? b._id : b));
-        const fallbackPerms = getPresetPermissions(current.role);
-
-        setForm({
-            ...current,
-            branchIds: assignedBranchIds,
-            isBlocked: !!current.isBlocked,
-            profilePreview: current.profileImage || "",
-            profileImage: null,
-            permissions: current.permissions ? { ...current.permissions } : fallbackPerms,
-        });
-        setEditingIndex(index);
-        setShowForm(true);
+    const handleEdit = (target) => {
+        const admin = typeof target === 'object' ? target : admins[target];
+        if (admin && admin._id) {
+            navigate(`/dashboard/organization/users/${admin._id}/edit`);
+        }
     };
 
     const updatePassword = async (e) => {
         e.preventDefault();
+        const targetUserId = pass.userid || targetUser?._id;
+        if (!targetUserId || !pass.pass) {
+            toast.error("User ID and new password are required");
+            return;
+        }
         try {
             const data = await apiClient({
                 url: "updatepassword",
                 method: "POST",
-                body: { pass }
+                body: {
+                    userid: targetUserId,
+                    pass: pass.pass
+                }
             });
             setpass({
                 userid: '',
                 pass: ''
             });
+            setTargetUser(null);
             setpassmodal(false);
             toast.success(data.message || "Password updated successfully!", { autoClose: 1200 });
         } catch (error) {
@@ -289,116 +197,6 @@ export default function SuperAdminDashboard() {
         });
     };
 
-    const togglePermission = (module, level) => {
-        setForm((prev) => {
-            const currentLevels = prev.permissions[module] || [];
-            const exists = currentLevels.includes(level);
-            const newLevels = exists
-                ? currentLevels.filter((l) => l !== level)
-                : [...currentLevels, level].sort();
-            return {
-                ...prev,
-                permissions: {
-                    ...prev.permissions,
-                    [module]: newLevels,
-                },
-            };
-        });
-    };
-
-    const handleApplyPreset = (presetType) => {
-        if (presetType === "all") {
-            const fullAccess = {};
-            AllPermissionNames.forEach(mod => {
-                fullAccess[mod] = [1, 2, 3, 4];
-            });
-            setForm(prev => ({ ...prev, permissions: fullAccess }));
-        } else if (presetType === "manager") {
-            setForm(prev => ({ ...prev, permissions: { ...managerPermission } }));
-        } else if (presetType === "accountant") {
-            setForm(prev => ({ ...prev, permissions: { ...accountantPermission } }));
-        } else if (presetType === "cashier") {
-            setForm(prev => ({ ...prev, permissions: { ...cashierPermission } }));
-        } else if (presetType === "hr") {
-            setForm(prev => ({ ...prev, permissions: { ...hrPermission } }));
-        } else if (presetType === "sales") {
-            setForm(prev => ({ ...prev, permissions: { ...salesPermission } }));
-        } else if (presetType === "auditor") {
-            setForm(prev => ({ ...prev, permissions: { ...auditorPermission } }));
-        } else if (presetType === "readonly") {
-            const readOnly = {};
-            AllPermissionNames.forEach(mod => {
-                readOnly[mod] = [1];
-            });
-            setForm(prev => ({ ...prev, permissions: readOnly }));
-        } else if (presetType === "clear") {
-            const cleared = {};
-            AllPermissionNames.forEach(mod => {
-                cleared[mod] = [];
-            });
-            setForm(prev => ({ ...prev, permissions: cleared }));
-        }
-    };
-
-    const handleRoleChange = (role) => {
-        const defaultPermissions = getPresetPermissions(role);
-        setForm({
-            ...form,
-            role,
-            permissions: defaultPermissions,
-        });
-    };
-
-    const handleProfileImageChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        setForm((prev) => ({
-            ...prev,
-            profileImage: file,
-            profilePreview: URL.createObjectURL(file),
-        }));
-    };
-
-    const handleAddModule = () => {
-        if (!newModule) return;
-        setForm((prev) => ({
-            ...prev,
-            permissions: {
-                ...prev.permissions,
-                [newModule]: [],
-            },
-        }));
-        setNewModule("");
-    };
-
-    const toggleBranchSelection = (branchId) => {
-        setForm((prev) => {
-            const currentBranches = prev.branchIds || [];
-            const exists = currentBranches.includes(branchId);
-            return {
-                ...prev,
-                branchIds: exists
-                    ? currentBranches.filter(id => id !== branchId)
-                    : [...currentBranches, branchId]
-            };
-        });
-    };
-
-    const handleSelectAllBranches = () => {
-        if (!branchList || branchList.length === 0) return;
-        setForm((prev) => ({
-            ...prev,
-            branchIds: branchList.map(b => b._id)
-        }));
-    };
-
-    const handleClearBranches = () => {
-        setForm((prev) => ({
-            ...prev,
-            branchIds: []
-        }));
-    };
-
     const copyEmail = (email) => {
         navigator.clipboard.writeText(email);
         setCopiedEmail(email);
@@ -437,9 +235,6 @@ export default function SuperAdminDashboard() {
         });
     }, [admins, searchTerm, roleFilter, statusFilter, branchFilter]);
 
-    const currentModules = AllPermissionNames;
-    const availableModulesToAdd = [];
-
     const hasActiveFilters = Boolean(searchTerm || roleFilter !== "all" || statusFilter !== "all" || branchFilter !== "all");
 
     return (
@@ -459,8 +254,7 @@ export default function SuperAdminDashboard() {
                 onViewModeChange={handleViewModeChange}
                 canCreate={canCreate}
                 onAddUser={() => {
-                    resetForm();
-                    setShowForm(true);
+                    navigate('/dashboard/organization/users/new');
                 }}
                 onResetFilters={() => {
                     setSearchTerm("");
@@ -492,7 +286,8 @@ export default function SuperAdminDashboard() {
                     onToggleStatus={toggleUserStatus}
                     onEdit={handleEdit}
                     onResetPassword={(admin) => {
-                        setpass({ ...pass, userid: admin._id });
+                        setTargetUser(admin);
+                        setpass({ userid: admin._id, pass: '' });
                         setpassmodal(true);
                     }}
                     onDelete={handleDelete}
@@ -507,7 +302,8 @@ export default function SuperAdminDashboard() {
                     onToggleStatus={toggleUserStatus}
                     onEdit={handleEdit}
                     onResetPassword={(admin) => {
-                        setpass({ ...pass, userid: admin._id });
+                        setTargetUser(admin);
+                        setpass({ userid: admin._id, pass: '' });
                         setpassmodal(true);
                     }}
                     onDelete={handleDelete}
@@ -516,37 +312,15 @@ export default function SuperAdminDashboard() {
                 />
             )}
 
-            {/* Add / Edit Admin Modal */}
-            <UserFormModal
-                isOpen={showForm}
-                onClose={resetForm}
-                editingIndex={editingIndex}
-                form={form}
-                setForm={setForm}
-                branchList={branchList}
-                isload={isload}
-                onSave={handleSave}
-                onRoleChange={handleRoleChange}
-                onProfileImageChange={handleProfileImageChange}
-                inputRef={inputref}
-                onToggleBranch={toggleBranchSelection}
-                onSelectAllBranches={handleSelectAllBranches}
-                onClearBranches={handleClearBranches}
-                onApplyPreset={handleApplyPreset}
-                newModule={newModule}
-                setNewModule={setNewModule}
-                onAddModule={handleAddModule}
-                availableModulesToAdd={availableModulesToAdd}
-                currentModules={currentModules}
-                activePermTab={activePermTab}
-                setActivePermTab={setActivePermTab}
-                onTogglePermission={togglePermission}
-            />
-
-            {/* Password Reset Modal */}
+            {/* Quick Password Reset Modal */}
             <ResetPasswordModal
                 isOpen={passmodal}
-                onClose={() => setpassmodal(false)}
+                onClose={() => {
+                    setpassmodal(false);
+                    setTargetUser(null);
+                    setpass({ userid: '', pass: '' });
+                }}
+                user={targetUser}
                 pass={pass}
                 setPass={setpass}
                 onSubmit={updatePassword}

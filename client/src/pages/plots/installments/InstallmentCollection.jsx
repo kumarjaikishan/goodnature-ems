@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -26,6 +27,11 @@ const InstallmentCollection = ({ type, initialView }) => {
   const canCreate = usePermission('plot_collection', 2);
   const canUpdate = usePermission('plot_collection', 3);
   const canDelete = usePermission('plot_collection', 4);
+
+  const profile = useSelector((state) => state.user?.profile);
+  const userRole = profile?.role;
+  const isIndividualCollector = ['cashier', 'accountant', 'operator', 'sales', 'staff'].includes(userRole);
+  const isBranchManager = userRole === 'manager';
 
   const customStyles = useCustomStyles();
   const [view, setView] = useState(initialView || (isAddRoute ? 'add' : 'list'));
@@ -724,7 +730,19 @@ const InstallmentCollection = ({ type, initialView }) => {
       {/* Top Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">{pageTitle}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-slate-800">{pageTitle}</h1>
+            {isIndividualCollector && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                My Generated Receipts
+              </span>
+            )}
+            {isBranchManager && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                Branch Scope
+              </span>
+            )}
+          </div>
           <p className="text-slate-500 text-xs mt-0.5">{pageSubtitle}</p>
         </div>
         <div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { SlidersHorizontal, Building2, FileText, ExternalLink, Sparkles, Check, Info } from 'lucide-react';
+import { Building2, FileText, ExternalLink, Sparkles, Check, Info } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 
 const ConfigurePlotModal = ({
@@ -56,34 +56,37 @@ const ConfigurePlotModal = ({
   const totalPlotValue = Math.round(plotAreaNum * effectiveRate);
 
   return (
-    <Modalbox open={open} onClose={onClose} size="xl" outside={false}>
-      <div className="w-full flex flex-col max-h-[88vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-2.5 text-slate-800">
-            <div className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-              <SlidersHorizontal size={18} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 leading-tight">
-                Configure Plot {selectedPlot?.plotNumber}
-              </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Set premium heads, plot dimensions, boundaries &amp; notes
-              </p>
-            </div>
-          </div>
+    <Modalbox
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title={`Configure Plot ${selectedPlot?.plotNumber || ''}`}
+      subtitle="Set premium heads, plot dimensions, boundaries & notes"
+      footer={
+        <>
           <button
             type="button"
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-sm font-bold cursor-pointer transition"
+            className="px-4 py-2 bg-slate-200/80 rounded-xl font-bold text-xs text-slate-700 hover:bg-slate-300 transition cursor-pointer"
             onClick={onClose}
           >
-            ✕
+            Cancel
           </button>
-        </div>
-
-        {/* Scrollable Form Body */}
-        <form onSubmit={handleConfigSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+          <button
+            type="button"
+            onClick={handleConfigSubmit}
+            disabled={submitLoading}
+            className="px-5 py-2 bg-teal-800 hover:bg-teal-900 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
+          >
+            {submitLoading ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              'Save Plot Settings'
+            )}
+          </button>
+        </>
+      }
+    >
+      <form onSubmit={handleConfigSubmit} className="space-y-5">
           {selectedPlot && isLocked && (
             <div className="space-y-3">
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium flex items-start gap-2">
@@ -463,31 +466,7 @@ const ConfigurePlotModal = ({
               onChange={(e) => setConfigForm({ ...configForm, remarks: e.target.value })}
             />
           </div>
-        </form>
-
-        {/* Sticky Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/70 shrink-0">
-          <button
-            type="button"
-            className="px-4 py-2 bg-slate-200/80 rounded-xl font-bold text-xs text-slate-700 hover:bg-slate-300 transition cursor-pointer"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleConfigSubmit}
-            disabled={submitLoading}
-            className="px-5 py-2 bg-teal-800 hover:bg-teal-900 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
-          >
-            {submitLoading ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              'Save Plot Settings'
-            )}
-          </button>
-        </div>
-      </div>
+      </form>
     </Modalbox>
   );
 };

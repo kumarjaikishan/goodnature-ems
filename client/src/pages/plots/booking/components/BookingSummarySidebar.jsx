@@ -106,6 +106,12 @@ export const BookingSummarySidebar = ({
                 </span>
               </div>
               <div className="grid grid-cols-1 gap-2.5 text-xs font-semibold pt-3 border-t border-slate-100">
+                {selectedPlot.projectName && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 uppercase text-[10px]">Project</span>
+                    <span className="text-teal-800 font-bold">{selectedPlot.projectName}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400 uppercase text-[10px]">Plot Size</span>
                   <span className="text-slate-900 font-mono font-bold">{selectedPlot.plotSize} Sq Ft</span>

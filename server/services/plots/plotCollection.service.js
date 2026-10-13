@@ -14,6 +14,9 @@ const PlotPayoutSchedule = require('../../models/PlotPayoutSchedule');
 const Counter = require('../../models/Counter');
 const Entry = require('../../models/entry');
 const Ledger = require('../../models/ledger');
+const User = require('../../models/user');
+const Employee = require('../../models/employee');
+const Branch = require('../../models/branch');
 const accountingService = require('../accountingService');
 const plotDeveloperService = require('./plotDeveloper.service');
 
@@ -367,6 +370,24 @@ class PlotCollectionService {
         const userCashLedger = await Ledger.findOne({ assignedUserId: processedBy, ledgerType: 'user_cash' }).session(session);
         resolvedLedgerId = userCashLedger?._id || ledgerId || null;
       } else {
+        if (processedBy) {
+          const User = mongoose.model('user');
+          const collector = await User.findById(processedBy).select('bankPermissions role').lean();
+          if (collector && collector.role !== 'developer') {
+            const bPerm = collector.bankPermissions;
+            if (bPerm) {
+              if (bPerm.accessScope === 'none' || bPerm.allowReceipts === false) {
+                throw ApiError.badRequest('You do not have authorization to collect payments into corporate bank accounts. Please collect in cash.');
+              }
+              if (bPerm.accessScope === 'selected' && ledgerId) {
+                const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+                if (!allowedIds.includes(ledgerId.toString())) {
+                  throw ApiError.badRequest('You are not authorized to collect payments into this designated bank account.');
+                }
+              }
+            }
+          }
+        }
         resolvedLedgerId = ledgerId || null;
         if (!resolvedLedgerId) {
           const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
@@ -554,11 +575,28 @@ class PlotCollectionService {
       // Non-cash collections require admin approval before realizing into ledger
       const initialStatus = isCash ? 'APPROVED' : 'PENDING';
 
+      // Resolve branch for the receipt from the collecting user
+      let receiptBranchId = null;
+      if (processedBy) {
+        const collectingUser = await User.findById(processedBy).session(session);
+        if (collectingUser?.branchIds && collectingUser.branchIds.length > 0) {
+          receiptBranchId = collectingUser.branchIds[0];
+        } else if (collectingUser?.employeeId) {
+          const emp = await Employee.findById(collectingUser.employeeId).session(session);
+          if (emp?.branchId) receiptBranchId = emp.branchId;
+        }
+      }
+      if (!receiptBranchId) {
+        const defaultBranch = await Branch.findOne().session(session);
+        if (defaultBranch) receiptBranchId = defaultBranch._id;
+      }
+
       // Create Receipt
       const receipt = new PlotReceipt({
         receiptNumber,
         receiptType: resolvedReceiptType,
         bookingId: booking._id,
+        branchId: receiptBranchId,
         ledgerId: resolvedLedgerId,
         amount: Number(amountPaid),
         lateFinePaid: isCash ? totalLateFinePaid : 0,
@@ -617,12 +655,36 @@ class PlotCollectionService {
   }
 
   // Edit Receipt details
-  async updateReceipt(receiptId, updateData, processedBy) {
+  async updateReceipt(receiptId, updateData, userOrId) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
       const receipt = await PlotReceipt.findById(receiptId).session(session);
       if (!receipt) throw ApiError.notFound('Receipt not found');
+
+      const processedBy = userOrId?._id || userOrId?.id || userOrId;
+
+      if (userOrId && typeof userOrId === 'object' && userOrId.role) {
+        const userRole = userOrId.role;
+        const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+        const isBranchManager = userRole === 'manager';
+        const userId = (userOrId._id || userOrId.id)?.toString();
+
+        if (!isGlobalAdmin) {
+          if (isBranchManager) {
+            const managerBranchIds = (userOrId.branchIds || []).map(b => b.toString());
+            const receiptBranch = receipt.branchId?._id?.toString() || receipt.branchId?.toString();
+            if (!managerBranchIds.includes(receiptBranch)) {
+              throw ApiError.forbidden('Permission denied: Receipt belongs to another branch');
+            }
+          } else {
+            const creatorId = receipt.createdBy?._id?.toString() || receipt.createdBy?.toString();
+            if (creatorId !== userId) {
+              throw ApiError.forbidden('Permission denied: You can only modify your own generated receipts');
+            }
+          }
+        }
+      }
 
       const booking = await PlotBooking.findById(receipt.bookingId).session(session);
       if (!booking) throw ApiError.notFound('Booking not found');
@@ -763,12 +825,36 @@ class PlotCollectionService {
   }
 
   // Delete/Reverse Receipt
-  async deleteReceipt(receiptId, processedBy) {
+  async deleteReceipt(receiptId, userOrId) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
       const receipt = await PlotReceipt.findById(receiptId).session(session);
       if (!receipt) throw ApiError.notFound('Receipt not found');
+
+      const processedBy = userOrId?._id || userOrId?.id || userOrId;
+
+      if (userOrId && typeof userOrId === 'object' && userOrId.role) {
+        const userRole = userOrId.role;
+        const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+        const isBranchManager = userRole === 'manager';
+        const userId = (userOrId._id || userOrId.id)?.toString();
+
+        if (!isGlobalAdmin) {
+          if (isBranchManager) {
+            const managerBranchIds = (userOrId.branchIds || []).map(b => b.toString());
+            const receiptBranch = receipt.branchId?._id?.toString() || receipt.branchId?.toString();
+            if (!managerBranchIds.includes(receiptBranch)) {
+              throw ApiError.forbidden('Permission denied: Receipt belongs to another branch');
+            }
+          } else {
+            const creatorId = receipt.createdBy?._id?.toString() || receipt.createdBy?.toString();
+            if (creatorId !== userId) {
+              throw ApiError.forbidden('Permission denied: You can only delete your own generated receipts');
+            }
+          }
+        }
+      }
 
       const booking = await PlotBooking.findById(receipt.bookingId).session(session);
       if (!booking) throw ApiError.notFound('Booking not found');
@@ -828,7 +914,7 @@ class PlotCollectionService {
   }
 
   // Approve Pending Collection Receipt (Admin Action)
-  async approveReceipt(receiptId, adminUserId) {
+  async approveReceipt(receiptId, userOrId) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -836,6 +922,26 @@ class PlotCollectionService {
       if (!receipt) throw ApiError.notFound('Receipt not found');
       if (receipt.status === 'APPROVED') {
         throw ApiError.badRequest('Receipt is already approved');
+      }
+
+      const adminUserId = userOrId?._id || userOrId?.id || userOrId;
+
+      if (userOrId && typeof userOrId === 'object' && userOrId.role) {
+        const userRole = userOrId.role;
+        const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+        const isBranchManager = userRole === 'manager';
+
+        if (!isGlobalAdmin) {
+          if (isBranchManager) {
+            const managerBranchIds = (userOrId.branchIds || []).map(b => b.toString());
+            const receiptBranch = receipt.branchId?._id?.toString() || receipt.branchId?.toString();
+            if (!managerBranchIds.includes(receiptBranch)) {
+              throw ApiError.forbidden('Permission denied: Receipt belongs to another branch');
+            }
+          } else {
+            throw ApiError.forbidden('Permission denied: Only branch managers or administrators can approve receipts');
+          }
+        }
       }
 
       receipt.status = 'APPROVED';
@@ -890,7 +996,7 @@ class PlotCollectionService {
   }
 
   // Reject Pending Collection Receipt (Admin Action)
-  async rejectReceipt(receiptId, rejectionReason, adminUserId) {
+  async rejectReceipt(receiptId, rejectionReason, userOrId) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -898,6 +1004,26 @@ class PlotCollectionService {
       if (!receipt) throw ApiError.notFound('Receipt not found');
       if (receipt.status === 'REJECTED') {
         throw ApiError.badRequest('Receipt is already rejected');
+      }
+
+      const adminUserId = userOrId?._id || userOrId?.id || userOrId;
+
+      if (userOrId && typeof userOrId === 'object' && userOrId.role) {
+        const userRole = userOrId.role;
+        const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+        const isBranchManager = userRole === 'manager';
+
+        if (!isGlobalAdmin) {
+          if (isBranchManager) {
+            const managerBranchIds = (userOrId.branchIds || []).map(b => b.toString());
+            const receiptBranch = receipt.branchId?._id?.toString() || receipt.branchId?.toString();
+            if (!managerBranchIds.includes(receiptBranch)) {
+              throw ApiError.forbidden('Permission denied: Receipt belongs to another branch');
+            }
+          } else {
+            throw ApiError.forbidden('Permission denied: Only branch managers or administrators can reject receipts');
+          }
+        }
       }
 
       receipt.status = 'REJECTED';
@@ -908,6 +1034,7 @@ class PlotCollectionService {
 
       // If it was previously approved, rebuild ledger to revert effects
       await this.rebuildBookingInstallmentsState(receipt.bookingId, session);
+
 
       // Audit log
       await new PlotAuditLog({
@@ -943,32 +1070,38 @@ class PlotCollectionService {
     if (filters.receiptType) query.receiptType = filters.receiptType;
 
     // Role-based visibility scoping:
-    // Superadmin, developer, admin, grant: see ALL receipts
-    // Other operational roles (accountant, cashier, sales, operator, staff): see only their OWN recorded receipts (or unassigned legacy ones)
     if (user) {
       const userRole = user.role;
       const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
       const isBranchManager = userRole === 'manager';
+      const userId = user._id || user.id;
 
-      if (!isGlobalAdmin) {
-        const userId = user._id || user.id;
-        if (isBranchManager && Array.isArray(user.branchIds) && user.branchIds.length > 0) {
-          // If branch manager, show receipts created by them OR bookings belonging to their branches
-          // Or receipts created by this user
-          query.$or = [
-            { createdBy: userId },
-            { approvedBy: userId },
-            { createdBy: { $exists: false } },
-            { createdBy: null },
-          ];
-        } else if (userId) {
-          // Individual staff, accountant, cashier: see receipts created by themselves (or legacy unassigned)
-          query.$or = [
-            { createdBy: userId },
-            { createdBy: { $exists: false } },
-            { createdBy: null },
-          ];
+      if (isGlobalAdmin) {
+        // Global admins/superadmins can see all receipts, with optional branchId filter from query
+        if (filters.branchId && filters.branchId !== 'all') {
+          query.branchId = filters.branchId;
         }
+      } else if (isBranchManager) {
+        // Branch Manager: See all receipts generated within their assigned branch(es)
+        if (Array.isArray(user.branchIds) && user.branchIds.length > 0) {
+          query.branchId = { $in: user.branchIds };
+        } else {
+          query.createdBy = userId;
+        }
+      } else {
+        // Cashier, Accountant, Operator, Sales, Staff:
+        // STRICTLY see ONLY receipts generated by their own user ID!
+        query.createdBy = userId;
+      }
+    }
+
+    if (filters.startDate || filters.endDate) {
+      query.createdAt = {};
+      if (filters.startDate) query.createdAt.$gte = new Date(filters.startDate);
+      if (filters.endDate) {
+        const eDate = new Date(filters.endDate);
+        eDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = eDate;
       }
     }
 
@@ -978,6 +1111,8 @@ class PlotCollectionService {
 
     const [receipts, total] = await Promise.all([
       PlotReceipt.find(query)
+        .populate('branchId', 'name branchCode')
+        .populate('createdBy', 'name email role')
         .populate({
           path: 'bookingId',
           populate: [
@@ -997,8 +1132,10 @@ class PlotCollectionService {
     };
   }
 
-  async getReceiptById(id) {
+  async getReceiptById(id, user = null) {
     const receipt = await PlotReceipt.findById(id)
+      .populate('branchId', 'name branchCode')
+      .populate('createdBy', 'name email role')
       .populate({
         path: 'bookingId',
         populate: [
@@ -1008,6 +1145,28 @@ class PlotCollectionService {
         ],
       });
     if (!receipt) throw ApiError.notFound('Receipt not found');
+
+    if (user) {
+      const userRole = user.role;
+      const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+      const isBranchManager = userRole === 'manager';
+      const userId = (user._id || user.id)?.toString();
+
+      if (!isGlobalAdmin) {
+        if (isBranchManager) {
+          const managerBranchIds = (user.branchIds || []).map(b => b.toString());
+          const receiptBranch = receipt.branchId?._id?.toString() || receipt.branchId?.toString();
+          if (!managerBranchIds.includes(receiptBranch)) {
+            throw ApiError.forbidden('Permission denied: Receipt belongs to another branch');
+          }
+        } else {
+          const creatorId = receipt.createdBy?._id?.toString() || receipt.createdBy?.toString();
+          if (creatorId !== userId) {
+            throw ApiError.forbidden('Permission denied: You can only view your own generated receipts');
+          }
+        }
+      }
+    }
 
     const receiptObj = receipt.toObject();
 

@@ -1,4 +1,5 @@
 // src/utils/sse.js
+import { isTokenValid } from "./auth";
 
 let eventSource = null;
 let reconnectTimeout = null;
@@ -11,7 +12,7 @@ export const connectSSE = (onMessage, onError) => {
     if (eventSource) return eventSource; // Prevent multiple active connections
 
     const token = localStorage.getItem("emstoken");
-    if (!token) return null; // No token — don't connect
+    if (!token || !isTokenValid(token)) return null; // No valid token — don't connect
 
     const url = `${import.meta.env.VITE_SSE_ADDRESS}events?token=${token}`;
     eventSource = new EventSource(url);
@@ -47,7 +48,7 @@ export const connectSSE = (onMessage, onError) => {
         const currentToken = localStorage.getItem("emstoken");
         consecutiveFailures++;
 
-        if (!currentToken || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        if (!currentToken || !isTokenValid(currentToken) || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
             consecutiveFailures = 0;
             if (onError) onError(err);
             return; // Stop retrying — auth failure or logged out

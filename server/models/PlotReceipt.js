@@ -100,6 +100,11 @@ const plotReceiptSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -108,6 +113,8 @@ const plotReceiptSchema = new mongoose.Schema(
 
 plotReceiptSchema.index({ bookingId: 1 });
 plotReceiptSchema.index({ createdBy: 1 });
+plotReceiptSchema.index({ branchId: 1, createdAt: -1 });
+plotReceiptSchema.index({ createdBy: 1, createdAt: -1 });
 // Receipt reports/lists sort by createdAt.
 plotReceiptSchema.index({ createdAt: -1 });
 

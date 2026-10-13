@@ -44,7 +44,13 @@ router.put('/series/:id', checkPermission('plot_inventory', 3), ctrl.updateSerie
 router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSeries);
 
 // ── Sponsors ──
-router.get('/sponsors', checkPermission('plot_sponsor', 1), ctrl.getSponsors);
+router.get('/sponsors', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    req.query.parentSponsorId = req.user.id || req.user._id;
+    return next();
+  }
+  return checkPermission('plot_sponsor', 1)(req, res, next);
+}, ctrl.getSponsors);
 router.get('/sponsors/:id/dashboard', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own dashboard, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
@@ -73,8 +79,19 @@ router.patch('/sponsors/:id/toggle-block', checkPermission('plot_sponsor', 3), c
 router.post('/sponsors/:id/reset-password', checkPermission('plot_sponsor', 3), ctrl.resetSponsorPassword);
 
 // ── Customers ──
-router.get('/customers', checkPermission('plot_customer', 1), ctrl.getCustomers);
-router.get('/customers/:id', checkPermission('plot_customer', 1), ctrl.getCustomerById);
+router.get('/customers', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    req.query.sponsorId = req.user.id || req.user._id;
+    return next();
+  }
+  return checkPermission('plot_customer', 1)(req, res, next);
+}, ctrl.getCustomers);
+router.get('/customers/:id', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_customer', 1)(req, res, next);
+}, ctrl.getCustomerById);
 router.post('/customers', checkPermission('plot_customer', 2), ctrl.createCustomer);
 router.put('/customers/:id', checkPermission('plot_customer', 3), ctrl.updateCustomer);
 router.delete('/customers/:id', checkPermission('plot_customer', 4), ctrl.deleteCustomer);

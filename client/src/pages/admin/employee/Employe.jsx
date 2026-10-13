@@ -42,6 +42,35 @@ const Employe = () => {
   const { handleImage } = useImageUpload();
   const dispatch = useDispatch();
   const { department, branch, employee, profile } = useSelector(e => e.user);
+
+  const isRestrictedRole = profile?.role !== 'admin' && profile?.role !== 'superadmin' && profile?.role !== 'developer';
+
+  const userAllowedBranchIds = useMemo(() => {
+    if (!isRestrictedRole) return null; // Unrestricted admin/superadmin
+    if (Array.isArray(profile?.branchIds) && profile.branchIds.length > 0) {
+      return profile.branchIds.map(b => (typeof b === 'object' && b?._id) ? String(b._id) : String(b));
+    }
+    if (Array.isArray(branch) && branch.length > 0) {
+      return branch.map(b => String(b._id || b));
+    }
+    return [];
+  }, [isRestrictedRole, profile?.branchIds, branch]);
+
+  const branchOptions = useMemo(() => {
+    let allowedBranches = branch || [];
+    if (isRestrictedRole && userAllowedBranchIds) {
+      const allowedSet = new Set(userAllowedBranchIds);
+      allowedBranches = (branch || []).filter(b => allowedSet.has(String(b._id || b)));
+    }
+    return [
+      { value: 'all', label: 'All Branches' },
+      ...allowedBranches.map((list) => ({
+        value: list._id,
+        label: list.name
+      }))
+    ];
+  }, [branch, isRestrictedRole, userAllowedBranchIds]);
+
   const [pass, setpass] = useState({
     userid: '',
     pass: ''
@@ -121,9 +150,18 @@ const Employe = () => {
 
   useEffect(() => {
     if (department?.length > 0) {
-      setdepartmentlist(department.filter((dep) => (dep?.branchId?._id || dep?.branchId) === filters.branch));
+      if (filters.branch === 'all') {
+        if (isRestrictedRole && userAllowedBranchIds) {
+          const allowedSet = new Set(userAllowedBranchIds);
+          setdepartmentlist(department.filter((dep) => allowedSet.has(String(dep?.branchId?._id || dep?.branchId))));
+        } else {
+          setdepartmentlist(department);
+        }
+      } else {
+        setdepartmentlist(department.filter((dep) => String(dep?.branchId?._id || dep?.branchId) === String(filters.branch)));
+      }
     }
-  }, [filters.branch, department]);
+  }, [filters.branch, department, isRestrictedRole, userAllowedBranchIds]);
 
   const handleNestedChange = (e, type, index, field) => {
     const updated = [...inp[type]];
@@ -252,11 +290,18 @@ const Employe = () => {
 
   const updatePassword = async (e) => {
     e.preventDefault();
+    if (!pass.userid || !pass.pass) {
+      toast.error("User ID and new password are required");
+      return;
+    }
     try {
       const data = await apiClient({
         url: "updatepassword",
         method: "POST",
-        body: { pass }
+        body: {
+          userid: pass.userid,
+          pass: pass.pass
+        }
       });
 
       setpass({
@@ -264,9 +309,10 @@ const Employe = () => {
         pass: ''
       });
       setpassmodal(false);
-      toast.success(data.message, { autoClose: 1200 });
+      toast.success(data.message || "Password updated successfully!", { autoClose: 1200 });
     } catch (error) {
       console.error('Error updating password:', error);
+      toast.error(error.message || "Failed to update password");
     }
   };
 
@@ -376,6 +422,7 @@ const Employe = () => {
 
     const data = employee.map((emp) => {
       const dept = typeof emp?.department === 'object' ? emp?.department?.department : (emp?.department || '—');
+      const bId = (typeof emp?.branchId === 'object' && emp?.branchId?._id) ? emp?.branchId?._id : (emp?.branchId || emp?.branch || '');
       return {
         ...emp,
         id: emp._id,
@@ -385,7 +432,7 @@ const Employe = () => {
         phone: emp?.phone || '—',
         email: emp?.userid?.email || '—',
         status: emp?.status,
-        branch: emp?.branchId,
+        branch: String(bId),
         department: dept,
         departmentid: emp?.department?._id || emp?.department,
       };
@@ -398,15 +445,21 @@ const Employe = () => {
     return employeelist.filter((emp) => {
       const name = emp.rawname?.toLowerCase() || '';
       const deptId = emp.departmentid || '';
-      const branchId = emp.branch || '';
+      const empBranchId = String(emp.branch || '');
 
       const nameMatch = filters.searchText.trim() === '' || name.includes(filters.searchText.toLowerCase());
       const deptMatch = filters.department === 'all' || deptId === filters.department;
-      const branchMatch = filters.branch === 'all' || branchId === filters.branch;
+
+      let branchMatch = false;
+      if (filters.branch === 'all') {
+        branchMatch = userAllowedBranchIds ? userAllowedBranchIds.includes(empBranchId) : true;
+      } else {
+        branchMatch = empBranchId === String(filters.branch);
+      }
 
       return nameMatch && deptMatch && branchMatch;
     });
-  }, [employeelist, filters]);
+  }, [employeelist, filters, userAllowedBranchIds]);
 
   const columns = useMemo(() => getEmployeeColumns({
     canEdit,
@@ -494,15 +547,7 @@ const Employe = () => {
               size="sm"
               value={filters.branch}
               onChange={(e) => handleFilterChange("branch", e.target.value)}
-              options={[
-                { value: 'all', label: 'All Branches' },
-                ...((profile?.role === 'manager'
-                  ? branch?.filter((e) => profile?.branchIds?.includes(e._id))
-                  : branch) || []).map((list) => ({
-                    value: list._id,
-                    label: list.name
-                  }))
-              ]}
+              options={branchOptions}
             />
           </div>
 

@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
-import { Plus, LayoutGrid, Award, SlidersHorizontal } from 'lucide-react';
+import { Plus, LayoutGrid, SlidersHorizontal, Building2 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import usePermission from '../../../utils/CheckPermission';
 
 // Modular Subcomponents
 import SeriesFilterBar from './components/SeriesFilterBar';
 import SeriesLayoutGrid from './components/SeriesLayoutGrid';
-import CommissionPolicyMatrix from './components/CommissionPolicyMatrix';
+import PlotProjectsSection from './components/PlotProjectsSection';
 import TenurePlotRatesMatrix from './components/TenurePlotRatesMatrix';
 import CreateSeriesModal from './components/CreateSeriesModal';
 import EditSeriesModal from './components/EditSeriesModal';
@@ -21,7 +21,7 @@ const PlotSeriesMaster = () => {
   const canUpdate = usePermission('plot_series', 3);
   const canDelete = usePermission('plot_series', 4);
 
-  // Navigation Tabs: 'layout', 'commissions', 'rates'
+  // Navigation Tabs: 'layout', 'rates'
   const [activeTab, setActiveTab] = useState('layout');
   const [seriesList, setSeriesList] = useState([]);
   const [plots, setPlots] = useState([]);
@@ -43,10 +43,12 @@ const PlotSeriesMaster = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   // Filters for layout & inventory view
+  const [filterProject, setFilterProject] = useState('');
   const [filterSeries, setFilterSeries] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [, setInventoryPage] = useState(1);
+  const [showProjectForm, setShowProjectForm] = useState(false);
 
   // Modals visibility & selected records
   const [showModal, setShowModal] = useState(false);
@@ -141,11 +143,15 @@ const PlotSeriesMaster = () => {
 
   // Filter plots based on active search & dropdowns
   const filteredPlots = plots.filter((p) => {
+    if (filterProject) {
+      const pId = p.projectId?._id || p.projectId;
+      if (String(pId) !== String(filterProject)) return false;
+    }
     if (filterSeries) {
       const sId = p.seriesId?._id || p.seriesId;
       if (filterSeries === 'standalone') {
         if (sId) return false;
-      } else if (sId !== filterSeries) {
+      } else if (String(sId) !== String(filterSeries)) {
         return false;
       }
     }
@@ -157,9 +163,18 @@ const PlotSeriesMaster = () => {
       const plotNum = (p.plotNumber || '').toLowerCase();
       const seriesName = (p.seriesId?.name || '').toLowerCase();
       const remarks = (p.remarks || '').toLowerCase();
-      if (!plotNum.includes(q) && !seriesName.includes(q) && !remarks.includes(q)) {
+      const projName = (p.projectName || '').toLowerCase();
+      if (!plotNum.includes(q) && !seriesName.includes(q) && !remarks.includes(q) && !projName.includes(q)) {
         return false;
       }
+    }
+    return true;
+  });
+
+  const filteredSeriesList = seriesList.filter((s) => {
+    if (filterProject) {
+      const pId = s.projectId?._id || s.projectId;
+      if (String(pId) !== String(filterProject)) return false;
     }
     return true;
   });
@@ -483,6 +498,16 @@ const PlotSeriesMaster = () => {
           <div className="flex items-center gap-2.5">
             <button
               type="button"
+              onClick={() => {
+                setActiveTab('layout');
+                setShowProjectForm(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
+            >
+              <Building2 size={16} /> Add Project
+            </button>
+            <button
+              type="button"
               onClick={() => openCreatePlot()}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
             >
@@ -491,7 +516,7 @@ const PlotSeriesMaster = () => {
             <button
               type="button"
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs"
             >
               <Plus size={16} /> Create Series Block
             </button>
@@ -526,25 +551,30 @@ const PlotSeriesMaster = () => {
           <SlidersHorizontal size={17} />
           Plot Configuration &amp; Rates
         </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('commissions')}
-          className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'commissions'
-              ? 'border-teal-800 text-teal-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Award size={17} className="text-teal-700" />
-          Target &amp; Extra Incentive Policy
-        </button>
       </div>
 
       {/* ── TAB 1: SERIES BLOCKS & LAYOUT GRID ── */}
       {activeTab === 'layout' && (
         <div className="space-y-6">
+          {/* Plot Projects Management Section */}
+          <PlotProjectsSection
+            projects={projects}
+            seriesList={seriesList}
+            plots={plots}
+            onProjectsChange={fetchData}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
+            inputCls={inputCls}
+            labelCls={labelCls}
+            showForm={showProjectForm}
+            setShowForm={setShowProjectForm}
+          />
+
           <SeriesFilterBar
+            filterProject={filterProject}
+            setFilterProject={setFilterProject}
+            projects={projects}
             filterSeries={filterSeries}
             setFilterSeries={setFilterSeries}
             filterStatus={filterStatus}
@@ -558,7 +588,7 @@ const PlotSeriesMaster = () => {
           />
 
           <SeriesLayoutGrid
-            seriesList={seriesList}
+            seriesList={filteredSeriesList}
             filteredPlots={filteredPlots}
             plots={plots}
             filterSeries={filterSeries}
@@ -583,16 +613,6 @@ const PlotSeriesMaster = () => {
           submitLoading={submitLoading}
           inputCls={inputCls}
           labelCls={labelCls}
-        />
-      )}
-
-      {/* ── TAB 3: TARGET & EXTRA INCENTIVE POLICY (PLOT SALES) ── */}
-      {activeTab === 'commissions' && (
-        <CommissionPolicyMatrix
-          initialBusinessType="PLOT_SALE"
-          showTypeToggle={false}
-          title="Plot Sales Target & Extra Incentive Policy"
-          subtitle="Configure collection target slabs, fixed base rates, tiered incentive percentages, and closing rewards for Plot sales."
         />
       )}
 
@@ -645,6 +665,7 @@ const PlotSeriesMaster = () => {
         handleSeriesChangeInPlotForm={handleSeriesChangeInPlotForm}
         handleCreatePlot={handleCreatePlot}
         seriesList={seriesList}
+        projects={projects}
         rateConfig={rateConfig}
         submitLoading={submitLoading}
         inputCls={inputCls}

@@ -114,7 +114,7 @@ export default function UserGridView({
                                             <button
                                                 type="button"
                                                 title="Edit Account & Permissions"
-                                                onClick={() => onEdit(index)}
+                                                onClick={() => onEdit(admin)}
                                                 className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:text-teal-800 hover:bg-teal-50 hover:border-teal-200 transition cursor-pointer"
                                             >
                                                 <Edit2 size={14} />
@@ -166,9 +166,24 @@ export default function UserGridView({
                                         </span>
                                     )}
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                    {activePermissionsCount} modules active
-                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                        {activePermissionsCount} modules
+                                    </span>
+                                    {admin.bankPermissions?.accessScope === 'none' ? (
+                                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                            No Bank
+                                        </span>
+                                    ) : admin.bankPermissions?.accessScope === 'selected' ? (
+                                        <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                                            {(admin.bankPermissions?.allowedBankIds || []).length} Banks
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                            All Banks
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

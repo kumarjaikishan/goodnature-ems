@@ -1,3 +1,5 @@
+import { clearAuthSession } from "./auth";
+
 const BASE_URL = import.meta.env.VITE_API_ADDRESS;
 
 export const apiClient = async ({
@@ -30,10 +32,9 @@ export const apiClient = async ({
         body: isFormData ? body : (body ? JSON.stringify(body) : null),
     });
 
-    // 401 = session expired or invalid token → clear storage and redirect to login
+    // 401 = session expired or invalid token → purge storage and clean redirect
     if (response.status === 401) {
-        localStorage.removeItem("emstoken");
-        window.location.href = '/login';
+        clearAuthSession(null, true);
         throw new Error('Session expired. Please log in again.');
     }
 

@@ -49,6 +49,7 @@ class InvestmentService {
     }
     if (data.slabs && Array.isArray(data.slabs)) {
       config.slabs = data.slabs.map((s) => ({
+        planName: (s.planName || '').trim(),
         tenureMonths: Number(s.tenureMonths),
         rdMaturityPercent: Number(s.rdMaturityPercent),
         fdMaturityPercent: Number(s.fdMaturityPercent),

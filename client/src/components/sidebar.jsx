@@ -57,7 +57,8 @@ const Sidebar = () => {
   // Fetch pending fund transfers count
   const fetchPendingTransfers = useCallback(async () => {
     try {
-      if (!profile || !OPERATIONAL_ROLES.includes(role)) return;
+      const token = localStorage.getItem("emstoken");
+      if (!token || !profile || !OPERATIONAL_ROLES.includes(role)) return;
       const res = await apiClient({ url: "ledger/transfers/stats" });
       if (res && typeof res.pendingCount === "number") {
         setPendingFundCount(res.pendingCount);
@@ -169,6 +170,7 @@ const Sidebar = () => {
 
         { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer", "auditor"], resource: "audit_log" },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
+        { menu: "My Network & Customers", link: "/dashboard/my-network", icon: <Users size={20} />, roles: ["sponsor"] },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
       ],

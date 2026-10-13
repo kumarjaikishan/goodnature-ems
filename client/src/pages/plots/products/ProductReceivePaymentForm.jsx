@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -57,6 +58,11 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
   });
 
   const [bankAccounts, setBankAccounts] = useState([]);
+  const profile = useSelector((state) => state.user?.profile);
+  const bankPerm = profile?.bankPermissions;
+  const isBankScopeNone = bankPerm?.accessScope === 'none';
+  const isBankReceiptAllowed = bankPerm ? (bankPerm.allowReceipts !== false && !isBankScopeNone) : true;
+
   const [cashAccounts, setCashAccounts] = useState([]);
   const [myCashLedger, setMyCashLedger] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -69,25 +75,34 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
         const [bookingsRes, rateRes, treasuryRes, myCashRes] = await Promise.all([
           api.get('/plots/product-bookings?status=ACTIVE'),
           api.get('/plots/rate-config'),
-          api.get('/ledger/treasury').catch(() => ({ data: { data: {} } })),
+          api.get('/ledger/treasury', { params: { intent: 'receipt' } }).catch(() => ({ data: { data: {} } })),
           api.get('/ledger/my-cash-account').catch(() => null),
         ]);
 
         const bList = bookingsRes.data?.data || [];
         setBookings(bList);
 
-        const bAccs = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
+        let bAccs = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
         const cAccs = treasuryRes.data?.cashLedgers || treasuryRes.data?.cashAccounts || treasuryRes.data?.data?.cashAccounts || treasuryRes.data?.data?.cashLedgers || [];
+        
+        if (!isBankReceiptAllowed) {
+          bAccs = [];
+        }
+
         setBankAccounts(bAccs);
         setCashAccounts(cAccs);
 
         const myCash = myCashRes?.data?.data || myCashRes?.data || null;
         setMyCashLedger(myCash);
 
-        const isCash = String(form.paymentMode).toLowerCase() === 'cash';
+        const isCash = !isBankReceiptAllowed || String(form.paymentMode).toLowerCase() === 'cash';
         const defaultLedger = isCash ? (myCash?._id || cAccs[0]?._id || '') : (bAccs[0]?._id || '');
         if (defaultLedger) {
-          setForm((f) => ({ ...f, ledgerId: defaultLedger }));
+          setForm((f) => ({
+            ...f,
+            paymentMode: !isBankReceiptAllowed ? 'cash' : f.paymentMode,
+            ledgerId: defaultLedger
+          }));
         }
 
         const rData = rateRes.data?.data || {};
@@ -804,6 +819,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 </label>
                 <select
                   value={form.paymentMode}
+                  disabled={!isBankReceiptAllowed}
                   onChange={(e) => {
                     const newMode = e.target.value;
                     const isCash = String(newMode).toLowerCase() === 'cash';
@@ -811,13 +827,22 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                     setForm({ ...form, paymentMode: newMode, ledgerId: defaultId });
                   }}
                   required
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
+                  className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
                 >
                   <option value="cash">Cash Payment</option>
-                  <option value="online">Online / UPI</option>
-                  <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
-                  <option value="cheque">Cheque</option>
+                  {isBankReceiptAllowed && (
+                    <>
+                      <option value="online">Online / UPI</option>
+                      <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
+                      <option value="cheque">Cheque</option>
+                    </>
+                  )}
                 </select>
+                {!isBankReceiptAllowed && (
+                  <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
+                    Corporate bank receipts restricted for this account (Cash collections only)
+                  </span>
+                )}
               </div>
 
               {/* Receiving Account */}
@@ -827,7 +852,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 </label>
                 <select
                   value={form.ledgerId || ''}
-                  disabled={String(form.paymentMode).toLowerCase() === 'cash'}
+                  disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
                   onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
                   className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
                 >
@@ -843,7 +868,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                         </option>
                       ))}
                       {bankAccounts.length === 0 && (
-                        <option value="">Default Company Bank</option>
+                        <option value="" disabled>No authorized bank account available</option>
                       )}
                     </>
                   )}

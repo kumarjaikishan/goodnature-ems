@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import api from '@/api/axios';
 import Button from '@/components/ui/Button';
@@ -40,6 +41,11 @@ const ReceivePaymentForm = ({
   const effectiveDpGrace = dpGracePeriod ?? gracePeriod ?? 15;
   const effectiveEmiGrace = emiGracePeriod ?? gracePeriod ?? 15;
 
+  const profile = useSelector((state) => state.user?.profile);
+  const bankPerm = profile?.bankPermissions;
+  const isBankScopeNone = bankPerm?.accessScope === 'none';
+  const isBankReceiptAllowed = bankPerm ? (bankPerm.allowReceipts !== false && !isBankScopeNone) : true;
+
   const [bankAccounts, setBankAccounts] = useState([]);
   const [cashAccounts, setCashAccounts] = useState([]);
   const [myCashLedger, setMyCashLedger] = useState(null);
@@ -48,36 +54,53 @@ const ReceivePaymentForm = ({
     const fetchTreasury = async () => {
       try {
         const [treasuryRes, myCashRes] = await Promise.all([
-          api.get('/ledger/treasury'),
+          api.get('/ledger/treasury', { params: { intent: 'receipt' } }),
           api.get('/ledger/my-cash-account').catch(() => null)
         ]);
-        const bList = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
+        let bList = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
         const cList = treasuryRes.data?.cashLedgers || treasuryRes.data?.cashAccounts || treasuryRes.data?.data?.cashAccounts || treasuryRes.data?.data?.cashLedgers || [];
+
+        if (!isBankReceiptAllowed) {
+          bList = [];
+        }
+
         setBankAccounts(bList);
         setCashAccounts(cList);
 
         const myCash = myCashRes?.data?.data || myCashRes?.data || null;
         setMyCashLedger(myCash);
 
-        const isCash = String(form.paymentMode).toLowerCase() === 'cash';
+        const isCash = !isBankReceiptAllowed || String(form.paymentMode).toLowerCase() === 'cash';
         const defaultId = isCash ? (myCash?._id || cList[0]?._id || '') : (bList[0]?._id || '');
         if (defaultId && !form.ledgerId) {
-          setForm((prev) => ({ ...prev, ledgerId: defaultId }));
+          setForm((prev) => ({
+            ...prev,
+            paymentMode: !isBankReceiptAllowed ? 'cash' : prev.paymentMode,
+            ledgerId: defaultId
+          }));
         }
       } catch (err) {
         console.error('Error fetching treasury accounts in ReceivePaymentForm:', err);
       }
     };
     fetchTreasury();
-  }, []);
+  }, [isBankReceiptAllowed]);
 
   useEffect(() => {
+    if (!isBankReceiptAllowed && form.paymentMode !== 'cash') {
+      setForm((prev) => ({
+        ...prev,
+        paymentMode: 'cash',
+        ledgerId: myCashLedger?._id || cashAccounts[0]?._id || ''
+      }));
+      return;
+    }
     const isCash = String(form.paymentMode).toLowerCase() === 'cash';
     const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
     if (defaultId) {
       setForm((prev) => ({ ...prev, ledgerId: prev.ledgerId || defaultId }));
     }
-  }, [form.paymentMode, myCashLedger, cashAccounts, bankAccounts]);
+  }, [form.paymentMode, myCashLedger, cashAccounts, bankAccounts, isBankReceiptAllowed]);
 
   const bookingOptions = useMemo(() => {
     return (bookings || []).map((b) => {
@@ -610,8 +633,9 @@ const ReceivePaymentForm = ({
                 <div className="flex flex-col gap-1">
                   <label className={labelCls}>Payment Mode</label>
                   <select
-                    className={inputCls}
+                    className={`${inputCls} ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : ''}`}
                     value={form.paymentMode}
+                    disabled={!isBankReceiptAllowed}
                     onChange={(e) => {
                       const newMode = e.target.value;
                       const isCash = String(newMode).toLowerCase() === 'cash';
@@ -620,11 +644,20 @@ const ReceivePaymentForm = ({
                     }}
                   >
                     <option value="cash">Cash</option>
-                    <option value="upi">UPI / Online</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="neft_rtgs">NEFT / RTGS</option>
+                    {isBankReceiptAllowed && (
+                      <>
+                        <option value="upi">UPI / Online</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="neft_rtgs">NEFT / RTGS</option>
+                      </>
+                    )}
                   </select>
+                  {!isBankReceiptAllowed && (
+                    <span className="text-[10px] text-amber-700 font-semibold mt-0.5">
+                      Corporate bank receipts restricted for this account (Cash collections only)
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -634,7 +667,7 @@ const ReceivePaymentForm = ({
                   <select
                     className={`${inputCls} ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : ''}`}
                     value={form.ledgerId || ''}
-                    disabled={String(form.paymentMode).toLowerCase() === 'cash'}
+                    disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
                     onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
                   >
                     {String(form.paymentMode).toLowerCase() === 'cash' ? (
@@ -649,7 +682,7 @@ const ReceivePaymentForm = ({
                           </option>
                         ))}
                         {bankAccounts.length === 0 && (
-                          <option value="">Default Company Bank</option>
+                          <option value="" disabled>No authorized bank account available</option>
                         )}
                       </>
                     )}

@@ -1,29 +1,20 @@
 import { Outlet, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import Navbar from '../components/Navbar';
 import { useState, Suspense, useEffect } from 'react';
 import Sidebar from '../components/sidebar';
 import ContentLoader from '../components/ContentLoader';
+import { isTokenValid, getRoleFromToken, clearAuthSession } from './auth';
 
 const ProtectedRoutes = ({ allowedRoles = [] }) => {
+  const dispatch = useDispatch();
   const { islogin } = useSelector((state) => state.auth);
   const user = useSelector((state) => state.user);
 
-  const getRoleFromToken = () => {
-    try {
-      const token = localStorage.getItem('emstoken');
-      if (!token) return null;
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload?.role || null;
-    } catch {
-      return null;
-    }
-  };
-
-  const tokenRole = getRoleFromToken();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('emstoken') : null;
+  const tokenValid = isTokenValid(token);
+  const tokenRole = getRoleFromToken(token);
   const role = user?.profile?.role || user?.role || tokenRole;
-  const tokenExists = Boolean(localStorage.getItem('emstoken'));
-  const isAuthenticated = islogin || tokenExists;
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
 
@@ -33,8 +24,11 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ❌ Not logged in → go to login
-  if (!isAuthenticated) {
+  // ❌ If token is missing, expired, or invalid → purge everything immediately and send to login
+  if (!token || !tokenValid) {
+    if (islogin || token) {
+      clearAuthSession(dispatch, false);
+    }
     return <Navigate to="/login" replace />;
   }
 
@@ -47,10 +41,40 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
     );
   }
 
-  // ❌ Logged in but not in allowed roles → go to login (clears loop)
+  // ❌ Logged in but not in allowed roles → show access denied instead of endless /login bounce
   const isAuthorized = allowedRoles.length === 0 || allowedRoles.includes(role);
   if (!isAuthorized) {
-    return <Navigate to="/login" replace />;
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 p-6 text-center select-none">
+        <div className="max-w-md bg-white p-8 rounded-2xl border border-rose-200 shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto font-bold text-xl">
+            !
+          </div>
+          <h2 className="text-lg font-bold text-slate-800">Access Restricted</h2>
+          <p className="text-xs text-slate-500">
+            Your account ({role}) is not authorized to access this module.
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.location.replace('/login')}
+              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition cursor-pointer"
+            >
+              Back to Login
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearAuthSession(dispatch, true);
+              }}
+              className="px-4 py-2 bg-teal-800 text-white rounded-xl text-xs font-bold hover:bg-teal-900 transition cursor-pointer"
+            >
+              Switch Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Sidebar logic

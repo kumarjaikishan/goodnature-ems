@@ -42,7 +42,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     const fetchTreasury = async () => {
         try {
             const [treasuryData, myCashData] = await Promise.all([
-                apiClient({ url: 'ledger/treasury' }),
+                apiClient({ url: 'ledger/treasury', params: { intent: 'payment' } }),
                 apiClient({ url: 'ledger/my-cash-account' }).catch(() => null)
             ]);
             const banks = treasuryData?.bankLedgers || treasuryData?.bankAccounts || [];
@@ -426,7 +426,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                                     <Select
                                         value={paymentMode}
                                         onChange={handlePaymentModeChange}
-                                        options={PAYMENT_MODES}
+                                        options={treasuryLedgers.bankLedgers?.length > 0 ? PAYMENT_MODES : PAYMENT_MODES.filter(m => m.value === 'CASH')}
                                     />
                                 </div>
 

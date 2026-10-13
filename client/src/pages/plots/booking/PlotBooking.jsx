@@ -171,12 +171,20 @@ export default function PlotBooking() {
       return;
     }
 
-    setSelectedPlot(p);
+    const s = seriesList.find((s) => s._id === (p.seriesId?._id || p.seriesId));
+    const finalProjectId = p.projectId?._id || p.projectId || s?.projectId?._id || s?.projectId || selectedProjectId || '';
+    const finalProjectName = p.projectName || s?.projectName || projects.find((prj) => String(prj._id) === String(finalProjectId))?.name || '';
+
+    setSelectedPlot({
+      ...p,
+      projectId: finalProjectId,
+      projectName: finalProjectName,
+    });
     setForm((f) => ({
       ...f,
       plotId: p._id,
-      projectId: p.projectId?._id || p.projectId || f.projectId || '',
-      projectName: p.projectName || f.projectName || '',
+      projectId: finalProjectId,
+      projectName: finalProjectName,
     }));
 
     // Initialize premium heads with default checked (active: true)
@@ -189,6 +197,24 @@ export default function PlotBooking() {
       heads.push({ name: 'Corner Plot', extraPercent: rateConfig?.cornerExtraPercent || 20, active: true });
     }
     setSelectedPremiumHeads(heads);
+  };
+
+  const handleProjectFilterChange = (projId) => {
+    setSelectedProjectId(projId);
+    if (selectedPlot && projId) {
+      const plotProjId = selectedPlot.projectId?._id || selectedPlot.projectId;
+      const s = seriesList.find((series) => series._id === (selectedPlot.seriesId?._id || selectedPlot.seriesId));
+      const resolvedPlotProj = plotProjId || s?.projectId?._id || s?.projectId;
+      if (resolvedPlotProj && String(resolvedPlotProj) !== String(projId)) {
+        setSelectedPlot(null);
+        setForm((f) => ({
+          ...f,
+          plotId: '',
+          projectId: projId,
+          projectName: projects.find((prj) => String(prj._id) === String(projId))?.name || '',
+        }));
+      }
+    }
   };
 
   const togglePremiumHead = (index) => {
@@ -490,7 +516,7 @@ export default function PlotBooking() {
               seriesList={seriesList}
               projects={projects}
               selectedProjectId={selectedProjectId}
-              setSelectedProjectId={setSelectedProjectId}
+              setSelectedProjectId={handleProjectFilterChange}
               handlePlotSelect={handlePlotSelect}
               form={form}
               rateConfig={rateConfig}

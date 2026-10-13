@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const rateSlabSchema = new mongoose.Schema({
+  planName: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   tenureMonths: {
     type: Number,
     required: true,

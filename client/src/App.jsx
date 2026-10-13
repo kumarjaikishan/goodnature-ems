@@ -13,6 +13,7 @@ import dayjs from 'dayjs';
 
 import ScrollToTop from './components/ScrollToTop';
 import { swal } from './utils/confirmDialog';
+import { isTokenValid, clearAuthSession, getRoleFromToken } from './utils/auth';
 // import  Errorpage  from './pages/error/Errorpage';
 
 
@@ -33,6 +34,7 @@ const DepartmentPage = lazy(() => import('./pages/admin/organization/pages/Depar
 const DeviceManagementPage = lazy(() => import('./pages/admin/organization/pages/DeviceManagementPage'));
 const TelegramIntegrationPage = lazy(() => import('./pages/admin/organization/pages/TelegramIntegrationPage'));
 const AdminManagerPage = lazy(() => import('./pages/admin/organization/pages/AdminManagerPage'));
+const AdminUserFormPage = lazy(() => import('./pages/admin/organization/pages/AdminUserFormPage'));
 const AttendanceRulesPage = lazy(() => import('./pages/admin/organization/pages/AttendanceRulesPage'));
 const PayrollPoliciesPage = lazy(() => import('./pages/admin/organization/pages/PayrollPoliciesPage'));
 const LeavePoliciesPage = lazy(() => import('./pages/admin/organization/pages/LeavePoliciesPage'));
@@ -104,6 +106,7 @@ const BusinessDeveloperLedgerPage = lazy(() => import('./pages/plots/businessDev
 const BusinessDeveloperDashboard = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperDashboard'));
 const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperReportPage'));
 const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
+const BusinessDeveloperNetworkPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperNetworkPage'));
 const PlotIncentivesPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
 const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
@@ -138,7 +141,11 @@ const managementRoutes = (
     <Route path="organization/devices" element={<DeviceManagementPage />} />
     <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
     <Route path="organization/admin" element={<AdminManagerPage />} />
+    <Route path="organization/admin/new" element={<AdminUserFormPage />} />
+    <Route path="organization/admin/:id/edit" element={<AdminUserFormPage />} />
     <Route path="organization/users" element={<AdminManagerPage />} />
+    <Route path="organization/users/new" element={<AdminUserFormPage />} />
+    <Route path="organization/users/:id/edit" element={<AdminUserFormPage />} />
     <Route path="organization/rules" element={<AttendanceRulesPage />} />
     <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
     <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
@@ -185,6 +192,8 @@ const managementRoutes = (
     <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
     <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
     <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
+    <Route path="plots/business-developer/:id/network" element={<BusinessDeveloperNetworkPage />} />
+    <Route path="plots/business-developers/:id/network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
     <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
     <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
@@ -255,6 +264,10 @@ const sponsorRoutes = (
     <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
     <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
     <Route path="my-business" element={<BusinessDeveloperReportPage />} />
+    <Route path="my-network" element={<BusinessDeveloperNetworkPage />} />
+    <Route path="my-customers" element={<BusinessDeveloperNetworkPage />} />
+    <Route path="network" element={<BusinessDeveloperNetworkPage />} />
+    <Route path="plots/business-developer/:id/network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="my-bookings" element={<BusinessDeveloperBookingsPage />} />
     <Route path="plots/bookings" element={<BusinessDeveloperBookingsPage />} />
     <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
@@ -304,23 +317,22 @@ function App() {
   const navigate = useNavigate();
   const primaryColor = useSelector((state) => state.user.primaryColor) || "#115e59";
 
-  const getRoleFromToken = () => {
-    try {
-      const token = localStorage.getItem('emstoken');
-      if (!token) return null;
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload?.role || null;
-    } catch {
-      return null;
-    }
-  };
-
   const effectiveRole = user?.profile?.role || getRoleFromToken();
 
   useEffect(() => {
     const token = localStorage.getItem('emstoken');
-    if (token && !islogin) {
-      dispatch(setlogin(true));
+    if (token) {
+      if (isTokenValid(token)) {
+        if (!islogin) {
+          dispatch(setlogin(true));
+        }
+      } else {
+        // Token exists but is expired or invalid — purge immediately
+        clearAuthSession(dispatch, false);
+      }
+    } else if (islogin) {
+      // Redux thought we're logged in, but token is missing — purge immediately
+      clearAuthSession(dispatch, false);
     }
   }, [islogin, dispatch]);
 
@@ -329,8 +341,10 @@ function App() {
   }, [primaryColor]);
 
   useEffect(() => {
-    const role = effectiveRole;
+    const token = localStorage.getItem('emstoken');
+    if (!islogin || !isTokenValid(token)) return;
 
+    const role = effectiveRole;
     if (MANAGEMENT_ROLES.includes(role)) {
       dispatch(FirstFetch());
     } else if (role === 'employee') {
@@ -339,48 +353,62 @@ function App() {
   }, [islogin, effectiveRole, dispatch]);
 
   useEffect(() => {
-    islogin && jwtcheck();
+    const token = localStorage.getItem('emstoken');
+    if (islogin && isTokenValid(token)) {
+      jwtcheck();
+    }
   }, [islogin]);
 
   const tokenErrors = {
     "jwt expired": ['Session Expired', 'Your session has expired. Please log in again.'],
     "Invalid Token": ['Invalid Token', 'You need to log in again.']
-  }
+  };
 
   const jwtcheck = async () => {
     try {
       const token = localStorage.getItem('emstoken');
-      if (!token) return;
+      if (!token || !isTokenValid(token)) {
+        clearAuthSession(dispatch, false);
+        return;
+      }
       const responsee = await fetch(`${import.meta.env.VITE_API_ADDRESS}jwtcheck`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      // console.log(responsee)
+
+      if (responsee.status === 401) {
+        clearAuthSession(dispatch, false);
+        navigate('/login', { replace: true });
+        return;
+      }
+
       const data = await responsee.json();
 
       if (tokenErrors[data.message]) {
         const title = tokenErrors[data.message][0];
         const text = tokenErrors[data.message][1];
+        clearAuthSession(dispatch, false);
         swal({
           title, text, icon: 'warning',
           button: {
             text: 'OK',
           },
         }).then(() => {
-          return navigate('/logout');
+          navigate('/login', { replace: true });
         });
       }
     } catch (error) {
       console.log("Token check:", error);
     }
-  }
+  };
 
-  const roleRoute = islogin && effectiveRole ? routesByRole[effectiveRole] || [] : [];
+  const hasValidAuth = islogin && isTokenValid(typeof window !== 'undefined' ? localStorage.getItem('emstoken') : null);
+  const roleRoute = hasValidAuth && effectiveRole ? routesByRole[effectiveRole] || [] : [];
 
   useEffect(() => {
-    if (islogin && user?.liveAttandence && ["superadmin", "admin", "manager", "demo"].includes(user?.profile?.role)) {
+    if (hasValidAuth && user?.liveAttandence && ["superadmin", "admin", "manager", "demo"].includes(user?.profile?.role)) {
       const es = connectSSE((data) => {
         // console.log("sse se event ayaa")
         if (data.type === "attendance_update") {
@@ -487,7 +515,7 @@ function App() {
           </div>
         </div>}
       >
-        {islogin && !effectiveRole ? (
+        {hasValidAuth && !effectiveRole ? (
           <div className="flex items-center justify-center h-screen w-screen bg-white">
             <div className="relative">
               <Settings
@@ -511,11 +539,11 @@ function App() {
 
             <Route
               path="/login"
-              element={islogin ? <Navigate to="/dashboard" replace /> : <Login />}
+              element={hasValidAuth ? <Navigate to="/dashboard" replace /> : <Login />}
             />
             <Route
               path="/"
-              element={!islogin ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
+              element={!hasValidAuth ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
             />
             <Route path="/logout" element={<Logout />} />
 
@@ -525,7 +553,7 @@ function App() {
             {/* Fallback */}
             <Route
               path="*"
-              element={!islogin ? <Navigate to="/login" replace /> : <Errorpage />}
+              element={!hasValidAuth ? <Navigate to="/login" replace /> : <Errorpage />}
             />
           </Routes>
         )}

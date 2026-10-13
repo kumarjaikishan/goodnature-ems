@@ -1,4 +1,4 @@
-import { SlidersHorizontal, Sparkles, Check } from 'lucide-react';
+import { Sparkles, Check } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 
 const CreatePlotModal = ({
@@ -9,6 +9,7 @@ const CreatePlotModal = ({
   handleSeriesChangeInPlotForm,
   handleCreatePlot,
   seriesList = [],
+  projects = [],
   rateConfig = {},
   submitLoading,
   inputCls = 'h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition',
@@ -51,25 +52,33 @@ const CreatePlotModal = ({
   const totalPlotValue = Math.round(plotAreaNum * effectiveRate);
 
   return (
-    <Modalbox open={open} onClose={onClose} size="xl" outside={false}>
-      <div className="w-full flex flex-col max-h-[88vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">Add Individual Plot</h3>
-            <p className="text-xs text-slate-500 font-medium">Add a plot directly to a series block or standalone.</p>
-          </div>
+    <Modalbox
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title="Add Individual Plot"
+      subtitle="Add a plot directly to a series block or standalone."
+      footer={
+        <>
           <button
             type="button"
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-sm font-bold cursor-pointer transition"
+            className="px-4 py-2 bg-slate-200/80 hover:bg-slate-300 rounded-xl font-bold text-xs text-slate-700 transition cursor-pointer"
             onClick={onClose}
           >
-            ✕
+            Cancel
           </button>
-        </div>
-
-        {/* Scrollable Form Body */}
-        <form onSubmit={handleCreatePlot} className="flex-1 overflow-y-auto p-6 space-y-4">
+          <button
+            type="button"
+            onClick={handleCreatePlot}
+            disabled={submitLoading}
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[110px] flex items-center justify-center cursor-pointer"
+          >
+            {submitLoading ? 'Creating...' : 'Create Plot'}
+          </button>
+        </>
+      }
+    >
+      <form onSubmit={handleCreatePlot} className="space-y-4">
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Assign to Series (Optional)</label>
             <select
@@ -80,11 +89,37 @@ const CreatePlotModal = ({
               <option value="">-- Standalone (No Series) --</option>
               {seriesList.map((s) => (
                 <option key={s._id} value={s._id}>
-                  {s.name} ({s.prefix})
+                  {s.projectName ? `[${s.projectName}] ` : ''}{s.name} ({s.prefix})
                 </option>
               ))}
             </select>
           </div>
+
+          {/* If standalone, allow selecting project */}
+          {!plotForm.seriesId && projects.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Project (प्रोजेक्ट)</label>
+              <select
+                className={inputCls}
+                value={plotForm.projectId || ''}
+                onChange={(e) => {
+                  const sel = projects.find((p) => p._id === e.target.value);
+                  setPlotForm({
+                    ...plotForm,
+                    projectId: e.target.value,
+                    projectName: sel ? sel.name : '',
+                  });
+                }}
+              >
+                <option value="">-- No Project / General --</option>
+                {projects.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name} {p.code ? `(${p.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Plot Number</label>
@@ -391,27 +426,7 @@ const CreatePlotModal = ({
               onChange={(e) => setPlotForm({ ...plotForm, remarks: e.target.value })}
             />
           </div>
-        </form>
-
-        {/* Sticky Footer */}
-        <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-slate-100 bg-slate-50/70 shrink-0">
-          <button
-            type="button"
-            className="px-4 py-2 bg-slate-200/80 hover:bg-slate-300 rounded-xl font-bold text-xs text-slate-700 transition cursor-pointer"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleCreatePlot}
-            disabled={submitLoading}
-            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[110px] flex items-center justify-center cursor-pointer"
-          >
-            {submitLoading ? 'Creating...' : 'Create Plot'}
-          </button>
-        </div>
-      </div>
+      </form>
     </Modalbox>
   );
 };

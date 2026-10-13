@@ -523,7 +523,7 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Actions',
-      width: '280px',
+      width: '315px',
       cell: (row) => (
         <div className="flex items-center gap-1.5">
           <button
@@ -532,6 +532,13 @@ const PlotBusinessDevelopers = () => {
             title="View Developer Profile Details"
           >
             <Eye size={15} />
+          </button>
+          <button
+            onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/network`)}
+            className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-lg transition cursor-pointer"
+            title="View Associates, Customers & Booking Dues Network"
+          >
+            <Users size={15} />
           </button>
           <button
             onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/business-report`)}

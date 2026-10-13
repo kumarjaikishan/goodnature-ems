@@ -1051,6 +1051,24 @@ class PlotProductService {
       const userCashLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' });
       resolvedLedgerId = userCashLedger?._id || data.ledgerId || null;
     } else {
+      if (userId) {
+        const User = mongoose.model('user');
+        const collector = await User.findById(userId).select('bankPermissions role').lean();
+        if (collector && collector.role !== 'developer') {
+          const bPerm = collector.bankPermissions;
+          if (bPerm) {
+            if (bPerm.accessScope === 'none' || bPerm.allowReceipts === false) {
+              throw ApiError.badRequest('You do not have authorization to collect payments into corporate bank accounts. Please collect in cash.');
+            }
+            if (bPerm.accessScope === 'selected' && data.ledgerId) {
+              const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+              if (!allowedIds.includes(data.ledgerId.toString())) {
+                throw ApiError.badRequest('You are not authorized to collect payments into this designated bank account.');
+              }
+            }
+          }
+        }
+      }
       resolvedLedgerId = data.ledgerId || null;
       if (!resolvedLedgerId) {
         const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' });

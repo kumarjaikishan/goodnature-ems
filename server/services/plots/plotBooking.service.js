@@ -1073,10 +1073,53 @@ class PlotBookingService {
     if (filters.sponsorId) {
       const subSponsors = await User.find({ sponsorId: filters.sponsorId }).select('_id').lean();
       const subSponsorIds = subSponsors.map(s => s._id);
-      query.$or = [
-        { sponsorId: filters.sponsorId },
-        ...(subSponsorIds.length > 0 ? [{ sponsorId: { $in: subSponsorIds } }] : [])
+
+      if (filters.associateId && filters.associateId !== 'all') {
+        query.sponsorId = filters.associateId;
+      } else {
+        query.$or = [
+          { sponsorId: filters.sponsorId },
+          ...(subSponsorIds.length > 0 ? [{ sponsorId: { $in: subSponsorIds } }] : [])
+        ];
+      }
+    } else if (filters.associateId && filters.associateId !== 'all') {
+      query.sponsorId = filters.associateId;
+    }
+
+    if (filters.fromDate || filters.toDate) {
+      query.bookingDate = {};
+      if (filters.fromDate) {
+        query.bookingDate.$gte = new Date(filters.fromDate);
+      }
+      if (filters.toDate) {
+        const toD = new Date(filters.toDate);
+        toD.setHours(23, 59, 59, 999);
+        query.bookingDate.$lte = toD;
+      }
+    }
+
+    if (filters.search) {
+      const s = filters.search.trim();
+      const matchingCustomers = await PlotCustomer.find({
+        $or: [
+          { name: { $regex: s, $options: 'i' } },
+          { mobile: { $regex: s, $options: 'i' } },
+          { customerId: { $regex: s, $options: 'i' } }
+        ]
+      }).select('_id').lean();
+      const cIds = matchingCustomers.map(c => c._id);
+
+      const searchConditions = [
+        { bookingNumber: { $regex: s, $options: 'i' } },
+        ...(cIds.length > 0 ? [{ customerId: { $in: cIds } }] : [])
       ];
+
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchConditions }];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     const page = parseInt(filters.page) || 1;

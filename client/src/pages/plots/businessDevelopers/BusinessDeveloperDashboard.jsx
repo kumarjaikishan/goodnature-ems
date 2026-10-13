@@ -120,6 +120,13 @@ const BusinessDeveloperDashboard = () => {
         {/* Action Shortcuts */}
         <div className="flex items-center gap-2.5">
           <button
+            onClick={() => navigate('/dashboard/my-network')}
+            className="px-3.5 py-2 bg-emerald-750 hover:bg-emerald-850 text-white bg-emerald-700 font-medium text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <Users size={15} />
+            <span>{isDeveloperPartner ? 'Network & Customers' : 'My Customers'}</span>
+          </button>
+          <button
             onClick={() => navigate('/dashboard/ledger')}
             className="px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
           >

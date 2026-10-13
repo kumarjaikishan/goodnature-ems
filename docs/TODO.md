@@ -8,8 +8,14 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 - [x] **Plot Schedulers Integration**:
   - `server/cron/plotHoldScheduler.js` (`initPlotHoldScheduler`) and `server/cron/plotPayoutScheduler.js` (`initPlotPayoutScheduler`) are explicitly invoked on server startup in `server/index.js` with fail-safe error boundaries.
-- [ ] **Redis Connection Reliability**:
-  - Ensure graceful handling and reconnection strategies if Redis becomes unavailable during peak load without blocking permission checks.
+- [x] **Voucher & Plot Receipt Role-Based Scoping Enforcement**:
+  - Implements the complete specification detailed in `docs/VOUCHER_RECEIPT_ROLE_SCOPING_SPEC.md`:
+    - Added `branchId` to `PlotReceipt` schema and persisted during `collectInstallment`.
+    - Ran DB backfill `server/scripts/backfillReceiptBranches.js` for existing receipts.
+    - Added `accountant` and `cashier` to `authorizeRoles` in `route.js` for `/vouchers`.
+    - Fixed Branch Manager query scoping in `plotCollection.service.js` `getReceipts` (scoped by `branchId: { $in: user.branchIds }`).
+    - Enforced Cashier/Accountant isolation strictly to own created vouchers & receipts (`createdBy: req.userid`).
+    - Guarded `getReceiptById`, `updateReceipt`, `deleteReceipt`, `approveReceipt`, `rejectReceipt` against IDOR / unauthorized cross-branch viewing.
 - [ ] **Controller Refactoring**:
   - `server/controllers/attandence.js` (~1778 lines) and `server/controllers/admin.js` (~1500+ lines) contain significant business logic that can gradually be delegated into services (`services/attendanceService.js`, `services/employeeService.js`).
 - [ ] **Attendance Excel Import**:
@@ -48,6 +54,12 @@ This document tracks known tasks, technical debt, and pending improvements ident
 - [x] Project Management System: Dedicated Project Master tab in Land Purchase, project tagging across Kisan Land Purchase agreements, Series Master creation, Plot bookings (Step 2 selection filter), and Plot Product sales & catalog.
 - [x] Multi-Ledger Treasury & Cash Management System: Configurable Corporate Bank Accounts (Axis, IDBI, HDFC, etc.) with opening balances & statement views, Auto-provisioned Cashier Personal Cash Ledgers (`user_cash`), Account-linked Receipt & Voucher collections with instant double-entry credits/debits, and Maker-Checker 2-Step Inter-Ledger Fund Transfers with deposit slip uploads and in-transit held balance safeguards.
 - [x] Full System Technical Audit & Hardening (Sept 2026): Dynamic permission fallback & live cache invalidation in `checkpermission.js` and `admin.js`, Rate-Config billing whitelist for cashiers/accountants, deploy route hardening, compound database indexing on `attandences`, `entries`, `vouchers`, and `users`, and legacy attendance company scope matching.
+- [x] **Business Partner & Business Associate Hierarchy, Customers Mapping & Dues Tracking (Oct 2026)**:
+  - Scoped endpoints `/plots/customers`, `/plots/sponsors`, and `/plots/bookings/list` for sponsor and admin personas.
+  - Subordinate aggregate calculation (customer counts, booking counts, total plot value, and remaining due balances).
+  - Business Partner view: dedicated tabs for Business Associates, Customers under Associates (with BA filter), and Bookings & Dues (with BA filter and date range).
+  - Business Associate view: personalized tabs for My Customers and My Bookings & Dues with live outstanding dues breakdown.
+  - Unified `BusinessDeveloperNetworkPage.jsx` integrated into `App.jsx`, `sidebar.jsx`, and `PlotBusinessDevelopers.jsx`.
 - [x] **PROJECT_IMPROVEMENT_PLAN — All 21 Fixes Executed (2026-09-30)**:
   - CRITICAL: JWT rotated to 64-char hex (PLAN-01). `updatepassword` crash fixed (PLAN-02).
   - HIGH: `toast` import fixed in App.jsx SSE (PLAN-03). IDOR-001 on bookings — confirmed controller already had ownership check, no change needed (PLAN-04). Insecure `Math.random()` token → `crypto.randomBytes(32)` (PLAN-05). `/recordAttendanceFromLogs` secured with role+permission guard (PLAN-06). Dead `/superfirstfetch` route removed (PLAN-07). `apiClient.js` broken /refresh → redirect-to-login on 401 (PLAN-08).

@@ -1,6 +1,9 @@
 import { Search } from 'lucide-react';
 
 const SeriesFilterBar = ({
+  filterProject = '',
+  setFilterProject,
+  projects = [],
   filterSeries,
   setFilterSeries,
   filterStatus,
@@ -12,9 +15,10 @@ const SeriesFilterBar = ({
   setInventoryPage,
   inputCls = 'h-10 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-sm text-slate-800 transition',
 }) => {
-  const hasActiveFilters = Boolean(filterSeries || filterStatus || searchTerm);
+  const hasActiveFilters = Boolean(filterProject || filterSeries || filterStatus || searchTerm);
 
   const handleClear = () => {
+    if (setFilterProject) setFilterProject('');
     setFilterSeries('');
     setFilterStatus('');
     setSearchTerm('');
@@ -24,6 +28,25 @@ const SeriesFilterBar = ({
   return (
     <div className="bg-white border border-slate-200 shadow-xs p-4 rounded-2xl flex flex-col md:flex-row gap-3 justify-between items-center">
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        {/* Project Filter */}
+        {projects.length > 0 && (
+          <select
+            value={filterProject}
+            onChange={(e) => {
+              if (setFilterProject) setFilterProject(e.target.value);
+              if (setInventoryPage) setInventoryPage(1);
+            }}
+            className={`${inputCls} w-full sm:w-44`}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name} {p.code ? `(${p.code})` : ''}
+              </option>
+            ))}
+          </select>
+        )}
+
         {/* Series Filter */}
         <select
           value={filterSeries}

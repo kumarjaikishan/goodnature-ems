@@ -1,3 +1,4 @@
+const User = require('../models/user');
 const Voucher = require('../models/voucher');
 const Ledger = require('../models/ledger');
 const employee = require('../models/employee');
@@ -6,6 +7,33 @@ const Branch = require('../models/branch');
 const accountingService = require('../services/accountingService');
 const mongoose = require('mongoose');
 const { generateVoucherNo } = require('../utils/voucherHelper');
+
+async function hasManagerVoucherAccess(managerUserId, jwtBranchIds, voucher, session = null) {
+  const query = User.findById(managerUserId).select('branchIds').lean();
+  if (session) query.session(session);
+  const dbUser = await query;
+  const managerBranchIds = ((dbUser?.branchIds && dbUser.branchIds.length > 0)
+    ? dbUser.branchIds
+    : (Array.isArray(jwtBranchIds) ? jwtBranchIds : [])).map(b => b.toString());
+
+  if (managerBranchIds.length === 0) return false;
+
+  if (voucher.branchId && managerBranchIds.includes(voucher.branchId.toString())) {
+    return true;
+  }
+
+  const creatorId = voucher.createdBy?._id || voucher.createdBy;
+  if (creatorId) {
+    const cQuery = User.findById(creatorId).select('branchIds').lean();
+    if (session) cQuery.session(session);
+    const creatorUser = await cQuery;
+    if (creatorUser?.branchIds?.some(b => managerBranchIds.includes(b.toString()))) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 exports.getVouchers = async (req, res, next) => {
   try {
@@ -21,9 +49,21 @@ exports.getVouchers = async (req, res, next) => {
         query.branchId = req.query.branchId;
       }
     } else if (isBranchManager) {
-      // Branch manager sees all vouchers within their assigned branches
-      if (Array.isArray(req.user.branchIds) && req.user.branchIds.length > 0) {
-        query.branchId = { $in: req.user.branchIds };
+      // Branch manager sees all vouchers within their assigned branches,
+      // as well as any vouchers created by staff (e.g. accountants, cashiers) attached to their branches
+      const dbUser = await User.findById(req.userid).select('branchIds').lean();
+      const managerBranchIds = (dbUser?.branchIds && dbUser.branchIds.length > 0)
+        ? dbUser.branchIds
+        : (Array.isArray(req.user?.branchIds) ? req.user.branchIds : []);
+
+      if (managerBranchIds.length > 0) {
+        const branchUserIds = await User.find({ branchIds: { $in: managerBranchIds } }).distinct('_id');
+        query.$or = [
+          { branchId: { $in: managerBranchIds } },
+          { createdBy: { $in: branchUserIds } }
+        ];
+      } else {
+        query.createdBy = req.userid;
       }
     } else {
       // Individual operational roles (Cashier, Accountant, Operator, Sales, Staff, etc.)
@@ -89,7 +129,7 @@ exports.getVoucherDetails = async (req, res, next) => {
 
     if (!isGlobalAdmin) {
       if (isBranchManager) {
-        const hasBranchAccess = Array.isArray(req.user.branchIds) && req.user.branchIds.some(b => b.toString() === voucher.branchId?.toString());
+        const hasBranchAccess = await hasManagerVoucherAccess(req.userid, req.user?.branchIds, voucher);
         if (!hasBranchAccess) {
           return res.status(403).json({ message: 'Permission denied: Voucher belongs to another branch' });
         }
@@ -164,18 +204,36 @@ exports.createVoucher = async (req, res, next) => {
       resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
     }
 
+    if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'bank' && userRole !== 'developer') {
+      const User = require('../models/user');
+      const caller = await User.findById(req.userid).select('bankPermissions role').lean();
+      const bPerm = caller?.bankPermissions;
+      if (bPerm) {
+        if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
+          return res.status(403).json({ message: "You do not have authorization to select or disburse corporate bank accounts for payment vouchers." });
+        }
+        if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
+          const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+          if (!allowedIds.includes(resolvedPaymentLedger._id.toString())) {
+            return res.status(403).json({ message: "You are not authorized to disburse from this designated bank account." });
+          }
+        }
+      }
+    }
+
     let branchId;
-    if (targetLedger.ledgerType === 'employee' && targetLedger.employeeId) {
+    const dbCreator = await User.findById(req.userid).session(session).select('branchIds role').lean();
+    if (dbCreator?.branchIds && dbCreator.branchIds.length > 0) {
+      branchId = dbCreator.branchIds[0];
+    } else if (req.user?.branchIds && req.user.branchIds.length > 0) {
+      branchId = req.user.branchIds[0];
+    } else if (targetLedger.ledgerType === 'employee' && targetLedger.employeeId) {
       const emp = await employee.findById(targetLedger.employeeId).session(session);
       if (emp) branchId = emp.branchId;
     }
     if (!branchId) {
-      if (req.user?.branchIds && req.user.branchIds.length > 0) {
-        branchId = req.user.branchIds[0];
-      } else {
-        const defaultBranch = await Branch.findOne().session(session);
-        if (defaultBranch) branchId = defaultBranch._id;
-      }
+      const defaultBranch = await Branch.findOne().session(session);
+      if (defaultBranch) branchId = defaultBranch._id;
     }
     if (!branchId) {
       return res.status(400).json({ message: "No branch found. Please create a branch first." });
@@ -307,6 +365,21 @@ exports.approveVoucher = async (req, res, next) => {
       return res.status(400).json({ message: "Voucher is already fully paid" });
     }
 
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (!isGlobalAdmin) {
+      if (isBranchManager) {
+        const hasAccess = await hasManagerVoucherAccess(req.userid, req.user?.branchIds, voucher, session);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
+        }
+      } else {
+        return res.status(403).json({ message: "Permission denied: Only managers and administrators can approve vouchers" });
+      }
+    }
+
     // Target ledger update if modified during approval
     let targetLedger = null;
     if (ledgerId) {
@@ -341,6 +414,23 @@ exports.approveVoucher = async (req, res, next) => {
         resolvedPaymentLedger = await Ledger.findOne({ assignedUserId: req.userid, ledgerType: 'user_cash' }).session(session);
       } else {
         resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+      }
+
+      if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'bank' && userRole !== 'developer') {
+        const User = require('../models/user');
+        const caller = await User.findById(req.userid).select('bankPermissions role').lean();
+        const bPerm = caller?.bankPermissions;
+        if (bPerm) {
+          if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
+            return res.status(403).json({ message: "You do not have authorization to select or disburse corporate bank accounts for payment vouchers." });
+          }
+          if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
+            const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+            if (!allowedIds.includes(resolvedPaymentLedger._id.toString())) {
+              return res.status(403).json({ message: "You are not authorized to disburse from this designated bank account." });
+            }
+          }
+        }
       }
     }
 
@@ -475,6 +565,21 @@ exports.rejectVoucher = async (req, res, next) => {
       return res.status(400).json({ message: "Cannot reject a fully paid voucher" });
     }
 
+    const userRole = req.user?.role;
+    const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (!isGlobalAdmin) {
+      if (isBranchManager) {
+        const hasAccess = await hasManagerVoucherAccess(req.userid, req.user?.branchIds, voucher, session);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
+        }
+      } else {
+        return res.status(403).json({ message: "Permission denied: Only managers and administrators can reject vouchers" });
+      }
+    }
+
     voucher.status = 'REJECTED';
     voucher.rejectedBy = req.userid;
     voucher.rejectedAt = new Date();
@@ -546,6 +651,21 @@ exports.recordVoucherPayment = async (req, res, next) => {
     let resolvedPaymentLedger = null;
     const userRole = req.user?.role;
     const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+    const isBranchManager = userRole === 'manager';
+
+    if (!isGlobalAdmin) {
+      if (isBranchManager) {
+        const hasAccess = await hasManagerVoucherAccess(req.userid, req.user?.branchIds, voucher, session);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
+        }
+      } else {
+        const isOwner = (voucher.createdBy?._id || voucher.createdBy)?.toString() === req.userid?.toString();
+        if (!isOwner) {
+          return res.status(403).json({ message: "Permission denied: You can only record disbursements for your own vouchers" });
+        }
+      }
+    }
 
     if (paymentLedgerId) {
       resolvedPaymentLedger = await Ledger.findById(paymentLedgerId).session(session);
@@ -559,6 +679,23 @@ exports.recordVoucherPayment = async (req, res, next) => {
       resolvedPaymentLedger = await Ledger.findOne({ assignedUserId: req.userid, ledgerType: 'user_cash' }).session(session);
     } else {
       resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+    }
+
+    if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'bank' && userRole !== 'developer') {
+      const User = require('../models/user');
+      const caller = await User.findById(req.userid).select('bankPermissions role').lean();
+      const bPerm = caller?.bankPermissions;
+      if (bPerm) {
+        if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
+          return res.status(403).json({ message: "You do not have authorization to select or disburse corporate bank accounts for payment vouchers." });
+        }
+        if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
+          const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+          if (!allowedIds.includes(resolvedPaymentLedger._id.toString())) {
+            return res.status(403).json({ message: "You are not authorized to disburse from this designated bank account." });
+          }
+        }
+      }
     }
 
     const updatedPaid = currentPaid + payNum;
@@ -662,7 +799,7 @@ exports.editVoucher = async (req, res, next) => {
 
     if (!isGlobalAdmin) {
       if (isBranchManager) {
-        const hasBranchAccess = Array.isArray(req.user.branchIds) && req.user.branchIds.some(b => b.toString() === voucher.branchId?.toString());
+        const hasBranchAccess = await hasManagerVoucherAccess(req.userid, req.user?.branchIds, voucher, session);
         if (!hasBranchAccess) {
           return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
         }
@@ -784,7 +921,7 @@ exports.deleteVoucher = async (req, res, next) => {
 
     if (!isGlobalAdmin) {
       if (isBranchManager) {
-        const hasBranchAccess = Array.isArray(req.user.branchIds) && req.user.branchIds.some(b => b.toString() === voucher.branchId?.toString());
+        const hasBranchAccess = await hasManagerVoucherAccess(req.userid, req.user?.branchIds, voucher, session);
         if (!hasBranchAccess) {
           return res.status(403).json({ message: "Permission denied: Voucher belongs to another branch" });
         }

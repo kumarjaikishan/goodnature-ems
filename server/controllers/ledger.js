@@ -586,9 +586,47 @@ const getTreasuryLedgers = async (req, res) => {
 
     const userRole = req.user?.role;
     const isDeveloper = userRole === 'developer';
+    const isSuperAdmin = ['superadmin', 'developer'].includes(userRole);
     const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
 
-    const bankLedgers = enriched.filter(l => l.ledgerType === 'bank');
+    let bankLedgers = enriched.filter(l => l.ledgerType === 'bank');
+
+    // Granular Bank & Financial Permissions Enforcement
+    try {
+      const User = require('../models/user');
+      const callerUser = await User.findById(req.user?.id || req.userid).select('bankPermissions role').lean();
+      const bankPerm = callerUser?.bankPermissions;
+      const intent = (req.query?.intent || req.query?.type || req.query?.action || '').toLowerCase().trim(); // 'receipt' | 'payment'
+
+      const isDeveloperUser = (callerUser?.role || userRole) === 'developer';
+      const isSuperAdminUser = ['superadmin', 'developer'].includes(callerUser?.role || userRole);
+      const hasCustomizedBankPerm = bankPerm && (
+        bankPerm.accessScope !== 'all' ||
+        bankPerm.allowReceipts === false ||
+        bankPerm.allowPayments === false ||
+        (Array.isArray(bankPerm.allowedBankIds) && bankPerm.allowedBankIds.length > 0)
+      );
+
+      if (!isDeveloperUser && (!isSuperAdminUser || hasCustomizedBankPerm)) {
+        if (bankPerm) {
+          if (bankPerm.accessScope === 'none') {
+            bankLedgers = [];
+          } else if (bankPerm.allowReceipts === false && bankPerm.allowPayments === false) {
+            bankLedgers = [];
+          } else if (intent === 'receipt' && bankPerm.allowReceipts === false) {
+            bankLedgers = [];
+          } else if (intent === 'payment' && bankPerm.allowPayments === false) {
+            bankLedgers = [];
+          } else if (bankPerm.accessScope === 'selected') {
+            const allowedSet = new Set((bankPerm.allowedBankIds || []).map(id => id.toString()));
+            bankLedgers = bankLedgers.filter(b => allowedSet.has(b._id.toString()));
+          }
+        }
+      }
+    } catch (permErr) {
+      console.error("Error evaluating bank permissions:", permErr);
+    }
+
     const cashLedgers = enriched.filter(l => {
       if (l.ledgerType !== 'user_cash') return false;
 

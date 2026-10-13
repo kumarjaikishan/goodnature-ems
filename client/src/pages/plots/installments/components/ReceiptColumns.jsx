@@ -83,6 +83,20 @@ export const getReceiptColumns = ({
       minWidth: '95px',
     },
     {
+      name: 'Collected By',
+      selector: (row) => row.createdBy?.name || '-',
+      cell: (row) => (
+        <div className="flex flex-col text-xs">
+          <span className="font-semibold text-slate-800 truncate max-w-[120px]">{row.createdBy?.name || 'Self / Admin'}</span>
+          {row.branchId?.name && (
+            <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{row.branchId.name}</span>
+          )}
+        </div>
+      ),
+      sortable: true,
+      minWidth: '130px',
+    },
+    {
       name: 'Status',
       selector: (row) => row.status || 'APPROVED',
       cell: (row) => {

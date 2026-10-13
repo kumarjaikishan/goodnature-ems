@@ -124,6 +124,7 @@ router.route('/approve-leave/:leaveid').post(authmiddlewre, authorizeRoles('supe
 router.route('/addAdmin').post(authmiddlewre, authorizeRoles('superadmin'), upload.single('photo'), admin.addAdmin);
 router.route('/update-profile').post(authmiddlewre, authorizeRoles('superadmin'), upload.single('profileImage'), admin.updateprofile);
 router.route('/getAdmin').get(authmiddlewre, authorizeRoles('superadmin'), admin.getAdmin);
+router.route('/getAdmin/:id').get(authmiddlewre, authorizeRoles('superadmin'), admin.getAdminById);
 router.route('/editAdmin/:id').post(authmiddlewre, authorizeRoles('superadmin'), upload.single('photo'), admin.editAdmin);
 router.route('/deleteAdmin/:id').delete(authmiddlewre, authorizeRoles('superadmin'), admin.deleteAdmin);
 
@@ -256,18 +257,18 @@ router.route('/ledger/transfers/:id/cancel')
 
 // Voucher Routes
 router.route('/vouchers')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("voucher", 1), voucher.getVouchers)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 2), voucher.createVoucher);
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier', 'demo'), checkPermission("voucher", 1), voucher.getVouchers)
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier'), checkPermission("voucher", 2), voucher.createVoucher);
 router.route('/vouchers/:id')
-  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("voucher", 1), voucher.getVoucherDetails)
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.editVoucher)
+  .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier', 'demo'), checkPermission("voucher", 1), voucher.getVoucherDetails)
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier'), checkPermission("voucher", 3), voucher.editVoucher)
   .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 4), voucher.deleteVoucher);
 router.route('/vouchers/:id/approve')
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.approveVoucher);
 router.route('/vouchers/:id/reject')
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 3), voucher.rejectVoucher);
 router.route('/vouchers/:id/payments')
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("voucher", 2), voucher.recordVoucherPayment);
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier'), checkPermission("voucher", 2), voucher.recordVoucherPayment);
 
 // Weekly Off Work Ledger Routes
 const weeklyOffLedger = require('../controllers/weeklyOffLedger');

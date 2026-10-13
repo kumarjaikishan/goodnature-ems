@@ -20,6 +20,7 @@ import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
 import DateInput from "@/components/ui/DateInput";
 import { toast } from "../../utils/toast";
+import { usePermission } from "../../utils/CheckPermission";
 
 const VoucherDetails = () => {
   const { id } = useParams();
@@ -59,7 +60,10 @@ const VoucherDetails = () => {
   const [myCashLedger, setMyCashLedger] = useState(null);
   const [bankLedgers, setBankLedgers] = useState([]);
 
-  const { company } = useSelector((state) => state.user);
+  const { company, profile } = useSelector((state) => state.user);
+  const userRole = profile?.role;
+  const canUpdate = usePermission('voucher', 3);
+  const canApproveVoucher = ['superadmin', 'admin', 'manager', 'developer', 'grant', 'demo'].includes(userRole) && canUpdate;
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -75,7 +79,7 @@ const VoucherDetails = () => {
   const fetchTreasuryAccounts = async () => {
     try {
       const [treasuryRes, myCashRes] = await Promise.all([
-        api.get('/ledger/treasury').catch(() => null),
+        api.get('/ledger/treasury', { params: { intent: 'payment' } }).catch(() => null),
         api.get('/ledger/my-cash-account').catch(() => null)
       ]);
       const banks = treasuryRes?.data?.bankLedgers || treasuryRes?.data?.bankAccounts || [];
@@ -414,9 +418,9 @@ const VoucherDetails = () => {
             {renderStatusBadge(status)}
           </div>
 
-          {/* Quick Action Buttons on Details Page */}
+          {/* Quick Action Buttons on Details Page — Review & Approve / Reject restricted to managers/admins */}
           <div className="flex items-center gap-2">
-            {status === "PENDING" && (
+            {canApproveVoucher && status === "PENDING" && (
               <>
                 <Button
                   size="sm"

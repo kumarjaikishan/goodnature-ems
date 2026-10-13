@@ -311,7 +311,7 @@ const getReceipts = async (req, res, next) => {
 
 const getReceiptById = async (req, res, next) => {
   try {
-    const receipt = await plotsService.getReceiptById(req.params.id);
+    const receipt = await plotsService.getReceiptById(req.params.id, req.user);
     ApiResponse.success(res, receipt);
   } catch (error) {
     next(error);
@@ -320,7 +320,7 @@ const getReceiptById = async (req, res, next) => {
 
 const updateReceipt = async (req, res, next) => {
   try {
-    const receipt = await plotsService.updateReceipt(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    const receipt = await plotsService.updateReceipt(req.params.id, req.body, req.user);
     ApiResponse.success(res, receipt, 'Receipt updated successfully');
   } catch (error) {
     next(error);
@@ -329,7 +329,7 @@ const updateReceipt = async (req, res, next) => {
 
 const deleteReceipt = async (req, res, next) => {
   try {
-    await plotsService.deleteReceipt(req.params.id, req.user?._id || req.user?.id || null);
+    await plotsService.deleteReceipt(req.params.id, req.user);
     ApiResponse.success(res, null, 'Receipt reversed/deleted successfully');
   } catch (error) {
     next(error);
@@ -338,7 +338,7 @@ const deleteReceipt = async (req, res, next) => {
 
 const approveReceipt = async (req, res, next) => {
   try {
-    const receipt = await plotsService.approveReceipt(req.params.id, req.user?._id || req.user?.id || null);
+    const receipt = await plotsService.approveReceipt(req.params.id, req.user);
     ApiResponse.success(res, receipt, 'Collection approved and realized into ledger successfully');
   } catch (error) {
     next(error);
@@ -348,7 +348,7 @@ const approveReceipt = async (req, res, next) => {
 const rejectReceipt = async (req, res, next) => {
   try {
     const { reason } = req.body;
-    const receipt = await plotsService.rejectReceipt(req.params.id, reason, req.user?._id || req.user?.id || null);
+    const receipt = await plotsService.rejectReceipt(req.params.id, reason, req.user);
     ApiResponse.success(res, receipt, 'Collection rejected successfully');
   } catch (error) {
     next(error);

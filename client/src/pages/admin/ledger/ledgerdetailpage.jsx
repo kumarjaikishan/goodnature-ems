@@ -249,7 +249,7 @@ const LedgerDetailPage = () => {
                                 {ledgerName}
                             </h1>
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200/80 uppercase tracking-wider">
-                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : 'Custom Ledger'}
+                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : ledgerType === 'user_cash' || ledgerType === 'cash' ? 'Cash Account' : ledgerType === 'bank' ? 'Bank Account' : 'General Ledger'}
                             </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-normal">
@@ -325,14 +325,14 @@ const LedgerDetailPage = () => {
 
             {/* ── Filter Toolbar ── */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-3.5 w-full sm:w-auto">
                     {/* Year Filter */}
                     <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-600">Year:</span>
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Year:</span>
                         <select
                             value={filterYear}
                             onChange={(e) => setFilterYear(e.target.value)}
-                            className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                            className="h-9 px-3 bg-white border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none rounded-lg text-xs font-medium text-slate-800 transition cursor-pointer"
                         >
                             <option value="all">All Years</option>
                             {[...new Set(entries.map((e) => dayjs(e.date).year()))].map((y) => (
@@ -343,11 +343,11 @@ const LedgerDetailPage = () => {
 
                     {/* Month Filter */}
                     <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-600">Month:</span>
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Month:</span>
                         <select
                             value={filterMonth}
                             onChange={(e) => setFilterMonth(e.target.value)}
-                            className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
+                            className="h-9 px-3 bg-white border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none rounded-lg text-xs font-medium text-slate-800 transition cursor-pointer"
                         >
                             <option value="all">All Months</option>
                             {Array.from({ length: 12 }, (_, i) => (
@@ -357,42 +357,50 @@ const LedgerDetailPage = () => {
                     </div>
 
                     {/* Date Range: From */}
-                    <div className="w-36">
-                        <DateInput
-                            label="From"
-                            size="sm"
-                            value={startDate}
-                            onChange={(e) => {
-                                const val = e?.target?.value !== undefined ? e.target.value : e;
-                                setStartDate(val);
-                            }}
-                        />
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">From:</span>
+                        <div className="w-36">
+                            <DateInput
+                                size="md"
+                                placeholder="Select date"
+                                className="text-xs"
+                                value={startDate}
+                                onChange={(e) => {
+                                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                                    setStartDate(val);
+                                }}
+                            />
+                        </div>
                     </div>
 
                     {/* Date Range: To */}
-                    <div className="w-36">
-                        <DateInput
-                            label="To"
-                            size="sm"
-                            value={endDate}
-                            onChange={(e) => {
-                                const val = e?.target?.value !== undefined ? e.target.value : e;
-                                setEndDate(val);
-                            }}
-                        />
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">To:</span>
+                        <div className="w-36">
+                            <DateInput
+                                size="md"
+                                placeholder="Select date"
+                                className="text-xs"
+                                value={endDate}
+                                onChange={(e) => {
+                                    const val = e?.target?.value !== undefined ? e.target.value : e;
+                                    setEndDate(val);
+                                }}
+                            />
+                        </div>
                     </div>
 
                     {(filterYear !== 'all' || filterMonth !== 'all' || startDate || endDate) && (
                         <button
                             onClick={resetFilters}
-                            className="h-9 px-3 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            className="h-9 px-3 text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/60 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                         >
                             <RotateCcw size={13} /> Reset
                         </button>
                     )}
                 </div>
 
-                <span className="text-xs font-bold text-slate-500">
+                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
                     Showing <strong className="text-teal-800 font-bold">{filtered.length}</strong> of {entries.length} records
                 </span>
             </div>

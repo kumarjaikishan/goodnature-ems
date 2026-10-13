@@ -92,9 +92,24 @@ export default function UserTableView({
                                         )}
                                     </td>
                                     <td className="p-3.5 text-center">
-                                        <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                                            {activePermissionsCount} modules
-                                        </span>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                                                {activePermissionsCount} modules
+                                            </span>
+                                            {admin.bankPermissions?.accessScope === 'none' ? (
+                                                <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                                                    No Bank
+                                                </span>
+                                            ) : admin.bankPermissions?.accessScope === 'selected' ? (
+                                                <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">
+                                                    {(admin.bankPermissions?.allowedBankIds || []).length} Banks
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                                    All Banks
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     {(canUpdate || canDelete) && (
                                         <td className="p-3.5 text-right">
@@ -117,7 +132,7 @@ export default function UserTableView({
                                                     <button
                                                         type="button"
                                                         title="Edit Account"
-                                                        onClick={() => onEdit(index)}
+                                                        onClick={() => onEdit(admin)}
                                                         className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-teal-800 hover:bg-teal-50 transition cursor-pointer"
                                                     >
                                                         <Edit2 size={14} />

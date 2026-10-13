@@ -35,26 +35,55 @@ const EditSeriesModal = ({
   };
 
   return (
-    <Modalbox open={open} onClose={onClose} size="xl" outside={false}>
-      <div className="w-full flex flex-col max-h-[88vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">Edit Plot Series: {selectedSeries?.name}</h3>
-            <p className="text-xs text-slate-500 font-medium">Update series block configuration and dimension parameters.</p>
-          </div>
+    <Modalbox
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title={`Edit Plot Series: ${selectedSeries?.name || ''}`}
+      subtitle="Update series block configuration and dimension parameters."
+      footer={
+        <>
           <button
             type="button"
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-sm font-bold cursor-pointer transition"
+            className="px-4 py-2 bg-slate-200/80 hover:bg-slate-300 rounded-xl font-bold text-xs text-slate-700 transition cursor-pointer"
             onClick={onClose}
           >
-            ✕
+            Cancel
           </button>
-        </div>
-
-        {/* Scrollable Form Body */}
-        <form onSubmit={handleUpdateSeries} className="flex-1 overflow-y-auto p-6 space-y-4">
-
+          <button
+            type="button"
+            onClick={handleUpdateSeries}
+            disabled={submitLoading || !editForm.plotArea}
+            className="px-5 py-2 bg-teal-800 hover:bg-teal-900 disabled:bg-slate-300 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
+          >
+            {submitLoading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </>
+      }
+    >
+      <form onSubmit={handleUpdateSeries} className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Project (प्रोजेक्ट)</label>
+            <select
+              className={inputCls}
+              value={editForm.projectId || ''}
+              onChange={(e) => {
+                const sel = projects.find((p) => p._id === e.target.value);
+                setEditForm({
+                  ...editForm,
+                  projectId: e.target.value,
+                  projectName: sel ? sel.name : '',
+                });
+              }}
+            >
+              <option value="">-- No Project / General --</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name} {p.code ? `(${p.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Series Name</label>
@@ -183,27 +212,7 @@ const EditSeriesModal = ({
               onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
             />
           </div>
-        </form>
-
-        {/* Sticky Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/70 shrink-0">
-          <button
-            type="button"
-            className="px-4 py-2 bg-slate-200/80 hover:bg-slate-300 rounded-xl font-bold text-xs text-slate-700 transition cursor-pointer"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleUpdateSeries}
-            disabled={submitLoading || !editForm.plotArea}
-            className="px-5 py-2 bg-teal-800 hover:bg-teal-900 disabled:bg-slate-300 font-bold text-xs text-white rounded-xl shadow-xs transition min-w-[120px] flex items-center justify-center cursor-pointer"
-          >
-            {submitLoading ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
+      </form>
     </Modalbox>
   );
 };

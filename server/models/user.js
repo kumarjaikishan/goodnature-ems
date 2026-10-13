@@ -90,7 +90,27 @@ const userSchema = new mongoose.Schema({
     accountNumber: { type: String, default: '' },
     ifscCode: { type: String, default: '' },
     photo: { type: String, default: '' },
-    signature: { type: String, default: '' }
+    signature: { type: String, default: '' },
+    // Granular Bank & Financial Permissions
+    bankPermissions: {
+        accessScope: {
+            type: String,
+            enum: ['all', 'selected', 'none'],
+            default: 'all'
+        },
+        allowedBankIds: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Ledger'
+        }],
+        allowReceipts: {
+            type: Boolean,
+            default: true
+        },
+        allowPayments: {
+            type: Boolean,
+            default: true
+        }
+    }
 }, { timestamps: true });
 
 userSchema.index({ companyId: 1, role: 1, isBlocked: 1 });

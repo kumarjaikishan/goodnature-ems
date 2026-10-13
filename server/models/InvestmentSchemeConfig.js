@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const schemeSlabSchema = new mongoose.Schema(
   {
+    planName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     tenureMonths: {
       type: Number,
       required: true,

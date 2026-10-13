@@ -115,11 +115,29 @@ const deletedepartment = async (req, res, next) => {
     }
 };
 
+const getUserAllowedBranchIds = async (req) => {
+    const userId = req.user?.id || req.userid;
+    if (!userId) return null;
+    const currentUser = await usermodal.findById(userId).select('role branchIds').lean();
+    const role = currentUser?.role || req.user?.role;
+    const isUnrestricted = ['superadmin', 'admin', 'developer', 'grant'].includes(role);
+    if (isUnrestricted) return null; // Unrestricted access to all branches
+
+    if (currentUser?.branchIds && Array.isArray(currentUser.branchIds) && currentUser.branchIds.length > 0) {
+        return currentUser.branchIds.map(b => b.toString());
+    }
+    if (Array.isArray(req.user?.branchIds) && req.user.branchIds.length > 0) {
+        return req.user.branchIds.map(b => b.toString());
+    }
+    return []; // Restricted user with 0 branches assigned
+};
+
 const departmentlist = async (req, res, next) => {
     try {
+        const allowedBranchIds = await getUserAllowedBranchIds(req);
         let filter = {};
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            filter.branchId = { $in: req.user.branchIds };
+        if (allowedBranchIds !== null) {
+            filter.branchId = { $in: allowedBranchIds };
         }
 
         const query = await departmentModal.find(filter).populate('branchId', 'name').lean();
@@ -247,8 +265,9 @@ const enrollFace = async (req, res, next) => {
             return next({ status: 404, message: "Employee not found" });
         }
 
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            if (!req.user.branchIds.includes(emp.branchId?.toString())) {
+        const allowedBranchIds = await getUserAllowedBranchIds(req);
+        if (allowedBranchIds !== null) {
+            if (!allowedBranchIds.includes(emp.branchId?.toString())) {
                 return res.status(403).json({ message: "Access denied: not your branch" });
             }
         }
@@ -277,8 +296,9 @@ const deletefaceenroll = async (req, res, next) => {
             return next({ status: 404, message: "Employee not found" });
         }
 
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            if (!req.user.branchIds.includes(emp.branchId?.toString())) {
+        const allowedBranchIds = await getUserAllowedBranchIds(req);
+        if (allowedBranchIds !== null) {
+            if (!allowedBranchIds.includes(emp.branchId?.toString())) {
                 return res.status(403).json({ message: "Access denied: not your branch" });
             }
         }
@@ -311,8 +331,9 @@ const deleteemployee = async (req, res, next) => {
             return next({ status: 404, message: "Employee not found" });
         }
 
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            if (!req.user.branchIds.includes(employee.branchId?.toString())) {
+        const allowedBranchIds = await getUserAllowedBranchIds(req);
+        if (allowedBranchIds !== null) {
+            if (!allowedBranchIds.includes(employee.branchId?.toString())) {
                 await session.abortTransaction(); session.endSession();
                 return res.status(403).json({ message: "Access denied: not your branch" });
             }
@@ -343,9 +364,28 @@ const deleteemployee = async (req, res, next) => {
 
 const employeelist = async (req, res, next) => {
     try {
+        const allowedBranchIds = await getUserAllowedBranchIds(req);
         let queryFilter = {};
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            queryFilter.branchId = { $in: req.user.branchIds };
+
+        const requestedBranch = req.query.branchId || req.query.branch;
+
+        if (allowedBranchIds !== null) {
+            if (allowedBranchIds.length === 0) {
+                return res.status(200).json({ list: [], departmentlist: [], total: 0, pages: 0, page: 1 });
+            }
+            if (requestedBranch && requestedBranch !== 'all') {
+                if (allowedBranchIds.includes(requestedBranch.toString())) {
+                    queryFilter.branchId = requestedBranch;
+                } else {
+                    return res.status(200).json({ list: [], departmentlist: [], total: 0, pages: 0, page: 1 });
+                }
+            } else {
+                queryFilter.branchId = { $in: allowedBranchIds };
+            }
+        } else {
+            if (requestedBranch && requestedBranch !== 'all') {
+                queryFilter.branchId = requestedBranch;
+            }
         }
 
         const page = parseInt(req.query.page, 10) || 1;
@@ -367,8 +407,8 @@ const employeelist = async (req, res, next) => {
 
         const list = await query;
         let deptFilter = {};
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            deptFilter.branchId = { $in: req.user.branchIds };
+        if (allowedBranchIds !== null) {
+            deptFilter.branchId = { $in: allowedBranchIds };
         }
         const departmentlist = await departmentModal.find(deptFilter).select('department');
 
@@ -425,6 +465,19 @@ const addAdmin = async (req, res, next) => {
             fields.permissions = permissions;
         }
 
+        // Parse Granular Bank & Financial Permissions
+        if (req.body.bankPermissions) {
+            let parsedBankPermissions = undefined;
+            if (typeof req.body.bankPermissions === 'string') {
+                try { parsedBankPermissions = JSON.parse(req.body.bankPermissions); } catch (e) {}
+            } else if (typeof req.body.bankPermissions === 'object') {
+                parsedBankPermissions = req.body.bankPermissions;
+            }
+            if (parsedBankPermissions) {
+                fields.bankPermissions = parsedBankPermissions;
+            }
+        }
+
         let uploadResult = null;
         if (req.file) {
             uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -472,11 +525,36 @@ const getAdmin = async (req, res, next) => {
             _id: { $ne: req.userid }
         })
         .populate('branchIds', 'name branchCode location')
+        .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
         .sort({ createdAt: -1 })
         .lean();
 
         res.status(200).json(admins);
 
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).json({
+            message: 'Server error',
+        });
+    }
+};
+
+const getAdminById = async (req, res, next) => {
+    try {
+        const admin = await usermodal.findOne({
+            _id: req.params.id,
+            companyId: req.user.companyId,
+            role: { $in: MANAGED_ROLES }
+        })
+        .populate('branchIds', 'name branchCode location')
+        .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
+        .lean();
+
+        if (!admin) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        return res.status(200).json(admin);
     } catch (error) {
         console.error(error.message);
         return res.status(500).json({
@@ -592,6 +670,19 @@ const editAdmin = async (req, res, next) => {
             fields.permissions = permissions;
         }
 
+        // Parse Granular Bank & Financial Permissions
+        if (req.body.bankPermissions !== undefined) {
+            let parsedBankPermissions = undefined;
+            if (typeof req.body.bankPermissions === 'string') {
+                try { parsedBankPermissions = JSON.parse(req.body.bankPermissions); } catch (e) {}
+            } else if (typeof req.body.bankPermissions === 'object') {
+                parsedBankPermissions = req.body.bankPermissions;
+            }
+            if (parsedBankPermissions) {
+                fields.bankPermissions = parsedBankPermissions;
+            }
+        }
+
         // Handle profile image upload
         if (req.file) {
             const uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -686,15 +777,23 @@ const deleteAdmin = async (req, res, next) => {
 
 const firstfetch = async (req, res, next) => {
     try {
-        const isRestrictedRole = req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.role !== 'developer';
-        const allowedBranches = req.user.branchIds || [];
-        const hasBranchFilter = isRestrictedRole && allowedBranches.length > 0;
-
-        const [user, companye, branches, departmentlist, notices] = await Promise.all([
-            usermodal.findById(req.user.id).select('name email profileImage role permissions branchIds').lean(),
+        const userId = req.user?.id || req.userid;
+        const [user, companye, allowedBranchIds] = await Promise.all([
+            usermodal.findById(userId)
+                .select('name email profileImage role permissions branchIds bankPermissions')
+                .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
+                .lean(),
             company.findOne().lean(),
-            branch.find(hasBranchFilter ? { _id: { $in: allowedBranches } } : {}).populate({ path: 'managerIds', select: 'name role profileImage profileimage' }).lean(),
-            departmentModal.find(hasBranchFilter ? { branchId: { $in: allowedBranches } } : {})
+            getUserAllowedBranchIds(req)
+        ]);
+
+        const hasBranchFilter = allowedBranchIds !== null;
+        const branchQuery = hasBranchFilter ? { _id: { $in: allowedBranchIds } } : {};
+        const deptQuery = hasBranchFilter ? { branchId: { $in: allowedBranchIds } } : {};
+
+        const [branches, departmentlist, notices] = await Promise.all([
+            branch.find(branchQuery).populate({ path: 'managerIds', select: 'name role profileImage profileimage' }).lean(),
+            departmentModal.find(deptQuery)
                 .populate('branchId', 'name')
                 .select('department branchId')
                 .sort({ department: 1 })
@@ -943,7 +1042,7 @@ const deleteBranch = async (req, res, next) => {
 
 
 const getemployee = async (req, res, next) => {
-    const { empid } = req.query;
+    const { empid, branch, branchId } = req.query;
     try {
         if (empid) {
             const employe = await employeeModal.findById(empid)
@@ -952,9 +1051,32 @@ const getemployee = async (req, res, next) => {
             return res.status(200).json(employe);
         }
 
+        const allowedBranchIds = await getUserAllowedBranchIds(req);
         let filter = {};
-        if (req.user.role === 'manager' && Array.isArray(req.user.branchIds)) {
-            filter.branchId = { $in: req.user.branchIds };
+
+        const requestedBranch = branchId || branch;
+
+        if (allowedBranchIds !== null) {
+            // Restricted user (e.g. manager, cashier)
+            if (allowedBranchIds.length === 0) {
+                return res.status(200).json([]);
+            }
+
+            if (requestedBranch && requestedBranch !== 'all') {
+                if (allowedBranchIds.includes(requestedBranch.toString())) {
+                    filter.branchId = requestedBranch;
+                } else {
+                    return res.status(200).json([]);
+                }
+            } else {
+                // "all" or omitted -> strictly restricted to user's allowed branches!
+                filter.branchId = { $in: allowedBranchIds };
+            }
+        } else {
+            // Unrestricted admin/superadmin
+            if (requestedBranch && requestedBranch !== 'all') {
+                filter.branchId = requestedBranch;
+            }
         }
 
         const employees = await employeeModal.find(filter)
@@ -966,12 +1088,14 @@ const getemployee = async (req, res, next) => {
 
         return res.status(200).json(employees);
     } catch (error) {
-        console.error(error.message);
+        console.error("Error in getemployee:", error);
         return next({ status: 500, message: 'Internal Server Error' });
     }
 };
 const updatepassword = async (req, res, next) => {
-    const { userid, pass } = req.body;
+    const userid = req.body.userid || req.body?.pass?.userid || req.body.userId;
+    const rawPass = req.body?.pass?.pass !== undefined ? req.body.pass.pass : (req.body.pass || req.body.password);
+    const pass = typeof rawPass === 'string' ? rawPass : '';
 
     if (!userid || !pass) {
         return res.status(400).json({ message: 'User ID and password are required' });
@@ -1250,7 +1374,7 @@ const bulkDeleteEsslEvents = async (req, res, next) => {
 };
 
 module.exports = {
-    addDepartment, addBranch, enrollFace, addAdmin, deleteBranch, updateprofile, deleteleave, getAdmin, editAdmin, deleteAdmin, deletefaceenroll, updatepassword, updateCompany, editBranch, firstfetch, getemployee, addcompany, departmentlist, leavehandle, updatedepartment, deletedepartment, employeelist, addemployee,
+    addDepartment, addBranch, enrollFace, addAdmin, deleteBranch, updateprofile, deleteleave, getAdmin, getAdminById, editAdmin, deleteAdmin, deletefaceenroll, updatepassword, updateCompany, editBranch, firstfetch, getemployee, addcompany, departmentlist, leavehandle, updatedepartment, deletedepartment, employeelist, addemployee,
     updateemployee, deleteemployee,
     getEsslLogsDeveloper, getEsslEventsDeveloper, bulkDeleteEsslLogs, bulkDeleteEsslEvents
 };

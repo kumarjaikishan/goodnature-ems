@@ -40,6 +40,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           rdPrematureAnnualInterestPercent: res.data.data.rdPrematureAnnualInterestPercent ?? 6.0,
           fdPrematureAnnualInterestPercent: res.data.data.fdPrematureAnnualInterestPercent ?? 6.0,
           slabs: (res.data.data.slabs || []).map((s) => ({
+            planName: s.planName || '',
             tenureMonths: s.tenureMonths,
             rdMaturityPercent: s.rdMaturityPercent,
             fdMaturityPercent: s.fdMaturityPercent,
@@ -73,6 +74,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
       slabs: [
         ...config.slabs,
         {
+          planName: '',
           tenureMonths: newTenure,
           rdMaturityPercent: lastSlab ? Number(lastSlab.rdMaturityPercent) + 10 : 106,
           fdMaturityPercent: lastSlab ? Number(lastSlab.fdMaturityPercent) + 15 : 110,
@@ -95,7 +97,11 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
   const handleSlabChange = (index, field, value) => {
     const updated = [...config.slabs];
-    updated[index] = { ...updated[index], [field]: Number(value) || 0 };
+    if (field === 'planName') {
+      updated[index] = { ...updated[index], planName: value };
+    } else {
+      updated[index] = { ...updated[index], [field]: Number(value) || 0 };
+    }
     setConfig({ ...config, slabs: updated });
   };
 
@@ -149,6 +155,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
             <table className="w-full border-collapse text-left text-xs min-w-[1050px]">
               <thead>
                 <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
+                  <th className="p-3">Plan Name</th>
                   <th className="p-3">Tenure (अवधि)</th>
                   <th className="p-3">
                     <div className="flex items-center gap-1.5 text-teal-900">
@@ -189,6 +196,15 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
               <tbody className="divide-y divide-slate-100">
                 {config.slabs.map((s, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/70 transition">
+                    <td className="p-3 font-bold text-slate-800">
+                      <input
+                        type="text"
+                        className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:ring-2 focus:ring-teal-600 outline-none"
+                        value={s.planName || ''}
+                        placeholder="A-24"
+                        onChange={(e) => handleSlabChange(idx, 'planName', e.target.value)}
+                      />
+                    </td>
                     <td className="p-3 font-bold text-slate-800">
                       <div className="flex items-center gap-1.5">
                         <input

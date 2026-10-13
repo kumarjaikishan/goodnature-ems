@@ -1609,12 +1609,14 @@ class PlotDeveloperService {
   }
 
   async getSponsors(query = {}) {
-    const { search, branchId, roleType, page = 1, limit = 50 } = query;
+    const { search, branchId, roleType, parentSponsorId, page = 1, limit = 50 } = query;
     const filter = { role: { $in: ['sponsor', 'agent'] } };
     if (branchId && branchId !== 'all') {
       filter.branchIds = branchId;
     }
-    if (roleType === 'partner') {
+    if (parentSponsorId) {
+      filter.sponsorId = parentSponsorId;
+    } else if (roleType === 'partner') {
       filter.$or = [{ sponsorId: null }, { sponsorId: { $exists: false } }];
     } else if (roleType === 'associate') {
       filter.sponsorId = { $ne: null, $exists: true };
@@ -1647,6 +1649,27 @@ class PlotDeveloperService {
     const ledgers = await Ledger.find({ sponsorId: { $in: sponsorIds } }).lean();
     const ledgerMap = new Map(ledgers.map(l => [l.sponsorId.toString(), l._id.toString()]));
 
+    const [customerCounts, bookingStats] = await Promise.all([
+      PlotCustomer.aggregate([
+        { $match: { sponsorId: { $in: sponsorIds } } },
+        { $group: { _id: '$sponsorId', count: { $sum: 1 } } }
+      ]),
+      PlotBooking.aggregate([
+        { $match: { sponsorId: { $in: sponsorIds }, status: { $ne: 'CANCELLED' } } },
+        {
+          $group: {
+            _id: '$sponsorId',
+            bookingCount: { $sum: 1 },
+            totalValue: { $sum: { $ifNull: ['$plotValue', 0] } },
+            totalDue: { $sum: { $ifNull: ['$remainingAmount', 0] } }
+          }
+        }
+      ])
+    ]);
+
+    const custCountMap = new Map(customerCounts.map(c => [c._id.toString(), c.count]));
+    const bkStatsMap = new Map(bookingStats.map(b => [b._id.toString(), b]));
+
     const sponsors = await Promise.all(
       rawSponsors.map(async (s) => {
         let ledgerId = ledgerMap.get(s._id.toString());
@@ -1663,9 +1686,14 @@ class PlotDeveloperService {
           await newLedger.save();
           ledgerId = newLedger._id.toString();
         }
+        const bStats = bkStatsMap.get(s._id.toString()) || {};
         return {
           ...s,
-          ledgerId
+          ledgerId,
+          customerCount: custCountMap.get(s._id.toString()) || 0,
+          bookingCount: bStats.bookingCount || 0,
+          totalValue: bStats.totalValue || 0,
+          totalDue: bStats.totalDue || 0,
         };
       })
     );
@@ -1907,19 +1935,54 @@ class PlotDeveloperService {
 
   async getCustomers(query = {}) {
     await this.syncLegacyUserCustomers();
-    const { search, page = 1, limit = 50 } = query;
+    const { search, page = 1, limit = 50, sponsorId, associateId } = query;
     const filter = {};
+
+    if (sponsorId) {
+      const sponsorUser = await User.findById(sponsorId).select('_id sponsorId role').lean();
+      if (sponsorUser) {
+        if (!sponsorUser.sponsorId) {
+          // Business Partner: can see customers under all their Business Associates
+          const subBAs = await User.find({
+            sponsorId: sponsorUser._id,
+            role: { $in: ['sponsor', 'agent'] }
+          }).select('_id').lean();
+          const subIds = subBAs.map(b => b._id);
+
+          if (associateId && associateId !== 'all') {
+            filter.sponsorId = associateId;
+          } else {
+            filter.sponsorId = { $in: [sponsorUser._id, ...subIds] };
+          }
+        } else {
+          // Business Associate: can only see their direct customers
+          filter.sponsorId = sponsorUser._id;
+        }
+      } else {
+        filter.sponsorId = sponsorId;
+      }
+    } else if (associateId && associateId !== 'all') {
+      filter.sponsorId = associateId;
+    }
+
     if (search) {
-      filter.$or = [
+      const searchConditions = [
         { customerId: { $regex: search, $options: 'i' } },
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { mobile: { $regex: search, $options: 'i' } }
       ];
+      if (filter.sponsorId) {
+        filter.$and = [{ sponsorId: filter.sponsorId }, { $or: searchConditions }];
+        delete filter.sponsorId;
+      } else {
+        filter.$or = searchConditions;
+      }
     }
+
     const skip = (Number(page) - 1) * Number(limit);
     const total = await PlotCustomer.countDocuments(filter);
-    const customers = await PlotCustomer.find(filter)
+    const rawCustomers = await PlotCustomer.find(filter)
       .populate({
         path: 'sponsorId',
         select: 'name sponsorCode mobile email photo signature sponsorId',
@@ -1930,7 +1993,35 @@ class PlotDeveloperService {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
+
+    const customerIds = rawCustomers.map(c => c._id);
+    const bookingStats = await PlotBooking.aggregate([
+      { $match: { customerId: { $in: customerIds }, status: { $ne: 'CANCELLED' } } },
+      {
+        $group: {
+          _id: '$customerId',
+          bookingCount: { $sum: 1 },
+          totalValue: { $sum: { $ifNull: ['$plotValue', 0] } },
+          totalDue: { $sum: { $ifNull: ['$remainingAmount', 0] } },
+          latestBookingDate: { $max: '$bookingDate' }
+        }
+      }
+    ]);
+    const statsMap = new Map(bookingStats.map(s => [s._id.toString(), s]));
+
+    const customers = rawCustomers.map(c => {
+      const stats = statsMap.get(c._id.toString()) || {};
+      return {
+        ...c,
+        bookingCount: stats.bookingCount || 0,
+        totalBookingValue: stats.totalValue || 0,
+        totalDue: stats.totalDue || 0,
+        latestBookingDate: stats.latestBookingDate || null
+      };
+    });
+
     return { customers, pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) } };
   }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
 import DataTable from '@/components/common/DataTable';
@@ -25,11 +26,16 @@ const VoucherList = () => {
   const navigate = useNavigate();
   const themes = useCustomStyles();
 
+  const profile = useSelector((state) => state.user?.profile);
+  const userRole = profile?.role;
+
   // Granular RBAC permission checks (matches server-side checkPermission middleware)
   // 1=Read, 2=Create, 3=Update, 4=Delete
   const canCreate = usePermission('voucher', 2);  // create voucher & record payment
-  const canUpdate = usePermission('voucher', 3);  // edit, approve, reject
+  const canUpdate = usePermission('voucher', 3);  // edit voucher
   const canDelete = usePermission('voucher', 4);  // delete
+  // Voucher approval is strictly restricted to managerial/administrative roles with update permission
+  const canApproveVoucher = ['superadmin', 'admin', 'manager', 'developer', 'grant', 'demo'].includes(userRole) && canUpdate;
   const canCreateLedger = usePermission('ledger', 2);  // create custom ledger
   const canUpdateLedger = usePermission('ledger', 3);  // edit custom ledger
   const canDeleteLedger = usePermission('ledger', 4);  // delete custom ledger
@@ -139,7 +145,7 @@ const VoucherList = () => {
   const fetchTreasury = async () => {
     try {
       const [treasuryData, myCashData] = await Promise.all([
-        apiClient({ url: "ledger/treasury" }),
+        apiClient({ url: "ledger/treasury", params: { intent: "payment" } }),
         apiClient({ url: "ledger/my-cash-account" }).catch(() => null)
       ]);
       if (treasuryData) {
@@ -697,9 +703,11 @@ const VoucherList = () => {
           <span className="text-[11px] text-slate-500 mt-0.5 font-medium leading-tight">
             {dayjs(row.date || row.createdAt).format("DD MMM YYYY")}
           </span>
-          <span className="text-[10px] text-slate-400 font-normal leading-tight">
-            {dayjs(row.createdAt || row.date).format("hh:mm A")}
-          </span>
+          {row.createdBy?.name && (
+            <span className="text-[10px] text-slate-400 font-normal leading-tight truncate max-w-[125px]" title={`Created by: ${row.createdBy.name}`}>
+              By: {row.createdBy.name}
+            </span>
+          )}
         </div>
       ),
       sortable: true,
@@ -824,8 +832,8 @@ const VoucherList = () => {
               <Eye size={15} />
             </button>
 
-            {/* Approve & Reject — only if canUpdate (voucher:3) and status is PENDING */}
-            {canUpdate && status === "PENDING" && (
+            {/* Approve & Reject — strictly for manager/admin roles with update permission (voucher:3) */}
+            {canApproveVoucher && status === "PENDING" && (
               <>
                 <button
                   title="Review & Approve"
@@ -937,7 +945,7 @@ const VoucherList = () => {
       ? ` [Sponsor${l.empId ? `: ${l.empId}` : ''}]`
       : l.ledgerType === 'employee' && l.empId
         ? ` [Emp: ${l.empId}]`
-        : ' [Custom]';
+        : '';
     return {
       label: `${l.name}${tag}`,
       value: l._id
@@ -949,7 +957,7 @@ const VoucherList = () => {
       ? ` [Sponsor${l.empId ? `: ${l.empId}` : ''}]`
       : l.ledgerType === 'employee' && l.empId
         ? ` [Emp: ${l.empId}]`
-        : ' [Custom]';
+        : '';
     return {
       label: `${l.name}${tag}`,
       value: l._id

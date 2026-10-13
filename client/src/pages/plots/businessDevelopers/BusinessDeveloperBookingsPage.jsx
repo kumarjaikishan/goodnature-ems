@@ -18,6 +18,8 @@ const BusinessDeveloperBookingsPage = () => {
   const loggedInId = user?.profile?.id || user?.profile?._id || user?.id || user?._id;
 
   const [bookings, setBookings] = useState([]);
+  const [associates, setAssociates] = useState([]);
+  const [selectedAssociate, setSelectedAssociate] = useState('all');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('ALL'); // 'ALL', 'DIRECT', 'TEAM'
@@ -39,9 +41,22 @@ const BusinessDeveloperBookingsPage = () => {
     }
   };
 
+  const fetchAssociates = async () => {
+    try {
+      const res = await apiClient({
+        url: 'plots/sponsors',
+        params: { parentSponsorId: loggedInId, limit: 100 }
+      });
+      setAssociates(res.data || res.sponsors || []);
+    } catch (err) {
+      console.error('Failed to load associates for filter:', err);
+    }
+  };
+
   useEffect(() => {
     if (loggedInId) {
       fetchBookings();
+      fetchAssociates();
     }
   }, [loggedInId]);
 
@@ -55,11 +70,17 @@ const BusinessDeveloperBookingsPage = () => {
     if (filterType === 'DIRECT' && !isDirect) return false;
     if (filterType === 'TEAM' && isDirect) return false;
 
+    if (selectedAssociate !== 'all') {
+      const currentSponsorId = String(b.sponsorId?._id || b.sponsorId);
+      if (currentSponsorId !== selectedAssociate) return false;
+    }
+
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       (b.bookingNumber && b.bookingNumber.toLowerCase().includes(q)) ||
       (b.customerId?.name && b.customerId.name.toLowerCase().includes(q)) ||
+      (b.customerId?.mobile && b.customerId.mobile.includes(q)) ||
       (b.plotId?.plotNumber && b.plotId.plotNumber.toLowerCase().includes(q)) ||
       (b.sponsorId?.name && b.sponsorId.name.toLowerCase().includes(q))
     );
@@ -299,20 +320,40 @@ const BusinessDeveloperBookingsPage = () => {
 
       {/* Search & Table */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="relative max-w-sm w-full">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by customer, plot #, booking #..."
+              placeholder="Search by customer, mobile, plot #, booking #..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none transition"
             />
           </div>
-          <span className="text-xs font-bold text-slate-500">
-            Showing {filteredBookings.length} booking(s)
-          </span>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {associates.length > 0 && (
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Associate:</span>
+                <select
+                  value={selectedAssociate}
+                  onChange={(e) => setSelectedAssociate(e.target.value)}
+                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-52"
+                >
+                  <option value="all">All Business Associates ({associates.length})</option>
+                  {associates.map((a) => (
+                    <option key={a._id} value={a._id}>
+                      {a.name?.replace(/\s*\([^)]*\)/g, '')} ({a.sponsorCode || 'BA'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
+              {filteredBookings.length} booking(s)
+            </span>
+          </div>
         </div>
 
         <DataTable

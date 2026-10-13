@@ -8,8 +8,6 @@ import {
   MapPin,
   FileText,
   AlertCircle,
-  X,
-  Sparkles,
   ShieldCheck,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
@@ -49,35 +47,38 @@ export const BookingConfirmationModal = ({
   const series = seriesList.find((s) => s._id === (selectedPlot?.seriesId?._id || selectedPlot?.seriesId));
 
   return (
-    <Modalbox open={isOpen} onClose={onClose} outside={!submitLoading}>
-      <div className="bg-white rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-5 shadow-2xl border border-slate-200">
-        {/* Modal Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-teal-50 text-teal-700 rounded-2xl border border-teal-100 shadow-2xs">
-              <Sparkles size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-slate-900">Review Booking Details</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                  Will go to Pending Approval
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Please verify all plot, customer, payment terms, and land allocations before final submission.
-              </p>
-            </div>
-          </div>
-          <button
+    <Modalbox
+      open={isOpen}
+      onClose={onClose}
+      size="2xl"
+      title="Review Booking Details"
+      subtitle="Please verify all plot, customer, payment terms, and land allocations before final submission."
+      footer={
+        <>
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={onClose}
             disabled={submitLoading}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
           >
-            <X size={20} />
-          </button>
-        </div>
+            Cancel & Edit
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            onClick={onConfirm}
+            loading={submitLoading}
+            disabled={submitLoading}
+            startIcon={ShieldCheck}
+          >
+            Confirm & Submit Booking
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
 
         {/* Status Notice Banner */}
         <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900">
@@ -136,8 +137,13 @@ export const BookingConfirmationModal = ({
             <div>
               <p className="font-bold text-slate-900 text-sm">Plot #{selectedPlot?.plotNumber}</p>
               <p className="text-slate-500 font-medium text-xs mt-0.5">
-                Series: {series?.seriesName || selectedPlot?.seriesId?.seriesName || 'General Series'}
+                Series: {series?.name || series?.seriesName || selectedPlot?.seriesId?.name || selectedPlot?.seriesId?.seriesName || 'General Series'}
               </p>
+              {selectedPlot?.projectName && (
+                <p className="text-teal-800 font-semibold text-xs mt-0.5">
+                  Project: {selectedPlot.projectName}
+                </p>
+              )}
             </div>
             <div className="space-y-1 text-[11px] text-slate-600 pt-1">
               <p>
@@ -275,29 +281,6 @@ export const BookingConfirmationModal = ({
           </div>
         </div>
 
-        {/* Modal Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            onClick={onClose}
-            disabled={submitLoading}
-          >
-            Cancel & Edit
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            onClick={onConfirm}
-            loading={submitLoading}
-            disabled={submitLoading}
-            startIcon={ShieldCheck}
-          >
-            Confirm & Submit Booking
-          </Button>
-        </div>
       </div>
     </Modalbox>
   );
