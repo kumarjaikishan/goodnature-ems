@@ -14,6 +14,7 @@ import dayjs from 'dayjs';
 import ScrollToTop from './components/ScrollToTop';
 import { swal } from './utils/confirmDialog';
 import { isTokenValid, clearAuthSession, getRoleFromToken } from './utils/auth';
+import RoutePermissionGuard from './utils/RoutePermissionGuard';
 // import  Errorpage  from './pages/error/Errorpage';
 
 
@@ -133,11 +134,11 @@ const MANAGEMENT_ROLES = [
 const managementRoutes = (
   <Route path="/dashboard" element={<ProtectedRoutes allowedRoles={MANAGEMENT_ROLES} />}>
     <Route index element={<AdminDashboard />} />
-    <Route path="employe" element={<Employe />} />
+    <Route path="employe" element={<RoutePermissionGuard resource="employee" action={1}><Employe /></RoutePermissionGuard>} />
     <Route path="organization" element={<OrganizationSettings />} />
     <Route path="organization/company" element={<CompanyInfoPage />} />
-    <Route path="organization/branches" element={<BranchManagerPage />} />
-    <Route path="organization/departments" element={<DepartmentPage />} />
+    <Route path="organization/branches" element={<RoutePermissionGuard resource="branch" action={1}><BranchManagerPage /></RoutePermissionGuard>} />
+    <Route path="organization/departments" element={<RoutePermissionGuard resource="department" action={1}><DepartmentPage /></RoutePermissionGuard>} />
     <Route path="organization/devices" element={<DeviceManagementPage />} />
     <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
     <Route path="organization/admin" element={<AdminManagerPage />} />
@@ -146,91 +147,91 @@ const managementRoutes = (
     <Route path="organization/users" element={<AdminManagerPage />} />
     <Route path="organization/users/new" element={<AdminUserFormPage />} />
     <Route path="organization/users/:id/edit" element={<AdminUserFormPage />} />
-    <Route path="organization/rules" element={<AttendanceRulesPage />} />
-    <Route path="organization/payroll" element={<PayrollPoliciesPage />} />
-    <Route path="organization/leave-policies" element={<LeavePoliciesPage />} />
-    <Route path="attandence" element={<Attandence />} />
-    <Route path="attandence-import" element={<AttendanceExcelImport />} />
-    <Route path="attandence_Report" element={<AttendanceReport />} />
-    <Route path="holiday" element={<HolidayForm />} />
-    <Route path="activity-logs" element={<ActivityLogs />} />
-    <Route path="leave-request" element={<Adminleave />} />
-    <Route path="leave-ledger" element={<LeaveBalancePage />} />
-    <Route path="advance" element={<EmployeeAdvancePage />} />
+    <Route path="organization/rules" element={<RoutePermissionGuard resource="attandence" action={1}><AttendanceRulesPage /></RoutePermissionGuard>} />
+    <Route path="organization/payroll" element={<RoutePermissionGuard resource="salary" action={1}><PayrollPoliciesPage /></RoutePermissionGuard>} />
+    <Route path="organization/leave-policies" element={<RoutePermissionGuard resource="leave" action={1}><LeavePoliciesPage /></RoutePermissionGuard>} />
+    <Route path="attandence" element={<RoutePermissionGuard resource="attandence" action={1}><Attandence /></RoutePermissionGuard>} />
+    <Route path="attandence-import" element={<RoutePermissionGuard resource="attandence" action={2}><AttendanceExcelImport /></RoutePermissionGuard>} />
+    <Route path="attandence_Report" element={<RoutePermissionGuard resource="attandence" action={1}><AttendanceReport /></RoutePermissionGuard>} />
+    <Route path="holiday" element={<RoutePermissionGuard resource="holiday" action={1}><HolidayForm /></RoutePermissionGuard>} />
+    <Route path="activity-logs" element={<RoutePermissionGuard resource="audit_log" action={1}><ActivityLogs /></RoutePermissionGuard>} />
+    <Route path="leave-request" element={<RoutePermissionGuard resource="leave" action={1}><Adminleave /></RoutePermissionGuard>} />
+    <Route path="leave-ledger" element={<RoutePermissionGuard resource="leave" action={1}><LeaveBalancePage /></RoutePermissionGuard>} />
+    <Route path="advance" element={<RoutePermissionGuard resource="advance" action={1}><EmployeeAdvancePage /></RoutePermissionGuard>} />
     <Route path="setting" element={<Setting />} />
     <Route path="profile" element={<AdminManagerProfile />} />
     <Route path="ledger" element={<Navigate to="/dashboard/ledger/banks" replace />} />
-    <Route path="ledger/employees" element={<EmployeeLedgerPage />} />
-    <Route path="ledger/sellers" element={<SellerLedgerPage />} />
-    <Route path="ledger/business-associates" element={<BusinessAssociateLedgerPage />} />
-    <Route path="ledger/business-partners" element={<BusinessPartnerLedgerPage />} />
-    <Route path="ledger/branch-partners" element={<BranchPartnerLedgerPage />} />
-    <Route path="ledger/banks" element={<BankLedgersPage />} />
-    <Route path="ledger/cash-accounts" element={<CashLedgersPage />} />
-    <Route path="ledger/transfers" element={<FundTransfersPage />} />
-    <Route path="ledger/:id" element={<LedgerDetailPage />} />
-    <Route path="performance" element={<AttenPerformance />} />
-    <Route path="performance/:userid" element={<AttenPerformance />} />
-    <Route path="payroll" element={<PayrollPage />} />
-    <Route path="payroll/add" element={<PayrollCreatePage />} />
-    <Route path="payroll/print/:id" element={<PayslipPrintPage />} />
-    <Route path="payroll/edit/:id" element={<PayrollEdit />} />
-    <Route path="vouchers" element={<VoucherList />} />
-    <Route path="vouchers/:id" element={<VoucherDetails />} />
+    <Route path="ledger/employees" element={<RoutePermissionGuard resource="employee_ledger" action={1}><EmployeeLedgerPage /></RoutePermissionGuard>} />
+    <Route path="ledger/sellers" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><SellerLedgerPage /></RoutePermissionGuard>} />
+    <Route path="ledger/business-associates" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessAssociateLedgerPage /></RoutePermissionGuard>} />
+    <Route path="ledger/business-partners" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessPartnerLedgerPage /></RoutePermissionGuard>} />
+    <Route path="ledger/branch-partners" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BranchPartnerLedgerPage /></RoutePermissionGuard>} />
+    <Route path="ledger/banks" element={<RoutePermissionGuard resource="bank_ledger" action={1}><BankLedgersPage /></RoutePermissionGuard>} />
+    <Route path="ledger/cash-accounts" element={<RoutePermissionGuard resource="cash_ledger" action={1}><CashLedgersPage /></RoutePermissionGuard>} />
+    <Route path="ledger/transfers" element={<RoutePermissionGuard resource="fund_transfer" action={1}><FundTransfersPage /></RoutePermissionGuard>} />
+    <Route path="ledger/:id" element={<RoutePermissionGuard resource="ledger" action={1}><LedgerDetailPage /></RoutePermissionGuard>} />
+    <Route path="performance" element={<RoutePermissionGuard resource="attandence" action={1}><AttenPerformance /></RoutePermissionGuard>} />
+    <Route path="performance/:userid" element={<RoutePermissionGuard resource="attandence" action={1}><AttenPerformance /></RoutePermissionGuard>} />
+    <Route path="payroll" element={<RoutePermissionGuard resource="salary" action={1}><PayrollPage /></RoutePermissionGuard>} />
+    <Route path="payroll/add" element={<RoutePermissionGuard resource="salary" action={2}><PayrollCreatePage /></RoutePermissionGuard>} />
+    <Route path="payroll/print/:id" element={<RoutePermissionGuard resource="salary" action={1}><PayslipPrintPage /></RoutePermissionGuard>} />
+    <Route path="payroll/edit/:id" element={<RoutePermissionGuard resource="salary" action={3}><PayrollEdit /></RoutePermissionGuard>} />
+    <Route path="vouchers" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherList /></RoutePermissionGuard>} />
+    <Route path="vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherDetails /></RoutePermissionGuard>} />
 
-    <Route path="plots/purchase" element={<PlotPurchasePage />} />
-    <Route path="plots/purchase/:id/ledger" element={<PlotKisanLedgerPage />} />
-    <Route path="plots/agreements" element={<PlotPurchasePage />} />
-    <Route path="plots/kisan-land" element={<PlotPurchasePage />} />
-    <Route path="plots/kisan-ledger/:id" element={<PlotKisanLedgerPage />} />
-    <Route path="plots/agreements/:id/ledger" element={<PlotKisanLedgerPage />} />
-    <Route path="plots/kisan-land/:id/ledger" element={<PlotKisanLedgerPage />} />
-    <Route path="plots/inventory" element={<PlotSeriesMaster />} />
-    <Route path="plots/business-developer" element={<PlotBusinessDevelopers />} />
-    <Route path="plots/business-developers" element={<PlotBusinessDevelopers />} />
-    <Route path="plots/business-developer/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-    <Route path="plots/business-developers/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-    <Route path="plots/business-developer/:id/business-report" element={<BusinessDeveloperReportPage />} />
-    <Route path="plots/business-developers/:id/business-report" element={<BusinessDeveloperReportPage />} />
-    <Route path="plots/business-developer/:id/network" element={<BusinessDeveloperNetworkPage />} />
-    <Route path="plots/business-developers/:id/network" element={<BusinessDeveloperNetworkPage />} />
-    <Route path="plots/sponsors" element={<PlotBusinessDevelopers />} />
-    <Route path="plots/sponsors/:id/ledger" element={<BusinessDeveloperLedgerPage />} />
-    <Route path="plots/sponsors/:id/business-report" element={<BusinessDeveloperReportPage />} />
-    <Route path="plots/sponsor-ledger/:id" element={<BusinessDeveloperLedgerPage />} />
-    <Route path="plots/customers" element={<PlotCustomers />} />
-    <Route path="plots/customers/new" element={<PlotCustomerFormPage />} />
-    <Route path="plots/customers/edit/:id" element={<PlotCustomerFormPage />} />
-    <Route path="plots/booking" element={<PlotReports />} />
-    <Route path="plots/addbooking" element={<PlotBooking />} />
-    <Route path="plots/booking/new" element={<PlotBookingFormPage />} />
-    <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
-    <Route path="plots/booking/edit/:id" element={<PlotBookingEditPage />} />
+    <Route path="plots/purchase" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/purchase/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/agreements" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/kisan-land" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/kisan-ledger/:id" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/agreements/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/kisan-land/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/inventory" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
+    <Route path="plots/business-developer" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
+    <Route path="plots/business-developers" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
+    <Route path="plots/business-developer/:id/ledger" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessDeveloperLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/business-developers/:id/ledger" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessDeveloperLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/business-developer/:id/business-report" element={<RoutePermissionGuard resource="plot_reports" action={1}><BusinessDeveloperReportPage /></RoutePermissionGuard>} />
+    <Route path="plots/business-developers/:id/business-report" element={<RoutePermissionGuard resource="plot_reports" action={1}><BusinessDeveloperReportPage /></RoutePermissionGuard>} />
+    <Route path="plots/business-developer/:id/network" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><BusinessDeveloperNetworkPage /></RoutePermissionGuard>} />
+    <Route path="plots/business-developers/:id/network" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><BusinessDeveloperNetworkPage /></RoutePermissionGuard>} />
+    <Route path="plots/sponsors" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
+    <Route path="plots/sponsors/:id/ledger" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessDeveloperLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/sponsors/:id/business-report" element={<RoutePermissionGuard resource="plot_reports" action={1}><BusinessDeveloperReportPage /></RoutePermissionGuard>} />
+    <Route path="plots/sponsor-ledger/:id" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessDeveloperLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/customers" element={<RoutePermissionGuard resource="plot_customer" action={1}><PlotCustomers /></RoutePermissionGuard>} />
+    <Route path="plots/customers/new" element={<RoutePermissionGuard resource="plot_customer" action={2}><PlotCustomerFormPage /></RoutePermissionGuard>} />
+    <Route path="plots/customers/edit/:id" element={<RoutePermissionGuard resource="plot_customer" action={3}><PlotCustomerFormPage /></RoutePermissionGuard>} />
+    <Route path="plots/booking" element={<RoutePermissionGuard resource="plot_booking" action={1}><PlotReports /></RoutePermissionGuard>} />
+    <Route path="plots/addbooking" element={<RoutePermissionGuard resource="plot_booking" action={2}><PlotBooking /></RoutePermissionGuard>} />
+    <Route path="plots/booking/new" element={<RoutePermissionGuard resource="plot_booking" action={2}><PlotBookingFormPage /></RoutePermissionGuard>} />
+    <Route path="plots/booking/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><PlotBookingDetails /></RoutePermissionGuard>} />
+    <Route path="plots/booking/edit/:id" element={<RoutePermissionGuard resource="plot_booking" action={3}><PlotBookingEditPage /></RoutePermissionGuard>} />
     <Route path="plots/installments" element={<Navigate to="/dashboard/plots/collections/emi" replace />} />
-    <Route path="plots/collections/downpayment" element={<InstallmentCollection type="DOWNPAYMENT" />} />
-    <Route path="plots/collections/downpayment/add" element={<InstallmentCollection type="DOWNPAYMENT" initialView="add" />} />
-    <Route path="plots/collections/emi" element={<InstallmentCollection type="EMI" />} />
-    <Route path="plots/collections/emi/add" element={<InstallmentCollection type="EMI" initialView="add" />} />
-    <Route path="plots/collections/products" element={<ProductCollectionsPage />} />
-    <Route path="plots/collections/products/add" element={<ProductCollectionsPage initialView="add" />} />
-    <Route path="plots/series-master" element={<PlotSeriesMaster />} />
-    <Route path="plots/products" element={<PlotProductsPage />} />
-    <Route path="plots/products/book" element={<ProductBookingPage />} />
-    <Route path="plots/reports" element={<PlotReports />} />
-    <Route path="plots/payout-ledger" element={<PlotPayoutLedgerPage />} />
-    <Route path="plots/agreements/:id" element={<PlotAgreementViewer />} />
-    <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />
-    <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
-    <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
-    <Route path="plots/receipts/:id" element={<ReceiptViewer />} />
-    <Route path="plots/vouchers/:id" element={<PlotPayoutVoucherPrint />} />
-    <Route path="plots/interest-calculator" element={<PlotInterestCalculator />} />
-    <Route path="plots/incentives" element={<PlotIncentivesPage />} />
-    <Route path="plots/incentives/new" element={<PlotIncentiveProcessPage />} />
-    <Route path="plots/incentives/edit/:id" element={<PlotIncentiveProcessPage />} />
-    <Route path="plots/closings" element={<PlotIncentivesPage />} />
-    <Route path="plots/closings/new" element={<PlotIncentiveProcessPage />} />
-    <Route path="plots/closings/edit/:id" element={<PlotIncentiveProcessPage />} />
+    <Route path="plots/collections/downpayment" element={<RoutePermissionGuard resource="plot_collection" action={1}><InstallmentCollection type="DOWNPAYMENT" /></RoutePermissionGuard>} />
+    <Route path="plots/collections/downpayment/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><InstallmentCollection type="DOWNPAYMENT" initialView="add" /></RoutePermissionGuard>} />
+    <Route path="plots/collections/emi" element={<RoutePermissionGuard resource="plot_collection" action={1}><InstallmentCollection type="EMI" /></RoutePermissionGuard>} />
+    <Route path="plots/collections/emi/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><InstallmentCollection type="EMI" initialView="add" /></RoutePermissionGuard>} />
+    <Route path="plots/collections/products" element={<RoutePermissionGuard resource="plot_collection" action={1}><ProductCollectionsPage /></RoutePermissionGuard>} />
+    <Route path="plots/collections/products/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><ProductCollectionsPage initialView="add" /></RoutePermissionGuard>} />
+    <Route path="plots/series-master" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
+    <Route path="plots/products" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotProductsPage /></RoutePermissionGuard>} />
+    <Route path="plots/products/book" element={<RoutePermissionGuard resource="plot_booking" action={2}><ProductBookingPage /></RoutePermissionGuard>} />
+    <Route path="plots/reports" element={<RoutePermissionGuard resource="plot_reports" action={1}><PlotReports /></RoutePermissionGuard>} />
+    <Route path="plots/payout-ledger" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotPayoutLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/agreements/:id" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotAgreementViewer /></RoutePermissionGuard>} />
+    <Route path="plots/product-agreements/:id" element={<RoutePermissionGuard resource="plot_inventory" action={1}><ProductAgreementViewer /></RoutePermissionGuard>} />
+    <Route path="plots/certificates/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
+    <Route path="plots/product-certificates/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
+    <Route path="plots/receipts/:id" element={<RoutePermissionGuard resource="plot_collection" action={1}><ReceiptViewer /></RoutePermissionGuard>} />
+    <Route path="plots/vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><PlotPayoutVoucherPrint /></RoutePermissionGuard>} />
+    <Route path="plots/interest-calculator" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotInterestCalculator /></RoutePermissionGuard>} />
+    <Route path="plots/incentives" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotIncentivesPage /></RoutePermissionGuard>} />
+    <Route path="plots/incentives/new" element={<RoutePermissionGuard resource="plot_sponsor" action={2}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />
+    <Route path="plots/incentives/edit/:id" element={<RoutePermissionGuard resource="plot_sponsor" action={3}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />
+    <Route path="plots/closings" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotIncentivesPage /></RoutePermissionGuard>} />
+    <Route path="plots/closings/new" element={<RoutePermissionGuard resource="plot_sponsor" action={2}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />
+    <Route path="plots/closings/edit/:id" element={<RoutePermissionGuard resource="plot_sponsor" action={3}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />
 
     <Route path="*" element={<Errorpage />} />
   </Route>

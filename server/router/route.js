@@ -16,6 +16,8 @@ const apiMonitorController = require('../controllers/apiMonitorController');
 const holiday = require('../controllers/holiday');
 const notice = require('../controllers/notice');
 const auditLog = require('../controllers/auditLogController');
+const dashboardController = require('../controllers/dashboard.controller');
+const approvalController = require('../controllers/approvalController');
 const authmiddlewre = require('../middleware/auth_middleware');
 const authorizeRoles = require('../middleware/Role_middleware')
 const upload = require('../middleware/multer_middleware')
@@ -233,10 +235,10 @@ router.route('/ledger/my-cash-account')
 
 router.route('/ledger/banks')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant'), ledger.getTreasuryLedgers)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("ledger", 2), upload.single('image'), ledger.createBankLedger);
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("bank_ledger", 2), upload.single('image'), ledger.createBankLedger);
 
 router.route('/ledger/banks/:id')
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("ledger", 3), upload.single('image'), ledger.updateBankLedger);
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("bank_ledger", 3), upload.single('image'), ledger.updateBankLedger);
 
 // Inter-Ledger & Bank/Cash Fund Transfer Routes
 router.route('/ledger/transfers')
@@ -245,6 +247,10 @@ router.route('/ledger/transfers')
 
 router.route('/ledger/transfers/stats')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.getTransferStats);
+
+// Centralized Pending Approval Stats (Vouchers, Downpayment, EMI, Fund Transfers)
+router.route('/approvals/pending-stats')
+  .get(authmiddlewre, approvalController.getPendingApprovalStats);
 
 router.route('/ledger/transfers/:id/approve')
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'employee', 'demo', 'grant'), fundTransfer.approveTransfer);
@@ -341,6 +347,11 @@ router.route('/audit-logs')
 router.route('/audit-logs/stats')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'developer'), checkPermission("audit_log", 1), auditLog.getAuditStats);
 
+// Central Dashboard & Executive Reports Routes (Role Scoped)
+router.route('/dashboard/overview')
+  .get(authmiddlewre, dashboardController.getDashboardOverview);
 
+router.route('/dashboard/section-details')
+  .get(authmiddlewre, dashboardController.getDashboardSectionDetails);
 
 module.exports = router;

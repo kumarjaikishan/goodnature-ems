@@ -16,6 +16,7 @@ import DateInput from "@/components/ui/DateInput";
 import NumberInput from "@/components/ui/NumberInput";
 import Modalbox from "@/components/custommodal/Modalbox";
 import { swal } from "../../utils/confirmDialog";
+import { usePermission } from "../../utils/CheckPermission";
 
 const getInitialBg = (name) => {
     const colors = [
@@ -34,6 +35,11 @@ const EmployeeAdvancePage = () => {
     const dispatch = useDispatch();
 
     const { employee, advance, branch } = useSelector((state) => state.user);
+
+    // Granular RBAC Permissions: 1=Read, 2=Create, 3=Update, 4=Delete
+    const canCreate = usePermission('advance', 2);
+    const canUpdate = usePermission('advance', 3);
+    const canDelete = usePermission('advance', 4);
 
     const [rows, setRows] = useState([]);
     const [open, setOpen] = useState(false);
@@ -205,6 +211,12 @@ const EmployeeAdvancePage = () => {
     };
 
     const handleOpen = (row = null) => {
+        if (row && !canUpdate) {
+            return toast.warn("You do not have permission to edit advance entries");
+        }
+        if (!row && !canCreate) {
+            return toast.warn("You do not have permission to record advance entries");
+        }
         if (row) {
             setForm({
                 employeeId: row.employeeId?._id || row.employeeId || "",
@@ -242,6 +254,12 @@ const EmployeeAdvancePage = () => {
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
+        if (editingId && !canUpdate) {
+            return toast.error("You do not have permission to update advance entries");
+        }
+        if (!editingId && !canCreate) {
+            return toast.error("You do not have permission to create advance entries");
+        }
         if (!form.employeeId) {
             return toast.error("Please select an employee");
         }
@@ -284,6 +302,9 @@ const EmployeeAdvancePage = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!canDelete) {
+            return toast.warn("You do not have permission to delete advance entries");
+        }
         swal({
             title: `Are you sure you want to delete this advance entry?`,
             text: 'Once deleted, the outstanding balance will be recalculated.',
@@ -394,31 +415,35 @@ const EmployeeAdvancePage = () => {
                 return <span className="text-slate-400 font-mono">-</span>;
             }
         },
-        {
+        ...(canUpdate || canDelete ? [{
             name: "Actions",
             cell: (row) =>
                 !row.payrollId && (
                     <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            title="Edit"
-                            onClick={() => handleOpen(row)}
-                            className="p-1 text-teal-700 hover:bg-teal-50 rounded transition cursor-pointer"
-                        >
-                            <Edit2 size={15} />
-                        </button>
-                        <button
-                            type="button"
-                            title="Delete"
-                            onClick={() => handleDelete(row._id)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded transition cursor-pointer"
-                        >
-                            <Trash2 size={15} />
-                        </button>
+                        {canUpdate && (
+                            <button
+                                type="button"
+                                title="Edit"
+                                onClick={() => handleOpen(row)}
+                                className="p-1 text-teal-700 hover:bg-teal-50 rounded transition cursor-pointer"
+                            >
+                                <Edit2 size={15} />
+                            </button>
+                        )}
+                        {canDelete && (
+                            <button
+                                type="button"
+                                title="Delete"
+                                onClick={() => handleDelete(row._id)}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded transition cursor-pointer"
+                            >
+                                <Trash2 size={15} />
+                            </button>
+                        )}
                     </div>
                 ),
             width: "90px"
-        },
+        }] : []),
     ];
 
     const branchOptions = [
@@ -471,14 +496,16 @@ const EmployeeAdvancePage = () => {
                     </div>
                 </div>
 
-                <Button 
-                    variant="primary" 
-                    size="md"
-                    startIcon={Plus}
-                    onClick={() => handleOpen()} 
-                >
-                    Record Advance
-                </Button>
+                {canCreate && (
+                    <Button 
+                        variant="primary" 
+                        size="md"
+                        startIcon={Plus}
+                        onClick={() => handleOpen()} 
+                    >
+                        Record Advance
+                    </Button>
+                )}
             </div>
 
             {/* Selected Employee Summary Cards */}

@@ -118,4 +118,4 @@ plotReceiptSchema.index({ createdBy: 1, createdAt: -1 });
 // Receipt reports/lists sort by createdAt.
 plotReceiptSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('PlotReceipt', plotReceiptSchema);
+module.exports = mongoose.models.PlotReceipt || mongoose.model('PlotReceipt', plotReceiptSchema);

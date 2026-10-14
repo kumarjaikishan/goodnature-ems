@@ -44,25 +44,24 @@ const checkPermission = (permissionName, key) => {
                     : req.user.permissions;
             }
 
-            // If token has the permission, proceed immediately
-            if (
-                userPermissions &&
-                userPermissions.hasOwnProperty(permissionName) &&
-                Array.isArray(userPermissions[permissionName]) &&
-                userPermissions[permissionName].includes(key)
-            ) {
-                return next();
-            }
+            const checkPermKey = (perms) => {
+                if (!perms) return false;
+                // Direct permission check
+                if (perms.hasOwnProperty(permissionName) && Array.isArray(perms[permissionName]) && perms[permissionName].includes(key)) {
+                    return true;
+                }
+                // Fallback for sub-modules e.g. bank_ledger -> ledger
+                if (permissionName === 'bank_ledger' && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
+                    return true;
+                }
+                return false;
+            };
 
-            // Fallback: Check fresh permissions from database in case permissions were recently updated
+            // Always fetch fresh permissions to ensure newly revoked permissions are strictly enforced
             const freshPermissions = await getFreshUserPermissions(userId);
             req.user.permissions = freshPermissions;
 
-            if (
-                freshPermissions.hasOwnProperty(permissionName) &&
-                Array.isArray(freshPermissions[permissionName]) &&
-                freshPermissions[permissionName].includes(key)
-            ) {
+            if (checkPermKey(freshPermissions)) {
                 return next();
             } else {
                 return res.status(403).json({

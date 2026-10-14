@@ -69,7 +69,6 @@ const VoucherList = () => {
   const [voucherDate, setVoucherDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [voucherAmount, setVoucherAmount] = useState("");
   const [voucherNarration, setVoucherNarration] = useState("");
-  const [onlyCustomLedgers, setOnlyCustomLedgers] = useState(true); // Prioritize custom ledgers
 
   // Initial Payment during creation
   const [enableInitialPayment, setEnableInitialPayment] = useState(false);
@@ -172,7 +171,6 @@ const VoucherList = () => {
     setVoucherDate(dayjs().format("YYYY-MM-DD"));
     setVoucherAmount("");
     setVoucherNarration("");
-    setOnlyCustomLedgers(true);
     setEnableInitialPayment(false);
     setInitialPaymentAmount("");
     setInitialPaymentMode("CASH");
@@ -194,7 +192,6 @@ const VoucherList = () => {
     const totalAmt = v.totalAmount || v.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
     setVoucherAmount(totalAmt.toString());
     setVoucherNarration(v.remarks || "");
-    setOnlyCustomLedgers(false);
     setEnableInitialPayment(false);
     setOpenModal(true);
   };
@@ -235,15 +232,16 @@ const VoucherList = () => {
 
     try {
       setSubmitting(true);
+      const isDisbursing = Boolean(canApproveVoucher && enableInitialPayment);
       const payload = {
         date: voucherDate,
         amount: parseFloat(voucherAmount),
         narration: voucherNarration,
         ledgerId: selectedLedgerId,
-        initialPayment: enableInitialPayment ? (parseFloat(initialPaymentAmount) || 0) : 0,
+        initialPayment: isDisbursing ? (parseFloat(initialPaymentAmount) || 0) : 0,
         paymentMode: initialPaymentMode,
-        paymentLedgerId: enableInitialPayment ? initialPaymentLedgerId : null,
-        referenceNo: initialReferenceNo,
+        paymentLedgerId: isDisbursing ? initialPaymentLedgerId : null,
+        referenceNo: isDisbursing ? initialReferenceNo : "",
         autoApprove: false
       };
 
@@ -935,22 +933,11 @@ const VoucherList = () => {
     }
   ];
 
-  // Prepare select options: Custom ledgers prioritized or all
-  const availableLedgers = onlyCustomLedgers
-    ? ledgers.filter(l => l.ledgerType === 'custom')
-    : ledgers;
-
-  const ledgerSelectOptions = availableLedgers.map(l => {
-    const tag = l.ledgerType === 'sponsor'
-      ? ` [Sponsor${l.empId ? `: ${l.empId}` : ''}]`
-      : l.ledgerType === 'employee' && l.empId
-        ? ` [Emp: ${l.empId}]`
-        : '';
-    return {
-      label: `${l.name}${tag}`,
-      value: l._id
-    };
-  });
+  // Prepare select options: Custom expense ledgers only for voucher creation
+  const ledgerSelectOptions = customLedgers.map(l => ({
+    label: l.name,
+    value: l._id
+  }));
 
   const allLedgersSelectOptions = ledgers.map(l => {
     const tag = l.ledgerType === 'sponsor'
@@ -1232,31 +1219,19 @@ const VoucherList = () => {
         }
       >
         <form id="voucher-form" onSubmit={handleSubmitVoucher} className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-700 tracking-wide">
-              Select Ledger <span className="text-rose-500">*</span>
+          <div>
+            <label className="text-xs font-bold text-slate-700 tracking-wide block mb-1">
+              Select Custom Ledger <span className="text-rose-500">*</span>
             </label>
-            {!editingVoucher && (
-              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={onlyCustomLedgers}
-                  onChange={(e) => setOnlyCustomLedgers(e.target.checked)}
-                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
-                />
-                <span>Show Custom Ledgers Only</span>
-              </label>
-            )}
+            <SearchableSelect
+              options={ledgerSelectOptions}
+              placeholder="Select Custom Expense Ledger..."
+              value={selectedLedgerId}
+              onChange={(val) => setSelectedLedgerId(val)}
+              disabled={Boolean(editingVoucher)}
+              allowClear={false}
+            />
           </div>
-
-          <SearchableSelect
-            options={ledgerSelectOptions}
-            placeholder={onlyCustomLedgers ? "Select Custom Expense Ledger..." : "Select Ledger (Custom, Employee, Sponsor)..."}
-            value={selectedLedgerId}
-            onChange={(val) => setSelectedLedgerId(val)}
-            disabled={Boolean(editingVoucher)}
-            allowClear={false}
-          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <DateInput
@@ -1277,8 +1252,8 @@ const VoucherList = () => {
             />
           </div>
 
-          {/* Payment & Source Treasury Account Selection */}
-          {!editingVoucher && (
+          {/* Payment & Source Treasury Account Selection (Only for users who have voucher approval authority) */}
+          {!editingVoucher && canApproveVoucher && (
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-700">Source Payment Account (Cash / Bank)</span>

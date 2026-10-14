@@ -28,6 +28,25 @@ class PlotClosingService {
   }
 
   /**
+   * Check if an active (non-reversed) closing batch already covers or overlaps the given date interval.
+   */
+  async findOverlappingClosing({ startDate, endDate, closingType = 'TARGET_INCENTIVE', excludeClosingId = null, session = null }) {
+    const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
+    const filter = {
+      closingType,
+      status: { $ne: 'REVERSED' },
+      startDate: { $lte: end },
+      endDate: { $gte: start },
+    };
+    if (excludeClosingId) {
+      filter._id = { $ne: excludeClosingId };
+    }
+    const q = PlotClosing.findOne(filter).sort({ endDate: -1 });
+    if (session) q.session(session);
+    return await q.lean();
+  }
+
+  /**
    * Preview unclosed (or currently associated) commissions for a given date window.
    */
   async previewPlotClosing({ startDate, endDate, closingType = 'TARGET_INCENTIVE', excludeClosingId = null, session = null }) {
@@ -36,6 +55,15 @@ class PlotClosingService {
     }
     const isExtra = closingType === 'EXTRA_INCENTIVE';
     const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
+
+    // Check for existing overlapping closing of the same type
+    const overlappingClosing = await this.findOverlappingClosing({
+      startDate: start,
+      endDate: end,
+      closingType,
+      excludeClosingId,
+      session,
+    });
 
     const query = {
       status: 'active',
@@ -354,10 +382,28 @@ class PlotClosingService {
 
     const uniqueReceiptCount = uniqueReceiptMap.size;
 
+    let overlappingWarning = null;
+    if (overlappingClosing) {
+      const typeLabel = isExtra ? 'Extra Incentive & Rewards' : 'Target Incentive';
+      const oStart = new Date(overlappingClosing.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const oEnd = new Date(overlappingClosing.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      overlappingWarning = `${typeLabel} has already been closed for the period ${oStart} to ${oEnd} in batch "${overlappingClosing.closingName}" (${overlappingClosing.closingNumber}). An incentive cannot be closed twice for an overlapping period.`;
+    }
+
     return {
       startDate: start,
       endDate: end,
       closingType,
+      overlappingClosing: overlappingClosing ? {
+        _id: overlappingClosing._id,
+        closingName: overlappingClosing.closingName,
+        closingNumber: overlappingClosing.closingNumber,
+        closingType: overlappingClosing.closingType,
+        startDate: overlappingClosing.startDate,
+        endDate: overlappingClosing.endDate,
+        status: overlappingClosing.status,
+      } : null,
+      overlappingWarning,
       totalCollection: Math.round(actualPeriodCollection * 100) / 100,
       totalCommission: Math.round((isExtra ? totalExtraIncentiveCommission : totalIncentiveCommission) * 100) / 100,
       totalFixedCommission: Math.round(totalFixedCommission * 100) / 100,
@@ -386,6 +432,21 @@ class PlotClosingService {
     const { start, end } = this._normalizeClosingDateRange(startDate, endDate);
     if (start > end) {
       throw ApiError.badRequest('Start Date cannot be after End Date');
+    }
+
+    // Check for duplicate / overlapping closing
+    const existingOverlap = await this.findOverlappingClosing({
+      startDate: start,
+      endDate: end,
+      closingType,
+    });
+    if (existingOverlap) {
+      const typeLabel = isExtra ? 'Extra Incentive & Rewards' : 'Target Incentive';
+      const oStart = new Date(existingOverlap.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const oEnd = new Date(existingOverlap.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      throw ApiError.badRequest(
+        `${typeLabel} has already been closed for this period in batch "${existingOverlap.closingName}" (${existingOverlap.closingNumber}) from ${oStart} to ${oEnd}. Cannot create overlapping closing.`
+      );
     }
 
     const session = await mongoose.startSession();
@@ -687,6 +748,22 @@ class PlotClosingService {
 
     if (newStart > newEnd) {
       throw ApiError.badRequest('Start Date cannot be after End Date');
+    }
+
+    // Check for duplicate / overlapping closing
+    const existingOverlap = await this.findOverlappingClosing({
+      startDate: newStart,
+      endDate: newEnd,
+      closingType: closing.closingType,
+      excludeClosingId: closing._id,
+    });
+    if (existingOverlap) {
+      const typeLabel = isExtra ? 'Extra Incentive & Rewards' : 'Target Incentive';
+      const oStart = new Date(existingOverlap.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const oEnd = new Date(existingOverlap.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      throw ApiError.badRequest(
+        `${typeLabel} has already been closed for this period in batch "${existingOverlap.closingName}" (${existingOverlap.closingNumber}) from ${oStart} to ${oEnd}. Cannot create overlapping closing.`
+      );
     }
 
     const session = await mongoose.startSession();

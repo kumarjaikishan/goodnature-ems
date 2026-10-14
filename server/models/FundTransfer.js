@@ -113,4 +113,4 @@ fundTransferSchema.index({ fromUserId: 1 });
 fundTransferSchema.index({ toUserId: 1 });
 fundTransferSchema.index({ transferDate: -1, createdAt: -1 });
 
-module.exports = mongoose.model('FundTransfer', fundTransferSchema);
+module.exports = mongoose.models.FundTransfer || mongoose.model('FundTransfer', fundTransferSchema);

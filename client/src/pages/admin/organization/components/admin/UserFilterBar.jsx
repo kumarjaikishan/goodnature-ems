@@ -1,16 +1,23 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Search, LayoutGrid, List, Plus } from "lucide-react";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 
-const ROLE_FILTERS = [
-    { key: "all", label: "All Roles" },
-    { key: "admin", label: "Admins" },
-    { key: "manager", label: "Managers" },
-    { key: "accountant", label: "Accountants" },
-    { key: "cashier", label: "Cashiers" },
-    { key: "hr", label: "HR" },
-    { key: "sales", label: "Sales" },
-    { key: "operator", label: "Operators" },
+const ROLE_OPTIONS = [
+    { value: "all", label: "All Roles" },
+    { value: "admin", label: "Admins" },
+    { value: "manager", label: "Managers" },
+    { value: "accountant", label: "Accountants" },
+    { value: "cashier", label: "Cashiers" },
+    { value: "hr", label: "HR" },
+    { value: "sales", label: "Sales" },
+    { value: "operator", label: "Operators" },
+];
+
+const STATUS_OPTIONS = [
+    { value: "all", label: "All Status" },
+    { value: "active", label: "Active" },
+    { value: "blocked", label: "Disabled" },
 ];
 
 export default function UserFilterBar({
@@ -22,7 +29,7 @@ export default function UserFilterBar({
     setStatusFilter,
     branchFilter,
     setBranchFilter,
-    branchList,
+    branchList = [],
     viewMode,
     onViewModeChange,
     canCreate = true,
@@ -30,6 +37,16 @@ export default function UserFilterBar({
     onResetFilters,
     hasActiveFilters
 }) {
+    const branchOptions = useMemo(() => {
+        const base = [{ value: "all", label: "All Branches" }];
+        if (Array.isArray(branchList)) {
+            branchList.forEach((b) => {
+                base.push({ value: b._id, label: b.name });
+            });
+        }
+        return base;
+    }, [branchList]);
+
     return (
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3">
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -89,67 +106,50 @@ export default function UserFilterBar({
                 </div>
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
-                <span className="text-slate-400 text-[11px] font-medium mr-1">Filter by:</span>
+            {/* Filter Selectable Dropdowns */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs">
+                <span className="text-slate-500 text-xs font-semibold mr-1">Filter by:</span>
 
-                {/* Role Filter */}
-                <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200/80 flex-wrap">
-                    {ROLE_FILTERS.map((r) => (
-                        <button
-                            key={r.key}
-                            type="button"
-                            onClick={() => setRoleFilter(r.key)}
-                            className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all cursor-pointer ${
-                                roleFilter === r.key
-                                    ? "bg-teal-800 text-white shadow-xs"
-                                    : "text-slate-600 hover:text-slate-900"
-                            }`}
-                        >
-                            {r.label}
-                        </button>
-                    ))}
+                {/* Role Filter Dropdown */}
+                <div className="w-40">
+                    <Select
+                        size="sm"
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        options={ROLE_OPTIONS}
+                        placeholder="Select Role"
+                    />
                 </div>
 
-                {/* Status Filter */}
-                <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200/80">
-                    {["all", "active", "blocked"].map((s) => (
-                        <button
-                            key={s}
-                            type="button"
-                            onClick={() => setStatusFilter(s)}
-                            className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all cursor-pointer ${
-                                statusFilter === s
-                                    ? "bg-teal-800 text-white shadow-xs"
-                                    : "text-slate-600 hover:text-slate-900"
-                            }`}
-                        >
-                            {s === "all" ? "All Status" : s === "active" ? "Active" : "Disabled"}
-                        </button>
-                    ))}
+                {/* Status Filter Dropdown */}
+                <div className="w-36">
+                    <Select
+                        size="sm"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        options={STATUS_OPTIONS}
+                        placeholder="Select Status"
+                    />
                 </div>
 
-                {/* Branch Filter if branches exist */}
+                {/* Branch Filter Dropdown */}
                 {branchList && branchList.length > 0 && (
-                    <select
-                        value={branchFilter}
-                        onChange={(e) => setBranchFilter(e.target.value)}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-50 border border-slate-200/80 text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-600 cursor-pointer"
-                    >
-                        <option value="all">All Branches</option>
-                        {branchList.map((b) => (
-                            <option key={b._id} value={b._id}>
-                                {b.name}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="w-48">
+                        <Select
+                            size="sm"
+                            value={branchFilter}
+                            onChange={(e) => setBranchFilter(e.target.value)}
+                            options={branchOptions}
+                            placeholder="Select Branch"
+                        />
+                    </div>
                 )}
 
                 {hasActiveFilters && (
                     <button
                         type="button"
                         onClick={onResetFilters}
-                        className="text-[11px] text-teal-700 font-bold hover:underline ml-auto cursor-pointer"
+                        className="text-xs text-teal-700 font-semibold hover:underline ml-auto cursor-pointer"
                     >
                         Reset Filters
                     </button>

@@ -1,1 +1,0 @@
-import"./rolldown-runtime-hePW80VL.js";import{Zn as e,n as t}from"./vendor-react-CXk3Z0ks.js";import{t as n}from"./LeavePolicyManager-Dg8ueim2.js";import{t as r}from"./OrganizationLayout-DxGw_urd.js";e();var i=t(),a=()=>(0,i.jsx)(r,{title:`Leave Policies`,children:(0,i.jsx)(`div`,{className:`w-full`,children:(0,i.jsx)(n,{})})});export{a as default};

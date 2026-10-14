@@ -150,13 +150,10 @@ const PlotIncentiveProcessPage = () => {
 
       const defaultStart = formatDate(firstDayPrevMonth);
       const defaultEnd = formatDate(lastDayPrevMonth);
-      const defaultName = queryType === 'EXTRA_INCENTIVE'
-        ? `${prevMonthName} ${prevYear} Extra Incentive & Rewards`
-        : `${prevMonthName} ${prevYear} Target Incentive`;
 
       setClosingType(queryType);
       setFormData({
-        closingName: defaultName,
+        closingName: '',
         closingType: queryType,
         startDate: defaultStart,
         endDate: defaultEnd,
@@ -246,6 +243,13 @@ const PlotIncentiveProcessPage = () => {
     }
     if (!formData.startDate || !formData.endDate) {
       toast.error('Please select both start and end dates.');
+      return;
+    }
+    if (previewData?.overlappingClosing) {
+      toast.error(
+        previewData.overlappingWarning ||
+        `An incentive has already been issued for this period in batch "${previewData.overlappingClosing.closingName}". Overlapping closing is not permitted.`
+      );
       return;
     }
     if (!previewData || previewData.transactionCount === 0) {
@@ -500,7 +504,7 @@ const PlotIncentiveProcessPage = () => {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0}
+            disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0 || Boolean(previewData?.overlappingClosing)}
             className={`px-5 py-2 text-xs font-bold text-white rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
               isExtra ? 'bg-purple-800 hover:bg-purple-900' : 'bg-teal-800 hover:bg-teal-900'
             }`}
@@ -644,6 +648,32 @@ const PlotIncentiveProcessPage = () => {
             </div>
           )}
         </div>
+
+        {previewData?.overlappingClosing && (
+          <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-3 shadow-xs">
+            <AlertCircle size={20} className="shrink-0 text-amber-600 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-amber-950 text-sm">
+                ⚠️ Period Already Closed &amp; Issued
+              </p>
+              <p className="leading-relaxed">
+                {previewData.overlappingWarning || (
+                  <>
+                    An incentive has already been issued for this period in batch{' '}
+                    <strong>&quot;{previewData.overlappingClosing.closingName}&quot;</strong> (
+                    <span className="font-mono">{previewData.overlappingClosing.closingNumber}</span>) covering{' '}
+                    <strong>{new Date(previewData.overlappingClosing.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong> to{' '}
+                    <strong>{new Date(previewData.overlappingClosing.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>.
+                  </>
+                )}
+              </p>
+              <p className="text-[11px] text-amber-800 font-medium">
+                To prevent duplicate commission disbursements, you cannot close again for an overlapping period. Please adjust your start date to begin after{' '}
+                <strong>{new Date(previewData.overlappingClosing.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>.
+              </p>
+            </div>
+          </div>
+        )}
 
         {previewError && (
           <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
@@ -1025,7 +1055,7 @@ const PlotIncentiveProcessPage = () => {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0}
+            disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0 || Boolean(previewData?.overlappingClosing)}
             className={`px-6 py-2 text-xs font-bold text-white rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
               isExtra ? 'bg-purple-800 hover:bg-purple-900' : 'bg-teal-800 hover:bg-teal-900'
             }`}

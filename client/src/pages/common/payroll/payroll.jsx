@@ -256,15 +256,17 @@ export default function PayrollPage() {
                 {exists ? 'Generated' : 'Generate'}
               </Button>
             )}
-            <Button
-              size="sm"
-              disabled={!exists}
-              variant="outline"
-              icon={<Eye size={13} />}
-              onClick={() => handleView(row)}
-            >
-              View
-            </Button>
+            {canView && (
+              <Button
+                size="sm"
+                disabled={!exists}
+                variant="outline"
+                icon={<Eye size={13} />}
+                onClick={() => handleView(row)}
+              >
+                View
+              </Button>
+            )}
             {canEdit && (
               <Button
                 size="sm"

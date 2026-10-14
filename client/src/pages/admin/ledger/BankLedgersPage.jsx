@@ -23,9 +23,12 @@ import {
   ShieldCheck,
   Coins
 } from "lucide-react";
+import { usePermission } from "../../../utils/CheckPermission";
 
 export default function BankLedgersPage() {
   const navigate = useNavigate();
+  const canCreate = usePermission("bank_ledger", 2);
+  const canUpdate = usePermission("bank_ledger", 3);
   const [loading, setLoading] = useState(true);
   const [bankLedgers, setBankLedgers] = useState([]);
   const [filteredLedgers, setFilteredLedgers] = useState([]);
@@ -85,6 +88,9 @@ export default function BankLedgersPage() {
 
   const handleOpenModal = (bank = null) => {
     if (bank) {
+      if (!canUpdate) {
+        return toast.error("Permission denied: You cannot edit bank accounts");
+      }
       setEditId(bank._id);
       setFormData({
         name: bank.name || "",
@@ -97,6 +103,9 @@ export default function BankLedgersPage() {
         status: bank.status || "active"
       });
     } else {
+      if (!canCreate) {
+        return toast.error("Permission denied: You cannot add bank accounts");
+      }
       setEditId(null);
       setFormData({
         name: "",
@@ -114,6 +123,12 @@ export default function BankLedgersPage() {
 
   const handleSaveBank = async (e) => {
     e.preventDefault();
+    if (editId && !canUpdate) {
+      return toast.error("Permission denied: You cannot update bank accounts");
+    }
+    if (!editId && !canCreate) {
+      return toast.error("Permission denied: You cannot add bank accounts");
+    }
     if (!formData.name.trim()) {
       return toast.warn("Please enter a ledger account name");
     }
@@ -186,14 +201,16 @@ export default function BankLedgersPage() {
           >
             Inter-Account Transfers
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Plus size={16} />}
-            onClick={() => handleOpenModal()}
-          >
-            Add Bank Account
-          </Button>
+          {canCreate && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus size={16} />}
+              onClick={() => handleOpenModal()}
+            >
+              Add Bank Account
+            </Button>
+          )}
         </div>
       </div>
 
@@ -352,14 +369,16 @@ export default function BankLedgersPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenModal(bank)}
-                      className="p-2 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition-colors cursor-pointer"
-                      title="Edit Account Details"
-                    >
-                      <Edit2 size={15} />
-                    </button>
+                    {canUpdate && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenModal(bank)}
+                        className="p-2 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition-colors cursor-pointer"
+                        title="Edit Account Details"
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
@@ -430,13 +449,16 @@ export default function BankLedgersPage() {
                   </td>
                   <td className="px-5 py-3.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenModal(bank)}
-                        className="p-1.5 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition"
-                      >
-                        <Edit2 size={14} />
-                      </button>
+                      {canUpdate && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenModal(bank)}
+                          className="p-1.5 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition"
+                          title="Edit Account Details"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() =>

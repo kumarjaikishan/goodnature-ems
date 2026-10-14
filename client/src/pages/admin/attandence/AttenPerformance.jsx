@@ -13,7 +13,6 @@ import { useSelector } from 'react-redux';
 import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from './attandencehelper';
-import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -42,13 +41,15 @@ const AttenPerformance = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const customStyles = useCustomStyles();
-    const { company, holidays, employee: reduxEmployees, profile } = useSelector((state) => state.user);
+    const { company, holidays, employee: reduxEmployees, profile, branch: reduxBranches } = useSelector((state) => state.user);
 
     const [user, setuser] = useState(null);
     const [employee, setemployee] = useState({});
     const [attandence, setattandence] = useState([]);
     const [loading, setLoading] = useState(false);
     const [employeeList, setEmployeeList] = useState([]);
+    const [branchList, setBranchList] = useState([]);
+    const [selectedBranch, setSelectedBranch] = useState('all');
 
     const queryMonth = searchParams.get('month');
     const queryYear = searchParams.get('year');
@@ -74,6 +75,22 @@ const AttenPerformance = () => {
             })),
         []
     );
+
+    // Fetch branches if not available in Redux
+    useEffect(() => {
+        if (reduxBranches && reduxBranches.length > 0) {
+            setBranchList(reduxBranches);
+        } else {
+            apiClient({ url: 'branchlist' })
+                .then((res) => {
+                    const list = res.list || res.branches || res.data || (Array.isArray(res) ? res : []);
+                    setBranchList(list);
+                })
+                .catch((err) => {
+                    console.error('Failed to load branches:', err);
+                });
+        }
+    }, [reduxBranches]);
 
     // Fetch employee list for selector
     useEffect(() => {
@@ -101,28 +118,32 @@ const AttenPerformance = () => {
             .replace(/^-+|-+$/g, '');
     };
 
-    // Active userId fallback: from URL params (slug or ID), or first employee in list
-    const activeUserId = useMemo(() => {
-        if (userid) return userid;
-        if (employeeList && employeeList.length > 0) {
-            const first = employeeList[0];
-            const empName = first?.userid?.name || first?.name || '';
-            return empName ? toSlug(empName) : (first?.userid?._id || first?.userid || first?._id);
+    // Branch options for Select dropdown
+    const branchDropdownOptions = useMemo(() => {
+        const base = [{ label: 'All Branches', value: 'all' }];
+        if (Array.isArray(branchList)) {
+            branchList.forEach((b) => {
+                base.push({
+                    label: b.name || b.branchName || 'Branch',
+                    value: String(b._id || b.id),
+                });
+            });
         }
-        return null;
-    }, [userid, employeeList]);
+        return base;
+    }, [branchList]);
 
-    // Automatically navigate to URL with active employee slug if none in param
-    useEffect(() => {
-        if (!userid && activeUserId) {
-            const searchStr = window.location.search;
-            navigate(`/dashboard/performance/${activeUserId}${searchStr}`, { replace: true });
-        }
-    }, [userid, activeUserId, navigate]);
+    // Filter employee list by selected branch
+    const filteredEmployeeList = useMemo(() => {
+        if (selectedBranch === 'all') return employeeList;
+        return employeeList.filter((emp) => {
+            const empBranchId = emp?.branchId?._id || emp?.branchId?.id || emp?.branchId;
+            return String(empBranchId) === String(selectedBranch);
+        });
+    }, [employeeList, selectedBranch]);
 
-    // Format employee options for SearchableSelect with clean subtitles and slug values
+    // Format filtered employee options for SearchableSelect
     const employeeOptions = useMemo(() => {
-        return employeeList.map((emp) => {
+        return filteredEmployeeList.map((emp) => {
             const empName = emp?.userid?.name || emp?.name || 'Unnamed';
             const slug = toSlug(empName) || emp?.userid?._id || emp?._id;
             const branchName = emp?.branchId?.name || (typeof emp?.branchId === 'string' && !emp.branchId.match(/^[0-9a-fA-F]{24}$/) ? emp.branchId : '');
@@ -136,21 +157,40 @@ const AttenPerformance = () => {
                 subtitle: sub ? `(${sub})` : '',
             };
         });
-    }, [employeeList]);
+    }, [filteredEmployeeList]);
+
+    // Auto-sync selectedBranch if URL employee has a branch
+    useEffect(() => {
+        if (userid && employeeList.length > 0 && selectedBranch === 'all') {
+            const matchedEmp = employeeList.find((emp) => {
+                const empName = emp?.userid?.name || emp?.name || '';
+                const slug = toSlug(empName);
+                const rawId = emp?.userid?._id || emp?.userid || emp?._id;
+                return slug === userid || rawId === userid;
+            });
+            const bId = matchedEmp?.branchId?._id || matchedEmp?.branchId?.id || matchedEmp?.branchId;
+            if (bId && typeof bId === 'string' && bId.match(/^[0-9a-fA-F]{24}$/)) {
+                setSelectedBranch(bId);
+            }
+        }
+    }, [userid, employeeList, selectedBranch]);
 
     const handleEmployeeChange = (newVal) => {
-        if (!newVal) return;
+        if (!newVal) {
+            navigate('/dashboard/performance');
+            return;
+        }
         const currentParams = new URLSearchParams(searchParams);
         const searchString = currentParams.toString() ? `?${currentParams.toString()}` : '';
         navigate(`/dashboard/performance/${newVal}${searchString}`);
     };
 
-    // Selected value for SearchableSelect: match by slug, raw userId, or param
+    // Selected value for SearchableSelect: match only if userid is provided in URL
     const selectedEmployeeValue = useMemo(() => {
-        const target = userid || activeUserId || '';
-        const found = employeeOptions.find(opt => opt.value === target || opt.rawUserId === target || toSlug(opt.label) === toSlug(target));
-        return found ? found.value : target;
-    }, [employeeOptions, userid, activeUserId]);
+        if (!userid) return '';
+        const found = employeeOptions.find(opt => opt.value === userid || opt.rawUserId === userid || toSlug(opt.label) === toSlug(userid));
+        return found ? found.value : userid;
+    }, [employeeOptions, userid]);
 
     const setting = useMemo(() => {
         if (!company) return null;
@@ -171,13 +211,17 @@ const AttenPerformance = () => {
     }, [company, employee]);
 
     useEffect(() => {
-        const targetId = userid || activeUserId;
-        if (!targetId) return;
+        if (!userid) {
+            setemployee({});
+            setuser(null);
+            setattandence([]);
+            return;
+        }
 
         const fetchPerformanceData = async () => {
             try {
                 setLoading(true);
-                const params = { userid: targetId };
+                const params = { userid };
                 if (selectedMonth !== 'all') params.month = selectedMonth;
                 if (selectedYear !== 'all') params.year = selectedYear;
 
@@ -205,7 +249,7 @@ const AttenPerformance = () => {
         };
 
         fetchPerformanceData();
-    }, [userid, activeUserId, selectedMonth, selectedYear, navigate]);
+    }, [userid, selectedMonth, selectedYear, navigate]);
 
     const weeklyOffsList = useMemo(() => {
         if (!setting?.weeklyOffs) return [];
@@ -415,20 +459,31 @@ const AttenPerformance = () => {
 
                 {/* Filter / Picker Controls */}
                 <div className="flex items-center flex-wrap gap-2.5">
+                    {/* Branch Filter Dropdown */}
+                    <div className="w-44 sm:w-48">
+                        <Select
+                            size="md"
+                            value={selectedBranch}
+                            onChange={(e) => {
+                                setSelectedBranch(e.target.value);
+                            }}
+                            options={branchDropdownOptions}
+                            placeholder="Select Branch"
+                        />
+                    </div>
+
                     {/* Employee Selector */}
-                    {employeeOptions.length > 0 && (
-                        <div className="w-60 sm:w-64 min-w-[200px]">
-                            <SearchableSelect
-                                size="md"
-                                placeholder="Select Employee..."
-                                searchPlaceholder="Search employee..."
-                                value={selectedEmployeeValue}
-                                options={employeeOptions}
-                                allowClear={false}
-                                onChange={(val) => handleEmployeeChange(val)}
-                            />
-                        </div>
-                    )}
+                    <div className="w-60 sm:w-64 min-w-[200px]">
+                        <SearchableSelect
+                            size="md"
+                            placeholder="Choose Employee..."
+                            searchPlaceholder="Search employee..."
+                            value={selectedEmployeeValue}
+                            options={employeeOptions}
+                            allowClear={true}
+                            onChange={(val) => handleEmployeeChange(val)}
+                        />
+                    </div>
 
                     <div className="w-24 sm:w-28">
                         <Select
@@ -453,7 +508,22 @@ const AttenPerformance = () => {
                 </div>
             </div>
 
-            {attandence && (
+            {!userid ? (
+                /* Empty state when no employee is selected */
+                <div className="p-12 md:p-16 rounded-2xl border border-dashed border-slate-300 bg-white shadow-xs flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 shadow-xs">
+                        <User size={32} />
+                    </div>
+                    <div className="max-w-md space-y-1">
+                        <h3 className="text-base font-bold text-slate-800">
+                            Please Choose an Employee
+                        </h3>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                            Select an employee from the dropdown above to view their attendance analytics, punch logs, overtime, and deduction breakdown. You can also filter employees by branch.
+                        </p>
+                    </div>
+                </div>
+            ) : (
                 <>
                     <EmployeeProfileCard
                         employee={employee}

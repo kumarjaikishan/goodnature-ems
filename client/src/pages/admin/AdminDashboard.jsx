@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { updateAttendance, setEmployees } from '../../../store/userSlice';
@@ -7,6 +7,9 @@ import { cloudinaryUrl } from '../../utils/imageurlsetter';
 import { apiClient } from '../../utils/apiClient';
 import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
+import { ExecutiveFilterBar } from './dashboard/ExecutiveFilterBar';
+import { DashboardKpiCards } from './dashboard/DashboardKpiCards';
+import { DashboardSectionModal } from './dashboard/DashboardSectionModal';
 import {
   HiOutlineBuildingOffice2,
   HiOutlineCurrencyRupee,
@@ -192,6 +195,51 @@ const AdminDashboard = () => {
   const [investStats, setInvestStats] = useState(null);
   const [loading,     setLoading]     = useState(true);
 
+  // Executive Dashboard Filters State
+  const [filterType, setFilterType] = useState('day');
+  const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [financialYear, setFinancialYear] = useState('2026-2027');
+  const [month, setMonth] = useState(dayjs().format('YYYY-MM'));
+  const [startDate, setStartDate] = useState(dayjs().subtract(7, 'day').format('YYYY-MM-DD'));
+  const [endDate, setEndDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [branchFilter, setBranchFilter] = useState('all');
+
+  const [overviewData, setOverviewData] = useState(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+
+  // Drilldown modal state
+  const [modalSection, setModalSection] = useState(null);
+  const [modalSubFilter, setModalSubFilter] = useState('all');
+
+  const fetchOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    try {
+      const res = await apiClient({
+        url: 'dashboard/overview',
+        params: {
+          filterType,
+          date,
+          financialYear,
+          month,
+          startDate,
+          endDate,
+          branchId: branchFilter,
+        }
+      });
+      if (res && res.data) {
+        setOverviewData(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch dashboard overview:', err);
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [filterType, date, financialYear, month, startDate, endDate, branchFilter]);
+
+  useEffect(() => {
+    fetchOverview();
+  }, [fetchOverview]);
+
   const [currentpresent, setCurrentPresent] = useState([]);
   const [todaypresent,   setTodayPresent]   = useState([]);
   const [todayabsent,    setTodayAbsent]    = useState([]);
@@ -299,6 +347,57 @@ const AdminDashboard = () => {
             {' · '}{profile?.name || 'Welcome back'}
         </p>
       </div>
+
+      {/* -- Executive Dashboard Filter Bar -- */}
+      <ExecutiveFilterBar
+        filterType={filterType}
+        setFilterType={setFilterType}
+        date={date}
+        setDate={setDate}
+        financialYear={financialYear}
+        setFinancialYear={setFinancialYear}
+        month={month}
+        setMonth={setMonth}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
+        branchId={branchFilter}
+        setBranchId={setBranchFilter}
+        availableBranches={overviewData?.availableBranches || branch || []}
+        onRefresh={fetchOverview}
+        loading={overviewLoading}
+        dateLabel={overviewData?.dateRange?.label}
+      />
+
+      {/* -- Executive 7-Module KPI Cards -- */}
+      <DashboardKpiCards
+        kpiData={overviewData?.kpiCards || {}}
+        onSelectSection={(secId, subId) => {
+          setModalSection(secId);
+          setModalSubFilter(subId);
+        }}
+        activeSection={modalSection}
+        roleScope={overviewData?.userScope || {}}
+      />
+
+      {/* -- Modal Drill-down for the 7 Sections -- */}
+      <DashboardSectionModal
+        isOpen={Boolean(modalSection)}
+        onClose={() => setModalSection(null)}
+        section={modalSection}
+        initialSubFilter={modalSubFilter}
+        globalFilters={{
+          filterType,
+          date,
+          financialYear,
+          month,
+          startDate,
+          endDate,
+          branchId: branchFilter,
+          dateLabel: overviewData?.dateRange?.label
+        }}
+      />
 
       {/* -- SECTION 1: Real Estate - visible if has plot permission -- */}
       {showPlots && (

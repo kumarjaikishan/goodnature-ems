@@ -48,20 +48,34 @@ const Sidebar = () => {
   const [openSubmenu, setOpenSubmenu] = useState(null); // for expanded sidebar
   const [hoveredMenu, setHoveredMenu] = useState(null); // for collapsed sidebar
   const [anchorEl, setAnchorEl] = useState(null);
-  const [pendingFundCount, setPendingFundCount] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState({
+    voucher: 0,
+    downpayment: 0,
+    emi: 0,
+    fundTransfer: 0,
+    accountTotal: 0,
+    total: 0
+  });
 
   const OPERATIONAL_ROLES = [
     "admin", "superadmin", "manager", "accountant", "cashier", "hr", "sales", "operator", "auditor", "staff", "other", "demo"
   ];
 
-  // Fetch pending fund transfers count
-  const fetchPendingTransfers = useCallback(async () => {
+  // Fetch pending approvals count (Vouchers, Downpayment, EMI, Fund Transfers)
+  const fetchPendingApprovals = useCallback(async () => {
     try {
       const token = localStorage.getItem("emstoken");
       if (!token || !profile || !OPERATIONAL_ROLES.includes(role)) return;
-      const res = await apiClient({ url: "ledger/transfers/stats" });
-      if (res && typeof res.pendingCount === "number") {
-        setPendingFundCount(res.pendingCount);
+      const res = await apiClient({ url: "approvals/pending-stats" });
+      if (res && typeof res.total === "number") {
+        setPendingApprovals({
+          voucher: res.voucher || 0,
+          downpayment: res.downpayment || 0,
+          emi: res.emi || 0,
+          fundTransfer: res.fundTransfer || 0,
+          accountTotal: res.accountTotal || 0,
+          total: res.total || 0,
+        });
       }
     } catch {
       // Silently fail on background badge check
@@ -69,11 +83,25 @@ const Sidebar = () => {
   }, [profile, role]);
 
   useEffect(() => {
-    fetchPendingTransfers();
+    fetchPendingApprovals();
     // Poll every 30 seconds for live updates
-    const interval = setInterval(fetchPendingTransfers, 30000);
+    const interval = setInterval(fetchPendingApprovals, 30000);
     return () => clearInterval(interval);
-  }, [fetchPendingTransfers, location.pathname]);
+  }, [fetchPendingApprovals, location.pathname]);
+
+  const getGroupPendingCount = (groupMenu) => {
+    if (groupMenu === "Account") return pendingApprovals.accountTotal || 0;
+    if (groupMenu === "Ledger") return pendingApprovals.fundTransfer || 0;
+    return 0;
+  };
+
+  const getChildPendingCount = (childLink) => {
+    if (childLink === "/dashboard/vouchers") return pendingApprovals.voucher || 0;
+    if (childLink === "/dashboard/plots/collections/downpayment") return pendingApprovals.downpayment || 0;
+    if (childLink === "/dashboard/plots/collections/emi") return pendingApprovals.emi || 0;
+    if (childLink === "/dashboard/ledger/transfers") return pendingApprovals.fundTransfer || 0;
+    return 0;
+  };
 
   const menu = [
     {
@@ -298,7 +326,8 @@ const Sidebar = () => {
                     return false;
                   });
 
-                  const hasPendingInGroup = item.menu === "Ledger" && pendingFundCount > 0;
+                  const groupPendingCount = getGroupPendingCount(item.menu);
+                  const hasPendingInGroup = groupPendingCount > 0;
 
                   return (
                     <div
@@ -348,7 +377,7 @@ const Sidebar = () => {
                           <div className="flex items-center gap-1.5">
                             {hasPendingInGroup && (
                               <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300/80 rounded-full shadow-2xs">
-                                {pendingFundCount}
+                                {groupPendingCount}
                               </span>
                             )}
                             <span className={`${isChildActive ? "text-teal-700" : "text-slate-400"}`}>
@@ -367,7 +396,7 @@ const Sidebar = () => {
                           {item.children.map((child) => {
                             if (!child.roles.includes(role)) return null;
                             if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
-                            const isFundTransfer = child.link === "/dashboard/ledger/transfers" && pendingFundCount > 0;
+                            const childPending = getChildPendingCount(child.link);
                             return (
                               <div key={child.menu} className="relative flex items-center">
                                 {/* Tree horizontal branch connector line */}
@@ -386,13 +415,13 @@ const Sidebar = () => {
                                   {({ isActive }) => (
                                     <>
                                       <span className="truncate">{child.menu}</span>
-                                      {isFundTransfer && (
+                                      {childPending > 0 && (
                                         <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full transition-colors ${
                                           isActive
                                             ? 'bg-amber-400 text-teal-950 shadow-2xs font-extrabold'
                                             : 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
                                         }`}>
-                                          {pendingFundCount}
+                                          {childPending}
                                         </span>
                                       )}
                                     </>
@@ -415,7 +444,7 @@ const Sidebar = () => {
                             <span>{item.menu}</span>
                             {hasPendingInGroup && (
                               <span className="px-1.5 py-0.5 text-[9px] font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-full">
-                                {pendingFundCount} Pending
+                                {groupPendingCount} Pending
                               </span>
                             )}
                           </div>
@@ -423,7 +452,7 @@ const Sidebar = () => {
                             {item.children.map((child) => {
                               if (!child.roles.includes(role)) return null;
                               if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
-                              const isFundTransfer = child.link === "/dashboard/ledger/transfers" && pendingFundCount > 0;
+                              const childPending = getChildPendingCount(child.link);
                               return (
                                 <NavLink
                                   to={child.link}
@@ -439,11 +468,11 @@ const Sidebar = () => {
                                   {({ isActive }) => (
                                     <>
                                       <span>{child.menu}</span>
-                                      {isFundTransfer && (
+                                      {childPending > 0 && (
                                         <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full ${
                                           isActive ? 'bg-amber-400 text-teal-950' : 'bg-amber-100 text-amber-900 border border-amber-300/80'
                                         }`}>
-                                          {pendingFundCount}
+                                          {childPending}
                                         </span>
                                       )}
                                     </>

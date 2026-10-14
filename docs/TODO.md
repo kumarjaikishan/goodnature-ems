@@ -8,6 +8,16 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 - [x] **Plot Schedulers Integration**:
   - `server/cron/plotHoldScheduler.js` (`initPlotHoldScheduler`) and `server/cron/plotPayoutScheduler.js` (`initPlotPayoutScheduler`) are explicitly invoked on server startup in `server/index.js` with fail-safe error boundaries.
+- [x] **Executive Dashboard (7 Core Modules, Date Range Filters & Role Scoping)**:
+  - Implemented centralized backend aggregation service `server/services/dashboard.service.js` with date range parsing (Current Day as default, Financial Year 1 Apr - 31 Mar, Month, Custom Range) and role scoping (Super Admin, Admin, Branch Manager, Accountant, Cashier, Employee, Promoter, Seller, Broker).
+  - Built controller `server/controllers/dashboard.controller.js` and mounted routes `/api/dashboard/overview` and `/api/dashboard/section-details`.
+  - Implemented 7 modules with detailed sub-filters: Total Income (Down Payment, EMI, Voucher Receipt), Total Expense (Salary, Voucher, Incentive, Refund, Seller), All Customer (Plan By: Full Payment, EMI, Plot Product), All Promoters (Search by Rank: Partner, Associate), Account Ledger (Filter by Bank Name), All Seller (Filter by Plot No / Khesra), and All Employee (Filter by Branch).
+  - Integrated `ExecutiveFilterBar.jsx`, `DashboardKpiCards.jsx`, and `DashboardSectionModal.jsx` in `AdminDashboard.jsx`, while keeping the existing Attendance section completely intact as requested.
+- [x] **Route-Level Permission Guard & Access Security**:
+  - Implemented `client/src/utils/RoutePermissionGuard.jsx` evaluating RBAC permissions (`hasPermission(profile, resource, action)`) across client routes in `App.jsx`. Blocks unauthorized URL paste bypass with immediate redirection and user alert.
+- [x] **Live Approval Indicators & Pending Count Badges**:
+  - Built `GET /approvals/pending-stats` in `server/controllers/approvalController.js` and registered in `server/router/route.js`. Returns live pending approval counts for vouchers, downpayment receipts, EMI installments, and fund transfers scoped by user authority role and branch.
+  - Integrated badge counters and collapsed ping animations in `client/src/components/sidebar.jsx` for parent `Account`, child `Downpayment`, `EMI`, `Vouchers`, and `Ledger` / `Fund Transfers` with live background polling.
 - [x] **Voucher & Plot Receipt Role-Based Scoping Enforcement**:
   - Implements the complete specification detailed in `docs/VOUCHER_RECEIPT_ROLE_SCOPING_SPEC.md`:
     - Added `branchId` to `PlotReceipt` schema and persisted during `collectInstallment`.
