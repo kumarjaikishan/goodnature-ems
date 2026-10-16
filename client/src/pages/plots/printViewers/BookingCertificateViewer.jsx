@@ -221,9 +221,6 @@ const BookingCertificateViewer = () => {
                   <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase leading-tight">
                     {companyName}
                   </h1>
-                  <p className="text-[10px] font-bold text-teal-700 uppercase tracking-widest">
-                    Plot &amp; Fractional Land Development Division
-                  </p>
                 </div>
               </div>
 
@@ -233,10 +230,7 @@ const BookingCertificateViewer = () => {
             </div>
 
             <div className="text-right flex flex-col items-end">
-              <span className="inline-block px-2.5 py-1 bg-slate-900 text-white font-mono font-bold text-[10px] rounded uppercase tracking-wider">
-                Official Product Certificate
-              </span>
-              <div className="text-[11px] text-slate-500 mt-1 font-medium">
+              <div className="text-[11px] text-slate-500 font-medium">
                 Booking No: <strong className="font-mono text-slate-900">{booking.bookingNumber}</strong>
               </div>
               <div className="text-[11px] text-slate-500 font-medium">
@@ -250,9 +244,6 @@ const BookingCertificateViewer = () => {
             <span className="px-4 py-1 text-slate-900 text-[1rem] font-black uppercase tracking-wider rounded-sm inline-block">
               CERTIFICATE OF PRODUCT BOOKING &amp; ALLOCATION
             </span>
-            <p className="text-[10px] text-slate-500 font-medium max-w-xl mx-auto mt-0.5">
-              This certifies that the subscriber mentioned herein has booked fractional plot units under the official scheme subject to the terms and schedule specified below.
-            </p>
           </div>
 
           {/* Details Table: Name: Value Format */}

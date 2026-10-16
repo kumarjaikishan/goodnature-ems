@@ -110,7 +110,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
       const due = new Date(ins.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > emiGracePeriod) {
         newlyAccrued = Math.round(principal * dailyRateMultiplier * diffDays);
@@ -119,7 +119,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
       const lastPaid = new Date(ins.paidDate);
       const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > 0) {
         newlyAccrued = Math.round(principal * dailyRateMultiplier * diffDays);
@@ -141,13 +141,13 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
       const due = new Date(ins.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
       return diffDays > emiGracePeriod ? diffDays : 0;
     } else {
       const lastPaid = new Date(ins.paidDate);
       const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
       return Math.max(0, diffDays);
     }
   };

@@ -511,7 +511,14 @@ const PlotBookingDetails = () => {
             </div>
             <div>
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Payment Scheme</span>
-              <span className="font-medium text-slate-700">{schemeLabel}</span>
+              <span className="font-medium text-slate-700 flex items-center flex-wrap gap-1.5">
+                {schemeLabel}
+                {booking.planName && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                    Plan: {booking.planName}
+                  </span>
+                )}
+              </span>
             </div>
             <div>
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Downpayment Paid</span>

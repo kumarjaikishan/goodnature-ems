@@ -311,7 +311,7 @@ const ProductSalesTab = ({
           onClick={() => navigate('/dashboard/plots/products/book')}
           className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
         >
-          <ShoppingCart size={15} /> + Sell Plot Product (New Booking)
+          <Plus size={15} /> Sell Plot Product (New Booking)
         </button>
       </div>
 

@@ -210,11 +210,44 @@ const plotProductBookingSchema = new mongoose.Schema(
       unit: String,
       dimensionLabel: String,
     },
+    planName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     tenureMonths: {
       type: Number,
       required: true,
       min: 1,
       default: 24,
+    },
+    promoterCommissionPercent: {
+      type: Number,
+      min: 0,
+    },
+    developerCommissionPercent: {
+      type: Number,
+      min: 0,
+    },
+    bpCommissionPercent: {
+      type: Number,
+      min: 0,
+    },
+    branchCommissionPercent: {
+      type: Number,
+      min: 0,
+    },
+    rdMaturityPercent: {
+      type: Number,
+      default: 0,
+    },
+    fdMaturityPercent: {
+      type: Number,
+      default: 0,
+    },
+    annualInterestRate: {
+      type: Number,
+      default: 0,
     },
     paymentType: {
       type: String,

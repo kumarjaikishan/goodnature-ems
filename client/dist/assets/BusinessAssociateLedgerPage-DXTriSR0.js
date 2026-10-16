@@ -1,0 +1,1 @@
+import"./rolldown-runtime-hePW80VL.js";import{Qn as e,n as t}from"./vendor-react-4eY5XJPp.js";import{t as n}from"./ledgerpagelist-XUTd5nih.js";e();var r=t(),i=()=>(0,r.jsx)(n,{category:`associate`,defaultView:`table`});export{i as default};

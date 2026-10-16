@@ -314,6 +314,16 @@ export const BookingSummarySidebar = ({
                 </div>
               </div>
             )}
+
+            {/* Scheme Plan Badge */}
+            {form.planName && (
+              <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-xs flex items-center justify-between">
+                <span className="text-slate-500 font-semibold text-[11px]">Scheme Plan:</span>
+                <span className="font-bold text-teal-900 bg-teal-100/80 px-2.5 py-0.5 rounded-full border border-teal-300 text-[11px]">
+                  {form.planName} ({form.tenureMonths || 0}M)
+                </span>
+              </div>
+            )}
           </div>
 
 

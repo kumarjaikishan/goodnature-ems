@@ -6,10 +6,16 @@ import {
   TrendingUp,
   Coins,
   Percent,
+  RotateCcw,
+  Info,
 } from 'lucide-react';
 import api from '../../../../api/axios';
 import PageLoader from '../../../../components/common/PageLoader';
 import { toast } from '../../../../utils/toast';
+import {
+  calculateRdReturnPercent,
+  calculateFdReturnPercent,
+} from '../../../../utils/schemeInterestCalculator';
 
 const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const [loading, setLoading] = useState(true);
@@ -41,6 +47,8 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           fdPrematureAnnualInterestPercent: res.data.data.fdPrematureAnnualInterestPercent ?? 6.0,
           slabs: (res.data.data.slabs || []).map((s) => ({
             planName: s.planName || '',
+            planType: s.planType || (s.rdMaturityPercent === 0 && s.fdMaturityPercent === 0 ? 'REGISTRY_SALE' : 'INVESTMENT_BUYBACK'),
+            annualInterestRate: s.annualInterestRate !== undefined ? s.annualInterestRate : (s.rdMaturityPercent === 0 ? 0 : 10.5),
             tenureMonths: s.tenureMonths,
             rdMaturityPercent: s.rdMaturityPercent,
             fdMaturityPercent: s.fdMaturityPercent,
@@ -68,16 +76,21 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
   const handleAddSlab = () => {
     const lastSlab = config.slabs[config.slabs.length - 1];
-    const newTenure = lastSlab ? Number(lastSlab.tenureMonths) + 12 : 12;
+    const newTenure = lastSlab ? Number(lastSlab.tenureMonths) + 12 : 24;
+    const rate = lastSlab && Number(lastSlab.annualInterestRate) > 0 ? Number(lastSlab.annualInterestRate) : 10.5;
+    const rdReturn = calculateRdReturnPercent(rate, newTenure);
+    const fdReturn = calculateFdReturnPercent(rate, newTenure);
+
     setConfig({
       ...config,
       slabs: [
         ...config.slabs,
         {
-          planName: '',
+          planName: `A-${newTenure}`,
+          annualInterestRate: rate,
           tenureMonths: newTenure,
-          rdMaturityPercent: lastSlab ? Number(lastSlab.rdMaturityPercent) + 10 : 106,
-          fdMaturityPercent: lastSlab ? Number(lastSlab.fdMaturityPercent) + 15 : 110,
+          rdMaturityPercent: rdReturn,
+          fdMaturityPercent: fdReturn,
           rdPromoterCommissionPercent: lastSlab ? Number(lastSlab.rdPromoterCommissionPercent || 4) : 4.0,
           fdPromoterCommissionPercent: lastSlab ? Number(lastSlab.fdPromoterCommissionPercent || 5) : 5.0,
           bpRdCommissionPercent: lastSlab ? Number(lastSlab.bpRdCommissionPercent || 1) : 1.0,
@@ -97,11 +110,51 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
   const handleSlabChange = (index, field, value) => {
     const updated = [...config.slabs];
+    const item = { ...updated[index] };
+
     if (field === 'planName') {
-      updated[index] = { ...updated[index], planName: value };
+      item.planName = value;
     } else {
-      updated[index] = { ...updated[index], [field]: Number(value) || 0 };
+      item[field] = value === '' ? '' : Number(value);
     }
+
+    // Auto-calculate RD & FD returns if annualInterestRate or tenureMonths changes
+    if (field === 'annualInterestRate' || field === 'tenureMonths') {
+      const rate = Number(field === 'annualInterestRate' ? value : item.annualInterestRate) || 0;
+      const tenure = Number(field === 'tenureMonths' ? value : item.tenureMonths) || 0;
+      if (rate === 0) {
+        item.rdMaturityPercent = 0;
+        item.fdMaturityPercent = 0;
+      } else if (rate > 0 && tenure > 0) {
+        item.rdMaturityPercent = calculateRdReturnPercent(rate, tenure);
+        item.fdMaturityPercent = calculateFdReturnPercent(rate, tenure);
+      }
+    }
+
+    updated[index] = item;
+    setConfig({ ...config, slabs: updated });
+  };
+
+  // Explicit recalculation action for a row
+  const handleRecalculateRow = (index) => {
+    const updated = [...config.slabs];
+    const item = { ...updated[index] };
+    const rate = Number(item.annualInterestRate);
+    const tenure = Number(item.tenureMonths) || 24;
+
+    if (rate === 0) {
+      item.rdMaturityPercent = 0;
+      item.fdMaturityPercent = 0;
+      toast.info('Annual rate is 0%: returns set to 0% (Actual Plot Sale).');
+    } else {
+      const validRate = rate > 0 ? rate : 10.5;
+      item.annualInterestRate = validRate;
+      item.rdMaturityPercent = calculateRdReturnPercent(validRate, tenure);
+      item.fdMaturityPercent = calculateFdReturnPercent(validRate, tenure);
+      toast.success(`Calculated for ${tenure}M at ${validRate}% (RD: ${item.rdMaturityPercent}%, FD: ${item.fdMaturityPercent}%)`);
+    }
+
+    updated[index] = item;
     setConfig({ ...config, slabs: updated });
   };
 
@@ -136,37 +189,64 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <span>Customer Tenure Returns & Hierarchy Fixed Commission Matrix</span>
+                <span>Customer Tenure Returns &amp; Hierarchy Fixed Commission Matrix</span>
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Set customer returns and instant fixed commissions for Business Associate, Business Partner, and Branch Partner based on sale period / tenure.
+                Set customer returns (calculated via annual interest rate) and instant fixed commissions for Business Associate, Business Partner, and Branch Partner.
               </p>
             </div>
             <button
               type="button"
               onClick={handleAddSlab}
-              className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shrink-0"
+              className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shrink-0 shadow-2xs"
             >
               <Plus size={16} /> Add Tenure Slab
             </button>
           </div>
 
+          {/* Formula Explanation Banner */}
+          <div className="bg-teal-50/60 border border-teal-200 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-teal-950">
+            <Info size={18} className="text-teal-700 shrink-0 mt-0.5" />
+            <div className="space-y-0.5 leading-relaxed">
+              <span className="font-bold text-teal-900">Compound Calculation &amp; Actual Plot Sale:</span>
+              <p className="text-teal-800 text-[11px]">
+                • <b>EMI (R.D.) Return %:</b> Automatically calculated using <b>Yearly Compounding</b> on monthly installments from Annual Rate and Tenure Months.
+                <br />
+                • <b>One-Time (F.D.) Return %:</b> Automatically calculated using <b>Standard Compounding</b> for the full deposit tenure.
+                <br />
+                • <b>Actual Plot Sale:</b> Simply enter <b>0%</b> in R.D. &amp; F.D. Return (or Annual Rate: 0%). Customer return will be 0% while <b>Hierarchy Commissions (BA, BP, Branch Partner)</b> remain active.
+              </p>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs min-w-[1050px]">
+            <table className="w-full border-collapse text-left text-xs min-w-[1080px]">
               <thead>
                 <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
                   <th className="p-3">Plan Name</th>
                   <th className="p-3">Tenure (अवधि)</th>
+                  <th className="p-3 bg-amber-50/60 border-l border-amber-200">
+                    <div className="flex items-center gap-1 text-amber-900">
+                      <Percent size={13} className="text-amber-700" />
+                      <span>Annual Rate (% p.a.)</span>
+                    </div>
+                  </th>
                   <th className="p-3">
                     <div className="flex items-center gap-1.5 text-teal-900">
                       <Coins size={14} className="text-teal-700" />
-                      <span>EMI (R.D.) Return (%)</span>
+                      <div>
+                        <span>EMI (R.D.) Return (%)</span>
+                        <span className="text-[9px] font-semibold text-teal-700 block">Yearly Compounded</span>
+                      </div>
                     </div>
                   </th>
                   <th className="p-3">
                     <div className="flex items-center gap-1.5 text-emerald-900">
                       <TrendingUp size={14} className="text-emerald-700" />
-                      <span>One-Time (F.D.) Return (%)</span>
+                      <div>
+                        <span>One-Time (F.D.) Return (%)</span>
+                        <span className="text-[9px] font-semibold text-emerald-700 block">Holding Period</span>
+                      </div>
                     </div>
                   </th>
                   {/* Business Associate Fixed */}
@@ -194,158 +274,212 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {config.slabs.map((s, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/70 transition">
-                    <td className="p-3 font-bold text-slate-800">
-                      <input
-                        type="text"
-                        className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:ring-2 focus:ring-teal-600 outline-none"
-                        value={s.planName || ''}
-                        placeholder="A-24"
-                        onChange={(e) => handleSlabChange(idx, 'planName', e.target.value)}
-                      />
-                    </td>
-                    <td className="p-3 font-bold text-slate-800">
-                      <div className="flex items-center gap-1.5">
+                {config.slabs.map((s, idx) => {
+                  const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
+                  return (
+                    <tr key={idx} className={`transition ${isZeroReturn ? 'bg-emerald-50/25 hover:bg-emerald-50/40' : 'hover:bg-slate-50/70'}`}>
+                      {/* Plan Name */}
+                      <td className="p-3 font-bold text-slate-800">
                         <input
-                          type="number"
-                          className="w-16 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-900"
-                          value={s.tenureMonths}
-                          onChange={(e) => handleSlabChange(idx, 'tenureMonths', e.target.value)}
-                          required
+                          type="text"
+                          className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:ring-2 focus:ring-teal-600 outline-none"
+                          value={s.planName || ''}
+                          placeholder="A-24"
+                          onChange={(e) => handleSlabChange(idx, 'planName', e.target.value)}
                         />
-                        <span className="text-slate-500 font-semibold text-xs whitespace-nowrap">
-                          M ({+(s.tenureMonths / 12).toFixed(1)}Y)
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-teal-800"
-                          value={s.rdMaturityPercent}
-                          onChange={(e) => handleSlabChange(idx, 'rdMaturityPercent', e.target.value)}
-                          required
-                        />
-                        <span className="font-bold text-teal-700 text-xs">%</span>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-20 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-emerald-800"
-                          value={s.fdMaturityPercent}
-                          onChange={(e) => handleSlabChange(idx, 'fdMaturityPercent', e.target.value)}
-                          required
-                        />
-                        <span className="font-bold text-emerald-700 text-xs">%</span>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Business Associate Fixed (EMI & One-Time) */}
-                    <td className="p-3 bg-blue-50/30 border-l border-blue-100">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1" title="BA Monthly EMI Fixed %">
+                      {/* Tenure (Months) */}
+                      <td className="p-3 font-bold text-slate-800">
+                        <div className="flex items-center gap-1.5">
                           <input
                             type="number"
-                            step="0.01"
-                            className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold text-blue-800"
-                            value={s.rdPromoterCommissionPercent ?? ''}
-                            placeholder="EMI %"
-                            onChange={(e) => handleSlabChange(idx, 'rdPromoterCommissionPercent', e.target.value)}
+                            min="1"
+                            className="w-16 h-8 bg-white border border-slate-300 rounded-lg px-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                            value={s.tenureMonths}
+                            onChange={(e) => handleSlabChange(idx, 'tenureMonths', e.target.value)}
+                            required
                           />
-                          <span className="font-bold text-blue-700 text-xs">%</span>
+                          <span className="text-slate-500 font-semibold text-xs whitespace-nowrap">
+                            M ({+(s.tenureMonths / 12).toFixed(1)}Y)
+                          </span>
                         </div>
-                        <span className="text-slate-300">|</span>
-                        <div className="flex items-center gap-1" title="BA One-Time FD Fixed %">
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold text-blue-800"
-                            value={s.fdPromoterCommissionPercent ?? ''}
-                            placeholder="FD %"
-                            onChange={(e) => handleSlabChange(idx, 'fdPromoterCommissionPercent', e.target.value)}
-                          />
-                          <span className="font-bold text-blue-700 text-xs">%</span>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Business Partner Fixed (EMI & One-Time) */}
-                    <td className="p-3 bg-amber-50/30 border-l border-amber-100">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1" title="BP Monthly EMI Fixed %">
+                      {/* Annual Interest Rate % */}
+                      <td className="p-3 bg-amber-50/30 border-l border-amber-100">
+                        <div className="flex items-center gap-1.5">
                           <input
                             type="number"
                             step="0.01"
-                            className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold text-amber-900"
-                            value={s.bpRdCommissionPercent ?? ''}
-                            placeholder="EMI %"
-                            onChange={(e) => handleSlabChange(idx, 'bpRdCommissionPercent', e.target.value)}
+                            min="0"
+                            className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold text-amber-950 focus:ring-2 focus:ring-amber-500 outline-none"
+                            value={s.annualInterestRate ?? 10.5}
+                            onChange={(e) => handleSlabChange(idx, 'annualInterestRate', e.target.value)}
+                            title="Annual Interest Rate used to compute RD and FD returns (enter 0 for actual plot sale)"
                           />
-                          <span className="font-bold text-amber-800 text-xs">%</span>
+                          <span className="font-bold text-amber-800 text-xs">% p.a.</span>
                         </div>
-                        <span className="text-slate-300">|</span>
-                        <div className="flex items-center gap-1" title="BP One-Time FD Fixed %">
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold text-amber-900"
-                            value={s.bpFdCommissionPercent ?? ''}
-                            placeholder="FD %"
-                            onChange={(e) => handleSlabChange(idx, 'bpFdCommissionPercent', e.target.value)}
-                          />
-                          <span className="font-bold text-amber-800 text-xs">%</span>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Branch Partner Fixed (EMI & One-Time) */}
-                    <td className="p-3 bg-purple-50/30 border-l border-purple-100">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1" title="Branch Partner Monthly EMI Fixed %">
+                      {/* EMI (R.D.) Return % */}
+                      <td className="p-3">
+                        <div className="flex items-center gap-1.5">
                           <input
                             type="number"
                             step="0.01"
-                            className="w-16 h-8 bg-white border border-purple-300 rounded-lg px-2 text-xs font-bold text-purple-900"
-                            value={s.branchRdCommissionPercent ?? ''}
-                            placeholder="EMI %"
-                            onChange={(e) => handleSlabChange(idx, 'branchRdCommissionPercent', e.target.value)}
+                            min="0"
+                            className={`w-20 h-8 bg-white border rounded-lg px-2 text-xs font-bold outline-none ${
+                              Number(s.rdMaturityPercent) === 0
+                                ? 'border-emerald-300 text-emerald-800 font-extrabold focus:ring-2 focus:ring-emerald-500'
+                                : 'border-teal-300 text-teal-900 focus:ring-2 focus:ring-teal-600'
+                            }`}
+                            value={s.rdMaturityPercent}
+                            onChange={(e) => handleSlabChange(idx, 'rdMaturityPercent', e.target.value)}
+                            title="Auto-calculated using Yearly Compounding on monthly installments (enter 0 for actual plot sale)"
                           />
-                          <span className="font-bold text-purple-800 text-xs">%</span>
+                          <span className="font-bold text-teal-700 text-xs">%</span>
+                          {Number(s.rdMaturityPercent) === 0 && (
+                            <span className="text-[10px] text-emerald-700 font-bold ml-0.5">(Plot Sale)</span>
+                          )}
                         </div>
-                        <span className="text-slate-300">|</span>
-                        <div className="flex items-center gap-1" title="Branch Partner One-Time FD Fixed %">
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-16 h-8 bg-white border border-purple-300 rounded-lg px-2 text-xs font-bold text-purple-900"
-                            value={s.branchFdCommissionPercent ?? ''}
-                            placeholder="FD %"
-                            onChange={(e) => handleSlabChange(idx, 'branchFdCommissionPercent', e.target.value)}
-                          />
-                          <span className="font-bold text-purple-800 text-xs">%</span>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="p-3 text-center border-l border-slate-100">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSlab(idx)}
-                        disabled={config.slabs.length <= 1}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30 cursor-pointer"
-                        title="Remove Slab"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      {/* One-Time (F.D.) Return % */}
+                      <td className="p-3">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className={`w-20 h-8 bg-white border rounded-lg px-2 text-xs font-bold outline-none ${
+                              Number(s.fdMaturityPercent) === 0
+                                ? 'border-emerald-300 text-emerald-800 font-extrabold focus:ring-2 focus:ring-emerald-500'
+                                : 'border-emerald-300 text-emerald-900 focus:ring-2 focus:ring-emerald-600'
+                            }`}
+                            value={s.fdMaturityPercent}
+                            onChange={(e) => handleSlabChange(idx, 'fdMaturityPercent', e.target.value)}
+                            title="Auto-calculated using standard compounding for tenure (enter 0 for actual plot sale)"
+                          />
+                          <span className="font-bold text-emerald-700 text-xs">%</span>
+                          {Number(s.fdMaturityPercent) === 0 && (
+                            <span className="text-[10px] text-emerald-700 font-bold ml-0.5">(Plot Sale)</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Business Associate Fixed (EMI & One-Time) */}
+                      <td className="p-3 bg-blue-50/30 border-l border-blue-100">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1" title="BA Monthly EMI Fixed %">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={s.rdPromoterCommissionPercent ?? ''}
+                              placeholder="EMI %"
+                              onChange={(e) => handleSlabChange(idx, 'rdPromoterCommissionPercent', e.target.value)}
+                            />
+                            <span className="font-bold text-blue-700 text-xs">%</span>
+                          </div>
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center gap-1" title="BA One-Time FD Fixed %">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={s.fdPromoterCommissionPercent ?? ''}
+                              placeholder="FD %"
+                              onChange={(e) => handleSlabChange(idx, 'fdPromoterCommissionPercent', e.target.value)}
+                            />
+                            <span className="font-bold text-blue-700 text-xs">%</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Business Partner Fixed (EMI & One-Time) */}
+                      <td className="p-3 bg-amber-50/30 border-l border-amber-100">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1" title="BP Monthly EMI Fixed %">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                              value={s.bpRdCommissionPercent ?? ''}
+                              placeholder="EMI %"
+                              onChange={(e) => handleSlabChange(idx, 'bpRdCommissionPercent', e.target.value)}
+                            />
+                            <span className="font-bold text-amber-800 text-xs">%</span>
+                          </div>
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center gap-1" title="BP One-Time FD Fixed %">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                              value={s.bpFdCommissionPercent ?? ''}
+                              placeholder="FD %"
+                              onChange={(e) => handleSlabChange(idx, 'bpFdCommissionPercent', e.target.value)}
+                            />
+                            <span className="font-bold text-amber-800 text-xs">%</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Branch Partner Fixed (EMI & One-Time) */}
+                      <td className="p-3 bg-purple-50/30 border-l border-purple-100">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1" title="Branch Partner Monthly EMI Fixed %">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 h-8 bg-white border border-purple-300 rounded-lg px-2 text-xs font-bold text-purple-900 focus:ring-2 focus:ring-purple-500 outline-none"
+                              value={s.branchRdCommissionPercent ?? ''}
+                              placeholder="EMI %"
+                              onChange={(e) => handleSlabChange(idx, 'branchRdCommissionPercent', e.target.value)}
+                            />
+                            <span className="font-bold text-purple-800 text-xs">%</span>
+                          </div>
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center gap-1" title="Branch Partner One-Time FD Fixed %">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-16 h-8 bg-white border border-purple-300 rounded-lg px-2 text-xs font-bold text-purple-900 focus:ring-2 focus:ring-purple-500 outline-none"
+                              value={s.branchFdCommissionPercent ?? ''}
+                              placeholder="FD %"
+                              onChange={(e) => handleSlabChange(idx, 'branchFdCommissionPercent', e.target.value)}
+                            />
+                            <span className="font-bold text-purple-800 text-xs">%</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Actions: Recalculate & Remove */}
+                      <td className="p-3 text-center border-l border-slate-100">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleRecalculateRow(idx)}
+                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                            title="Re-calculate RD & FD returns from Annual Rate"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSlab(idx)}
+                            disabled={config.slabs.length <= 1}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30 cursor-pointer"
+                            title="Remove Slab"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -367,3 +501,4 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 };
 
 export default ProductSchemeRulesTab;
+

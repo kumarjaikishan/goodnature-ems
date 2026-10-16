@@ -7,6 +7,7 @@ const PlotCustomer = require('../../models/PlotCustomer');
 const PlotInstallment = require('../../models/PlotInstallment');
 const PlotPayment = require('../../models/PlotPayment');
 const PlotReceipt = require('../../models/PlotReceipt');
+const PlotProductBooking = require('../../models/PlotProductBooking');
 const PlotSponsorCommission = require('../../models/PlotSponsorCommission');
 const PlotAuditLog = require('../../models/PlotAuditLog');
 const PlotRateConfiguration = require('../../models/PlotRateConfiguration');
@@ -239,7 +240,7 @@ class PlotCollectionService {
             const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
             const d2 = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
             const diffTime = d2 - d1;
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
             if (diffDays > effectiveGrace) {
               newlyAccruedFine = Math.round(unpaidPrincipal * dailyRateMultiplier * diffDays);
@@ -516,7 +517,7 @@ class PlotCollectionService {
           const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
           const d2 = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
           const diffTime = d2 - d1;
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+          const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
           const effectiveGrace = (installment.installmentNumber === 0 || booking.scheme === 'FULL_PAYMENT') ? dpGracePeriod : emiGracePeriod;
 
@@ -1133,18 +1134,30 @@ class PlotCollectionService {
   }
 
   async getReceiptById(id, user = null) {
-    const receipt = await PlotReceipt.findById(id)
-      .populate('branchId', 'name branchCode')
-      .populate('createdBy', 'name email role')
-      .populate({
-        path: 'bookingId',
-        populate: [
-          { path: 'customerId', select: 'name customerId mobile address email' },
-          { path: 'sponsorId', select: 'name customerId' },
-          { path: 'plotId', populate: { path: 'seriesId' } }
-        ],
-      });
-    if (!receipt) throw ApiError.notFound('Receipt not found');
+    let receipt = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      receipt = await PlotReceipt.findById(id)
+        .populate('branchId', 'name branchCode')
+        .populate('createdBy', 'name email role')
+        .populate({
+          path: 'bookingId',
+          populate: [
+            { path: 'customerId', select: 'name customerId mobile address email' },
+            { path: 'sponsorId', select: 'name customerId' },
+            { path: 'plotId', populate: { path: 'seriesId' } }
+          ],
+        });
+    }
+
+    if (!receipt) {
+      // Check if this is a product collection receipt
+      const plotProductService = require('./plotProduct.service');
+      try {
+        return await plotProductService.getProductReceiptById(id, user);
+      } catch (err) {
+        if (!receipt) throw ApiError.notFound('Receipt not found');
+      }
+    }
 
     if (user) {
       const userRole = user.role;

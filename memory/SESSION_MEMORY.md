@@ -78,5 +78,42 @@ This file records session notes, caveats, and discoveries across active sessions
     - Added `canCreate = usePermission('advance', 2)`, `canUpdate = usePermission('advance', 3)`, and `canDelete = usePermission('advance', 4)`.
     - Hidden the "Record Advance" button for users lacking create permission (`canCreate`).
     - In the advance transactions table, conditionally rendered the Edit button (`canUpdate`) and Delete button (`canDelete`), hiding the Actions column completely if the user only has Read access.
-    - Added client-side validation guards inside `handleOpen`, `handleSubmit`, and `handleDelete` preventing unauthorized operations before any API request is dispatched.
+- **Plot Product Scheme Matrix: Annual Interest Rate, RD Yearly Compounding & Actual Plot Sale Slabs [COMPLETED]**:
+  - **Math & Compounding Models (`client/src/utils/schemeInterestCalculator.js`)**:
+    - **R.D. (Recurring Deposit) Yearly Compounding**: Implemented formula for monthly installments with annual compounding: $\sum_{k=1}^{M} P \times (1 + r/100)^{(M - k + 1) / 12}$.
+    - **F.D. (Fixed Deposit) Standard Compounding**: Standard quarterly compounding $(1 + r/400)^{M/3}$ and annual compounding $(1 + r/100)^{M/12}$.
+  - **Backend Model & Services (`InvestmentSchemeConfig.js`, `investment.service.js`, `plotProduct.service.js`)**:
+    - Added `planType` (`'INVESTMENT_BUYBACK'` vs `'REGISTRY_SALE'`) and `annualInterestRate` (default 10.5% p.a.) to `schemeSlabSchema`.
+    - Changed `rdMaturityPercent` and `fdMaturityPercent` `min: 100` to `min: 0` to officially support Actual Plot Sale (0% customer return, active hierarchy commissions).
+    - Preserved `planType`, `annualInterestRate`, and `planName` across `updateSchemeConfig` and `getAvailableTenures()`.
+  - **Frontend Matrix UI (`ProductSchemeRulesTab.jsx` & `ProductBookingPage.jsx`)**:
+    - Removed `Plan Type` column as requested by user; simplified table to single `+ Add Tenure Slab` button.
+    - If Annual Rate or RD/FD return is set to `0`, the row naturally represents an Actual Plot Sale (0% customer return, active hierarchy commissions).
+    - Live auto-calculation from Annual Rate (% p.a.) into RD Return % (Yearly Compounding) and FD Return %.
+    - Row-level recalculation action (`RotateCcw`) to re-sync returns from Annual Rate at any time.
+    - Backend automatically infers `planType: 'REGISTRY_SALE'` when returns are 0, and `'INVESTMENT_BUYBACK'` when returns > 0, ensuring full backwards compatibility without requiring a dedicated input column.
+    - Updated `ProductBookingPage.jsx` tenure selection dropdown to clearly distinguish between `Actual Plot Sale (0% Return / Registry)` and `Return: RD X% | FD Y%`.
+- **Plot Booking Step 3: Scheme Plan Selector (by Plan Name) & Dynamic Hierarchy Commissions [COMPLETED]**:
+  - **Backend Model & Services (`PlotBooking.js`, `plotConfig.service.js`, `plotBooking.service.js`, `plotDeveloper.service.js`)**:
+    - Added `planName`, `bpCommissionPercent`, `branchCommissionPercent`, `rdMaturityPercent`, `fdMaturityPercent`, and `annualInterestRate` fields to `PlotBooking` schema.
+    - Enhanced `getRateConfig()` in `plotConfig.service.js` to attach `schemeSlabs` from `InvestmentSchemeConfig`.
+    - Enhanced `createBookingOrHold` in `plotBooking.service.js` to accept and persist plan name and locked commission rates.
+    - Updated `syncBookingSponsorCommissions` in `plotDeveloper.service.js` to use dynamic `baFixedPct`, `bpFixedPct`, and `combinedFixedPct` from the booking's selected plan rather than hardcoded 5%/2%/7%.
+  - **Frontend UI (`PlotBooking.jsx`, `StepTermsAndPayment.jsx`, `BookingSummarySidebar.jsx`, `PlotBookingDetails.jsx`)**:
+    - Redesigned the Scheme Plan card to a clean, light, seamless styling matching the `PROJECT NAME` card with compact inline commission badges.
+- **Plot Product Booking (`/dashboard/plots/products/book`): Scheme Plan Selector & Dynamic Commission Locking [COMPLETED]**:
+  - **Backend Model & Services (`PlotProductBooking.js`, `plotProduct.service.js`, `plotDeveloper.service.js`)**:
+    - Added `planName`, `promoterCommissionPercent`, `developerCommissionPercent`, `bpCommissionPercent`, `branchCommissionPercent`, `rdMaturityPercent`, `fdMaturityPercent`, and `annualInterestRate` to `PlotProductBooking` schema.
+    - Updated `createProductBooking` to store these locked plan rates on booking creation.
+    - Updated `syncProductBookingSponsorCommissions` in `plotDeveloper.service.js` to prioritize matching scheme slabs by `booking.planName` first, then `booking.tenureMonths`, and respect custom locked commissions.
+  - **Frontend UI (`ProductBookingPage.jsx` & `ProductSalesTab.jsx`)**:
+    - Upgraded Card 3 from simple tenure selection to full Scheme Plan & Tenure dropdown uniquely identified by `getPlanKey` (`t._id` or composite key) to prevent value collisions when multiple slabs share the same name (e.g. `A-24`).
+    - Kept selector UI minimal and clean without cluttering commission badge strips.
+    - Updated right summary card to reflect Scheme Plan Name and Tenure cleanly.
+    - Cleaned up duplicate icons on `ProductSalesTab.jsx` action button to use standard `<Plus size={15} />`.
+    - Removed redundant manual asterisk from `DateInput` labels in `ProductBookingPage.jsx` to prevent `* *` duplicate asterisk rendering.
+    - Cleaned up `BookingCertificateViewer.jsx`: removed "Plot & Fractional Land Development Division" subheader, "Official Product Certificate" badge, and subtitle disclaimer sentence as requested.
+    - Fixed Overdue / Late Fine Calculation: Removed erroneous `+ 1` from `diffDays` calculation across backend services (`plotProduct.service.js`, `plotCollection.service.js`) and frontend forms (`ProductReceivePaymentForm.jsx`, `ProductInstallmentCollectModal.jsx`, `ProductCustomerLedgerModal.jsx`, `InstallmentCollection.jsx`). When paying on the exact due date (e.g. 14 Sep for 14 Sep), `diffDays` is now properly `0`, with `0 Days` delay, `₹0` late fine, and status remaining `Pending` / on-time.
+    - Redesigned "Live Payment Assessment" banner in `ProductReceivePaymentForm.jsx` from heavy dark gradient to a clean, light card matching the rest of the page.
+
 

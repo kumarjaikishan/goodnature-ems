@@ -82,6 +82,15 @@ const ProductBookingPage = () => {
     quantity: 1,
     customUnitPrice: '',
     tenureMonths: 24,
+    planName: '',
+    selectedPlanKey: '',
+    promoterCommissionPercent: undefined,
+    developerCommissionPercent: undefined,
+    bpCommissionPercent: undefined,
+    branchCommissionPercent: undefined,
+    rdMaturityPercent: undefined,
+    fdMaturityPercent: undefined,
+    annualInterestRate: undefined,
     paymentType: 'MONTHLY_INSTALLMENT', // 'MONTHLY_INSTALLMENT' | 'FULL_PAYMENT'
     paymentMode: 'cash',
     transactionReference: '',
@@ -120,17 +129,42 @@ const ProductBookingPage = () => {
         // Pre-select product or customer if in query params
         const targetProd = prodList.find((p) => p._id === initialProductId) || prodList[0];
         const targetCust = custList.find((c) => c._id === initialCustomerId);
-        const firstTenure = tenureList[0]?.tenureMonths || 24;
+        const firstTenureObj = tenureList[0];
+        const firstTenure = firstTenureObj?.tenureMonths || 24;
+        const firstPlanName = firstTenureObj?.planName || '';
+        const firstPlanKey = firstTenureObj
+          ? (firstTenureObj._id || `${firstTenureObj.planName || 'plan'}_${firstTenureObj.tenureMonths}_${firstTenureObj.rdMaturityPercent || 0}`)
+          : '';
 
         if (targetCust) {
           setSelectedCustomer(targetCust);
         }
+
+        const isFullPaymentInit = form.paymentType === 'FULL_PAYMENT';
+        const initialBaPct = isFullPaymentInit
+          ? (firstTenureObj?.fdPromoterCommissionPercent ?? 5.0)
+          : (firstTenureObj?.rdPromoterCommissionPercent ?? 4.0);
+        const initialBpPct = isFullPaymentInit
+          ? (firstTenureObj?.bpFdCommissionPercent ?? 1.0)
+          : (firstTenureObj?.bpRdCommissionPercent ?? 1.0);
+        const initialBranchPct = isFullPaymentInit
+          ? (firstTenureObj?.branchFdCommissionPercent ?? 0.5)
+          : (firstTenureObj?.branchRdCommissionPercent ?? 0.5);
 
         setForm((prev) => ({
           ...prev,
           productId: targetProd?._id || '',
           customerId: targetCust?._id || '',
           tenureMonths: firstTenure,
+          planName: firstPlanName,
+          selectedPlanKey: firstPlanKey,
+          promoterCommissionPercent: firstTenureObj ? Number(initialBaPct) : undefined,
+          developerCommissionPercent: firstTenureObj ? Number(initialBpPct) : undefined,
+          bpCommissionPercent: firstTenureObj ? Number(initialBpPct) : undefined,
+          branchCommissionPercent: firstTenureObj ? Number(initialBranchPct) : undefined,
+          rdMaturityPercent: firstTenureObj ? Number(firstTenureObj.rdMaturityPercent || 0) : undefined,
+          fdMaturityPercent: firstTenureObj ? Number(firstTenureObj.fdMaturityPercent || 0) : undefined,
+          annualInterestRate: firstTenureObj ? Number(firstTenureObj.annualInterestRate ?? 10.5) : undefined,
           customUnitPrice: targetProd?.unitPrice || '',
         }));
 
@@ -243,6 +277,91 @@ const ProductBookingPage = () => {
     }).slice(0, 30);
   }, [customers, customerSearchQuery]);
 
+  // Helper to compute a unique key for any tenure slab
+  const getPlanKey = (t) => (t ? (t._id || `${t.planName || 'plan'}_${t.tenureMonths}_${t.rdMaturityPercent || 0}`) : '');
+
+  // Current active scheme slab (matched by selectedPlanKey, planName, or tenure)
+  const currentPlan = useMemo(() => {
+    if (!tenures || tenures.length === 0) return null;
+    if (form.selectedPlanKey) {
+      const match = tenures.find((t) => getPlanKey(t) === form.selectedPlanKey);
+      if (match) return match;
+    }
+    if (form.planName) {
+      const match = tenures.find(
+        (t) => t.planName === form.planName && Number(t.tenureMonths) === Number(form.tenureMonths)
+      ) || tenures.find((t) => t.planName === form.planName);
+      if (match) return match;
+    }
+    return tenures.find((t) => Number(t.tenureMonths) === Number(form.tenureMonths)) || null;
+  }, [tenures, form.selectedPlanKey, form.planName, form.tenureMonths]);
+
+  // Handler when selecting a plan from Scheme Rules
+  const handleSelectPlan = (planKey) => {
+    if (!planKey) {
+      setForm((prev) => ({ ...prev, selectedPlanKey: '', planName: '' }));
+      return;
+    }
+    const matched = tenures.find(
+      (t) =>
+        getPlanKey(t) === planKey ||
+        t._id === planKey ||
+        t.planName === planKey ||
+        `slab-${t.tenureMonths}` === planKey ||
+        String(t.tenureMonths) === planKey
+    );
+    if (matched) {
+      const isOneTimeMode = form.paymentType === 'FULL_PAYMENT';
+      const baPct = isOneTimeMode
+        ? Number(matched.fdPromoterCommissionPercent ?? 5.0)
+        : Number(matched.rdPromoterCommissionPercent ?? 4.0);
+      const bpPct = isOneTimeMode
+        ? Number(matched.bpFdCommissionPercent ?? 1.0)
+        : Number(matched.bpRdCommissionPercent ?? 1.0);
+      const branchPct = isOneTimeMode
+        ? Number(matched.branchFdCommissionPercent ?? 0.5)
+        : Number(matched.branchRdCommissionPercent ?? 0.5);
+
+      setForm((prev) => ({
+        ...prev,
+        selectedPlanKey: getPlanKey(matched),
+        planName: matched.planName || `A-${matched.tenureMonths}`,
+        tenureMonths: Number(matched.tenureMonths),
+        promoterCommissionPercent: baPct,
+        developerCommissionPercent: bpPct,
+        bpCommissionPercent: bpPct,
+        branchCommissionPercent: branchPct,
+        rdMaturityPercent: Number(matched.rdMaturityPercent || 0),
+        fdMaturityPercent: Number(matched.fdMaturityPercent || 0),
+        annualInterestRate: Number(matched.annualInterestRate ?? 10.5),
+      }));
+    }
+  };
+
+  // Handler when changing payment type (Monthly Installment vs Full Payment)
+  const handlePaymentTypeChange = (newPaymentType) => {
+    const isOneTimeMode = newPaymentType === 'FULL_PAYMENT';
+    setForm((prev) => {
+      const updated = { ...prev, paymentType: newPaymentType };
+      if (currentPlan) {
+        const baPct = isOneTimeMode
+          ? Number(currentPlan.fdPromoterCommissionPercent ?? 5.0)
+          : Number(currentPlan.rdPromoterCommissionPercent ?? 4.0);
+        const bpPct = isOneTimeMode
+          ? Number(currentPlan.bpFdCommissionPercent ?? 1.0)
+          : Number(currentPlan.bpRdCommissionPercent ?? 1.0);
+        const branchPct = isOneTimeMode
+          ? Number(currentPlan.branchFdCommissionPercent ?? 0.5)
+          : Number(currentPlan.branchRdCommissionPercent ?? 0.5);
+        updated.promoterCommissionPercent = baPct;
+        updated.developerCommissionPercent = bpPct;
+        updated.bpCommissionPercent = bpPct;
+        updated.branchCommissionPercent = branchPct;
+      }
+      return updated;
+    });
+  };
+
   // Handle Customer Selection
   const handleSelectCustomer = (cust) => {
     setSelectedCustomer(cust);
@@ -303,6 +422,14 @@ const ProductBookingPage = () => {
     try {
       const payload = {
         ...form,
+        planName: form.planName || (currentPlan?.planName || ''),
+        promoterCommissionPercent: form.promoterCommissionPercent,
+        developerCommissionPercent: form.developerCommissionPercent,
+        bpCommissionPercent: form.bpCommissionPercent,
+        branchCommissionPercent: form.branchCommissionPercent,
+        rdMaturityPercent: form.rdMaturityPercent,
+        fdMaturityPercent: form.fdMaturityPercent,
+        annualInterestRate: form.annualInterestRate,
         quantity: quantityNum,
         customUnitPrice: form.customUnitPrice !== '' ? Number(form.customUnitPrice) : undefined,
         downPayment: isFullPayment ? totalAmount : 0,
@@ -672,7 +799,7 @@ const ProductBookingPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setForm((prev) => ({ ...prev, paymentType: 'MONTHLY_INSTALLMENT' }))}
+                    onClick={() => handlePaymentTypeChange('MONTHLY_INSTALLMENT')}
                     className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition cursor-pointer ${
                       form.paymentType === 'MONTHLY_INSTALLMENT'
                         ? 'bg-teal-50 border-teal-600 text-teal-950 ring-1 ring-teal-600'
@@ -690,7 +817,7 @@ const ProductBookingPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => setForm((prev) => ({ ...prev, paymentType: 'FULL_PAYMENT' }))}
+                    onClick={() => handlePaymentTypeChange('FULL_PAYMENT')}
                     className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition cursor-pointer ${
                       form.paymentType === 'FULL_PAYMENT'
                         ? 'bg-teal-50 border-teal-600 text-teal-950 ring-1 ring-teal-600'
@@ -708,39 +835,63 @@ const ProductBookingPage = () => {
                 </div>
               </div>
 
-              {/* Tenure Picker */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  {isFullPayment ? 'Contract Holding Period (Tenure)' : 'EMI Tenure (Months)'} <span className="text-rose-500">*</span>
-                </label>
+              {/* Plan & Tenure Picker */}
+              <div className="sm:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700">
+                    {isFullPayment ? 'Contract Holding Plan & Tenure' : 'EMI Scheme Plan & Tenure'} <span className="text-rose-500">*</span>
+                  </label>
+                  {currentPlan && (
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      Number(currentPlan.rdMaturityPercent) === 0 && Number(currentPlan.fdMaturityPercent) === 0
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : 'bg-teal-50 text-teal-800 border-teal-300'
+                    }`}>
+                      {Number(currentPlan.rdMaturityPercent) === 0 && Number(currentPlan.fdMaturityPercent) === 0
+                        ? 'Actual Plot Sale (0% Return)'
+                        : 'Customer Return Plan'}
+                    </span>
+                  )}
+                </div>
+
                 <select
-                  value={form.tenureMonths}
-                  onChange={(e) => setForm({ ...form, tenureMonths: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800"
+                  value={form.selectedPlanKey || getPlanKey(currentPlan) || ''}
+                  onChange={(e) => handleSelectPlan(e.target.value)}
+                  className="w-full h-11 px-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 cursor-pointer shadow-2xs"
                 >
+                  <option value="">-- Select Plan (Custom / Manual) --</option>
                   {tenures.length > 0 ? (
-                    tenures.map((t) => (
-                      <option key={t._id || t.tenureMonths} value={t.tenureMonths}>
-                        {t.tenureMonths} Months ({t.tenureYears || (t.tenureMonths / 12)} Years)
-                      </option>
-                    ))
+                    tenures.map((t, idx) => {
+                      const isRegistry = Number(t.rdMaturityPercent) === 0 && Number(t.fdMaturityPercent) === 0;
+                      const planTag = t.planName ? `${t.planName} — ` : '';
+                      const suffix = isRegistry
+                        ? ` • Actual Plot Sale (0% Return / Registry)`
+                        : ` • Return: RD ${t.rdMaturityPercent || 0}% | FD ${t.fdMaturityPercent || 0}%`;
+                      const pKey = getPlanKey(t);
+                      return (
+                        <option key={pKey || idx} value={pKey}>
+                          {planTag}{t.tenureMonths} Months ({+(t.tenureMonths / 12).toFixed(1)} Yrs){suffix}
+                        </option>
+                      );
+                    })
                   ) : (
                     [12, 24, 36, 48, 60].map((m) => (
-                      <option key={m} value={m}>
+                      <option key={m} value={String(m)}>
                         {m} Months ({m / 12} Years)
                       </option>
                     ))
                   )}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1">
+
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   {isFullPayment
                     ? 'Records holding period for maturity returns or money-back refund on term completion.'
-                    : 'Installments will be equally generated across these months without downpayment.'}
+                    : 'Installments will be equally divided across these tenure months.'}
                 </p>
               </div>
 
               {/* Calculated Monthly EMI or Downpayment indicator */}
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block font-bold text-slate-700 mb-1">
                   {isFullPayment ? 'Upfront Payable' : 'Calculated Monthly EMI (₹)'}
                 </label>
@@ -781,7 +932,7 @@ const ProductBookingPage = () => {
 
                     <div>
                       <DateInput
-                        label="Booking & Payment Date *"
+                        label="Booking & Payment Date"
                         value={form.bookingDate}
                         onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                         required
@@ -821,7 +972,7 @@ const ProductBookingPage = () => {
               ) : (
                 <div className="sm:col-span-2">
                   <DateInput
-                    label="Booking / Start Date *"
+                    label="Booking / Start Date"
                     value={form.bookingDate}
                     onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                     required
@@ -1245,8 +1396,10 @@ const ProductBookingPage = () => {
                 <span className="font-black font-mono text-base text-slate-900">₹{totalAmount.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-medium">Deposit / Tenure Period:</span>
-                <span className="font-bold text-teal-800">{tenure} Months</span>
+                <span className="text-slate-500 font-medium">Scheme Plan &amp; Tenure:</span>
+                <span className="font-bold text-teal-800">
+                  {form.planName ? `${form.planName} (${tenure}M)` : `${tenure} Months`}
+                </span>
               </div>
 
               {isFullPayment ? (

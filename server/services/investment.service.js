@@ -50,9 +50,15 @@ class InvestmentService {
     if (data.slabs && Array.isArray(data.slabs)) {
       config.slabs = data.slabs.map((s) => ({
         planName: (s.planName || '').trim(),
+        planType:
+          s.planType ||
+          (Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0
+            ? 'REGISTRY_SALE'
+            : 'INVESTMENT_BUYBACK'),
+        annualInterestRate: Number(s.annualInterestRate ?? 10.5),
         tenureMonths: Number(s.tenureMonths),
-        rdMaturityPercent: Number(s.rdMaturityPercent),
-        fdMaturityPercent: Number(s.fdMaturityPercent),
+        rdMaturityPercent: Number(s.rdMaturityPercent !== undefined ? s.rdMaturityPercent : 0),
+        fdMaturityPercent: Number(s.fdMaturityPercent !== undefined ? s.fdMaturityPercent : 0),
         // Business Associate (BA)
         rdPromoterCommissionPercent: Number(s.rdPromoterCommissionPercent || 0),
         fdPromoterCommissionPercent: Number(s.fdPromoterCommissionPercent || 0),

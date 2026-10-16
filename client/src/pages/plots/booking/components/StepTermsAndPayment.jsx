@@ -1,5 +1,18 @@
 import React, { useMemo } from 'react';
-import { Sparkles, Building2, ChevronLeft, Edit3, Calculator, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
+import {
+  Sparkles,
+  Building2,
+  ChevronLeft,
+  Edit3,
+  Calculator,
+  AlertCircle,
+  CheckCircle2,
+  Trash2,
+  Award,
+  Info,
+  Percent,
+  Users,
+} from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { DateInput } from '@/components/ui/DateInput';
 
@@ -52,7 +65,59 @@ export const StepTermsAndPayment = ({
   selectedPremiumHeads = [],
   togglePremiumHead,
   totalPremiumExtra = 0,
+  schemeSlabs = [],
 }) => {
+  // Current active scheme slab (matched by planName or tenure)
+  const currentSchemeSlab = useMemo(() => {
+    if (!schemeSlabs || schemeSlabs.length === 0) return null;
+    if (form.planName) {
+      const match = schemeSlabs.find((s) => s.planName === form.planName);
+      if (match) return match;
+    }
+    return schemeSlabs.find((s) => Number(s.tenureMonths) === Number(form.tenureMonths)) || null;
+  }, [schemeSlabs, form.planName, form.tenureMonths]);
+
+  // Handler when selecting a plan from Scheme Rules
+  const handleSelectPlan = (planName) => {
+    if (!planName) {
+      setForm((f) => ({
+        ...f,
+        planName: '',
+      }));
+      return;
+    }
+    const matched = schemeSlabs.find((s) => s.planName === planName || `slab-${s.tenureMonths}` === planName);
+    if (matched) {
+      const isOneTimeMode = paymentPlanMode === 'ONE_TIME';
+      const baPct = isOneTimeMode
+        ? Number(matched.fdPromoterCommissionPercent ?? 5.0)
+        : Number(matched.rdPromoterCommissionPercent ?? 4.0);
+      const bpPct = isOneTimeMode
+        ? Number(matched.bpFdCommissionPercent ?? 1.0)
+        : Number(matched.bpRdCommissionPercent ?? 1.0);
+      const branchPct = isOneTimeMode
+        ? Number(matched.branchFdCommissionPercent ?? 0.5)
+        : Number(matched.branchRdCommissionPercent ?? 0.5);
+
+      setForm((f) => ({
+        ...f,
+        planName: matched.planName || `A-${matched.tenureMonths}`,
+        tenureMonths: Number(matched.tenureMonths),
+        promoterCommissionPercent: baPct,
+        developerCommissionPercent: bpPct,
+        bpCommissionPercent: bpPct,
+        branchCommissionPercent: branchPct,
+        rdMaturityPercent: Number(matched.rdMaturityPercent || 0),
+        fdMaturityPercent: Number(matched.fdMaturityPercent || 0),
+        annualInterestRate: Number(matched.annualInterestRate ?? 10.5),
+      }));
+
+      if (!isOneTimeMode && setInstallmentCount) {
+        setInstallmentCount(Number(matched.tenureMonths) || 1);
+      }
+    }
+  };
+
   // Compute land stock allocation validity (memoized for performance)
   const totalAllocatedArea = useMemo(() => {
     return landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
@@ -142,6 +207,82 @@ export const StepTermsAndPayment = ({
         </div>
       </div>
 
+      {/* Scheme Plan Selection */}
+      <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
+            <Award size={15} className="text-teal-700" />
+            Scheme Plan *
+          </label>
+          {currentSchemeSlab && (
+            <span className="text-[10px] text-teal-800 font-bold bg-teal-100/90 border border-teal-300 px-2.5 py-0.5 rounded-full">
+              {Number(currentSchemeSlab.rdMaturityPercent) === 0 && Number(currentSchemeSlab.fdMaturityPercent) === 0
+                ? 'Actual Plot Sale (0% Return)'
+                : 'Buyback Plan'}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <select
+            className="w-full h-11 px-3.5 bg-white border border-teal-300 rounded-xl text-sm font-semibold text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs cursor-pointer"
+            value={form.planName || ''}
+            onChange={(e) => handleSelectPlan(e.target.value)}
+          >
+            <option value="">-- Select Plan (Custom / Manual Tenure) --</option>
+            {schemeSlabs.map((s, idx) => {
+              const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
+              const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months (${isZeroReturn ? 'Actual Plot Sale / Registry' : `RD: ${s.rdMaturityPercent}% | FD: ${s.fdMaturityPercent}%`})`;
+              return (
+                <option key={idx} value={s.planName || `slab-${s.tenureMonths}`}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+
+          {currentSchemeSlab ? (
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-teal-200 shadow-2xs">
+                <span className="text-slate-400 text-[10px] uppercase font-bold">Tenure:</span>
+                <strong className="text-slate-800 font-mono font-bold">{currentSchemeSlab.tenureMonths} Months</strong>
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 shadow-2xs" title="Business Associate Commission">
+                <span className="text-emerald-700 text-[10px] uppercase font-bold">BA:</span>
+                <strong className="text-emerald-900 font-mono font-bold">
+                  {paymentPlanMode === 'ONE_TIME'
+                    ? `${currentSchemeSlab.fdPromoterCommissionPercent ?? 5}%`
+                    : `${currentSchemeSlab.rdPromoterCommissionPercent ?? 4}%`}
+                </strong>
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 shadow-2xs" title="Business Partner Team Override">
+                <span className="text-blue-700 text-[10px] uppercase font-bold">BP:</span>
+                <strong className="text-blue-900 font-mono font-bold">
+                  {paymentPlanMode === 'ONE_TIME'
+                    ? `${currentSchemeSlab.bpFdCommissionPercent ?? 1}%`
+                    : `${currentSchemeSlab.bpRdCommissionPercent ?? 1}%`}
+                </strong>
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 border border-purple-200 shadow-2xs" title="Branch Partner Commission">
+                <span className="text-purple-700 text-[10px] uppercase font-bold">Branch:</span>
+                <strong className="text-purple-900 font-mono font-bold">
+                  {paymentPlanMode === 'ONE_TIME'
+                    ? `${currentSchemeSlab.branchFdCommissionPercent ?? 0.5}%`
+                    : `${currentSchemeSlab.branchRdCommissionPercent ?? 0.5}%`}
+                </strong>
+              </span>
+            </div>
+          ) : (
+            <p className="text-[11px] text-teal-800/90 font-medium">
+              Choose a scheme plan to auto-apply tenure and fixed hierarchy commissions for BA, BP & Branch Partner.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Payment Plan Scheme Selector: One Time vs EMI Plan */}
       <div className="p-4 bg-gradient-to-r from-teal-50/70 via-emerald-50/50 to-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
@@ -163,6 +304,15 @@ export const StepTermsAndPayment = ({
               }
               setDpType('PERCENT');
               setDpVal(100);
+              if (currentSchemeSlab) {
+                setForm((f) => ({
+                  ...f,
+                  promoterCommissionPercent: Number(currentSchemeSlab.fdPromoterCommissionPercent ?? 5.0),
+                  developerCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
+                  bpCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
+                  branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 0.5),
+                }));
+              }
             }}
             className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${paymentPlanMode === 'ONE_TIME'
                 ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-600/20'
@@ -190,6 +340,15 @@ export const StepTermsAndPayment = ({
               }
               setDpType('SQFT_RATE');
               setDpVal(500);
+              if (currentSchemeSlab) {
+                setForm((f) => ({
+                  ...f,
+                  promoterCommissionPercent: Number(currentSchemeSlab.rdPromoterCommissionPercent ?? 4.0),
+                  developerCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
+                  bpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
+                  branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
+                }));
+              }
             }}
             className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${paymentPlanMode === 'EMI'
                 ? 'bg-white border-teal-600 shadow-md ring-2 ring-teal-600/20'

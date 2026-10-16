@@ -89,7 +89,7 @@ const InstallmentCollection = ({ type, initialView }) => {
       const due = new Date(inst.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > resolvedGrace) {
         newlyAccruedFine = Math.round(principal * rate * diffDays);
@@ -99,7 +99,7 @@ const InstallmentCollection = ({ type, initialView }) => {
       const lastPaid = new Date(inst.paidDate);
       const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > 0) {
         newlyAccruedFine = Math.round(principal * rate * diffDays);
@@ -126,7 +126,7 @@ const InstallmentCollection = ({ type, initialView }) => {
       const due = new Date(inst.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
       if (diffDays > resolvedGrace) {
         return diffDays;
       }

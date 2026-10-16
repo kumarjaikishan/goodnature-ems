@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import ProductReceivePaymentForm from './ProductReceivePaymentForm';
-import ProductReceiptModal from './components/ProductReceiptModal';
 import usePermission from '../../../utils/CheckPermission';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
@@ -50,10 +49,6 @@ const ProductCollectionsPage = ({ initialView }) => {
   // Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentModeFilter, setPaymentModeFilter] = useState('ALL');
-
-  // Modal for Printable Receipt
-  const [selectedCollectionForReceipt, setSelectedCollectionForReceipt] = useState(null);
-  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
   // Sync view state when route changes
   useEffect(() => {
@@ -133,29 +128,10 @@ const ProductCollectionsPage = ({ initialView }) => {
     fetchCollections(true);
 
     if (result) {
-      const col = {
-        receiptNumber: result.receiptNumber,
-        bookingNumber: result.booking?.bookingNumber,
-        bookingId: result.booking?._id,
-        bookingDate: result.booking?.bookingDate,
-        product: result.booking?.productId || {},
-        customer: result.booking?.customerId || {},
-        sponsor: result.booking?.sponsorId || null,
-        quantity: result.booking?.quantity || 1,
-        unitPrice: result.booking?.unitPrice || 0,
-        totalAmount: result.booking?.totalAmount || 0,
-        tenureMonths: result.booking?.tenureMonths || 24,
-        amountPaid: result.collectedAmount,
-        principalPaid: result.principalPaid,
-        lateFinePaid: result.lateFinePaid,
-        lateFineRebate: result.lateFineRebate,
-        paymentMode: result.paymentMode,
-        transactionReference: result.transactionReference,
-        paymentDate: result.paymentDate,
-        remarks: result.remarks,
-      };
-      setSelectedCollectionForReceipt(col);
-      setReceiptModalOpen(true);
+      const receiptId = result._id || result.receiptNumber;
+      if (receiptId) {
+        navigate(`/dashboard/plots/receipts/${receiptId}`);
+      }
     }
   };
 
@@ -446,8 +422,8 @@ const ProductCollectionsPage = ({ initialView }) => {
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => {
-                            setSelectedCollectionForReceipt(col);
-                            setReceiptModalOpen(true);
+                            const recId = col._id || col.receiptNumber;
+                            navigate(`/dashboard/plots/receipts/${recId}`);
                           }}
                           className="p-1.5 text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 transition-colors cursor-pointer"
                           title="Print Receipt Bill"
@@ -478,18 +454,6 @@ const ProductCollectionsPage = ({ initialView }) => {
           </div>
         )}
       </div>
-
-      {/* Printable Receipt Modal */}
-      {receiptModalOpen && selectedCollectionForReceipt && (
-        <ProductReceiptModal
-          open={receiptModalOpen}
-          onClose={() => {
-            setReceiptModalOpen(false);
-            setSelectedCollectionForReceipt(null);
-          }}
-          collection={selectedCollectionForReceipt}
-        />
-      )}
     </div>
   );
 };

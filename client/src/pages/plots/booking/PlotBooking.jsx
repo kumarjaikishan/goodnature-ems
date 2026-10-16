@@ -76,6 +76,14 @@ export default function PlotBooking() {
     transactionReference: '',
     sponsorId: '',
     notes: '',
+    planName: '',
+    promoterCommissionPercent: 5.0,
+    developerCommissionPercent: 1.0,
+    bpCommissionPercent: 1.0,
+    branchCommissionPercent: 0.5,
+    rdMaturityPercent: 0,
+    fdMaturityPercent: 0,
+    annualInterestRate: 10.5,
   });
 
   // Fetch initial data
@@ -428,6 +436,14 @@ export default function PlotBooking() {
         transactionReference: form.transactionReference || '',
         sponsorId: form.sponsorId || selectedCustomer.sponsorId?._id || undefined,
         notes: form.notes || '',
+        planName: form.planName || '',
+        promoterCommissionPercent: form.promoterCommissionPercent !== undefined ? Number(form.promoterCommissionPercent) : 5.0,
+        developerCommissionPercent: form.developerCommissionPercent !== undefined ? Number(form.developerCommissionPercent) : 1.0,
+        bpCommissionPercent: form.bpCommissionPercent !== undefined ? Number(form.bpCommissionPercent) : 1.0,
+        branchCommissionPercent: form.branchCommissionPercent !== undefined ? Number(form.branchCommissionPercent) : 0.5,
+        rdMaturityPercent: form.rdMaturityPercent !== undefined ? Number(form.rdMaturityPercent) : 0,
+        fdMaturityPercent: form.fdMaturityPercent !== undefined ? Number(form.fdMaturityPercent) : 0,
+        annualInterestRate: form.annualInterestRate !== undefined ? Number(form.annualInterestRate) : 0,
         landSourcing: landSourcing,
         appliedPremiumHeads: selectedPremiumHeads
           .filter((h) => h.active)
@@ -569,6 +585,7 @@ export default function PlotBooking() {
               selectedPremiumHeads={selectedPremiumHeads}
               togglePremiumHead={togglePremiumHead}
               totalPremiumExtra={totalPremiumExtra}
+              schemeSlabs={rateConfig?.schemeSlabs || []}
             />
           )}
 

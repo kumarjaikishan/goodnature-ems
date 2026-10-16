@@ -57,7 +57,7 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking, onCollectInstallme
         const due = new Date(ins.dueDate);
         const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
         const diffTime = d2 - d1;
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
         if (diffDays > 0) {
           isOverdue = true;

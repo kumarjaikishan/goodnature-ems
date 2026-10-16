@@ -182,10 +182,14 @@ class PlotDeveloperService {
 
       const colAmtFormatted = collectionPrincipal.toLocaleString('en-IN');
 
+      // Resolve dynamic fixed commission percentages from booking or matched scheme slab
+      const baFixedPct = Number(booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null ? booking.promoterCommissionPercent : 5.0);
+      const bpFixedPct = Number(booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null ? booking.bpCommissionPercent : (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null ? booking.developerCommissionPercent : 2.0));
+      const combinedFixedPct = +(baFixedPct + bpFixedPct).toFixed(3);
+
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ───────────────────────────────
-        // Fixed: BA 5% + BP 2% = 7% Instant
-        const combinedFixedPct = 7.0;
+        // Fixed: BA + BP combined instant commission
         const fixedAmt = Math.round(collectionPrincipal * (combinedFixedPct / 100) * 100) / 100;
 
         const key = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_DIRECT_DEVELOPER`;
@@ -248,7 +252,11 @@ class PlotDeveloperService {
           incentiveAmount: incentiveAmt,
           businessType: 'PLOT_SALE',
           periodVolume: 0,
-          slabLabel: closedInfo ? closedInfo.slabLabel : 'Plot Sale Fixed 7% (Direct Partner)',
+          slabLabel: closedInfo
+            ? closedInfo.slabLabel
+            : booking.planName
+            ? `${booking.planName} (${combinedFixedPct}% Direct Partner)`
+            : `Plot Sale Fixed ${combinedFixedPct}% (Direct Partner)`,
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: closedInfo ? closedInfo.closingId : null,
@@ -258,9 +266,8 @@ class PlotDeveloperService {
         if (session) await commDoc.save({ session });
         else await commDoc.save();
       } else {
-        // ── BUSINESS ASSOCIATE (5% Fixed) + PARENT PARTNER (2% Fixed) ──
-        // 1. Business Associate Commission (5% Instant)
-        const baFixedPct = 5.0;
+        // ── BUSINESS ASSOCIATE + PARENT PARTNER ──
+        // 1. Business Associate Commission
         const baFixedAmt = Math.round(collectionPrincipal * (baFixedPct / 100) * 100) / 100;
 
         const promoterKey = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_PROMOTER`;
@@ -322,7 +329,11 @@ class PlotDeveloperService {
           incentiveAmount: baIncentiveAmt,
           businessType: 'PLOT_SALE',
           periodVolume: 0,
-          slabLabel: baClosedInfo ? baClosedInfo.slabLabel : 'Plot Sale Fixed 5% (Business Associate)',
+          slabLabel: baClosedInfo
+            ? baClosedInfo.slabLabel
+            : booking.planName
+            ? `${booking.planName} (${baFixedPct}% Business Associate)`
+            : `Plot Sale Fixed ${baFixedPct}% (Business Associate)`,
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: baClosedInfo ? baClosedInfo.closingId : null,
@@ -332,10 +343,9 @@ class PlotDeveloperService {
         if (session) await subCommission.save({ session });
         else await subCommission.save();
 
-        // 2. Parent Partner Developer Override (2% Instant)
+        // 2. Parent Partner Developer Override
         const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
         if (parentDevId) {
-          const bpFixedPct = 2.0;
           const bpFixedAmt = Math.round(collectionPrincipal * (bpFixedPct / 100) * 100) / 100;
 
           const devKey = `${receipt._id.toString()}_${parentDevId.toString()}_DEVELOPER_OVERRIDE`;
@@ -397,7 +407,11 @@ class PlotDeveloperService {
             incentiveAmount: bpIncentiveAmt,
             businessType: 'PLOT_SALE',
             periodVolume: 0,
-            slabLabel: bpClosedInfo ? bpClosedInfo.slabLabel : 'Plot Sale Fixed 2% (Business Partner)',
+            slabLabel: bpClosedInfo
+              ? bpClosedInfo.slabLabel
+              : booking.planName
+              ? `${booking.planName} (${bpFixedPct}% Business Partner)`
+              : `Plot Sale Fixed ${bpFixedPct}% (Business Partner)`,
             tierTenureMonths: Number(booking.tenureMonths) || 0,
             status: 'active',
             closingId: bpClosedInfo ? bpClosedInfo.closingId : null,
@@ -538,15 +552,19 @@ class PlotDeveloperService {
       console.error('Error fetching InvestmentSchemeConfig for product commission:', err);
     }
 
-    // Match slab by tenureMonths
+    // Match slab by planName first, then by tenureMonths
     const bookingTenure = Number(booking.tenureMonths) || 0;
     let matchedSlab = null;
     if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
-      // Look for exact match or closest slab <= tenure
-      matchedSlab = schemeConfig.slabs.find(s => Number(s.tenureMonths) === bookingTenure);
+      if (booking.planName) {
+        matchedSlab = schemeConfig.slabs.find((s) => s.planName === booking.planName);
+      }
+      if (!matchedSlab) {
+        matchedSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === bookingTenure);
+      }
       if (!matchedSlab) {
         const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
-        matchedSlab = sortedSlabs.find(s => Number(s.tenureMonths) >= bookingTenure) || sortedSlabs[sortedSlabs.length - 1];
+        matchedSlab = sortedSlabs.find((s) => Number(s.tenureMonths) >= bookingTenure) || sortedSlabs[sortedSlabs.length - 1];
       }
     }
 
@@ -567,6 +585,18 @@ class PlotDeveloperService {
         defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
         defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
       }
+    }
+
+    if (booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null) {
+      defaultBaFixed = Number(booking.promoterCommissionPercent);
+    }
+    if (booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null) {
+      defaultBpFixed = Number(booking.bpCommissionPercent);
+    } else if (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null) {
+      defaultBpFixed = Number(booking.developerCommissionPercent);
+    }
+    if (booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null) {
+      defaultBranchFixed = Number(booking.branchCommissionPercent);
     }
 
     const baFixedPct = defaultBaFixed;

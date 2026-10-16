@@ -116,6 +116,9 @@ const ReceiptViewer = () => {
   }
 
   const { bookingId = {} } = receipt;
+  const isProductReceipt = receipt.isProductReceipt || !!receipt.productDetails || !!bookingId.product;
+  const productDetails = receipt.productDetails || {};
+  const productObj = productDetails.product || bookingId.product || {};
   const customer = bookingId.customerId || {};
   const plot = bookingId.plotId || {};
   const isDownpaymentReceipt = receipt.receiptType === 'DOWNPAYMENT' || receipt.receiptType === 'BOOKING';
@@ -270,11 +273,21 @@ const ReceiptViewer = () => {
               </td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Plot Number</span>
+                  <span>{isProductReceipt ? 'Product / Unit' : 'Plot Number'}</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">#{plot.plotNumber} ({plot.plotSize} Sq Ft)</td>
+              <td className="p-2 font-bold text-slate-900">
+                {isProductReceipt ? (
+                  <span>
+                    {productObj.productName || 'Micro Plot Unit'}
+                    {productDetails.quantity ? ` (${productDetails.quantity} Units)` : ''}
+                    {productObj.dimensionLabel ? ` • ${productObj.dimensionLabel}` : ''}
+                  </span>
+                ) : (
+                  `#${plot.plotNumber || '-'} (${plot.plotSize || 0} Sq Ft)`
+                )}
+              </td>
             </tr>
 
             {/* Row 3 (Address takes full width) */}

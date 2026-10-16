@@ -173,7 +173,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       const due = new Date(ins.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > emiGracePeriod) {
         newlyAccrued = Math.round(principal * dailyRateMultiplier * diffDays);
@@ -182,7 +182,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       const lastPaid = new Date(ins.paidDate);
       const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > 0) {
         newlyAccrued = Math.round(principal * dailyRateMultiplier * diffDays);
@@ -204,13 +204,13 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       const due = new Date(ins.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
       return diffDays > emiGracePeriod ? diffDays : 0;
     } else {
       const lastPaid = new Date(ins.paidDate);
       const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
       return Math.max(0, diffDays);
     }
   };
@@ -484,43 +484,43 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
             </div>
           </div>
 
-          {/* Dues & Dynamic 24% Late Fine Banner */}
-          <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 p-5 rounded-2xl text-white shadow-md">
+          {/* Dues & Payment Assessment - Simple Light Theme */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     Live Payment Assessment
                   </span>
                   {dueStats.dueCount > 0 ? (
-                    <span className="px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-400/30 rounded-full text-[10px] font-black animate-pulse">
+                    <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[10px] font-black">
                       {dueStats.dueCount} EMI{dueStats.dueCount > 1 ? 's' : ''} Overdue
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-[10px] font-bold">
+                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold">
                       Account On Track
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-teal-100 font-medium">
+                <p className="text-[11px] text-slate-500 font-medium">
                   Late fine calculated at 24% p.a. daily accrual after {emiGracePeriod} days grace period.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/10 text-center">
-                  <div className="text-[10px] font-bold text-teal-200 uppercase">Due Principal</div>
-                  <div className="text-sm font-black text-white">₹{dueStats.duePrincipal.toLocaleString('en-IN')}</div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-center">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Due Principal</div>
+                  <div className="text-sm font-black font-mono text-slate-900">₹{dueStats.duePrincipal.toLocaleString('en-IN')}</div>
                 </div>
 
-                <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/10 text-center">
-                  <div className="text-[10px] font-bold text-amber-300 uppercase">24% Late Fine</div>
-                  <div className="text-sm font-black text-amber-300">₹{dueStats.totalFine.toLocaleString('en-IN')}</div>
+                <div className="bg-amber-50/70 px-3.5 py-2 rounded-xl border border-amber-200 text-center">
+                  <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">24% Late Fine</div>
+                  <div className="text-sm font-black font-mono text-amber-800">₹{dueStats.totalFine.toLocaleString('en-IN')}</div>
                 </div>
 
-                <div className="bg-emerald-500/20 backdrop-blur-md px-4 py-2 rounded-xl border border-emerald-400/30 text-center">
-                  <div className="text-[10px] font-black text-emerald-300 uppercase">Total Due (INR)</div>
-                  <div className="text-base font-black text-white">₹{dueStats.totalPayable.toLocaleString('en-IN')}</div>
+                <div className="bg-teal-50 px-4 py-2 rounded-xl border border-teal-200 text-center">
+                  <div className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Total Due (INR)</div>
+                  <div className="text-base font-black font-mono text-teal-950">₹{dueStats.totalPayable.toLocaleString('en-IN')}</div>
                 </div>
               </div>
             </div>
@@ -637,7 +637,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
               {/* Payment Date */}
               <div className="space-y-1.5">
                 <DateInput
-                  label="Collection / Payment Date *"
+                  label="Collection / Payment Date"
                   value={form.paymentDate}
                   onChange={(e) => setForm({ ...form, paymentDate: e.target.value })}
                   required

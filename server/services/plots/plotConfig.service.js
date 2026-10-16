@@ -1,5 +1,6 @@
 const PlotRateConfiguration = require('../../models/PlotRateConfiguration');
 const CommissionPolicyConfig = require('../../models/CommissionPolicyConfig');
+const InvestmentSchemeConfig = require('../../models/InvestmentSchemeConfig');
 
 class PlotConfigService {
   calculatePlotMultiplier(plotOrData, rateConfig) {
@@ -91,7 +92,34 @@ class PlotConfigService {
         await config.save();
       }
     }
-    return config;
+    const configObj = config.toObject ? config.toObject() : { ...config };
+    try {
+      const schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' }).lean();
+      if (schemeConfig && Array.isArray(schemeConfig.slabs)) {
+        configObj.schemeSlabs = schemeConfig.slabs.map((s) => ({
+          planName: s.planName || '',
+          planType:
+            s.planType ||
+            (Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0
+              ? 'REGISTRY_SALE'
+              : 'INVESTMENT_BUYBACK'),
+          annualInterestRate: s.annualInterestRate ?? 10.5,
+          tenureMonths: s.tenureMonths,
+          rdMaturityPercent: s.rdMaturityPercent,
+          fdMaturityPercent: s.fdMaturityPercent,
+          rdPromoterCommissionPercent: Number(s.rdPromoterCommissionPercent ?? 4.0),
+          fdPromoterCommissionPercent: Number(s.fdPromoterCommissionPercent ?? 5.0),
+          bpRdCommissionPercent: Number(s.bpRdCommissionPercent ?? 1.0),
+          bpFdCommissionPercent: Number(s.bpFdCommissionPercent ?? 1.0),
+          branchRdCommissionPercent: Number(s.branchRdCommissionPercent ?? 0.5),
+          branchFdCommissionPercent: Number(s.branchFdCommissionPercent ?? 0.5),
+          developerCommissionPercent: Number(s.developerCommissionPercent ?? 1.0),
+        }));
+      }
+    } catch (err) {
+      console.error('Error attaching schemeSlabs to rateConfig:', err);
+    }
+    return configObj;
   }
 
   async updateRateConfig(data) {

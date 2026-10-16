@@ -122,6 +122,11 @@ const plotBookingSchema = new mongoose.Schema(
       default: '',
     },
     // Tiered Rate & Commission Snapshots locked at booking time
+    planName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     tenureMonths: {
       type: Number,
       default: 0,
@@ -154,13 +159,35 @@ const plotBookingSchema = new mongoose.Schema(
     },
     promoterCommissionPercent: {
       type: Number,
-      default: 10.0,
+      default: 5.0,
       min: 0,
     },
     developerCommissionPercent: {
       type: Number,
-      default: 2.0,
+      default: 1.0,
       min: 0,
+    },
+    bpCommissionPercent: {
+      type: Number,
+      default: 1.0,
+      min: 0,
+    },
+    branchCommissionPercent: {
+      type: Number,
+      default: 0.5,
+      min: 0,
+    },
+    rdMaturityPercent: {
+      type: Number,
+      default: 0,
+    },
+    fdMaturityPercent: {
+      type: Number,
+      default: 0,
+    },
+    annualInterestRate: {
+      type: Number,
+      default: 0,
     },
     downpaymentMonths: {
       type: Number,

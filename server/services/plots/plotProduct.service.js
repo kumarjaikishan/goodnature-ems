@@ -95,7 +95,7 @@ class PlotProductService {
       const due = new Date(inst.dueDate);
       const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > 0) {
         isOverdue = true;
@@ -108,7 +108,7 @@ class PlotProductService {
       const lastPaid = new Date(inst.paidDate);
       const d1 = new Date(lastPaid.getFullYear(), lastPaid.getMonth(), lastPaid.getDate());
       const diffTime = d2 - d1;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 
       if (diffDays > 0) {
         isOverdue = true;
@@ -365,9 +365,24 @@ class PlotProductService {
     const config = await InvestmentSchemeConfig.findOne({ status: 'active' }).lean();
     if (config && config.slabs && config.slabs.length > 0) {
       return config.slabs.map((s) => ({
+        _id: s._id ? String(s._id) : undefined,
+        planName: s.planName || '',
+        planType:
+          s.planType ||
+          (Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0
+            ? 'REGISTRY_SALE'
+            : 'INVESTMENT_BUYBACK'),
+        annualInterestRate: s.annualInterestRate ?? 10.5,
         tenureMonths: s.tenureMonths,
         rdMaturityPercent: s.rdMaturityPercent,
         fdMaturityPercent: s.fdMaturityPercent,
+        rdPromoterCommissionPercent: Number(s.rdPromoterCommissionPercent ?? 4.0),
+        fdPromoterCommissionPercent: Number(s.fdPromoterCommissionPercent ?? 5.0),
+        bpRdCommissionPercent: Number(s.bpRdCommissionPercent ?? 1.0),
+        bpFdCommissionPercent: Number(s.bpFdCommissionPercent ?? 1.0),
+        branchRdCommissionPercent: Number(s.branchRdCommissionPercent ?? 0.5),
+        branchFdCommissionPercent: Number(s.branchFdCommissionPercent ?? 0.5),
+        developerCommissionPercent: Number(s.developerCommissionPercent ?? 1.0),
       }));
     }
     // Standard default tenures fallback
@@ -655,7 +670,15 @@ class PlotProductService {
         unit: product.dimensions?.unit || 'feet',
         dimensionLabel: product.dimensionLabel || `${product.dimensions?.north || 1} ft x ${product.dimensions?.east || 2} ft`,
       },
+      planName: data.planName || '',
       tenureMonths: tenure,
+      promoterCommissionPercent: data.promoterCommissionPercent !== undefined ? Number(data.promoterCommissionPercent) : undefined,
+      developerCommissionPercent: data.developerCommissionPercent !== undefined ? Number(data.developerCommissionPercent) : (data.bpCommissionPercent !== undefined ? Number(data.bpCommissionPercent) : undefined),
+      bpCommissionPercent: data.bpCommissionPercent !== undefined ? Number(data.bpCommissionPercent) : undefined,
+      branchCommissionPercent: data.branchCommissionPercent !== undefined ? Number(data.branchCommissionPercent) : undefined,
+      rdMaturityPercent: data.rdMaturityPercent !== undefined ? Number(data.rdMaturityPercent) : 0,
+      fdMaturityPercent: data.fdMaturityPercent !== undefined ? Number(data.fdMaturityPercent) : 0,
+      annualInterestRate: data.annualInterestRate !== undefined ? Number(data.annualInterestRate) : 0,
       paymentType,
       downPayment: dp,
       remainingAmount: isFullPayment ? 0 : remainingAmount,
@@ -1081,7 +1104,7 @@ class PlotProductService {
     if (!booking.collections) {
       booking.collections = [];
     }
-    booking.collections.push({
+    const newCollection = {
       receiptNumber,
       amountPaid: colAmount,
       principalPaid: totalPrincipalPaidForReceipt,
@@ -1094,9 +1117,13 @@ class PlotProductService {
       remarks,
       collectedById: userId || null,
       ledgerId: resolvedLedgerId,
-    });
+    };
+    booking.collections.push(newCollection);
 
     await booking.save();
+
+    const savedCollection = (booking.collections || []).find((c) => c.receiptNumber === receiptNumber);
+    const collectionId = savedCollection?._id || newCollection._id;
 
     if (resolvedLedgerId && colAmount > 0) {
       try {
@@ -1127,6 +1154,7 @@ class PlotProductService {
 
 
     return {
+      _id: collectionId,
       booking: enriched,
       receiptNumber,
       collectedAmount: colAmount,
@@ -1330,6 +1358,132 @@ class PlotProductService {
     return {
       collections: filtered,
       summary,
+    };
+  }
+
+  async getProductReceiptById(id, user = null) {
+    if (!id) throw ApiError.badRequest('Receipt identifier is required');
+
+    let booking = null;
+    let collection = null;
+
+    // 1. Try finding by collections._id if valid ObjectId
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      booking = await PlotProductBooking.findOne({ 'collections._id': id })
+        .populate('productId')
+        .populate('customerId')
+        .populate({
+          path: 'sponsorId',
+          select: 'name sponsorCode mobile email photo sponsorId',
+          populate: { path: 'sponsorId', select: 'name sponsorCode mobile' },
+        })
+        .populate('createdById', 'name email role');
+
+      if (booking) {
+        collection = booking.collections.id(id);
+      }
+    }
+
+    // 2. If not found by collections._id, try finding by receiptNumber or bookingNumber
+    if (!collection) {
+      booking = await PlotProductBooking.findOne({
+        $or: [
+          { 'collections.receiptNumber': id },
+          { 'installments.receiptNumber': id },
+          { bookingNumber: id.replace(/^(PRD-)?DP-/, '') },
+          ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : []),
+        ],
+      })
+        .populate('productId')
+        .populate('customerId')
+        .populate({
+          path: 'sponsorId',
+          select: 'name sponsorCode mobile email photo sponsorId',
+          populate: { path: 'sponsorId', select: 'name sponsorCode mobile' },
+        })
+        .populate('createdById', 'name email role');
+
+      if (booking) {
+        collection = (booking.collections || []).find(
+          (c) => c.receiptNumber === id || c._id?.toString() === id
+        );
+      }
+    }
+
+    if (!booking) {
+      throw ApiError.notFound('Product collection receipt not found');
+    }
+
+    // If still no collection found, check if it's an initial downpayment receipt
+    if (!collection) {
+      const isDp =
+        id.startsWith('PRD-DP-') ||
+        id.startsWith('DP-') ||
+        id === `dp-${booking._id}` ||
+        id.toString() === booking._id.toString();
+
+      if (isDp && booking.downPayment > 0) {
+        collection = {
+          _id: `dp-${booking._id}`,
+          receiptNumber: id.startsWith('PRD-DP-') || id.startsWith('DP-') ? id : `PRD-DP-${booking.bookingNumber}`,
+          amountPaid: booking.downPayment,
+          principalPaid: booking.downPayment,
+          lateFinePaid: 0,
+          lateFineRebate: 0,
+          paymentMode: 'cash',
+          transactionReference: 'Initial Downpayment',
+          paymentDate: booking.bookingDate || booking.createdAt,
+          installmentNumbers: [0],
+          remarks: 'Initial Downpayment at booking',
+          collectedById: booking.createdById?._id || booking.createdById || null,
+        };
+      }
+    }
+
+    if (!collection) {
+      throw ApiError.notFound('Product collection receipt record not found');
+    }
+
+    const colObj = collection.toObject ? collection.toObject() : { ...collection };
+
+    // Format into standard receipt shape compatible with ReceiptViewer
+    return {
+      _id: colObj._id || `${booking._id}-${colObj.receiptNumber}`,
+      receiptNumber: colObj.receiptNumber,
+      receiptType: (colObj.installmentNumbers || []).includes(0) ? 'DOWNPAYMENT' : 'EMI',
+      amount: colObj.amountPaid || 0,
+      lateFinePaid: colObj.lateFinePaid || 0,
+      lateFineRebate: colObj.lateFineRebate || 0,
+      paymentMode: colObj.paymentMode || 'cash',
+      transactionReference: colObj.transactionReference || '',
+      remarks: colObj.remarks || '',
+      createdAt: colObj.paymentDate || colObj.createdAt || booking.bookingDate,
+      status: 'APPROVED',
+      isProductReceipt: true,
+      productDetails: {
+        product: booking.productId || {},
+        quantity: booking.quantity || 1,
+        unitPrice: booking.unitPrice || 0,
+        totalAmount: booking.totalAmount || 0,
+        tenureMonths: booking.tenureMonths || 24,
+        planName: booking.planName || '',
+        dimensions: booking.dimensionsSnapshot || {},
+        monthlyEmi: booking.monthlyEmi || 0,
+        installmentNumbers: colObj.installmentNumbers || [],
+      },
+      bookingId: {
+        _id: booking._id,
+        bookingNumber: booking.bookingNumber,
+        bookingDate: booking.bookingDate,
+        customerName: booking.customerId?.name,
+        customerId: booking.customerId,
+        sponsorId: booking.sponsorId,
+        remainingAmount: booking.remainingAmount || 0,
+        plotValue: booking.totalAmount || 0,
+        downpaymentAmount: booking.downPayment || 0,
+        product: booking.productId,
+      },
+      createdBy: colObj.collectedById || booking.createdById,
     };
   }
 

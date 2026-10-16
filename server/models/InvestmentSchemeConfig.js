@@ -7,6 +7,16 @@ const schemeSlabSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    planType: {
+      type: String,
+      enum: ['INVESTMENT_BUYBACK', 'REGISTRY_SALE'],
+      default: 'INVESTMENT_BUYBACK',
+    },
+    annualInterestRate: {
+      type: Number,
+      default: 10.5,
+      min: 0,
+    },
     tenureMonths: {
       type: Number,
       required: true,
@@ -15,12 +25,12 @@ const schemeSlabSchema = new mongoose.Schema(
     rdMaturityPercent: {
       type: Number,
       required: true,
-      min: 100, // e.g., 112 for 112%
+      min: 0, // e.g. 112 for 112%, or 0 for actual plot sale
     },
     fdMaturityPercent: {
       type: Number,
       required: true,
-      min: 100, // e.g., 121 for 121%
+      min: 0, // e.g. 121 for 121%, or 0 for actual plot sale
     },
     // Business Associate (BA) Fixed Commission %
     rdPromoterCommissionPercent: {
