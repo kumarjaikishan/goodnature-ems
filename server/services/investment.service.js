@@ -55,7 +55,9 @@ class InvestmentService {
           (Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0
             ? 'REGISTRY_SALE'
             : 'INVESTMENT_BUYBACK'),
-        annualInterestRate: Number(s.annualInterestRate ?? 10.5),
+        annualInterestRate: Number(s.annualInterestRate ?? s.rdAnnualInterestRate ?? 10.5),
+        rdAnnualInterestRate: Number(s.rdAnnualInterestRate ?? s.annualInterestRate ?? 10.5),
+        fdAnnualInterestRate: Number(s.fdAnnualInterestRate ?? s.annualInterestRate ?? 10.5),
         tenureMonths: Number(s.tenureMonths),
         rdMaturityPercent: Number(s.rdMaturityPercent !== undefined ? s.rdMaturityPercent : 0),
         fdMaturityPercent: Number(s.fdMaturityPercent !== undefined ? s.fdMaturityPercent : 0),

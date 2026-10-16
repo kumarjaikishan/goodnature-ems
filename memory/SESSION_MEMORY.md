@@ -115,5 +115,16 @@ This file records session notes, caveats, and discoveries across active sessions
     - Cleaned up `BookingCertificateViewer.jsx`: removed "Plot & Fractional Land Development Division" subheader, "Official Product Certificate" badge, and subtitle disclaimer sentence as requested.
     - Fixed Overdue / Late Fine Calculation: Removed erroneous `+ 1` from `diffDays` calculation across backend services (`plotProduct.service.js`, `plotCollection.service.js`) and frontend forms (`ProductReceivePaymentForm.jsx`, `ProductInstallmentCollectModal.jsx`, `ProductCustomerLedgerModal.jsx`, `InstallmentCollection.jsx`). When paying on the exact due date (e.g. 14 Sep for 14 Sep), `diffDays` is now properly `0`, with `0 Days` delay, `₹0` late fine, and status remaining `Pending` / on-time.
     - Redesigned "Live Payment Assessment" banner in `ProductReceivePaymentForm.jsx` from heavy dark gradient to a clean, light card matching the rest of the page.
+- **Independent Annual Interest Rates for RD & FD on Same Tenure Matrix [COMPLETED]**:
+  - **Requirement**: Allow entering different annual interest rates for R.D. (Recurring Deposit / Monthly EMI) and F.D. (Fixed Deposit / One-Time Full Payment) within the same tenure slab row, and auto-calculate each return percent independently for its respective rate.
+  - **Backend Model & Services (`InvestmentSchemeConfig.js`, `investment.service.js`, `plotProduct.service.js`, `plotConfig.service.js`)**:
+    - Added `rdAnnualInterestRate` and `fdAnnualInterestRate` to `schemeSlabSchema` (with backwards compatibility fallback to `annualInterestRate`).
+    - Updated `updateSchemeConfig`, `getAvailableTenures`, and `getRateConfig` to persist and return both `rdAnnualInterestRate` and `fdAnnualInterestRate`.
+  - **Frontend UI (`ProductSchemeRulesTab.jsx`, `ProductBookingPage.jsx`)**:
+    - Embedded the **RD Rate (% p.a.)** directly inside the **EMI (R.D.) Scheme** column (`Rate % | Return %`) and the **FD Rate (% p.a.)** directly inside the **One-Time (F.D.) Scheme** column (`Rate % | Return %`), eliminating the redundant standalone Annual Rate column.
+    - Editing `rdAnnualInterestRate` inside the RD column auto-calculates `rdMaturityPercent` via Yearly Compounding.
+    - Editing `fdAnnualInterestRate` inside the FD column auto-calculates `fdMaturityPercent` via Standard Banking Compounding.
+    - Changing `tenureMonths` auto-calculates both returns using their respective independent rates.
+    - Updated `ProductBookingPage.jsx` to dynamically assign `annualInterestRate` based on whether the booking is `MONTHLY_INSTALLMENT` (RD rate) or `FULL_PAYMENT` (FD rate).
 
 

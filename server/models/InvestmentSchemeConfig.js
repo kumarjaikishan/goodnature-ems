@@ -17,6 +17,16 @@ const schemeSlabSchema = new mongoose.Schema(
       default: 10.5,
       min: 0,
     },
+    rdAnnualInterestRate: {
+      type: Number,
+      default: 10.5,
+      min: 0,
+    },
+    fdAnnualInterestRate: {
+      type: Number,
+      default: 10.5,
+      min: 0,
+    },
     tenureMonths: {
       type: Number,
       required: true,

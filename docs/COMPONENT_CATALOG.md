@@ -171,7 +171,51 @@ toast.info('Receipt #2026-001 downloaded.');
 
 ---
 
-## 6. Design Tokens & Styling Helpers
+## 6. Form Inputs & Mobile Keypad Standards
+
+### Centralized Numeric Input (`client/src/components/ui/NumberInput.jsx`)
+Standard for **all numeric / integer / decimal inputs** across forms. Ensures mobile devices automatically open the numeric keypad (`type="tel"`, `inputMode="numeric"`, `pattern="[0-9]*"`), filters out non-digit keystrokes, and prevents unwanted scientific notation or mouse-wheel scrolling.
+
+```jsx
+import NumberInput from '@/components/ui/NumberInput';
+
+// Integer / Count / Quantity
+<NumberInput
+  label="Tenure (Months)"
+  value={tenure}
+  onChange={(e) => setTenure(e.target.value)}
+  placeholder="e.g. 24"
+  required
+/>
+
+// Decimal / Percentage / Currency
+<NumberInput
+  label="Interest Rate (% p.a.)"
+  allowDecimal
+  value={rate}
+  onChange={(e) => setRate(e.target.value)}
+  placeholder="10.5"
+/>
+
+// Inline / Table Cell Numeric Inputs
+// When rendering compact inputs inside tables or tight cells, always use:
+<input
+  type="tel"
+  inputMode="numeric" // or "decimal" for floating point
+  pattern="[0-9]*"
+  value={val}
+  onKeyDown={(e) => {
+    if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey) return;
+    if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+  }}
+  onChange={(e) => handleChange(e.target.value.replace(/\D/g, ''))}
+  className="..."
+/>
+```
+
+---
+
+## 7. Design Tokens & Styling Helpers
 
 Always apply the Good Nature design system guidelines:
 

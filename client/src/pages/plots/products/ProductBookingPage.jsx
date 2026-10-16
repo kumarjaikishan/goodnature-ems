@@ -164,7 +164,15 @@ const ProductBookingPage = () => {
           branchCommissionPercent: firstTenureObj ? Number(initialBranchPct) : undefined,
           rdMaturityPercent: firstTenureObj ? Number(firstTenureObj.rdMaturityPercent || 0) : undefined,
           fdMaturityPercent: firstTenureObj ? Number(firstTenureObj.fdMaturityPercent || 0) : undefined,
-          annualInterestRate: firstTenureObj ? Number(firstTenureObj.annualInterestRate ?? 10.5) : undefined,
+          annualInterestRate: firstTenureObj
+            ? Number(
+                (form.paymentType === 'FULL_PAYMENT'
+                  ? firstTenureObj.fdAnnualInterestRate
+                  : firstTenureObj.rdAnnualInterestRate) ??
+                  firstTenureObj.annualInterestRate ??
+                  10.5
+              )
+            : undefined,
           customUnitPrice: targetProd?.unitPrice || '',
         }));
 
@@ -333,7 +341,11 @@ const ProductBookingPage = () => {
         branchCommissionPercent: branchPct,
         rdMaturityPercent: Number(matched.rdMaturityPercent || 0),
         fdMaturityPercent: Number(matched.fdMaturityPercent || 0),
-        annualInterestRate: Number(matched.annualInterestRate ?? 10.5),
+        annualInterestRate: Number(
+          (isOneTimeMode ? matched.fdAnnualInterestRate : matched.rdAnnualInterestRate) ??
+            matched.annualInterestRate ??
+            10.5
+        ),
       }));
     }
   };
@@ -357,6 +369,11 @@ const ProductBookingPage = () => {
         updated.developerCommissionPercent = bpPct;
         updated.bpCommissionPercent = bpPct;
         updated.branchCommissionPercent = branchPct;
+        updated.annualInterestRate = Number(
+          (isOneTimeMode ? currentPlan.fdAnnualInterestRate : currentPlan.rdAnnualInterestRate) ??
+            currentPlan.annualInterestRate ??
+            10.5
+        );
       }
       return updated;
     });

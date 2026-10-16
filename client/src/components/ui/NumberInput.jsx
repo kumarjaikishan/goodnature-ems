@@ -79,10 +79,12 @@ export const NumberInput = forwardRef(({
       return;
     }
 
-    if (allowDecimal && e.key === '.') {
-      if (String(value || '').includes('.')) {
-        e.preventDefault();
+    if (allowDecimal && (e.key === '.' || e.key === 'Decimal')) {
+      const selection = window.getSelection ? window.getSelection().toString() : '';
+      if (!String(value || '').includes('.') || selection.includes('.')) {
+        return; // Allow typing decimal dot
       }
+      e.preventDefault();
       return;
     }
 
@@ -122,8 +124,8 @@ export const NumberInput = forwardRef(({
           ref={ref}
           id={inputId}
           type="tel"
-          inputMode="numeric"
-          pattern="[0-9]*"
+          inputMode={allowDecimal ? "decimal" : "numeric"}
+          pattern={allowDecimal ? undefined : "[0-9]*"}
           placeholder={placeholder}
           value={value ?? ''}
           onChange={handleInputChange}

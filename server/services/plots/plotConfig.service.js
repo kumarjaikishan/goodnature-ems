@@ -103,7 +103,9 @@ class PlotConfigService {
             (Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0
               ? 'REGISTRY_SALE'
               : 'INVESTMENT_BUYBACK'),
-          annualInterestRate: s.annualInterestRate ?? 10.5,
+          annualInterestRate: s.annualInterestRate ?? s.rdAnnualInterestRate ?? 10.5,
+          rdAnnualInterestRate: s.rdAnnualInterestRate ?? s.annualInterestRate ?? 10.5,
+          fdAnnualInterestRate: s.fdAnnualInterestRate ?? s.annualInterestRate ?? 10.5,
           tenureMonths: s.tenureMonths,
           rdMaturityPercent: s.rdMaturityPercent,
           fdMaturityPercent: s.fdMaturityPercent,

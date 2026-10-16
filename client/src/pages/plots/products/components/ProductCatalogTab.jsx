@@ -392,11 +392,17 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
                 <div>
                   <label className="block font-semibold text-slate-600 mb-1">North (ft)</label>
                   <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
+                    type="tel"
+                    inputMode="decimal"
                     value={form.north}
-                    onChange={(e) => handleDimensionChange('north', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                      handleDimensionChange('north', cleanVal);
+                    }}
                     className="w-full px-3 py-1.5 bg-white border border-teal-300 rounded-lg font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-600 outline-none"
                     required
                   />
@@ -405,11 +411,17 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
                 <div>
                   <label className="block font-semibold text-slate-600 mb-1">South (ft)</label>
                   <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
+                    type="tel"
+                    inputMode="decimal"
                     value={form.south}
-                    onChange={(e) => handleDimensionChange('south', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                      handleDimensionChange('south', cleanVal);
+                    }}
                     className="w-full px-3 py-1.5 bg-white border border-teal-300 rounded-lg font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-600 outline-none"
                     required
                   />
@@ -418,11 +430,17 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
                 <div>
                   <label className="block font-semibold text-slate-600 mb-1">East (ft)</label>
                   <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
+                    type="tel"
+                    inputMode="decimal"
                     value={form.east}
-                    onChange={(e) => handleDimensionChange('east', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                      handleDimensionChange('east', cleanVal);
+                    }}
                     className="w-full px-3 py-1.5 bg-white border border-teal-300 rounded-lg font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-600 outline-none"
                     required
                   />
@@ -431,11 +449,17 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
                 <div>
                   <label className="block font-semibold text-slate-600 mb-1">West (ft)</label>
                   <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
+                    type="tel"
+                    inputMode="decimal"
                     value={form.west}
-                    onChange={(e) => handleDimensionChange('west', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                      handleDimensionChange('west', cleanVal);
+                    }}
                     className="w-full px-3 py-1.5 bg-white border border-teal-300 rounded-lg font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-600 outline-none"
                     required
                   />
@@ -452,10 +476,17 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                   <input
-                    type="number"
-                    min="1"
+                    type="tel"
+                    inputMode="decimal"
                     value={form.unitPrice}
-                    onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                      setForm({ ...form, unitPrice: cleanVal });
+                    }}
                     className="w-full pl-8 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                     placeholder="5000"
                     required
@@ -466,10 +497,17 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Total Available Units (Stock)</label>
                 <input
-                  type="number"
-                  min="1"
+                  type="tel"
+                  inputMode="decimal"
                   value={form.totalUnitsAvailable}
-                  onChange={(e) => setForm({ ...form, totalUnitsAvailable: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                    if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                  }}
+                  onChange={(e) => {
+                    const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                    setForm({ ...form, totalUnitsAvailable: cleanVal });
+                  }}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                   placeholder="1000"
                 />
