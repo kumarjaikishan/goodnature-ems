@@ -50,8 +50,9 @@ const checkPermission = (permissionName, key) => {
                 if (perms.hasOwnProperty(permissionName) && Array.isArray(perms[permissionName]) && perms[permissionName].includes(key)) {
                     return true;
                 }
-                // Fallback for sub-modules e.g. bank_ledger -> ledger
-                if (permissionName === 'bank_ledger' && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
+                // Fallback for ledger sub-modules -> master "ledger"
+                const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'sponsor_ledger'];
+                if (LEDGER_SUBMODULES.includes(permissionName) && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
                     return true;
                 }
                 return false;

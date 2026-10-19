@@ -17,9 +17,9 @@ import ConfigurePlotModal from './components/ConfigurePlotModal';
 import CreatePlotModal from './components/CreatePlotModal';
 
 const PlotSeriesMaster = () => {
-  const canCreate = usePermission('plot_series', 2);
-  const canUpdate = usePermission('plot_series', 3);
-  const canDelete = usePermission('plot_series', 4);
+  const canCreate = usePermission('plot_inventory', 2);
+  const canUpdate = usePermission('plot_inventory', 3);
+  const canDelete = usePermission('plot_inventory', 4);
 
   // Navigation Tabs: 'layout', 'rates'
   const [activeTab, setActiveTab] = useState('layout');
