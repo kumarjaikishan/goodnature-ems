@@ -50,9 +50,9 @@ const PlotBusinessDevelopers = () => {
   const { handleImage } = useImageUpload();
   const { branch, profile } = useSelector((state) => state.user || {});
 
-  const canCreate = usePermission('plot_developer', 2);
-  const canUpdate = usePermission('plot_developer', 3);
-  const canDelete = usePermission('plot_developer', 4);
+  const canCreate = usePermission('plot_sponsor', 2);
+  const canUpdate = usePermission('plot_sponsor', 3);
+  const canDelete = usePermission('plot_sponsor', 4);
 
   const [businessDevelopers, setBusinessDevelopers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -265,7 +265,7 @@ const PlotBusinessDevelopers = () => {
         signature: '',
         commissionRate: 0,
         sponsorId: mode === 'partner' ? 'direct' : '',
-        branchId: defaultBranch,
+        branchId: mode === 'partner' ? defaultBranch : '',
       });
     }
     setShowModal(true);
@@ -748,50 +748,52 @@ const PlotBusinessDevelopers = () => {
         }
       >
         <form id="developer-form" onSubmit={handleSubmit} className="space-y-4">
-              {/* Role / Developer Type Selector (Identical in both Create and Edit) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                  Designation / Role *
-                </label>
-                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreateMode('partner');
-                      setFormData((prev) => ({ ...prev, sponsorId: 'direct' }));
-                    }}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      createMode === 'partner'
-                        ? 'bg-white text-amber-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Crown size={15} className={createMode === 'partner' ? 'text-amber-600' : 'text-slate-400'} />
-                    <span>👑 Business Partner (BP)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreateMode('associate');
-                      const firstPartner = businessDevelopers.find((s) => !s.sponsorId && s._id !== editingDeveloper?._id);
-                      const partnerBranchId = firstPartner?.branchIds?.[0]?._id || firstPartner?.branchIds?.[0] || '';
-                      setFormData((prev) => ({
-                        ...prev,
-                        sponsorId: prev.sponsorId && prev.sponsorId !== 'direct' ? prev.sponsorId : (firstPartner?._id || ''),
-                        branchId: partnerBranchId || prev.branchId || (availableBranches[0]?._id || ''),
-                      }));
-                    }}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      createMode === 'associate'
-                        ? 'bg-white text-teal-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Users size={15} className={createMode === 'associate' ? 'text-teal-700' : 'text-slate-400'} />
-                    <span>👥 Business Associate (BA)</span>
-                  </button>
+              {/* Role / Developer Type Selector (Only shown when editing an existing developer) */}
+              {editingDeveloper && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Designation / Role *
+                  </label>
+                  <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateMode('partner');
+                        setFormData((prev) => ({ ...prev, sponsorId: 'direct' }));
+                      }}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        createMode === 'partner'
+                          ? 'bg-white text-amber-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Crown size={15} className={createMode === 'partner' ? 'text-amber-600' : 'text-slate-400'} />
+                      <span>👑 Business Partner (BP)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateMode('associate');
+                        const firstPartner = businessDevelopers.find((s) => !s.sponsorId && s._id !== editingDeveloper?._id);
+                        const partnerBranchId = firstPartner?.branchIds?.[0]?._id || firstPartner?.branchIds?.[0] || '';
+                        setFormData((prev) => ({
+                          ...prev,
+                          sponsorId: prev.sponsorId && prev.sponsorId !== 'direct' ? prev.sponsorId : (firstPartner?._id || ''),
+                          branchId: partnerBranchId || prev.branchId || (availableBranches[0]?._id || ''),
+                        }));
+                      }}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        createMode === 'associate'
+                          ? 'bg-white text-teal-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Users size={15} className={createMode === 'associate' ? 'text-teal-700' : 'text-slate-400'} />
+                      <span>👥 Business Associate (BA)</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Partner Mode: Branch Selection */}
               {createMode === 'partner' && (
@@ -856,18 +858,19 @@ const PlotBusinessDevelopers = () => {
                       type="text"
                       readOnly
                       disabled
+                      placeholder="Select Business Partner first..."
                       value={
-                        availableBranches.find((b) => b._id === formData.branchId)?.name
-                          ? `${availableBranches.find((b) => b._id === formData.branchId)?.name}${
-                              availableBranches.find((b) => b._id === formData.branchId)?.location
-                                ? ` (${availableBranches.find((b) => b._id === formData.branchId)?.location})`
-                                : ''
-                            }`
-                          : formData.sponsorId && formData.sponsorId !== 'direct'
-                          ? 'No Branch Mapped'
-                          : 'Select Business Partner First...'
+                        formData.sponsorId && formData.sponsorId !== 'direct'
+                          ? availableBranches.find((b) => b._id === formData.branchId)?.name
+                            ? `${availableBranches.find((b) => b._id === formData.branchId)?.name}${
+                                availableBranches.find((b) => b._id === formData.branchId)?.location
+                                  ? ` (${availableBranches.find((b) => b._id === formData.branchId)?.location})`
+                                  : ''
+                              }`
+                            : 'No Branch Mapped'
+                          : ''
                       }
-                      className="h-10 w-full px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed select-none"
+                      className="h-10 w-full px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed select-none placeholder:text-slate-400 placeholder:font-normal"
                     />
                   </div>
                 </div>
