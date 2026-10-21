@@ -7,6 +7,7 @@ import { apiClient } from '../../../utils/apiClient';
 import Input from '@/components/ui/Input';
 import NumberInput from '@/components/ui/NumberInput';
 import Button from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 
 const weekdays = [
   { value: 0, label: "Sunday" },
@@ -23,6 +24,7 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
     id: '',
     name: '',
     location: '',
+    branchPartnerId: '',
     companyId: '',
     managerIds: [],
     defaultsetting: true,
@@ -51,6 +53,7 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
 
   const [branch, setBranch] = useState(init);
   const [loading, setLoading] = useState(false);
+  const [sponsors, setSponsors] = useState([]);
   const dispatch = useDispatch();
 
   const { adminManager } = useSelector((state) => state.user);
@@ -62,6 +65,8 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
       setBranch(prev => ({
         ...prev,
         ...editbranchdata,
+        branchPartnerId: editbranchdata?.branchPartnerId?._id || editbranchdata?.branchPartnerId || '',
+        managerIds: (editbranchdata?.managerIds || []).map(m => m?._id || m),
         setting: {
           ...prev.setting,
           ...(editbranchdata?.setting || {}),
@@ -76,7 +81,20 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
 
   useEffect(() => {
     fetchManagers();
+    fetchSponsors();
   }, [adminManager]);
+
+  const fetchSponsors = async () => {
+    try {
+      const res = await apiClient({ url: 'plots/sponsors?limit=300' });
+      const list = res?.data || res?.sponsors || res || [];
+      if (Array.isArray(list)) {
+        setSponsors(list);
+      }
+    } catch (err) {
+      console.error('Error fetching sponsors:', err);
+    }
+  };
 
   const fetchManagers = async () => {
     if (adminManager?.length > 0) {
@@ -188,6 +206,24 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
             value={branch.location}
             onChange={e => handleFieldChange('location', e.target.value)}
             placeholder="e.g. Patna, Bihar"
+          />
+        </div>
+
+        {/* Branch Partner (Franchise Head) Selection */}
+        <div>
+          <Select
+            label="Branch Partner (Franchise / Regional Head)"
+            placeholder="Select a Branch Partner..."
+            value={branch.branchPartnerId || ''}
+            onChange={(e) => handleFieldChange('branchPartnerId', e.target.value)}
+            options={[
+              { label: '-- None (No Branch Partner Override) --', value: '' },
+              ...sponsors.map(s => ({
+                value: s._id,
+                label: `${s.name}${s.sponsorCode ? ` (${s.sponsorCode})` : ''} — ${s.roleName || (s.roleType === 'business_partner' ? 'Business Partner' : 'Business Associate')}`
+              }))
+            ]}
+            helperText="The assigned Branch Partner receives the 0.5% Branch Commission override on all booking collections under this branch."
           />
         </div>
 

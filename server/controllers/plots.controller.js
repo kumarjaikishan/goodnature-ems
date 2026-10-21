@@ -241,6 +241,37 @@ const getBookingById = async (req, res, next) => {
   }
 };
 
+const getBookingLedger = async (req, res, next) => {
+  try {
+    const data = await plotsService.getBookingLedger(req.params.id);
+    if (!data || !data.booking) {
+      return ApiResponse.notFound(res, 'Plot booking not found');
+    }
+
+    // Role check for sponsor
+    if (req.user?.role === 'sponsor') {
+      const requesterId = (req.user.id || req.user._id).toString();
+      const directSponsorId = data.booking.sponsorId?._id?.toString() || data.booking.sponsorId?.toString();
+      if (directSponsorId !== requesterId) {
+        const User = require('../models/user');
+        const downline = await User.find({ sponsorId: requesterId }).select('_id').lean();
+        const downlineIds = downline.map((d) => d._id.toString());
+        if (!downlineIds.includes(directSponsorId)) {
+          return res.status(403).json({ message: 'Access denied: You are not authorized to view this booking ledger.' });
+        }
+      }
+      if (data.booking.toObject) {
+        data.booking = data.booking.toObject();
+      }
+      delete data.booking.landSourcing;
+    }
+
+    ApiResponse.success(res, data, 'Booking ledger retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const approveBooking = async (req, res, next) => {
   try {
     const booking = await plotsService.approveBooking(req.params.id, req.user?._id || req.user?.id || null);
@@ -1056,6 +1087,7 @@ module.exports = {
   createBookingOrHold,
   getBookings,
   getBookingById,
+  getBookingLedger,
   approveBooking,
   rejectBooking,
   getInstallments,

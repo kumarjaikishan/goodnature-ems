@@ -233,6 +233,10 @@ class PlotsService {
     return plotBookingService.getBookingById(id);
   }
 
+  getBookingLedger(id) {
+    return plotBookingService.getBookingLedger(id);
+  }
+
   updateBooking(id, data, userId) {
     return plotBookingService.updateBooking(id, data, userId);
   }

@@ -36,4 +36,9 @@ This document lists foundational architectural decisions that must not be altere
 - **Decision**: Cashier physical cash is modeled via dedicated `ledgerType: 'user_cash'` ledgers assigned to staff, corporate bank accounts via `ledgerType: 'bank'`, and inter-account movements require Maker-Checker 2-step approvals (`FundTransfer`). During `PENDING` transfers, available balance is calculated as $\text{Available} = \text{Current Balance} - \text{Pending In-Transit Transfers}$ without prematurely writing ledger entries.
 - **Rationale**: Prevents ledger balance drift upon transfer rejection/cancellation, prevents double-spending / overdrafts, and guarantees mathematical balance integrity through atomic double-entry bookkeeping upon approval.
 
+## 9. 3-Tier Sales Hierarchy & Physical Branch Commission Override (Branch Partner -> BP -> BA)
+- **Decision**: Link the top-tier "Branch Partner" directly to the physical `Branch` (`branch.branchPartnerId`) rather than creating a separate arbitrary entity or duplicating auth portals. When collections occur, a 0.5% override is automatically credited to the Branch Partner's universal ledger (`source: 'commission_branch'`), and the existing Business Developer portal automatically adapts to display the Branch Partner badge, Branch Sales Turnover, and all downline BPs/BAs.
+- **Rationale**: Leverages existing universal ledger and sponsor portals without adding redundant database collections, route fragmentation, or separate logins. Ensures accurate regional attribution and real-time ledger crediting for franchise and regional heads.
+
+
 

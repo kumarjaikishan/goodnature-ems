@@ -14,6 +14,17 @@ import {
   Target,
   Sparkles,
 } from 'lucide-react';
+import { amountInWords } from '../../../../utils/numToWord';
+
+const formatSlabLabel = (min, max) => {
+  const minNum = Number(min || 0);
+  const minStr = `₹${minNum.toLocaleString('en-IN')}`;
+  if (max === null || max === '' || max === undefined || max === 'unlimited') {
+    return `${minStr} & Above`;
+  }
+  const maxNum = Number(max);
+  return `${minStr} - ₹${maxNum.toLocaleString('en-IN')}`;
+};
 
 const CommissionPolicyMatrix = ({
   initialBusinessType = 'PLOT_SALE',
@@ -142,7 +153,7 @@ const CommissionPolicyMatrix = ({
               ? Number(role.fixedCommissionPercent) || 0
               : Number(slab.fixedCommissionPercent),
           targetIncentivePercent: Number(slab.targetIncentivePercent) || 0,
-          label: slab.label || (slab.minAmount ? `₹${Number(slab.minAmount).toLocaleString('en-IN')} - ${slab.maxAmount ? `₹${Number(slab.maxAmount).toLocaleString('en-IN')}` : 'Above'}` : ''),
+          label: formatSlabLabel(slab.minAmount, slab.maxAmount),
         }));
 
         const extraSlabs = (role.extraSlabs || []).map((slab) => {
@@ -164,7 +175,7 @@ const CommissionPolicyMatrix = ({
             extraIncentivePercent: primaryExtra ? primaryExtra.percent : Number(slab.extraIncentivePercent || slab.rewardPercent) || 0,
             rewardTitle: primaryExtra ? primaryExtra.rewardTitle : slab.rewardTitle || '',
             extraIncentives: extraIncs,
-            label: slab.label || (slab.minAmount ? `₹${Number(slab.minAmount).toLocaleString('en-IN')} - ${slab.maxAmount ? `₹${Number(slab.maxAmount).toLocaleString('en-IN')}` : 'Above'}` : ''),
+            label: formatSlabLabel(slab.minAmount, slab.maxAmount),
           };
         });
 
@@ -567,49 +578,68 @@ const CommissionPolicyMatrix = ({
                   return (
                     <tr key={sIdx} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-bold">₹</span>
-                          <input
-                            type="tel"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800"
-                            value={slab.minAmount ?? ''}
-                            onChange={(e) => handleTargetSlabFieldChange(roleIndex, sIdx, 'minAmount', e.target.value)}
-                            required
-                          />
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 font-bold">₹</span>
+                            <input
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800"
+                              value={slab.minAmount ?? ''}
+                              onChange={(e) => handleTargetSlabFieldChange(roleIndex, sIdx, 'minAmount', e.target.value)}
+                              required
+                            />
+                          </div>
+                          {slab.minAmount && (
+                            <span className="text-[10px] text-blue-700 font-semibold pl-4 mt-0.5 leading-tight">
+                              {amountInWords(slab.minAmount)}
+                            </span>
+                          )}
                         </div>
                       </td>
 
                       <td className="p-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-bold">₹</span>
-                          <input
-                            type="tel"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            placeholder="Unlimited"
-                            className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
-                            value={isUnlimited ? '' : slab.maxAmount}
-                            disabled={isUnlimited}
-                            onChange={(e) => handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', e.target.value)}
-                          />
-                          <label className="flex items-center gap-1 text-[10px] text-slate-500 ml-1 cursor-pointer select-none">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 font-bold">₹</span>
                             <input
-                              type="checkbox"
-                              checked={isUnlimited}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', 'unlimited');
-                                } else {
-                                  const fallbackMax = slab.minAmount ? Number(slab.minAmount) + 499999 : 5000000;
-                                  handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', String(fallbackMax));
-                                }
-                              }}
-                              className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="Unlimited"
+                              className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
+                              value={isUnlimited ? '' : slab.maxAmount}
+                              disabled={isUnlimited}
+                              onChange={(e) => handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', e.target.value)}
                             />
-                            No Limit
-                          </label>
+                            <label className="flex items-center gap-1 text-[10px] text-slate-500 ml-1 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isUnlimited}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', 'unlimited');
+                                  } else {
+                                    const fallbackMax = slab.minAmount ? Number(slab.minAmount) + 499999 : 5000000;
+                                    handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', String(fallbackMax));
+                                  }
+                                }}
+                                className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+                              />
+                              No Limit
+                            </label>
+                          </div>
+                          {!isUnlimited && slab.maxAmount && (
+                            <span className="text-[10px] text-blue-700 font-semibold pl-4 mt-0.5 leading-tight">
+                              {amountInWords(slab.maxAmount)}
+                            </span>
+                          )}
+                          {isUnlimited && (
+                            <span className="text-[10px] text-emerald-600 font-bold pl-4 mt-0.5">
+                              &amp; Above (No Max Limit)
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -746,49 +776,68 @@ const CommissionPolicyMatrix = ({
                   return (
                     <tr key={sIdx} className="hover:bg-amber-50/40 transition-colors">
                       <td className="p-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-amber-600 font-bold">₹</span>
-                          <input
-                            type="tel"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800"
-                            value={slab.minAmount ?? ''}
-                            onChange={(e) => handleExtraSlabFieldChange(roleIndex, sIdx, 'minAmount', e.target.value)}
-                            required
-                          />
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <span className="text-amber-600 font-bold">₹</span>
+                            <input
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800"
+                              value={slab.minAmount ?? ''}
+                              onChange={(e) => handleExtraSlabFieldChange(roleIndex, sIdx, 'minAmount', e.target.value)}
+                              required
+                            />
+                          </div>
+                          {slab.minAmount && (
+                            <span className="text-[10px] text-amber-800 font-semibold pl-4 mt-0.5 leading-tight">
+                              {amountInWords(slab.minAmount)}
+                            </span>
+                          )}
                         </div>
                       </td>
 
                       <td className="p-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-amber-600 font-bold">₹</span>
-                          <input
-                            type="tel"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            placeholder="Unlimited"
-                            className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
-                            value={isUnlimited ? '' : slab.maxAmount}
-                            disabled={isUnlimited}
-                            onChange={(e) => handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', e.target.value)}
-                          />
-                          <label className="flex items-center gap-1 text-[10px] text-slate-500 ml-1 cursor-pointer select-none">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1">
+                            <span className="text-amber-600 font-bold">₹</span>
                             <input
-                              type="checkbox"
-                              checked={isUnlimited}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', 'unlimited');
-                                } else {
-                                  const fallbackMax = slab.minAmount ? Number(slab.minAmount) + 999999 : 5000000;
-                                  handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', String(fallbackMax));
-                                }
-                              }}
-                              className="rounded text-amber-600 focus:ring-0 cursor-pointer"
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="Unlimited"
+                              className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
+                              value={isUnlimited ? '' : slab.maxAmount}
+                              disabled={isUnlimited}
+                              onChange={(e) => handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', e.target.value)}
                             />
-                            No Limit
-                          </label>
+                            <label className="flex items-center gap-1 text-[10px] text-slate-500 ml-1 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isUnlimited}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', 'unlimited');
+                                  } else {
+                                    const fallbackMax = slab.minAmount ? Number(slab.minAmount) + 999999 : 5000000;
+                                    handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', String(fallbackMax));
+                                  }
+                                }}
+                                className="rounded text-amber-600 focus:ring-0 cursor-pointer"
+                              />
+                              No Limit
+                            </label>
+                          </div>
+                          {!isUnlimited && slab.maxAmount && (
+                            <span className="text-[10px] text-amber-800 font-semibold pl-4 mt-0.5 leading-tight">
+                              {amountInWords(slab.maxAmount)}
+                            </span>
+                          )}
+                          {isUnlimited && (
+                            <span className="text-[10px] text-emerald-600 font-bold pl-4 mt-0.5">
+                              &amp; Above (No Max Limit)
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -871,25 +920,25 @@ const CommissionPolicyMatrix = ({
   return (
     <div className="space-y-6">
       {/* Policy Selector & Top Actions Header */}
-      <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-              <Award size={22} />
-            </span>
-            <div>
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+      <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="p-2.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 shrink-0">
+            <Award size={22} />
+          </span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800">
                 {title}
-                <span className="text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Active
-                </span>
               </h2>
-              <p className="text-xs text-slate-500 font-medium">{subtitle}</p>
+              <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Active
+              </span>
             </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
           {/* Business Type Toggle */}
           {showTypeToggle && (
             <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200">
@@ -921,7 +970,7 @@ const CommissionPolicyMatrix = ({
           <button
             type="button"
             onClick={() => fetchPolicy(businessType)}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer"
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer border border-slate-200"
             title="Reset changes"
           >
             <RotateCcw size={16} />

@@ -6,93 +6,120 @@ export const getDueColumns = ({ navigate }) => [
   {
     name: 'Booking Date',
     selector: (row) => row.bookingDate || row.createdAt,
-    cell: (row) => (
-      <span className="text-slate-600 font-medium whitespace-nowrap text-xs">
-        {new Date(row.bookingDate || row.createdAt).toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })}
-      </span>
-    ),
+    cell: (row) => {
+      const d = new Date(row.bookingDate || row.createdAt);
+      return (
+        <div className="flex flex-col leading-tight py-1">
+          <span className="text-slate-800 font-semibold text-xs whitespace-nowrap">
+            {d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          </span>
+          <span className="text-[11px] text-slate-400 font-medium font-mono">
+            {d.getFullYear()}
+          </span>
+        </div>
+      );
+    },
     sortable: true,
-    minWidth: '100px',
+    minWidth: '110px',
   },
   {
     name: 'Booking & Plot',
     selector: (row) => row.bookingNumber,
     cell: (row) => (
-      <div className="flex flex-col text-xs">
-        <span className="font-extrabold text-slate-900 font-mono tracking-wide">{row.bookingNumber}</span>
-        <span className="text-[11px] font-bold text-teal-800">Plot #{row.plotId?.plotNumber}</span>
-      </div>
-    ),
-    sortable: true,
-    minWidth: '120px',
-  },
-  {
-    name: 'Customer',
-    selector: (row) => row.customerId?.name || row.customerName,
-    cell: (row) => (
-      <div className="flex flex-col text-xs">
-        <span className="font-bold text-slate-900 truncate">{row.customerId?.name || row.customerName}</span>
-        <span className="text-[10px] text-slate-500">{row.customerId?.mobile || row.customerMobile || ''}</span>
+      <div className="flex flex-col gap-1 py-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 shadow-2xs">
+            Plot #{row.plotId?.plotNumber || 'N/A'}
+          </span>
+          {row.scheme && (
+            <span className="text-[9px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+              {row.scheme === 'FULL_PAYMENT' ? 'Full' : 'EMI'}
+            </span>
+          )}
+        </div>
+        <span className="font-mono text-[11px] font-medium text-slate-500 tracking-wide">
+          {row.bookingNumber}
+        </span>
       </div>
     ),
     sortable: true,
     minWidth: '140px',
+  },
+  {
+    name: 'Customer',
+    selector: (row) => row.customerId?.name || row.customerName,
+    cell: (row) => {
+      const name = row.customerId?.name || row.customerName || 'N/A';
+      const phone = row.customerId?.mobile || row.customerMobile || '';
+      return (
+        <div className="flex flex-col py-1">
+          <span className="font-bold text-slate-900 text-[13px] tracking-tight leading-snug">
+            {name}
+          </span>
+          {phone && (
+            <span className="text-[11px] text-slate-400 font-medium font-mono mt-0.5">
+              {phone}
+            </span>
+          )}
+        </div>
+      );
+    },
+    sortable: true,
+    minWidth: '160px',
     grow: 2,
   },
   {
     name: 'Scheme',
     selector: (row) => row.scheme,
     cell: (row) => (
-      <span className="font-semibold text-slate-700 uppercase whitespace-nowrap text-xs">
-        {row.scheme === 'FULL_PAYMENT' ? 'One Time' : 'EMI'}
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
+        {row.scheme === 'FULL_PAYMENT' ? 'One Time' : 'EMI Scheme'}
       </span>
     ),
     sortable: true,
-    minWidth: '85px',
+    minWidth: '95px',
   },
   {
     name: 'Net Payable',
     selector: (row) => row.netPlotValue || (row.plotValue || 0) - (row.discount || 0),
     cell: (row) => (
-      <div className="flex flex-col text-xs">
-        <span className="font-bold text-slate-900 font-mono">
+      <div className="flex flex-col leading-tight py-1">
+        <span className="font-semibold text-slate-700 font-mono text-[13px]">
           ₹{(row.netPlotValue || (row.plotValue || 0) - (row.discount || 0)).toLocaleString('en-IN')}
         </span>
         {(row.discount || 0) > 0 && (
-          <span className="text-[10px] text-emerald-700 font-medium">
+          <span className="text-[10px] text-amber-700 font-medium mt-0.5">
             -₹{(row.discount || 0).toLocaleString('en-IN')} disc.
           </span>
         )}
       </div>
     ),
     sortable: true,
-    minWidth: '105px',
+    minWidth: '115px',
   },
   {
     name: 'Paid Amount',
     selector: (row) => row.totalPaid || 0,
     cell: (row) => (
-      <span className="font-bold text-emerald-800 whitespace-nowrap font-mono text-xs">
-        ₹{(row.totalPaid || 0).toLocaleString('en-IN')}
-      </span>
+      <div className="flex flex-col leading-tight py-1">
+        <span className="font-mono text-[13px] font-bold text-emerald-700">
+          ₹{(row.totalPaid || 0).toLocaleString('en-IN')}
+        </span>
+      </div>
     ),
     sortable: true,
-    minWidth: '100px',
+    minWidth: '110px',
   },
   {
     name: 'Due Amount',
     selector: (row) => row.totalDue || row.remainingAmount || 0,
     cell: (row) => (
-      <span className="font-bold text-rose-700 whitespace-nowrap font-mono text-xs">
+      <span className="font-black text-rose-700 font-mono text-[13px]">
         ₹{(row.totalDue || row.remainingAmount || 0).toLocaleString('en-IN')}
       </span>
     ),
     sortable: true,
-    minWidth: '100px',
+    minWidth: '115px',
   },
   {
     name: 'EMIs Paid',
@@ -197,17 +224,25 @@ export const getHoldColumns = ({
   {
     name: 'Plot #',
     selector: (row) => row.plotId?.plotNumber || '',
-    cell: (row) => <span className="font-bold text-teal-800 font-mono text-xs">Plot #{row.plotId?.plotNumber}</span>,
+    cell: (row) => (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 shadow-2xs">
+        Plot #{row.plotId?.plotNumber || 'N/A'}
+      </span>
+    ),
     sortable: true,
-    minWidth: '100px',
+    minWidth: '110px',
   },
   {
     name: 'Customer',
     selector: (row) => row.customerId?.name || row.customerName,
     cell: (row) => (
-      <div className="flex flex-col text-xs">
-        <span className="font-bold text-slate-900">{row.customerId?.name || row.customerName}</span>
-        <span className="text-[11px] text-slate-600 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
+      <div className="flex flex-col py-1">
+        <span className="font-bold text-slate-900 text-[13px] tracking-tight leading-snug">
+          {row.customerId?.name || row.customerName || 'N/A'}
+        </span>
+        <span className="text-[11px] text-slate-400 font-medium font-mono mt-0.5">
+          {row.customerId?.mobile || row.customerMobile || '-'}
+        </span>
       </div>
     ),
     sortable: true,
@@ -218,7 +253,7 @@ export const getHoldColumns = ({
     name: 'Hold Deposit',
     selector: (row) => row.bookingAmount || 0,
     cell: (row) => (
-      <span className="font-bold text-slate-900 whitespace-nowrap font-mono text-xs">
+      <span className="font-bold text-slate-800 whitespace-nowrap font-mono text-[13px]">
         ₹{(row.bookingAmount || 0).toLocaleString('en-IN')}
       </span>
     ),
@@ -229,7 +264,7 @@ export const getHoldColumns = ({
     name: 'Hours Remaining',
     selector: (row) => getHoldHoursLeft(row.holdExpiryDate),
     cell: (row) => (
-      <span className="font-bold text-amber-800 whitespace-nowrap text-xs">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
         {getHoldHoursLeft(row.holdExpiryDate)}
       </span>
     ),

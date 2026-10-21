@@ -368,13 +368,24 @@ commissionPolicyConfigSchema.statics.resolveSlab = function (policyData, roleNam
   const effectiveIncentivePercent = isExtra ? extraIncentivePercent : baseIncentivePercent;
   const totalPercent = +(fixedPercent + effectiveIncentivePercent).toFixed(3);
 
+  const formatSlabRange = (s) => {
+    if (!s) return 'Below Min Target';
+    const minVal = Number(s.minAmount || 0);
+    const minStr = `₹${minVal.toLocaleString('en-IN')}`;
+    if (s.maxAmount === null || s.maxAmount === '' || s.maxAmount === undefined || s.maxAmount === 'unlimited') {
+      return `${minStr} & Above`;
+    }
+    const maxVal = Number(s.maxAmount);
+    return `${minStr} - ₹${maxVal.toLocaleString('en-IN')}`;
+  };
+
   return {
     fixedPercent,
     baseIncentivePercent,
     extraIncentivePercent,
     incentivePercent: effectiveIncentivePercent,
     totalPercent,
-    slabLabel: matchedSlab ? (matchedSlab.label || `₹${matchedSlab.minAmount.toLocaleString('en-IN')} - ${matchedSlab.maxAmount ? `₹${matchedSlab.maxAmount.toLocaleString('en-IN')}` : 'Above'}`) : 'Below Min Target',
+    slabLabel: formatSlabRange(matchedSlab),
     rewardTitle: rewardTitles.join(', '),
     currentSlab: matchedSlab,
     nextSlab: nextSlab,

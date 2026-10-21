@@ -12,23 +12,31 @@ const DeleteBookingModal = ({ bookingToDelete, onClose, onConfirm, deletingId })
   const hasCollections = paidAmt > 0;
 
   return (
-    <Modalbox open={Boolean(bookingToDelete)} onClose={onClose} size="md">
-      <div className="p-6 flex flex-col gap-4 w-full">
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
-              hasCollections ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
-            }`}
-          >
-            {hasCollections ? '⚠️' : '🗑️'}
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-800">
-              {hasCollections ? 'Cannot Delete Booking' : 'Delete Plot Booking?'}
-            </h3>
-            <p className="text-xs text-slate-500">Booking #{bookingToDelete.bookingNumber}</p>
-          </div>
-        </div>
+    <Modalbox
+      open={Boolean(bookingToDelete)}
+      onClose={onClose}
+      size="md"
+      title={hasCollections ? 'Cannot Delete Booking' : 'Delete Plot Booking?'}
+      subtitle={`Booking #${bookingToDelete.bookingNumber}`}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            {hasCollections ? 'Close' : 'Cancel'}
+          </Button>
+          {!hasCollections && (
+            <Button
+              variant="danger"
+              size="sm"
+              loading={deletingId === bookingToDelete._id}
+              onClick={onConfirm}
+            >
+              Yes, Delete Booking
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 w-full">
 
         {/* Booking Info Card */}
         <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5 text-slate-700">
@@ -72,23 +80,6 @@ const DeleteBookingModal = ({ bookingToDelete, onClose, onConfirm, deletingId })
             <strong className="text-emerald-700">AVAILABLE</strong> and remove the contract schedule.
           </p>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            {hasCollections ? 'Close' : 'Cancel'}
-          </Button>
-          {!hasCollections && (
-            <Button
-              variant="danger"
-              size="sm"
-              loading={deletingId === bookingToDelete._id}
-              onClick={onConfirm}
-            >
-              Yes, Delete Booking
-            </Button>
-          )}
-        </div>
       </div>
     </Modalbox>
   );

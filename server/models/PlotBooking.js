@@ -24,6 +24,18 @@ const plotBookingSchema = new mongoose.Schema(
       ref: 'User',
       required: false,
     },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
+      index: true,
+    },
+    branchPartnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
     plotId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Plot',

@@ -7,6 +7,7 @@ import PageLoader from '../../../components/common/PageLoader';
 import { confirmDialog } from '../../../utils/confirmDialog';
 import {
   ArrowLeft,
+  BookOpen,
   User,
   MapPin,
   Banknote,
@@ -250,6 +251,12 @@ const PlotBookingDetails = () => {
               <RotateCcw size={15} className="text-rose-600" /> Reject
             </button>
           )}
+          <button
+            onClick={() => navigate(`/dashboard/plots/booking/${booking._id}/ledger`)}
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
+          >
+            <BookOpen size={16} className="text-emerald-700" /> Account Ledger
+          </button>
           {!isSponsor && (
             <button
               onClick={() => window.open(`/dashboard/plots/certificates/${booking._id}`, '_blank')}

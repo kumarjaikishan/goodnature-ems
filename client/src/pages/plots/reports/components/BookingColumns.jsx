@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Receipt, Printer, ScrollText, Edit3, History, Trash2, CalendarPlus, Coins } from 'lucide-react';
+import { Eye, BookOpen, Receipt, Printer, ScrollText, Edit3, History, Trash2, CalendarPlus, Coins } from 'lucide-react';
 import { toast } from '@/utils/toast';
 import api from '@/api/axios';
 
@@ -8,6 +8,7 @@ export const getBookingColumns = ({
   handleEditClick,
   openRevisionsModal,
   openDeleteBookingModal,
+  openBookingLedgerModal,
   deletingId,
   setSetupPayoutBooking,
   setSetupPayoutForm,
@@ -17,120 +18,178 @@ export const getBookingColumns = ({
   {
     name: 'Booking Date',
     selector: (row) => row.bookingDate || row.createdAt,
-    cell: (row) => (
-      <span className="text-slate-600 font-medium whitespace-nowrap text-xs">
-        {new Date(row.bookingDate || row.createdAt).toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })}
-      </span>
-    ),
+    cell: (row) => {
+      const d = new Date(row.bookingDate || row.createdAt);
+      return (
+        <div className="flex flex-col leading-tight py-1">
+          <span className="text-slate-800 font-semibold text-xs whitespace-nowrap">
+            {d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          </span>
+          <span className="text-[11px] text-slate-400 font-medium font-mono">
+            {d.getFullYear()}
+          </span>
+        </div>
+      );
+    },
     sortable: true,
-    minWidth: '120px',
+    minWidth: '110px',
   },
   {
     name: 'Booking & Plot #',
     selector: (row) => row.bookingNumber,
     cell: (row) => (
-      <div className="flex flex-col text-xs">
-        <span className="font-bold text-slate-900 tracking-wide font-mono">{row.bookingNumber}</span>
-        <span className="text-[11px] font-semibold text-teal-800">Plot: {row.plotId?.plotNumber || 'N/A'}</span>
+      <div className="flex flex-col gap-1 py-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 shadow-2xs">
+            Plot #{row.plotId?.plotNumber || 'N/A'}
+          </span>
+          {row.scheme && (
+            <span className="text-[9px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+              {row.scheme === 'FULL_PAYMENT' ? 'Full' : 'EMI'}
+            </span>
+          )}
+        </div>
+        <span className="font-mono text-[11px] font-medium text-slate-500 tracking-wide">
+          {row.bookingNumber}
+        </span>
       </div>
     ),
     sortable: true,
-    minWidth: '140px',
+    minWidth: '150px',
   },
   {
     name: 'Customer',
     selector: (row) => row.customerId?.name || row.customerName,
-    cell: (row) => (
-      <div className="flex flex-col text-xs">
-        <span className="font-bold text-slate-900 truncate">{row.customerId?.name || row.customerName}</span>
-        <span className="text-[11px] text-slate-500 font-medium">{row.customerId?.mobile || row.customerMobile}</span>
-      </div>
-    ),
+    cell: (row) => {
+      const name = row.customerId?.name || row.customerName || 'N/A';
+      const phone = row.customerId?.mobile || row.customerMobile || '';
+      return (
+        <div className="flex flex-col py-1">
+          <span className="font-bold text-slate-900 text-[13px] tracking-tight leading-snug">
+            {name}
+          </span>
+          {phone && (
+            <span className="text-[11px] text-slate-400 font-medium font-mono mt-0.5">
+              {phone}
+            </span>
+          )}
+        </div>
+      );
+    },
     sortable: true,
-    minWidth: '160px',
+    minWidth: '170px',
     grow: 2,
   },
   {
     name: 'Plot Value',
     selector: (row) => row.plotValue || 0,
-    cell: (row) => (
-      <span className="font-bold text-slate-900 font-mono text-xs">
-        ₹{(row.plotValue || 0).toLocaleString('en-IN')}
-      </span>
-    ),
+    cell: (row) => {
+      const area = row.plotId?.plotSize || row.plotId?.area || row.plotId?.areaSqFt || 0;
+      return (
+        <div className="flex flex-col leading-tight py-1">
+          <span className="font-semibold text-slate-700 font-mono text-[13px]">
+            ₹{(row.plotValue || 0).toLocaleString('en-IN')}
+          </span>
+          {area > 0 && (
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5">
+              {area} Sq Ft
+            </span>
+          )}
+        </div>
+      );
+    },
     sortable: true,
     minWidth: '120px',
   },
   {
     name: 'Discount',
     selector: (row) => row.discount || 0,
-    cell: (row) => (
-      <span className="font-semibold text-slate-700 font-mono text-xs">
-        {row.discount > 0 ? `₹${(row.discount || 0).toLocaleString('en-IN')}` : '-'}
-      </span>
-    ),
+    cell: (row) =>
+      row.discount > 0 ? (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 font-mono">
+          -₹{(row.discount).toLocaleString('en-IN')}
+        </span>
+      ) : (
+        <span className="text-slate-300 font-mono text-xs select-none">—</span>
+      ),
     sortable: true,
     minWidth: '100px',
   },
   {
     name: 'Paid Amount',
     selector: (row) => Math.max(0, (row.plotValue || 0) - (row.discount || 0) - (row.remainingAmount || 0)),
-    cell: (row) => (
-      <span className="font-bold text-emerald-800 font-mono text-xs">
-        ₹{Math.max(0, (row.plotValue || 0) - (row.discount || 0) - (row.remainingAmount || 0)).toLocaleString('en-IN')}
-      </span>
-    ),
+    cell: (row) => {
+      const netVal = Math.max(0, (row.plotValue || 0) - (row.discount || 0));
+      const paid = Math.max(0, netVal - (row.remainingAmount || 0));
+
+      return (
+        <span
+          className={`font-mono text-[13px] ${
+            paid > 0 ? 'font-bold text-emerald-700' : 'font-medium text-slate-400'
+          }`}
+        >
+          ₹{paid.toLocaleString('en-IN')}
+        </span>
+      );
+    },
     sortable: true,
     minWidth: '130px',
   },
   {
     name: 'Outstanding',
     selector: (row) => row.remainingAmount || 0,
-    cell: (row) => (
-      <span className="font-bold text-rose-700 font-mono text-xs">
-        ₹{(row.remainingAmount || 0).toLocaleString('en-IN')}
-      </span>
-    ),
+    cell: (row) => {
+      const remaining = Number(row.remainingAmount || 0);
+      return remaining > 0 ? (
+        <span className="font-black text-rose-700 font-mono text-[13px]">
+          ₹{remaining.toLocaleString('en-IN')}
+        </span>
+      ) : (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          ✓ Cleared
+        </span>
+      );
+    },
     sortable: true,
     minWidth: '130px',
   },
   {
     name: 'Status',
     selector: (row) => row.status,
-    cell: (row) => (
-      <span
-        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-          row.status === 'ACTIVE'
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : row.status === 'PENDING'
-            ? 'bg-amber-100 text-amber-900 border border-amber-300 font-extrabold'
-            : row.status === 'REJECTED'
-            ? 'bg-rose-100 text-rose-800 border border-rose-300'
-            : row.status === 'HOLD'
-            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-            : row.status === 'COMPLETED'
-            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-            : row.status === 'CANCELLED'
-            ? 'bg-red-50 text-red-700 border border-red-200'
-            : 'bg-slate-100 text-slate-700 border border-slate-200'
-        }`}
-      >
-        {row.status}
-      </span>
-    ),
+    cell: (row) => {
+      const statusStyles = {
+        ACTIVE: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+        PENDING: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500' },
+        REJECTED: { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', dot: 'bg-rose-500' },
+        HOLD: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-400' },
+        COMPLETED: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', dot: 'bg-blue-500' },
+        CANCELLED: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-400' },
+      };
+      const style = statusStyles[row.status] || {
+        bg: 'bg-slate-100',
+        text: 'text-slate-700',
+        border: 'border-slate-200',
+        dot: 'bg-slate-400',
+      };
+
+      return (
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${style.bg} ${style.text} border ${style.border} shadow-2xs`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+          {row.status}
+        </span>
+      );
+    },
     sortable: true,
-    minWidth: '110px',
+    minWidth: '115px',
   },
   {
     name: 'Actions',
-    minWidth: '220px',
+    minWidth: '250px',
     cell: (b) => (
       <div className="flex items-center gap-1.5 py-1">
-        {/* 1. View Full Details & Ledger */}
+        {/* 1. View Full Details */}
         <button
           onClick={() => navigate(`/dashboard/plots/booking/${b._id}`)}
           title="View Full Plot & Booking Details"
@@ -139,7 +198,16 @@ export const getBookingColumns = ({
           <Eye size={15} />
         </button>
 
-        {/* 2. Print Booking Receipt */}
+        {/* 2. View Booking Financial Ledger Page */}
+        <button
+          onClick={() => navigate(`/dashboard/plots/booking/${b._id}/ledger`)}
+          title="View Booking Financial Ledger & Statement"
+          className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition cursor-pointer border border-emerald-200 shadow-2xs hover:border-emerald-400"
+        >
+          <BookOpen size={15} />
+        </button>
+
+        {/* 3. Print Booking Receipt */}
         {b.receiptId && (
           <button
             onClick={() => navigate(`/dashboard/plots/receipts/${b.receiptId}`)}

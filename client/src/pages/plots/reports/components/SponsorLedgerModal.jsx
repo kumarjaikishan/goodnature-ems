@@ -6,25 +6,19 @@ const SponsorLedgerModal = ({ sponsor, onClose, loading, ledgerData }) => {
   if (!sponsor) return null;
 
   return (
-    <Modalbox open={Boolean(sponsor)} onClose={onClose} size="4xl">
-      <div className="p-6 w-full space-y-4 max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">
-              Plot Sponsor Commission Ledger — {sponsor?.name} ({sponsor?.customerId})
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Individual plot commission credit statement for sponsor {sponsor?.name}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold text-base cursor-pointer transition p-1"
-          >
-            ✕
-          </button>
-        </div>
-
+    <Modalbox
+      open={Boolean(sponsor)}
+      onClose={onClose}
+      size="4xl"
+      title={`Plot Sponsor Commission Ledger — ${sponsor?.name || ''} (${sponsor?.customerId || ''})`}
+      subtitle={`Individual plot commission credit statement for sponsor ${sponsor?.name || ''}`}
+      footer={
+        <Button variant="secondary" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="w-full space-y-4 max-h-[70vh] flex flex-col">
         <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
           {loading ? (
             <div className="p-8 text-center text-slate-500 font-medium">Loading ledger entries...</div>
@@ -82,12 +76,6 @@ const SponsorLedgerModal = ({ sponsor, onClose, loading, ledgerData }) => {
               </tbody>
             </table>
           )}
-        </div>
-
-        <div className="flex justify-end pt-3 border-t border-slate-100 shrink-0">
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </div>
     </Modalbox>

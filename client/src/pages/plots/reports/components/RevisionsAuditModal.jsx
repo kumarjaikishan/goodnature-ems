@@ -18,27 +18,19 @@ const RevisionsAuditModal = ({
   if (!booking) return null;
 
   return (
-    <Modalbox open={Boolean(booking)} onClose={onClose} outside={true} size="3xl">
-      <div className="p-6 w-full space-y-4 max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-teal-50 text-teal-700 rounded-xl">
-              <History size={18} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Contract Revision & Audit Trail #{booking?.bookingNumber}
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                Track every edit, tenure change, land sourcing shift, and financial recalculation.
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-            ✕
-          </button>
-        </div>
-
+    <Modalbox
+      open={Boolean(booking)}
+      onClose={onClose}
+      size="3xl"
+      title={`Contract Revision & Audit Trail #${booking?.bookingNumber}`}
+      subtitle="Track every edit, tenure change, land sourcing shift, and financial recalculation."
+      footer={
+        <Button variant="secondary" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="w-full space-y-4 max-h-[70vh] flex flex-col">
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
           {loading ? (
             <div className="py-12 text-center text-slate-400">Loading revision audits...</div>
@@ -308,12 +300,6 @@ const RevisionsAuditModal = ({
               </div>
             ))
           )}
-        </div>
-
-        <div className="flex justify-end pt-3 border-t border-slate-100">
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </div>
     </Modalbox>

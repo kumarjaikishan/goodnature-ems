@@ -81,13 +81,13 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
                 const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
                 const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);
-                const isBranchPartner = isSponsor && hasBranch;
+                const isBranchPartner = isSponsor && !l.sponsorId?.sponsorId && hasBranch;
                 const isPartner = isSponsor && !l.sponsorId?.sponsorId;
 
                 if (category === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (category === 'seller' || category === 'kisan') return isKisan;
                 if (category === 'associate') return isAssociate;
-                if (category === 'partner') return isPartner && !isBranchPartner;
+                if (category === 'partner') return isPartner;
                 if (category === 'branch_partner') return isBranchPartner;
                 return true;
             });
@@ -111,8 +111,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
                 const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);
                 const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
-                const isBranchPartner = isSponsor && hasBranch;
-                const isPartner = isSponsor && !l.sponsorId?.sponsorId && !isBranchPartner;
+                const isBranchPartner = isSponsor && !l.sponsorId?.sponsorId && hasBranch;
+                const isPartner = isSponsor && !l.sponsorId?.sponsorId;
                 
                 if (typeFilter === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (typeFilter === 'seller' || typeFilter === 'kisan') return isKisan;
@@ -427,10 +427,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         Sellers ({ledgers.filter(l => (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
                                     </option>
                                     <option value="partner">
-                                        Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId && (!l.sponsorId?.branchIds || l.sponsorId.branchIds.length === 0)).length})
+                                        Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId).length})
                                     </option>
                                     <option value="branch_partner">
-                                        Branch Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0)).length})
+                                        Branch Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId && Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0)).length})
                                     </option>
                                     <option value="associate">
                                         Business Associates ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId)).length})
@@ -504,33 +504,27 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
                                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                                 const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
                                 const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
-                                const isBranchPartner = isSpon && hasBranch;
-                                const isPartner = isSpon && !l.sponsorId?.sponsorId && !isBranchPartner;
+                                const isPartner = isSpon && !l.sponsorId?.sponsorId;
 
                                 const tagLabel = isEmp
                                     ? 'Employee'
                                     : isKisan
                                     ? 'Seller'
-                                    : isBranchPartner
-                                    ? 'Branch Partner'
-                                    : isPartner
-                                    ? 'Partner'
                                     : isAssociate
                                     ? 'Associate'
+                                    : isPartner
+                                    ? 'Partner'
                                     : (l.ledgerType || 'Custom');
 
                                 const tagClass = isEmp
                                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
                                     : isKisan
                                     ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                    : isBranchPartner
-                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
-                                    : isPartner
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                     : isAssociate
                                     ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                    : isPartner
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                     : 'bg-slate-50 text-slate-700 border border-slate-200';
 
                                 return (
@@ -724,33 +718,27 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                     const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
                                                     const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                                                     const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                                    const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
                                                     const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
-                                                    const isBranchPartner = isSpon && hasBranch;
-                                                    const isPartner = isSpon && !l.sponsorId?.sponsorId && !isBranchPartner;
+                                                    const isPartner = isSpon && !l.sponsorId?.sponsorId;
 
                                                     const tagLabel = isEmp
                                                         ? 'Employee'
                                                         : isKisan
                                                         ? 'Seller'
-                                                        : isBranchPartner
-                                                        ? 'Branch Partner'
-                                                        : isPartner
-                                                        ? 'Partner'
                                                         : isAssociate
                                                         ? 'Associate'
+                                                        : isPartner
+                                                        ? 'Partner'
                                                         : (l.ledgerType || 'Custom');
 
                                                     const tagClass = isEmp
                                                         ? 'bg-blue-50 text-blue-700 border border-blue-100'
                                                         : isKisan
                                                         ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                                        : isBranchPartner
-                                                        ? 'bg-teal-50 text-teal-800 border border-teal-200'
-                                                        : isPartner
-                                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                                         : isAssociate
                                                         ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                        : isPartner
+                                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                                         : 'bg-slate-50 text-slate-700 border border-slate-200';
 
                                                     return (

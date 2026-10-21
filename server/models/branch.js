@@ -6,6 +6,7 @@ const branchSchema = new mongoose.Schema({
   location: String,
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   managerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+  branchPartnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', default: null },
   defaultsetting: { type: Boolean, default: true },
 
   // ✅ Make setting optional

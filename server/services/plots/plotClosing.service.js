@@ -11,6 +11,7 @@ const PlotClosing = require('../../models/PlotClosing');
 const PlotAuditLog = require('../../models/PlotAuditLog');
 const CommissionPolicyConfig = require('../../models/CommissionPolicyConfig');
 const Entry = require('../../models/entry');
+const PlotProductBooking = require('../../models/PlotProductBooking');
 const accountingService = require('../accountingService');
 const plotConfigService = require('./plotConfig.service');
 
@@ -237,6 +238,7 @@ class PlotClosingService {
       const spId = sp._id.toString();
 
       const colAmt = Number(c.collectionAmount || 0);
+      const isBranch = c.commissionRole === 'BRANCH_OVERRIDE';
       const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
       const isIndirect = c.commissionRole === 'DEVELOPER_OVERRIDE';
 
@@ -248,14 +250,19 @@ class PlotClosingService {
           customerId: sp.customerId || sp.sponsorCode || '',
           mobile: sp.mobile || '',
           isDeveloper: !sp.sponsorId || sp.sponsorId === 'direct',
+          isBranchPartner: isBranch,
           directBusiness: 0,
           indirectBusiness: 0,
+          branchBusiness: 0,
           totalBusiness: 0,
           entries: [],
         };
       }
 
-      if (isDirect) {
+      if (isBranch) {
+        sponsorMap[spId].isBranchPartner = true;
+        sponsorMap[spId].branchBusiness += colAmt;
+      } else if (isDirect) {
         sponsorMap[spId].directBusiness += colAmt;
       } else if (isIndirect) {
         sponsorMap[spId].indirectBusiness += colAmt;
@@ -270,17 +277,19 @@ class PlotClosingService {
     let totalExtraIncentiveCommission = 0;
 
     const sponsors = Object.values(sponsorMap).map(sp => {
-      const roleName = !sp.isDeveloper ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
+      const roleName = sp.isBranchPartner ? 'BRANCH_PARTNER' : (!sp.isDeveloper ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER');
 
-      // Slabs resolution for Plot, Investment, and Plot Product policies based on sponsor's total period volume
-      const plotSlab = CommissionPolicyConfig.resolveSlab(plotPolicyConfig, roleName, sp.totalBusiness, isExtra);
+      // The single unified policy configured in Plot Products applies to all plot sales and plot products
+      const unifiedPolicy = productPolicyConfig || plotPolicyConfig;
+      const plotSlab = CommissionPolicyConfig.resolveSlab(unifiedPolicy, roleName, sp.totalBusiness, isExtra);
+      const prdSlab = plotSlab;
       const invSlab = CommissionPolicyConfig.resolveSlab(investmentPolicyConfig, roleName, sp.totalBusiness, isExtra);
-      const prdSlab = CommissionPolicyConfig.resolveSlab(productPolicyConfig, roleName, sp.totalBusiness, isExtra);
 
-      const defaultFixedPct = !sp.isDeveloper ? 5.0 : 2.0;
-      const defaultIncPct = isExtra ? plotSlab.extraIncentivePercent : plotSlab.baseIncentivePercent;
-      const slabLabel = plotSlab.slabLabel;
-      const rewardTitle = plotSlab.rewardTitle || '';
+      const dominantSlab = sp.entries.some(e => e.isInvestment || e.businessType === 'INVESTMENT_RD_FD') ? invSlab : plotSlab;
+      const defaultFixedPct = sp.isBranchPartner ? 0.5 : (!sp.isDeveloper ? 5.0 : 2.0);
+      const defaultIncPct = isExtra ? dominantSlab.extraIncentivePercent : dominantSlab.baseIncentivePercent;
+      const slabLabel = dominantSlab.slabLabel;
+      const rewardTitle = dominantSlab.rewardTitle || '';
 
       let spFixedComm = 0;
       let spIncentiveComm = 0;
@@ -504,6 +513,8 @@ class PlotClosingService {
           indirectEffectivePct: s.indirectEffectivePct || 0,
           totalEffectivePct: s.totalEffectivePct || 0,
           slabLabel: s.slabLabel || '',
+          rateStr: s.rateStr || '',
+          effectiveIncPct: s.effectiveIncPct || 0,
           rewardTitle: s.rewardTitle || '',
           transactionCount: s.transactionCount,
         })),
@@ -898,6 +909,8 @@ class PlotClosingService {
         indirectEffectivePct: s.indirectEffectivePct || 0,
         totalEffectivePct: s.totalEffectivePct || 0,
         slabLabel: s.slabLabel || '',
+        rateStr: s.rateStr || '',
+        effectiveIncPct: s.effectiveIncPct || 0,
         rewardTitle: s.rewardTitle || '',
         transactionCount: s.transactionCount,
       }));

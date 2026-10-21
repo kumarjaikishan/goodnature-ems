@@ -51,7 +51,7 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
     },
     commissionRole: {
       type: String,
-      enum: ['PROMOTER', 'DEVELOPER_OVERRIDE', 'DIRECT_DEVELOPER'],
+      enum: ['PROMOTER', 'DEVELOPER_OVERRIDE', 'DIRECT_DEVELOPER', 'BRANCH_OVERRIDE'],
       default: 'PROMOTER',
     },
     plotValue: {

@@ -13,6 +13,7 @@ const PlotAuditLog = require('../../models/PlotAuditLog');
 const PlotSponsorCommission = require('../../models/PlotSponsorCommission');
 const KisanLandAgreement = require('../../models/KisanLandAgreement');
 const Plot = require('../../models/Plot');
+const Branch = require('../../models/branch');
 const Ledger = require('../../models/ledger');
 const Entry = require('../../models/entry');
 const accountingService = require('../accountingService');
@@ -651,6 +652,23 @@ class PlotProductService {
       if (proj) resolvedProjectName = proj.name;
     }
 
+    let resolvedBranchId = data.branchId || null;
+    let resolvedBranchPartnerId = data.branchPartnerId || null;
+    if (sponsorId && (!resolvedBranchId || !resolvedBranchPartnerId)) {
+      const spUser = await User.findById(sponsorId).select('branchIds sponsorId');
+      if (!resolvedBranchId && spUser?.branchIds?.length > 0) {
+        resolvedBranchId = spUser.branchIds[0];
+      }
+      if (!resolvedBranchId && spUser?.sponsorId) {
+        const parentSp = await User.findById(spUser.sponsorId).select('branchIds');
+        if (parentSp?.branchIds?.length > 0) resolvedBranchId = parentSp.branchIds[0];
+      }
+    }
+    if (resolvedBranchId && !resolvedBranchPartnerId) {
+      const bDoc = await Branch.findById(resolvedBranchId).select('branchPartnerId');
+      if (bDoc?.branchPartnerId) resolvedBranchPartnerId = bDoc.branchPartnerId;
+    }
+
     const bookingDoc = new PlotProductBooking({
       bookingNumber,
       bookingDate: bDate,
@@ -660,6 +678,8 @@ class PlotProductService {
       projectName: resolvedProjectName,
       customerId: customer._id,
       sponsorId,
+      branchId: resolvedBranchId || null,
+      branchPartnerId: resolvedBranchPartnerId || null,
       quantity: qty,
       unitPrice,
       totalAmount,

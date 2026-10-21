@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ShoppingCart, SlidersHorizontal, Award } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
@@ -12,11 +12,35 @@ import ProductSchemeRulesTab from './components/ProductSchemeRulesTab';
 import CommissionPolicyMatrix from '../seriesMaster/components/CommissionPolicyMatrix';
 import ProductCustomerLedgerModal from './components/ProductCustomerLedgerModal';
 
+const VALID_TABS = ['catalog', 'sales', 'schemes', 'incentives'];
+
 const PlotProductsPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Active Tab: 'catalog' | 'sales' | 'schemes' | 'incentives'
-  const [activeTab, setActiveTab] = useState('catalog');
+  // Active Tab synced with URL query (?tab=catalog|sales|schemes|incentives)
+  const tabFromUrl = searchParams.get('tab');
+  const initialTab = VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'catalog';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (tabFromUrl && VALID_TABS.includes(tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    } else if (!tabFromUrl) {
+      setActiveTab('catalog');
+    }
+  }, [tabFromUrl]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    const newParams = new URLSearchParams(searchParams);
+    if (newTab === 'catalog') {
+      newParams.delete('tab');
+    } else {
+      newParams.set('tab', newTab);
+    }
+    setSearchParams(newParams, { replace: true });
+  };
 
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
@@ -100,7 +124,7 @@ const PlotProductsPage = () => {
       <div className="flex border-b border-slate-200 gap-6 overflow-x-auto">
         <button
           type="button"
-          onClick={() => setActiveTab('catalog')}
+          onClick={() => handleTabChange('catalog')}
           className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'catalog'
               ? 'border-teal-800 text-teal-800'
@@ -111,7 +135,7 @@ const PlotProductsPage = () => {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('sales')}
+          onClick={() => handleTabChange('sales')}
           className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'sales'
               ? 'border-teal-800 text-teal-800'
@@ -127,7 +151,7 @@ const PlotProductsPage = () => {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('schemes')}
+          onClick={() => handleTabChange('schemes')}
           className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'schemes'
               ? 'border-teal-800 text-teal-800'
@@ -138,7 +162,7 @@ const PlotProductsPage = () => {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('incentives')}
+          onClick={() => handleTabChange('incentives')}
           className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'incentives'
               ? 'border-teal-800 text-teal-800'

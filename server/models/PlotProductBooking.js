@@ -156,6 +156,18 @@ const plotProductBookingSchema = new mongoose.Schema(
       ref: 'User',
       required: false,
     },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
+      index: true,
+    },
+    branchPartnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
     landSourcing: [
       {
         sourceType: {

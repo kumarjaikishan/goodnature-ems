@@ -83,6 +83,14 @@ const sponsorSummarySchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    rateStr: {
+      type: String,
+      default: '',
+    },
+    effectiveIncPct: {
+      type: Number,
+      default: 0,
+    },
     rewardTitle: {
       type: String,
       default: '',

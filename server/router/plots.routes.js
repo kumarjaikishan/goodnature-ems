@@ -111,6 +111,12 @@ router.get('/bookings/:id', (req, res, next) => {
   }
   return checkPermission('plot_booking', 1)(req, res, next);
 }, ctrl.getBookingById);
+router.get('/bookings/:id/ledger', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission('plot_booking', 1)(req, res, next);
+}, ctrl.getBookingLedger);
 router.put('/bookings/:id', checkPermission('plot_booking', 3), ctrl.updateBooking);
 router.put('/bookings/:id/approve', checkPermission('plot_booking', 3), ctrl.approveBooking);
 router.put('/bookings/:id/reject', checkPermission('plot_booking', 3), ctrl.rejectBooking);

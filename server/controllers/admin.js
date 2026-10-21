@@ -792,7 +792,10 @@ const firstfetch = async (req, res, next) => {
         const deptQuery = hasBranchFilter ? { branchId: { $in: allowedBranchIds } } : {};
 
         const [branches, departmentlist, notices] = await Promise.all([
-            branch.find(branchQuery).populate({ path: 'managerIds', select: 'name role profileImage profileimage' }).lean(),
+            branch.find(branchQuery)
+                .populate({ path: 'managerIds', select: 'name role profileImage profileimage' })
+                .populate({ path: 'branchPartnerId', select: 'name sponsorCode mobile email role profileImage' })
+                .lean(),
             departmentModal.find(deptQuery)
                 .populate('branchId', 'name')
                 .select('department branchId')
@@ -894,7 +897,7 @@ const updateCompany = async (req, res, next) => {
 
 
 const addBranch = async (req, res, next) => {
-    const { defaultsetting, name, location, companyId, managerIds = [] } = req.body;
+    const { defaultsetting, name, location, companyId, managerIds = [], branchPartnerId = null } = req.body;
 
     try {
         const now = new Date();
@@ -915,6 +918,7 @@ const addBranch = async (req, res, next) => {
             location,
             companyId,
             managerIds,
+            branchPartnerId: branchPartnerId || null,
             defaultsetting
         };
         if (!defaultsetting) {
@@ -925,11 +929,13 @@ const addBranch = async (req, res, next) => {
 
         // Update user roles to 'manager' if managerIds provided
         if (managerIds.length > 0) {
-
-            // Or, if you want faster parallel execution:
             await Promise.all(managerIds.map(empId =>
                 usermodal.findOneAndUpdate({ employeeId: empId }, { role: 'manager' })
             ));
+        }
+
+        if (branchPartnerId) {
+            await usermodal.findByIdAndUpdate(branchPartnerId, { $addToSet: { branchIds: newBranch._id } });
         }
 
         await newBranch.save();
@@ -944,7 +950,7 @@ const addBranch = async (req, res, next) => {
 
 
 const editBranch = async (req, res, next) => {
-    const { _id, name, location, companyId, defaultsetting, managerIds = [] } = req.body;
+    const { _id, name, location, companyId, defaultsetting, managerIds = [], branchPartnerId = null } = req.body;
 
     try {
         const existingBranch = await branch.findById(_id);
@@ -952,7 +958,10 @@ const editBranch = async (req, res, next) => {
             return next({ status: 404, message: "Branch not found" });
         }
         let updateDoc = {
-            name, location, companyId, managerIds, defaultsetting
+            name, location, companyId, managerIds, defaultsetting, branchPartnerId: branchPartnerId || null
+        }
+        if (branchPartnerId) {
+            await usermodal.findByIdAndUpdate(branchPartnerId, { $addToSet: { branchIds: _id } });
         }
         if (!defaultsetting) {
             const setting = req.body.setting

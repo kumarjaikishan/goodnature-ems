@@ -13,6 +13,7 @@ const accountingService = require('../accountingService');
 const CommissionPolicyConfig = require('../../models/CommissionPolicyConfig');
 const InvestmentSchemeConfig = require('../../models/InvestmentSchemeConfig');
 const Counter = require('../../models/Counter');
+const Branch = require('../../models/branch');
 const ApiError = require('../../utils/apiError');
 const plotConfigService = require('./plotConfig.service');
 
@@ -422,12 +423,96 @@ class PlotDeveloperService {
           else await devCommission.save();
         }
       }
+
+      // ── 3. BRANCH PARTNER COMMISSION OVERRIDE ──
+      const branchFixedPct = Number(booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null ? booking.branchCommissionPercent : 0.5);
+      let targetBranchPartnerId = booking.branchPartnerId;
+      if (!targetBranchPartnerId && booking.branchId) {
+        const bDoc = await Branch.findById(booking.branchId).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      }
+      if (!targetBranchPartnerId && sponsorDoc.branchIds && sponsorDoc.branchIds.length > 0) {
+        const bDoc = await Branch.findById(sponsorDoc.branchIds[0]).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      }
+      if (!targetBranchPartnerId && sponsorDoc.sponsorId) {
+        const parentSp = await User.findById(sponsorDoc.sponsorId).select('branchIds').session(session);
+        if (parentSp?.branchIds && parentSp.branchIds.length > 0) {
+          const bDoc = await Branch.findById(parentSp.branchIds[0]).select('branchPartnerId').session(session);
+          if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+        }
+      }
+
+      if (targetBranchPartnerId && branchFixedPct > 0) {
+        const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
+        let branchLedgerEntryId = null;
+        const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+
+        if (branchFixedAmt > 0 && receipt.status !== 'PENDING') {
+          const branchLedger = await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+          let existingBranchEntry = branchLedger ? await Entry.findOne({
+            ledgerId: branchLedger._id,
+            referenceId: receipt._id,
+            source: 'commission_branch',
+            status: 'active'
+          }).session(session) : null;
+
+          if (existingBranchEntry) {
+            if (existingBranchEntry.credit !== branchFixedAmt || existingBranchEntry.particular !== branchRemarks || (existingBranchEntry.date && new Date(existingBranchEntry.date).getTime() !== new Date(receiptDate).getTime())) {
+              await accountingService.updateLedgerEntry(existingBranchEntry._id, {
+                credit: branchFixedAmt,
+                particular: branchRemarks,
+                date: receiptDate
+              }, session);
+            }
+            branchLedgerEntryId = existingBranchEntry._id;
+          } else {
+            const entry = await accountingService.recordLedgerEntry({
+              sponsorId: targetBranchPartnerId,
+              date: receiptDate,
+              type: 'CREDIT',
+              amount: branchFixedAmt,
+              source: 'commission_branch',
+              referenceId: receipt._id,
+              remarks: branchRemarks
+            }, session);
+            branchLedgerEntryId = entry._id;
+          }
+          if (branchLedgerEntryId) validEntryIds.add(branchLedgerEntryId.toString());
+        }
+
+        const branchCommission = new PlotSponsorCommission({
+          bookingId: booking._id,
+          receiptId: receipt._id,
+          sponsorId: targetBranchPartnerId,
+          customerId: booking.customerId,
+          collectionAmount: collectionPrincipal,
+          plotValue: collectionPrincipal,
+          amount: branchFixedAmt,
+          commissionPercent: branchFixedPct,
+          commissionRole: 'BRANCH_OVERRIDE',
+          fixedPercent: branchFixedPct,
+          incentivePercent: 0,
+          fixedAmount: branchFixedAmt,
+          incentiveAmount: 0,
+          businessType: 'PLOT_SALE',
+          periodVolume: 0,
+          slabLabel: `Plot Sale Branch Override Fixed ${branchFixedPct}%`,
+          tierTenureMonths: Number(booking.tenureMonths) || 0,
+          status: 'active',
+          closingId: null,
+          ledgerEntryId: branchLedgerEntryId,
+          createdAt: receiptDate,
+        });
+        if (session) await branchCommission.save({ session });
+        else await branchCommission.save();
+      }
     }
 
-    // Clean up any orphan commission_fixed entries for deleted/rejected receipts
+    // Clean up any orphan commission_fixed / commission_branch entries for deleted/rejected receipts
     if (trackedReceiptIds.length > 0) {
       const orphanEntriesQuery = Entry.find({
-        source: 'commission_fixed',
+        source: { $in: ['commission_fixed', 'commission_branch'] },
         referenceId: { $in: trackedReceiptIds }
       });
       if (session) orphanEntriesQuery.session(session);
@@ -838,6 +923,90 @@ class PlotDeveloperService {
           else await devCommission.save();
         }
       }
+
+      // ── 3. BRANCH PARTNER OVERRIDE ──
+      let targetBranchPartnerId = booking.branchPartnerId;
+      if (!targetBranchPartnerId && booking.branchId) {
+        const bDoc = await Branch.findById(booking.branchId).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      }
+      if (!targetBranchPartnerId && sponsorDoc.branchIds && sponsorDoc.branchIds.length > 0) {
+        const bDoc = await Branch.findById(sponsorDoc.branchIds[0]).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      }
+      if (!targetBranchPartnerId && sponsorDoc.sponsorId) {
+        const parentSp = await User.findById(sponsorDoc.sponsorId).select('branchIds').session(session);
+        if (parentSp?.branchIds && parentSp.branchIds.length > 0) {
+          const bDoc = await Branch.findById(parentSp.branchIds[0]).select('branchPartnerId').session(session);
+          if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+        }
+      }
+
+      if (targetBranchPartnerId && branchFixedPct > 0) {
+        const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
+        let branchLedgerEntryId = null;
+        const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
+
+        if (branchFixedAmt > 0) {
+          const branchLedger = await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+          let existingBranchEntry = branchLedger ? await Entry.findOne({
+            ledgerId: branchLedger._id,
+            referenceId: booking._id,
+            particular: { $regex: col.receiptNumber },
+            source: 'commission_branch',
+            status: 'active'
+          }).session(session) : null;
+
+          if (existingBranchEntry) {
+            if (existingBranchEntry.credit !== branchFixedAmt || existingBranchEntry.particular !== branchRemarks || (existingBranchEntry.date && new Date(existingBranchEntry.date).getTime() !== new Date(receiptDate).getTime())) {
+              await accountingService.updateLedgerEntry(existingBranchEntry._id, {
+                credit: branchFixedAmt,
+                particular: branchRemarks,
+                date: receiptDate
+              }, session);
+            }
+            branchLedgerEntryId = existingBranchEntry._id;
+          } else {
+            const entry = await accountingService.recordLedgerEntry({
+              sponsorId: targetBranchPartnerId,
+              date: receiptDate,
+              type: 'CREDIT',
+              amount: branchFixedAmt,
+              source: 'commission_branch',
+              referenceId: booking._id,
+              remarks: branchRemarks
+            }, session);
+            branchLedgerEntryId = entry._id;
+          }
+          if (branchLedgerEntryId) validEntryIds.add(branchLedgerEntryId.toString());
+        }
+
+        const branchCommission = new PlotSponsorCommission({
+          productBookingId: booking._id,
+          receiptNumber: col.receiptNumber,
+          sponsorId: targetBranchPartnerId,
+          customerId: booking.customerId,
+          collectionAmount: collectionPrincipal,
+          plotValue: collectionPrincipal,
+          amount: branchFixedAmt,
+          commissionPercent: branchFixedPct,
+          commissionRole: 'BRANCH_OVERRIDE',
+          fixedPercent: branchFixedPct,
+          incentivePercent: 0,
+          fixedAmount: branchFixedAmt,
+          incentiveAmount: 0,
+          businessType: 'PLOT_PRODUCT',
+          periodVolume: 0,
+          slabLabel: `Product Collection Branch Override Fixed ${branchFixedPct}% (${bookingTenure}M)`,
+          tierTenureMonths: Number(booking.tenureMonths) || 0,
+          status: 'active',
+          closingId: null,
+          ledgerEntryId: branchLedgerEntryId,
+          createdAt: receiptDate,
+        });
+        if (session) await branchCommission.save({ session });
+        else await branchCommission.save();
+      }
     }
   }
 
@@ -852,42 +1021,88 @@ class PlotDeveloperService {
       throw err;
     }
 
-    // Auto-sync active bookings for this sponsor
-    const activeBookings = await PlotBooking.find({
-      status: { $in: ['ACTIVE', 'COMPLETED'] },
-      $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
-    }).select('_id').lean();
+    // Check if this sponsor is a designated Branch Partner
+    const branchDoc = await Branch.findOne({ branchPartnerId: sponsor._id }).lean();
+    const isBranchPartner = Boolean(branchDoc);
+
+    // Auto-sync active bookings for this sponsor (and branch bookings if Branch Partner)
+    const activeBookingFilter = isBranchPartner
+      ? {
+          status: { $in: ['ACTIVE', 'COMPLETED'] },
+          $or: [
+            { branchId: branchDoc._id },
+            { branchPartnerId: sponsor._id },
+            { sponsorId: sponsor._id },
+            { parentSponsorId: sponsor._id }
+          ]
+        }
+      : {
+          status: { $in: ['ACTIVE', 'COMPLETED'] },
+          $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
+        };
+
+    const activeBookings = await PlotBooking.find(activeBookingFilter).select('_id').lean();
 
     for (const b of activeBookings) {
       await this.syncBookingSponsorCommissions(b._id);
     }
 
-    const activeProductBookings = await PlotProductBooking.find({
-      status: { $in: ['ACTIVE', 'COMPLETED'] },
-      sponsorId: sponsor._id,
-    }).select('_id').lean();
+    const activeProductBookingFilter = isBranchPartner
+      ? {
+          status: { $in: ['ACTIVE', 'COMPLETED'] },
+          $or: [
+            { branchId: branchDoc._id },
+            { branchPartnerId: sponsor._id },
+            { sponsorId: sponsor._id }
+          ]
+        }
+      : {
+          status: { $in: ['ACTIVE', 'COMPLETED'] },
+          sponsorId: sponsor._id,
+        };
+
+    const activeProductBookings = await PlotProductBooking.find(activeProductBookingFilter).select('_id').lean();
 
     for (const pb of activeProductBookings) {
       await this.syncProductBookingSponsorCommissions(pb._id);
     }
 
-
     // 1. Fetch Subordinates / Team Network
-    const subordinates = await User.find({
-      role: 'sponsor',
-      sponsorId: sponsor._id
-    }).select('_id name sponsorCode customerId mobile email createdAt profileImage isBlocked').lean();
+    let subordinates = [];
+    if (isBranchPartner) {
+      subordinates = await User.find({
+        role: { $in: ['sponsor', 'agent'] },
+        _id: { $ne: sponsor._id },
+        branchIds: branchDoc._id
+      }).select('_id name sponsorCode customerId mobile email createdAt profileImage isBlocked sponsorId').lean();
+    } else {
+      subordinates = await User.find({
+        role: 'sponsor',
+        sponsorId: sponsor._id
+      }).select('_id name sponsorCode customerId mobile email createdAt profileImage isBlocked').lean();
+    }
 
     const subordinateIds = subordinates.map(s => s._id);
 
     // 2. Fetch Direct Bookings and Team Bookings
-    const allRelevantBookings = await PlotBooking.find({
-      $or: [
-        { sponsorId: sponsor._id },
-        { parentSponsorId: sponsor._id },
-        { sponsorId: { $in: subordinateIds } }
-      ]
-    })
+    const bookingQuery = isBranchPartner
+      ? {
+          $or: [
+            { branchId: branchDoc._id },
+            { branchPartnerId: sponsor._id },
+            { sponsorId: sponsor._id },
+            { sponsorId: { $in: subordinateIds } }
+          ]
+        }
+      : {
+          $or: [
+            { sponsorId: sponsor._id },
+            { parentSponsorId: sponsor._id },
+            { sponsorId: { $in: subordinateIds } }
+          ]
+        };
+
+    const allRelevantBookings = await PlotBooking.find(bookingQuery)
       .populate('customerId', 'name customerId customerCode mobile email')
       .populate('plotId', 'plotNumber plotSize plotType seriesId')
       .populate('sponsorId', 'name sponsorCode customerId mobile')
@@ -1043,13 +1258,16 @@ class PlotDeveloperService {
     const currentMonthDirectVol = await this.getSponsorPeriodVolume(sponsor._id, now, false);
     const currentMonthTeamVol = await this.getSponsorPeriodVolume(sponsor._id, now, true);
     const plotPolicy = CommissionPolicyConfig.getDefaultPlotPolicy();
-    const roleName = sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
-    const evalVolume = sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol;
+    const roleName = isBranchPartner ? 'BRANCH_PARTNER' : (sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER');
+    const roleDisplay = isBranchPartner ? `Branch Partner (${branchDoc.name})` : (sponsor.sponsorId ? 'Business Associate' : 'Business Partner');
+    const evalVolume = isBranchPartner ? (directPlotValue + teamPlotValue) : (sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol);
     const slabInfo = CommissionPolicyConfig.resolveSlab(plotPolicy, roleName, evalVolume);
 
     const targetTierInfo = {
       roleName,
-      roleDisplay: sponsor.sponsorId ? 'Business Associate' : 'Business Partner',
+      roleDisplay,
+      isBranchPartner,
+      branchName: branchDoc ? branchDoc.name : '',
       periodLabel: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       currentMonthVolume: evalVolume,
       directVolume: currentMonthDirectVol,
@@ -1072,6 +1290,8 @@ class PlotDeveloperService {
         mobile: sponsor.mobile || '',
         profileImage: sponsor.profileImage || '',
         isDeveloperSponsor: !sponsor.sponsorId,
+        isBranchPartner,
+        branchName: branchDoc ? branchDoc.name : '',
         parentSponsor: sponsor.sponsorId || null,
         joinedDate: sponsor.createdAt
       },
@@ -1493,13 +1713,16 @@ class PlotDeveloperService {
         rType = c.receiptId.receiptType;
       }
 
+      const isBranch = c.commissionRole === 'BRANCH_OVERRIDE';
       const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
       const isProduct = c.businessType === 'PLOT_PRODUCT';
-      const roleStr = isDirect
-        ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 'Direct Partner (3.5%)' : 'Direct Partner (7%)') : (isProduct ? 'Associate (2.5%)' : 'Associate (5%)'))
-        : (isProduct ? 'Partner Override (1%)' : 'Partner Override (2%)');
+      const roleStr = isBranch
+        ? `Branch Override (${c.fixedPercent || 0.5}%)`
+        : (isDirect
+          ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 'Direct Partner (3.5%)' : 'Direct Partner (7%)') : (isProduct ? 'Associate (2.5%)' : 'Associate (5%)'))
+          : (isProduct ? 'Partner Override (1%)' : 'Partner Override (2%)'));
 
-      const desc = `F.Comm on ₹${colAmt.toLocaleString('en-IN')} (${c.fixedPercent || (isDirect ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 3.5 : 7) : (isProduct ? 2.5 : 5)) : (isProduct ? 1 : 2))}%) [${rType}] Receipt #${rNum} (Booking #${bNum})`;
+      const desc = `F.Comm on ₹${colAmt.toLocaleString('en-IN')} (${c.fixedPercent || (isBranch ? 0.5 : (isDirect ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 3.5 : 7) : (isProduct ? 2.5 : 5)) : (isProduct ? 1 : 2)))}%) [${rType}] Receipt #${rNum} (Booking #${bNum})`;
 
       rawTransactions.push({
         id: c._id,
@@ -1646,6 +1869,10 @@ class PlotDeveloperService {
     }
     if (parentSponsorId) {
       filter.sponsorId = parentSponsorId;
+    } else if (roleType === 'branch_partner') {
+      const branchesWithPartners = await Branch.find({ branchPartnerId: { $ne: null } }).select('branchPartnerId').lean();
+      const bpPartnerIds = branchesWithPartners.map(b => b.branchPartnerId).filter(Boolean);
+      filter._id = { $in: bpPartnerIds };
     } else if (roleType === 'partner') {
       filter.$or = [{ sponsorId: null }, { sponsorId: { $exists: false } }];
     } else if (roleType === 'associate') {
@@ -1679,7 +1906,7 @@ class PlotDeveloperService {
     const ledgers = await Ledger.find({ sponsorId: { $in: sponsorIds } }).lean();
     const ledgerMap = new Map(ledgers.map(l => [l.sponsorId.toString(), l._id.toString()]));
 
-    const [customerCounts, bookingStats] = await Promise.all([
+    const [customerCounts, bookingStats, branchesWithPartners] = await Promise.all([
       PlotCustomer.aggregate([
         { $match: { sponsorId: { $in: sponsorIds } } },
         { $group: { _id: '$sponsorId', count: { $sum: 1 } } }
@@ -1694,9 +1921,11 @@ class PlotDeveloperService {
             totalDue: { $sum: { $ifNull: ['$remainingAmount', 0] } }
           }
         }
-      ])
+      ]),
+      Branch.find({ branchPartnerId: { $in: sponsorIds } }).select('_id name branchCode branchPartnerId').lean()
     ]);
 
+    const branchPartnerMap = new Map(branchesWithPartners.map(b => [b.branchPartnerId.toString(), b]));
     const custCountMap = new Map(customerCounts.map(c => [c._id.toString(), c.count]));
     const bkStatsMap = new Map(bookingStats.map(b => [b._id.toString(), b]));
 
@@ -1717,8 +1946,11 @@ class PlotDeveloperService {
           ledgerId = newLedger._id.toString();
         }
         const bStats = bkStatsMap.get(s._id.toString()) || {};
+        const partnerBranch = branchPartnerMap.get(s._id.toString()) || null;
         return {
           ...s,
+          isBranchPartner: Boolean(partnerBranch) || (s.sponsorCode && s.sponsorCode.startsWith('BRP-')),
+          branchPartnerBranch: partnerBranch,
           ledgerId,
           customerCount: custCountMap.get(s._id.toString()) || 0,
           bookingCount: bStats.bookingCount || 0,

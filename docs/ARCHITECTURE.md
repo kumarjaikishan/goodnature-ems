@@ -113,3 +113,30 @@ graph TD
          ├── CREDIT Target Ledger Entry (source: 'transfer', refId: transfer._id)
          └── Updates FundTransfer to 'APPROVED' with debitEntryId & creditEntryId
 ```
+
+### E. 3-Tier Hierarchy & Branch Partner 0.5% Commission Override Flow
+```
+1. Customer Booking Created (PlotBooking / PlotProductBooking)
+   │ Sourcing Resolution:
+   │   ├── Sponsoring Associate (BA) / Partner (BP) attached
+   │   ├── Resolved Branch: Explicitly provided, or sponsor's branchIds[0], or parent sponsor's branch
+   │   └── Resolved Branch Partner: branch.branchPartnerId assigned on the physical branch
+   ▼
+2. Collection Realized (Downpayment / Installment Payment Received)
+   │ Realized Amount Added to PlotPayment / PlotReceipt
+   ▼
+3. Commission Engine Execution (syncBookingSponsorCommissions)
+   ├── [Direct Commission]: Credit to Sponsoring BA/BP (source: 'commission_fixed')
+   ├── [Team Differential]: Credit to upline Business Partner (if booking sourced by BA)
+   └── [Branch Partner Override (0.5%)]:
+         ├── Checks if booking has assigned branchPartnerId
+         ├── Computes: Override Amount = Realized Collection * 0.5%
+         ├── Posts CREDIT to Branch Partner's Universal Ledger (source: 'commission_branch')
+         └── Saves PlotSponsorCommission audit record (commissionRole: 'BRANCH_OVERRIDE')
+   ▼
+4. Visibility & Closing:
+   ├── Branch Partner Universal Ledger: Viewable at /dashboard/ledger/branch-partners & /dashboard/ledger/:id
+   ├── Sponsor Portal: Logged-in Branch Partner dashboard automatically shows 🏢 Branch Partner badge,
+   │   Branch Turnover KPI, full branch subordinate network, and direct link to statement.
+   └── Monthly Closing (plotClosing.service.js): Evaluates Section 3 Branch Partner slabs for monthly targets.
+```

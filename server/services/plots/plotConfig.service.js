@@ -240,6 +240,20 @@ class PlotConfigService {
       if (data.roles) policy.roles = data.roles;
     }
     await policy.save();
+
+    // Universal policy sync: when saving PLOT_PRODUCT policy, sync it to PLOT_SALE so it applies everywhere
+    if (businessType === 'PLOT_PRODUCT') {
+      let salePolicy = await CommissionPolicyConfig.findOne({ businessType: 'PLOT_SALE', status: 'active' });
+      if (!salePolicy) {
+        salePolicy = new CommissionPolicyConfig({ ...data, businessType: 'PLOT_SALE', status: 'active' });
+      } else {
+        if (data.validFrom !== undefined) salePolicy.validFrom = data.validFrom;
+        if (data.validTo !== undefined) salePolicy.validTo = data.validTo;
+        if (data.roles) salePolicy.roles = data.roles;
+      }
+      await salePolicy.save();
+    }
+
     return policy;
   }
 }

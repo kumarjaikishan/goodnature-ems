@@ -8,6 +8,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import DateInput from '../../../components/ui/DateInput';
 import Select from '../../../components/ui/Select';
+import { amountInWords } from '../../../utils/numToWord';
 import {
     CreditCard,
     CheckCircle2,
@@ -136,33 +137,27 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     const isEmp = ledger.ledgerType === 'employee' || Boolean(ledger.employeeId);
     const isKisan = ledger.ledgerType === 'kisan' || Boolean(ledger.kisanSellerId);
     const isSpon = ledger.ledgerType === 'sponsor' || Boolean(ledger.sponsorId);
-    const hasBranch = Boolean(ledger.sponsorId?.branchIds && ledger.sponsorId.branchIds.length > 0);
     const isAssociate = isSpon && Boolean(ledger.sponsorId?.sponsorId);
-    const isBranchPartner = isSpon && hasBranch;
-    const isPartner = isSpon && !ledger.sponsorId?.sponsorId && !isBranchPartner;
+    const isPartner = isSpon && !ledger.sponsorId?.sponsorId;
 
     const tagLabel = isEmp
         ? 'Employee'
         : isKisan
         ? 'Seller'
-        : isBranchPartner
-        ? 'Branch Partner'
-        : isPartner
-        ? 'Partner'
         : isAssociate
         ? 'Associate'
+        : isPartner
+        ? 'Partner'
         : (ledger.ledgerType || 'Custom');
 
     const tagClass = isEmp
         ? 'bg-blue-50 text-blue-700 border-blue-200'
         : isKisan
         ? 'bg-amber-50 text-amber-800 border-amber-200'
-        : isBranchPartner
-        ? 'bg-teal-50 text-teal-800 border-teal-200'
-        : isPartner
-        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
         : isAssociate
         ? 'bg-purple-50 text-purple-700 border-purple-200'
+        : isPartner
+        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
         : 'bg-slate-50 text-slate-700 border-slate-200';
 
     const handleAmountChange = (e) => {
@@ -396,6 +391,11 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                             onKeyDown={handleAmountKeyDown}
                             required
                         />
+                        {amount && Number(amount) > 0 && (
+                            <p className="text-[11px] text-teal-700 font-semibold mt-1 pl-1">
+                                {amountInWords(amount, { only: true })}
+                            </p>
+                        )}
                     </div>
                 </div>
 

@@ -4,7 +4,6 @@ import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DataTable from '@/components/common/DataTable';
-import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import Button from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
@@ -247,7 +246,52 @@ const PlotReports = () => {
     });
   }, [data, activeTab, searchTerm, schemeFilter, statusFilter]);
 
-  const customStyles = useCustomStyles();
+  const customStyles = useMemo(
+    () => ({
+      table: {
+        style: {
+          backgroundColor: '#ffffff',
+        },
+      },
+      headCells: {
+        style: {
+          backgroundColor: '#115e59', // Good Nature Deep Teal 800
+          fontWeight: '700',
+          fontSize: '11px',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: '#ffffff',
+          paddingLeft: '12px',
+          paddingRight: '12px',
+          minHeight: '44px',
+        },
+      },
+      headRow: {
+        style: {
+          borderBottom: '2px solid #0d9488',
+        },
+      },
+      rows: {
+        style: {
+          minHeight: '58px',
+          borderBottom: '1px solid #f1f5f9',
+          transition: 'background-color 0.15s ease',
+          '&:hover': {
+            backgroundColor: '#f8fafc',
+          },
+        },
+      },
+      cells: {
+        style: {
+          paddingLeft: '12px',
+          paddingRight: '12px',
+          paddingTop: '6px',
+          paddingBottom: '6px',
+        },
+      },
+    }),
+    []
+  );
 
   const bookingColumns = useMemo(
     () =>

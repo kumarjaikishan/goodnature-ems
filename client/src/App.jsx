@@ -113,6 +113,7 @@ const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/Plo
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
+const PlotBookingLedgerPage = lazy(() => import('./pages/plots/booking/PlotBookingLedgerPage'));
 
 
 // 🔹 Operational / Management Roles Constant
@@ -206,6 +207,8 @@ const managementRoutes = (
     <Route path="plots/addbooking" element={<RoutePermissionGuard resource="plot_booking" action={2}><PlotBooking /></RoutePermissionGuard>} />
     <Route path="plots/booking/new" element={<RoutePermissionGuard resource="plot_booking" action={2}><PlotBookingFormPage /></RoutePermissionGuard>} />
     <Route path="plots/booking/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><PlotBookingDetails /></RoutePermissionGuard>} />
+    <Route path="plots/booking/:id/ledger" element={<RoutePermissionGuard resource="plot_booking" action={1}><PlotBookingLedgerPage /></RoutePermissionGuard>} />
+    <Route path="plots/booking/ledger/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><PlotBookingLedgerPage /></RoutePermissionGuard>} />
     <Route path="plots/booking/edit/:id" element={<RoutePermissionGuard resource="plot_booking" action={3}><PlotBookingEditPage /></RoutePermissionGuard>} />
     <Route path="plots/installments" element={<Navigate to="/dashboard/plots/collections/emi" replace />} />
     <Route path="plots/collections/downpayment" element={<RoutePermissionGuard resource="plot_collection" action={1}><InstallmentCollection type="DOWNPAYMENT" /></RoutePermissionGuard>} />
@@ -273,6 +276,8 @@ const sponsorRoutes = (
     <Route path="plots/bookings" element={<BusinessDeveloperBookingsPage />} />
     <Route path="plots/booking/:id" element={<PlotBookingDetails />} />
     <Route path="plots/bookings/:id" element={<PlotBookingDetails />} />
+    <Route path="plots/booking/:id/ledger" element={<PlotBookingLedgerPage />} />
+    <Route path="plots/bookings/:id/ledger" element={<PlotBookingLedgerPage />} />
     <Route path="plots/certificates/:id" element={<BookingCertificateViewer />} />
     <Route path="plots/product-certificates/:id" element={<BookingCertificateViewer />} />
     <Route path="plots/product-agreements/:id" element={<ProductAgreementViewer />} />

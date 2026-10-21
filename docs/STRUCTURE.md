@@ -55,14 +55,17 @@ Ems-goodnature/
 │   │   ├── employee_middleware.js  # Employee specific middleware
 │   │   └── multer_middleware.js    # File upload handling
 │   ├── models/                 # Mongoose schemas (37 models)
-│   │   ├── user.js                 # User accounts, roles, permissions, KYC & bank details
+│   │   ├── user.js                 # User accounts, roles, sponsor codes, KYC, bank & ledgerId links
+│   │   ├── branch.js               # Physical branches, managerIds, and branchPartnerId (Franchise Head)
 │   │   ├── employee.js             # Employee profiles, branch/department links
 │   │   ├── attandence.js           # Daily attendance records, punches, duration
 │   │   ├── Plot.js                 # Individual plot inventory item
-│   │   ├── PlotBooking.js          # Plot bookings, holds, scheme types, status
+│   │   ├── PlotBooking.js          # Plot bookings, holds, branchId, branchPartnerId, scheme types, status
+│   │   ├── PlotProductBooking.js   # Plot product bookings, tenure, branchId, branchPartnerId
 │   │   ├── PlotCustomer.js         # Real estate customers
 │   │   ├── PlotPayment.js          # Payment transaction entries
 │   │   ├── PlotReceipt.js          # Official receipt numbers and payment records
+│   │   ├── PlotSponsorCommission.js# Audit commissions (DIRECT, TEAM, SELF, BRANCH_OVERRIDE)
 │   │   ├── PlotSeriesMaster.js     # Master plot series with dimensional config
 │   │   ├── PlotPayoutSchedule.js   # Customer weekly return schedule
 │   │   ├── PlotPayoutVoucher.js    # Customer payout payment vouchers
@@ -78,6 +81,12 @@ Ems-goodnature/
 │   │   ├── leaveService.js         # Leave requests & quota logic
 │   │   ├── payment.js              # Payment gateway & webhook verification
 │   │   ├── plots.service.js        # Core plot engine (booking, series, payout calculations)
+│   │   ├── plots/                  # Modular Plot Engine Sub-Services
+│   │   │   ├── plotBooking.service.js   # Booking lifecycle, branch & partner sourcing resolution
+│   │   │   ├── plotCollection.service.js# Payment receipts & installment processing
+│   │   │   ├── plotDeveloper.service.js # 3-tier commissions, branch override (0.5%), sponsor network & stats
+│   │   │   ├── plotClosing.service.js   # Monthly incentive closings & Section 3 branch partner slabs
+│   │   │   └── plotProduct.service.js   # Plot products, maturity calculations & branch partner resolution
 │   │   └── weeklyOffService.js     # Weekly off accrual and sync logic
 │   ├── telegramHook.js         # Telegram webhook handler
 │   └── utils/                  # Helper utilities
@@ -98,13 +107,18 @@ Ems-goodnature/
         ├── api/                # Axios instance and API call wrappers
         ├── components/         # Reusable UI components and modal dialogs
         ├── pages/              # View pages grouped by feature area
-        │   ├── admin/          # Admin dashboard, attendance, employee, org settings
+        │   ├── admin/          # Admin dashboard, attendance, employee, organization & ledger
+        │   │   ├── organization/   # Branch & company management with Branch Partner assignment
+        │   │   └── ledger/         # Universal accounting ledgers (Banks, Cashiers, Branch Partners)
         │   ├── developer/      # Developer dashboard, permission manager, API monitor
         │   ├── employee/       # Employee self-service dashboard, attendance, leave
         │   ├── manager/        # Branch manager views
         │   ├── plots/          # Plot dashboard, inventory, bookings, installments, payouts
+        │   │   ├── booking/        # Plot booking lists, creation, and dedicated full-page booking ledger
+        │   │   ├── businessDevelopers/ # 3-tier portal: Branch Partner, Business Partner, Business Associate
+        │   │   ├── customers/      # Customer directory and onboarding
+        │   │   └── reports/        # Sponsor ledgers, payouts, and business performance reports
         │   ├── common/         # Common pages (e.g. payroll)
-        │   ├── membership/     # Subscription/membership
         │   └── vouchers/       # Expense voucher lists and creation
-        └── utils/              # Client-side helpers, SSE listener, route guards
+        └── utils/              # Client-side helpers, numToWord Indian currency formatter, SSE listener, route guards
 ```

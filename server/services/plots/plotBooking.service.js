@@ -17,6 +17,7 @@ const LandStockLedger = require('../../models/LandStockLedger');
 const Voucher = require('../../models/voucher');
 const PlotAuditLog = require('../../models/PlotAuditLog');
 const ApiError = require('../../utils/apiError');
+const Branch = require('../../models/branch');
 const plotConfigService = require('./plotConfig.service');
 const plotDeveloperService = require('./plotDeveloper.service');
 
@@ -63,6 +64,24 @@ class PlotBookingService {
       if (!plot) throw ApiError.notFound('Plot not found');
       if (plot.status !== 'AVAILABLE') {
         throw ApiError.badRequest(`Plot ${plot.plotNumber} is not available (Status: ${plot.status})`);
+      }
+
+      // Resolve branchId and branchPartnerId
+      let resolvedBranchId = data.branchId || null;
+      let resolvedBranchPartnerId = data.branchPartnerId || null;
+      if (sponsorId && (!resolvedBranchId || !resolvedBranchPartnerId)) {
+        const spUser = await User.findById(sponsorId).select('branchIds sponsorId').session(session);
+        if (!resolvedBranchId && spUser?.branchIds?.length > 0) {
+          resolvedBranchId = spUser.branchIds[0];
+        }
+        if (!resolvedBranchId && spUser?.sponsorId) {
+          const parentSp = await User.findById(spUser.sponsorId).select('branchIds').session(session);
+          if (parentSp?.branchIds?.length > 0) resolvedBranchId = parentSp.branchIds[0];
+        }
+      }
+      if (resolvedBranchId && !resolvedBranchPartnerId) {
+        const bDoc = await Branch.findById(resolvedBranchId).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) resolvedBranchPartnerId = bDoc.branchPartnerId;
       }
 
       const requiredPlotArea = plot.plotSize || plot.area || 0;
@@ -289,6 +308,8 @@ class PlotBookingService {
         bookingDate: bookingDateObj,
         customerId: finalCustomerId,
         sponsorId: finalSponsorId,
+        branchId: resolvedBranchId || null,
+        branchPartnerId: resolvedBranchPartnerId || null,
         plotId,
         projectId: resolvedProjectId,
         projectName: resolvedProjectName,
@@ -1203,6 +1224,142 @@ class PlotBookingService {
     }
 
     return booking;
+  }
+
+  async getBookingLedger(id) {
+    const plotCollectionService = require('./plotCollection.service');
+    await plotCollectionService.rebuildBookingInstallmentsState(id);
+
+    const booking = await PlotBooking.findById(id)
+      .populate('customerId', 'name mobile email customerId customerCode address fatherOrHusbandName relationType gender age nominee accountHolderName bankName bankBranch accountNumber ifscCode pan aadhar')
+      .populate('sponsorId', 'name customerId sponsorCode mobile address email')
+      .populate({
+        path: 'plotId',
+        populate: { path: 'seriesId' },
+      })
+      .populate('projectId')
+      .populate('landSourcing.agreementId', 'agreementNumber mauja thanaNumber khataNumber khesraNumber jamabandiNumber');
+
+    if (!booking) throw ApiError.notFound('Booking not found');
+
+    const [receipts, installments, revisions] = await Promise.all([
+      PlotReceipt.find({ bookingId: id })
+        .populate('branchId', 'name branchCode')
+        .populate('createdBy', 'name email role')
+        .sort({ createdAt: 1 })
+        .lean(),
+      PlotInstallment.find({ bookingId: id })
+        .sort({ installmentNumber: 1 })
+        .lean(),
+      PlotBookingRevision.find({ bookingId: id })
+        .sort({ createdAt: 1 })
+        .lean(),
+    ]);
+
+    const plotValue = Number(booking.plotValue || 0);
+    const discount = Number(booking.discount || 0);
+    const netPlotValue = Math.max(0, plotValue - discount);
+
+    const ledgerEntries = [];
+    let runningBalance = 0;
+
+    // 1. Plot Purchase Consideration (Debit)
+    runningBalance += netPlotValue;
+    ledgerEntries.push({
+      date: booking.bookingDate || booking.createdAt,
+      type: 'DEBIT',
+      category: 'BOOKING_CONSIDERATION',
+      particulars: `Plot Consideration - Plot #${booking.plotId?.plotNumber || 'N/A'}${booking.projectId?.projectName ? ` (${booking.projectId.projectName})` : ''}`,
+      referenceNumber: booking.bookingNumber,
+      paymentMode: 'CONTRACT',
+      debit: netPlotValue,
+      credit: 0,
+      balance: runningBalance,
+      notes: booking.notes || 'Initial booking contract value',
+    });
+
+    // 2. Receipt Payments (Credit)
+    let totalCollected = 0;
+    let totalFineCollected = 0;
+    receipts.forEach((rc) => {
+      const amt = Number(rc.amount || 0);
+      const fine = Number(rc.lateFinePaid || 0);
+      totalCollected += amt;
+      totalFineCollected += fine;
+      runningBalance -= amt;
+
+      const typeLabel =
+        rc.receiptType === 'DOWNPAYMENT'
+          ? 'Down Payment'
+          : rc.receiptType === 'FULL_PAYMENT'
+          ? 'Full Payment'
+          : rc.receiptType === 'INSTALLMENT'
+          ? 'Installment Collection'
+          : 'Collection Payment';
+
+      ledgerEntries.push({
+        _id: rc._id,
+        date: rc.createdAt,
+        type: 'CREDIT',
+        category: rc.receiptType || 'PAYMENT',
+        particulars: `Payment Received - ${typeLabel}${rc.paymentMode ? ` via ${rc.paymentMode}` : ''}${rc.transactionReference ? ` (Ref: ${rc.transactionReference})` : ''}`,
+        referenceNumber: rc.receiptNumber,
+        paymentMode: rc.paymentMode,
+        transactionReference: rc.transactionReference,
+        bankName: rc.bankName,
+        accountNumber: rc.accountNumber,
+        debit: 0,
+        credit: amt,
+        lateFinePaid: fine,
+        balance: runningBalance,
+        receiptId: rc._id,
+        notes: rc.remarks || '',
+      });
+    });
+
+    // 3. Processed Refund (Debit Reversal)
+    if (booking.refundStatus === 'PROCESSED' && booking.refundAmount > 0) {
+      runningBalance += Number(booking.refundAmount);
+      ledgerEntries.push({
+        date: booking.refundDate || booking.updatedAt,
+        type: 'DEBIT',
+        category: 'REFUND',
+        particulars: `Customer Cancellation Refund Processed (Deduction: ₹${Number(booking.refundDeduction || 0).toLocaleString('en-IN')})`,
+        referenceNumber: 'REFUND-PROCESSED',
+        paymentMode: 'REFUND',
+        debit: Number(booking.refundAmount),
+        credit: 0,
+        balance: runningBalance,
+        notes: 'Processed refund to customer',
+      });
+    }
+
+    const lateFineAccrued = installments.reduce((sum, inst) => sum + (Number(inst.lateFine) || 0), 0);
+
+    const summary = {
+      grossPlotValue: plotValue,
+      discount,
+      netPlotValue,
+      totalPaid: totalCollected,
+      totalLateFinePaid: totalFineCollected,
+      lateFineAccrued,
+      outstandingBalance: Math.max(0, runningBalance),
+      totalReceipts: receipts.length,
+      installmentsCount: installments.length,
+      paidInstallmentsCount: installments.filter((i) => i.status === 'PAID').length,
+      pendingInstallmentsCount: installments.filter((i) => i.status !== 'PAID').length,
+      status: booking.status,
+      scheme: booking.scheme,
+    };
+
+    return {
+      booking,
+      ledgerEntries,
+      summary,
+      installments,
+      receipts,
+      revisions,
+    };
   }
 
   async updateBooking(id, data, userId) {

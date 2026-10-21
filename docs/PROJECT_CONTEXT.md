@@ -54,10 +54,13 @@
 
 ### D. Plot & Real Estate Management
 - **Rate Configuration & Series Master**: Dimensional plots, per-sqft pricing, series-based inventory generator.
-- **Sponsors & Customers**: KYC details, nominee information, multi-tier sponsor commission structures.
-- **Bookings & Holds**: Full payment vs monthly installment schemes, automatic hold expiry via hourly scheduler.
+- **3-Tier Sourcing & Commission Hierarchy**:
+  - **Branch Partner (0.5% Regional / Franchise Override)**: Regional head assigned to a physical `Branch` (`branch.branchPartnerId`) automatically earning a fixed 0.5% override on all booking collections realized within that branch, posted to their universal ledger (`source: 'commission_branch'`).
+  - **Business Partner (BP)**: High-level sponsor (`sponsorId = null`, code prefix `BP-` / `P/`) earning direct slab commissions and team differential overrides on downline associates.
+  - **Business Associate (BA)**: Downline sponsor (`sponsorId = partnerId`, code prefix `BA-` / `A/`) directly bringing in customers and earning direct commissions.
+- **Bookings & Holds**: Full payment vs monthly installment schemes, automatic hold expiry via hourly scheduler, and dedicated full-page booking ledger.
 - **Installment Collection & Receipts**: Real-time receipt numbering, ledger tracking, print-ready receipts and certificates.
-- **Commission Ledger**: Direct and indirect sponsor commissions with monthly closing and voucher payout workflows.
+- **Universal Commission Ledgers & Closings**: Collection-based crediting (`commission_fixed`, `commission_branch`), monthly slab evaluations, and voucher payout workflows.
 
 ### E. Treasury, Multi-Ledger & Cash Management System
 - **Corporate Bank Accounts**: Admin-configured bank ledgers (Axis, IDBI, HDFC, SBI, etc.) tracking verified opening balance, account/IFSC details, and real-time bank passbook.

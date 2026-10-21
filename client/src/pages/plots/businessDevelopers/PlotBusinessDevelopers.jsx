@@ -439,16 +439,18 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Designation / Role',
-      selector: (row) => (row.sponsorId ? 'Business Associate' : 'Business Partner'),
+      selector: (row) => (row.isBranchPartner ? 'Branch Partner' : (!row.sponsorId ? 'Business Partner' : 'Business Associate')),
       cell: (row) => (
         <span
           className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-            !row.sponsorId
+            row.isBranchPartner
+              ? 'bg-purple-50 text-purple-800 border border-purple-200'
+              : !row.sponsorId
               ? 'bg-amber-50 text-amber-800 border border-amber-200'
               : 'bg-blue-50 text-blue-800 border border-blue-200'
           }`}
         >
-          {!row.sponsorId ? '👑 Business Partner' : '👥 Business Associate'}
+          {row.isBranchPartner ? '🏢 Branch Partner' : (!row.sponsorId ? '👑 Business Partner' : '👥 Business Associate')}
         </span>
       ),
       sortable: true,
@@ -658,7 +660,8 @@ const PlotBusinessDevelopers = () => {
               onChange={(e) => setSelectedRoleFilter(e.target.value)}
               className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-auto"
             >
-              <option value="all">All Roles (BP & BA)</option>
+              <option value="all">All Roles (Branch, BP & BA)</option>
+              <option value="branch_partner">🏢 Branch Partners</option>
               <option value="partner">👑 Business Partners (P/)</option>
               <option value="associate">👥 Business Associates (A/)</option>
             </select>
