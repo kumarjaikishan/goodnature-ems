@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from '../../../utils/toast';
-import { User } from 'lucide-react';
+import { User, Building2 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FirstFetch } from '../../../../store/userSlice';
 import { apiClient } from '../../../utils/apiClient';
 import Input from '@/components/ui/Input';
 import NumberInput from '@/components/ui/NumberInput';
 import Button from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 
 const weekdays = [
   { value: 0, label: "Sunday" },
@@ -81,20 +80,7 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
 
   useEffect(() => {
     fetchManagers();
-    fetchSponsors();
   }, [adminManager]);
-
-  const fetchSponsors = async () => {
-    try {
-      const res = await apiClient({ url: 'plots/sponsors?limit=300' });
-      const list = res?.data || res?.sponsors || res || [];
-      if (Array.isArray(list)) {
-        setSponsors(list);
-      }
-    } catch (err) {
-      console.error('Error fetching sponsors:', err);
-    }
-  };
 
   const fetchManagers = async () => {
     if (adminManager?.length > 0) {
@@ -209,22 +195,22 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
           />
         </div>
 
-        {/* Branch Partner (Franchise Head) Selection */}
-        <div>
-          <Select
-            label="Branch Partner (Franchise / Regional Head)"
-            placeholder="Select a Branch Partner..."
-            value={branch.branchPartnerId || ''}
-            onChange={(e) => handleFieldChange('branchPartnerId', e.target.value)}
-            options={[
-              { label: '-- None (No Branch Partner Override) --', value: '' },
-              ...sponsors.map(s => ({
-                value: s._id,
-                label: `${s.name}${s.sponsorCode ? ` (${s.sponsorCode})` : ''} — ${s.roleName || (s.roleType === 'business_partner' ? 'Business Partner' : 'Business Associate')}`
-              }))
-            ]}
-            helperText="The assigned Branch Partner receives the 0.5% Branch Commission override on all booking collections under this branch."
-          />
+        {/* Branch Partner Commission & Ledger Information */}
+        <div className="p-3.5 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50/90 to-emerald-50/50 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-teal-800 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+            <Building2 size={16} />
+          </div>
+          <div className="text-xs space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800">Branch Partner Commission & Ledger</span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[10px] border border-emerald-300/60">
+                0.5% Automatic Override
+              </span>
+            </div>
+            <p className="text-slate-600 leading-relaxed text-[11px] pt-0.5">
+              This branch functions directly as a first-class commission partner. All plot and product collections under this branch automatically credit the 0.5% override to its dedicated ledger. In Incentive Closings, this branch is evaluated against Section 3 Target & Extra Slabs.
+            </p>
+          </div>
         </div>
 
         {/* Assigned Managers Selection */}

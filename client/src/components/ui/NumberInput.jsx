@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react';
+import { formatIndianNumber } from '@/utils/numToWord';
 
 /**
- * Mobile-friendly Number Input with numeric keyboard, stepper support, formatting
+ * Mobile-friendly Number Input with numeric keyboard, stepper support, real-time Indian comma formatting
  */
 export const NumberInput = forwardRef(({
   label,
@@ -10,6 +11,7 @@ export const NumberInput = forwardRef(({
   startIcon: StartIcon,
   currency = false, // If true, shows ₹ icon
   allowDecimal = false,
+  formatIndian = true, // If true, formats numbers with Indian currency commas (1,12,529) in real-time
   min,
   max,
   value,
@@ -32,7 +34,12 @@ export const NumberInput = forwardRef(({
   };
 
   const handleInputChange = (e) => {
-    let val = e.target.value;
+    const input = e.target;
+    const oldVal = input.value || '';
+    const selectionStart = input.selectionStart || 0;
+    const rawBeforeCursor = oldVal.slice(0, selectionStart).replace(/,/g, '').length;
+
+    let val = oldVal.replace(/,/g, '');
     if (allowDecimal) {
       // Allow only numbers and a single decimal point
       val = val.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
@@ -58,6 +65,29 @@ export const NumberInput = forwardRef(({
       // Allow handlers expecting either (e) or (val)
       onChange(syntheticEvent);
     }
+
+    if (formatIndian) {
+      requestAnimationFrame(() => {
+        if (!input) return;
+        const newVal = input.value || '';
+        let newCursor = newVal.length;
+        let nonCommaSeen = 0;
+        if (rawBeforeCursor === 0) {
+          newCursor = 0;
+        } else {
+          for (let i = 0; i < newVal.length; i++) {
+            if (newVal[i] !== ',') {
+              nonCommaSeen++;
+            }
+            if (nonCommaSeen === rawBeforeCursor) {
+              newCursor = i + 1;
+              break;
+            }
+          }
+        }
+        input.setSelectionRange(newCursor, newCursor);
+      });
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -74,7 +104,8 @@ export const NumberInput = forwardRef(({
         'Home',
         'End',
       ].includes(e.key) ||
-      (e.ctrlKey || e.metaKey)
+      (e.ctrlKey || e.metaKey) ||
+      (formatIndian && e.key === ',')
     ) {
       return;
     }
@@ -127,7 +158,7 @@ export const NumberInput = forwardRef(({
           inputMode={allowDecimal ? "decimal" : "numeric"}
           pattern={allowDecimal ? undefined : "[0-9]*"}
           placeholder={placeholder}
-          value={value ?? ''}
+          value={formatIndian ? formatIndianNumber(value) : (value ?? '')}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           disabled={disabled}

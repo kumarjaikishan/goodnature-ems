@@ -5,7 +5,13 @@ const sponsorSummarySchema = new mongoose.Schema(
     sponsorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+      default: null,
+    },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
     },
     sponsorName: {
       type: String,
@@ -26,6 +32,15 @@ const sponsorSummarySchema = new mongoose.Schema(
     isDeveloper: {
       type: Boolean,
       default: false,
+    },
+    isBranchPartner: {
+      type: Boolean,
+      default: false,
+    },
+    branchBusiness: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     directBusiness: {
       type: Number,

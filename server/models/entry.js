@@ -11,7 +11,7 @@ const entrySchema = new mongoose.Schema({
     type: String, 
     enum: [
       'ledger', 'salary', 'advance', 'adjustment', 'manual', 'payroll', 
-      'commission_closing', 'commission_fixed', 'plot_payout', 'investment', 
+      'commission_closing', 'commission_fixed', 'commission_branch', 'plot_payout', 'investment', 
       'kisan_agreement', 'kisan_payment', 'kisan', 'transfer', 'receipt', 'voucher', 'voucher_payment'
     ], 
     default: 'ledger' 

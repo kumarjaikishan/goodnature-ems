@@ -174,7 +174,7 @@ const Sidebar = () => {
             { menu: "Seller", link: "/dashboard/ledger/sellers", roles: OPERATIONAL_ROLES, resource: "kisan_ledger" },
             { menu: "Business Associate", link: "/dashboard/ledger/business-associates", roles: OPERATIONAL_ROLES, resource: "sponsor_ledger" },
             { menu: "Business Partner", link: "/dashboard/ledger/business-partners", roles: OPERATIONAL_ROLES, resource: "sponsor_ledger" },
-            { menu: "Branch Partner", link: "/dashboard/ledger/branch-partners", roles: OPERATIONAL_ROLES, resource: "sponsor_ledger" },
+            { menu: "Branch Partner", link: "/dashboard/ledger/branch-partners", roles: OPERATIONAL_ROLES, resource: ["branch_ledger", "sponsor_ledger"] },
           ],
         },
         {
@@ -293,7 +293,12 @@ const Sidebar = () => {
           if (item.children) {
             const visibleChildren = item.children.filter((child) => {
               if (!child.roles.includes(role)) return false;
-              if (child.resource && !hasPermission(profile, child.resource, 1)) return false;
+              if (child.resource) {
+                const allowed = Array.isArray(child.resource)
+                  ? child.resource.some(r => hasPermission(profile, r, 1))
+                  : hasPermission(profile, child.resource, 1);
+                if (!allowed) return false;
+              }
               return true;
             });
             return visibleChildren.length > 0;
@@ -395,7 +400,12 @@ const Sidebar = () => {
                         >
                           {item.children.map((child) => {
                             if (!child.roles.includes(role)) return null;
-                            if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
+                            if (child.resource) {
+                              const allowed = Array.isArray(child.resource)
+                                ? child.resource.some(r => hasPermission(profile, r, 1))
+                                : hasPermission(profile, child.resource, 1);
+                              if (!allowed) return null;
+                            }
                             const childPending = getChildPendingCount(child.link);
                             return (
                               <div key={child.menu} className="relative flex items-center">

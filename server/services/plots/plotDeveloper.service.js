@@ -110,7 +110,7 @@ class PlotDeveloperService {
       const rcIds = receiptsForBk.map(r => r._id);
       if (rcIds.length > 0) {
         const orphanQuery = Entry.find({
-          source: 'commission_fixed',
+          source: { $in: ['commission_fixed', 'commission_branch'] },
           referenceId: { $in: rcIds }
         });
         if (session) orphanQuery.session(session);
@@ -127,18 +127,50 @@ class PlotDeveloperService {
     const sponsorDoc = await sponsorQuery;
     if (!sponsorDoc) return;
 
-    // Find existing commissions for this booking to preserve closingId and incentive tags
+    // Fetch all approved receipts for this booking
+    const receiptQuery = PlotReceipt.find({ bookingId: booking._id, status: { $ne: 'REJECTED' } }).sort({ createdAt: 1 });
+    if (session) receiptQuery.session(session);
+    const receipts = await receiptQuery;
+
+    const validReceiptIdSet = new Set(receipts.map(r => r._id.toString()));
+    const validEntryIds = new Set();
+    const trackedReceiptIds = [];
+    receipts.forEach(r => trackedReceiptIds.push(r._id));
+
+    // Find existing commissions for this booking
     const existingQuery = PlotSponsorCommission.find({ bookingId: booking._id });
     if (session) existingQuery.session(session);
     const existingComms = await existingQuery;
-    const closingTagMap = {};
-    const trackedReceiptIds = [];
-    existingComms.forEach(c => {
+
+    // Purge only orphaned commissions whose receipt was deleted or rejected
+    for (const c of existingComms) {
       if (c.receiptId) {
         trackedReceiptIds.push(c.receiptId);
+        if (!validReceiptIdSet.has(c.receiptId.toString())) {
+          if (c.ledgerEntryId) {
+            await accountingService.deleteLedgerEntry(c.ledgerEntryId, session);
+          }
+          const delDoc = PlotSponsorCommission.deleteOne({ _id: c._id });
+          if (session) delDoc.session(session);
+          await delDoc;
+        }
       }
-      if (c.closingId && c.receiptId) {
-        const key = `${c.receiptId.toString()}_${c.sponsorId.toString()}_${c.commissionRole}`;
+    }
+
+    // Map remaining valid commissions by receiptId
+    const activeExistingComms = existingComms.filter(c => c.receiptId && validReceiptIdSet.has(c.receiptId.toString()));
+    const commsByReceiptId = new Map();
+    const closingTagMap = {};
+    for (const c of activeExistingComms) {
+      const rIdStr = c.receiptId.toString();
+      if (!commsByReceiptId.has(rIdStr)) {
+        commsByReceiptId.set(rIdStr, []);
+      }
+      commsByReceiptId.get(rIdStr).push(c);
+
+      if (c.closingId) {
+        const entityIdStr = (c.sponsorId || c.branchId || '').toString();
+        const key = `${rIdStr}_${entityIdStr}_${c.commissionRole}`;
         closingTagMap[key] = {
           closingId: c.closingId,
           incentivePercent: c.incentivePercent || 0,
@@ -146,24 +178,13 @@ class PlotDeveloperService {
           slabLabel: c.slabLabel || ''
         };
       }
-    });
-
-    // Delete existing commissions for this booking to re-sync cleanly
-    const delQuery = PlotSponsorCommission.deleteMany({ bookingId: booking._id });
-    if (session) delQuery.session(session);
-    await delQuery;
+    }
 
     // Load Active Plot Policy (Dynamic from database)
     const policyConfig = await plotConfigService.getCommissionPolicy('PLOT_SALE');
 
-    // Fetch all approved receipts for this booking to calculate commission on collection basis
-    const receiptQuery = PlotReceipt.find({ bookingId: booking._id, status: { $ne: 'REJECTED' } }).sort({ createdAt: 1 });
-    if (session) receiptQuery.session(session);
-    const receipts = await receiptQuery;
-
-    receipts.forEach(r => trackedReceiptIds.push(r._id));
-
-    const validEntryIds = new Set();
+    // Fetch active InvestmentSchemeConfig to dynamically match tenure slabs (BA, BP, Branch Partner)
+    let schemeConfig = null;
 
     for (const receipt of receipts) {
       const collectionPrincipal = Math.max(0, Number(receipt.amount || 0) - Number(receipt.lateFinePaid || 0));
@@ -183,9 +204,88 @@ class PlotDeveloperService {
 
       const colAmtFormatted = collectionPrincipal.toLocaleString('en-IN');
 
-      // Resolve dynamic fixed commission percentages from booking or matched scheme slab
-      const baFixedPct = Number(booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null ? booking.promoterCommissionPercent : 5.0);
-      const bpFixedPct = Number(booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null ? booking.bpCommissionPercent : (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null ? booking.developerCommissionPercent : 2.0));
+      const existingReceiptComms = commsByReceiptId.get(receipt._id.toString()) || [];
+
+      // ── IMMUTABILITY: PRESERVE HISTORICAL COMMISSIONS FOR ALREADY BILLED RECEIPTS ──
+      if (existingReceiptComms.length > 0) {
+        for (const c of existingReceiptComms) {
+          if (c.ledgerEntryId) {
+            validEntryIds.add(c.ledgerEntryId.toString());
+          }
+
+          // If collection principal was adjusted on the receipt, recalculate using the LOCKED rate on this commission
+          if (Number(c.collectionAmount) !== collectionPrincipal) {
+            const lockedFixedPct = Number(c.fixedPercent || 0);
+            const newFixedAmt = Math.round(collectionPrincipal * (lockedFixedPct / 100) * 100) / 100;
+            const incAmt = Number(c.incentiveAmount || 0);
+            const newTotalAmt = Math.round((newFixedAmt + incAmt) * 100) / 100;
+
+            c.collectionAmount = collectionPrincipal;
+            c.plotValue = collectionPrincipal;
+            c.fixedAmount = newFixedAmt;
+            c.amount = newTotalAmt;
+            if (session) await c.save({ session });
+            else await c.save();
+
+            if (c.ledgerEntryId) {
+              await accountingService.updateLedgerEntry(c.ledgerEntryId, {
+                credit: newFixedAmt
+              }, session);
+            }
+          }
+        }
+        // Past transaction is fully preserved with its original locked percentage!
+        continue;
+      }
+
+      // ── NEW RECEIPT: CALCULATE USING CURRENT ACTIVE SCHEME CONFIG ──
+      if (!schemeConfig) {
+        try {
+          schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' });
+          if (!schemeConfig) {
+            schemeConfig = await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
+          }
+        } catch (err) {
+          console.error('Error fetching InvestmentSchemeConfig in syncBookingSponsorCommissions:', err);
+        }
+      }
+
+      const bookingTenure = Number(booking.tenureMonths) || 0;
+      const isFdOrOneTime = booking.scheme === 'FULL_PAYMENT' || booking.paymentType === 'FULL_PAYMENT' || booking.paymentType === 'ONE_TIME';
+      let matchedSlab = null;
+      if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
+        if (booking.planName) {
+          matchedSlab = schemeConfig.slabs.find(s => s.planName === booking.planName);
+        }
+        if (!matchedSlab) {
+          matchedSlab = schemeConfig.slabs.find(s => Number(s.tenureMonths) === bookingTenure);
+        }
+        if (!matchedSlab) {
+          const sorted = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
+          matchedSlab = sorted.find(s => Number(s.tenureMonths) >= bookingTenure) || sorted[sorted.length - 1];
+        }
+      }
+
+      // Default fallbacks from matched slab or booking
+      let slabBaPct = isFdOrOneTime ? 5.0 : 4.0;
+      let slabBpPct = isFdOrOneTime ? 1.0 : 1.0;
+      let slabBranchPct = 0;
+
+      if (matchedSlab) {
+        if (isFdOrOneTime) {
+          slabBaPct = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
+          slabBpPct = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? 1.0);
+          slabBranchPct = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0);
+        } else {
+          slabBaPct = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
+          slabBpPct = Number(matchedSlab.bpRdCommissionPercent ?? 1.0);
+          slabBranchPct = Number(matchedSlab.branchRdCommissionPercent ?? 0);
+        }
+      }
+
+      const baFixedPct = matchedSlab ? slabBaPct : Number(booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null ? booking.promoterCommissionPercent : 5.0);
+      const bpFixedPct = matchedSlab ? slabBpPct : Number(booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null ? booking.bpCommissionPercent : (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null ? booking.developerCommissionPercent : 2.0));
+      const branchFixedPct = matchedSlab ? slabBranchPct : Number(booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null ? booking.branchCommissionPercent : 0);
       const combinedFixedPct = +(baFixedPct + bpFixedPct).toFixed(3);
 
       if (!sponsorDoc.sponsorId) {
@@ -425,31 +525,37 @@ class PlotDeveloperService {
       }
 
       // ── 3. BRANCH PARTNER COMMISSION OVERRIDE ──
-      const branchFixedPct = Number(booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null ? booking.branchCommissionPercent : 0.5);
-      let targetBranchPartnerId = booking.branchPartnerId;
-      if (!targetBranchPartnerId && booking.branchId) {
-        const bDoc = await Branch.findById(booking.branchId).select('branchPartnerId').session(session);
-        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      let targetBranchId = booking.branchId;
+      if (!targetBranchId && sponsorDoc.branchIds && sponsorDoc.branchIds.length > 0) {
+        targetBranchId = sponsorDoc.branchIds[0];
       }
-      if (!targetBranchPartnerId && sponsorDoc.branchIds && sponsorDoc.branchIds.length > 0) {
-        const bDoc = await Branch.findById(sponsorDoc.branchIds[0]).select('branchPartnerId').session(session);
-        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
-      }
-      if (!targetBranchPartnerId && sponsorDoc.sponsorId) {
+      if (!targetBranchId && sponsorDoc.sponsorId) {
         const parentSp = await User.findById(sponsorDoc.sponsorId).select('branchIds').session(session);
         if (parentSp?.branchIds && parentSp.branchIds.length > 0) {
-          const bDoc = await Branch.findById(parentSp.branchIds[0]).select('branchPartnerId').session(session);
-          if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+          targetBranchId = parentSp.branchIds[0];
         }
       }
+      if (!targetBranchId) {
+        const defB = await Branch.findOne({}).session(session);
+        if (defB) targetBranchId = defB._id;
+      }
 
-      if (targetBranchPartnerId && branchFixedPct > 0) {
+      let targetBranchPartnerId = booking.branchPartnerId;
+      if (targetBranchId && !targetBranchPartnerId) {
+        const bDoc = await Branch.findById(targetBranchId).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      }
+
+      if ((targetBranchId || targetBranchPartnerId) && branchFixedPct > 0) {
         const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
         let branchLedgerEntryId = null;
         const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
 
         if (branchFixedAmt > 0 && receipt.status !== 'PENDING') {
-          const branchLedger = await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+          const branchLedger = targetBranchId
+            ? await Ledger.findOne({ branchId: targetBranchId }).session(session)
+            : await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+
           let existingBranchEntry = branchLedger ? await Entry.findOne({
             ledgerId: branchLedger._id,
             referenceId: receipt._id,
@@ -468,7 +574,8 @@ class PlotDeveloperService {
             branchLedgerEntryId = existingBranchEntry._id;
           } else {
             const entry = await accountingService.recordLedgerEntry({
-              sponsorId: targetBranchPartnerId,
+              branchId: targetBranchId || null,
+              sponsorId: targetBranchPartnerId || null,
               date: receiptDate,
               type: 'CREDIT',
               amount: branchFixedAmt,
@@ -484,7 +591,8 @@ class PlotDeveloperService {
         const branchCommission = new PlotSponsorCommission({
           bookingId: booking._id,
           receiptId: receipt._id,
-          sponsorId: targetBranchPartnerId,
+          branchId: targetBranchId || null,
+          sponsorId: targetBranchPartnerId || null,
           customerId: booking.customerId,
           collectionAmount: collectionPrincipal,
           plotValue: collectionPrincipal,
@@ -556,28 +664,6 @@ class PlotDeveloperService {
     const sponsorDoc = await sponsorQuery;
     if (!sponsorDoc) return;
 
-    // Find existing commissions for this product booking to preserve closingId and incentive tags
-    const existingQuery = PlotSponsorCommission.find({ productBookingId: booking._id });
-    if (session) existingQuery.session(session);
-    const existingComms = await existingQuery;
-    const closingTagMap = {};
-    existingComms.forEach((c) => {
-      if (c.closingId && (c.receiptNumber || c._id)) {
-        const key = `${c.receiptNumber || c._id.toString()}_${c.sponsorId.toString()}_${c.commissionRole}`;
-        closingTagMap[key] = {
-          closingId: c.closingId,
-          incentivePercent: c.incentivePercent || 0,
-          incentiveAmount: c.incentiveAmount || 0,
-          slabLabel: c.slabLabel || '',
-        };
-      }
-    });
-
-    // Delete existing commissions for this booking to re-sync cleanly
-    const delQuery = PlotSponsorCommission.deleteMany({ productBookingId: booking._id });
-    if (session) delQuery.session(session);
-    await delQuery;
-
     // Collect all receipts / collections for this product booking
     const collectionsList = [];
     const seenReceipts = new Set();
@@ -626,70 +712,51 @@ class PlotDeveloperService {
       });
     }
 
-    // Fetch scheme config to dynamically resolve tenure-specific fixed commission
-    let schemeConfig = null;
-    try {
-      schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' });
-      if (!schemeConfig) {
-        schemeConfig = await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
-      }
-    } catch (err) {
-      console.error('Error fetching InvestmentSchemeConfig for product commission:', err);
-    }
-
-    // Match slab by planName first, then by tenureMonths
-    const bookingTenure = Number(booking.tenureMonths) || 0;
-    let matchedSlab = null;
-    if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
-      if (booking.planName) {
-        matchedSlab = schemeConfig.slabs.find((s) => s.planName === booking.planName);
-      }
-      if (!matchedSlab) {
-        matchedSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === bookingTenure);
-      }
-      if (!matchedSlab) {
-        const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
-        matchedSlab = sortedSlabs.find((s) => Number(s.tenureMonths) >= bookingTenure) || sortedSlabs[sortedSlabs.length - 1];
-      }
-    }
-
-    const isFdOrOneTime = booking.paymentType === 'FULL_PAYMENT' || booking.paymentType === 'ONE_TIME' || booking.schemeType === 'FD' || booking.productType === 'FD';
-    
-    // Resolve fixed percentages based on tenure slab for BA, BP, and Branch Partner
-    let defaultBaFixed = isFdOrOneTime ? 5.0 : 4.0;
-    let defaultBpFixed = isFdOrOneTime ? 1.0 : 1.0;
-    let defaultBranchFixed = isFdOrOneTime ? 0.5 : 0.5;
-
-    if (matchedSlab) {
-      if (isFdOrOneTime) {
-        defaultBaFixed = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
-        defaultBpFixed = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-        defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
-      } else {
-        defaultBaFixed = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
-        defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-        defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
-      }
-    }
-
-    if (booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null) {
-      defaultBaFixed = Number(booking.promoterCommissionPercent);
-    }
-    if (booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null) {
-      defaultBpFixed = Number(booking.bpCommissionPercent);
-    } else if (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null) {
-      defaultBpFixed = Number(booking.developerCommissionPercent);
-    }
-    if (booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null) {
-      defaultBranchFixed = Number(booking.branchCommissionPercent);
-    }
-
-    const baFixedPct = defaultBaFixed;
-    const bpFixedPct = defaultBpFixed;
-    const branchFixedPct = defaultBranchFixed;
-    const combinedFixedPct = baFixedPct;
-
+    const validReceiptNumberSet = new Set(collectionsList.map(c => c.receiptNumber));
     const validEntryIds = new Set();
+
+    // Find existing commissions for this product booking
+    const existingQuery = PlotSponsorCommission.find({ productBookingId: booking._id });
+    if (session) existingQuery.session(session);
+    const existingComms = await existingQuery;
+
+    // Purge only orphaned commissions whose receiptNumber is no longer in valid collections
+    for (const c of existingComms) {
+      if (c.receiptNumber && !validReceiptNumberSet.has(c.receiptNumber)) {
+        if (c.ledgerEntryId) {
+          await accountingService.deleteLedgerEntry(c.ledgerEntryId, session);
+        }
+        const delDoc = PlotSponsorCommission.deleteOne({ _id: c._id });
+        if (session) delDoc.session(session);
+        await delDoc;
+      }
+    }
+
+    // Map remaining active commissions by receiptNumber
+    const activeExistingComms = existingComms.filter(c => c.receiptNumber && validReceiptNumberSet.has(c.receiptNumber));
+    const commsByReceiptNumber = new Map();
+    const closingTagMap = {};
+    for (const c of activeExistingComms) {
+      const rNum = c.receiptNumber;
+      if (!commsByReceiptNumber.has(rNum)) {
+        commsByReceiptNumber.set(rNum, []);
+      }
+      commsByReceiptNumber.get(rNum).push(c);
+
+      if (c.closingId && (c.receiptNumber || c._id)) {
+        const entityIdStr = (c.sponsorId || c.branchId || '').toString();
+        const key = `${c.receiptNumber || c._id.toString()}_${entityIdStr}_${c.commissionRole}`;
+        closingTagMap[key] = {
+          closingId: c.closingId,
+          incentivePercent: c.incentivePercent || 0,
+          incentiveAmount: c.incentiveAmount || 0,
+          slabLabel: c.slabLabel || '',
+        };
+      }
+    }
+
+    // Scheme config loaded lazily only if there are new collections to calculate
+    let schemeConfig = null;
 
     for (const col of collectionsList) {
       const collectionPrincipal = col.principalPaid > 0 ? col.principalPaid : Math.max(0, col.amountPaid - col.lateFinePaid);
@@ -698,6 +765,102 @@ class PlotDeveloperService {
       const receiptDate = col.paymentDate ? new Date(col.paymentDate) : new Date();
       const colAmtFormatted = collectionPrincipal.toLocaleString('en-IN');
       const receiptTypeFormatted = col.receiptType || 'Product Collection';
+
+      const existingColComms = commsByReceiptNumber.get(col.receiptNumber) || [];
+
+      // ── IMMUTABILITY: PRESERVE HISTORICAL COMMISSIONS FOR ALREADY BILLED PRODUCT COLLECTIONS ──
+      if (existingColComms.length > 0) {
+        for (const c of existingColComms) {
+          if (c.ledgerEntryId) {
+            validEntryIds.add(c.ledgerEntryId.toString());
+          }
+
+          if (Number(c.collectionAmount) !== collectionPrincipal) {
+            const lockedPct = Number(c.fixedPercent || 0);
+            const newFixedAmt = Math.round(collectionPrincipal * (lockedPct / 100) * 100) / 100;
+            const incAmt = Number(c.incentiveAmount || 0);
+            const newTotalAmt = Math.round((newFixedAmt + incAmt) * 100) / 100;
+
+            c.collectionAmount = collectionPrincipal;
+            c.plotValue = collectionPrincipal;
+            c.fixedAmount = newFixedAmt;
+            c.amount = newTotalAmt;
+            if (session) await c.save({ session });
+            else await c.save();
+
+            if (c.ledgerEntryId) {
+              await accountingService.updateLedgerEntry(c.ledgerEntryId, {
+                credit: newFixedAmt
+              }, session);
+            }
+          }
+        }
+        continue;
+      }
+
+      // ── NEW COLLECTION: CALCULATE USING CURRENT ACTIVE SCHEME CONFIG ──
+      if (!schemeConfig) {
+        try {
+          schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' });
+          if (!schemeConfig) {
+            schemeConfig = await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
+          }
+        } catch (err) {
+          console.error('Error fetching InvestmentSchemeConfig for product commission:', err);
+        }
+      }
+
+      // Match slab by planName first, then by tenureMonths
+      const bookingTenure = Number(booking.tenureMonths) || 0;
+      let matchedSlab = null;
+      if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
+        if (booking.planName) {
+          matchedSlab = schemeConfig.slabs.find((s) => s.planName === booking.planName);
+        }
+        if (!matchedSlab) {
+          matchedSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === bookingTenure);
+        }
+        if (!matchedSlab) {
+          const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
+          matchedSlab = sortedSlabs.find((s) => Number(s.tenureMonths) >= bookingTenure) || sortedSlabs[sortedSlabs.length - 1];
+        }
+      }
+
+      const isFdOrOneTime = booking.paymentType === 'FULL_PAYMENT' || booking.paymentType === 'ONE_TIME' || booking.schemeType === 'FD' || booking.productType === 'FD';
+      
+      // Resolve fixed percentages based on tenure slab for BA, BP, and Branch Partner
+      let defaultBaFixed = isFdOrOneTime ? 5.0 : 4.0;
+      let defaultBpFixed = isFdOrOneTime ? 1.0 : 1.0;
+      let defaultBranchFixed = isFdOrOneTime ? 0.5 : 0.5;
+
+      if (matchedSlab) {
+        if (isFdOrOneTime) {
+          defaultBaFixed = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
+          defaultBpFixed = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
+          defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
+        } else {
+          defaultBaFixed = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
+          defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
+          defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
+        }
+      }
+
+      if (booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null) {
+        defaultBaFixed = Number(booking.promoterCommissionPercent);
+      }
+      if (booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null) {
+        defaultBpFixed = Number(booking.bpCommissionPercent);
+      } else if (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null) {
+        defaultBpFixed = Number(booking.developerCommissionPercent);
+      }
+      if (booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null) {
+        defaultBranchFixed = Number(booking.branchCommissionPercent);
+      }
+
+      const baFixedPct = defaultBaFixed;
+      const bpFixedPct = defaultBpFixed;
+      const branchFixedPct = defaultBranchFixed;
+      const combinedFixedPct = baFixedPct;
 
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ──
@@ -924,31 +1087,38 @@ class PlotDeveloperService {
         }
       }
 
-      // ── 3. BRANCH PARTNER OVERRIDE ──
-      let targetBranchPartnerId = booking.branchPartnerId;
-      if (!targetBranchPartnerId && booking.branchId) {
-        const bDoc = await Branch.findById(booking.branchId).select('branchPartnerId').session(session);
-        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      // ── 3. BRANCH COMMISSION OVERRIDE (PRODUCT BOOKINGS) ──
+      let prodBranchId = booking.branchId;
+      if (!prodBranchId && sponsorDoc.branchIds && sponsorDoc.branchIds.length > 0) {
+        prodBranchId = sponsorDoc.branchIds[0];
       }
-      if (!targetBranchPartnerId && sponsorDoc.branchIds && sponsorDoc.branchIds.length > 0) {
-        const bDoc = await Branch.findById(sponsorDoc.branchIds[0]).select('branchPartnerId').session(session);
-        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
-      }
-      if (!targetBranchPartnerId && sponsorDoc.sponsorId) {
+      if (!prodBranchId && sponsorDoc.sponsorId) {
         const parentSp = await User.findById(sponsorDoc.sponsorId).select('branchIds').session(session);
         if (parentSp?.branchIds && parentSp.branchIds.length > 0) {
-          const bDoc = await Branch.findById(parentSp.branchIds[0]).select('branchPartnerId').session(session);
-          if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+          prodBranchId = parentSp.branchIds[0];
         }
       }
+      if (!prodBranchId) {
+        const defB = await Branch.findOne({}).session(session);
+        if (defB) prodBranchId = defB._id;
+      }
 
-      if (targetBranchPartnerId && branchFixedPct > 0) {
+      let targetBranchPartnerId = booking.branchPartnerId;
+      if (prodBranchId && !targetBranchPartnerId) {
+        const bDoc = await Branch.findById(prodBranchId).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+      }
+
+      if ((prodBranchId || targetBranchPartnerId) && branchFixedPct > 0) {
         const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
         let branchLedgerEntryId = null;
         const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
 
         if (branchFixedAmt > 0) {
-          const branchLedger = await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+          const branchLedger = prodBranchId
+            ? await Ledger.findOne({ branchId: prodBranchId }).session(session)
+            : await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+
           let existingBranchEntry = branchLedger ? await Entry.findOne({
             ledgerId: branchLedger._id,
             referenceId: booking._id,
@@ -968,7 +1138,8 @@ class PlotDeveloperService {
             branchLedgerEntryId = existingBranchEntry._id;
           } else {
             const entry = await accountingService.recordLedgerEntry({
-              sponsorId: targetBranchPartnerId,
+              branchId: prodBranchId || null,
+              sponsorId: targetBranchPartnerId || null,
               date: receiptDate,
               type: 'CREDIT',
               amount: branchFixedAmt,
@@ -984,7 +1155,8 @@ class PlotDeveloperService {
         const branchCommission = new PlotSponsorCommission({
           productBookingId: booking._id,
           receiptNumber: col.receiptNumber,
-          sponsorId: targetBranchPartnerId,
+          branchId: prodBranchId || null,
+          sponsorId: targetBranchPartnerId || null,
           customerId: booking.customerId,
           collectionAmount: collectionPrincipal,
           plotValue: collectionPrincipal,
@@ -1006,6 +1178,21 @@ class PlotDeveloperService {
         });
         if (session) await branchCommission.save({ session });
         else await branchCommission.save();
+      }
+    }
+
+    // Clean up any orphan commission entries if collections were removed
+    if (collectionsList.length > 0) {
+      const orphanEntriesQuery = Entry.find({
+        source: { $in: ['commission_fixed', 'commission_branch'] },
+        referenceId: booking._id,
+      });
+      if (session) orphanEntriesQuery.session(session);
+      const orphanEntries = await orphanEntriesQuery;
+      for (const e of orphanEntries) {
+        if (!validEntryIds.has(e._id.toString())) {
+          await accountingService.deleteLedgerEntry(e._id, session);
+        }
       }
     }
   }

@@ -195,6 +195,24 @@ class PlotBookingService {
         ? (sponsorId || null)
         : (customer.sponsorId ? customer.sponsorId : null);
 
+      if (!resolvedBranchId && finalSponsorId) {
+        const spUser = await User.findById(finalSponsorId).select('branchIds sponsorId').session(session);
+        if (spUser?.branchIds?.length > 0) {
+          resolvedBranchId = spUser.branchIds[0];
+        } else if (spUser?.sponsorId) {
+          const parentSp = await User.findById(spUser.sponsorId).select('branchIds').session(session);
+          if (parentSp?.branchIds?.length > 0) resolvedBranchId = parentSp.branchIds[0];
+        }
+      }
+      if (!resolvedBranchId) {
+        const defB = await Branch.findOne({}).session(session);
+        if (defB) resolvedBranchId = defB._id;
+      }
+      if (resolvedBranchId && !resolvedBranchPartnerId) {
+        const bDoc = await Branch.findById(resolvedBranchId).select('branchPartnerId').session(session);
+        if (bDoc?.branchPartnerId) resolvedBranchPartnerId = bDoc.branchPartnerId;
+      }
+
       // 3. Rate Slab Lookup & Dynamic Plot Pricing
       const emiFreq = data.emiFrequency || 'MONTHLY';
       const freqMultiplier = emiFreq === 'QUARTERLY' ? 3 : emiFreq === 'HALF_YEARLY' ? 6 : emiFreq === 'YEARLY' ? 12 : 1;

@@ -111,26 +111,21 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
             )
         },
         {
-            name: "Branch Partner (0.5% Override)",
-            cell: row => {
-                const bp = row.branchPartnerId;
-                if (!bp) {
-                    return <span className="text-xs text-slate-400 italic">No partner assigned</span>;
-                }
-                return (
-                    <div className="flex items-center gap-2 py-1">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-teal-800 text-white text-[10px] font-bold">
-                            {bp.name ? bp.name.charAt(0).toUpperCase() : 'P'}
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-semibold text-slate-800">{bp.name}</span>
-                            <span className="text-[10px] text-teal-700 font-mono font-medium">
-                                {bp.sponsorCode || '0.5% Override'}
-                            </span>
-                        </div>
+            name: "Branch Override (0.5%)",
+            cell: row => (
+                <div className="flex items-center gap-2 py-1">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-teal-800 text-white text-[10px] font-bold shrink-0">
+                        <Building2 size={12} />
                     </div>
-                );
-            }
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-800">Branch Commission</span>
+                        <span className="text-[10px] text-emerald-700 font-medium inline-flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            0.5% Active Ledger
+                        </span>
+                    </div>
+                </div>
+            )
         },
         {
             name: "Assigned Users / Managers",
@@ -388,29 +383,21 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
                                         )}
                                     </div>
 
-                                    {/* Branch Partner (Override) Pill */}
-                                    {b.branchPartnerId ? (
-                                        <div className="p-2 bg-teal-50/70 rounded-xl border border-teal-200/80 flex items-center justify-between text-xs">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-teal-800 text-white text-[10px] font-bold shrink-0">
-                                                    {b.branchPartnerId.name ? b.branchPartnerId.name.charAt(0).toUpperCase() : 'P'}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <span className="text-[10px] text-teal-700 uppercase font-bold tracking-wider block">Branch Partner (0.5% Override)</span>
-                                                    <span className="text-xs font-bold text-slate-800 truncate block">{b.branchPartnerId.name}</span>
-                                                </div>
+                                    {/* Branch Commission & Ledger Account */}
+                                    <div className="p-2 bg-gradient-to-r from-teal-50/80 to-emerald-50/40 rounded-xl border border-teal-200/80 flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-teal-800 text-white text-[10px] font-bold shrink-0">
+                                                <Building2 size={12} />
                                             </div>
-                                            {b.branchPartnerId.sponsorCode && (
-                                                <span className="font-mono text-[10px] font-bold text-teal-800 bg-white border border-teal-200 px-1.5 py-0.5 rounded-md shrink-0">
-                                                    {b.branchPartnerId.sponsorCode}
-                                                </span>
-                                            )}
+                                            <div className="min-w-0">
+                                                <span className="text-[10px] text-teal-700 uppercase font-bold tracking-wider block">Branch Partner Ledger</span>
+                                                <span className="text-xs font-bold text-slate-800 truncate block">0.5% Commission & Target Slabs</span>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div className="p-2 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 flex items-center justify-between text-xs text-slate-400">
-                                            <span className="text-[11px] italic">No Branch Partner assigned</span>
-                                        </div>
-                                    )}
+                                        <span className="font-mono text-[10px] font-bold text-emerald-700 bg-white border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0">
+                                            Active
+                                        </span>
+                                    </div>
 
                                     {/* Assigned Users / Managers */}
                                     <div className="space-y-1.5">

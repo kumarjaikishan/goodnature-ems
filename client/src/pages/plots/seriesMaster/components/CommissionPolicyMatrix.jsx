@@ -14,7 +14,7 @@ import {
   Target,
   Sparkles,
 } from 'lucide-react';
-import { amountInWords } from '../../../../utils/numToWord';
+import { formatIndianNumber, handleFormattedNumberInput } from '../../../../utils/numToWord';
 
 const formatSlabLabel = (min, max) => {
   const minNum = Number(min || 0);
@@ -586,16 +586,15 @@ const CommissionPolicyMatrix = ({
                               inputMode="numeric"
                               pattern="[0-9]*"
                               className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800"
-                              value={slab.minAmount ?? ''}
-                              onChange={(e) => handleTargetSlabFieldChange(roleIndex, sIdx, 'minAmount', e.target.value)}
+                              value={formatIndianNumber(slab.minAmount)}
+                              onChange={(e) =>
+                                handleFormattedNumberInput(e, (raw) =>
+                                  handleTargetSlabFieldChange(roleIndex, sIdx, 'minAmount', raw)
+                                )
+                              }
                               required
                             />
                           </div>
-                          {slab.minAmount && (
-                            <span className="text-[10px] text-blue-700 font-semibold pl-4 mt-0.5 leading-tight">
-                              {amountInWords(slab.minAmount)}
-                            </span>
-                          )}
                         </div>
                       </td>
 
@@ -609,9 +608,13 @@ const CommissionPolicyMatrix = ({
                               pattern="[0-9]*"
                               placeholder="Unlimited"
                               className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
-                              value={isUnlimited ? '' : slab.maxAmount}
+                              value={isUnlimited ? '' : formatIndianNumber(slab.maxAmount)}
                               disabled={isUnlimited}
-                              onChange={(e) => handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', e.target.value)}
+                              onChange={(e) =>
+                                handleFormattedNumberInput(e, (raw) =>
+                                  handleTargetSlabFieldChange(roleIndex, sIdx, 'maxAmount', raw)
+                                )
+                              }
                             />
                             <label className="flex items-center gap-1 text-[10px] text-slate-500 ml-1 cursor-pointer select-none">
                               <input
@@ -630,11 +633,7 @@ const CommissionPolicyMatrix = ({
                               No Limit
                             </label>
                           </div>
-                          {!isUnlimited && slab.maxAmount && (
-                            <span className="text-[10px] text-blue-700 font-semibold pl-4 mt-0.5 leading-tight">
-                              {amountInWords(slab.maxAmount)}
-                            </span>
-                          )}
+
                           {isUnlimited && (
                             <span className="text-[10px] text-emerald-600 font-bold pl-4 mt-0.5">
                               &amp; Above (No Max Limit)
@@ -784,16 +783,15 @@ const CommissionPolicyMatrix = ({
                               inputMode="numeric"
                               pattern="[0-9]*"
                               className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800"
-                              value={slab.minAmount ?? ''}
-                              onChange={(e) => handleExtraSlabFieldChange(roleIndex, sIdx, 'minAmount', e.target.value)}
+                              value={formatIndianNumber(slab.minAmount)}
+                              onChange={(e) =>
+                                handleFormattedNumberInput(e, (raw) =>
+                                  handleExtraSlabFieldChange(roleIndex, sIdx, 'minAmount', raw)
+                                )
+                              }
                               required
                             />
                           </div>
-                          {slab.minAmount && (
-                            <span className="text-[10px] text-amber-800 font-semibold pl-4 mt-0.5 leading-tight">
-                              {amountInWords(slab.minAmount)}
-                            </span>
-                          )}
                         </div>
                       </td>
 
@@ -807,9 +805,13 @@ const CommissionPolicyMatrix = ({
                               pattern="[0-9]*"
                               placeholder="Unlimited"
                               className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
-                              value={isUnlimited ? '' : slab.maxAmount}
+                              value={isUnlimited ? '' : formatIndianNumber(slab.maxAmount)}
                               disabled={isUnlimited}
-                              onChange={(e) => handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', e.target.value)}
+                              onChange={(e) =>
+                                handleFormattedNumberInput(e, (raw) =>
+                                  handleExtraSlabFieldChange(roleIndex, sIdx, 'maxAmount', raw)
+                                )
+                              }
                             />
                             <label className="flex items-center gap-1 text-[10px] text-slate-500 ml-1 cursor-pointer select-none">
                               <input
@@ -828,11 +830,7 @@ const CommissionPolicyMatrix = ({
                               No Limit
                             </label>
                           </div>
-                          {!isUnlimited && slab.maxAmount && (
-                            <span className="text-[10px] text-amber-800 font-semibold pl-4 mt-0.5 leading-tight">
-                              {amountInWords(slab.maxAmount)}
-                            </span>
-                          )}
+
                           {isUnlimited && (
                             <span className="text-[10px] text-emerald-600 font-bold pl-4 mt-0.5">
                               &amp; Above (No Max Limit)

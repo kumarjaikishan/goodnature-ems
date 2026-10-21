@@ -166,7 +166,7 @@ const managementRoutes = (
     <Route path="ledger/sellers" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><SellerLedgerPage /></RoutePermissionGuard>} />
     <Route path="ledger/business-associates" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessAssociateLedgerPage /></RoutePermissionGuard>} />
     <Route path="ledger/business-partners" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BusinessPartnerLedgerPage /></RoutePermissionGuard>} />
-    <Route path="ledger/branch-partners" element={<RoutePermissionGuard resource="sponsor_ledger" action={1}><BranchPartnerLedgerPage /></RoutePermissionGuard>} />
+    <Route path="ledger/branch-partners" element={<RoutePermissionGuard resource={["branch_ledger", "sponsor_ledger"]} action={1}><BranchPartnerLedgerPage /></RoutePermissionGuard>} />
     <Route path="ledger/banks" element={<RoutePermissionGuard resource="bank_ledger" action={1}><BankLedgersPage /></RoutePermissionGuard>} />
     <Route path="ledger/cash-accounts" element={<RoutePermissionGuard resource="cash_ledger" action={1}><CashLedgersPage /></RoutePermissionGuard>} />
     <Route path="ledger/transfers" element={<RoutePermissionGuard resource="fund_transfer" action={1}><FundTransfersPage /></RoutePermissionGuard>} />

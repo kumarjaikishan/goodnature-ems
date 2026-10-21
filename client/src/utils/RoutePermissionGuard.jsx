@@ -40,8 +40,12 @@ export default function RoutePermissionGuard({
     return children;
   }
 
-  // Check specific resource permission
-  const allowed = resource ? hasPermission(profile, resource, action) : true;
+  // Check specific resource permission (supports string or array of alternate resources)
+  const allowed = resource
+    ? (Array.isArray(resource)
+        ? resource.some((r) => hasPermission(profile, r, action))
+        : hasPermission(profile, resource, action))
+    : true;
 
   if (!allowed) {
     if (fallback) return fallback;

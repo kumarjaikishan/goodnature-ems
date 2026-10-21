@@ -140,5 +140,84 @@ export function amountInWords(num, options = {}) {
   return `${formatted} ${currencyStr}`;
 }
 
+/**
+ * Formats a number or string into Indian currency comma format (e.g. 1,12,529 or 10,00,000).
+ * Handles decimals and preserves valid formatting in real-time as users type.
+ */
+export function formatIndianNumber(val) {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val).replace(/,/g, '').trim();
+  if (!str) return '';
+  if (isNaN(Number(str))) return str;
+
+  const parts = str.split('.');
+  let integerPart = parts[0];
+  const decimalPart = parts.length > 1 ? '.' + parts[1] : '';
+
+  const isNegative = integerPart.startsWith('-');
+  if (isNegative) {
+    integerPart = integerPart.slice(1);
+  }
+
+  // Remove leading zeros except when integer is just "0"
+  if (integerPart.length > 1 && integerPart.startsWith('0')) {
+    integerPart = integerPart.replace(/^0+/, '') || '0';
+  }
+
+  if (integerPart.length <= 3) {
+    return (isNegative ? '-' : '') + integerPart + decimalPart;
+  }
+
+  const lastThree = integerPart.slice(-3);
+  const remaining = integerPart.slice(0, -3);
+  const formattedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+
+  return (isNegative ? '-' : '') + formattedRemaining + ',' + lastThree + decimalPart;
+}
+
+export function parseIndianNumber(val) {
+  if (val === null || val === undefined) return '';
+  return String(val).replace(/,/g, '').trim();
+}
+
+/**
+ * Real-time Indian currency input event handler with stable cursor positioning.
+ * Automatically strips commas before updating state, preserving the cursor position.
+ */
+export function handleFormattedNumberInput(e, onChange) {
+  const input = e.target;
+  const oldVal = input.value || '';
+  const selectionStart = input.selectionStart || 0;
+  const rawBeforeCursor = oldVal.slice(0, selectionStart).replace(/,/g, '').length;
+  const rawValue = oldVal.replace(/,/g, '');
+
+  onChange(rawValue);
+
+  requestAnimationFrame(() => {
+    if (!input) return;
+    const newVal = input.value || '';
+    let newCursor = newVal.length;
+    let nonCommaSeen = 0;
+    if (rawBeforeCursor === 0) {
+      newCursor = 0;
+    } else {
+      for (let i = 0; i < newVal.length; i++) {
+        if (newVal[i] !== ',') {
+          nonCommaSeen++;
+        }
+        if (nonCommaSeen === rawBeforeCursor) {
+          newCursor = i + 1;
+          break;
+        }
+      }
+    }
+    input.setSelectionRange(newCursor, newCursor);
+  });
+}
+
 numberToWords.amountInWords = amountInWords;
+numberToWords.formatIndianNumber = formatIndianNumber;
+numberToWords.parseIndianNumber = parseIndianNumber;
+numberToWords.handleFormattedNumberInput = handleFormattedNumberInput;
 export default numberToWords;
+

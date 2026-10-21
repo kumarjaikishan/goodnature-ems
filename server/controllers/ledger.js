@@ -414,12 +414,66 @@ const createLedgerForUsers = async () => {
   });
 };
 
+const createLedgerForBranches = async () => {
+  return await withTransaction(async (session) => {
+    const Branch = mongoose.model('Branch');
+    const branches = await Branch.find({}, null, session ? { session } : {});
+
+    for (const b of branches) {
+      const q = Ledger.findOne({ branchId: b._id });
+      if (session) q.session(session);
+      let ledger = await q;
+
+      const expectedName = b.name ? `${b.name} BRANCH` : 'Branch Ledger';
+      const expectedEmpId = b.branchCode || b.code || '';
+
+      if (!ledger) {
+        const [newLedger] = await Ledger.create(
+          [
+            {
+              name: expectedName,
+              branchId: b._id,
+              empId: expectedEmpId,
+              ledgerType: 'branch',
+              isVoucherLedger: true,
+              status: 'active',
+              advance: 0
+            }
+          ],
+          session ? { session } : {}
+        );
+        ledger = newLedger;
+      } else {
+        let updated = false;
+        if (ledger.name !== expectedName) {
+          ledger.name = expectedName;
+          updated = true;
+        }
+        if (expectedEmpId && ledger.empId !== expectedEmpId) {
+          ledger.empId = expectedEmpId;
+          updated = true;
+        }
+        if (ledger.ledgerType !== 'branch') {
+          ledger.ledgerType = 'branch';
+          updated = true;
+        }
+        if (ledger.isVoucherLedger !== true) {
+          ledger.isVoucherLedger = true;
+          updated = true;
+        }
+        if (updated) await ledger.save(session ? { session } : {});
+      }
+    }
+  });
+};
+
 const ledger = async (req, res) => {
   try {
     await createLedgerForEmployee();
     await createLedgerForSponsors();
     await createLedgerForKisans();
     await createLedgerForUsers();
+    await createLedgerForBranches();
 
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 0;
@@ -432,6 +486,7 @@ const ledger = async (req, res) => {
         { ledgerType: 'kisan' },
         { ledgerType: 'bank' },
         { ledgerType: 'user_cash' },
+        { ledgerType: 'branch' },
         { userId: req.userid },
         { userId: { $exists: false } },
         { userId: null }
@@ -458,6 +513,13 @@ const ledger = async (req, res) => {
           { path: 'sponsorId', select: 'name sponsorCode role' },
           { path: 'branchIds', select: 'name location branchCode' }
         ]
+      })
+      .populate({
+        path: 'branchId',
+        select: 'name branchCode location address managerIds',
+        populate: [
+          { path: 'managerIds', select: 'name email mobile role' }
+        ]
       });
 
     const { view } = req.query;
@@ -465,7 +527,7 @@ const ledger = async (req, res) => {
     const ledgers = await query;
 
     const visibleLedgers = ledgers.filter(l => {
-      const type = l.ledgerType || (l.employeeId ? 'employee' : (l.sponsorId ? 'sponsor' : (l.kisanSellerId ? 'kisan' : 'custom')));
+      const type = l.ledgerType || (l.employeeId ? 'employee' : (l.sponsorId ? 'sponsor' : (l.kisanSellerId ? 'kisan' : (l.branchId ? 'branch' : 'custom'))));
       if (type === 'custom') {
         if (view === 'ledger') {
           return l.isVoucherLedger !== true;
@@ -474,6 +536,9 @@ const ledger = async (req, res) => {
           return l.isVoucherLedger === true;
         }
         return true;
+      }
+      if (type === 'branch') {
+        return Boolean(l.branchId);
       }
       if (type === 'employee') {
         return l.employeeId && l.employeeId.status === true;
@@ -506,6 +571,14 @@ const ledger = async (req, res) => {
     }
 
     const FundTransfer = mongoose.model('FundTransfer');
+    const Branch = require('../models/branch');
+    const branchesWithPartners = await Branch.find({ branchPartnerId: { $ne: null } }).select('branchPartnerId name branchCode').lean();
+    const branchPartnerMap = new Map();
+    branchesWithPartners.forEach(b => {
+      if (b.branchPartnerId) {
+        branchPartnerMap.set(b.branchPartnerId.toString(), b);
+      }
+    });
 
     const ledgersWithBalance = await Promise.all(
       slicedLedgers.map(async (ledger) => {
@@ -522,9 +595,15 @@ const ledger = async (req, res) => {
         } catch (e) {}
 
         const netBalance = lastEntry ? lastEntry.balance : (ledger.advance || 0);
+        const isBranch = ledger.ledgerType === 'branch' || Boolean(ledger.branchId);
+        const sId = ledger.sponsorId?._id?.toString() || ledger.sponsorId?.toString();
+        const isBranchPartner = isBranch || (sId ? branchPartnerMap.has(sId) : false);
+        const branchPartnerBranch = isBranch ? ledger.branchId : (isBranchPartner ? branchPartnerMap.get(sId) : null);
 
         return {
           ...ledger.toObject(),
+          isBranchPartner,
+          branchPartnerBranch,
           netBalance,
           heldBalance,
           availableBalance: netBalance - heldBalance
@@ -930,7 +1009,8 @@ const Entries = async (req, res) => {
         $or: [
           { sponsorId: ledgerId },
           { employeeId: ledgerId },
-          { kisanSellerId: ledgerId }
+          { kisanSellerId: ledgerId },
+          { branchId: ledgerId }
         ]
       }).lean();
       if (foundLedger) {

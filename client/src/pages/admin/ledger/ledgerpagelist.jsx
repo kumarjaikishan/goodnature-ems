@@ -8,7 +8,7 @@ import { useSelector } from "react-redux";
 import Modalbox from "../../../components/custommodal/Modalbox";
 import Loader from "../../../utils/loader";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
-import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2, Plus, X, CreditCard } from "lucide-react";
+import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2, Plus, X, CreditCard, Building2 } from "lucide-react";
 
 // Custom UI Components
 import Button from "../../../components/ui/Button";
@@ -72,23 +72,44 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         if (!ledgers) return;
         let result = [...ledgers];
 
+        const getSponsorTier = (l) => {
+            if (l.ledgerType === 'branch' || Boolean(l.branchId)) {
+                return 'branch_partner';
+            }
+            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+            if (!isSponsor) return null;
+            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+            const hasParentSponsor = Boolean(l.sponsorId?.sponsorId);
+            const isCodeBA = code.startsWith('BA-') || code.startsWith('A/');
+            const isCodeBRP = code.startsWith('BRP-') || code.startsWith('BR-');
+
+            // 1. Branch Partner: explicitly assigned to a Branch or code BRP- / BR-
+            if (l.isBranchPartner || l.sponsorId?.isBranchPartner || isCodeBRP) {
+                return 'branch_partner';
+            }
+            // 2. Business Associate: has parent sponsor or code BA-
+            if (hasParentSponsor || isCodeBA) {
+                return 'associate';
+            }
+            // 3. Business Partner: direct sponsor (code BP- or no parent)
+            return 'partner';
+        };
+
         // 1. First enforce page category if specific page
         if (category && category !== "all") {
             result = result.filter((l) => {
+                const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
                 const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
                 const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
-                const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);
-                const isBranchPartner = isSponsor && !l.sponsorId?.sponsorId && hasBranch;
-                const isPartner = isSponsor && !l.sponsorId?.sponsorId;
+                const tier = getSponsorTier(l);
 
                 if (category === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (category === 'seller' || category === 'kisan') return isKisan;
-                if (category === 'associate') return isAssociate;
-                if (category === 'partner') return isPartner;
-                if (category === 'branch_partner') return isBranchPartner;
+                if (category === 'associate') return tier === 'associate';
+                if (category === 'partner') return tier === 'partner';
+                if (category === 'branch_partner') return isBranch || tier === 'branch_partner';
                 return true;
             });
         }
@@ -105,22 +126,20 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         // 3. Ledger Type Filter (when category is all)
         if (category === "all" && typeFilter !== "all") {
             result = result.filter((l) => {
+                const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
                 const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
                 const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                const isAssociate = isSponsor && Boolean(l.sponsorId?.sponsorId);
-                const hasBranch = Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0);
-                const isBranchPartner = isSponsor && !l.sponsorId?.sponsorId && hasBranch;
-                const isPartner = isSponsor && !l.sponsorId?.sponsorId;
+                const tier = getSponsorTier(l);
                 
                 if (typeFilter === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (typeFilter === 'seller' || typeFilter === 'kisan') return isKisan;
-                if (typeFilter === 'partner') return isPartner;
-                if (typeFilter === 'branch_partner') return isBranchPartner;
-                if (typeFilter === 'associate') return isAssociate;
+                if (typeFilter === 'partner') return tier === 'partner';
+                if (typeFilter === 'branch_partner') return isBranch || tier === 'branch_partner';
+                if (typeFilter === 'associate') return tier === 'associate';
                 if (typeFilter === 'sponsor') return isSponsor;
-                if (typeFilter === 'custom') return !isEmployee && !isSponsor && !isKisan;
+                if (typeFilter === 'custom') return !isEmployee && !isSponsor && !isKisan && !isBranch;
                 return true;
             });
         }
@@ -427,13 +446,32 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         Sellers ({ledgers.filter(l => (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
                                     </option>
                                     <option value="partner">
-                                        Business Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId).length})
+                                        Business Partners ({ledgers.filter(l => {
+                                            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                            if (!isSponsor) return false;
+                                            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+                                            const isCodeBA = code.startsWith('BA-') || code.startsWith('A/');
+                                            const isCodeBRP = code.startsWith('BRP-') || code.startsWith('BR-');
+                                            const isBP = l.isBranchPartner || l.sponsorId?.isBranchPartner || isCodeBRP;
+                                            const isBA = Boolean(l.sponsorId?.sponsorId) || isCodeBA;
+                                            return !isBP && !isBA;
+                                        }).length})
                                     </option>
                                     <option value="branch_partner">
-                                        Branch Partners ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !l.sponsorId?.sponsorId && Boolean(l.sponsorId?.branchIds && l.sponsorId.branchIds.length > 0)).length})
+                                        Branch Partners ({ledgers.filter(l => {
+                                            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                            if (!isSponsor) return false;
+                                            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+                                            return Boolean(l.isBranchPartner || l.sponsorId?.isBranchPartner || code.startsWith('BRP-') || code.startsWith('BR-'));
+                                        }).length})
                                     </option>
                                     <option value="associate">
-                                        Business Associates ({ledgers.filter(l => (l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && Boolean(l.sponsorId?.sponsorId)).length})
+                                        Business Associates ({ledgers.filter(l => {
+                                            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+                                            if (!isSponsor) return false;
+                                            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+                                            return Boolean(l.sponsorId?.sponsorId) || code.startsWith('BA-') || code.startsWith('A/');
+                                        }).length})
                                     </option>
                                     <option value="custom">
                                         Custom Ledgers ({ledgers.filter(l => !(l.ledgerType === 'employee' || Boolean(l.employeeId)) && !(l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !(l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
@@ -501,26 +539,37 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                     {viewType === 'card' ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {filteredLedgers.map((l, ind) => {
-                                const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
-                                const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
-                                const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
-                                const isPartner = isSpon && !l.sponsorId?.sponsorId;
+                                const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+                                const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
+                                const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
+                                const isSpon = !isBranch && (l.ledgerType === 'sponsor' || Boolean(l.sponsorId));
+                                const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+                                const isBranchPartner = isBranch || (isSpon && Boolean(l.isBranchPartner || l.sponsorId?.isBranchPartner || code.startsWith('BRP-') || code.startsWith('BR-')));
+                                const isAssociate = isSpon && (Boolean(l.sponsorId?.sponsorId) || code.startsWith('BA-') || code.startsWith('A/'));
+                                const isPartner = isSpon && !isAssociate && !isBranchPartner;
 
-                                const tagLabel = isEmp
+                                const tagLabel = isBranch
+                                    ? 'Branch Partner'
+                                    : isEmp
                                     ? 'Employee'
                                     : isKisan
                                     ? 'Seller'
+                                    : isBranchPartner
+                                    ? 'Branch Partner'
                                     : isAssociate
                                     ? 'Associate'
                                     : isPartner
-                                    ? 'Partner'
+                                    ? 'Business Partner'
                                     : (l.ledgerType || 'Custom');
 
-                                const tagClass = isEmp
+                                const tagClass = isBranch
+                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                    : isEmp
                                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
                                     : isKisan
                                     ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : isBranchPartner
+                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
                                     : isAssociate
                                     ? 'bg-purple-50 text-purple-700 border border-purple-100'
                                     : isPartner
@@ -537,7 +586,11 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 >
                                     <div className="flex justify-between items-start">
                                         <div className="flex gap-2.5 items-center">
-                                            {l.profileImage ? (
+                                            {isBranch ? (
+                                                <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shrink-0 shadow-xs">
+                                                    <Building2 className="w-5 h-5 text-teal-700" />
+                                                </div>
+                                            ) : l.profileImage ? (
                                                 <img
                                                     className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
                                                     alt={l.name}
@@ -678,7 +731,45 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-slate-100">
-                                    {filteredLedgers.map((l, ind) => (
+                                    {filteredLedgers.map((l, ind) => {
+                                        const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+                                        const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
+                                        const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
+                                        const isSpon = !isBranch && (l.ledgerType === 'sponsor' || Boolean(l.sponsorId));
+                                        const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+                                        const isBranchPartner = isBranch || (isSpon && Boolean(l.isBranchPartner || l.sponsorId?.isBranchPartner || code.startsWith('BRP-') || code.startsWith('BR-')));
+                                        const isAssociate = isSpon && (Boolean(l.sponsorId?.sponsorId) || code.startsWith('BA-') || code.startsWith('A/'));
+                                        const isPartner = isSpon && !isAssociate && !isBranchPartner;
+
+                                        const tagLabel = isBranch
+                                            ? 'Branch Partner'
+                                            : isEmp
+                                            ? 'Employee'
+                                            : isKisan
+                                            ? 'Seller'
+                                            : isBranchPartner
+                                            ? 'Branch Partner'
+                                            : isAssociate
+                                            ? 'Associate'
+                                            : isPartner
+                                            ? 'Business Partner'
+                                            : (l.ledgerType || 'Custom');
+
+                                        const tagClass = isBranch
+                                            ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                            : isEmp
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                            : isKisan
+                                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                            : isBranchPartner
+                                            ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                            : isAssociate
+                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                            : isPartner
+                                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                            : 'bg-slate-50 text-slate-700 border border-slate-200';
+
+                                        return (
                                         <tr 
                                             key={ind} 
                                             onClick={() => handleNavigate(l)}
@@ -686,7 +777,11 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         >
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    {l.profileImage ? (
+                                                    {isBranch ? (
+                                                        <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shadow-xs">
+                                                            <Building2 className="w-4 h-4 text-teal-700" />
+                                                        </div>
+                                                    ) : l.profileImage ? (
                                                         <img
                                                             className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm"
                                                             alt={l.name}
@@ -714,39 +809,9 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">
-                                                {(() => {
-                                                    const isEmp = l.ledgerType === 'employee' || Boolean(l.employeeId);
-                                                    const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
-                                                    const isSpon = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                                    const isAssociate = isSpon && Boolean(l.sponsorId?.sponsorId);
-                                                    const isPartner = isSpon && !l.sponsorId?.sponsorId;
-
-                                                    const tagLabel = isEmp
-                                                        ? 'Employee'
-                                                        : isKisan
-                                                        ? 'Seller'
-                                                        : isAssociate
-                                                        ? 'Associate'
-                                                        : isPartner
-                                                        ? 'Partner'
-                                                        : (l.ledgerType || 'Custom');
-
-                                                    const tagClass = isEmp
-                                                        ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                                        : isKisan
-                                                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                                        : isAssociate
-                                                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                        : isPartner
-                                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                                        : 'bg-slate-50 text-slate-700 border border-slate-200';
-
-                                                    return (
-                                                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
-                                                            {tagLabel}
-                                                        </span>
-                                                    );
-                                                })()}
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
+                                                    {tagLabel}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
@@ -800,7 +865,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    );
+                                })}
                                 </tbody>
                             </table>
                         </div>

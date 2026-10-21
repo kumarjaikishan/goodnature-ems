@@ -14,6 +14,7 @@ const Entry = require('../../models/entry');
 const PlotProductBooking = require('../../models/PlotProductBooking');
 const accountingService = require('../accountingService');
 const plotConfigService = require('./plotConfig.service');
+require('../../models/branch');
 
 class PlotClosingService {
   /**
@@ -86,8 +87,9 @@ class PlotClosingService {
     }
 
     const commQuery = PlotSponsorCommission.find(query)
-      .select('sponsorId customerId receiptId bookingId productBookingId receiptNumber collectionAmount amount commissionPercent commissionRole fixedPercent incentivePercent extraIncentivePercent fixedAmount incentiveAmount extraIncentiveAmount businessType status createdAt')
+      .select('sponsorId customerId receiptId bookingId productBookingId receiptNumber collectionAmount amount commissionPercent commissionRole fixedPercent incentivePercent extraIncentivePercent fixedAmount incentiveAmount extraIncentiveAmount businessType status createdAt branchId')
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
+      .populate('branchId', 'name branchCode location address')
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
       .populate({
@@ -229,46 +231,79 @@ class PlotClosingService {
     const investmentPolicyConfig = await plotConfigService.getCommissionPolicy('INVESTMENT_RD_FD');
     const productPolicyConfig = await plotConfigService.getCommissionPolicy('PLOT_PRODUCT');
 
-    // Group collections per sponsor
+    // Group collections per sponsor or branch entity
     const sponsorMap = {};
 
     commissions.forEach(c => {
+      const isBranch = c.commissionRole === 'BRANCH_OVERRIDE' || Boolean(c.branchId);
       const sp = c.sponsorId;
-      if (!sp || !sp._id) return;
-      const spId = sp._id.toString();
+      const branch = c.branchId;
+
+      let key = null;
+      if (isBranch && branch) {
+        key = `branch_${branch._id || branch}`;
+      } else if (sp && (sp._id || sp)) {
+        key = `sp_${sp._id || sp}`;
+      } else if (c.sponsorId) {
+        key = `sp_${c.sponsorId}`;
+      } else if (c.branchId) {
+        key = `branch_${c.branchId}`;
+      }
+
+      if (!key) return;
 
       const colAmt = Number(c.collectionAmount || 0);
-      const isBranch = c.commissionRole === 'BRANCH_OVERRIDE';
       const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
       const isIndirect = c.commissionRole === 'DEVELOPER_OVERRIDE';
 
-      if (!sponsorMap[spId]) {
-        sponsorMap[spId] = {
-          sponsorId: sp._id,
-          sponsorName: sp.name || '',
-          sponsorCode: sp.sponsorCode || '',
-          customerId: sp.customerId || sp.sponsorCode || '',
-          mobile: sp.mobile || '',
-          isDeveloper: !sp.sponsorId || sp.sponsorId === 'direct',
-          isBranchPartner: isBranch,
-          directBusiness: 0,
-          indirectBusiness: 0,
-          branchBusiness: 0,
-          totalBusiness: 0,
-          entries: [],
-        };
+      if (!sponsorMap[key]) {
+        if (isBranch && branch) {
+          const branchName = branch.name ? `${branch.name} BRANCH` : 'Branch Override';
+          const branchCode = branch.branchCode || branch.code || 'BRANCH';
+          sponsorMap[key] = {
+            branchId: branch._id || branch,
+            sponsorId: null,
+            sponsorName: branchName.toUpperCase(),
+            sponsorCode: branchCode,
+            customerId: branchCode,
+            mobile: '',
+            isDeveloper: false,
+            isBranchPartner: true,
+            directBusiness: 0,
+            indirectBusiness: 0,
+            branchBusiness: 0,
+            totalBusiness: 0,
+            entries: [],
+          };
+        } else {
+          sponsorMap[key] = {
+            branchId: null,
+            sponsorId: sp?._id || sp || c.sponsorId,
+            sponsorName: sp?.name || '',
+            sponsorCode: sp?.sponsorCode || '',
+            customerId: sp?.customerId || sp?.sponsorCode || '',
+            mobile: sp?.mobile || '',
+            isDeveloper: !sp?.sponsorId || sp?.sponsorId === 'direct',
+            isBranchPartner: false,
+            directBusiness: 0,
+            indirectBusiness: 0,
+            branchBusiness: 0,
+            totalBusiness: 0,
+            entries: [],
+          };
+        }
       }
 
       if (isBranch) {
-        sponsorMap[spId].isBranchPartner = true;
-        sponsorMap[spId].branchBusiness += colAmt;
+        sponsorMap[key].isBranchPartner = true;
+        sponsorMap[key].branchBusiness += colAmt;
       } else if (isDirect) {
-        sponsorMap[spId].directBusiness += colAmt;
+        sponsorMap[key].directBusiness += colAmt;
       } else if (isIndirect) {
-        sponsorMap[spId].indirectBusiness += colAmt;
+        sponsorMap[key].indirectBusiness += colAmt;
       }
-      sponsorMap[spId].totalBusiness += colAmt;
-      sponsorMap[spId].entries.push(c);
+      sponsorMap[key].totalBusiness += colAmt;
+      sponsorMap[key].entries.push(c);
     });
 
     let totalCommission = 0;
@@ -303,7 +338,10 @@ class PlotClosingService {
         let applicableSlab = plotSlab;
         let entryFixedPct = 0;
 
-        if (isPrd) {
+        if (sp.isBranchPartner) {
+          applicableSlab = plotSlab;
+          entryFixedPct = 0.50;
+        } else if (isPrd) {
           applicableSlab = prdSlab;
           entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;
         } else if (isInv) {
@@ -490,12 +528,15 @@ class PlotClosingService {
         sponsorCount: preview.sponsorCount,
         transactionCount: preview.transactionCount,
         sponsors: preview.sponsors.map(s => ({
-          sponsorId: s.sponsorId,
+          branchId: s.branchId || null,
+          sponsorId: s.sponsorId || null,
           sponsorName: s.sponsorName,
           sponsorCode: s.sponsorCode,
           customerId: s.customerId,
           mobile: s.mobile,
           isDeveloper: s.isDeveloper,
+          isBranchPartner: s.isBranchPartner || false,
+          branchBusiness: s.branchBusiness || 0,
           directBusiness: s.directBusiness,
           directCommission: s.directCommission,
           indirectBusiness: s.indirectBusiness,
@@ -568,7 +609,7 @@ class PlotClosingService {
         }
       }
 
-      // Credit the closed amount to the sponsor's universal ledger
+      // Credit the closed amount to the sponsor's or branch's universal ledger
       for (const sp of closingDoc.sponsors) {
         const creditAmt = isExtra ? Number(sp.extraIncentiveCommission || 0) : Number(sp.incentiveCommission || 0);
         if (creditAmt > 0) {
@@ -581,7 +622,8 @@ class PlotClosingService {
             : `Target Incentive | Closing #${closingDoc.closingNumber} (${closingDoc.closingName}) | Slab: ${sp.slabLabel} (${ratePart})${rewardPart} | Period Business: ₹${Number(sp.totalBusiness || 0).toLocaleString('en-IN')}`;
 
           await accountingService.recordLedgerEntry({
-            sponsorId: sp.sponsorId,
+            sponsorId: sp.sponsorId || null,
+            branchId: sp.branchId || null,
             date: closingDoc.endDate || new Date(),
             type: 'CREDIT',
             amount: creditAmt,
@@ -886,12 +928,15 @@ class PlotClosingService {
       closing.sponsorCount = preview.sponsorCount;
       closing.transactionCount = preview.transactionCount;
       closing.sponsors = preview.sponsors.map(s => ({
-        sponsorId: s.sponsorId,
+        branchId: s.branchId || null,
+        sponsorId: s.sponsorId || null,
         sponsorName: s.sponsorName,
         sponsorCode: s.sponsorCode,
         customerId: s.customerId,
         mobile: s.mobile,
         isDeveloper: s.isDeveloper,
+        isBranchPartner: s.isBranchPartner || false,
+        branchBusiness: s.branchBusiness || 0,
         directBusiness: s.directBusiness,
         directCommission: s.directCommission,
         indirectBusiness: s.indirectBusiness,
@@ -933,7 +978,8 @@ class PlotClosingService {
             : `Target Incentive | Closing #${closing.closingNumber} (${closing.closingName}) | Slab: ${sp.slabLabel} (${ratePart})${rewardPart} | ${businessBreakdown}`;
 
           await accountingService.recordLedgerEntry({
-            sponsorId: sp.sponsorId,
+            sponsorId: sp.sponsorId || null,
+            branchId: sp.branchId || null,
             date: closing.endDate || new Date(),
             type: 'CREDIT',
             amount: creditAmt,

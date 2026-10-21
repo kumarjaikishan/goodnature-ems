@@ -122,6 +122,7 @@ class AccountingService {
     const { 
       employeeId, 
       sponsorId,
+      branchId,
       ledgerId,
       date = new Date(), 
       type, // 'DEBIT' or 'CREDIT'
@@ -135,6 +136,7 @@ class AccountingService {
     const amountNum = Number(amount) || 0;
     const Employee = mongoose.model('employee');
     const User = mongoose.model('User');
+    const Branch = require('../models/branch');
     const postingDate = toUtcDateOnly(date);
 
     // 1. Find the Ledger
@@ -145,6 +147,8 @@ class AccountingService {
       empLedger = await Ledger.findOne({ employeeId }).session(session);
     } else if (sponsorId) {
       empLedger = await Ledger.findOne({ sponsorId }).session(session);
+    } else if (branchId) {
+      empLedger = await Ledger.findOne({ branchId }).session(session);
     }
 
     // Create ledger for employee if it doesn't exist yet
@@ -177,6 +181,22 @@ class AccountingService {
           ledgerType: 'sponsor',
           name: sponsor.name || 'Sponsor',
           profileImage: sponsor.profileImage,
+          isVoucherLedger: true,
+          advance: 0
+        });
+        await empLedger.save({ session });
+      }
+    }
+
+    // Create ledger for branch if it doesn't exist yet
+    if (!empLedger && branchId) {
+      const branch = await Branch.findById(branchId).session(session);
+      if (branch) {
+        empLedger = new Ledger({
+          branchId: branch._id,
+          empId: branch.branchCode || `BR-${branch.name.slice(0, 3).toUpperCase()}`,
+          ledgerType: 'branch',
+          name: `${branch.name} BRANCH`,
           isVoucherLedger: true,
           advance: 0
         });

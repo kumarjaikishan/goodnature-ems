@@ -5,12 +5,13 @@ const ledgerSchema = new mongoose.Schema({
   sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // For sponsor ledgers
   kisanSellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'KisanSeller' }, // For Kisan / Seller ledgers
   assignedUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // For user personal cash ledgers
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // For Branch Entity ledgers
   empId: { type: String }, // Human readable ID for employee ledgers, sponsorCode, or account number
   name: { type: String, required: true },
   profileImage: { type: String },
   ledgerType: { 
     type: String, 
-    enum: ['employee', 'custom', 'sponsor', 'kisan', 'bank', 'user_cash'], 
+    enum: ['employee', 'custom', 'sponsor', 'kisan', 'bank', 'user_cash', 'branch'], 
     default: 'custom' 
   },
   // Bank Account Specific Fields
@@ -35,6 +36,7 @@ ledgerSchema.index({ employeeId: 1 });
 ledgerSchema.index({ sponsorId: 1 });
 ledgerSchema.index({ kisanSellerId: 1 });
 ledgerSchema.index({ assignedUserId: 1 });
+ledgerSchema.index({ branchId: 1 });
 ledgerSchema.index({ ledgerType: 1, status: 1 });
 
 module.exports = mongoose.model('Ledger', ledgerSchema);

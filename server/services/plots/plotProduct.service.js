@@ -982,7 +982,7 @@ class PlotProductService {
     }
 
     // Remove any synced commissions
-    await PlotSponsorCommission.deleteMany({ bookingId: booking._id });
+    await PlotSponsorCommission.deleteMany({ productBookingId: booking._id });
 
     await PlotProductBooking.findByIdAndDelete(id);
     return { message: 'Product booking deleted successfully' };

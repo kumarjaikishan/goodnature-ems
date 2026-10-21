@@ -22,6 +22,7 @@ export const AllPermissionNames = [
     "employee_ledger",
     "kisan_ledger",
     "sponsor_ledger",
+    "branch_ledger",
     "ledger",
     "ledger_entry",
     "weekly_off_ledger",
@@ -54,6 +55,7 @@ export const MODULE_DISPLAY_NAMES = {
     employee_ledger: "Employee Financial Ledgers",
     kisan_ledger: "Kisan / Land Seller Ledgers",
     sponsor_ledger: "Business Associate & Partner Ledgers",
+    branch_ledger: "Branch Partner Ledgers",
     ledger: "Master All Ledgers Overview (Accounting)",
     ledger_entry: "Financial Journal & Ledger Entries (Accounts)",
     weekly_off_ledger: "Employee Weekly-Off (WO/CO) Attendance Ledger",
@@ -84,7 +86,7 @@ export const MODULE_CATEGORIES = [
     {
         id: "finance",
         label: "Finance & Accounts",
-        modules: ["cash_ledger", "bank_ledger", "fund_transfer", "employee_ledger", "kisan_ledger", "sponsor_ledger", "voucher", "advance", "ledger_entry", "ledger"]
+        modules: ["cash_ledger", "bank_ledger", "fund_transfer", "employee_ledger", "kisan_ledger", "sponsor_ledger", "branch_ledger", "voucher", "advance", "ledger_entry", "ledger"]
     },
     {
         id: "realestate",
@@ -127,6 +129,7 @@ export const adminPermission = {
     employee_ledger: [1, 2, 3, 4],
     kisan_ledger: [1, 2, 3, 4],
     sponsor_ledger: [1, 2, 3, 4],
+    branch_ledger: [1, 2, 3, 4],
     ledger: [1, 2, 3, 4],
     ledger_entry: [1, 2, 3, 4],
     weekly_off_ledger: [1, 2, 3, 4],
@@ -158,6 +161,7 @@ export const managerPermission = {
     employee_ledger: [1],
     kisan_ledger: [],
     sponsor_ledger: [1],
+    branch_ledger: [1],
     ledger: [],
     ledger_entry: [1],
     weekly_off_ledger: [1, 2, 3],
@@ -189,6 +193,7 @@ export const accountantPermission = {
     employee_ledger: [1],
     kisan_ledger: [],
     sponsor_ledger: [],
+    branch_ledger: [1],
     ledger: [],
     ledger_entry: [1, 2, 3],
     weekly_off_ledger: [1],
@@ -307,6 +312,7 @@ export const auditorPermission = {
     salary: [1],
     advance: [1],
     voucher: [1],
+    branch_ledger: [1],
     ledger: [1],
     ledger_entry: [1],
     weekly_off_ledger: [1],

@@ -4,6 +4,48 @@ This file records session notes, caveats, and discoveries across active sessions
 
 ---
 
+- **Commission Immutability & Historical Ledger Preservation [COMPLETED]**:
+  - **Critical Accounting Flaw Discovered**:
+    - Previously, in `server/services/plots/plotDeveloper.service.js` (`syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions`), every synchronization run executed `PlotSponsorCommission.deleteMany({ bookingId })` and looped over all historical receipts/collections, recalculating commissions for all past transactions using the *current* `InvestmentSchemeConfig` slab percentages.
+    - Whenever commission percentages (e.g. Branch Partner, Business Associate, or Business Partner) were modified in `/dashboard/plots/products?tab=schemes` (e.g. from 1.2% to 2.1%), creating any new bill or viewing installments caused all past historical transactions in the ledger to be retroactively recalculated and overwritten with the new rate and amount.
+  - **Resolution & Architecture**:
+    - Removed destructive `deleteMany` calls from both `syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions`.
+    - Implemented a **non-destructive historical preservation pattern**:
+      1. Group existing active commissions by `receiptId` (or `receiptNumber` for products).
+      2. If commissions already exist for a receipt (`existingReceiptComms.length > 0`), that receipt has already been billed: its commission percentage (`fixedPercent`), amount, and ledger entry are **permanently locked and immutable**. Past receipts are preserved intact and skipped from new slab rate recalculation.
+      3. Only if a receipt's principal collection amount was modified in the UI is the commission amount adjusted proportionally using the *locked* `fixedPercent` stored on that commission record (never new slab rates).
+      4. Only **new receipts** lacking commission records enter the dynamic slab resolution logic to calculate rates and amounts from the active `InvestmentSchemeConfig`.
+      5. Only orphaned commissions and ledger entries for deleted/rejected receipts are purged.
+    - Fixed `deleteProductBooking` in `server/services/plots/plotProduct.service.js` to delete by `productBookingId` instead of `bookingId`.
+
+- **First-Class Branch Entity Commission Ledger & Section 3 Target Slabs [COMPLETED]**:
+  - **Problem & Architectural Realignment**:
+    - Previously, `addbranch.jsx` offered a dropdown of Business Associates (lowest tier) to assign as "Branch Partner", violating the sales hierarchy (`Branch -> Business Partner -> Business Associate`).
+    - Furthermore, branches already have assigned Branch Managers (`Branch.managerIds`). However, assigning personal managers as commission recipients conflates salaried employee payroll (TDS Section 192) with corporate franchise commission overrides (TDS Section 194H), corrupting personal payroll ledgers when multiple managers run a branch.
+    - **Solution**: The physical `Branch` itself (`BIHAR SHARIF BRANCH`, `RAJGIR BRANCH`) was promoted to a **first-class ledger account** (`ledgerType: 'branch'`, `branchId`).
+  - **Key Implementations**:
+    1. **Schema & Models**:
+       - `server/models/ledger.js`: Added `branchId: { type: ObjectId, ref: 'Branch' }` and added `'branch'` to `ledgerType` enum.
+       - `server/models/PlotSponsorCommission.js`: Added `branchId: { type: ObjectId, ref: 'Branch', default: null }`, made `sponsorId` optional (`required: false`), and registered `'BRANCH_OVERRIDE'` role.
+       - `server/models/PlotClosing.js`: Added `branchId` to `sponsorSummarySchema`, made `sponsorId` optional (`required: false`).
+       - `server/models/entry.js`: Added `'commission_branch'` to `source` enum.
+    2. **Accounting Service (`server/services/accountingService.js`)**:
+       - Updated `recordLedgerEntry` to accept `branchId`, find/upsert `Ledger.findOne({ branchId })`, and auto-create the Branch Ledger account with `ledgerType: 'branch'` and `name: '${branch.name} BRANCH'`.
+    3. **Plot Sourcing & Automatic Override (`server/services/plots/plotDeveloper.service.js`)**:
+       - Updated `syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions` to compute 0.5% override directly on collection receipts and credit the `branchId` ledger account.
+       - *Caveat & Bugfix*: In `syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions`, when building `closingTagMap` from `existingComms`, `c.sponsorId` is `null` for pure branch override commission documents (`commissionRole: 'BRANCH_OVERRIDE'`). Added safe entity fallback `(c.sponsorId || c.branchId || '').toString()` to prevent `TypeError: Cannot read properties of null (reading 'toString')` when regenerating installments.
+       - Fixed booking resolution so that bookings always record `branchId` and default `branchCommissionPercent: 0.5`.
+    4. **Quarterly Incentive Closing (`server/services/plots/plotClosing.service.js`)**:
+       - Imported `models/branch` to ensure Mongoose schema registration for `.populate('branchId')`.
+       - In `previewPlotClosing`, aggregated `commissionRole === 'BRANCH_OVERRIDE'` by `branchId`, resolved Section 3 slabs (`BRANCH_PARTNER`) for the Branch Entity, and computed Target & Extra slab incentives using the branch's total period collection turnover.
+       - In `executePlotClosing` and `editPlotClosing`, recorded incentives directly to the Branch's ledger account.
+    5. **Ledger Controller & RBAC Permissions**:
+       - `server/controllers/ledger.js`: Auto-creates and populates `branchId` ledgers in `ledger()` list, `visibleLedgers`, and `Entries` (/entries/:id).
+       - Added `branch_ledger: "Branch Partner Ledgers"` to `userPermissionsConfig.js` (`AllPermissionNames`, `MODULE_CATEGORIES.finance`, and default role presets).
+       - Updated `RoutePermissionGuard.jsx`, `App.jsx`, and `sidebar.jsx` to support multi-permission checks (`resource={["branch_ledger", "sponsor_ledger"]}`).
+       - Updated `ledgerpagelist.jsx` to render physical branches with the 🏢 `Building2` icon, `Branch Partner` tag, and direct access to statements and payout vouchers.
+       - Replaced the misleading BA dropdown in `addbranch.jsx` with an informative 0.5% Branch Commission notice card and updated `BranchManager.jsx` table & card views.
+
 - **3-Tier Hierarchy (Branch Partner -> Business Partner -> Business Associate) & 0.5% Branch Commission Override [COMPLETED]**:
   - **Context & Architecture**:
     - The sales structure operates in a 3-tier hierarchy:
@@ -190,6 +232,29 @@ This file records session notes, caveats, and discoveries across active sessions
     - Editing `rdAnnualInterestRate` inside the RD column auto-calculates `rdMaturityPercent` via Yearly Compounding.
     - Editing `fdAnnualInterestRate` inside the FD column auto-calculates `fdMaturityPercent` via Standard Banking Compounding.
     - Changing `tenureMonths` auto-calculates both returns using their respective independent rates.
-    - Updated `ProductBookingPage.jsx` to dynamically assign `annualInterestRate` based on whether the booking is `MONTHLY_INSTALLMENT` (RD rate) or `FULL_PAYMENT` (FD rate).
-
+    - Updated `ProductBookingPage.jsx` to dynamically assign `annualInterestRate` based on whether the booking is `MONTHLY_INSTALLMENT` (RD rate) or `FULL_PAYMENT` (FD rate).- **Real-Time Indian Numbering Format (INR Comma Notation, e.g. 1,12,529) [COMPLETED]**:
+  - **Requirement**: Allow numeric inputs (especially collection slabs in `/dashboard/plots/products?tab=incentives` and shared `NumberInput`) to automatically format numbers in real-time according to the Indian Rupee system (`1,12,529`, `10,00,000`, `19,99,999`) without cursor jumping.
+  - **Implementation**:
+    - `client/src/utils/numToWord.jsx`:
+      - Added `formatIndianNumber(val)`: Formats integers and decimal values using the Indian lakh/crore regex (`\B(?=(\d{2})+(?!\d))`).
+      - Added `parseIndianNumber(val)`: Strips commas to return raw numeric strings.
+      - Added `handleFormattedNumberInput(e, onChange)`: Cursor-stable input handler that calculates non-comma cursor offset, triggers the state callback with raw value, and restores the cursor using `requestAnimationFrame` and `input.setSelectionRange`.
+    - `client/src/components/ui/NumberInput.jsx`:
+      - Upgraded with `formatIndian = true` (default) to format values with Indian currency commas in real-time while preserving clean numeric types in callbacks and retaining cursor stability.
+    - `client/src/pages/plots/seriesMaster/components/CommissionPolicyMatrix.jsx`:
+      - Integrated `formatIndianNumber` and `handleFormattedNumberInput` on Target Slabs (`minAmount`, `maxAmount`) and Extra Campaign Slabs (`minAmount`, `maxAmount`).
+- **Branch Partner Incentive Closing & 3-Tier Tables Isolation [COMPLETED]**:
+  - **Context**: In `/dashboard/plots/incentives/new` (`PlotIncentiveProcessPage.jsx`), only Business Associates and Business Partners had display tables, omitting Branch Partners.
+  - **Resolution**:
+    - `client/src/pages/plots/incentives/PlotIncentiveProcessPage.jsx`:
+      - Disentangled sponsor categorization into three mutually exclusive tiers:
+        - `associateSponsors = previewData.sponsors.filter((s) => !s.isDeveloper && !s.isBranchPartner)`
+        - `partnerSponsors = previewData.sponsors.filter((s) => s.isDeveloper && !s.isBranchPartner)`
+        - `branchSponsors = previewData.sponsors.filter((s) => s.isBranchPartner)`
+      - Added dedicated Section 3 table for **Branch Partners (Branch Franchise & Regional Sales Turnover)** with full expandable collection receipts, slab evaluation, and credit calculations.
+    - `server/models/PlotClosing.js`:
+      - Added `isBranchPartner: { type: Boolean, default: false }` and `branchBusiness: { type: Number, default: 0 }` to `sponsorSummarySchema`.
+    - `server/services/plots/plotClosing.service.js`:
+      - Set `entryFixedPct = 0.50` when `sp.isBranchPartner`.
+      - Persisted `isBranchPartner` and `branchBusiness` in `createPlotClosing` and `updatePlotClosing`.
 

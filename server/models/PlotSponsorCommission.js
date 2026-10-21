@@ -27,7 +27,13 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
     sponsorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+      default: null,
+    },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
     },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,

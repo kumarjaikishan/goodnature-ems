@@ -42,7 +42,7 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ---
 
-## 2. Completed / Stabilized Features
+- [x] First-Class Physical Branch Entity Commission Ledger (0.5% override, direct credit to Branch Ledger account, Section 3 Incentive Closing Target & Extra Slabs, and granular `branch_ledger` RBAC permission).
 - [x] Plot inventory generation and series master management with dimensional config.
 - [x] Plot booking, hold expiry logic, and installment collection with receipt printing.
 - [x] Standardized 40% plot downpayment calculation always on Gross Plot Value (before discount).
