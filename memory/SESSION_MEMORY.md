@@ -2,7 +2,28 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
----
+- **Sponsor Commission Realization for Approved Bank/Online Receipts [FIXED]**:
+  - **Issue**:
+    - When taking installment, downpayment, or product collections via cash, receipts are immediately `APPROVED` and commissions are credited directly to the sponsor's ledger (Business Associate, Parent Partner, Branch).
+    - However, when collections were taken via online/bank (`paymentMode: 'bank_transfer' | 'neft_rtgs' | 'cheque' | 'upi'`), the receipt was initially saved with `status: 'PENDING'`.
+    - When `syncBookingSponsorCommissions` ran on the pending receipt, it checked `if (fixedAmt > 0 && receipt.status !== 'PENDING')` before creating the ledger entry, causing `PlotSponsorCommission` documents to be created with `ledgerEntryId: null`.
+    - Later, when the admin approved the receipt via `/plots/receipts/:id/approve` (`approveReceipt`), `receipt.status` became `'APPROVED'` and `syncBookingSponsorCommissions` ran again. Because `existingReceiptComms.length > 0` was true, the loop executed `continue;` and skipped creating the ledger entries, leaving `ledgerEntryId: null` forever and never crediting the sponsor's ledger.
+  - **Fix**:
+    - In `server/services/plots/plotDeveloper.service.js` (`syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions`):
+      - Added realization handling inside `if (existingReceiptComms.length > 0)`: whenever `!c.ledgerEntryId && receipt.status === 'APPROVED' && Number(c.fixedAmount || c.amount || 0) > 0`, it records the missing ledger entry in the sponsor's ledger (`accountingService.recordLedgerEntry`), assigns `c.ledgerEntryId = entry._id`, adds it to `validEntryIds`, and saves `c`.
+    - In `server/services/plots/plotCollection.service.js`:
+      - Made bank receipt ledger recording idempotent in `approveReceipt` by verifying `existingBankEntry`.
+      - Added cleanup of bank receipt entries in `rejectReceipt` if an approved receipt is later rejected.
+    - In `server/services/investment.service.js`:
+      - Added `Ledger` import, resolved `ledgerId` for investment collections, and ensured bank/cash ledger entries are recorded idempotently upon collection/approval.
+
+- **HTML Pattern Validation with Indian Comma Separator (`NumberInput`) [FIXED]**:
+  - **Issue**:
+    - When users filled in forms containing formatted numbers with commas (e.g., `₹ 78,458` in `NumberInput` or `CommissionPolicyMatrix`), submitting the form triggered HTML5 constraint validation: `"Please match the requested format."`.
+    - Cause: The inputs were rendered with `pattern="[0-9]*"`, but the formatted display value contains commas (and optional decimal dots).
+  - **Fix**:
+    - In [NumberInput.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/NumberInput.jsx), made `pattern` support commas and decimals (`^[0-9,]*$` or `^[0-9,]*(\.[0-9]*)?$`), and auto-detected decimal allowances when `allowDecimal` or `step="any"` is specified.
+    - In [CommissionPolicyMatrix.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/seriesMaster/components/CommissionPolicyMatrix.jsx), updated manual table input patterns to `^[0-9,]*$`.
 
 - **Commission Immutability & Historical Ledger Preservation [COMPLETED]**:
   - **Critical Accounting Flaw Discovered**:

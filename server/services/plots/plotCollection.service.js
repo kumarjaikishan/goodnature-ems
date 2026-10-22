@@ -961,15 +961,24 @@ class PlotCollectionService {
       }
 
       if (targetLedgerId) {
-        await accountingService.recordLedgerEntry({
+        const existingBankEntry = await Entry.findOne({
           ledgerId: targetLedgerId,
-          date: receipt.createdAt || new Date(),
-          type: 'CREDIT',
-          amount: Number(receipt.amount),
-          source: 'receipt',
           referenceId: receipt._id,
-          remarks: `Collection Receipt #${receipt.receiptNumber} (${receipt.receiptType})`
-        }, session);
+          source: 'receipt',
+          status: 'active'
+        }).session(session);
+
+        if (!existingBankEntry) {
+          await accountingService.recordLedgerEntry({
+            ledgerId: targetLedgerId,
+            date: receipt.createdAt || new Date(),
+            type: 'CREDIT',
+            amount: Number(receipt.amount),
+            source: 'receipt',
+            referenceId: receipt._id,
+            remarks: `Collection Receipt #${receipt.receiptNumber} (${receipt.receiptType})`
+          }, session);
+        }
       }
 
       await receipt.save({ session });
@@ -1032,6 +1041,15 @@ class PlotCollectionService {
       receipt.approvedBy = adminUserId;
       receipt.approvedAt = new Date();
       await receipt.save({ session });
+
+      // Clean up any receipt credit entry that was created if this was previously approved
+      const existingBankEntries = await Entry.find({
+        source: 'receipt',
+        referenceId: receipt._id
+      }).session(session);
+      for (const e of existingBankEntries) {
+        await accountingService.deleteLedgerEntry(e._id, session);
+      }
 
       // If it was previously approved, rebuild ledger to revert effects
       await this.rebuildBookingInstallmentsState(receipt.bookingId, session);

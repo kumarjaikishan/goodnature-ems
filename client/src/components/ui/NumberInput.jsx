@@ -25,6 +25,7 @@ export const NumberInput = forwardRef(({
   placeholder,
   ...props
 }, ref) => {
+  const isDecimalAllowed = allowDecimal || props.step === 'any' || (props.step && String(props.step).includes('.'));
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
 
   const sizeClasses = {
@@ -40,7 +41,7 @@ export const NumberInput = forwardRef(({
     const rawBeforeCursor = oldVal.slice(0, selectionStart).replace(/,/g, '').length;
 
     let val = oldVal.replace(/,/g, '');
-    if (allowDecimal) {
+    if (isDecimalAllowed) {
       // Allow only numbers and a single decimal point
       val = val.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
     } else {
@@ -59,7 +60,7 @@ export const NumberInput = forwardRef(({
         target: {
           ...e.target,
           name: e.target.name,
-          value: val === '' ? '' : (allowDecimal ? val : Number(val)),
+          value: val === '' ? '' : (isDecimalAllowed ? val : Number(val)),
         },
       };
       // Allow handlers expecting either (e) or (val)
@@ -110,7 +111,7 @@ export const NumberInput = forwardRef(({
       return;
     }
 
-    if (allowDecimal && (e.key === '.' || e.key === 'Decimal')) {
+    if (isDecimalAllowed && (e.key === '.' || e.key === 'Decimal')) {
       const selection = window.getSelection ? window.getSelection().toString() : '';
       if (!String(value || '').includes('.') || selection.includes('.')) {
         return; // Allow typing decimal dot
@@ -155,8 +156,8 @@ export const NumberInput = forwardRef(({
           ref={ref}
           id={inputId}
           type="tel"
-          inputMode={allowDecimal ? "decimal" : "numeric"}
-          pattern={allowDecimal ? undefined : "[0-9]*"}
+          inputMode={isDecimalAllowed ? "decimal" : "numeric"}
+          pattern={props.pattern !== undefined ? props.pattern : (formatIndian ? (isDecimalAllowed ? "^[0-9,]*(\\.[0-9]*)?$" : "^[0-9,]*$") : (isDecimalAllowed ? undefined : "^[0-9]*$"))}
           placeholder={placeholder}
           value={formatIndian ? formatIndianNumber(value) : (value ?? '')}
           onChange={handleInputChange}

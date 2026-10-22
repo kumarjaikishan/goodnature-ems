@@ -233,6 +233,66 @@ class PlotDeveloperService {
               }, session);
             }
           }
+
+          // ── REALIZATION: Credit sponsor ledger if receipt is approved but ledgerEntryId is missing (e.g. approved bank/online receipt) ──
+          if (!c.ledgerEntryId && receipt.status === 'APPROVED' && Number(c.fixedAmount || c.amount || 0) > 0) {
+            const fixedAmt = Number(c.fixedAmount || c.amount);
+            const targetLedgerSponsorId = c.sponsorId;
+            const targetBranchId = c.branchId;
+            const isBranchRole = c.commissionRole === 'BRANCH_OVERRIDE';
+            const source = isBranchRole ? 'commission_branch' : 'commission_fixed';
+            let remarks = '';
+
+            if (c.commissionRole === 'DIRECT_DEVELOPER') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+            } else if (c.commissionRole === 'PROMOTER') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+            } else if (c.commissionRole === 'DEVELOPER_OVERRIDE') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''} | BA: ${sponsorDoc.name}`;
+            } else if (c.commissionRole === 'BRANCH_OVERRIDE') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+            }
+
+            const sponsorLedger = targetBranchId
+              ? await Ledger.findOne({ branchId: targetBranchId }).session(session)
+              : await Ledger.findOne({ sponsorId: targetLedgerSponsorId }).session(session);
+
+            let existingEntry = sponsorLedger ? await Entry.findOne({
+              ledgerId: sponsorLedger._id,
+              referenceId: receipt._id,
+              source,
+              status: 'active'
+            }).session(session) : null;
+
+            if (existingEntry) {
+              if (existingEntry.credit !== fixedAmt || existingEntry.particular !== remarks || (existingEntry.date && new Date(existingEntry.date).getTime() !== new Date(receiptDate).getTime())) {
+                await accountingService.updateLedgerEntry(existingEntry._id, {
+                  credit: fixedAmt,
+                  particular: remarks,
+                  date: receiptDate
+                }, session);
+              }
+              c.ledgerEntryId = existingEntry._id;
+            } else {
+              const entry = await accountingService.recordLedgerEntry({
+                branchId: targetBranchId || null,
+                sponsorId: targetLedgerSponsorId || null,
+                date: receiptDate,
+                type: 'CREDIT',
+                amount: fixedAmt,
+                source,
+                referenceId: receipt._id,
+                remarks
+              }, session);
+              c.ledgerEntryId = entry._id;
+            }
+
+            if (c.ledgerEntryId) {
+              validEntryIds.add(c.ledgerEntryId.toString());
+            }
+            if (session) await c.save({ session });
+            else await c.save();
+          }
         }
         // Past transaction is fully preserved with its original locked percentage!
         continue;
@@ -793,6 +853,60 @@ class PlotDeveloperService {
                 credit: newFixedAmt
               }, session);
             }
+          }
+
+          // ── REALIZATION: Credit sponsor ledger for product collection if ledgerEntryId is missing ──
+          if (!c.ledgerEntryId && Number(c.fixedAmount || c.amount || 0) > 0) {
+            const fixedAmt = Number(c.fixedAmount || c.amount);
+            const targetLedgerSponsorId = c.sponsorId;
+            const targetBranchId = c.branchId;
+            const isBranchRole = c.commissionRole === 'BRANCH_OVERRIDE';
+            const source = isBranchRole ? 'commission_branch' : 'commission_fixed';
+            let remarks = '';
+
+            if (c.commissionRole === 'DIRECT_DEVELOPER') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | Plot Product (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
+            } else if (c.commissionRole === 'PROMOTER') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | Plot Product (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
+            } else if (c.commissionRole === 'DEVELOPER_OVERRIDE') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | Plot Product (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber} | BA: ${sponsorDoc.name}`;
+            } else if (c.commissionRole === 'BRANCH_OVERRIDE') {
+              remarks = `F.Comm (${c.fixedPercent}%) on ₹${colAmtFormatted} | Branch Override (Plot Product) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
+            }
+
+            const sponsorLedger = targetBranchId
+              ? await Ledger.findOne({ branchId: targetBranchId }).session(session)
+              : await Ledger.findOne({ sponsorId: targetLedgerSponsorId }).session(session);
+
+            let existingEntry = sponsorLedger ? await Entry.findOne({
+              ledgerId: sponsorLedger._id,
+              referenceId: booking._id,
+              particular: { $regex: col.receiptNumber },
+              source,
+              status: 'active'
+            }).session(session) : null;
+
+            if (existingEntry) {
+              c.ledgerEntryId = existingEntry._id;
+            } else {
+              const entry = await accountingService.recordLedgerEntry({
+                branchId: targetBranchId || null,
+                sponsorId: targetLedgerSponsorId || null,
+                date: receiptDate,
+                type: 'CREDIT',
+                amount: fixedAmt,
+                source,
+                referenceId: booking._id,
+                remarks
+              }, session);
+              c.ledgerEntryId = entry._id;
+            }
+
+            if (c.ledgerEntryId) {
+              validEntryIds.add(c.ledgerEntryId.toString());
+            }
+            if (session) await c.save({ session });
+            else await c.save();
           }
         }
         continue;

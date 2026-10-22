@@ -584,7 +584,7 @@ const CommissionPolicyMatrix = ({
                             <input
                               type="tel"
                               inputMode="numeric"
-                              pattern="[0-9]*"
+                              pattern="^[0-9,]*$"
                               className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800"
                               value={formatIndianNumber(slab.minAmount)}
                               onChange={(e) =>
@@ -605,7 +605,7 @@ const CommissionPolicyMatrix = ({
                             <input
                               type="tel"
                               inputMode="numeric"
-                              pattern="[0-9]*"
+                              pattern="^[0-9,]*$"
                               placeholder="Unlimited"
                               className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
                               value={isUnlimited ? '' : formatIndianNumber(slab.maxAmount)}
@@ -781,7 +781,7 @@ const CommissionPolicyMatrix = ({
                             <input
                               type="tel"
                               inputMode="numeric"
-                              pattern="[0-9]*"
+                              pattern="^[0-9,]*$"
                               className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800"
                               value={formatIndianNumber(slab.minAmount)}
                               onChange={(e) =>
@@ -802,7 +802,7 @@ const CommissionPolicyMatrix = ({
                             <input
                               type="tel"
                               inputMode="numeric"
-                              pattern="[0-9]*"
+                              pattern="^[0-9,]*$"
                               placeholder="Unlimited"
                               className="w-28 px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-bold font-mono text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
                               value={isUnlimited ? '' : formatIndianNumber(slab.maxAmount)}

@@ -685,7 +685,7 @@ const VoucherList = () => {
     {
       name: "S.No",
       selector: (row, index) => index + 1,
-      width: "55px",
+      width: "50px",
     },
     {
       name: "Voucher / Date",
@@ -702,14 +702,14 @@ const VoucherList = () => {
             {dayjs(row.date || row.createdAt).format("DD MMM YYYY")}
           </span>
           {row.createdBy?.name && (
-            <span className="text-[10px] text-slate-400 font-normal leading-tight truncate max-w-[125px]" title={`Created by: ${row.createdBy.name}`}>
+            <span className="text-[10px] text-slate-400 font-normal leading-tight truncate max-w-[110px]" title={`Created by: ${row.createdBy.name}`}>
               By: {row.createdBy.name}
             </span>
           )}
         </div>
       ),
       sortable: true,
-      width: "145px"
+      width: "125px"
     },
     {
       name: "Ledger",
@@ -724,10 +724,10 @@ const VoucherList = () => {
         const isEmployee = Boolean(row.employeeId);
 
         return (
-          <div className="flex flex-col py-1 min-w-0">
+          <div className="flex flex-col py-1 min-w-0 max-w-[130px]">
             <span className="font-semibold text-slate-800 text-xs truncate" title={name}>{name}</span>
             {isSponsor && (
-              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap">
+              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap truncate max-w-[125px]">
                 Sponsor {row.sponsorId?.sponsorCode ? `(${row.sponsorId.sponsorCode})` : ''}
               </span>
             )}
@@ -740,8 +740,7 @@ const VoucherList = () => {
         );
       },
       sortable: true,
-      wrap: true,
-      width: "210px",
+      width: "140px",
     },
     {
       name: "Amount",
@@ -758,10 +757,10 @@ const VoucherList = () => {
             {status === 'REJECTED' ? (
               <span className="text-[11px] text-rose-600 font-medium">Cancelled</span>
             ) : (
-              <div className="flex items-center gap-1.5 text-[10.5px] leading-tight mt-0.5">
+              <div className="flex flex-col text-[10.5px] leading-tight mt-0.5">
                 <span className="text-emerald-700 font-medium">Paid: ₹{paid.toLocaleString('en-IN')}</span>
                 {remaining > 0 && status !== 'PENDING' && (
-                  <span className="text-amber-700 font-medium">· Due: ₹{remaining.toLocaleString('en-IN')}</span>
+                  <span className="text-amber-700 font-medium">Due: ₹{remaining.toLocaleString('en-IN')}</span>
                 )}
               </div>
             )}
@@ -769,7 +768,7 @@ const VoucherList = () => {
         );
       },
       sortable: true,
-      width: "145px"
+      width: "125px"
     },
     {
       name: "Payment Source",
@@ -781,31 +780,36 @@ const VoucherList = () => {
         }
 
         const isCash = source.toLowerCase().includes("cash");
+        // Split text like "Ghanshyam kumar (Cash Ledger)" into mainName: "Ghanshyam kumar" and subName: "Cash Ledger"
+        const match = source.match(/^(.*?)\s*\((.*?)\)$/);
+        const mainName = match ? match[1].trim() : source;
+        const subName = match ? match[2].trim() : (isCash ? "Cash" : null);
+
         return (
-          <div className="flex items-center gap-1.5 py-1">
-            <span
-              title={source}
-              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md border max-w-full cursor-help transition-all ${
-                isCash
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80"
-                  : "bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100/80"
-              }`}
-            >
-              <CreditCard size={11} className={`shrink-0 ${isCash ? "text-emerald-600" : "text-teal-600"}`} />
-              <span className="truncate max-w-[170px]" title={source}>{source}</span>
-            </span>
+          <div className="flex items-start gap-1.5 py-1 min-w-0 max-w-[145px]" title={source}>
+            <CreditCard size={13} className={`shrink-0 mt-0.5 ${isCash ? "text-emerald-600" : "text-teal-600"}`} />
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="truncate font-semibold text-slate-800 text-xs" title={mainName}>
+                {mainName}
+              </span>
+              {subName && (
+                <span className="text-[10px] text-slate-500 font-medium truncate" title={subName}>
+                  {subName}
+                </span>
+              )}
+            </div>
           </div>
         );
       },
       sortable: true,
-      width: "190px"
+      width: "150px"
     },
     {
       name: "Status",
       selector: (row) => row.status || "APPROVED",
       cell: (row) => renderStatusBadge(row.status),
       sortable: true,
-      width: "135px"
+      width: "125px"
     },
     {
       name: "Narration",
@@ -814,7 +818,7 @@ const VoucherList = () => {
     },
     {
       name: "Actions",
-      width: "130px",
+      width: "110px",
       cell: (row) => {
         const isManual = row.referenceType === "MANUAL";
         const status = row.status || "APPROVED";

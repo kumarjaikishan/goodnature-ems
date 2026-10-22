@@ -7,6 +7,7 @@ const InvestmentCommission = require('../models/InvestmentCommission');
 const PlotCustomer = require('../models/PlotCustomer');
 const User = require('../models/user');
 const Entry = require('../models/entry');
+const Ledger = require('../models/ledger');
 const Counter = require('../models/Counter');
 const CommissionPolicyConfig = require('../models/CommissionPolicyConfig');
 const accountingService = require('./accountingService');
@@ -386,11 +387,25 @@ class InvestmentService {
       const isApproved = paymentMode === 'cash';
       const receiptStatus = isApproved ? 'APPROVED' : 'PENDING';
 
+      let resolvedLedgerId = data.ledgerId || null;
+      if (isApproved) {
+        if (!resolvedLedgerId) {
+          const userCash = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' }).session(session);
+          resolvedLedgerId = userCash?._id || null;
+        }
+      } else {
+        if (!resolvedLedgerId) {
+          const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+          resolvedLedgerId = defaultBank?._id || null;
+        }
+      }
+
       const newReceipt = new InvestmentReceipt({
         receiptNumber,
         accountId: account._id,
         customerId: account.customerId,
         sponsorId: account.sponsorId,
+        ledgerId: resolvedLedgerId,
         amount: numAmount,
         paymentDate: pDate,
         paymentMode,
@@ -408,6 +423,17 @@ class InvestmentService {
       await newReceipt.save({ session });
 
       if (isApproved) {
+        if (resolvedLedgerId) {
+          await accountingService.recordLedgerEntry({
+            ledgerId: resolvedLedgerId,
+            date: pDate,
+            type: 'CREDIT',
+            amount: numAmount,
+            source: 'receipt',
+            referenceId: newReceipt._id,
+            remarks: `RD/FD Receipt #${receiptNumber} - A/C #${account.accountNumber || account.schemeType} (${paymentMode})`
+          }, session);
+        }
         await this._applyReceiptToAccount(account, newReceipt, session);
       }
 
@@ -678,6 +704,38 @@ class InvestmentService {
       receipt.status = 'APPROVED';
       receipt.approvedBy = userId;
       receipt.approvedAt = new Date();
+
+      // Realize collection into bank ledger
+      let targetLedgerId = receipt.ledgerId;
+      if (!targetLedgerId) {
+        const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+        if (defaultBank) {
+          targetLedgerId = defaultBank._id;
+          receipt.ledgerId = defaultBank._id;
+        }
+      }
+
+      if (targetLedgerId) {
+        const existingEntry = await Entry.findOne({
+          ledgerId: targetLedgerId,
+          referenceId: receipt._id,
+          source: 'receipt',
+          status: 'active'
+        }).session(session);
+
+        if (!existingEntry) {
+          await accountingService.recordLedgerEntry({
+            ledgerId: targetLedgerId,
+            date: receipt.paymentDate || receipt.createdAt || new Date(),
+            type: 'CREDIT',
+            amount: Number(receipt.amount),
+            source: 'receipt',
+            referenceId: receipt._id,
+            remarks: `RD/FD Receipt #${receipt.receiptNumber} - A/C #${account.accountNumber || account.schemeType}`
+          }, session);
+        }
+      }
+
       await receipt.save({ session });
 
       await this._applyReceiptToAccount(account, receipt, session);
@@ -725,7 +783,7 @@ class InvestmentService {
 
         // Clean up ledger entries
         const existingEntries = await Entry.find({
-          source: 'commission_fixed',
+          source: { $in: ['commission_fixed', 'receipt'] },
           referenceId: receipt._id,
         }).session(session);
         for (const e of existingEntries) {
