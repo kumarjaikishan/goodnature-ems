@@ -688,9 +688,9 @@ class PlotClosingService {
     }
 
     const isExtra = closing.closingType === 'EXTRA_INCENTIVE';
-    const commFilter = isExtra ? { extraClosingId: closing._id } : { closingId: closing._id };
+    let commFilter = isExtra ? { extraClosingId: closing._id } : { closingId: closing._id };
 
-    const plotCommissions = await PlotSponsorCommission.find(commFilter)
+    let plotCommissions = await PlotSponsorCommission.find(commFilter)
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
@@ -704,6 +704,29 @@ class PlotClosingService {
       })
       .sort({ createdAt: 1 })
       .lean();
+
+    // Fallback: If extra closing has no directly tagged commissions (e.g. commission rebuild occurred),
+    // load commissions within the closing's evaluation period and match against closing sponsors
+    if (isExtra && plotCommissions.length === 0 && closing.startDate && closing.endDate) {
+      const fallbackFilter = {
+        createdAt: { $gte: closing.startDate, $lte: closing.endDate },
+        status: 'active',
+      };
+      plotCommissions = await PlotSponsorCommission.find(fallbackFilter)
+        .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
+        .populate('customerId', 'name customerId customerCode mobile')
+        .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
+        .populate({
+          path: 'bookingId',
+          select: 'bookingNumber tenureMonths plotValue netValue discount plotId sponsorId',
+          populate: [
+            { path: 'plotId', select: 'plotNumber seriesId' },
+            { path: 'sponsorId', select: 'name sponsorCode customerId' }
+          ]
+        })
+        .sort({ createdAt: 1 })
+        .lean();
+    }
 
     const invCommissionsRaw = await InvestmentCommission.find(commFilter)
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')

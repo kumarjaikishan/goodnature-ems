@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import DataTable from '@/components/common/DataTable';
@@ -31,7 +31,13 @@ import {
 } from 'lucide-react';
 import { swal } from '../../../utils/confirmDialog';
 
-const getEntryRateLabel = (entry) => {
+const getEntryRateLabel = (entry, isExtra = false) => {
+  if (isExtra) {
+    const ext = Number(entry.extraIncentivePercent || 0);
+    if (ext > 0) return `+${ext}% Extra`;
+    if (entry.rewardTitle) return `🎁 ${entry.rewardTitle}`;
+    return '0% Extra';
+  }
   const inc = Number(entry.incentivePercent || 0);
   if (inc > 0) {
     return `+${inc}% Inc.`;
@@ -97,7 +103,7 @@ const renderTransactionNatureBadge = (entry) => {
   );
 };
 
-const renderSponsorTransactions = (entries, isPartner = false) => {
+const renderSponsorTransactions = (entries, isPartner = false, isExtra = false) => {
   if (!entries || entries.length === 0) {
     return (
       <div className="p-4 text-center text-xs text-slate-400 italic bg-slate-50/50 rounded-xl border border-slate-100">
@@ -107,26 +113,26 @@ const renderSponsorTransactions = (entries, isPartner = false) => {
   }
 
   const totalBusiness = entries.reduce((sum, e) => sum + Number(e.collectionAmount || 0), 0);
-  const totalInc = entries.reduce((sum, e) => sum + Number(e.incentiveAmount ?? e.amount ?? 0), 0);
+  const totalInc = entries.reduce((sum, e) => sum + Number(isExtra ? (e.extraIncentiveAmount || 0) : (e.incentiveAmount ?? e.amount ?? 0)), 0);
 
   return (
     <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200 shadow-inner my-2 space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
         <div className="flex items-center gap-2">
-          <span className="p-1 rounded-md bg-teal-100 text-teal-800">
+          <span className={`p-1 rounded-md ${isExtra ? 'bg-purple-100 text-purple-800' : 'bg-teal-100 text-teal-800'}`}>
             <Receipt size={13} />
           </span>
           <span className="text-xs font-bold text-slate-800">
             Period Collection Receipts
           </span>
-          <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+          <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full ${isExtra ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
             {entries.length} {entries.length === 1 ? 'Receipt' : 'Receipts'}
           </span>
         </div>
         <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
           <span>Total Business: <strong className="text-slate-800">₹{totalBusiness.toLocaleString('en-IN')}</strong></span>
           <span className="text-slate-300">|</span>
-          <span>Target Incentive: <strong className="text-emerald-700 font-bold">₹{totalInc.toLocaleString('en-IN')}</strong></span>
+          <span>{isExtra ? 'Extra Incentive / Reward' : 'Target Incentive'}: <strong className={`font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>₹{totalInc.toLocaleString('en-IN')}</strong></span>
         </div>
       </div>
 
@@ -138,8 +144,8 @@ const renderSponsorTransactions = (entries, isPartner = false) => {
               <th className="p-2.5">Booking / Plot</th>
               <th className="p-2.5">Customer & Transaction Nature</th>
               <th className="p-2.5 text-right">Collection Amt</th>
-              <th className="p-2.5 text-center">Achieved Slab Inc. %</th>
-              <th className="p-2.5 text-right">Incentive to Credit</th>
+              <th className="p-2.5 text-center">{isExtra ? 'Extra Rate / Reward' : 'Achieved Slab Inc. %'}</th>
+              <th className="p-2.5 text-right">{isExtra ? 'Extra Incentive' : 'Incentive to Credit'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -154,10 +160,11 @@ const renderSponsorTransactions = (entries, isPartner = false) => {
               const plotNo = entry.bookingId?.plotId?.plotNumber || '';
               const bookingSponsor = entry.bookingId?.sponsorId;
               const custName = entry.customerId?.name || 'Customer';
-              const rateStr = getEntryRateLabel(entry);
+              const rateStr = getEntryRateLabel(entry, isExtra);
+              const payout = Number(isExtra ? (entry.extraIncentiveAmount || 0) : (entry.incentiveAmount ?? entry.amount ?? 0));
 
               return (
-                <tr key={entry._id || idx} className="hover:bg-teal-50/20 transition">
+                <tr key={entry._id || idx} className={`transition ${isExtra ? 'hover:bg-purple-50/20' : 'hover:bg-teal-50/20'}`}>
                   <td className="p-2.5 font-mono text-slate-700">
                     <div className="font-bold text-slate-800">{rcpNo}</div>
                     <div className="text-[11px] text-slate-400">{rcpDate}</div>
@@ -199,12 +206,12 @@ const renderSponsorTransactions = (entries, isPartner = false) => {
                     ₹{Number(entry.collectionAmount || 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-2.5 text-center">
-                    <span className="inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] bg-teal-100/80 text-teal-800">
+                    <span className={`inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] ${isExtra ? 'bg-purple-100/80 text-purple-800 border border-purple-200' : 'bg-teal-100/80 text-teal-800 border border-teal-200'}`}>
                       {rateStr}
                     </span>
                   </td>
-                  <td className="p-2.5 text-right font-bold text-emerald-700">
-                    ₹{Number(entry.incentiveAmount ?? entry.amount ?? 0).toLocaleString('en-IN')}
+                  <td className={`p-2.5 text-right font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>
+                    ₹{payout.toLocaleString('en-IN')}
                   </td>
                 </tr>
               );
@@ -224,11 +231,40 @@ const formatRateBreakdown = (rateStr, effectivePct, isOverride = false) => {
   return '0% Incentive';
 };
 
+const parseTab = (param) => {
+  if (!param) return 'TARGET_INCENTIVE';
+  const clean = String(param).trim().toLowerCase();
+  if (clean === 'extra' || clean === 'extra_incentive' || clean === 'rewards') {
+    return 'EXTRA_INCENTIVE';
+  }
+  return 'TARGET_INCENTIVE';
+};
+
 const PlotIncentivesPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const customStyles = useCustomStyles();
 
-  const [activeTab, setActiveTab] = useState('TARGET_INCENTIVE'); // 'TARGET_INCENTIVE' | 'EXTRA_INCENTIVE'
+  const urlTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() => parseTab(urlTab));
+
+  useEffect(() => {
+    const resolved = parseTab(urlTab);
+    if (resolved !== activeTab) {
+      setActiveTab(resolved);
+    }
+  }, [urlTab]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    const newParams = new URLSearchParams(searchParams);
+    if (newTab === 'EXTRA_INCENTIVE') {
+      newParams.set('tab', 'extra');
+    } else {
+      newParams.delete('tab');
+    }
+    setSearchParams(newParams, { replace: true });
+  };
   const [closings, setClosings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -470,7 +506,7 @@ const PlotIncentivesPage = () => {
         <div className="flex gap-6 overflow-x-auto">
           <button
             type="button"
-            onClick={() => setActiveTab('TARGET_INCENTIVE')}
+            onClick={() => handleTabChange('TARGET_INCENTIVE')}
             className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'TARGET_INCENTIVE'
                 ? 'border-teal-800 text-teal-800'
@@ -481,7 +517,7 @@ const PlotIncentivesPage = () => {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('EXTRA_INCENTIVE')}
+            onClick={() => handleTabChange('EXTRA_INCENTIVE')}
             className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'EXTRA_INCENTIVE'
                 ? 'border-teal-800 text-teal-800'
@@ -613,48 +649,48 @@ const PlotIncentivesPage = () => {
       </div>
 
       {/* ── CLOSING DETAILS MODAL ── */}
-      <Modalbox open={showDetailsModal} onClose={() => setShowDetailsModal(false)} size="6xl">
-        <div className="p-6 bg-white rounded-2xl w-full max-h-[92vh] flex flex-col space-y-4">
+      <Modalbox
+        open={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        size="6xl"
+        title={
+          selectedClosingDetails ? (
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
+                <Gift size={18} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span>{selectedClosingDetails.closingName}</span>
+                <span className="font-mono text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
+                  {selectedClosingDetails.closingNumber}
+                </span>
+              </div>
+            </div>
+          ) : undefined
+        }
+        subtitle={
+          selectedClosingDetails
+            ? `Period: ${new Date(selectedClosingDetails.startDate).toLocaleDateString('en-IN')} — ${new Date(selectedClosingDetails.endDate).toLocaleDateString('en-IN')}`
+            : undefined
+        }
+      >
+        <div className="w-full flex flex-col space-y-4">
           {detailsLoading || !selectedClosingDetails ? (
             <div className="py-16">
               <PageLoader title="Loading Incentive Details..." subtitle="Fetching comprehensive settlement breakdown" />
             </div>
           ) : (
             <>
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
-                    <Gift size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-slate-900">{selectedClosingDetails.closingName}</h3>
-                      <span className="font-mono text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
-                        {selectedClosingDetails.closingNumber}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium">
-                      Period: {new Date(selectedClosingDetails.startDate).toLocaleDateString('en-IN')} — {new Date(selectedClosingDetails.endDate).toLocaleDateString('en-IN')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => window.print()}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-                  >
-                    <Printer size={15} />
-                    <span>Print Statement</span>
-                  </button>
-                  <button
-                    onClick={() => setShowDetailsModal(false)}
-                    className="text-slate-400 hover:text-slate-600 font-bold text-base cursor-pointer p-1"
-                  >
-                    ✕
-                  </button>
-                </div>
+              {/* Print Action Bar */}
+              <div className="flex justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                >
+                  <Printer size={15} />
+                  <span>Print Statement</span>
+                </button>
               </div>
 
               {/* Summary Cards */}
@@ -810,7 +846,7 @@ const PlotIncentivesPage = () => {
                                     {isExpanded && (
                                       <tr className="bg-slate-50/70 border-b border-slate-200">
                                         <td colSpan={5} className="p-3">
-                                          {renderSponsorTransactions(sp.entries)}
+                                          {renderSponsorTransactions(sp.entries, false, isModalExtra)}
                                         </td>
                                       </tr>
                                     )}
@@ -941,7 +977,7 @@ const PlotIncentivesPage = () => {
                                     {isExpanded && (
                                       <tr className="bg-slate-50/70 border-b border-slate-200">
                                         <td colSpan={5} className="p-3">
-                                          {renderSponsorTransactions(sp.entries, true)}
+                                          {renderSponsorTransactions(sp.entries, true, isModalExtra)}
                                         </td>
                                       </tr>
                                     )}

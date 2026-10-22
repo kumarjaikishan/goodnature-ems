@@ -168,13 +168,16 @@ class PlotDeveloperService {
       }
       commsByReceiptId.get(rIdStr).push(c);
 
-      if (c.closingId) {
+      if (c.closingId || c.extraClosingId) {
         const entityIdStr = (c.sponsorId || c.branchId || '').toString();
         const key = `${rIdStr}_${entityIdStr}_${c.commissionRole}`;
         closingTagMap[key] = {
-          closingId: c.closingId,
+          closingId: c.closingId || null,
+          extraClosingId: c.extraClosingId || null,
           incentivePercent: c.incentivePercent || 0,
           incentiveAmount: c.incentiveAmount || 0,
+          extraIncentivePercent: c.extraIncentivePercent || 0,
+          extraIncentiveAmount: c.extraIncentiveAmount || 0,
           slabLabel: c.slabLabel || ''
         };
       }
@@ -421,6 +424,9 @@ class PlotDeveloperService {
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: closedInfo ? closedInfo.closingId : null,
+          extraClosingId: closedInfo ? closedInfo.extraClosingId : null,
+          extraIncentivePercent: closedInfo ? closedInfo.extraIncentivePercent : 0,
+          extraIncentiveAmount: closedInfo ? closedInfo.extraIncentiveAmount : 0,
           ledgerEntryId,
           createdAt: receiptDate,
         });
@@ -498,6 +504,9 @@ class PlotDeveloperService {
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: baClosedInfo ? baClosedInfo.closingId : null,
+          extraClosingId: baClosedInfo ? baClosedInfo.extraClosingId : null,
+          extraIncentivePercent: baClosedInfo ? baClosedInfo.extraIncentivePercent : 0,
+          extraIncentiveAmount: baClosedInfo ? baClosedInfo.extraIncentiveAmount : 0,
           ledgerEntryId: baLedgerEntryId,
           createdAt: receiptDate,
         });
@@ -576,6 +585,9 @@ class PlotDeveloperService {
             tierTenureMonths: Number(booking.tenureMonths) || 0,
             status: 'active',
             closingId: bpClosedInfo ? bpClosedInfo.closingId : null,
+            extraClosingId: bpClosedInfo ? bpClosedInfo.extraClosingId : null,
+            extraIncentivePercent: bpClosedInfo ? bpClosedInfo.extraIncentivePercent : 0,
+            extraIncentiveAmount: bpClosedInfo ? bpClosedInfo.extraIncentiveAmount : 0,
             ledgerEntryId: bpLedgerEntryId,
             createdAt: receiptDate,
           });
