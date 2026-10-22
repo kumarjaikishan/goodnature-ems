@@ -119,10 +119,10 @@ export const EditReceiptModal = ({
             </div>
           )}
 
-          {editForm.paymentMode !== 'cash' && (
+          {editForm.paymentMode === 'cheque' && (
             <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2.5">
               <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                Customer Bank Details
+                Customer Cheque Bank Details
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>

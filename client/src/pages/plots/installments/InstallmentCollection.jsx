@@ -323,16 +323,15 @@ const InstallmentCollection = ({ type, initialView }) => {
     setSelectedBooking(b || null);
     setInstallments([]);
     setSelectedInstIds([]);
-    const cust = b?.customerId;
     setForm((f) => ({
       ...f,
       amountPaid: '',
       lateFineRebate: '',
-      bankName: cust?.bankName || '',
-      bankBranch: cust?.bankBranch || '',
-      accountNumber: cust?.accountNumber || '',
-      accountHolderName: cust?.accountHolderName || cust?.name || b?.customerName || '',
-      ifscCode: cust?.ifscCode || '',
+      bankName: '',
+      bankBranch: '',
+      accountNumber: '',
+      accountHolderName: '',
+      ifscCode: '',
     }));
     setDetailsLoading(true);
 
@@ -581,7 +580,7 @@ const InstallmentCollection = ({ type, initialView }) => {
         installmentIds: targetIds,
         selectedInstallmentIds: targetIds,
         createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : undefined,
-        bankDetails: form.paymentMode !== 'cash' ? {
+        bankDetails: form.paymentMode === 'cheque' ? {
           bankName: form.bankName || '',
           bankBranch: form.bankBranch || '',
           accountNumber: form.accountNumber || '',

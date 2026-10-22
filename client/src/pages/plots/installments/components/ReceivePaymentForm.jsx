@@ -8,9 +8,9 @@ import { DateInput } from '@/components/ui/DateInput';
 import numberToWords from '@/utils/numToWord';
 import { Banknote, CheckCircle, Clock, AlertTriangle, ArrowRight, Building2, Wallet } from 'lucide-react';
 
-const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
+const labelCls = 'text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1';
 const inputCls =
-  'w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none';
+  'w-full h-[42px] px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition';
 
 const ReceivePaymentForm = ({
   handleSubmit,
@@ -108,10 +108,14 @@ const ReceivePaymentForm = ({
       const custName = b.customerId?.name || b.customerName || '';
       const plotNum = b.plotId?.plotNumber || '';
 
+      const parts = [];
+      if (custName) parts.push(custName);
+      if (plotNum) parts.push(`Plot ${plotNum}`);
+
       return {
         value: b._id,
         label: `${bNum}`,
-        subtitle: custName || plotNum ? `Customer: ${custName} • Plot #${plotNum}` : undefined,
+        subtitle: parts.length > 0 ? parts.join(" | ") : undefined,
       };
     });
   }, [bookings]);
@@ -663,9 +667,10 @@ const ReceivePaymentForm = ({
                 <div className="flex flex-col gap-1">
                   <label className={labelCls}>
                     {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'}
+                    <span className="text-red-500 font-bold">*</span>
                   </label>
                   <select
-                    className={`${inputCls} ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : ''}`}
+                    className={`${inputCls} ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'cursor-pointer'}`}
                     value={form.ledgerId || ''}
                     disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
                     onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
@@ -694,12 +699,16 @@ const ReceivePaymentForm = ({
                   value={form.createdAt}
                   onChange={(e) => handleCollectionDateChange(e.target.value)}
                   required
+                  containerClassName="gap-1"
+                  labelClassName={labelCls}
+                  className="!h-[42px] !rounded-xl !text-sm !border-slate-300 focus:!border-teal-600 focus:!ring-2 focus:!ring-teal-600"
                 />
 
                 {form.paymentMode !== 'cash' && (
                   <div className="flex flex-col gap-1">
                     <label className={labelCls}>
                       {form.paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'Reference / UTR / Transaction No.'}
+                      <span className="text-red-500 font-bold">*</span>
                     </label>
                     <input
                       className={inputCls}
@@ -726,14 +735,14 @@ const ReceivePaymentForm = ({
                   </div>
                 )}
 
-                {/* Customer Bank Details for Non-Cash (Cheque / Online / Bank Transfer) Payments */}
-                {form.paymentMode !== 'cash' && (
+                {/* Customer Bank Details only for Cheque Payments */}
+                {form.paymentMode === 'cheque' && (
                   <div className="sm:col-span-2 lg:col-span-3 p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
                     <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
                       <div className="flex items-center gap-2">
                         <Building2 size={16} className="text-teal-700" />
                         <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                          Customer Bank Account Details
+                          Customer Cheque Bank Details
                         </span>
                       </div>
                       <span className="text-[11px] text-slate-500 font-medium">

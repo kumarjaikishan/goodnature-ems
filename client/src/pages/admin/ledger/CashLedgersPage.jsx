@@ -394,9 +394,10 @@ export default function CashLedgersPage() {
                             )}&ledgertype=user_cash`
                           )
                         }
-                        className="px-2.5 py-1 bg-teal-700 text-white rounded-lg font-bold text-xs hover:bg-teal-800 transition shadow-xs"
+                        className="px-2.5 py-1 bg-teal-700 text-white rounded-lg font-bold text-xs hover:bg-teal-800 transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer mx-auto"
+                        title="View Statement"
                       >
-                        Statement
+                        <Eye size={13} /> View
                       </button>
                     </td>
                   </tr>

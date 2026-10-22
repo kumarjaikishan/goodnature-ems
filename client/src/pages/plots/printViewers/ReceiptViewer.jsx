@@ -405,8 +405,8 @@ const ReceiptViewer = () => {
               </>
             )}
 
-            {/* Customer Bank Details for Non-Cash / Cheque */}
-            {(receipt.bankName || receipt.accountNumber || receipt.ifscCode) && (
+            {/* Customer Bank Details only for Cheque Payments */}
+            {receipt.paymentMode === 'cheque' && (receipt.bankName || receipt.accountNumber || receipt.ifscCode) && (
               <tr className="border-b border-slate-100 bg-slate-50/50">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">

@@ -389,8 +389,9 @@ export default function BankLedgersPage() {
                         )
                       }
                       className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      title="View Statement"
                     >
-                      <Eye size={13} /> Statement
+                      <Eye size={13} /> View
                     </button>
                   </div>
                 </div>
@@ -468,9 +469,10 @@ export default function BankLedgersPage() {
                             )}&ledgertype=bank`
                           )
                         }
-                        className="px-2.5 py-1 bg-teal-700 text-white rounded-lg font-bold text-xs hover:bg-teal-800 transition shadow-xs"
+                        className="px-2.5 py-1 bg-teal-700 text-white rounded-lg font-bold text-xs hover:bg-teal-800 transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        title="View Statement"
                       >
-                        Statement
+                        <Eye size={13} /> View
                       </button>
                     </div>
                   </td>

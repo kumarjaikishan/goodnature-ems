@@ -62,7 +62,6 @@ const Navbar = () => {
     "rules": "Attendance Rules",
     "leave-policies": "Leave Policies",
     "attandence-import": "Attendance Import",
-    "add": "Create Payroll",
     "vouchers": "Vouchers",
     "activity-logs": "Activity Logs",
     // Plot Management Titles
@@ -158,6 +157,16 @@ const Navbar = () => {
       if (pathParts.includes("new")) pageTitle = "New Booking";
       else if (pathParts.length > 3) pageTitle = "Booking Details";
       else pageTitle = "Plot Bookings";
+    } else if (pathParts.includes("collections") || pathParts.includes("installments")) {
+      if (pathParts.includes("emi")) {
+        pageTitle = pathParts.includes("add") ? "Record EMI Collection" : "EMI Collections";
+      } else if (pathParts.includes("downpayment")) {
+        pageTitle = pathParts.includes("add") ? "Record Downpayment" : "Downpayment Collections";
+      } else if (pathParts.includes("products")) {
+        pageTitle = pathParts.includes("add") ? "Record Product Collection" : "Product Collections";
+      } else {
+        pageTitle = "Collections";
+      }
     } else if (pathParts.includes("receipts")) {
       pageTitle = "Print Receipt";
     } else if (pathParts.includes("certificates")) {
@@ -169,6 +178,11 @@ const Navbar = () => {
     } else {
       pageTitle = commonTitles[lastPart] || "Plot Management";
     }
+  } else if (pathParts.includes("payroll")) {
+    if (pathParts.includes("add")) pageTitle = "Create Payroll";
+    else if (pathParts.includes("edit")) pageTitle = "Edit Payroll";
+    else if (pathParts.includes("print")) pageTitle = "Payslip Print";
+    else pageTitle = "Payroll";
   } else if (pathParts.includes("investments")) {
     if (pathParts.includes("new")) pageTitle = "New Deposit Account";
     else if (pathParts.includes("accounts")) pageTitle = "Investment Accounts";
@@ -184,8 +198,6 @@ const Navbar = () => {
       pageTitle = "Ledger Detail";
     } else if (pathParts.includes("vouchers") && pathParts.length > 2) {
       pageTitle = "Voucher Detail";
-    } else if (pathParts.includes("payroll") && pathParts.includes("print")) {
-      pageTitle = "Payslip Print";
     } else if (pathParts.includes("performance")) {
       pageTitle = "Performance";
     } else {
