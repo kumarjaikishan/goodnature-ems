@@ -8,6 +8,7 @@ import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import DateInput from "../../../components/ui/DateInput";
 import { confirmDialog } from "../../../utils/confirmDialog";
+import { hasPermission } from "../../../utils/CheckPermission";
 import {
   ArrowRightLeft,
   Plus,
@@ -32,6 +33,10 @@ export default function FundTransfersPage() {
   const currentUserId = String(currentUser._id || currentUser.id || "");
   const currentUserRole = String(currentUser.role || "").toLowerCase();
   const isSuperAdmin = ['superadmin', 'admin', 'developer', 'grant'].includes(currentUserRole);
+
+  const hasApprovePerm = hasPermission(currentUser, 'fund_transfer', 3);
+  const hasCreatePerm = hasPermission(currentUser, 'fund_transfer', 2);
+  const hasCancelPerm = hasPermission(currentUser, 'fund_transfer', 4);
 
   const [loading, setLoading] = useState(true);
   const [transfers, setTransfers] = useState([]);
@@ -128,26 +133,39 @@ export default function FundTransfersPage() {
 
   const handleOpenTransferModal = () => {
     const myCash = activeMyCash;
+    let initialFrom = "";
     if (myCash) {
-      setFromLedgerId(myCash._id);
+      initialFrom = myCash._id;
     } else if (treasuryLedgers.bankLedgers.length > 0) {
-      setFromLedgerId(treasuryLedgers.bankLedgers[0]._id);
-    }
-
-    if (treasuryLedgers.bankLedgers.length > 0) {
-      setToLedgerId(treasuryLedgers.bankLedgers[0]._id);
+      initialFrom = treasuryLedgers.bankLedgers[0]._id;
     } else if (treasuryLedgers.cashLedgers.length > 0) {
-      const otherCash = treasuryLedgers.cashLedgers.find((c) => c._id !== myCash?._id);
-      setToLedgerId(otherCash?._id || treasuryLedgers.cashLedgers[0]._id);
+      initialFrom = treasuryLedgers.cashLedgers[0]._id;
     }
+    setFromLedgerId(initialFrom);
+
+    // Pick a destination that is different from initialFrom
+    const validDest =
+      treasuryLedgers.bankLedgers.find((b) => b._id !== initialFrom) ||
+      treasuryLedgers.cashLedgers.find((c) => c._id !== initialFrom);
+    const destId = validDest ? validDest._id : "";
+    setToLedgerId(destId);
 
     setAmount("");
-    setTransferMode("CASH_DEPOSIT");
+    setTransferMode(determineTransferMode(initialFrom, destId));
     setReferenceNo("");
     setNarration("");
     setDepositSlipFile(null);
     setTransferDate(new Date().toISOString().slice(0, 10));
     setTransferModalOpen(true);
+  };
+
+  const determineTransferMode = (fromId, toId) => {
+    const isFromBank = treasuryLedgers.bankLedgers.some((b) => String(b._id) === String(fromId));
+    const isToBank = treasuryLedgers.bankLedgers.some((b) => String(b._id) === String(toId));
+    if (isFromBank && !isToBank) return "BANK_WITHDRAWAL";
+    if (!isFromBank && isToBank) return "CASH_DEPOSIT";
+    if (isFromBank && isToBank) return "BANK_TRANSFER";
+    return "CASH_HANDOVER";
   };
 
   const selectedFromLedger =
@@ -297,8 +315,6 @@ export default function FundTransfersPage() {
     }
   };
 
-  const isSuperOrAdmin = isSuperAdmin || ["superadmin", "admin", "developer", "grant"].includes(currentUserRole);
-
   return (
     <div className="w-full max-w-7xl mx-auto space-y-5 p-4 md:p-6">
       {/* Header */}
@@ -319,16 +335,18 @@ export default function FundTransfersPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Plus size={16} />}
-            onClick={handleOpenTransferModal}
-          >
-            Initiate Transfer Request
-          </Button>
-        </div>
+        {hasCreatePerm && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus size={16} />}
+              onClick={handleOpenTransferModal}
+            >
+              Initiate Transfer Request
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -470,15 +488,42 @@ export default function FundTransfersPage() {
                 const isRejected = t.status === "REJECTED";
                 const isCancelled = t.status === "CANCELLED";
 
-                const canApprove =
-                  isPending &&
-                  (isSuperOrAdmin ||
-                    String(t.toUserId?._id || t.toUserId) === currentUserId);
+                const isRecipient =
+                  String(t.toUserId?._id || t.toUserId || "") === currentUserId ||
+                  String(t.toLedgerId?.assignedUserId?._id || t.toLedgerId?.assignedUserId || "") === currentUserId;
+
+                const destLedgerType = t.toLedgerId?.ledgerType;
+                const isDestBank = destLedgerType === "bank";
+                const isDestCash = destLedgerType === "user_cash" || (!isDestBank && Boolean(t.toUserId || t.toLedgerId?.assignedUserId));
+
+                let canApproveBankDest = false;
+                if (isDestBank) {
+                  if (['superadmin', 'developer', 'grant'].includes(currentUserRole)) {
+                    canApproveBankDest = true;
+                  } else if (currentUserRole === 'admin' || hasApprovePerm) {
+                    const bankPerm = currentUser?.bankPermissions;
+                    const destBankId = String(t.toLedgerId?._id || t.toLedgerId || "");
+                    if (!bankPerm || bankPerm.accessScope === 'all') {
+                      canApproveBankDest = bankPerm?.allowReceipts !== false;
+                    } else if (bankPerm.accessScope === 'selected') {
+                      const allowedBankIds = (bankPerm.allowedBankIds || []).map(id => String(id?._id || id));
+                      canApproveBankDest = bankPerm.allowReceipts !== false && allowedBankIds.includes(destBankId);
+                    }
+                  }
+                }
+
+                // If destination is cashier / cash drawer: ONLY the recipient user is authorized!
+                // If destination is bank: ONLY admin/superadmin with receipt permission on this bank!
+                const canApprove = isPending && (
+                  (isDestCash && isRecipient) ||
+                  (isDestBank && canApproveBankDest) ||
+                  (!isDestCash && !isDestBank && (isRecipient || (['superadmin', 'admin', 'developer', 'grant'].includes(currentUserRole) && hasApprovePerm)))
+                );
 
                 const canCancel =
                   isPending &&
-                  (String(t.fromUserId?._id || t.fromUserId) === currentUserId ||
-                    isSuperOrAdmin);
+                  (String(t.fromUserId?._id || t.fromUserId || "") === currentUserId ||
+                    hasCancelPerm);
 
                 return (
                   <tr key={t._id} className="hover:bg-slate-50/80 transition-colors">
@@ -631,6 +676,12 @@ export default function FundTransfersPage() {
                           </button>
                         )}
 
+                        {isPending && !canApprove && !canCancel && (
+                          <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 font-semibold px-2 py-0.5 rounded-md">
+                            {isDestCash ? "Awaiting Recipient" : "Awaiting Bank Checker"}
+                          </span>
+                        )}
+
                         {!isPending && (
                           <span className="text-[11px] text-slate-400 font-medium">Completed</span>
                         )}
@@ -682,7 +733,19 @@ export default function FundTransfersPage() {
               </label>
               <select
                 value={fromLedgerId}
-                onChange={(e) => setFromLedgerId(e.target.value)}
+                onChange={(e) => {
+                  const newFrom = e.target.value;
+                  setFromLedgerId(newFrom);
+                  let nextDest = toLedgerId;
+                  if (newFrom === toLedgerId) {
+                    const alt =
+                      treasuryLedgers.bankLedgers.find((b) => b._id !== newFrom) ||
+                      treasuryLedgers.cashLedgers.find((c) => c._id !== newFrom);
+                    nextDest = alt ? alt._id : "";
+                    setToLedgerId(nextDest);
+                  }
+                  setTransferMode(determineTransferMode(newFrom, nextDest));
+                }}
                 required
                 className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition"
               >
@@ -728,7 +791,11 @@ export default function FundTransfersPage() {
               </label>
               <select
                 value={toLedgerId}
-                onChange={(e) => setToLedgerId(e.target.value)}
+                onChange={(e) => {
+                  const newTo = e.target.value;
+                  setToLedgerId(newTo);
+                  setTransferMode(determineTransferMode(fromLedgerId, newTo));
+                }}
                 required
                 className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition"
               >
@@ -780,8 +847,9 @@ export default function FundTransfersPage() {
                 className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition"
               >
                 <option value="CASH_DEPOSIT">Cash Deposit into Bank</option>
+                <option value="BANK_WITHDRAWAL">Bank Withdrawal to Cash</option>
                 <option value="BANK_TRANSFER">Bank to Bank Transfer (RTGS / NEFT)</option>
-                <option value="CASH_HANDOVER">Cash Handover to Staff</option>
+                <option value="CASH_HANDOVER">Cash Transfer</option>
                 <option value="CHEQUE">Cheque Deposit</option>
                 <option value="UPI">UPI / Online Transfer</option>
                 <option value="INTERNAL_TRANSFER">Internal Adjustment</option>
@@ -937,7 +1005,7 @@ export default function FundTransfersPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border bg-white shadow-2xs">
-                  {viewTransferDetail.transferMode?.replace("_", " ")}
+                  {viewTransferDetail.transferMode === "CASH_HANDOVER" ? "CASH TRANSFER" : viewTransferDetail.transferMode?.replace(/_/g, " ")}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
                   viewTransferDetail.status === "APPROVED"

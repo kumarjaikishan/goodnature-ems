@@ -22,7 +22,7 @@ exports.getPendingApprovalStats = async (req, res, next) => {
       });
     }
 
-    const dbUser = await User.findById(userId).select('role branchIds').lean();
+    const dbUser = await User.findById(userId).select('role branchIds permissions bankPermissions').lean();
     if (!dbUser) {
       return res.status(200).json({
         voucher: 0,
@@ -70,20 +70,47 @@ exports.getPendingApprovalStats = async (req, res, next) => {
       }
     }
 
-    // Fund transfers query: global admins see all pending, others see pending directed to them or their cash ledger
-    let fundTransferQuery = null;
-    if (isGlobalAdmin) {
-      fundTransferQuery = { status: 'PENDING' };
-    } else {
-      const userLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' }).select('_id').lean();
-      fundTransferQuery = {
-        status: 'PENDING',
-        $or: [
-          { toUserId: userId },
-          ...(userLedger ? [{ toLedgerId: userLedger._id }] : [])
-        ]
-      };
+    // Fund transfers query: live pending transfers that THIS user has authority to approve:
+    // 1. Transfers to user's own cash drawer / personal account
+    // 2. Transfers into bank accounts if user has bank deposit authority (superadmin, dev, or admin with bank permission)
+    const userRoleStr = String(dbUser.role || '').toLowerCase();
+    const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(userRoleStr);
+    const hasFTApprovePerm = Array.isArray(dbUser?.permissions?.fund_transfer) && dbUser.permissions.fund_transfer.includes(3);
+    const bPerm = dbUser?.bankPermissions;
+
+    const userLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' }).select('_id').lean();
+    const actionableConditions = [
+      { toUserId: userId },
+      ...(userLedger ? [{ toLedgerId: userLedger._id }] : [])
+    ];
+
+    const bankLedgers = await Ledger.find({ ledgerType: 'bank' }).select('_id').lean();
+    const allBankIds = bankLedgers.map(l => l._id);
+
+    let allowedBankDestIds = [];
+    if (isSuperOrDev) {
+      allowedBankDestIds = allBankIds;
+    } else if (userRoleStr === 'admin' || hasFTApprovePerm) {
+      if (!bPerm || bPerm.accessScope === 'all') {
+        if (bPerm?.allowReceipts !== false) {
+          allowedBankDestIds = allBankIds;
+        }
+      } else if (bPerm.accessScope === 'selected') {
+        if (bPerm.allowReceipts !== false) {
+          const selectedSet = new Set((bPerm.allowedBankIds || []).map(id => id.toString()));
+          allowedBankDestIds = allBankIds.filter(id => selectedSet.has(id.toString()));
+        }
+      }
     }
+
+    if (allowedBankDestIds.length > 0) {
+      actionableConditions.push({ toLedgerId: { $in: allowedBankDestIds } });
+    }
+
+    const fundTransferQuery = {
+      status: 'PENDING',
+      $or: actionableConditions
+    };
 
     const [voucherCount, dpCount, emiCount, fundCount] = await Promise.all([
       voucherQuery ? Voucher.countDocuments(voucherQuery) : 0,

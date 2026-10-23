@@ -2,6 +2,7 @@ const FundTransfer = require('../models/FundTransfer');
 const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
 const Counter = require('../models/Counter');
+const User = require('../models/user');
 const accountingService = require('../services/accountingService');
 const { withTransaction } = require('../utils/transaction');
 const cloudinary = require('../utils/cloudinary');
@@ -35,16 +36,42 @@ exports.requestTransfer = async (req, res, next) => {
       return res.status(404).json({ message: "Destination ledger not found" });
     }
 
+    const caller = await User.findById(req.user?.id || req.userid).select('role permissions bankPermissions').lean();
+    const callerRole = String(caller?.role || req.user?.role || '').toLowerCase();
+    const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(callerRole);
+    const bPerm = caller?.bankPermissions;
+
     // Security: Only the assigned cashier can transfer funds OUT of their personal cash drawer
     if (fromLedger.ledgerType === 'user_cash') {
-      const isOwner = String(fromLedger.assignedUserId) === String(req.user.id || req.user._id);
-      if (!isOwner) {
+      const isOwner = String(fromLedger.assignedUserId) === String(req.user.id || req.user._id || req.userid);
+      if (!isOwner && !isSuperOrDev) {
         return res.status(403).json({ message: "You can only initiate transfers from your own personal cash ledger" });
       }
     } else if (fromLedger.ledgerType === 'bank') {
-      const isSuperAdmin = ['superadmin', 'admin', 'developer', 'grant'].includes(String(req.user.role).toLowerCase());
-      if (!isSuperAdmin) {
-        return res.status(403).json({ message: "Only administrators can initiate transfers directly from corporate bank accounts" });
+      if (!isSuperOrDev) {
+        if (bPerm?.accessScope === 'none' || bPerm?.allowPayments === false) {
+          return res.status(403).json({ message: "You do not have authorization to disburse or transfer funds out of corporate bank accounts." });
+        }
+        if (bPerm?.accessScope === 'selected') {
+          const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+          if (!allowedIds.includes(fromLedger._id.toString())) {
+            return res.status(403).json({ message: "You are not authorized to disburse funds from this specific bank account." });
+          }
+        }
+      }
+    }
+
+    if (toLedger.ledgerType === 'bank') {
+      if (!isSuperOrDev) {
+        if (bPerm?.accessScope === 'none' || bPerm?.allowReceipts === false) {
+          return res.status(403).json({ message: "You do not have authorization to deposit or transfer funds into corporate bank accounts." });
+        }
+        if (bPerm?.accessScope === 'selected') {
+          const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+          if (!allowedIds.includes(toLedger._id.toString())) {
+            return res.status(403).json({ message: "You are not authorized to transfer funds into this specific bank account." });
+          }
+        }
       }
     }
 
@@ -176,12 +203,46 @@ exports.approveTransfer = async (req, res, next) => {
         throw new Error("One or both associated ledgers were not found");
       }
 
-      // Permissions check: Superadmin, Admin, Developer, or the assigned user of toLedger
-      const isSuperOrAdmin = ['superadmin', 'admin', 'developer'].includes(req.user.role);
-      const isRecipientUser = toLedger.assignedUserId && String(toLedger.assignedUserId) === String(req.user.id);
+      // Authority check:
+      // If destination is a Cash Drawer / User Cashier: ONLY that recipient user can approve/accept!
+      // If destination is a Corporate Bank: Only an Admin or Superadmin with bank receipt permission can approve!
+      const caller = await User.findById(req.user?.id || req.userid).select('role permissions bankPermissions').session(session).lean();
+      const callerRole = String(caller?.role || req.user?.role || '').toLowerCase();
+      const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(callerRole);
+      const isAdmin = callerRole === 'admin';
+      const hasFTApprovePerm = Array.isArray(caller?.permissions?.fund_transfer) && caller.permissions.fund_transfer.includes(3);
+      const callerId = String(caller?._id || req.user?.id || req.userid);
 
-      if (!isSuperOrAdmin && !isRecipientUser) {
-        throw new Error("Unauthorized. Only Admin or the receiving account holder can approve this transfer.");
+      const isRecipientUser = (toLedger.assignedUserId && String(toLedger.assignedUserId) === callerId) ||
+                              (transfer.toUserId && String(transfer.toUserId) === callerId);
+
+      const isDestBank = toLedger.ledgerType === 'bank';
+      const isDestCash = toLedger.ledgerType === 'user_cash' || (!isDestBank && (toLedger.assignedUserId || transfer.toUserId));
+
+      if (isDestCash) {
+        if (!isRecipientUser) {
+          throw new Error("Unauthorized. Only the receiving cashier / destination account holder can approve this cash transfer.");
+        }
+      } else if (isDestBank) {
+        let canApproveBankDest = false;
+        const bPerm = caller?.bankPermissions;
+        if (isSuperOrDev) {
+          canApproveBankDest = true;
+        } else if (isAdmin || hasFTApprovePerm) {
+          if (!bPerm || bPerm.accessScope === 'all') {
+            canApproveBankDest = bPerm?.allowReceipts !== false;
+          } else if (bPerm.accessScope === 'selected') {
+            const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+            canApproveBankDest = bPerm.allowReceipts !== false && allowedIds.includes(String(toLedger._id));
+          }
+        }
+        if (!canApproveBankDest) {
+          throw new Error("Unauthorized. You do not have authorization to approve transfers depositing into this corporate bank account.");
+        }
+      } else {
+        if (!isSuperOrDev && !isAdmin && !hasFTApprovePerm && !isRecipientUser) {
+          throw new Error("Unauthorized. You do not have permission to approve this transfer.");
+        }
       }
 
       // Re-verify balance
@@ -258,9 +319,51 @@ exports.rejectTransfer = async (req, res, next) => {
       return res.status(400).json({ message: `Transfer request is already ${transfer.status}` });
     }
 
+    const toLedger = await Ledger.findById(transfer.toLedgerId).lean();
+    if (!toLedger) return res.status(404).json({ message: "Destination ledger not found" });
+
+    const caller = await User.findById(req.user?.id || req.userid).select('role permissions bankPermissions').lean();
+    const callerRole = String(caller?.role || req.user?.role || '').toLowerCase();
+    const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(callerRole);
+    const isAdmin = callerRole === 'admin';
+    const hasFTApprovePerm = Array.isArray(caller?.permissions?.fund_transfer) && caller.permissions.fund_transfer.includes(3);
+    const callerId = String(caller?._id || req.user?.id || req.userid);
+
+    const isRecipientUser = (toLedger.assignedUserId && String(toLedger.assignedUserId) === callerId) ||
+                            (transfer.toUserId && String(transfer.toUserId) === callerId);
+
+    const isDestBank = toLedger.ledgerType === 'bank';
+    const isDestCash = toLedger.ledgerType === 'user_cash' || (!isDestBank && (toLedger.assignedUserId || transfer.toUserId));
+
+    if (isDestCash) {
+      if (!isRecipientUser) {
+        return res.status(403).json({ message: "Unauthorized. Only the receiving cashier / destination account holder can reject this cash transfer." });
+      }
+    } else if (isDestBank) {
+      let canApproveBankDest = false;
+      const bPerm = caller?.bankPermissions;
+      if (isSuperOrDev) {
+        canApproveBankDest = true;
+      } else if (isAdmin || hasFTApprovePerm) {
+        if (!bPerm || bPerm.accessScope === 'all') {
+          canApproveBankDest = bPerm?.allowReceipts !== false;
+        } else if (bPerm.accessScope === 'selected') {
+          const allowedIds = (bPerm.allowedBankIds || []).map(bId => bId.toString());
+          canApproveBankDest = bPerm.allowReceipts !== false && allowedIds.includes(String(toLedger._id));
+        }
+      }
+      if (!canApproveBankDest) {
+        return res.status(403).json({ message: "Unauthorized. You do not have permission to reject transfers depositing into this corporate bank account." });
+      }
+    } else {
+      if (!isSuperOrDev && !isAdmin && !hasFTApprovePerm && !isRecipientUser) {
+        return res.status(403).json({ message: "Unauthorized to reject this transfer." });
+      }
+    }
+
     transfer.status = 'REJECTED';
     transfer.rejectionReason = reason.trim();
-    transfer.rejectedBy = req.user.id;
+    transfer.rejectedBy = caller?._id || req.user?.id || req.userid;
     transfer.rejectedAt = new Date();
     await transfer.save();
 
@@ -287,7 +390,13 @@ exports.cancelTransfer = async (req, res, next) => {
       return res.status(400).json({ message: `Transfer request is already ${transfer.status}` });
     }
 
-    if (String(transfer.fromUserId) !== String(req.user.id) && !['superadmin', 'admin', 'developer'].includes(req.user.role)) {
+    const caller = await User.findById(req.user?.id || req.userid).select('role permissions').lean();
+    const callerRole = String(caller?.role || req.user?.role || '').toLowerCase();
+    const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(callerRole);
+    const hasFTCancelPerm = Array.isArray(caller?.permissions?.fund_transfer) && caller.permissions.fund_transfer.includes(4);
+    const isOwner = String(transfer.fromUserId) === String(caller?._id || req.user?.id || req.userid);
+
+    if (!isOwner && !isSuperOrDev && !hasFTCancelPerm) {
       return res.status(403).json({ message: "You can only cancel your own pending transfer requests" });
     }
 
@@ -306,48 +415,127 @@ exports.cancelTransfer = async (req, res, next) => {
 };
 
 /**
+ * Helper to build permission & bank scoping filters for transfers
+ */
+async function buildTransferScopeFilter(userId, fallbackRole) {
+  const caller = await User.findById(userId).select('role permissions bankPermissions').lean();
+  const callerRole = String(caller?.role || fallbackRole || '').toLowerCase();
+  const isDeveloper = callerRole === 'developer';
+  const isSuperAdmin = ['superadmin', 'grant'].includes(callerRole);
+  const isAdmin = callerRole === 'admin';
+  const bankPerm = caller?.bankPermissions;
+
+  // Personal participant condition: any transfer where the user is sender or receiver (cashier wallet)
+  const userLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' }).select('_id').lean();
+  const userLedgerId = userLedger?._id;
+  const personalCondition = {
+    $or: [
+      { fromUserId: userId },
+      { toUserId: userId },
+      ...(userLedgerId ? [{ fromLedgerId: userLedgerId }, { toLedgerId: userLedgerId }] : [])
+    ]
+  };
+
+  const scopeConditions = [];
+
+  // Superadmin and Developer see all corporate transfers
+  if (isDeveloper || isSuperAdmin) {
+    return { caller, scopeConditions: [] };
+  }
+
+  // Admin visibility (can see corporate transfers, but filtered if bank access restricted)
+  if (isAdmin) {
+    const hasCustomizedBankPerm = bankPerm && (
+      bankPerm.accessScope !== 'all' ||
+      bankPerm.allowReceipts === false ||
+      bankPerm.allowPayments === false ||
+      (Array.isArray(bankPerm.allowedBankIds) && bankPerm.allowedBankIds.length > 0)
+    );
+
+    if (hasCustomizedBankPerm) {
+      const bankLedgers = await Ledger.find({ ledgerType: 'bank' }).select('_id').lean();
+      const allBankLedgerIds = bankLedgers.map(l => l._id);
+
+      if (bankPerm?.accessScope === 'none' || (bankPerm?.allowReceipts === false && bankPerm?.allowPayments === false)) {
+        scopeConditions.push({
+          $or: [
+            personalCondition,
+            {
+              fromLedgerId: { $nin: allBankLedgerIds },
+              toLedgerId: { $nin: allBankLedgerIds }
+            }
+          ]
+        });
+      } else if (bankPerm?.accessScope === 'selected') {
+        const allowedIds = (bankPerm.allowedBankIds || []).map(id => id.toString());
+        const disallowedBankIds = allBankLedgerIds.filter(id => !allowedIds.includes(id.toString()));
+        if (disallowedBankIds.length > 0) {
+          scopeConditions.push({
+            $or: [
+              personalCondition,
+              {
+                fromLedgerId: { $nin: disallowedBankIds },
+                toLedgerId: { $nin: disallowedBankIds }
+              }
+            ]
+          });
+        }
+      }
+    }
+    return { caller, scopeConditions };
+  }
+
+  // Non-Admin (accountant, cashier, manager, employee, staff):
+  // Directly scoped to their personal drawer/role — they see any transfer coming TO them or sent FROM them!
+  scopeConditions.push(personalCondition);
+  return { caller, scopeConditions };
+}
+
+/**
  * 5. Get Transfers List with Filters & Pagination
  */
 exports.getTransfers = async (req, res, next) => {
   try {
     const { status, search, fromDate, toDate, ledgerId, page = 1, limit = 25 } = req.query;
-    const query = {};
+    const andConditions = [];
 
     if (status && status !== 'all') {
-      query.status = status;
+      andConditions.push({ status });
     }
 
     if (ledgerId) {
-      query.$or = [{ fromLedgerId: ledgerId }, { toLedgerId: ledgerId }];
-    }
-
-    // Role Scoping
-    if (!['superadmin', 'admin', 'developer'].includes(req.user.role)) {
-      const userLedger = await Ledger.findOne({ assignedUserId: req.user.id, ledgerType: 'user_cash' });
-      const ledgerIds = userLedger ? [userLedger._id] : [];
-      query.$or = [
-        { fromUserId: req.user.id },
-        { toUserId: req.user.id },
-        ...(ledgerIds.length ? [{ fromLedgerId: { $in: ledgerIds } }, { toLedgerId: { $in: ledgerIds } }] : [])
-      ];
+      andConditions.push({
+        $or: [{ fromLedgerId: ledgerId }, { toLedgerId: ledgerId }]
+      });
     }
 
     if (fromDate && toDate) {
-      query.transferDate = {
-        $gte: new Date(fromDate),
-        $lte: new Date(new Date(toDate).setHours(23, 59, 59, 999))
-      };
+      andConditions.push({
+        transferDate: {
+          $gte: new Date(fromDate),
+          $lte: new Date(new Date(toDate).setHours(23, 59, 59, 999))
+        }
+      });
     }
 
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
-      query.$or = [
-        { transferNo: searchRegex },
-        { referenceNo: searchRegex },
-        { narration: searchRegex }
-      ];
+      andConditions.push({
+        $or: [
+          { transferNo: searchRegex },
+          { referenceNo: searchRegex },
+          { narration: searchRegex }
+        ]
+      });
     }
 
+    const userId = req.user?.id || req.userid;
+    const { scopeConditions } = await buildTransferScopeFilter(userId, req.user?.role);
+    if (scopeConditions.length > 0) {
+      andConditions.push(...scopeConditions);
+    }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 25;
 
@@ -356,8 +544,8 @@ exports.getTransfers = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum)
-      .populate('fromLedgerId', 'name ledgerType bankName accountNumber profileImage advance')
-      .populate('toLedgerId', 'name ledgerType bankName accountNumber profileImage advance')
+      .populate('fromLedgerId', 'name ledgerType bankName accountNumber profileImage advance assignedUserId')
+      .populate('toLedgerId', 'name ledgerType bankName accountNumber profileImage advance assignedUserId')
       .populate('fromUserId', 'name email role')
       .populate('toUserId', 'name email role')
       .populate('approvedBy', 'name email role')
@@ -382,28 +570,23 @@ exports.getTransfers = async (req, res, next) => {
  */
 exports.getTransferStats = async (req, res, next) => {
   try {
-    const isSuperOrAdmin = ['superadmin', 'admin', 'developer'].includes(req.user.role);
-    let pendingCount = 0;
-    if (isSuperOrAdmin) {
-      pendingCount = await FundTransfer.countDocuments({ status: 'PENDING' });
-    } else {
-      const userLedger = await Ledger.findOne({ assignedUserId: req.user.id, ledgerType: 'user_cash' });
-      pendingCount = await FundTransfer.countDocuments({
-        status: 'PENDING',
-        $or: [
-          { toUserId: req.user.id },
-          ...(userLedger ? [{ toLedgerId: userLedger._id }] : [])
-        ]
-      });
-    }
+    const userId = req.user?.id || req.userid;
+    const { scopeConditions } = await buildTransferScopeFilter(userId, req.user?.role);
+
+    const pendingConditions = [{ status: 'PENDING' }, ...scopeConditions];
+    const pendingQuery = pendingConditions.length > 0 ? { $and: pendingConditions } : {};
+    const pendingCount = await FundTransfer.countDocuments(pendingQuery);
+
+    const approvedConditions = [{ status: 'APPROVED' }, ...scopeConditions];
+    const approvedMatch = approvedConditions.length > 0 ? { $and: approvedConditions } : {};
 
     const totalApproved = await FundTransfer.aggregate([
-      { $match: { status: 'APPROVED' } },
+      { $match: approvedMatch },
       { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } }
     ]);
 
     const totalPending = await FundTransfer.aggregate([
-      { $match: { status: 'PENDING' } },
+      { $match: pendingQuery },
       { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } }
     ]);
 

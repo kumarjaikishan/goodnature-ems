@@ -2,6 +2,23 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Fund Transfer Bank Permission Scoping & Live Role Enforcement [FIXED]**:
+  - **Issue**:
+    - When a user's role was changed from `admin` to `accountant` and their bank access was revoked (`bankPermissions.accessScope: 'none'`), the user could still see corporate bank transfers (`IDBI -> AXIS BANK` and `AXIS BANK -> Ghanshyam cash`) in `/dashboard/ledger/transfers` and KPI cards still showed bank pending amounts.
+    - Cause 1: `server/controllers/fundTransfer.js` evaluated role scoping using `req.user.role` from the JWT token. Because JWT tokens in browser localStorage are stateless, the token maintained `role: 'admin'` until re-login, causing `['superadmin', 'admin', 'developer'].includes(req.user.role)` to evaluate `true` and skip scoping.
+    - Cause 2: Unlike `ledger.js` and `voucher.js`, `fundTransfer.js` never checked `bankPermissions`. Even with `bankPermissions.accessScope: 'none'`, all bank transfers were returned.
+    - Cause 3: In `FundTransfersPage.jsx`, the Approve/Reject buttons were displayed based on hardcoded `isSuperOrAdmin = ['superadmin', 'admin', 'developer', 'grant'].includes(currentUserRole)` rather than checking granular permissions (`hasPermission(currentUser, 'fund_transfer', 3)`).
+  - **Fix**:
+    - In `server/controllers/fundTransfer.js`:
+      - Created `buildTransferScopeFilter` which queries the fresh user record from MongoDB (`User.findById(userId).select('role permissions bankPermissions')`), instantly enforcing any role or bank permission changes made in the admin panel regardless of stale JWT token contents.
+      - Enforced `bankPermissions.accessScope`: if `'none'`, strictly excludes third-party transfers involving corporate banks, while allowing direct participants (where `fromUserId/toUserId` or `fromLedgerId/toLedgerId` is the user's cash ledger) to see and sign off on transfers incoming to or originating from their personal cash drawer.
+      - Updated `approveTransfer` to ensure recipient cashiers (`isRecipientUser`) can acknowledge receipt of cash into their drawer without being blocked by source bank payment checks (as the source bank disbursement was already authorized by the initiating administrator).
+      - Combined query filters cleanly using `$and` arrays so `search`, `status`, and `ledgerId` do not overwrite role/bank scoping `$or` conditions.
+      - Updated `getTransferStats`, `requestTransfer`, `approveTransfer`, `rejectTransfer`, and `cancelTransfer` to check live DB permissions, standard CRUD action numbers (3 for approve, 4 for cancel), and verify bank disbursement/receipt permissions when bank accounts are involved.
+    - In `client/src/pages/admin/ledger/FundTransfersPage.jsx`:
+      - Replaced `isSuperOrAdmin` with `hasPermission(currentUser, 'fund_transfer', 3)` and `isRecipient` for `canApprove`, `hasPermission(currentUser, 'fund_transfer', 4)` for `canCancel`, and `hasPermission(currentUser, 'fund_transfer', 2)` for initiating transfer requests.
+      - Added `'BANK_WITHDRAWAL'` ("Bank Withdrawal to Cash") to `server/models/FundTransfer.js` enum and modal dropdown, renamed `'Cash Handover to Staff'` to `'Cash Transfer'`, and introduced smart auto-detection of transfer mode based on selected source/destination account types.
+
 - **Sponsor Commission Realization for Approved Bank/Online Receipts [FIXED]**:
   - **Issue**:
     - When taking installment, downpayment, or product collections via cash, receipts are immediately `APPROVED` and commissions are credited directly to the sponsor's ledger (Business Associate, Parent Partner, Branch).
@@ -279,3 +296,21 @@ This file records session notes, caveats, and discoveries across active sessions
       - Set `entryFixedPct = 0.50` when `sp.isBranchPartner`.
       - Persisted `isBranchPartner` and `branchBusiness` in `createPlotClosing` and `updatePlotClosing`.
 
+- **Fund Transfer Custody Authority & Maker-Checker Separation [COMPLETED]**:
+  - **Requirement**:
+    - If funds are transferred to a Cashier / User Cash Ledger (e.g. Account A to Cashier B): **ONLY Cashier B** (the receiving drawer holder) is authorized to approve/accept or reject the transfer. Admin or SuperAdmin CANNOT approve cash transfers destined for someone else's drawer.
+    - If funds are transferred to a Corporate Bank Account: Only an Admin or SuperAdmin with receipt permissions for that specific bank can approve/accept the deposit.
+    - If funds are transferred to an Admin/SuperAdmin's own cash ledger: They can approve because they are the receiving cashier.
+    - Upon approval: Full double-entry transaction completes immediately via `accountingService.recordLedgerEntry` (debit on source, credit on destination) and updates running balances on both ledgers.
+    - Added `BANK_WITHDRAWAL` ("Bank Withdrawal to Cash") mode and renamed "Cash Handover to Staff" to "Cash Transfer".
+  - **Backend**:
+    - `server/controllers/fundTransfer.js`:
+      - Updated `approveTransfer` and `rejectTransfer` with custody validation:
+        - If `isDestCash`: Throws error `Unauthorized. Only the receiving cashier / destination account holder can approve this cash transfer.` if caller is not the recipient cashier.
+        - If `isDestBank`: Validates that caller is Superadmin/Dev or an Admin with receipt permission for that bank ledger (`bPerm.allowReceipts !== false`, allowed bank IDs).
+    - `server/controllers/approvalController.js`:
+      - Updated `getPendingApprovalStats` so `/approvals/pending-stats` only returns pending fund transfers that the logged-in user is actionable to approve (transfers to their own cash drawer, plus corporate bank deposits if they possess bank receipt authority). Prevents Admins from seeing pending badges for transfers destined for other cash drawers.
+  - **Frontend**:
+    - `client/src/pages/admin/ledger/FundTransfersPage.jsx`:
+      - Computed `canApprove`: Strictly requires `isRecipient` for cash drawer destinations, and bank permission for bank destinations.
+      - Replaced generic action state with contextual indicator badge (`Awaiting Recipient` or `Awaiting Bank Checker`) for pending non-actionable transfers.

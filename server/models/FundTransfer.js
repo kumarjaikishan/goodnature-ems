@@ -40,7 +40,7 @@ const fundTransferSchema = new mongoose.Schema(
     },
     transferMode: {
       type: String,
-      enum: ['CASH_DEPOSIT', 'BANK_TRANSFER', 'NEFT_RTGS', 'CHEQUE', 'INTERNAL_TRANSFER', 'UPI', 'CASH_HANDOVER'],
+      enum: ['CASH_DEPOSIT', 'BANK_WITHDRAWAL', 'BANK_TRANSFER', 'NEFT_RTGS', 'CHEQUE', 'INTERNAL_TRANSFER', 'UPI', 'CASH_HANDOVER'],
       default: 'CASH_DEPOSIT',
       required: true,
     },
