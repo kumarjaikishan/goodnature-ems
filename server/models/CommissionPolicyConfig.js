@@ -344,16 +344,11 @@ commissionPolicyConfigSchema.statics.resolveSlab = function (policyData, roleNam
   let rewardTitles = [];
 
   if (matchedSlab) {
-    if (matchedSlab.extraIncentivePercent != null) {
-      extraIncentivePercent += Number(matchedSlab.extraIncentivePercent) || 0;
-    } else if (matchedSlab.rewardPercent != null) {
-      extraIncentivePercent += Number(matchedSlab.rewardPercent) || 0;
-    }
-
     if (matchedSlab.rewardTitle && String(matchedSlab.rewardTitle).trim()) {
       rewardTitles.push(String(matchedSlab.rewardTitle).trim());
     }
-    if (Array.isArray(matchedSlab.extraIncentives)) {
+
+    if (Array.isArray(matchedSlab.extraIncentives) && matchedSlab.extraIncentives.length > 0) {
       matchedSlab.extraIncentives.forEach((item) => {
         const p = Number(item?.percent) || 0;
         extraIncentivePercent += p;
@@ -362,6 +357,12 @@ commissionPolicyConfigSchema.statics.resolveSlab = function (policyData, roleNam
           rewardTitles.push(itemTitle);
         }
       });
+    } else {
+      if (matchedSlab.extraIncentivePercent != null) {
+        extraIncentivePercent = Number(matchedSlab.extraIncentivePercent) || 0;
+      } else if (matchedSlab.rewardPercent != null) {
+        extraIncentivePercent = Number(matchedSlab.rewardPercent) || 0;
+      }
     }
   }
 

@@ -396,7 +396,7 @@ class PlotClosingService {
         fixedCommission,
         incentiveCommission,
         extraIncentiveCommission,
-        extraIncentivePercent: plotSlab.extraIncentivePercent || 0,
+        extraIncentivePercent: dominantSlab.extraIncentivePercent || 0,
         extraRewardTitles: rewardTitle ? [rewardTitle] : [],
         totalCommission: payoutCommission,
         effectiveIncPct: defaultIncPct,
