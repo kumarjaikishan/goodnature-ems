@@ -700,6 +700,7 @@ class PlotClosingService {
     let commFilter = isExtra ? { extraClosingId: closing._id } : { closingId: closing._id };
 
     let plotCommissions = await PlotSponsorCommission.find(commFilter)
+      .populate('branchId', 'name branchCode code branchPartnerId')
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
@@ -795,9 +796,15 @@ class PlotClosingService {
 
     const sponsorsWithEntries = (closing.sponsors || []).map(sp => {
       const spId = (sp.sponsorId?._id || sp.sponsorId || '').toString();
+      const bId = (sp.branchId?._id || sp.branchId || '').toString();
       const entries = commissions.filter(c => {
+        if (sp.isBranchPartner) {
+          const cBId = (c.branchId?._id || c.branchId || '').toString();
+          const cSpId = (c.sponsorId?._id || c.sponsorId || '').toString();
+          return (bId && cBId === bId) || (spId && cSpId === spId) || c.commissionRole === 'BRANCH_OVERRIDE';
+        }
         const cSpId = (c.sponsorId?._id || c.sponsorId || '').toString();
-        return cSpId === spId;
+        return cSpId === spId && c.commissionRole !== 'BRANCH_OVERRIDE';
       });
       return {
         ...sp,

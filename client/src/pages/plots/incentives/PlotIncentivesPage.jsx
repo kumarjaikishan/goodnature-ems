@@ -17,6 +17,7 @@ import {
   TrendingUp,
   CheckCircle2,
   Building2,
+  Building,
   Users,
   IndianRupee,
   Receipt,
@@ -733,7 +734,7 @@ const PlotIncentivesPage = () => {
                 {/* ── 1. BUSINESS ASSOCIATES TABLE ── */}
                 {(() => {
                   const isModalExtra = selectedClosingDetails.closingType === 'EXTRA_INCENTIVE';
-                  const associateSponsors = (selectedClosingDetails.sponsors || []).filter((s) => !s.isDeveloper);
+                  const associateSponsors = (selectedClosingDetails.sponsors || []).filter((s) => !s.isDeveloper && !s.isBranchPartner);
                   const totalAssociateBusiness = associateSponsors.reduce((sum, s) => sum + Number(s.totalBusiness || 0), 0);
                   const totalAssociatePayout = associateSponsors.reduce((sum, s) => sum + Number(isModalExtra ? (s.extraIncentiveCommission || 0) : (s.incentiveCommission ?? s.totalCommission ?? 0)), 0);
 
@@ -864,7 +865,7 @@ const PlotIncentivesPage = () => {
                 {/* ── 2. BUSINESS PARTNERS TABLE ── */}
                 {(() => {
                   const isModalExtra = selectedClosingDetails.closingType === 'EXTRA_INCENTIVE';
-                  const partnerSponsors = (selectedClosingDetails.sponsors || []).filter((s) => s.isDeveloper);
+                  const partnerSponsors = (selectedClosingDetails.sponsors || []).filter((s) => s.isDeveloper && !s.isBranchPartner);
                   const totalPartnerBusiness = partnerSponsors.reduce((sum, s) => sum + Number(s.totalBusiness || 0), 0);
                   const totalPartnerPayout = partnerSponsors.reduce((sum, s) => sum + Number(isModalExtra ? (s.extraIncentiveCommission || 0) : (s.incentiveCommission ?? s.totalCommission ?? 0)), 0);
 
@@ -971,6 +972,141 @@ const PlotIncentivesPage = () => {
                                         </span>
                                       </td>
                                       <td className="p-3 text-right font-black text-indigo-800 bg-indigo-50/40 text-sm">
+                                        ₹{Number(spPayout).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </td>
+                                    </tr>
+                                    {isExpanded && (
+                                      <tr className="bg-slate-50/70 border-b border-slate-200">
+                                        <td colSpan={5} className="p-3">
+                                          {renderSponsorTransactions(sp.entries, true, isModalExtra)}
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ── 3. BRANCH PARTNERS TABLE ── */}
+                {(() => {
+                  const isModalExtra = selectedClosingDetails.closingType === 'EXTRA_INCENTIVE';
+                  const branchSponsors = (selectedClosingDetails.sponsors || []).filter((s) => s.isBranchPartner);
+                  const totalBranchBusiness = branchSponsors.reduce((sum, s) => sum + Number(s.totalBusiness || 0), 0);
+                  const totalBranchPayout = branchSponsors.reduce((sum, s) => sum + Number(isModalExtra ? (s.extraIncentiveCommission || 0) : (s.incentiveCommission ?? s.totalCommission ?? 0)), 0);
+
+                  return (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1 rounded-md bg-teal-100 text-teal-800">
+                            <Building size={14} />
+                          </span>
+                          <span className="text-xs font-bold text-slate-800">
+                            Branch Partners (Branch Franchise & Regional Sales Turnover)
+                          </span>
+                          <span className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+                            {branchSponsors.length} {branchSponsors.length === 1 ? 'Branch Partner' : 'Branch Partners'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
+                          <span>Branch Turnover: <strong className="text-slate-800">₹{totalBranchBusiness.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                          <span className="text-slate-300">|</span>
+                          <span>Net {isModalExtra ? 'Extra Reward' : 'Incentive'}: <strong className="text-teal-700 font-bold">₹{totalBranchPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="border border-teal-100 rounded-xl overflow-x-auto bg-white shadow-2xs">
+                        <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+                          <thead className="bg-teal-50/70 sticky top-0 border-b border-teal-100 text-slate-700 font-bold select-none">
+                            <tr>
+                              <th className="p-3">Branch Partner Details</th>
+                              <th className="p-3 text-right">Branch Sales Turnover</th>
+                              <th className="p-3 text-center">Achieved Slab</th>
+                              <th className="p-3 text-center">{isModalExtra ? 'Extra % / Reward' : 'Target Incentive %'}</th>
+                              <th className="p-3 text-right font-black">Net {isModalExtra ? 'Extra Reward' : 'Target Incentive'} to Credit</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {branchSponsors.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="p-6 text-center text-slate-400 italic">
+                                  No branch partner records in this batch.
+                                </td>
+                              </tr>
+                            ) : (
+                              branchSponsors.map((sp) => {
+                                const isExpanded = !!expandedDetailsSponsors[sp.sponsorId || sp.branchId || 'branch'];
+                                const entriesCount = sp.entries?.length || sp.transactionCount || 0;
+                                const spPayout = isModalExtra ? (sp.extraIncentiveCommission || 0) : (sp.incentiveCommission ?? sp.totalCommission ?? 0);
+                                const spKey = sp.sponsorId || sp.branchId || 'branch';
+                                return (
+                                  <React.Fragment key={spKey}>
+                                    <tr
+                                      onClick={() => toggleDetailsSponsorExpand(spKey)}
+                                      className={`hover:bg-teal-50/20 transition cursor-pointer ${isExpanded ? 'bg-teal-50/40 font-semibold' : ''}`}
+                                    >
+                                      <td className="p-3 font-bold text-slate-800">
+                                        <div className="flex items-start gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleDetailsSponsorExpand(spKey);
+                                            }}
+                                            className="mt-0.5 p-1 rounded-md hover:bg-teal-100 text-slate-500 hover:text-teal-800 transition"
+                                            title={isExpanded ? 'Collapse receipts' : 'Expand receipts'}
+                                          >
+                                            {isExpanded ? (
+                                              <ChevronDown size={15} className="text-teal-700" />
+                                            ) : (
+                                              <ChevronRight size={15} />
+                                            )}
+                                          </button>
+                                          <div>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="text-sm">{sp.sponsorName?.replace(/\s*\([^)]*\)/g, '') || sp.sponsorName}</span>
+                                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100/70 text-teal-900 border border-teal-300">
+                                                🏢 Branch Partner
+                                              </span>
+                                              {entriesCount > 0 && (
+                                                <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full border border-teal-200/60">
+                                                  {entriesCount} {entriesCount === 1 ? 'collection' : 'collections'}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="text-[11px] text-slate-400 font-normal">
+                                              Code: <span className="font-mono text-slate-600 font-bold">{sp.sponsorCode || sp.customerId}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="p-3 text-right font-bold text-slate-900 text-sm">
+                                        ₹{Number(sp.totalBusiness || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </td>
+                                      <td className="p-3 text-center">
+                                        <div className="inline-flex flex-col items-center gap-1">
+                                          <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                                            {sp.slabLabel || 'Standard'}
+                                          </span>
+                                          {sp.rewardTitle && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 shadow-2xs">
+                                              🎁 {sp.rewardTitle}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="p-3 text-center">
+                                        <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs bg-teal-100 text-teal-800 border border-teal-200">
+                                          {isModalExtra ? (sp.rateStr || (sp.rewardTitle ? `🎁 ${sp.rewardTitle}` : '0% Extra')) : (sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%'))}
+                                        </span>
+                                      </td>
+                                      <td className="p-3 text-right font-black text-teal-800 bg-teal-50/40 text-sm">
                                         ₹{Number(spPayout).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                     </tr>
