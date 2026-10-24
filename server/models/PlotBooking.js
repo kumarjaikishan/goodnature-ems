@@ -186,7 +186,7 @@ const plotBookingSchema = new mongoose.Schema(
     },
     branchCommissionPercent: {
       type: Number,
-      default: 0.5,
+      default: 0,
       min: 0,
     },
     rdMaturityPercent: {

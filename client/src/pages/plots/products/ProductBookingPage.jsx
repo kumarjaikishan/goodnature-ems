@@ -150,8 +150,8 @@ const ProductBookingPage = () => {
           ? (firstTenureObj?.bpFdCommissionPercent ?? 1.0)
           : (firstTenureObj?.bpRdCommissionPercent ?? 1.0);
         const initialBranchPct = isFullPaymentInit
-          ? (firstTenureObj?.branchFdCommissionPercent ?? 0.5)
-          : (firstTenureObj?.branchRdCommissionPercent ?? 0.5);
+          ? (firstTenureObj?.branchFdCommissionPercent ?? 0)
+          : (firstTenureObj?.branchRdCommissionPercent ?? 0);
 
         setForm((prev) => ({
           ...prev,
@@ -329,8 +329,8 @@ const ProductBookingPage = () => {
         ? Number(matched.bpFdCommissionPercent ?? 1.0)
         : Number(matched.bpRdCommissionPercent ?? 1.0);
       const branchPct = isOneTimeMode
-        ? Number(matched.branchFdCommissionPercent ?? 0.5)
-        : Number(matched.branchRdCommissionPercent ?? 0.5);
+        ? Number(matched.branchFdCommissionPercent ?? 0)
+        : Number(matched.branchRdCommissionPercent ?? 0);
 
       setForm((prev) => ({
         ...prev,
@@ -365,8 +365,8 @@ const ProductBookingPage = () => {
           ? Number(currentPlan.bpFdCommissionPercent ?? 1.0)
           : Number(currentPlan.bpRdCommissionPercent ?? 1.0);
         const branchPct = isOneTimeMode
-          ? Number(currentPlan.branchFdCommissionPercent ?? 0.5)
-          : Number(currentPlan.branchRdCommissionPercent ?? 0.5);
+          ? Number(currentPlan.branchFdCommissionPercent ?? 0)
+          : Number(currentPlan.branchRdCommissionPercent ?? 0);
         updated.promoterCommissionPercent = baPct;
         updated.developerCommissionPercent = bpPct;
         updated.bpCommissionPercent = bpPct;

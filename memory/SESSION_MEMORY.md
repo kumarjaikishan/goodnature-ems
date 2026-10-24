@@ -2,6 +2,21 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Branch Partner Incentive & Turnover Missing in Target Incentive Closing [FIXED]**:
+  - **Issue**:
+    - On `/dashboard/plots/incentives/new?type=TARGET_INCENTIVE`, Business Associates and Business Partners showed their business turnover and target incentives, but Branch Partners showed 0 collections/turnover and `No branch partner collections in this period.`
+    - Local DB showed branch overrides because bookings had branch commissions configured, but on the online MongoDB database:
+      1. In `server/services/plots/plotDeveloper.service.js` (`syncBookingSponsorCommissions`), `branchFixedPct` was resolved by looking at `matchedSlab.branchRdCommissionPercent ?? 0`. In the online DB, the scheme slabs had `0` configured for branch commission, causing `branchFixedPct` to evaluate to `0`. Consequently, `if ((targetBranchId || targetBranchPartnerId) && branchFixedPct > 0)` evaluated to `false`, and no `BRANCH_OVERRIDE` commission records were created at all when collections were recorded.
+      2. In `server/services/plots/plotClosing.service.js`, `const isBranch = c.commissionRole === 'BRANCH_OVERRIDE' || Boolean(c.branchId);` incorrectly conflated regular commissions having a branch attached with branch overrides.
+  - **Fix & Core Rules Implemented**:
+    - **No Hardcoded 0.5% Fallback**: All hardcoded `0.5%` defaults were removed across `plotDeveloper.service.js`, `plotClosing.service.js`, `plotBooking.service.js`, `plotProduct.service.js`, `plotConfig.service.js`, `ProductBookingPage.jsx`, and `StepTermsAndPayment.jsx`.
+    - **Direct Commission Percent**: Strictly comes from `https://demo.goodfeelsd.com/dashboard/plots/products?tab=schemes` (`branchRdCommissionPercent` / `branchFdCommissionPercent`). If 0% is configured, direct instant commission is 0.
+    - **Target & Extra Incentive**: Strictly comes from `https://demo.goodfeelsd.com/dashboard/plots/products?tab=incentives` (`CommissionPolicyConfig.resolveSlab(..., 'BRANCH_PARTNER', sp.totalBusiness)`).
+    - **Turnover Tracking**: Changed condition `if ((targetBranchId || targetBranchPartnerId) && branchFixedPct > 0)` to `if (targetBranchId || targetBranchPartnerId)`. Even when direct commission percentage is 0%, the `BRANCH_OVERRIDE` `PlotSponsorCommission` document is created with `amount: 0` and `collectionAmount: collectionPrincipal`, guaranteeing that the branch's total business turnover is preserved for target and extra incentive closings.
+    - In `server/services/plots/plotClosing.service.js`:
+      - Changed `isBranch` to strictly evaluate `c.commissionRole === 'BRANCH_OVERRIDE'`.
+      - Populated `branchPartnerId` on `branchId` to display the actual Branch Partner user's name and sponsor code when assigned, falling back cleanly to Branch name and code.
+
 - **Scheme Matrix Routing: Add Booking (Step 3) vs Plot Product Book/Sale Filter [COMPLETED]**:
   - **Requirement**:
     - Allow admin to mark/check a plan in the Scheme Matrix (`/dashboard/plots/products?tab=schemes`).

@@ -102,8 +102,8 @@ export const StepTermsAndPayment = ({
         ? Number(matched.bpFdCommissionPercent ?? 1.0)
         : Number(matched.bpRdCommissionPercent ?? 1.0);
       const branchPct = isOneTimeMode
-        ? Number(matched.branchFdCommissionPercent ?? 0.5)
-        : Number(matched.branchRdCommissionPercent ?? 0.5);
+        ? Number(matched.branchFdCommissionPercent ?? 0)
+        : Number(matched.branchRdCommissionPercent ?? 0);
 
       setForm((f) => ({
         ...f,
@@ -255,8 +255,8 @@ export const StepTermsAndPayment = ({
                 <span className="text-purple-700 text-[10px] uppercase font-bold">Branch:</span>
                 <strong className="text-purple-900 font-mono font-bold">
                   {paymentPlanMode === 'ONE_TIME'
-                    ? `${currentSchemeSlab.branchFdCommissionPercent ?? 0.5}%`
-                    : `${currentSchemeSlab.branchRdCommissionPercent ?? 0.5}%`}
+                    ? `${currentSchemeSlab.branchFdCommissionPercent ?? 0}%`
+                    : `${currentSchemeSlab.branchRdCommissionPercent ?? 0}%`}
                 </strong>
               </span>
             </div>
@@ -331,7 +331,7 @@ export const StepTermsAndPayment = ({
                   promoterCommissionPercent: Number(currentSchemeSlab.rdPromoterCommissionPercent ?? 4.0),
                   developerCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
                   bpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
-                  branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
+                  branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0),
                 }));
               }
             }}

@@ -89,7 +89,11 @@ class PlotClosingService {
     const commQuery = PlotSponsorCommission.find(query)
       .select('sponsorId customerId receiptId bookingId productBookingId receiptNumber collectionAmount amount commissionPercent commissionRole fixedPercent incentivePercent extraIncentivePercent fixedAmount incentiveAmount extraIncentiveAmount businessType status createdAt branchId')
       .populate('sponsorId', 'name email sponsorCode customerId mobile sponsorId')
-      .populate('branchId', 'name branchCode location address')
+      .populate({
+        path: 'branchId',
+        select: 'name branchCode location address branchPartnerId',
+        populate: { path: 'branchPartnerId', select: 'name sponsorCode customerId mobile' }
+      })
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
       .populate({
@@ -235,19 +239,21 @@ class PlotClosingService {
     const sponsorMap = {};
 
     commissions.forEach(c => {
-      const isBranch = c.commissionRole === 'BRANCH_OVERRIDE' || Boolean(c.branchId);
+      const isBranch = c.commissionRole === 'BRANCH_OVERRIDE';
       const sp = c.sponsorId;
       const branch = c.branchId;
 
       let key = null;
       if (isBranch && branch) {
         key = `branch_${branch._id || branch}`;
+      } else if (isBranch && c.sponsorId) {
+        key = `branch_sp_${c.sponsorId._id || c.sponsorId}`;
       } else if (sp && (sp._id || sp)) {
         key = `sp_${sp._id || sp}`;
       } else if (c.sponsorId) {
         key = `sp_${c.sponsorId}`;
       } else if (c.branchId) {
-        key = `branch_${c.branchId}`;
+        key = `branch_${c.branchId._id || c.branchId}`;
       }
 
       if (!key) return;
@@ -258,15 +264,16 @@ class PlotClosingService {
 
       if (!sponsorMap[key]) {
         if (isBranch && branch) {
-          const branchName = branch.name ? `${branch.name} BRANCH` : 'Branch Override';
-          const branchCode = branch.branchCode || branch.code || 'BRANCH';
+          const bpUser = branch.branchPartnerId || (sp && sp._id ? sp : null);
+          const bpName = bpUser?.name ? `${bpUser.name} (${branch.name || 'Branch'})` : (branch.name ? `${branch.name} BRANCH` : 'Branch Override');
+          const branchCode = bpUser?.sponsorCode || bpUser?.customerId || branch.branchCode || branch.code || 'BRANCH';
           sponsorMap[key] = {
             branchId: branch._id || branch,
-            sponsorId: null,
-            sponsorName: branchName.toUpperCase(),
+            sponsorId: bpUser?._id || null,
+            sponsorName: bpName.toUpperCase(),
             sponsorCode: branchCode,
             customerId: branchCode,
-            mobile: '',
+            mobile: bpUser?.mobile || '',
             isDeveloper: false,
             isBranchPartner: true,
             directBusiness: 0,
@@ -321,7 +328,7 @@ class PlotClosingService {
       const invSlab = CommissionPolicyConfig.resolveSlab(investmentPolicyConfig, roleName, sp.totalBusiness, isExtra);
 
       const dominantSlab = sp.entries.some(e => e.isInvestment || e.businessType === 'INVESTMENT_RD_FD') ? invSlab : plotSlab;
-      const defaultFixedPct = sp.isBranchPartner ? 0.5 : (!sp.isDeveloper ? 5.0 : 2.0);
+      const defaultFixedPct = sp.isBranchPartner ? 0 : (!sp.isDeveloper ? 5.0 : 2.0);
       const defaultIncPct = isExtra ? dominantSlab.extraIncentivePercent : dominantSlab.baseIncentivePercent;
       const slabLabel = dominantSlab.slabLabel;
       const rewardTitle = dominantSlab.rewardTitle || '';
@@ -338,9 +345,11 @@ class PlotClosingService {
         let applicableSlab = plotSlab;
         let entryFixedPct = 0;
 
-        if (sp.isBranchPartner) {
+        if (e.fixedPercent !== undefined && e.fixedPercent !== null) {
+          entryFixedPct = Number(e.fixedPercent);
+        } else if (sp.isBranchPartner) {
           applicableSlab = plotSlab;
-          entryFixedPct = 0.50;
+          entryFixedPct = 0;
         } else if (isPrd) {
           applicableSlab = prdSlab;
           entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;

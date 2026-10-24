@@ -383,8 +383,8 @@ class PlotProductService {
         fdPromoterCommissionPercent: Number(s.fdPromoterCommissionPercent ?? 5.0),
         bpRdCommissionPercent: Number(s.bpRdCommissionPercent ?? 1.0),
         bpFdCommissionPercent: Number(s.bpFdCommissionPercent ?? 1.0),
-        branchRdCommissionPercent: Number(s.branchRdCommissionPercent ?? 0.5),
-        branchFdCommissionPercent: Number(s.branchFdCommissionPercent ?? 0.5),
+        branchRdCommissionPercent: Number(s.branchRdCommissionPercent ?? 0),
+        branchFdCommissionPercent: Number(s.branchFdCommissionPercent ?? 0),
         developerCommissionPercent: Number(s.developerCommissionPercent ?? 1.0),
         showInAddBooking: Boolean(s.showInAddBooking),
       }));

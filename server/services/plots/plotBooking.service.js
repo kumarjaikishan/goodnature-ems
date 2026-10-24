@@ -356,7 +356,7 @@ class PlotBookingService {
         promoterCommissionPercent: Number(promoterCommissionPercent !== undefined ? promoterCommissionPercent : 5.0),
         developerCommissionPercent: Number(developerCommissionPercent !== undefined ? developerCommissionPercent : (bpCommissionPercent !== undefined ? bpCommissionPercent : 2.0)),
         bpCommissionPercent: Number(bpCommissionPercent !== undefined ? bpCommissionPercent : (developerCommissionPercent !== undefined ? developerCommissionPercent : 2.0)),
-        branchCommissionPercent: Number(branchCommissionPercent !== undefined ? branchCommissionPercent : 0.5),
+        branchCommissionPercent: Number(branchCommissionPercent !== undefined ? branchCommissionPercent : 0),
         rdMaturityPercent: Number(rdMaturityPercent || 0),
         fdMaturityPercent: Number(fdMaturityPercent || 0),
         annualInterestRate: Number(annualInterestRate || 0),

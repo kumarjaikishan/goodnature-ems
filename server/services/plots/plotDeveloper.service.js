@@ -297,8 +297,11 @@ class PlotDeveloperService {
             else await c.save();
           }
         }
-        // Past transaction is fully preserved with its original locked percentage!
-        continue;
+        // If this receipt is missing a BRANCH_OVERRIDE commission, let it create the branch override below
+        const hasBranchOverride = existingReceiptComms.some(c => c.commissionRole === 'BRANCH_OVERRIDE');
+        if (hasBranchOverride) {
+          continue;
+        }
       }
 
       // ── NEW RECEIPT: CALCULATE USING CURRENT ACTIVE SCHEME CONFIG ──
@@ -346,10 +349,17 @@ class PlotDeveloperService {
         }
       }
 
-      const baFixedPct = matchedSlab ? slabBaPct : Number(booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null ? booking.promoterCommissionPercent : 5.0);
-      const bpFixedPct = matchedSlab ? slabBpPct : Number(booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null ? booking.bpCommissionPercent : (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null ? booking.developerCommissionPercent : 2.0));
-      const branchFixedPct = matchedSlab ? slabBranchPct : Number(booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null ? booking.branchCommissionPercent : 0);
+      const baFixedPct = matchedSlab && slabBaPct > 0 ? slabBaPct : Number(booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null ? booking.promoterCommissionPercent : 5.0);
+      const bpFixedPct = matchedSlab && slabBpPct > 0 ? slabBpPct : Number(booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null ? booking.bpCommissionPercent : (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null ? booking.developerCommissionPercent : 2.0));
+      const branchFixedPct = Number(
+        booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null
+          ? booking.branchCommissionPercent
+          : (matchedSlab ? slabBranchPct : 0)
+      );
       const combinedFixedPct = +(baFixedPct + bpFixedPct).toFixed(3);
+
+      const alreadyHasBa = existingReceiptComms.some(c => c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER');
+      const alreadyHasBp = existingReceiptComms.some(c => c.commissionRole === 'DEVELOPER_OVERRIDE');
 
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ───────────────────────────────
@@ -400,45 +410,48 @@ class PlotDeveloperService {
           if (ledgerEntryId) validEntryIds.add(ledgerEntryId.toString());
         }
 
-        const commDoc = new PlotSponsorCommission({
-          bookingId: booking._id,
-          receiptId: receipt._id,
-          sponsorId: sponsorDoc._id,
-          customerId: booking.customerId,
-          collectionAmount: collectionPrincipal,
-          plotValue: collectionPrincipal,
-          amount: totalAmt,
-          commissionPercent: totalPct,
-          commissionRole: 'DIRECT_DEVELOPER',
-          fixedPercent: combinedFixedPct,
-          incentivePercent: incentivePct,
-          fixedAmount: fixedAmt,
-          incentiveAmount: incentiveAmt,
-          businessType: 'PLOT_SALE',
-          periodVolume: 0,
-          slabLabel: closedInfo
-            ? closedInfo.slabLabel
-            : booking.planName
-            ? `${booking.planName} (${combinedFixedPct}% Direct Partner)`
-            : `Plot Sale Fixed ${combinedFixedPct}% (Direct Partner)`,
-          tierTenureMonths: Number(booking.tenureMonths) || 0,
-          status: 'active',
-          closingId: closedInfo ? closedInfo.closingId : null,
-          extraClosingId: closedInfo ? closedInfo.extraClosingId : null,
-          extraIncentivePercent: closedInfo ? closedInfo.extraIncentivePercent : 0,
-          extraIncentiveAmount: closedInfo ? closedInfo.extraIncentiveAmount : 0,
-          ledgerEntryId,
-          createdAt: receiptDate,
-        });
-        if (session) await commDoc.save({ session });
-        else await commDoc.save();
+        if (!alreadyHasBa) {
+          const commDoc = new PlotSponsorCommission({
+            bookingId: booking._id,
+            receiptId: receipt._id,
+            sponsorId: sponsorDoc._id,
+            customerId: booking.customerId,
+            collectionAmount: collectionPrincipal,
+            plotValue: collectionPrincipal,
+            amount: totalAmt,
+            commissionPercent: totalPct,
+            commissionRole: 'DIRECT_DEVELOPER',
+            fixedPercent: combinedFixedPct,
+            incentivePercent: incentivePct,
+            fixedAmount: fixedAmt,
+            incentiveAmount: incentiveAmt,
+            businessType: 'PLOT_SALE',
+            periodVolume: 0,
+            slabLabel: closedInfo
+              ? closedInfo.slabLabel
+              : booking.planName
+              ? `${booking.planName} (${combinedFixedPct}% Direct Partner)`
+              : `Plot Sale Fixed ${combinedFixedPct}% (Direct Partner)`,
+            tierTenureMonths: Number(booking.tenureMonths) || 0,
+            status: 'active',
+            closingId: closedInfo ? closedInfo.closingId : null,
+            extraClosingId: closedInfo ? closedInfo.extraClosingId : null,
+            extraIncentivePercent: closedInfo ? closedInfo.extraIncentivePercent : 0,
+            extraIncentiveAmount: closedInfo ? closedInfo.extraIncentiveAmount : 0,
+            ledgerEntryId,
+            createdAt: receiptDate,
+          });
+          if (session) await commDoc.save({ session });
+          else await commDoc.save();
+        }
       } else {
         // ── BUSINESS ASSOCIATE + PARENT PARTNER ──
-        // 1. Business Associate Commission
-        const baFixedAmt = Math.round(collectionPrincipal * (baFixedPct / 100) * 100) / 100;
+        if (!alreadyHasBa) {
+          // 1. Business Associate Commission
+          const baFixedAmt = Math.round(collectionPrincipal * (baFixedPct / 100) * 100) / 100;
 
-        const promoterKey = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_PROMOTER`;
-        const baClosedInfo = closingTagMap[promoterKey] || null;
+          const promoterKey = `${receipt._id.toString()}_${sponsorDoc._id.toString()}_PROMOTER`;
+          const baClosedInfo = closingTagMap[promoterKey] || null;
 
         const baIncentivePct = baClosedInfo ? baClosedInfo.incentivePercent : 0;
         const baIncentiveAmt = baClosedInfo ? baClosedInfo.incentiveAmount : 0;
@@ -507,15 +520,16 @@ class PlotDeveloperService {
           extraClosingId: baClosedInfo ? baClosedInfo.extraClosingId : null,
           extraIncentivePercent: baClosedInfo ? baClosedInfo.extraIncentivePercent : 0,
           extraIncentiveAmount: baClosedInfo ? baClosedInfo.extraIncentiveAmount : 0,
-          ledgerEntryId: baLedgerEntryId,
-          createdAt: receiptDate,
-        });
-        if (session) await subCommission.save({ session });
-        else await subCommission.save();
+            ledgerEntryId: baLedgerEntryId,
+            createdAt: receiptDate,
+          });
+          if (session) await subCommission.save({ session });
+          else await subCommission.save();
+        }
 
         // 2. Parent Partner Developer Override
         const parentDevId = sponsorDoc.sponsorId._id || sponsorDoc.sponsorId;
-        if (parentDevId) {
+        if (parentDevId && !alreadyHasBp) {
           const bpFixedAmt = Math.round(collectionPrincipal * (bpFixedPct / 100) * 100) / 100;
 
           const devKey = `${receipt._id.toString()}_${parentDevId.toString()}_DEVELOPER_OVERRIDE`;
@@ -618,7 +632,7 @@ class PlotDeveloperService {
         if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
       }
 
-      if ((targetBranchId || targetBranchPartnerId) && branchFixedPct > 0) {
+      if (targetBranchId || targetBranchPartnerId) {
         const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
         let branchLedgerEntryId = null;
         const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
@@ -960,17 +974,17 @@ class PlotDeveloperService {
       // Resolve fixed percentages based on tenure slab for BA, BP, and Branch Partner
       let defaultBaFixed = isFdOrOneTime ? 5.0 : 4.0;
       let defaultBpFixed = isFdOrOneTime ? 1.0 : 1.0;
-      let defaultBranchFixed = isFdOrOneTime ? 0.5 : 0.5;
+      let defaultBranchFixed = 0;
 
       if (matchedSlab) {
         if (isFdOrOneTime) {
           defaultBaFixed = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
           defaultBpFixed = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-          defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
+          defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0);
         } else {
           defaultBaFixed = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
           defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-          defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
+          defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0);
         }
       }
 
@@ -1247,7 +1261,7 @@ class PlotDeveloperService {
         if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
       }
 
-      if ((prodBranchId || targetBranchPartnerId) && branchFixedPct > 0) {
+      if (prodBranchId || targetBranchPartnerId) {
         const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
         let branchLedgerEntryId = null;
         const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
@@ -2042,12 +2056,12 @@ class PlotDeveloperService {
       const isDirect = c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER';
       const isProduct = c.businessType === 'PLOT_PRODUCT';
       const roleStr = isBranch
-        ? `Branch Override (${c.fixedPercent || 0.5}%)`
+        ? `Branch Override (${c.fixedPercent || 0}%)`
         : (isDirect
           ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 'Direct Partner (3.5%)' : 'Direct Partner (7%)') : (isProduct ? 'Associate (2.5%)' : 'Associate (5%)'))
           : (isProduct ? 'Partner Override (1%)' : 'Partner Override (2%)'));
 
-      const desc = `F.Comm on ₹${colAmt.toLocaleString('en-IN')} (${c.fixedPercent || (isBranch ? 0.5 : (isDirect ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 3.5 : 7) : (isProduct ? 2.5 : 5)) : (isProduct ? 1 : 2)))}%) [${rType}] Receipt #${rNum} (Booking #${bNum})`;
+      const desc = `F.Comm on ₹${colAmt.toLocaleString('en-IN')} (${c.fixedPercent !== undefined ? c.fixedPercent : (isBranch ? 0 : (isDirect ? (c.commissionRole === 'DIRECT_DEVELOPER' ? (isProduct ? 3.5 : 7) : (isProduct ? 2.5 : 5)) : (isProduct ? 1 : 2)))}%) [${rType}] Receipt #${rNum} (Booking #${bNum})`;
 
       rawTransactions.push({
         id: c._id,
