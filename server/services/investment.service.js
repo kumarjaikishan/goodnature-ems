@@ -72,6 +72,7 @@ class InvestmentService {
         branchRdCommissionPercent: Number(s.branchRdCommissionPercent || 0),
         branchFdCommissionPercent: Number(s.branchFdCommissionPercent || 0),
         developerCommissionPercent: Number(s.developerCommissionPercent || s.bpRdCommissionPercent || 1.0),
+        showInAddBooking: Boolean(s.showInAddBooking),
       }));
     }
     if (data.rulesAndRegulations && Array.isArray(data.rulesAndRegulations)) {

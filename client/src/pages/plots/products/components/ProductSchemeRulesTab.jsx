@@ -65,6 +65,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
               bpFdCommissionPercent: s.bpFdCommissionPercent ?? s.developerCommissionPercent ?? 1.0,
               branchRdCommissionPercent: s.branchRdCommissionPercent ?? 0.5,
               branchFdCommissionPercent: s.branchFdCommissionPercent ?? 0.5,
+              showInAddBooking: Boolean(s.showInAddBooking),
             };
           }),
           rulesAndRegulations: res.data.data.rulesAndRegulations || [],
@@ -112,6 +113,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           bpFdCommissionPercent: lastSlab ? Number(lastSlab.bpFdCommissionPercent || 1) : 1.0,
           branchRdCommissionPercent: lastSlab ? Number(lastSlab.branchRdCommissionPercent || 0.5) : 0.5,
           branchFdCommissionPercent: lastSlab ? Number(lastSlab.branchFdCommissionPercent || 0.5) : 0.5,
+          showInAddBooking: false,
         },
       ],
     });
@@ -240,6 +242,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
         bpFdCommissionPercent: s.bpFdCommissionPercent === '' ? 0 : Number(s.bpFdCommissionPercent),
         branchRdCommissionPercent: s.branchRdCommissionPercent === '' ? 0 : Number(s.branchRdCommissionPercent),
         branchFdCommissionPercent: s.branchFdCommissionPercent === '' ? 0 : Number(s.branchFdCommissionPercent),
+        showInAddBooking: Boolean(s.showInAddBooking),
       };
     });
 
@@ -299,6 +302,8 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                 • <b>Independent Rates:</b> RD and FD each have their own rate input directly inside their respective scheme column for the same tenure.
                 <br />
                 • <b>Actual Plot Sale:</b> Enter <b>0%</b> for Rates/Returns. Customer return will be 0% while <b>Hierarchy Commissions (BA, BP, Branch Partner)</b> remain active.
+                <br />
+                • <b>Add Booking Checkbox:</b> Check mark a plan to show it exclusively in <b>Add Booking (Step 3)</b> (at /dashboard/plots/addbooking). Unchecked plans will show in <b>Plot Product Book/Sale</b> (at /dashboard/plots/products/book).
               </p>
             </div>
           </div>
@@ -307,6 +312,12 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
             <table className="w-full border-collapse text-left text-xs min-w-[1080px]">
               <thead>
                 <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
+                  <th className="p-3 text-center bg-teal-50/50 border-r border-slate-200">
+                    <div className="flex flex-col items-center">
+                      <span className="font-extrabold text-teal-900 whitespace-nowrap">Add Booking</span>
+                      <span className="text-[9px] font-semibold text-teal-700 whitespace-nowrap">(Step 3 Only)</span>
+                    </div>
+                  </th>
                   <th className="p-3">Plan Name</th>
                   <th className="p-3">Tenure (अवधि)</th>
                   {/* EMI (R.D.) Scheme: Rate % p.a. | Return % */}
@@ -362,6 +373,18 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
                   return (
                     <tr key={idx} className={`transition ${isZeroReturn ? 'bg-emerald-50/25 hover:bg-emerald-50/40' : 'hover:bg-slate-50/70'}`}>
+                      {/* Checkbox: Show in Add Booking (Step 3) only */}
+                      <td className="p-3 text-center bg-teal-50/30 border-r border-slate-100">
+                        <label className="inline-flex items-center justify-center cursor-pointer p-1" title="If checked: Available ONLY in Add Booking (Step 3). If unchecked: Available in Plot Product Book/Sale.">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(s.showInAddBooking)}
+                            onChange={(e) => handleSlabChange(idx, 'showInAddBooking', e.target.checked)}
+                            className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 cursor-pointer accent-teal-600"
+                          />
+                        </label>
+                      </td>
+
                       {/* Plan Name */}
                       <td className="p-3 font-bold text-slate-800">
                         <input

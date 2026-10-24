@@ -60,6 +60,10 @@ class PlotBookingService {
         annualInterestRate,
       } = data;
 
+      if (!planName || !String(planName).trim()) {
+        throw ApiError.badRequest('Scheme Plan is mandatory. Please select a valid Scheme Plan to lock in tenure and commission rates.');
+      }
+
       const plot = await Plot.findById(plotId).session(session);
       if (!plot) throw ApiError.notFound('Plot not found');
       if (plot.status !== 'AVAILABLE') {

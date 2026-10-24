@@ -2,6 +2,21 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Scheme Matrix Routing: Add Booking (Step 3) vs Plot Product Book/Sale Filter [COMPLETED]**:
+  - **Requirement**:
+    - Allow admin to mark/check a plan in the Scheme Matrix (`/dashboard/plots/products?tab=schemes`).
+    - If checked, the plan appears only in **Add Booking (Step 3)** (`/dashboard/plots/addbooking`).
+    - If unchecked, the plan appears in **Plot Product Book/Sale** (`/dashboard/plots/products/book`).
+  - **Implementation**:
+    - Added `showInAddBooking: { type: Boolean, default: false }` to `schemeSlabSchema` in `server/models/InvestmentSchemeConfig.js`.
+    - Handled persistence of `showInAddBooking` in `server/services/investment.service.js` (`updateSchemeConfig`).
+    - Included `showInAddBooking: Boolean(s.showInAddBooking)` in `plotConfig.service.js` (used by `/plots/rate-config` for regular plot booking) and `plotProduct.service.js` (`getAvailableTenures` for `/plots/products/tenures`).
+    - In `ProductSchemeRulesTab.jsx`, added a dedicated "Add Booking (Step 3 Only)" column with checkbox controls next to each plan row and updated table headers and help banner.
+    - In `client/src/pages/plots/booking/components/StepTermsAndPayment.jsx`, filtered `schemeSlabs` to show only plans where `Boolean(s.showInAddBooking) === true`, and removed redundant project select input (since project is already chosen on Step 2 with plot).
+    - In `client/src/pages/plots/booking/components/BookingSummarySidebar.jsx`, added a dedicated **Project** info row in the right-hand financial summary card.
+    - In `client/src/pages/plots/products/ProductBookingPage.jsx`, filtered `tenures` to show plans where `!t.showInAddBooking`.
+    - **Mandatory Scheme Plan Validation**: Made `planName` strictly required before booking can proceed or be submitted. Disabled the "Confirm Book Plot" button if `planName` is unselected, displayed a warning banner under the dropdown, and enforced backend validation in `server/services/plots/plotBooking.service.js` to safeguard hierarchy commission calculations (BA, BP, and Branch Partner).
+
 - **Fund Transfer Bank Permission Scoping & Live Role Enforcement [FIXED]**:
   - **Issue**:
     - When a user's role was changed from `admin` to `accountant` and their bank access was revoked (`bankPermissions.accessScope: 'none'`), the user could still see corporate bank transfers (`IDBI -> AXIS BANK` and `AXIS BANK -> Ghanshyam cash`) in `/dashboard/ledger/transfers` and KPI cards still showed bank pending amounts.

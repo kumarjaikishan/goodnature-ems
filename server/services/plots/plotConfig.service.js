@@ -116,6 +116,7 @@ class PlotConfigService {
           branchRdCommissionPercent: Number(s.branchRdCommissionPercent ?? 0.5),
           branchFdCommissionPercent: Number(s.branchFdCommissionPercent ?? 0.5),
           developerCommissionPercent: Number(s.developerCommissionPercent ?? 1.0),
+          showInAddBooking: Boolean(s.showInAddBooking),
         }));
       }
     } catch (err) {

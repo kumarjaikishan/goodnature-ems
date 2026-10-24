@@ -380,6 +380,11 @@ export default function PlotBooking() {
       return;
     }
 
+    if (!form.planName) {
+      toast.error('Please select a Scheme Plan to determine tenure and hierarchy commissions');
+      return;
+    }
+
     if (!isOneTime && (!installmentCount || Number(installmentCount) <= 0)) {
       toast.error('Please enter a valid number of installments');
       return;

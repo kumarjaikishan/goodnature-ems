@@ -75,11 +75,10 @@ const schemeSlabSchema = new mongoose.Schema(
       default: 0.5,
       min: 0,
     },
-    // Legacy fallback
-    developerCommissionPercent: {
-      type: Number,
-      default: 1.0,
-      min: 0,
+    // Show in Add Booking (Step 3) vs Plot Product Book/Sale
+    showInAddBooking: {
+      type: Boolean,
+      default: false,
     },
   },
   { _id: false }

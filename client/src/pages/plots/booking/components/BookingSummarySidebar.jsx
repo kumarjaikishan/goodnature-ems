@@ -176,6 +176,14 @@ export const BookingSummarySidebar = ({
                 </span>
               </div>
             )}
+            {(form.projectName || selectedPlot?.projectName) && (
+              <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
+                <span className="text-slate-400 font-semibold uppercase text-[10px]">Project:</span>
+                <span className="font-bold text-teal-800 truncate max-w-[170px]">
+                  {form.projectName || selectedPlot?.projectName}
+                </span>
+              </div>
+            )}
             {selectedPlot && (
               <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
                 <span className="text-slate-400 font-semibold uppercase text-[10px]">Plot Selected:</span>

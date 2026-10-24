@@ -67,15 +67,21 @@ export const StepTermsAndPayment = ({
   totalPremiumExtra = 0,
   schemeSlabs = [],
 }) => {
+  // Only show slabs checked for Add Booking (Step 3)
+  const availableSchemeSlabs = useMemo(() => {
+    if (!schemeSlabs || schemeSlabs.length === 0) return [];
+    return schemeSlabs.filter((s) => Boolean(s.showInAddBooking));
+  }, [schemeSlabs]);
+
   // Current active scheme slab (matched by planName or tenure)
   const currentSchemeSlab = useMemo(() => {
-    if (!schemeSlabs || schemeSlabs.length === 0) return null;
+    if (!availableSchemeSlabs || availableSchemeSlabs.length === 0) return null;
     if (form.planName) {
-      const match = schemeSlabs.find((s) => s.planName === form.planName);
+      const match = availableSchemeSlabs.find((s) => s.planName === form.planName);
       if (match) return match;
     }
-    return schemeSlabs.find((s) => Number(s.tenureMonths) === Number(form.tenureMonths)) || null;
-  }, [schemeSlabs, form.planName, form.tenureMonths]);
+    return availableSchemeSlabs.find((s) => Number(s.tenureMonths) === Number(form.tenureMonths)) || null;
+  }, [availableSchemeSlabs, form.planName, form.tenureMonths]);
 
   // Handler when selecting a plan from Scheme Rules
   const handleSelectPlan = (planName) => {
@@ -86,7 +92,7 @@ export const StepTermsAndPayment = ({
       }));
       return;
     }
-    const matched = schemeSlabs.find((s) => s.planName === planName || `slab-${s.tenureMonths}` === planName);
+    const matched = availableSchemeSlabs.find((s) => s.planName === planName || `slab-${s.tenureMonths}` === planName);
     if (matched) {
       const isOneTimeMode = paymentPlanMode === 'ONE_TIME';
       const baPct = isOneTimeMode
@@ -134,11 +140,12 @@ export const StepTermsAndPayment = ({
   const isFormValid = useMemo(() => {
     return (
       Boolean(form.bookingDate) &&
+      Boolean(form.planName) &&
       Number(customSqFtRate) > 0 &&
       Number(downpaymentAmt) > 0 &&
       isLandStockValid
     );
-  }, [form.bookingDate, customSqFtRate, downpaymentAmt, isLandStockValid]);
+  }, [form.bookingDate, form.planName, customSqFtRate, downpaymentAmt, isLandStockValid]);
 
   // Filter land sources by selected project if chosen in form (memoized)
   const allLandSources = useMemo(() => {
@@ -174,39 +181,6 @@ export const StepTermsAndPayment = ({
         </div>
       </div>
 
-      {/* Project Assignment Section */}
-      <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-2">
-        <label className="block text-xs font-bold text-teal-950 uppercase tracking-wide flex items-center gap-1.5">
-          <Building2 size={15} className="text-teal-700" />
-          Project Name
-        </label>
-        <div className="flex flex-col gap-1.5">
-          <select
-            className="w-full h-11 px-3.5 bg-white border border-teal-300 rounded-xl text-sm font-semibold text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs cursor-pointer"
-            value={form.projectId || ''}
-            onChange={(e) => {
-              const selProjId = e.target.value;
-              const selProj = projects.find((p) => String(p._id) === String(selProjId));
-              setForm({
-                ...form,
-                projectId: selProjId,
-                projectName: selProj?.name || '',
-              });
-            }}
-          >
-            <option value="">-- All Projects / General Project --</option>
-            {projects.map((proj) => (
-              <option key={proj._id} value={proj._id}>
-                {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
-              </option>
-            ))}
-          </select>
-          <p className="text-[11px] text-teal-800/90 font-medium">
-            Select the project colony for this plot contract. This links the booking to project revenue & land stock.
-          </p>
-        </div>
-      </div>
-
       {/* Scheme Plan Selection */}
       <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-2xl shadow-2xs space-y-2">
         <div className="flex items-center justify-between">
@@ -225,12 +199,17 @@ export const StepTermsAndPayment = ({
 
         <div className="flex flex-col gap-1.5">
           <select
-            className="w-full h-11 px-3.5 bg-white border border-teal-300 rounded-xl text-sm font-semibold text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs cursor-pointer"
+            className={`w-full h-11 px-3.5 bg-white border rounded-xl text-sm font-semibold outline-none shadow-2xs cursor-pointer ${
+              !form.planName
+                ? 'border-amber-300 text-amber-950 focus:ring-2 focus:ring-amber-500'
+                : 'border-teal-300 text-teal-950 focus:ring-2 focus:ring-teal-600'
+            }`}
             value={form.planName || ''}
             onChange={(e) => handleSelectPlan(e.target.value)}
+            required
           >
-            <option value="">-- Select Plan (Custom / Manual Tenure) --</option>
-            {schemeSlabs.map((s, idx) => {
+            <option value="">-- Choose Mandatory Scheme Plan --</option>
+            {availableSchemeSlabs.map((s, idx) => {
               const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
               const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months (${isZeroReturn ? 'Actual Plot Sale / Registry' : `RD: ${s.rdMaturityPercent}% | FD: ${s.fdMaturityPercent}%`})`;
               return (
@@ -240,6 +219,12 @@ export const StepTermsAndPayment = ({
               );
             })}
           </select>
+          {!form.planName && (
+            <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
+              <AlertCircle size={13} className="shrink-0" />
+              Scheme Plan selection is required to determine Associate, Partner, and Branch Partner commissions before booking can proceed.
+            </p>
+          )}
 
           {currentSchemeSlab ? (
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">

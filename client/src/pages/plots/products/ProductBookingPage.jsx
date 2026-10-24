@@ -116,7 +116,9 @@ const ProductBookingPage = () => {
 
         const prodList = prodRes.data?.data?.products || prodRes.data?.data || [];
         const custList = custRes.data?.data?.customers || custRes.data?.data || [];
-        const tenureList = tenureRes.data?.data?.tenures || tenureRes.data?.data || [];
+        const rawTenureList = tenureRes.data?.data?.tenures || tenureRes.data?.data || [];
+        // Only show slabs that are NOT marked for Add Booking (showInAddBooking !== true)
+        const tenureList = rawTenureList.filter((t) => !t.showInAddBooking);
         const srcList = sourcesRes.data?.data || [];
         const projList = projectsRes.data?.data || [];
 
@@ -129,7 +131,7 @@ const ProductBookingPage = () => {
         // Pre-select product or customer if in query params
         const targetProd = prodList.find((p) => p._id === initialProductId) || prodList[0];
         const targetCust = custList.find((c) => c._id === initialCustomerId);
-        const firstTenureObj = tenureList[0];
+        const firstTenureObj = tenureList[0] || rawTenureList[0];
         const firstTenure = firstTenureObj?.tenureMonths || 24;
         const firstPlanName = firstTenureObj?.planName || '';
         const firstPlanKey = firstTenureObj
