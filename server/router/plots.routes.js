@@ -167,19 +167,6 @@ router.get('/closings/:id', checkPermission('plot_sponsor', 1), ctrl.getPlotClos
 router.put('/closings/:id', checkPermission('plot_sponsor', 3), ctrl.updatePlotClosing);
 router.delete('/closings/:id', checkPermission('plot_sponsor', 4), ctrl.deletePlotClosing);
 
-// ── Weekly Payouts (money going back OUT to the customer) ──
-router.post('/bookings/:id/payout/initialize', checkPermission('plot_payout', 2), ctrl.initializePlotPayout);
-router.post('/bookings/:id/payout/pay', checkPermission('plot_payout', 2), ctrl.collectPlotPayoutPayment);
-router.get('/bookings/:id/payout/ledger', (req, res, next) => {
-  if (req.user?.role === 'sponsor') {
-    return next();
-  }
-  return checkPermission('plot_payout', 1)(req, res, next);
-}, ctrl.getPlotPayoutLedger);
-router.get('/payout-vouchers/:id', checkPermission('plot_payout', 1), ctrl.getPlotPayoutVoucher);
-router.delete('/payout-vouchers/:id', checkPermission('plot_payout', 4), ctrl.deletePlotPayoutVoucher);
-router.put('/payout-vouchers/:id', checkPermission('plot_payout', 3), ctrl.updatePlotPayoutVoucher);
-
 // ── Kisan Land Agreements & Land Stock Pooling ──
 router.post('/kisan-agreements/upload-document', upload.single('file'), ctrl.uploadLandDocument);
 router.post('/kisan-agreements', checkPermission('plot_inventory', 2), ctrl.createKisanAgreement);
@@ -216,6 +203,7 @@ router.delete('/projects/:id', checkPermission('plot_inventory', 4), ctrl.delete
 // ── Booking Restructuring, Customer Refund & Revisions ──
 router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctrl.restructureBooking);
 router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);
+router.post('/bookings/:id/refund-payments', checkPermission('plot_booking', 3), ctrl.addRefundPartPayment);
 router.get('/bookings/:id/revisions', (req, res, next) => {
   if (req.user?.role === 'sponsor') {
     return next();
@@ -239,6 +227,9 @@ router.get('/product-bookings/:id', checkPermission('plot_booking', 1), ctrl.get
 router.put('/product-bookings/:id', checkPermission('plot_booking', 3), ctrl.updateProductBooking);
 router.delete('/product-bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteProductBooking);
 router.post('/product-bookings/:id/collections', checkPermission('plot_booking', 2), ctrl.collectProductInstallment);
+router.get('/product-bookings/:id/ledger', checkPermission('plot_booking', 1), ctrl.getProductCustomerLedger);
+router.post('/product-bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.cancelProductBookingAndRefund);
+router.post('/product-bookings/:id/refund-payments', checkPermission('plot_booking', 3), ctrl.addProductRefundPartPayment);
 router.get('/product-collections', checkPermission('plot_collection', 1), ctrl.getProductCollections);
 router.delete('/product-collections/:bookingId/:receiptNumber', checkPermission('plot_collection', 4), ctrl.deleteProductCollection);
 

@@ -669,6 +669,8 @@ const InstallmentCollection = ({ type, initialView }) => {
 
       if (!query) return true;
 
+      const receiptNo = (r.receiptNumber || '').toLowerCase();
+      const cleanReceiptNo = (r.receiptNumber || '').replace(/^RO-/, '').toLowerCase();
       const bookingNo = (r.bookingId?.bookingNumber || '').toLowerCase();
       const plotNo = (r.bookingId?.plotId?.plotNumber || '').toLowerCase();
       const customerName = (r.bookingId?.customerId?.name || '').toLowerCase();
@@ -677,6 +679,8 @@ const InstallmentCollection = ({ type, initialView }) => {
       const txRef = (r.transactionReference || '').toLowerCase();
 
       return (
+        receiptNo.includes(query) ||
+        cleanReceiptNo.includes(query) ||
         bookingNo.includes(query) ||
         plotNo.includes(query) ||
         customerName.includes(query) ||
@@ -843,7 +847,7 @@ const InstallmentCollection = ({ type, initialView }) => {
                 </span>
                 <input
                   type="text"
-                  placeholder="Search Booking, Plot #, Customer..."
+                  placeholder="Search Receipt #, Booking, Plot #, Customer..."
                   className="w-full h-10 pl-9 pr-9 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

@@ -217,6 +217,7 @@ const PlotProductsPage = () => {
           open={!!selectedLedgerBooking}
           onClose={() => setSelectedLedgerBooking(null)}
           booking={selectedLedgerBooking}
+          onRefresh={handleRefresh}
           onTakeCollection={() => {
             setSelectedLedgerBooking(null);
             navigate(`/dashboard/plots/collections/products/add?bookingId=${selectedLedgerBooking._id}`);

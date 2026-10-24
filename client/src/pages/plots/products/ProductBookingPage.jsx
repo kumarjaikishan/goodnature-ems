@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import {
@@ -31,6 +31,10 @@ import { DateInput } from '../../../components/ui/DateInput';
 
 const ProductBookingPage = () => {
   const navigate = useNavigate();
+  const { id: editBookingId } = useParams();
+  const isEditMode = Boolean(editBookingId);
+  const [editBookingDoc, setEditBookingDoc] = useState(null);
+
   const [searchParams] = useSearchParams();
   const initialProductId = searchParams.get('productId');
   const initialCustomerId = searchParams.get('customerId');
@@ -96,6 +100,7 @@ const ProductBookingPage = () => {
     transactionReference: '',
     bookingDate: new Date().toISOString().split('T')[0],
     remarks: '',
+    status: 'ACTIVE',
   });
 
   // Land Sourcing State: Array of multi-agreement rows
@@ -106,13 +111,19 @@ const ProductBookingPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [prodRes, custRes, tenureRes, sourcesRes, projectsRes] = await Promise.all([
+        const fetchPromises = [
           api.get('/plots/products'),
           api.get('/plots/customers?limit=1000'),
           api.get('/plots/products/tenures'),
           api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
           api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
-        ]);
+        ];
+
+        if (editBookingId) {
+          fetchPromises.push(api.get(`/plots/product-bookings/${editBookingId}`));
+        }
+
+        const [prodRes, custRes, tenureRes, sourcesRes, projectsRes, bookingRes] = await Promise.all(fetchPromises);
 
         const prodList = prodRes.data?.data?.products || prodRes.data?.data || [];
         const custList = custRes.data?.data?.customers || custRes.data?.data || [];
@@ -128,81 +139,142 @@ const ProductBookingPage = () => {
         setAllLandSources(srcList);
         setProjects(projList);
 
-        // Pre-select product or customer if in query params
-        const targetProd = prodList.find((p) => p._id === initialProductId) || prodList[0];
-        const targetCust = custList.find((c) => c._id === initialCustomerId);
-        const firstTenureObj = tenureList[0] || rawTenureList[0];
-        const firstTenure = firstTenureObj?.tenureMonths || 24;
-        const firstPlanName = firstTenureObj?.planName || '';
-        const firstPlanKey = firstTenureObj
-          ? (firstTenureObj._id || `${firstTenureObj.planName || 'plan'}_${firstTenureObj.tenureMonths}_${firstTenureObj.rdMaturityPercent || 0}`)
-          : '';
+        if (editBookingId && bookingRes?.data?.data) {
+          const bData = bookingRes.data.data;
+          setEditBookingDoc(bData);
 
-        if (targetCust) {
-          setSelectedCustomer(targetCust);
-        }
+          const editCust = bData.customerId;
+          if (editCust) {
+            setSelectedCustomer(editCust);
+          }
 
-        const isFullPaymentInit = form.paymentType === 'FULL_PAYMENT';
-        const initialBaPct = isFullPaymentInit
-          ? (firstTenureObj?.fdPromoterCommissionPercent ?? 5.0)
-          : (firstTenureObj?.rdPromoterCommissionPercent ?? 4.0);
-        const initialBpPct = isFullPaymentInit
-          ? (firstTenureObj?.bpFdCommissionPercent ?? 1.0)
-          : (firstTenureObj?.bpRdCommissionPercent ?? 1.0);
-        const initialBranchPct = isFullPaymentInit
-          ? (firstTenureObj?.branchFdCommissionPercent ?? 0)
-          : (firstTenureObj?.branchRdCommissionPercent ?? 0);
+          const matchedPlan = tenureList.find(
+            (t) => (bData.planName && t.planName === bData.planName) || Number(t.tenureMonths) === Number(bData.tenureMonths)
+          ) || rawTenureList.find(
+            (t) => (bData.planName && t.planName === bData.planName) || Number(t.tenureMonths) === Number(bData.tenureMonths)
+          );
 
-        setForm((prev) => ({
-          ...prev,
-          productId: targetProd?._id || '',
-          customerId: targetCust?._id || '',
-          tenureMonths: firstTenure,
-          planName: firstPlanName,
-          selectedPlanKey: firstPlanKey,
-          promoterCommissionPercent: firstTenureObj ? Number(initialBaPct) : undefined,
-          developerCommissionPercent: firstTenureObj ? Number(initialBpPct) : undefined,
-          bpCommissionPercent: firstTenureObj ? Number(initialBpPct) : undefined,
-          branchCommissionPercent: firstTenureObj ? Number(initialBranchPct) : undefined,
-          rdMaturityPercent: firstTenureObj ? Number(firstTenureObj.rdMaturityPercent || 0) : undefined,
-          fdMaturityPercent: firstTenureObj ? Number(firstTenureObj.fdMaturityPercent || 0) : undefined,
-          annualInterestRate: firstTenureObj
-            ? Number(
-                (form.paymentType === 'FULL_PAYMENT'
-                  ? firstTenureObj.fdAnnualInterestRate
-                  : firstTenureObj.rdAnnualInterestRate) ??
-                  firstTenureObj.annualInterestRate ??
-                  10.5
-              )
-            : undefined,
-          customUnitPrice: targetProd?.unitPrice || '',
-        }));
+          const matchedPlanKey = matchedPlan ? (matchedPlan._id || `${matchedPlan.planName || 'plan'}_${matchedPlan.tenureMonths}_${matchedPlan.rdMaturityPercent || 0}`) : '';
 
-        // Initialize default land sourcing row with target product required area
-        const initialQty = 1;
-        const initialArea = targetProd?.areaSqFt || (
-          Number(targetProd?.dimensions?.north || 1) * Number(targetProd?.dimensions?.east || 1)
-        ) || 40;
-        const initialReqSqFt = initialQty * initialArea;
+          setForm({
+            customerId: editCust?._id || editCust || '',
+            productId: bData.productId?._id || bData.productId || '',
+            projectId: bData.projectId?._id || bData.projectId || '',
+            projectName: bData.projectName || '',
+            quantity: bData.quantity || 1,
+            customUnitPrice: bData.unitPrice || '',
+            tenureMonths: bData.tenureMonths || 24,
+            planName: bData.planName || matchedPlan?.planName || '',
+            selectedPlanKey: matchedPlanKey,
+            promoterCommissionPercent: bData.promoterCommissionPercent,
+            developerCommissionPercent: bData.developerCommissionPercent || bData.bpCommissionPercent,
+            bpCommissionPercent: bData.bpCommissionPercent,
+            branchCommissionPercent: bData.branchCommissionPercent,
+            rdMaturityPercent: bData.rdMaturityPercent,
+            fdMaturityPercent: bData.fdMaturityPercent,
+            annualInterestRate: bData.annualInterestRate,
+            paymentType: bData.paymentType || 'MONTHLY_INSTALLMENT',
+            paymentMode: bData.collections?.[0]?.paymentMode || 'cash',
+            transactionReference: bData.collections?.[0]?.transactionReference || '',
+            bookingDate: bData.bookingDate ? new Date(bData.bookingDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            remarks: bData.remarks || '',
+            status: bData.status || 'ACTIVE',
+          });
 
-        if (srcList.length > 0) {
-          const firstSrc = srcList[0];
-          const firstParcel = firstSrc.parcels?.[0];
-          setLandSourcing([
-            {
-              sourceType: firstSrc.sourceType || 'AGREEMENT',
-              agreementId: firstSrc.agreementId || firstSrc._id,
-              agreementNumber: firstSrc.agreementNumber || firstSrc.label,
-              parcelId: firstParcel?.parcelId || null,
-              khesraNumber: firstParcel?.khesraNumber || firstSrc.khesraNumber || '',
-              mauja: firstParcel?.mauja || firstSrc.mauja || '',
-              thanaNumber: firstParcel?.thanaNumber || firstSrc.thanaNumber || '',
-              khataNumber: firstParcel?.khataNumber || firstSrc.khataNumber || '',
-              allocatedSqFt: initialReqSqFt,
-            },
-          ]);
+          if (Array.isArray(bData.landSourcing) && bData.landSourcing.length > 0) {
+            setLandSourcing(
+              bData.landSourcing.map((s) => ({
+                sourceType: s.sourceType || 'AGREEMENT',
+                agreementId: s.agreementId?._id || s.agreementId,
+                agreementNumber: s.agreementNumber || s.agreementId?.agreementNumber || '',
+                parcelId: s.parcelId || null,
+                khesraNumber: s.khesraNumber || '',
+                mauja: s.mauja || '',
+                thanaNumber: s.thanaNumber || '',
+                khataNumber: s.khataNumber || '',
+                allocatedSqFt: s.allocatedSqFt || 0,
+              }))
+            );
+          } else {
+            setLandSourcing([]);
+          }
         } else {
-          setLandSourcing([]);
+          // Pre-select product or customer if in query params (Create Mode)
+          const targetProd = prodList.find((p) => p._id === initialProductId) || prodList[0];
+          const targetCust = custList.find((c) => c._id === initialCustomerId);
+          const firstTenureObj = tenureList[0] || rawTenureList[0];
+          const firstTenure = firstTenureObj?.tenureMonths || 24;
+          const firstPlanName = firstTenureObj?.planName || '';
+          const firstPlanKey = firstTenureObj
+            ? (firstTenureObj._id || `${firstTenureObj.planName || 'plan'}_${firstTenureObj.tenureMonths}_${firstTenureObj.rdMaturityPercent || 0}`)
+            : '';
+
+          if (targetCust) {
+            setSelectedCustomer(targetCust);
+          }
+
+          const isFullPaymentInit = form.paymentType === 'FULL_PAYMENT';
+          const initialBaPct = isFullPaymentInit
+            ? (firstTenureObj?.fdPromoterCommissionPercent ?? 5.0)
+            : (firstTenureObj?.rdPromoterCommissionPercent ?? 4.0);
+          const initialBpPct = isFullPaymentInit
+            ? (firstTenureObj?.bpFdCommissionPercent ?? 1.0)
+            : (firstTenureObj?.bpRdCommissionPercent ?? 1.0);
+          const initialBranchPct = isFullPaymentInit
+            ? (firstTenureObj?.branchFdCommissionPercent ?? 0)
+            : (firstTenureObj?.branchRdCommissionPercent ?? 0);
+
+          setForm((prev) => ({
+            ...prev,
+            productId: targetProd?._id || '',
+            customerId: targetCust?._id || '',
+            tenureMonths: firstTenure,
+            planName: firstPlanName,
+            selectedPlanKey: firstPlanKey,
+            promoterCommissionPercent: firstTenureObj ? Number(initialBaPct) : undefined,
+            developerCommissionPercent: firstTenureObj ? Number(initialBpPct) : undefined,
+            bpCommissionPercent: firstTenureObj ? Number(initialBpPct) : undefined,
+            branchCommissionPercent: firstTenureObj ? Number(initialBranchPct) : undefined,
+            rdMaturityPercent: firstTenureObj ? Number(firstTenureObj.rdMaturityPercent || 0) : undefined,
+            fdMaturityPercent: firstTenureObj ? Number(firstTenureObj.fdMaturityPercent || 0) : undefined,
+            annualInterestRate: firstTenureObj
+              ? Number(
+                  (form.paymentType === 'FULL_PAYMENT'
+                    ? firstTenureObj.fdAnnualInterestRate
+                    : firstTenureObj.rdAnnualInterestRate) ??
+                    firstTenureObj.annualInterestRate ??
+                    10.5
+                )
+              : undefined,
+            customUnitPrice: targetProd?.unitPrice || '',
+          }));
+
+          // Initialize default land sourcing row with target product required area
+          const initialQty = 1;
+          const initialArea = targetProd?.areaSqFt || (
+            Number(targetProd?.dimensions?.north || 1) * Number(targetProd?.dimensions?.east || 1)
+          ) || 40;
+          const initialReqSqFt = initialQty * initialArea;
+
+          if (srcList.length > 0) {
+            const firstSrc = srcList[0];
+            const firstParcel = firstSrc.parcels?.[0];
+            setLandSourcing([
+              {
+                sourceType: firstSrc.sourceType || 'AGREEMENT',
+                agreementId: firstSrc.agreementId || firstSrc._id,
+                agreementNumber: firstSrc.agreementNumber || firstSrc.label,
+                parcelId: firstParcel?.parcelId || null,
+                khesraNumber: firstParcel?.khesraNumber || firstSrc.khesraNumber || '',
+                mauja: firstParcel?.mauja || firstSrc.mauja || '',
+                thanaNumber: firstParcel?.thanaNumber || firstSrc.thanaNumber || '',
+                khataNumber: firstParcel?.khataNumber || firstSrc.khataNumber || '',
+                allocatedSqFt: initialReqSqFt,
+              },
+            ]);
+          } else {
+            setLandSourcing([]);
+          }
         }
       } catch (err) {
         console.error('Failed to load product booking master data:', err);
@@ -213,7 +285,7 @@ const ProductBookingPage = () => {
     };
 
     fetchData();
-  }, [initialProductId, initialCustomerId]);
+  }, [initialProductId, initialCustomerId, editBookingId]);
 
   // Active selected entities
   const selectedProduct = useMemo(() => {
@@ -457,20 +529,27 @@ const ProductBookingPage = () => {
         paymentMode: isFullPayment ? (form.paymentMode || 'cash') : 'cash',
         transactionReference: isFullPayment ? (form.transactionReference || '') : '',
         landSourcing: validLandSourcing,
+        status: form.status || 'ACTIVE',
       };
 
-      const res = await api.post('/plots/product-bookings', payload);
-      const created = res.data?.data;
-      toast.success(res.data?.message || 'Plot Product Booking created successfully!');
-
-      if (created) {
-        navigate(`/dashboard/plots/certificates/${created._id}`);
+      if (isEditMode) {
+        const res = await api.put(`/plots/product-bookings/${editBookingId}`, payload);
+        toast.success(res.data?.message || 'Plot Product Booking updated successfully!');
+        navigate('/dashboard/plots/products?tab=sales');
       } else {
-        navigate('/dashboard/plots/products');
+        const res = await api.post('/plots/product-bookings', payload);
+        const created = res.data?.data;
+        toast.success(res.data?.message || 'Plot Product Booking created successfully!');
+
+        if (created) {
+          navigate(`/dashboard/plots/certificates/${created._id}`);
+        } else {
+          navigate('/dashboard/plots/products?tab=sales');
+        }
       }
     } catch (err) {
-      console.error('Error creating product booking:', err);
-      toast.error(err.response?.data?.message || 'Failed to generate plot product booking');
+      console.error('Error saving product booking:', err);
+      toast.error(err.response?.data?.message || 'Failed to save plot product booking');
     } finally {
       setSubmitting(false);
     }
@@ -487,10 +566,10 @@ const ProductBookingPage = () => {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/plots/products')}
+            onClick={() => navigate('/dashboard/plots/products?tab=sales')}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 transition cursor-pointer mb-1"
           >
-            <ArrowLeft size={14} /> Back to Plot Products
+            <ArrowLeft size={14} /> Back to Product Sales &amp; Bookings
           </button>
           <div className="flex items-center gap-2.5">
             <span className="p-2 bg-teal-50 text-teal-800 border border-teal-200 rounded-xl shadow-2xs">
@@ -498,10 +577,14 @@ const ProductBookingPage = () => {
             </span>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Sell Plot Product &amp; Create Booking
+                {isEditMode
+                  ? `Edit Plot Product Booking — ${editBookingDoc?.bookingNumber || ''}`
+                  : 'Sell Plot Product & Create Booking'}
               </h1>
               <p className="text-xs text-slate-500 font-medium">
-                Allocate fractional unit pieces, deduct Kisan Land stock, and configure contract deposit tenures.
+                {isEditMode
+                  ? 'Update fractional unit piece specifications, customer link, tenure scheme, commission matrix, and Kisan land stock allocations.'
+                  : 'Allocate fractional unit pieces, deduct Kisan Land stock, and configure contract deposit tenures.'}
               </p>
             </div>
           </div>
@@ -510,7 +593,7 @@ const ProductBookingPage = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/plots/products')}
+            onClick={() => navigate('/dashboard/plots/products?tab=sales')}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
           >
             Cancel
@@ -522,10 +605,33 @@ const ProductBookingPage = () => {
             className="px-5 py-2 bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
           >
             <Sparkles size={14} />
-            {submitting ? 'Generating Booking...' : 'Confirm & Generate Booking'}
+            {isEditMode
+              ? (submitting ? 'Updating Booking...' : 'Save & Update Booking')
+              : (submitting ? 'Generating Booking...' : 'Confirm & Generate Booking')}
           </button>
         </div>
       </div>
+
+      {isEditMode && editBookingDoc && (
+        <div className="p-3.5 bg-teal-50/80 border border-teal-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-teal-950">
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
+              <Sparkles size={15} />
+            </span>
+            <div>
+              <span className="font-bold">Editing Mode Active: </span>
+              <span className="font-mono font-bold text-teal-900">Booking #{editBookingDoc.bookingNumber}</span>
+              <span className="mx-2 text-teal-400">•</span>
+              <span>Status: <b className="uppercase">{editBookingDoc.status || 'ACTIVE'}</b></span>
+              <span className="mx-2 text-teal-400">•</span>
+              <span>Total Paid: <b className="font-mono text-emerald-800">₹{Number(editBookingDoc.totalPaid || 0).toLocaleString('en-IN')}</b></span>
+            </div>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-white border border-teal-200 font-bold text-[11px] text-teal-800">
+            Full Edit Enabled
+          </span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmitBooking} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Booking Form Steps (8 Cols) */}
@@ -716,7 +822,7 @@ const ProductBookingPage = () => {
                 >
                   <option value="">-- Choose Plot Product --</option>
                   {products
-                    .filter((p) => !form.projectId || !p.projectId || p.projectId === form.projectId)
+                    .filter((p) => !form.projectId || !p.projectId || p.projectId === form.projectId || p._id === form.productId)
                     .map((p) => (
                       <option key={p._id} value={p._id}>
                         {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} ({p.areaSqFt} Sq.Ft) • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
@@ -996,6 +1102,25 @@ const ProductBookingPage = () => {
                     onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                     required
                   />
+                </div>
+              )}
+
+              {/* In Edit Mode: Booking Status */}
+              {isEditMode && (
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1 text-xs">
+                    Booking Status <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={form.status || 'ACTIVE'}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-teal-900 focus:ring-2 focus:ring-teal-600 outline-none cursor-pointer"
+                    required
+                  >
+                    <option value="ACTIVE">ACTIVE (Ongoing Installments / Regular)</option>
+                    <option value="COMPLETED">COMPLETED (Fully Paid &amp; Closed)</option>
+                    <option value="CANCELLED">CANCELLED (Void / Cancelled)</option>
+                  </select>
                 </div>
               )}
 
@@ -1442,7 +1567,9 @@ const ProductBookingPage = () => {
                 className="w-full py-3 bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Sparkles size={16} />
-                {submitting ? 'Generating Booking...' : 'Confirm & Generate Booking'}
+                {isEditMode
+                  ? (submitting ? 'Updating Booking...' : 'Save & Update Booking')
+                  : (submitting ? 'Generating Booking...' : 'Confirm & Generate Booking')}
               </button>
             </div>
           </div>

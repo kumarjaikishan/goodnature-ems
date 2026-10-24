@@ -22,7 +22,7 @@ export const EditReceiptModal = ({
     <Modalbox
       open={Boolean(editingReceipt)}
       onClose={onClose}
-      title={`Edit Collection: ${editingReceipt?.receiptNumber || ''}`}
+      title={`Edit Collection: ${(editingReceipt?.receiptNumber || '').replace(/^RO-/, '')}`}
       subtitle="Update payment details and remarks"
       maxWidth="max-w-xl"
     >
@@ -206,7 +206,7 @@ export const ApproveReceiptModal = ({
     <Modalbox
       open={Boolean(approvingReceipt)}
       onClose={onClose}
-      title={`Approve Collection: ${approvingReceipt?.receiptNumber || ''}`}
+      title={`Approve Collection: ${(approvingReceipt?.receiptNumber || '').replace(/^RO-/, '')}`}
       maxWidth="max-w-md"
     >
       <div className="text-xs text-slate-600 font-medium leading-relaxed space-y-3">
@@ -297,7 +297,7 @@ export const RejectReceiptModal = ({
     <Modalbox
       open={Boolean(rejectingReceipt)}
       onClose={onClose}
-      title={`Reject Collection: ${rejectingReceipt?.receiptNumber || ''}`}
+      title={`Reject Collection: ${(rejectingReceipt?.receiptNumber || '').replace(/^RO-/, '')}`}
       maxWidth="max-w-md"
     >
       <div className="text-xs text-slate-600 font-medium leading-relaxed space-y-3">
@@ -344,7 +344,7 @@ export const DeleteReceiptModal = ({
     <Modalbox
       open={Boolean(deletingReceipt)}
       onClose={onClose}
-      title={`Reverse Collection: ${deletingReceipt?.receiptNumber || ''}`}
+      title={`Reverse Collection: ${(deletingReceipt?.receiptNumber || '').replace(/^RO-/, '')}`}
       maxWidth="max-w-md"
     >
       <div className="text-xs text-slate-600 font-medium leading-relaxed space-y-2">

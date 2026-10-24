@@ -28,6 +28,24 @@ export const getReceiptColumns = ({
       compact: true,
     },
     {
+      name: 'Receipt No.',
+      selector: (row) => (row.receiptNumber || '').replace(/^RO-/, ''),
+      cell: (row) => {
+        const cleanNo = (row.receiptNumber || '').replace(/^RO-/, '');
+        return (
+          <span
+            onClick={() => navigate(`/dashboard/plots/receipts/${row._id}`)}
+            className="font-bold text-teal-800 hover:text-teal-950 hover:underline tracking-tight font-mono text-xs whitespace-nowrap cursor-pointer select-all"
+            title="Click to View / Print Receipt"
+          >
+            {cleanNo || '-'}
+          </span>
+        );
+      },
+      sortable: true,
+      minWidth: '155px',
+    },
+    {
       name: 'Customer',
       selector: (row) => row.bookingId?.customerId?.name || '-',
       cell: (row) => (

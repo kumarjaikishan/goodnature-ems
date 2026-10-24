@@ -786,6 +786,15 @@ const processCustomerRefund = async (req, res, next) => {
   }
 };
 
+const addRefundPartPayment = async (req, res, next) => {
+  try {
+    const result = await plotsService.addRefundPartPayment(req.params.id, req.body, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, result, 'Part-payment refund recorded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getBookingRevisions = async (req, res, next) => {
   try {
     const revisions = await plotsService.getBookingRevisions(req.params.id);
@@ -1024,6 +1033,41 @@ const deleteProductCollection = async (req, res, next) => {
   }
 };
 
+const cancelProductBookingAndRefund = async (req, res, next) => {
+  try {
+    const result = await plotProductService.cancelProductBookingAndRefund(
+      req.params.id,
+      req.body,
+      req.user?._id || req.user?.id
+    );
+    ApiResponse.success(res, result, 'Product booking cancelled and refund processed successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const addProductRefundPartPayment = async (req, res, next) => {
+  try {
+    const result = await plotProductService.addProductRefundPartPayment(
+      req.params.id,
+      req.body,
+      req.user?._id || req.user?.id
+    );
+    ApiResponse.success(res, result, 'Product refund part-payment recorded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProductCustomerLedger = async (req, res, next) => {
+  try {
+    const result = await plotProductService.getProductCustomerLedger(req.params.id);
+    ApiResponse.success(res, result, 'Product customer ledger retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ── Project Master Directory ──
 const getProjects = async (req, res, next) => {
   try {
@@ -1155,6 +1199,7 @@ module.exports = {
   // Restructuring & Refund Exports
   restructureBooking,
   processCustomerRefund,
+  addRefundPartPayment,
   getBookingRevisions,
   updateBookingRevisionNarration,
   // Plot Products & Fractional Units Exports
@@ -1172,6 +1217,9 @@ module.exports = {
   collectProductInstallment,
   getProductCollections,
   deleteProductCollection,
+  cancelProductBookingAndRefund,
+  addProductRefundPartPayment,
+  getProductCustomerLedger,
   // Project Master Exports
   getProjects,
   getProjectById,

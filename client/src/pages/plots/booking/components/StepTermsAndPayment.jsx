@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   Sparkles,
   Building2,
@@ -73,26 +73,58 @@ export const StepTermsAndPayment = ({
     return schemeSlabs.filter((s) => Boolean(s.showInAddBooking));
   }, [schemeSlabs]);
 
-  // Current active scheme slab (matched by planName or tenure)
+  // Helper to generate a consistent, unique identifier for each scheme slab
+  const getSlabValue = (s) => ((s?.planName && s.planName.trim()) ? s.planName.trim() : `slab-${s?.tenureMonths}`);
+
+  // Current active scheme slab (matched by planName, slab identifier, or tenure)
   const currentSchemeSlab = useMemo(() => {
     if (!availableSchemeSlabs || availableSchemeSlabs.length === 0) return null;
     if (form.planName) {
-      const match = availableSchemeSlabs.find((s) => s.planName === form.planName);
+      const match = availableSchemeSlabs.find(
+        (s) => s.planName === form.planName || getSlabValue(s) === form.planName || `A-${s.tenureMonths}` === form.planName
+      );
       if (match) return match;
     }
     return availableSchemeSlabs.find((s) => Number(s.tenureMonths) === Number(form.tenureMonths)) || null;
   }, [availableSchemeSlabs, form.planName, form.tenureMonths]);
 
+  // Derived current dropdown selected value that always matches an <option> exactly
+  const currentSelectValue = useMemo(() => {
+    if (form.planName) {
+      const match = availableSchemeSlabs.find(
+        (s) => s.planName === form.planName || getSlabValue(s) === form.planName || `A-${s.tenureMonths}` === form.planName
+      );
+      if (match) return getSlabValue(match);
+    }
+    if (currentSchemeSlab) {
+      return getSlabValue(currentSchemeSlab);
+    }
+    return '';
+  }, [form.planName, currentSchemeSlab, availableSchemeSlabs]);
+
+  // Auto-sync form.planName if a scheme slab is active but form.planName is unset
+  useEffect(() => {
+    if (currentSchemeSlab && !form.planName) {
+      const canonicalName = getSlabValue(currentSchemeSlab);
+      setForm((f) => ({
+        ...f,
+        planName: canonicalName,
+      }));
+    }
+  }, [currentSchemeSlab, form.planName, setForm]);
+
   // Handler when selecting a plan from Scheme Rules
-  const handleSelectPlan = (planName) => {
-    if (!planName) {
+  const handleSelectPlan = (selectedVal) => {
+    if (!selectedVal) {
       setForm((f) => ({
         ...f,
         planName: '',
       }));
       return;
     }
-    const matched = availableSchemeSlabs.find((s) => s.planName === planName || `slab-${s.tenureMonths}` === planName);
+    const matched = availableSchemeSlabs.find(
+      (s) => getSlabValue(s) === selectedVal || s.planName === selectedVal || String(s.tenureMonths) === selectedVal
+    );
     if (matched) {
       const isOneTimeMode = paymentPlanMode === 'ONE_TIME';
       const baPct = isOneTimeMode
@@ -105,9 +137,11 @@ export const StepTermsAndPayment = ({
         ? Number(matched.branchFdCommissionPercent ?? 0)
         : Number(matched.branchRdCommissionPercent ?? 0);
 
+      const canonicalName = getSlabValue(matched);
+
       setForm((f) => ({
         ...f,
-        planName: matched.planName || `A-${matched.tenureMonths}`,
+        planName: canonicalName,
         tenureMonths: Number(matched.tenureMonths),
         promoterCommissionPercent: baPct,
         developerCommissionPercent: bpPct,
@@ -200,11 +234,11 @@ export const StepTermsAndPayment = ({
         <div className="flex flex-col gap-1.5">
           <select
             className={`w-full h-11 px-3.5 bg-white border rounded-xl text-sm font-semibold outline-none shadow-2xs cursor-pointer ${
-              !form.planName
+              !currentSelectValue
                 ? 'border-amber-300 text-amber-950 focus:ring-2 focus:ring-amber-500'
                 : 'border-teal-300 text-teal-950 focus:ring-2 focus:ring-teal-600'
             }`}
-            value={form.planName || ''}
+            value={currentSelectValue || ''}
             onChange={(e) => handleSelectPlan(e.target.value)}
             required
           >
@@ -213,7 +247,7 @@ export const StepTermsAndPayment = ({
               const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
               const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months (${isZeroReturn ? 'Actual Plot Sale / Registry' : `RD: ${s.rdMaturityPercent}% | FD: ${s.fdMaturityPercent}%`})`;
               return (
-                <option key={idx} value={s.planName || `slab-${s.tenureMonths}`}>
+                <option key={idx} value={getSlabValue(s)}>
                   {label}
                 </option>
               );

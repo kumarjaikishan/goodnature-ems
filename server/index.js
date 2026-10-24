@@ -131,7 +131,6 @@ app.use((req, res, next) => {
 app.use(errorHandle);
 
 const { initPlotHoldScheduler } = require('./cron/plotHoldScheduler');
-const { initPlotPayoutScheduler } = require('./cron/plotPayoutScheduler');
 
 // ----------------------
 // Start server
@@ -140,8 +139,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running at http://localhost:${PORT} and http://127.0.0.1:${PORT}`);
   try {
     initPlotHoldScheduler();
-    initPlotPayoutScheduler();
-    console.log('⏰ Plot schedulers initialized (Hold Auto-Expiry & Weekly Payout Accruals)');
+    console.log('⏰ Plot schedulers initialized (Hold Auto-Expiry)');
   } catch (schedErr) {
     console.error('Failed to initialize plot schedulers:', schedErr);
   }

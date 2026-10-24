@@ -10,6 +10,7 @@ export const Modal = ({
   onClose,
   title,
   subtitle,
+  icon,
   children,
   footer,
   maxWidth = 'max-w-xl', // 'max-w-sm' | 'max-w-md' | 'max-w-lg' | 'max-w-xl' | 'max-w-2xl' | 'max-w-4xl' | 'max-w-6xl'
@@ -60,11 +61,18 @@ export const Modal = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header (optional) */}
-        {(title || showClose) && (
+        {(title || icon || showClose) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0 select-none">
-            <div>
-              {title && <h3 className="text-base font-bold text-slate-800 tracking-tight">{title}</h3>}
-              {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+            <div className="flex items-center gap-2.5 min-w-0 pr-3">
+              {icon && (
+                <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 shrink-0">
+                  {icon}
+                </span>
+              )}
+              <div className="min-w-0">
+                {title && <h3 className="text-base font-bold text-slate-800 tracking-tight truncate">{title}</h3>}
+                {subtitle && <p className="text-xs text-slate-500 mt-0.5 truncate">{subtitle}</p>}
+              </div>
             </div>
             {showClose && (
               <button

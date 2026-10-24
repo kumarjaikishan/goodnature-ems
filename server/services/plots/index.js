@@ -213,6 +213,10 @@ class PlotsService {
     return plotBookingService.processCustomerRefund(bookingId, refundData, userId);
   }
 
+  addRefundPartPayment(bookingId, paymentData, userId) {
+    return plotBookingService.addRefundPartPayment(bookingId, paymentData, userId);
+  }
+
   getBookingRevisions(bookingId) {
     return plotBookingService.getBookingRevisions(bookingId);
   }

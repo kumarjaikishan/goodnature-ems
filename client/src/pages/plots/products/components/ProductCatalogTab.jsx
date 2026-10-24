@@ -309,20 +309,19 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
       </div>
 
       {/* Create / Edit Product Modal */}
-      <Modalbox open={showModal} onClose={() => setShowModal(false)} size="lg">
-        <div className="p-5 md:p-6 bg-white space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-                <Package size={18} />
-              </span>
-              <h3 className="font-bold text-slate-900 text-sm md:text-base">
-                {editingProduct ? `Edit Product — ${editingProduct.productCode}` : 'Create New Plot Product'}
-              </h3>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <Modalbox
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        size="lg"
+        title={editingProduct ? `Edit Product — ${editingProduct.productCode}` : 'Create New Plot Product'}
+        subtitle={
+          editingProduct
+            ? 'Modify product dimensions, pricing, and stock specifications.'
+            : 'Configure piece dimensions, base pricing, and total units available.'
+        }
+        icon={<Package size={18} />}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             {/* Project Selection (Optional) */}
             <div>
               <label className="block font-bold text-slate-700 mb-1">
@@ -542,7 +541,6 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
               </button>
             </div>
           </form>
-        </div>
       </Modalbox>
     </div>
   );

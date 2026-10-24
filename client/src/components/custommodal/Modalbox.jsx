@@ -11,6 +11,7 @@ const Modalbox = ({
   onClose,
   title,
   subtitle,
+  icon,
   children,
   footer,
   maxWidth = 'max-w-xl',
@@ -42,6 +43,7 @@ const Modalbox = ({
       onClose={onClose}
       title={title}
       subtitle={subtitle}
+      icon={icon}
       maxWidth={resolvedMaxWidth}
       showClose={showClose}
       className={className}

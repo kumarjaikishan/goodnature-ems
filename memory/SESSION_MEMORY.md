@@ -2,6 +2,153 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Downpayment & EMI Receipt Number Display and Removal of "RO-" Prefix [COMPLETED]**:
+  - **Requirement**:
+    - Show `Receipt No.` column in Downpayment (`/dashboard/plots/collections/downpayment`) and EMI (`/dashboard/plots/collections/emi`) collection lists.
+    - Remove `RO` / `RO-` from generated receipt numbers across all collections (Plot DP, Plot EMI, Product Collections).
+  - **Root Cause of RO**:
+    - In `server/services/plots/plotCollection.service.js` line 438, receipt generation prefix was hardcoded as `RO-REC-PLT-${fyStr}`, producing receipt numbers such as `RO-REC-PLT-2627-00034`.
+  - **Resolution**:
+    - **Backend**:
+      - In [plotCollection.service.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots/plotCollection.service.js):
+        - Changed `receiptPrefix` to `REC-PLT-${fyStr}` (removed `RO-`).
+        - Seamlessly inherited sequence from legacy `RO-REC-PLT-${fyStr}` counter so numbering continues without restarts or gaps.
+        - Updated `getReceiptById` to support receipt lookups by string with or without `RO-`.
+      - Migrated existing documents in MongoDB (`plotreceipts`, `plotinstallments`, `counters`) to remove `RO-` (`REC-PLT-2627-XXXXX`).
+    - **Frontend**:
+      - In [ReceiptColumns.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/installments/components/ReceiptColumns.jsx):
+        - Added dedicated `Receipt No.` column right after `Date`, displaying the formatted receipt number and linking directly to `/dashboard/plots/receipts/:id`.
+      - In [InstallmentCollection.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/installments/InstallmentCollection.jsx):
+        - Included `r.receiptNumber` in search query filter and updated search input placeholder to `"Search Receipt #, Booking, Plot #, Customer..."`.
+      - In [ReceiptViewer.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/printViewers/ReceiptViewer.jsx) & [CollectionModals.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/installments/components/CollectionModals.jsx):
+        - Ensured `(receiptNumber || '').replace(/^RO-/, '')` sanitizes any legacy `RO-` display in printable vouchers and action modals.
+
+- **Product Collections Duplicate Entry Fix [COMPLETED]**:
+  - **Issue**:
+    - On `/dashboard/plots/collections/products` (Product Collections & Receipts), bookings with an initial downpayment showed **two duplicate entries**:
+      1. `PRD-DP-PRD-BK-XXXX-XXX` (generated upon booking creation / update and stored in `b.collections`).
+      2. `DP-PRD-BK-XXXX-XXX` (synthesized as a fallback downpayment collection).
+    - This caused duplicate table rows and doubled KPI totals (e.g. `Total Collected: ₹10,000` instead of `₹5,000` and `Total Bills Issued: 2` instead of `1`).
+  - **Root Cause**:
+    - In `server/services/plots/plotProduct.service.js` under `getProductCollections(query = {})`:
+      - Step 1 loops through `b.collections` and pushes the saved downpayment receipt (`receiptNumber: PRD-DP-${b.bookingNumber}`) and records it in `seenReceipts`.
+      - Step 3 (legacy fallback for downpayments) checked `if (b.downPayment > 0 && !seenReceipts.has('DP-${b.bookingNumber}'))`.
+      - Because the saved receipt was prefixed with `PRD-DP-` and not `DP-`, `seenReceipts.has('DP-...')` returned `false`, synthesizing a second collection row with `receiptNumber: DP-${b.bookingNumber}`.
+      - A matching prefix omission existed in `server/services/plots/plotDeveloper.service.js` during associate commission generation.
+  - **Resolution**:
+    - In [plotProduct.service.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots/plotProduct.service.js):
+      - In Step 1, guarded against duplicate receipts in `b.collections`: `if (!col.receiptNumber || seenReceipts.has(col.receiptNumber)) continue;`.
+      - In Step 3, verified `hasDpCaptured` across both `PRD-DP-` and `DP-` formats, checking `seenReceipts`, existing collections (`c.receiptNumber`, `c.installmentNumbers.includes(0)`, remarks, or full-payment collections). Only synthesizes a fallback downpayment collection if no downpayment receipt exists.
+      - In `deleteProductCollection`, updated regex to `receiptNumber.replace(/^(PRD-)?DP-/, '')` so both prefixes locate the booking.
+    - In [plotDeveloper.service.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots/plotDeveloper.service.js):
+      - Updated downpayment collection detection to check `hasDpInCollections` before synthesizing a fallback downpayment entry for sponsor commissions.
+
+- **Plot Product View Action Modal Data Enrichment [COMPLETED]**:
+  - **Requirement**:
+    - In the "View Booking Details" action modal (`Eye` icon on `/dashboard/plots/products?tab=sales`), provide complete, comprehensive data:
+      - Selected Scheme Plan name (e.g. `A-24`, `Gold Scheme`, etc.).
+      - Contract Period / Tenure in Months and Years (e.g. `24 Months (2.0 Years)`).
+      - Payment Scheme Type (`One-Time Full (100% Upfront / F.D.)` vs `Monthly EMI (Recurring / R.D.)`).
+      - Return Rates & Maturity Matrix: Annual Return Rate % P.A. (`annualInterestRate`), RD Maturity Return % (`rdMaturityPercent`), FD Maturity Return % (`fdMaturityPercent`).
+      - Associate Commission Policies: Business Associate %, Business Partner %, Branch Partner %.
+      - Project Master Link: Project Name, code, and portfolio.
+      - Land Acquisition Sourcing: All multi-agreement rows with Agreement Number, Mauja, Thana, Khata, Plot (Khesra), and allocated Sq.Ft / Dismil.
+      - Financial Breakdown: Total Valuation, Paid Upfront / Monthly EMI, Total Amount Paid, Outstanding Due, Installment Counts, Payment Mode, and Txn/Cheque Ref.
+      - Direct modal footer quick actions: Print Certificate, View Ledger, Edit Booking, and Close.
+  - **Implementation**:
+    - Updated [ProductSalesTab.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/components/ProductSalesTab.jsx) viewing modal with `size="4xl"` and dedicated `Scheme Plan, Period / Tenure & Policy Matrix` card, multi-parcel land allocation breakdown, payment details strip, and action footer.
+    - Updated [plotProduct.service.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots/plotProduct.service.js) to populate `projectId` (`name code location`) in both `getAllProductBookings` and `getProductBookingById`.
+
+- **Plot Product Edit Page (Dedicated Full Screen Page instead of Modal) [COMPLETED]**:
+  - **Requirement**:
+    - When editing a Plot Product Booking from `/dashboard/plots/products?tab=sales`, instead of opening a limited modal box, it must navigate to a full dedicated page (the same form layout as "Sell Plot Product / New Booking").
+    - The dedicated edit page must expose ALL options present at the time of a new sale: Customer selection & details, Business Associate auto-link, Project selection, Plot Product & Quantity piece stepper, Unit Price, Dimensions & Area Sq.Ft, Payment Plan (EMI vs One-Time Full), Tenure Months, Commission percentages (BA, BP, Branch), Maturity Returns (RD%, FD%), Annual Interest Rate %, Kisan Land multi-agreement stock allocations, Payment Mode, Transaction Ref, Booking Date, Booking Status, and Remarks.
+  - **Implementation**:
+    - **Frontend Routing**:
+      - Added route `/dashboard/plots/products/edit/:id` in [App.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/App.jsx) protected with `RoutePermissionGuard` (`plot_booking`, action 3).
+      - Updated Edit button in [ProductSalesTab.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/components/ProductSalesTab.jsx) to navigate to `/dashboard/plots/products/edit/${b._id}`.
+      - Removed old `showEditModal` state, handlers, and the `<Modalbox open={showEditModal}>` markup from `ProductSalesTab.jsx`.
+    - **Dedicated Page**:
+      - Updated [ProductBookingPage.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/ProductBookingPage.jsx) to detect `useParams().id` (`isEditMode`).
+      - In edit mode, fetches `GET /plots/product-bookings/:id`, pre-fills all form controls, customer, product, project, scheme returns, commissions, and multi-parcel Kisan Land sourcing rows.
+      - Dynamic headers display `Edit Plot Product Booking — PRD-BK-XXXX-XXX` and banner with status and total amount paid.
+      - Added Booking Status dropdown (`ACTIVE`, `COMPLETED`, `CANCELLED`) for edit mode in Card 3.
+      - Form submission dynamically calls `PUT /plots/product-bookings/:id` in edit mode and redirects back to `/dashboard/plots/products?tab=sales`.
+    - **Backend Support**:
+      - Updated `updateProductBooking` in [plotProduct.service.js](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/server/services/plots/plotProduct.service.js) to accept and save `projectId`, `projectName`, `planName`, `promoterCommissionPercent`, `developerCommissionPercent`, `bpCommissionPercent`, `branchCommissionPercent`, `rdMaturityPercent`, `fdMaturityPercent`, `annualInterestRate`, and re-allocate `landSourcing` (releasing previous Kisan agreement allocations and booking new parcel allocations).
+
+- **Plot Product Cancellation & Settlement Engine with Scheme Matrix Rate Integration [COMPLETED]**:
+  - **Requirement**:
+    - Add a **Cancel** action button on `/dashboard/plots/products?tab=sales` in the table actions column for each product booking row.
+    - Clicking Cancel opens the cancellation & settlement calculator (`/dashboard/plots/interest-calculator?productBookingId=...`).
+    - **Scheme Matrix Rate Auto-Prefill (Image 2)**:
+      - The return rate is strictly linked to the Scheme Rules & Returns Matrix (`InvestmentSchemeConfig.schemeSlabs`) configured under `tab=schemes`:
+        - Matched by `tenureMonths` (12, 24, 36, 48, 60, 72 months) and payment plan type:
+          - If `FULL_PAYMENT` (One-Time / F.D.): applies `fdAnnualInterestRate` (% P.A.) with Compound Annual calculation.
+          - If `MONTHLY_INSTALLMENT` (EMI / R.D.): applies `rdAnnualInterestRate` (% P.A.) with Compound Annual calculation.
+          - Fallback to `annualInterestRate` stored on the product booking record.
+    - **Deduction Mode (- Deduct Penalty)**:
+      - Admin can toggle from `+ Interest %` to `- Deduct` (Percentage `%` or Flat `₹`).
+      - In deduction mode, interest % is 0, and the deduction penalty is subtracted from total customer deposits to establish the Net Refund Liability.
+    - **Cancellation Execution & Audit Trail**:
+      - `POST /plots/product-bookings/:id/refund` executes atomic cancellation:
+        1. Restores product piece inventory (`PlotProduct.unitsSold -= booking.quantity`).
+        2. Restores Kisan land agreement stock allocations in `KisanLandAgreement` and logs `LandStockLedger`.
+        3. Reverses sponsor commissions in `PlotSponsorCommission` to `'reversed'`.
+        4. Generates initial expense `Voucher` if paid at cancellation, logs `PlotAuditLog`, and sets `status = 'CANCELLED'`.
+    - **Ledger Reconciliation & Part-Payments**:
+      - `POST /plots/product-bookings/:id/refund-payments` records subsequent part-payment disbursements.
+      - Each disbursement logs an expense voucher, debits the running customer ledger, and updates `pendingSettlementBalance`.
+      - When all part-payments are complete, the customer ledger hits exactly **₹0.00 Settled**.
+      - Updated `ProductCustomerLedgerModal.jsx` to render cancellation banners, breakdown cards, and a "+ Disburse Part Refund" modal.
+
+- **Common Modalbox Component Header Standardization & Clipping Fix [FIXED]**:
+  - **Issue**: In `/dashboard/plots/products`, opening the "Create New Plot Product" modal resulted in the title text being horizontally cut in half / clipped at the top of the modal card.
+  - **Root Cause**: `Modalbox` (`Modal.jsx`) already rendered its own sticky header containing the close `X` button and `p-6` body padding. `ProductCatalogTab.jsx` did not pass `title`, `subtitle`, or `icon` to `<Modalbox>`, and instead rendered a duplicate nested header inside the scrollable body with an inner `<div className="p-5 md:p-6 bg-white space-y-4">`. This resulted in double padding and caused the inner title to collide with and be clipped under the top border.
+  - **Fix**:
+    - Enhanced [Modal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/ui/Modal.jsx) and [Modalbox.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/components/custommodal/Modalbox.jsx) to natively support the `icon` prop alongside `title` and `subtitle`.
+    - Standardized [ProductCatalogTab.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/components/ProductCatalogTab.jsx) and [ProductSalesTab.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/components/ProductSalesTab.jsx) to pass `title`, `subtitle`, and `icon` directly to `<Modalbox>`, removing the redundant nested header divs and duplicate padding.
+    - Updated [ProductReceiptModal.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/products/components/ProductReceiptModal.jsx) with `showClose={false}` and `bodyClassName="p-0"` for full-bleed printable receipt layout.
+
+- **Plot Cancellation & Settlement Calculator with Deduction Penalty or Interest Return [COMPLETED]**:
+  - **Feature & Requirements**:
+    - URL: `/dashboard/plots/interest-calculator`
+    - Top settlement mode switcher:
+      - **+ Interest % (`INTEREST_RETURN`)**: Calculates accrued simple/compound interest or growth on each deposited payment based on the booking date/receipt date and annual return percentage.
+      - **- Deduct (`DEDUCTION_PENALTY`)**: Allows selecting **Percentage (%)** or **Flat Amount (₹)**. When selected, no interest percentage is applied; instead, it deducts the penalty from the total customer deposit and displays the net refund amount.
+    - Bottom Action:
+      - **"Cancel & Settle Booking"** button opens a confirmation modal detailing total principal deposited, deduction/interest adjustment, and net refund liability payable.
+      - On confirm, calls `POST /plots/bookings/:id/refund`, which cancels the booking, releases the plot back to `AVAILABLE` inventory, reverses sponsor commissions, reverses the plot contract consideration in the ledger, and records the initial liability.
+  - **Accounting Reconciled in Ledger (`PlotBookingLedgerPage.jsx` & `plotBooking.service.js`)**:
+    - **Reversal Entry**: Contract consideration (`Credit: netPlotValue`) cancels the original debit.
+    - **Settlement Adjustment Entry**:
+      - Deduction mode: `Debit: refundDeduction` (Administrative penalty).
+      - Interest return mode: `Credit: refundInterestAmount` (Growth appreciation).
+    - **Refund Part-Payments (`POST /plots/bookings/:id/refund-payments`)**:
+      - Admin can disburse refund payments in multiple installments over time.
+      - Each disbursement creates an expense `Voucher` and logs a `Debit: p.amount` entry in the running ledger.
+      - As part-payments are recorded, the running balance decreases towards 0 and reaches exactly **₹0.00 Settled** on final payment.
+    - **UI Enhancements in Ledger Page**:
+      - Prominent cancellation status banner with a dynamic disbursement progress bar (`totalRefundPaid / netSettlementAmount * 100%`).
+      - KPI cards adapt to show: Total Principal Deposited, Cancellation Penalty / Interest Adjustment, Net Refund Liability, Refund Disbursed, and Remaining Settlement Balance.
+      - "+ Disburse Refund Payment" modal enables quick payouts with mode, date, and transaction reference.
+
+- **Booking Table Action Buttons 2-Row Alignment [COMPLETED]**:
+  - Arranged the 8 action buttons in [`BookingColumns.jsx`](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/reports/components/BookingColumns.jsx) into 2 clean rows:
+    - **Row 1 (4 buttons)**: View (`Eye`), Ledger (`BookOpen`), Settlement Calculator (`Calculator`), Certificate/Receipt (`Printer`/`Receipt`).
+    - **Row 2 (4 buttons)**: Legal Agreement (`ScrollText`), Edit Contract (`Edit3`), Revision History (`History`), Delete Booking (`Trash2`).
+  - Standardized button dimensions to `w-7 h-7` with compact column `minWidth: '150px'`.
+
+- **Scheme Plan Dropdown Selection Display Sync [FIXED]**:
+  - **Issue**: On `/dashboard/plots/addbooking` (Step 3) and `/dashboard/plots/booking/edit/:id`, the scheme details (Tenure, BA %, BP %, Branch Partner %) and Buyback badge showed below the dropdown, but the `<select>` dropdown itself showed `-- Choose Mandatory Scheme Plan --`.
+  - **Cause**: Scheme slabs without a custom `planName` rendered `<option value="slab-${tenure}">`, but `handleSelectPlan` saved `planName: "A-${tenure}"`, causing a value mismatch in the HTML `<select>`. Additionally, when reaching Step 3 with pre-set `tenureMonths`, `form.planName` was unset, resulting in the select defaulting to the empty placeholder.
+  - **Fix**:
+    - Introduced canonical slab identifier `getSlabValue(s)` (`s.planName.trim() || 'slab-' + s.tenureMonths`) matching both `<option>` and `handleSelectPlan`.
+    - Bound `<select value={currentSelectValue}>` which dynamically resolves the active scheme slab key.
+    - Added auto-sync `useEffect` to ensure `form.planName` is populated as soon as `currentSchemeSlab` is active.
+
+
+
 - **Branch Partner Incentive & Turnover Missing in Target Incentive Closing [FIXED]**:
   - **Issue**:
     - On `/dashboard/plots/incentives/new?type=TARGET_INCENTIVE`, Business Associates and Business Partners showed their business turnover and target incentives, but Branch Partners showed 0 collections/turnover and `No branch partner collections in this period.`
@@ -344,3 +491,18 @@ This file records session notes, caveats, and discoveries across active sessions
     - `client/src/pages/admin/ledger/FundTransfersPage.jsx`:
       - Computed `canApprove`: Strictly requires `isRecipient` for cash drawer destinations, and bank permission for bank destinations.
       - Replaced generic action state with contextual indicator badge (`Awaiting Recipient` or `Awaiting Bank Checker`) for pending non-actionable transfers.
+
+- **Complete Removal of Weekly Return / Money-Back Payout System [COMPLETED]**:
+  - **User Clarification**: The project does not use or need weekly return / money-back payouts for plot bookings.
+  - **Frontend**:
+    - `client/src/pages/plots/reports/components/BookingColumns.jsx`: Removed weekly payout setup button (`CalendarPlus`) and payout ledger button (`Coins`).
+    - `client/src/pages/plots/reports/PlotReports.jsx`: Removed `SetupPayoutModal` import, state hooks, and modal rendering.
+    - `client/src/pages/plots/reports/components/SetupPayoutModal.jsx`: Replaced with clean no-op component.
+    - `client/src/pages/plots/booking/PlotBookingDetails.jsx`: Removed "Payout Ledger" button and unused `Banknote` icon import.
+    - `client/src/App.jsx`: Removed `plots/payout-ledger` and `plots/vouchers/:id` (payout voucher print) routes and imports.
+    - `client/src/components/Navbar.jsx`: Removed `payout-ledger` breadcrumb title mapping.
+  - **Backend**:
+    - `server/index.js`: Removed `initPlotPayoutScheduler` import and initialization.
+    - `server/cron/plotPayoutScheduler.js`: Converted into a safe no-op.
+    - `server/router/plots.routes.js`: Removed `/bookings/:id/payout/initialize`, `/bookings/:id/payout/pay`, `/bookings/:id/payout/ledger`, and `/payout-vouchers/:id` routes.
+

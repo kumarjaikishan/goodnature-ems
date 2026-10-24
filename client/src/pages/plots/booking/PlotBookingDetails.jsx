@@ -194,63 +194,86 @@ const PlotBookingDetails = () => {
   return (
     <div className="p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
       {/* Top Header / Navigation Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(isSponsor ? '/dashboard/my-bookings' : -1)}
-            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600 font-medium text-xs flex items-center gap-1 cursor-pointer"
-          >
-            <ArrowLeft size={16} /> Back
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-900 font-mono">
-                {booking.bookingNumber}
-              </h2>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  booking.status === 'ACTIVE'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : booking.status === 'PENDING'
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                    : booking.status === 'REJECTED'
-                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                    : booking.status === 'CANCELLED'
-                    ? 'bg-red-50 text-red-700 border border-red-200'
-                    : booking.status === 'COMPLETED'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'bg-slate-100 text-slate-700 border border-slate-200'
-                }`}
-              >
-                {booking.status}
-              </span>
+      <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs flex flex-col gap-3.5">
+        {/* Top Row: Back Button + Booking Identity & Primary Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => navigate(isSponsor ? '/dashboard/my-bookings' : -1)}
+              className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600 font-medium text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <ArrowLeft size={16} /> Back
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 font-mono tracking-tight whitespace-nowrap">
+                  {booking.bookingNumber}
+                </h2>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                    booking.status === 'ACTIVE'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : booking.status === 'PENDING'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : booking.status === 'REJECTED'
+                      ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                      : booking.status === 'CANCELLED'
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : booking.status === 'COMPLETED'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  {booking.status}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
+                Customer: <strong className="text-slate-800">{customer.name || booking.customerName || '-'}</strong>
+                <span className="mx-2 text-slate-300">|</span>
+                Plot: <strong className="text-teal-800 font-bold">#{plot.plotNumber}</strong>
+              </p>
             </div>
-            <p className="text-xs text-slate-500">
-              Customer: <strong className="text-slate-700">{customer.name || booking.customerName || '-'}</strong> | Plot: <strong className="text-teal-800">#{plot.plotNumber}</strong>
-            </p>
+          </div>
+
+          {/* Primary Action Buttons (Approve / Reject / Collect Payment) */}
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
+            {!isSponsor && booking.status === 'PENDING' && (
+              <button
+                onClick={handleApproveBooking}
+                disabled={approveLoading}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
+              >
+                <CheckCircle2 size={16} /> {approveLoading ? 'Approving...' : 'Approve'}
+              </button>
+            )}
+            {!isSponsor && booking.status === 'PENDING' && (
+              <button
+                onClick={() => setRejectModalOpen(true)}
+                disabled={approveLoading}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
+              >
+                <RotateCcw size={15} className="text-rose-600" /> Reject
+              </button>
+            )}
+            {!isSponsor && booking.status !== 'CANCELLED' && (
+              <button
+                onClick={() => {
+                  const isEmi = booking.scheme === 'MONTHLY_INSTALLMENT' && (booking.downpaymentCleared || (booking.bookingAmount && booking.bookingAmount > 0));
+                  const target = isEmi
+                    ? `/dashboard/plots/collections/emi/add?bookingId=${booking._id}`
+                    : `/dashboard/plots/collections/downpayment/add?bookingId=${booking._id}`;
+                  navigate(target);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs bg-teal-700 hover:bg-teal-800"
+              >
+                <Banknote size={16} /> Collect Payment
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {!isSponsor && booking.status === 'PENDING' && (
-            <button
-              onClick={handleApproveBooking}
-              disabled={approveLoading}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-            >
-              <CheckCircle2 size={16} /> {approveLoading ? 'Approving...' : 'Approve'}
-            </button>
-          )}
-          {!isSponsor && booking.status === 'PENDING' && (
-            <button
-              onClick={() => setRejectModalOpen(true)}
-              disabled={approveLoading}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-            >
-              <RotateCcw size={15} className="text-rose-600" /> Reject
-            </button>
-          )}
+        {/* Bottom Row: Document, Ledger & Contract Management Tools */}
+        <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-3">
           <button
             onClick={() => navigate(`/dashboard/plots/booking/${booking._id}/ledger`)}
             className="flex items-center gap-1.5 px-3.5 py-2 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
@@ -297,42 +320,20 @@ const PlotBookingDetails = () => {
               <Sparkles size={16} className="text-teal-700" /> Growth & Interest
             </button>
           )}
-          {!isSponsor && booking.scheme === 'FULL_PAYMENT' && booking.payoutStatus === 'ACTIVE' && (
+          {!isSponsor && booking.status !== 'CANCELLED' && (
             <button
-              onClick={() => navigate(`/dashboard/plots/payout-ledger?bookingId=${booking._id}`)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-white font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs bg-primary"
+              onClick={() => navigate(`/dashboard/plots/booking/edit/${booking._id}`)}
+              className="flex items-center gap-1.5 px-3.5 py-2 border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
             >
-              <Banknote size={16} /> Payout Ledger
+              <Edit3 size={15} className="text-indigo-700" /> Edit Contract
             </button>
           )}
           {!isSponsor && booking.status !== 'CANCELLED' && (
-            <>
-              <button
-                onClick={() => navigate(`/dashboard/plots/booking/edit/${booking._id}`)}
-                className="flex items-center gap-1.5 px-3.5 py-2 border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-              >
-                <Edit3 size={15} className="text-indigo-700" /> Edit Contract
-              </button>
-              <button
-                onClick={() => setRefundOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-              >
-                <RotateCcw size={15} className="text-rose-600" /> Cancel & Refund
-              </button>
-            </>
-          )}
-          {!isSponsor && booking.status !== 'CANCELLED' && (
             <button
-              onClick={() => {
-                const isEmi = booking.scheme === 'MONTHLY_INSTALLMENT' && (booking.downpaymentCleared || (booking.bookingAmount && booking.bookingAmount > 0));
-                const target = isEmi
-                  ? `/dashboard/plots/collections/emi/add?bookingId=${booking._id}`
-                  : `/dashboard/plots/collections/downpayment/add?bookingId=${booking._id}`;
-                navigate(target);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-white font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs bg-primary"
+              onClick={() => setRefundOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs sm:ml-auto"
             >
-              <Banknote size={16} /> Collect Payment
+              <RotateCcw size={15} className="text-rose-600" /> Cancel & Refund
             </button>
           )}
         </div>

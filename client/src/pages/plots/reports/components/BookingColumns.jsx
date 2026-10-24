@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, BookOpen, Receipt, Printer, ScrollText, Edit3, History, Trash2, CalendarPlus, Coins } from 'lucide-react';
+import { Eye, BookOpen, Receipt, Printer, ScrollText, Edit3, History, Trash2, Calculator } from 'lucide-react';
 import { toast } from '@/utils/toast';
 import api from '@/api/axios';
 
@@ -10,8 +10,6 @@ export const getBookingColumns = ({
   openDeleteBookingModal,
   openBookingLedgerModal,
   deletingId,
-  setSetupPayoutBooking,
-  setSetupPayoutForm,
   canUpdate = true,
   canDelete = true,
 }) => [
@@ -186,167 +184,161 @@ export const getBookingColumns = ({
   },
   {
     name: 'Actions',
-    minWidth: '250px',
+    minWidth: '150px',
     cell: (b) => (
-      <div className="flex items-center gap-1.5 py-1">
-        {/* 1. View Full Details */}
-        <button
-          onClick={() => navigate(`/dashboard/plots/booking/${b._id}`)}
-          title="View Full Plot & Booking Details"
-          className="p-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg transition cursor-pointer border border-slate-200 shadow-2xs hover:border-teal-400"
-        >
-          <Eye size={15} />
-        </button>
-
-        {/* 2. View Booking Financial Ledger Page */}
-        <button
-          onClick={() => navigate(`/dashboard/plots/booking/${b._id}/ledger`)}
-          title="View Booking Financial Ledger & Statement"
-          className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition cursor-pointer border border-emerald-200 shadow-2xs hover:border-emerald-400"
-        >
-          <BookOpen size={15} />
-        </button>
-
-        {/* 3. Print Booking Receipt */}
-        {b.receiptId && (
+      <div className="flex flex-col gap-1.5 py-1.5 w-fit">
+        {/* Row 1: 4 action buttons */}
+        <div className="flex items-center gap-1.5">
+          {/* 1. View Full Details */}
           <button
-            onClick={() => navigate(`/dashboard/plots/receipts/${b.receiptId}`)}
-            title="Print Payment Receipt"
-            className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition cursor-pointer border border-sky-200 shadow-2xs"
+            onClick={() => navigate(`/dashboard/plots/booking/${b._id}`)}
+            title="View Full Plot & Booking Details"
+            className="w-7 h-7 flex items-center justify-center bg-white hover:bg-slate-50 text-slate-700 rounded-lg transition cursor-pointer border border-slate-200 shadow-2xs hover:border-teal-400"
           >
-            <Receipt size={15} />
+            <Eye size={14} />
           </button>
-        )}
 
-        {/* 3. Print Booking Certificate */}
-        <button
-          onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
-          title="Print Booking Certificate"
-          className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs"
-        >
-          <Printer size={15} />
-        </button>
+          {/* 2. View Booking Financial Ledger Page */}
+          <button
+            onClick={() => navigate(`/dashboard/plots/booking/${b._id}/ledger`)}
+            title="View Booking Financial Ledger & Statement"
+            className="w-7 h-7 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition cursor-pointer border border-emerald-200 shadow-2xs hover:border-emerald-400"
+          >
+            <BookOpen size={14} />
+          </button>
 
-        {/* 4. Print Plot Agreement */}
-        {(() => {
-          const netVal = Math.max(0, (b.plotValue || 0) - (b.discount || 0));
-          const paid = Math.max(0, netVal - (b.remainingAmount || 0));
-          const plotArea = Number(b.plotId?.plotSize || b.plotId?.area || 0);
-          const dpReq =
-            b.scheme === 'FULL_PAYMENT'
-              ? netVal
-              : b.downpaymentAmount ||
-                b.bookingAmount ||
-                (b.downpaymentRate && plotArea > 0 ? b.downpaymentRate * plotArea : Math.round(netVal * 0.4));
-          const isDpComplete = paid >= dpReq - 1;
+          {/* 3. Settlement & Interest Calculator */}
+          <button
+            onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${b._id}&bookingNumber=${b.bookingNumber}`)}
+            title="Plot Refund, Return & Settlement Calculator"
+            className="w-7 h-7 flex items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg transition cursor-pointer border border-teal-200 shadow-2xs hover:border-teal-400"
+          >
+            <Calculator size={14} />
+          </button>
 
-          return (
+          {/* 4. Print Booking Receipt (or Certificate) */}
+          {b.receiptId ? (
             <button
-              onClick={async () => {
-                if (!isDpComplete) {
-                  toast.warning(
-                    `Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`
-                  );
-                  return;
-                }
-
-                navigate(`/dashboard/plots/agreements/${b._id}`);
-              }}
-              title={
-                !isDpComplete
-                  ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
-                  : 'Print Legal Plot Agreement'
-              }
-              className={`p-1.5 rounded-lg transition shadow-2xs border ${
-                isDpComplete
-                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200 cursor-pointer'
-                  : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-60'
-              }`}
+              onClick={() => navigate(`/dashboard/plots/receipts/${b.receiptId}`)}
+              title="Print Payment Receipt"
+              className="w-7 h-7 flex items-center justify-center bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition cursor-pointer border border-sky-200 shadow-2xs"
             >
-              <ScrollText size={15} />
+              <Receipt size={14} />
             </button>
-          );
-        })()}
+          ) : (
+            <button
+              onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
+              title="Print Booking Certificate"
+              className="w-7 h-7 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs"
+            >
+              <Printer size={14} />
+            </button>
+          )}
 
-        {/* 5. Edit Booking Contract */}
-        {canUpdate && (
-          <button
-            onClick={() => {
-              if (handleEditClick) {
-                handleEditClick(b);
-              } else if (navigate) {
-                navigate(`/dashboard/plots/booking/edit/${b._id}`);
-              }
-            }}
-            title="Edit Booking Contract"
-            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
-          >
-            <Edit3 size={15} />
-          </button>
-        )}
+          {/* Fallback if both receipt and certificate present */}
+          {b.receiptId && (
+            <button
+              onClick={() => navigate(`/dashboard/plots/certificates/${b._id}`)}
+              title="Print Booking Certificate"
+              className="w-7 h-7 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs"
+            >
+              <Printer size={14} />
+            </button>
+          )}
+        </div>
 
-        {/* 6. View Revision & Restructuring History */}
-        {canUpdate && (
-          <button
-            onClick={() => openRevisionsModal(b)}
-            title="View Contract Revision History & Audits"
-            className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs relative"
-          >
-            <History size={15} />
-            {(b.revisionCount || 0) > 0 && (
-              <span className="absolute -top-1 -right-1 bg-teal-700 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                {b.revisionCount}
-              </span>
-            )}
-          </button>
-        )}
+        {/* Row 2: 4 action buttons */}
+        <div className="flex items-center gap-1.5">
+          {/* 5. Print Plot Agreement */}
+          {(() => {
+            const netVal = Math.max(0, (b.plotValue || 0) - (b.discount || 0));
+            const paid = Math.max(0, netVal - (b.remainingAmount || 0));
+            const plotArea = Number(b.plotId?.plotSize || b.plotId?.area || 0);
+            const dpReq =
+              b.scheme === 'FULL_PAYMENT'
+                ? netVal
+                : b.downpaymentAmount ||
+                  b.bookingAmount ||
+                  (b.downpaymentRate && plotArea > 0 ? b.downpaymentRate * plotArea : Math.round(netVal * 0.4));
+            const isDpComplete = paid >= dpReq - 1;
 
-        {/* 7. Delete Booking */}
-        {canDelete && (
-          <button
-            onClick={() => openDeleteBookingModal(b)}
-            disabled={deletingId === b._id}
-            title="Delete Booking"
-            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
-          >
-            {deletingId === b._id ? (
-              <div className="w-3.5 h-3.5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Trash2 size={15} />
-            )}
-          </button>
-        )}
-
-        {/* 8. Money-Back Payouts Setup / Ledger */}
-        {b.scheme === 'FULL_PAYMENT' && b.remainingAmount === 0 && (
-          <>
-            {!b.payoutStatus || b.payoutStatus === 'INACTIVE' ? (
-              canUpdate && (
-                <button
-                  onClick={() => {
-                    setSetupPayoutBooking(b);
-                    setSetupPayoutForm({
-                      startDate: new Date().toISOString().split('T')[0],
-                      weeklyAmount: Math.round((b.plotValue / 500) * 100) / 100,
-                    });
-                  }}
-                  title="Setup Weekly Money-Back Payouts"
-                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition cursor-pointer border border-emerald-200 shadow-2xs"
-                >
-                  <CalendarPlus size={15} />
-                </button>
-              )
-            ) : (
+            return (
               <button
-                onClick={() => navigate(`/dashboard/plots/payout-ledger?bookingId=${b._id}`)}
-                title="View Weekly Money-Back Payout Ledger"
-                className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-lg transition cursor-pointer border border-emerald-300 shadow-2xs"
+                onClick={async () => {
+                  if (!isDpComplete) {
+                    toast.warning(
+                      `Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`
+                    );
+                    return;
+                  }
+
+                  navigate(`/dashboard/plots/agreements/${b._id}`);
+                }}
+                title={
+                  !isDpComplete
+                    ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
+                    : 'Print Legal Plot Agreement'
+                }
+                className={`w-7 h-7 flex items-center justify-center rounded-lg transition shadow-2xs border ${
+                  isDpComplete
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200 cursor-pointer'
+                    : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-60'
+                }`}
               >
-                <Coins size={15} />
+                <ScrollText size={14} />
               </button>
-            )}
-          </>
-        )}
+            );
+          })()}
+
+          {/* 6. Edit Booking Contract */}
+          {canUpdate && (
+            <button
+              onClick={() => {
+                if (handleEditClick) {
+                  handleEditClick(b);
+                } else if (navigate) {
+                  navigate(`/dashboard/plots/booking/edit/${b._id}`);
+                }
+              }}
+              title="Edit Booking Contract"
+              className="w-7 h-7 flex items-center justify-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
+            >
+              <Edit3 size={14} />
+            </button>
+          )}
+
+          {/* 7. View Revision & Restructuring History */}
+          {canUpdate && (
+            <button
+              onClick={() => openRevisionsModal(b)}
+              title="View Contract Revision History & Audits"
+              className="w-7 h-7 flex items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition cursor-pointer border border-purple-200 shadow-2xs relative"
+            >
+              <History size={14} />
+              {(b.revisionCount || 0) > 0 && (
+                <span className="absolute -top-1 -right-1 bg-teal-700 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                  {b.revisionCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* 8. Delete Booking */}
+          {canDelete && (
+            <button
+              onClick={() => openDeleteBookingModal(b)}
+              disabled={deletingId === b._id}
+              title="Delete Booking"
+              className="w-7 h-7 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
+            >
+              {deletingId === b._id ? (
+                <div className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+            </button>
+          )}
+        </div>
       </div>
     ),
   },

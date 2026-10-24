@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Edit2,
-  Trash2
+  Trash2,
+  XCircle,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { DateInput } from '../../../../components/ui/DateInput';
@@ -47,21 +48,6 @@ const ProductSalesTab = ({
   const [statusFilter, setStatusFilter] = useState('');
   const [viewingBooking, setViewingBooking] = useState(null);
   const [showSaleModal, setShowSaleModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingBooking, setEditingBooking] = useState(null);
-  const [editForm, setEditForm] = useState({
-    productId: '',
-    customerId: '',
-    quantity: 1,
-    customUnitPrice: '',
-    tenureMonths: 24,
-    paymentType: 'MONTHLY_INSTALLMENT',
-    bookingDate: '',
-    status: 'ACTIVE',
-    remarks: '',
-    paymentMode: 'cash',
-    transactionReference: '',
-  });
   const [submitting, setSubmitting] = useState(false);
 
   // Form states for creating a new product sale/booking
@@ -93,18 +79,6 @@ const ProductSalesTab = ({
     ? 0
     : Math.round(totalAmount / tenure);
 
-  // Edit form calculations
-  const editSelectedProduct = products.find((p) => p._id === editForm.productId);
-  const editSelectedCustomer = customers.find((c) => c._id === editForm.customerId);
-  const editUnitRate = editForm.customUnitPrice !== '' && Number(editForm.customUnitPrice) > 0
-    ? Number(editForm.customUnitPrice)
-    : Number(editSelectedProduct?.unitPrice || editingBooking?.unitPrice || 0);
-  const editTotalAmount = Math.max(0, Number(editForm.quantity || 1) * editUnitRate);
-  const editIsFullPayment = editForm.paymentType === 'FULL_PAYMENT';
-  const editTenure = Math.max(1, Number(editForm.tenureMonths) || 24);
-  const editMonthlyEmi = editIsFullPayment
-    ? 0
-    : Math.round(editTotalAmount / editTenure);
 
   const handleOpenSaleModal = () => {
     const firstPrd = products[0]?._id || '';
@@ -129,12 +103,6 @@ const ProductSalesTab = ({
     const cur = Number(form.quantity) || 1;
     const next = Math.max(1, cur + delta);
     setForm({ ...form, quantity: next });
-  };
-
-  const handleEditQuantityStep = (delta) => {
-    const cur = Number(editForm.quantity) || 1;
-    const next = Math.max(1, cur + delta);
-    setEditForm({ ...editForm, quantity: next });
   };
 
   const handleSubmitSale = async (e) => {
@@ -180,63 +148,6 @@ const ProductSalesTab = ({
       setSubmitting(false);
     }
   };
-
-  const handleOpenEditModal = (booking) => {
-    setEditingBooking(booking);
-    setEditForm({
-      productId: booking.productId?._id || booking.productId || '',
-      customerId: booking.customerId?._id || booking.customerId || '',
-      quantity: booking.quantity || 1,
-      customUnitPrice: booking.unitPrice || '',
-      tenureMonths: booking.tenureMonths || 24,
-      paymentType: booking.paymentType || 'MONTHLY_INSTALLMENT',
-      bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '',
-      status: booking.status || 'ACTIVE',
-      remarks: booking.remarks || '',
-      paymentMode: booking.collections?.[0]?.paymentMode || 'cash',
-      transactionReference: booking.collections?.[0]?.transactionReference || '',
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateBooking = async (e) => {
-    e.preventDefault();
-    if (!editingBooking) return;
-
-    if (!editForm.productId) {
-      toast.error('Please select a product');
-      return;
-    }
-    if (!editForm.customerId) {
-      toast.error('Please select a customer');
-      return;
-    }
-    const qty = Number(editForm.quantity);
-    if (!qty || qty < 1) {
-      toast.error('Quantity must be at least 1');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const payload = {
-        ...editForm,
-        quantity: qty,
-        customUnitPrice: editForm.customUnitPrice !== '' ? Number(editForm.customUnitPrice) : undefined,
-        tenureMonths: Number(editForm.tenureMonths) || 24,
-      };
-      const res = await api.put(`/plots/product-bookings/${editingBooking._id}`, payload);
-      toast.success(res.data?.message || 'Product booking updated successfully');
-      setShowEditModal(false);
-      setEditingBooking(null);
-      onRefresh();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update product booking');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const [deletingBookingId, setDeletingBookingId] = useState(null);
 
   const handleDeleteBooking = async (booking) => {
@@ -449,11 +360,24 @@ const ProductSalesTab = ({
 
                           <button
                             type="button"
-                            onClick={() => handleOpenEditModal(b)}
+                            onClick={() => navigate(`/dashboard/plots/products/edit/${b._id}`)}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition border border-blue-200/60 cursor-pointer"
-                            title="Edit Booking Date / Status / Notes"
+                            title="Edit Plot Product Sale & Booking"
                           >
                             <Edit2 size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/dashboard/plots/interest-calculator?productBookingId=${b._id}&bookingNumber=${encodeURIComponent(b.bookingNumber)}`)}
+                            className={`p-1.5 rounded-lg transition border cursor-pointer ${
+                              b.status === 'CANCELLED'
+                                ? 'text-amber-700 hover:bg-amber-50 border-amber-300 bg-amber-50/50'
+                                : 'text-rose-600 hover:bg-rose-50 border-rose-200/70'
+                            }`}
+                            title={b.status === 'CANCELLED' ? 'View Cancellation & Settlement Statement' : 'Cancel Booking & Settlement Calculator'}
+                          >
+                            <XCircle size={14} />
                           </button>
 
                           <button
@@ -481,18 +405,15 @@ const ProductSalesTab = ({
       </div>
 
       {/* Sell Product / Booking Modal */}
-      <Modalbox open={showSaleModal} onClose={() => setShowSaleModal(false)} size="2xl">
-        <div className="p-5 md:p-6 bg-white space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-                <ShoppingCart size={18} />
-              </span>
-              <h3 className="font-bold text-slate-900 text-sm md:text-base">Sell Plot Product &amp; Create Booking</h3>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmitSale} className="space-y-4 text-xs">
+      <Modalbox
+        open={showSaleModal}
+        onClose={() => setShowSaleModal(false)}
+        size="2xl"
+        title="Sell Plot Product & Create Booking"
+        subtitle="Issue new product certificate to customer under flexible one-time or installment schemes"
+        icon={<ShoppingCart size={18} />}
+      >
+        <form onSubmit={handleSubmitSale} className="space-y-4 text-xs">
             {/* 1. Customer Selection (with auto-linked Business Associate) */}
             <div>
               <label className="block font-bold text-slate-700 mb-1">
@@ -802,294 +723,9 @@ const ProductSalesTab = ({
               </button>
             </div>
           </form>
-        </div>
       </Modalbox>
 
-      {/* Edit Booking Modal */}
-      <Modalbox
-        open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingBooking(null);
-        }}
-        size="2xl"
-      >
-        <div className="p-5 md:p-6 bg-white space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-                <Edit2 size={18} />
-              </span>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm md:text-base">
-                  Edit Plot Product Booking — <span className="font-mono text-teal-800">{editingBooking?.bookingNumber}</span>
-                </h3>
-                <p className="text-[11px] text-slate-500">Update customer, product, quantity, tenure, plan, date, and status</p>
-              </div>
-            </div>
-          </div>
 
-          <form onSubmit={handleUpdateBooking} className="space-y-4 text-xs">
-            {/* 1. Customer Selection */}
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Select Customer <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={editForm.customerId}
-                onChange={(e) => setEditForm({ ...editForm, customerId: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                required
-              >
-                <option value="">-- Choose Verified Customer --</option>
-                {customers.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name} ({c.customerCode || c.customerId || 'ID'}) {c.sponsorId?.name ? `• Sponsoring BA: ${c.sponsorId.name}` : ''}
-                  </option>
-                ))}
-              </select>
-
-              {editSelectedCustomer && (
-                <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-[11px] text-slate-700">
-                  <span>Customer Mobile: <strong>{editSelectedCustomer.mobile || '-'}</strong></span>
-                  <span>
-                    Business Associate: <strong className="text-teal-800">{editSelectedCustomer.sponsorId?.name || 'Direct Company'}</strong>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* 2. Product Selection */}
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Select Plot Product <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={editForm.productId}
-                onChange={(e) => {
-                  const prdId = e.target.value;
-                  const prd = products.find((p) => p._id === prdId);
-                  setEditForm({
-                    ...editForm,
-                    productId: prdId,
-                    customUnitPrice: prd?.unitPrice || '',
-                  });
-                }}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                required
-              >
-                <option value="">-- Choose Product --</option>
-                {products.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.productName} ({p.productCode}) — Dimensions: {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
-                  </option>
-                ))}
-              </select>
-
-              {editSelectedProduct && (
-                <div className="mt-2 p-2.5 bg-teal-50/50 rounded-xl border border-teal-200/60 flex items-center justify-between text-[11px] text-teal-900">
-                  <span>
-                    Dimensions: <strong>{editSelectedProduct.dimensionLabel || `${editSelectedProduct.dimensions?.north}x${editSelectedProduct.dimensions?.east} ft`}</strong> ({editSelectedProduct.areaSqFt} Sq.Ft)
-                  </span>
-                  <span>
-                    Catalog Unit Rate: <strong>₹{Number(editSelectedProduct.unitPrice || 0).toLocaleString('en-IN')}</strong>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* 3. Quantity Stepper & Unit Price */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Quantity (Units / Pieces) <span className="text-rose-500">*</span>
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleEditQuantityStep(-1)}
-                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
-                  >
-                    <Minus size={15} />
-                  </button>
-
-                  <input
-                    type="number"
-                    min="1"
-                    value={editForm.quantity}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEditForm({ ...editForm, quantity: val === '' ? '' : Number(val) });
-                    }}
-                    onBlur={() => {
-                      if (!editForm.quantity || Number(editForm.quantity) < 1) {
-                        setEditForm((prev) => ({ ...prev, quantity: 1 }));
-                      }
-                    }}
-                    className="w-full text-center px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
-                    required
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => handleEditQuantityStep(1)}
-                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
-                  >
-                    <Plus size={15} />
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Unit Price (₹) <span className="text-slate-400 font-normal">(Editable)</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editForm.customUnitPrice}
-                    onChange={(e) => setEditForm({ ...editForm, customUnitPrice: e.target.value })}
-                    placeholder={editSelectedProduct?.unitPrice ? String(editSelectedProduct.unitPrice) : '5000'}
-                    className="w-full pl-8 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 4. Payment Plan & Tenure */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Payment Plan <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={editForm.paymentType}
-                  onChange={(e) => setEditForm({ ...editForm, paymentType: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                >
-                  <option value="MONTHLY_INSTALLMENT">Monthly EMI Installments</option>
-                  <option value="FULL_PAYMENT">One-Time Full Payment (100% Upfront)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Deposit & Holding Period' : 'Selected Period (Tenure Months)'}{' '}
-                  <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={editForm.tenureMonths}
-                  onChange={(e) => setEditForm({ ...editForm, tenureMonths: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-teal-900"
-                >
-                  {tenures.map((t) => {
-                    const years = t.tenureMonths >= 12 ? ` (${+(t.tenureMonths / 12).toFixed(1)} ${t.tenureMonths === 12 ? 'Year' : 'Years'})` : '';
-                    return (
-                      <option key={t.tenureMonths} value={t.tenureMonths}>
-                        {t.tenureMonths} Months{years}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
-
-            {/* 5. Payment Date & Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <DateInput
-                  label="Booking Date *"
-                  value={editForm.bookingDate}
-                  onChange={(e) => setEditForm({ ...editForm, bookingDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Booking Status <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                  required
-                >
-                  <option value="ACTIVE">ACTIVE (Ongoing Installments / Regular)</option>
-                  <option value="COMPLETED">COMPLETED (Fully Paid & Closed)</option>
-                  <option value="CANCELLED">CANCELLED (Void / Cancelled)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Real-Time Total & EMI Summary Strip */}
-            <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-slate-900 text-white p-4 rounded-2xl shadow-sm grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <span className="text-[10px] text-teal-200 uppercase font-bold block">Total Valuation</span>
-                <span className="text-base font-black font-mono">₹{editTotalAmount.toLocaleString('en-IN')}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-teal-200 uppercase font-bold block">
-                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Deposit Period' : 'Tenure Plan'}
-                </span>
-                <span className="text-base font-bold font-mono text-emerald-300">
-                  {editTenure} Months
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-teal-200 uppercase font-bold block">
-                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Amount Paid' : 'Total Installments'}
-                </span>
-                <span className={`text-base font-bold font-mono ${editForm.paymentType === 'FULL_PAYMENT' ? 'text-emerald-300' : 'text-slate-200'}`}>
-                  {editForm.paymentType === 'FULL_PAYMENT' ? `₹${editTotalAmount.toLocaleString('en-IN')}` : `${editTenure} EMIs`}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-emerald-300 uppercase font-bold block">
-                  {editForm.paymentType === 'FULL_PAYMENT' ? 'Payment Status' : 'Monthly EMI'}
-                </span>
-                <span className="text-base font-black font-mono text-emerald-400">
-                  {editForm.paymentType === 'FULL_PAYMENT' ? 'FULLY PAID' : `₹${editMonthlyEmi.toLocaleString('en-IN')}`}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Remarks / Internal Notes (Optional)</label>
-              <textarea
-                rows={2}
-                value={editForm.remarks}
-                onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
-                placeholder="Add any specific operational remarks..."
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none resize-none"
-              />
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingBooking(null);
-                }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || editTotalAmount <= 0}
-                className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold transition shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-                <span>{submitting ? 'Saving Changes...' : 'Save & Update Booking'}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modalbox>
 
       {/* ── View Booking Full Details Modal ── */}
       {viewingBooking && (() => {
@@ -1109,11 +745,53 @@ const ProductSalesTab = ({
           <Modalbox
             open={!!viewingBooking}
             onClose={() => setViewingBooking(null)}
-            size="3xl"
-            title={`Product Booking Details — ${viewingBooking.bookingNumber}`}
-            subtitle={`Recorded on ${new Date(viewingBooking.bookingDate || viewingBooking.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+            size="4xl"
+            title={`Plot Product Booking Details — ${viewingBooking.bookingNumber}`}
+            subtitle={`Recorded on ${new Date(viewingBooking.bookingDate || viewingBooking.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • Status: ${viewingBooking.status || 'ACTIVE'}`}
+            icon={<Eye size={18} />}
             footer={
-              <div className="flex items-center justify-end w-full">
+              <div className="flex flex-wrap items-center justify-between w-full gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = viewingBooking;
+                      setViewingBooking(null);
+                      if (onOpenCertificate) onOpenCertificate(b);
+                    }}
+                    className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Printer size={13} />
+                    <span>Print Certificate</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = viewingBooking;
+                      setViewingBooking(null);
+                      if (onOpenLedger) onOpenLedger(b);
+                    }}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <BookOpen size={13} />
+                    <span>Customer Ledger</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = viewingBooking._id;
+                      setViewingBooking(null);
+                      navigate(`/dashboard/plots/products/edit/${id}`);
+                    }}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Edit2 size={13} />
+                    <span>Edit Booking</span>
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setViewingBooking(null)}
@@ -1125,7 +803,7 @@ const ProductSalesTab = ({
             }
           >
             <div className="p-4 sm:p-6 space-y-4 text-xs">
-              {/* 1. Customer & Associate Grid */}
+              {/* 1. Customer & Sponsoring Associate Strip */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="space-y-1.5">
                   <div className="text-[11px] uppercase font-bold text-teal-800 flex items-center gap-1.5 border-b border-slate-200 pb-1">
@@ -1146,7 +824,7 @@ const ProductSalesTab = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Mobile:</span>
-                      <span>{vCust.mobile || '-'}</span>
+                      <span className="font-semibold text-slate-900">{vCust.mobile || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Address:</span>
@@ -1157,24 +835,34 @@ const ProductSalesTab = ({
 
                 <div className="space-y-1.5">
                   <div className="text-[11px] uppercase font-bold text-teal-800 flex items-center gap-1.5 border-b border-slate-200 pb-1">
-                    <ShieldCheck size={13} /> Sponsoring Associate
+                    <ShieldCheck size={13} /> Sponsoring Associate &amp; Hierarchy
                   </div>
                   <div className="space-y-1 text-slate-700">
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Business Associate:</span>
+                      <span className="text-slate-500">Business Associate (BA):</span>
                       <span className="font-bold text-slate-900">{vSpon.name || 'Direct Company'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Associate Code:</span>
-                      <span className="font-mono font-bold text-slate-800">{vSpon.sponsorCode || '-'}</span>
+                      <span className="font-mono font-bold text-teal-800">{vSpon.sponsorCode || '-'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Partner Supervisor:</span>
-                      <span>{vSpon.sponsorId?.name || '-'}</span>
+                      <span className="text-slate-500">Business Partner (BP):</span>
+                      <span className="font-medium text-slate-800">{vSpon.sponsorId?.name || '-'}</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Project Master:</span>
+                      <span className="font-bold text-slate-800">{viewingBooking.projectName || viewingBooking.projectId?.name || vPrd.projectName || 'General Master Portfolio'}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-0.5">
                       <span className="text-slate-500">Booking Status:</span>
-                      <span className="font-bold uppercase text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <span className={`font-bold uppercase text-[10px] px-2 py-0.5 rounded border ${
+                        viewingBooking.status === 'COMPLETED'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : viewingBooking.status === 'CANCELLED'
+                          ? 'bg-rose-50 text-rose-800 border-rose-200'
+                          : 'bg-teal-50 text-teal-800 border border-teal-200'
+                      }`}>
                         {viewingBooking.status || 'ACTIVE'}
                       </span>
                     </div>
@@ -1199,7 +887,7 @@ const ProductSalesTab = ({
                     <strong className="text-slate-800 font-mono text-[11px] block">
                       {vDims.north ?? 1}x{vDims.south ?? 1}x{vDims.east ?? 2}x{vDims.west ?? 2} ft
                     </strong>
-                    <span className="text-[10px] text-slate-500">Area: {vPrd.areaSqFt || 2} Sq.Ft/unit</span>
+                    <span className="text-[10px] text-slate-500">Unit: {vPrd.areaSqFt || (Number(vDims.north || 1) * Number(vDims.east || 1))} Sq.Ft/piece</span>
                   </div>
 
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
@@ -1207,7 +895,7 @@ const ProductSalesTab = ({
                     <strong className="text-teal-800 text-sm block font-black">
                       {viewingBooking.quantity || 1} {viewingBooking.quantity === 1 ? 'Unit' : 'Units'}
                     </strong>
-                    <span className="text-[10px] text-slate-500">Total: {viewingBooking.totalAreaSqFt || ((vPrd.areaSqFt || 2) * (viewingBooking.quantity || 1))} Sq.Ft</span>
+                    <span className="text-[10px] text-slate-500">Total: <b>{viewingBooking.totalAreaSqFt || ((vPrd.areaSqFt || 2) * (viewingBooking.quantity || 1))} Sq.Ft</b> ({((viewingBooking.totalAreaSqFt || 2) / 435.6).toFixed(2)} Dismil)</span>
                   </div>
 
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
@@ -1220,42 +908,121 @@ const ProductSalesTab = ({
                 </div>
               </div>
 
-              {/* 3. Land Sourcing Reference (if any) */}
-              {vLand.length > 0 && (
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 space-y-1.5">
-                  <div className="text-[11px] uppercase font-bold text-emerald-900 flex items-center gap-1.5">
-                    <Layers size={13} className="text-emerald-700" /> Land Sourcing Allocation Reference
+              {/* 3. Scheme Plan, Period / Tenure & Return Rates (Requested by User) */}
+              <div className="bg-gradient-to-r from-teal-50/90 to-emerald-50/70 p-4 rounded-xl border border-teal-200/80 space-y-3">
+                <div className="flex items-center justify-between border-b border-teal-200/60 pb-1.5">
+                  <div className="text-[11px] uppercase font-bold text-teal-900 flex items-center gap-1.5">
+                    <Award size={13} className="text-teal-700" /> Scheme Plan, Period / Tenure &amp; Policy Matrix
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-slate-700 font-medium">
-                    {vLand[0]?.agreementNumber && (
-                      <div>
-                        <span className="text-slate-400 text-[10px] block">Kisan Agreement</span>
-                        <span className="font-bold text-slate-900 font-mono">#{vLand[0].agreementNumber}</span>
-                      </div>
-                    )}
-                    {vLand[0]?.mauja && (
-                      <div>
-                        <span className="text-slate-400 text-[10px] block">Mauja / Thana</span>
-                        <span className="font-semibold text-slate-900">{vLand[0].mauja} {vLand[0].thanaNumber ? `(Thana #${vLand[0].thanaNumber})` : ''}</span>
-                      </div>
-                    )}
-                    {(vLand[0]?.khataNumber || vLand[0]?.khesraNumber) && (
-                      <div>
-                        <span className="text-slate-400 text-[10px] block">Khata / Khesra</span>
-                        <span className="font-semibold text-slate-900">Khata: {vLand[0].khataNumber || '-'} | Plot: {vLand[0].khesraNumber || '-'}</span>
-                      </div>
-                    )}
-                    {vLand[0]?.allocatedSqFt && (
-                      <div>
-                        <span className="text-slate-400 text-[10px] block">Allocated Area</span>
-                        <span className="font-bold text-emerald-800">{vLand[0].allocatedSqFt} Sq.Ft ({vLand[0].allocatedDismil || (Math.round((vLand[0].allocatedSqFt / 435.6) * 1000) / 1000)} Dismil)</span>
-                      </div>
-                    )}
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200 font-mono">
+                    {viewingBooking.planName || 'Standard Scheme'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="bg-white/90 p-2.5 rounded-lg border border-teal-100 shadow-2xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Payment Scheme</span>
+                    <strong className="text-slate-900 text-xs block font-bold">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'One-Time Full (F.D.)' : 'Monthly EMI (R.D.)'}
+                    </strong>
+                    <span className="text-[10px] text-teal-700 font-medium">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? '100% Upfront Deposit' : 'Recurring Installments'}
+                    </span>
+                  </div>
+
+                  <div className="bg-white/90 p-2.5 rounded-lg border border-teal-100 shadow-2xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Contract Period / Tenure</span>
+                    <strong className="text-teal-900 text-xs block font-black font-mono">
+                      {viewingBooking.tenureMonths || 24} Months
+                    </strong>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {Number(viewingBooking.tenureMonths || 24) >= 12
+                        ? `${(Number(viewingBooking.tenureMonths || 24) / 12).toFixed(1)} ${Number(viewingBooking.tenureMonths || 24) === 12 ? 'Year' : 'Years'} Duration`
+                        : `${viewingBooking.tenureMonths || 24} Months Duration`}
+                    </span>
+                  </div>
+
+                  <div className="bg-white/90 p-2.5 rounded-lg border border-teal-100 shadow-2xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Annual Return Rate</span>
+                    <strong className="text-emerald-700 text-xs block font-black font-mono">
+                      {viewingBooking.annualInterestRate !== undefined ? `${viewingBooking.annualInterestRate}%` : '10.5%'} P.A.
+                    </strong>
+                    <span className="text-[10px] text-slate-500 font-medium">Annual Growth Return</span>
+                  </div>
+
+                  <div className="bg-white/90 p-2.5 rounded-lg border border-teal-100 shadow-2xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Maturity Return Rate</span>
+                    <strong className="text-indigo-800 text-xs block font-black font-mono">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT'
+                        ? (viewingBooking.fdMaturityPercent !== undefined ? `${viewingBooking.fdMaturityPercent}%` : '-')
+                        : (viewingBooking.rdMaturityPercent !== undefined ? `${viewingBooking.rdMaturityPercent}%` : '-')}
+                    </strong>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'F.D. Maturity Return' : 'R.D. Maturity Return'}
+                    </span>
                   </div>
                 </div>
-              )}
 
-              {/* 4. Financial & Payment Plan Overview */}
+                {/* Sponsoring Commission Policy Matrix */}
+                <div className="p-2.5 bg-white/70 rounded-lg border border-teal-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
+                  <span className="font-bold text-teal-900">Commission Policy:</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span>BA Commission: <b className="text-teal-800 font-mono">{viewingBooking.promoterCommissionPercent !== undefined ? `${viewingBooking.promoterCommissionPercent}%` : '4.0%'}</b></span>
+                    <span>•</span>
+                    <span>BP Commission: <b className="text-teal-800 font-mono">{(viewingBooking.bpCommissionPercent ?? viewingBooking.developerCommissionPercent) !== undefined ? `${viewingBooking.bpCommissionPercent ?? viewingBooking.developerCommissionPercent}%` : '1.0%'}</b></span>
+                    <span>•</span>
+                    <span>Branch Commission: <b className="text-teal-800 font-mono">{viewingBooking.branchCommissionPercent !== undefined ? `${viewingBooking.branchCommissionPercent}%` : '0%'}</b></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Land Sourcing Multi-Agreement Breakdown */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                  <div className="text-[11px] uppercase font-bold text-teal-800 flex items-center gap-1.5">
+                    <Layers size={13} className="text-teal-700" /> Land Acquisition Sourcing Reference ({vLand.length} {vLand.length === 1 ? 'Agreement' : 'Agreements'})
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Total Required: <b className="text-teal-800 font-mono">{viewingBooking.totalAreaSqFt || ((vPrd.areaSqFt || 2) * (viewingBooking.quantity || 1))} Sq.Ft</b>
+                  </span>
+                </div>
+
+                {vLand.length > 0 ? (
+                  <div className="space-y-2">
+                    {vLand.map((srcRow, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white p-2.5 rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-2 text-slate-700"
+                      >
+                        <div>
+                          <span className="text-slate-400 text-[10px] block uppercase font-bold">Kisan Agreement</span>
+                          <span className="font-bold text-slate-900 font-mono">#{srcRow.agreementNumber || srcRow.agreementId?.agreementNumber || `AGR-${idx + 1}`}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block uppercase font-bold">Mauja / Thana</span>
+                          <span className="font-semibold text-slate-900">{srcRow.mauja || '-'} {srcRow.thanaNumber ? `(Thana #${srcRow.thanaNumber})` : ''}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block uppercase font-bold">Khata / Plot (Khesra)</span>
+                          <span className="font-semibold text-slate-900">Khata: {srcRow.khataNumber || '-'} | Plot: {srcRow.khesraNumber || '-'}</span>
+                        </div>
+                        <div className="text-right sm:text-right">
+                          <span className="text-slate-400 text-[10px] block uppercase font-bold">Allocated Area</span>
+                          <span className="font-black text-emerald-700 font-mono">
+                            {srcRow.allocatedSqFt} Sq.Ft <span className="text-slate-500 font-normal">({srcRow.allocatedDismil || (Math.round((srcRow.allocatedSqFt / 435.6) * 1000) / 1000)} Dismil)</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 text-center text-slate-400 text-xs italic bg-white rounded-lg border border-slate-200">
+                    No Kisan Land agreements allocated to this booking yet.
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Financial Breakdown & Installment Status */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
                 <div className="text-[11px] uppercase font-bold text-teal-800 flex items-center gap-1.5">
                   <Clock size={13} /> Financial Breakdown &amp; Installment Status
@@ -1266,18 +1033,21 @@ const ProductSalesTab = ({
                     <strong className="text-slate-900 text-sm font-black font-mono">
                       ₹{Number(viewingBooking.totalAmount || 0).toLocaleString('en-IN')}
                     </strong>
+                    <span className="text-[10px] text-slate-500 block">Total Contract Value</span>
                   </div>
 
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Payment Scheme</span>
-                    <strong className="text-teal-800 text-xs font-bold block">
-                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'One Time (100% Upfront)' : `${viewingBooking.tenureMonths || 24} Months EMI`}
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'Paid Upfront' : 'Monthly EMI'}
+                    </span>
+                    <strong className="text-teal-800 text-sm font-black font-mono block">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT'
+                        ? `₹${Number(viewingBooking.totalAmount || 0).toLocaleString('en-IN')}`
+                        : `₹${Number(viewingBooking.monthlyEmi || 0).toLocaleString('en-IN')}/mo`}
                     </strong>
-                    {viewingBooking.paymentType !== 'FULL_PAYMENT' && (
-                      <span className="text-[10px] text-emerald-700 font-bold font-mono">
-                        EMI: ₹{Number(viewingBooking.monthlyEmi || 0).toLocaleString('en-IN')}/mo
-                      </span>
-                    )}
+                    <span className="text-[10px] text-emerald-700 font-bold">
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? '100% Upfront Settled' : `${viewingBooking.tenureMonths || 24} EMIs Plan`}
+                    </span>
                   </div>
 
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
@@ -1285,7 +1055,7 @@ const ProductSalesTab = ({
                     <strong className="text-emerald-700 text-sm font-black font-mono">
                       ₹{Number(viewingBooking.totalPaid || 0).toLocaleString('en-IN')}
                     </strong>
-                    <span className="text-[10px] text-slate-500 block">
+                    <span className="text-[10px] text-slate-500 block font-medium">
                       {vTotalInstsCount > 0 ? `${vPaidInstsCount}/${vTotalInstsCount} EMIs Paid` : '100% Paid'}
                     </span>
                   </div>
@@ -1304,11 +1074,29 @@ const ProductSalesTab = ({
                     )}
                   </div>
                 </div>
+
+                {/* Initial Payment Reference Strip */}
+                {viewingBooking.collections && viewingBooking.collections.length > 0 && (
+                  <div className="p-2.5 bg-white rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
+                    <span>
+                      Payment Mode: <b className="uppercase text-slate-900">{viewingBooking.collections[0].paymentMode || 'Cash'}</b>
+                    </span>
+                    {viewingBooking.collections[0].transactionReference && (
+                      <span>
+                        Txn / Cheque Ref: <b className="font-mono text-teal-800">{viewingBooking.collections[0].transactionReference}</b>
+                      </span>
+                    )}
+                    <span>
+                      Receipt #: <b className="font-mono text-slate-900">{viewingBooking.collections[0].receiptNumber || `PRD-DP-${viewingBooking.bookingNumber}`}</b>
+                    </span>
+                  </div>
+                )}
               </div>
 
+              {/* 6. Remarks / Operational Notes */}
               {viewingBooking.remarks && (
-                <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/80 text-slate-700 text-[11px]">
-                  <strong>Remarks / Notes:</strong> {viewingBooking.remarks}
+                <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 text-slate-700 text-[11px]">
+                  <strong className="text-amber-900">Remarks / Operational Notes:</strong> {viewingBooking.remarks}
                 </div>
               )}
             </div>

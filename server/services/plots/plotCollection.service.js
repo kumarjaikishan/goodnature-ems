@@ -429,13 +429,25 @@ class PlotCollectionService {
       }
       await payment.save({ session });
 
-      // Generate Receipt Number (e.g. RO-REC-PLT-2627-00004)
+      // Generate Receipt Number (e.g. REC-PLT-2627-00004) - removed RO prefix
       const pMonth = paymentDate.getMonth();
       const pYear = paymentDate.getFullYear();
       const startYr = pMonth >= 3 ? pYear : pYear - 1;
       const endYr = startYr + 1;
       const fyStr = `${String(startYr).slice(-2)}${String(endYr).slice(-2)}`;
-      const receiptPrefix = `RO-REC-PLT-${fyStr}`;
+      const receiptPrefix = `REC-PLT-${fyStr}`;
+      const legacyPrefix = `RO-REC-PLT-${fyStr}`;
+
+      // Seamlessly inherit sequence from legacy counter if present
+      const legacyCounter = await Counter.findById(legacyPrefix).session(session);
+      if (legacyCounter && legacyCounter.sequence > 0) {
+        await Counter.findByIdAndUpdate(
+          receiptPrefix,
+          { $max: { sequence: legacyCounter.sequence } },
+          { upsert: true, session }
+        );
+      }
+
       const seq = await Counter.getNextSequence(receiptPrefix, session, 5);
       const receiptNumber = `${receiptPrefix}-${seq}`;
 
@@ -1163,6 +1175,25 @@ class PlotCollectionService {
             { path: 'customerId', select: 'name customerId mobile address email' },
             { path: 'sponsorId', select: 'name customerId' },
             { path: 'plotId', populate: { path: 'seriesId' } }
+          ],
+        });
+    } else if (typeof id === 'string') {
+      const cleanId = id.replace(/^RO-/, '');
+      receipt = await PlotReceipt.findOne({
+        $or: [
+          { receiptNumber: id },
+          { receiptNumber: cleanId },
+          { receiptNumber: `RO-${cleanId}` },
+        ],
+      })
+        .populate('branchId', 'name branchCode')
+        .populate('createdBy', 'name email role')
+        .populate({
+          path: 'bookingId',
+          populate: [
+            { path: 'customerId', select: 'name customerId mobile address email' },
+            { path: 'sponsorId', select: 'name customerId' },
+            { path: 'plotId', populate: { path: 'seriesId' } },
           ],
         });
     }

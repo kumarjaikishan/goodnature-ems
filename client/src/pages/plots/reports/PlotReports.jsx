@@ -12,7 +12,6 @@ import usePermission from '../../../utils/CheckPermission';
 import { getBookingColumns } from './components/BookingColumns';
 import { getDueColumns, getHoldColumns } from './components/DueAndHoldColumns';
 import DeleteBookingModal from './components/DeleteBookingModal';
-import SetupPayoutModal from './components/SetupPayoutModal';
 import SponsorLedgerModal from './components/SponsorLedgerModal';
 import RevisionsAuditModal from './components/RevisionsAuditModal';
 import ReportFilterBar from './components/ReportFilterBar';
@@ -133,29 +132,6 @@ const PlotReports = () => {
       toast.error(error.response?.data?.message || 'Failed to update narration');
     } finally {
       setSavingNarration(false);
-    }
-  };
-
-  // Weekly Payout states
-  const [setupPayoutBooking, setSetupPayoutBooking] = useState(null);
-  const [setupPayoutForm, setSetupPayoutForm] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    weeklyAmount: 1200,
-  });
-  const [setupPayoutSaving, setSetupPayoutSaving] = useState(false);
-
-  const handleSetupPayoutSubmit = async (e) => {
-    e.preventDefault();
-    setSetupPayoutSaving(true);
-    try {
-      await api.post(`/plots/bookings/${setupPayoutBooking._id}/payout/initialize`, setupPayoutForm);
-      toast.success('Weekly payouts initialized successfully');
-      setSetupPayoutBooking(null);
-      fetchReport(activeTab);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to initialize payouts');
-    } finally {
-      setSetupPayoutSaving(false);
     }
   };
 
@@ -301,8 +277,6 @@ const PlotReports = () => {
         openRevisionsModal,
         openDeleteBookingModal,
         deletingId,
-        setSetupPayoutBooking,
-        setSetupPayoutForm,
         canUpdate,
         canDelete,
       }),
@@ -469,15 +443,6 @@ const PlotReports = () => {
       </div>
 
       {/* Modals */}
-      <SetupPayoutModal
-        booking={setupPayoutBooking}
-        onClose={() => setSetupPayoutBooking(null)}
-        onSubmit={handleSetupPayoutSubmit}
-        form={setupPayoutForm}
-        setForm={setSetupPayoutForm}
-        saving={setupPayoutSaving}
-      />
-
       <SponsorLedgerModal
         sponsor={selectedSponsorLedger}
         onClose={() => setSelectedSponsorLedger(null)}

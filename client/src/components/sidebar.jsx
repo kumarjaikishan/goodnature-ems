@@ -190,7 +190,6 @@ const Sidebar = () => {
             { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
             { menu: "Bookings", link: "/dashboard/plots/booking", roles: OPERATIONAL_ROLES, resource: "plot_booking" },
             { menu: "Incentive", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_sponsor" },
-            { menu: "Settlement Calculator", link: "/dashboard/plots/interest-calculator", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
           ],
         },

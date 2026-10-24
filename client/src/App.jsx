@@ -96,12 +96,10 @@ const PlotSeriesMaster = lazy(() => import('./pages/plots/seriesMaster/PlotSerie
 const PlotProductsPage = lazy(() => import('./pages/plots/products/PlotProductsPage'));
 const ProductBookingPage = lazy(() => import('./pages/plots/products/ProductBookingPage'));
 const PlotReports = lazy(() => import('./pages/plots/reports/PlotReports'));
-const PlotPayoutLedgerPage = lazy(() => import('./pages/plots/incentives/PlotPayoutLedgerPage'));
 const PlotAgreementViewer = lazy(() => import('./pages/plots/printViewers/PlotAgreementViewer'));
 const ProductAgreementViewer = lazy(() => import('./pages/plots/printViewers/ProductAgreementViewer'));
 const BookingCertificateViewer = lazy(() => import('./pages/plots/printViewers/BookingCertificateViewer'));
 const ReceiptViewer = lazy(() => import('./pages/plots/printViewers/ReceiptViewer'));
-const PlotPayoutVoucherPrint = lazy(() => import('./pages/plots/incentives/PlotPayoutVoucherPrint'));
 const PlotInterestCalculator = lazy(() => import('./pages/plots/calculator/PlotInterestCalculator'));
 const BusinessDeveloperLedgerPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperLedgerPage'));
 const BusinessDeveloperDashboard = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperDashboard'));
@@ -220,14 +218,13 @@ const managementRoutes = (
     <Route path="plots/series-master" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
     <Route path="plots/products" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotProductsPage /></RoutePermissionGuard>} />
     <Route path="plots/products/book" element={<RoutePermissionGuard resource="plot_booking" action={2}><ProductBookingPage /></RoutePermissionGuard>} />
+    <Route path="plots/products/edit/:id" element={<RoutePermissionGuard resource="plot_booking" action={3}><ProductBookingPage /></RoutePermissionGuard>} />
     <Route path="plots/reports" element={<RoutePermissionGuard resource="plot_reports" action={1}><PlotReports /></RoutePermissionGuard>} />
-    <Route path="plots/payout-ledger" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotPayoutLedgerPage /></RoutePermissionGuard>} />
     <Route path="plots/agreements/:id" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotAgreementViewer /></RoutePermissionGuard>} />
     <Route path="plots/product-agreements/:id" element={<RoutePermissionGuard resource="plot_inventory" action={1}><ProductAgreementViewer /></RoutePermissionGuard>} />
     <Route path="plots/certificates/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
     <Route path="plots/product-certificates/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
     <Route path="plots/receipts/:id" element={<RoutePermissionGuard resource="plot_collection" action={1}><ReceiptViewer /></RoutePermissionGuard>} />
-    <Route path="plots/vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><PlotPayoutVoucherPrint /></RoutePermissionGuard>} />
     <Route path="plots/interest-calculator" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotInterestCalculator /></RoutePermissionGuard>} />
     <Route path="plots/incentives" element={<RoutePermissionGuard resource="plot_sponsor" action={1}><PlotIncentivesPage /></RoutePermissionGuard>} />
     <Route path="plots/incentives/new" element={<RoutePermissionGuard resource="plot_sponsor" action={2}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />

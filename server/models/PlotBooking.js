@@ -264,6 +264,28 @@ const plotBookingSchema = new mongoose.Schema(
       enum: ['NONE', 'REQUESTED', 'PROCESSED'],
       default: 'NONE',
     },
+    refundSettlementType: {
+      type: String,
+      enum: ['INTEREST_RETURN', 'DEDUCTION_PENALTY', 'NONE'],
+      default: 'NONE',
+    },
+    refundDeductionType: {
+      type: String,
+      enum: ['PERCENT', 'FLAT'],
+      default: 'PERCENT',
+    },
+    refundDeductionPercent: {
+      type: Number,
+      default: 0,
+    },
+    refundInterestRate: {
+      type: Number,
+      default: 0,
+    },
+    refundInterestAmount: {
+      type: Number,
+      default: 0,
+    },
     refundAmount: {
       type: Number,
       default: 0,
@@ -276,11 +298,27 @@ const plotBookingSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    refundNotes: {
+      type: String,
+      default: '',
+    },
     refundVoucherId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Voucher',
       default: null,
     },
+    refundPayments: [
+      {
+        date: { type: Date, default: Date.now },
+        amount: { type: Number, required: true },
+        paymentMode: { type: String, default: 'CASH' },
+        transactionReference: { type: String, default: '' },
+        remarks: { type: String, default: '' },
+        voucherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Voucher', default: null },
+        voucherNumber: { type: String, default: '' },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      },
+    ],
     appliedPremiumHeads: [
       {
         name: { type: String, required: true },

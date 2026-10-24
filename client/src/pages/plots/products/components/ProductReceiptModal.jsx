@@ -39,8 +39,8 @@ const ProductReceiptModal = ({ open, onClose, collection }) => {
   const sponsor = collection.sponsor || {};
 
   return (
-    <Modalbox open={open} onClose={onClose}>
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden font-sans">
+    <Modalbox open={open} onClose={onClose} showClose={false} size="3xl" bodyClassName="p-0">
+      <div className="w-full bg-white overflow-hidden font-sans">
         {/* Modal Action Header (Hidden on print) */}
         <div className="flex items-center justify-between px-6 py-4 bg-teal-800 text-white print:hidden">
           <div className="flex items-center gap-2.5">

@@ -785,17 +785,33 @@ class PlotDeveloperService {
       }
     }
 
-    if (booking.downPayment > 0 && !seenReceipts.has(`DP-${booking.bookingNumber}`)) {
-      const dpReceipt = `DP-${booking.bookingNumber}`;
-      seenReceipts.add(dpReceipt);
-      collectionsList.push({
-        receiptNumber: dpReceipt,
-        amountPaid: Number(booking.downPayment),
-        principalPaid: Number(booking.downPayment),
-        lateFinePaid: 0,
-        paymentDate: booking.bookingDate || booking.createdAt,
-        receiptType: 'Product Downpayment',
-      });
+    const hasDpInCollections =
+      seenReceipts.has(`PRD-DP-${booking.bookingNumber}`) ||
+      seenReceipts.has(`DP-${booking.bookingNumber}`) ||
+      (Array.isArray(booking.collections) &&
+        booking.collections.some(
+          (c) =>
+            c.receiptNumber === `PRD-DP-${booking.bookingNumber}` ||
+            c.receiptNumber === `DP-${booking.bookingNumber}` ||
+            c.receiptNumber?.startsWith('PRD-DP-') ||
+            c.receiptNumber?.startsWith('DP-') ||
+            (Array.isArray(c.installmentNumbers) && c.installmentNumbers.includes(0)) ||
+            (booking.paymentType === 'FULL_PAYMENT' && Number(c.amountPaid) >= Number(booking.totalAmount || 0))
+        ));
+
+    if (booking.downPayment > 0 && !hasDpInCollections) {
+      const dpReceipt = `PRD-DP-${booking.bookingNumber}`;
+      if (!seenReceipts.has(dpReceipt) && !seenReceipts.has(`DP-${booking.bookingNumber}`)) {
+        seenReceipts.add(dpReceipt);
+        collectionsList.push({
+          receiptNumber: dpReceipt,
+          amountPaid: Number(booking.downPayment),
+          principalPaid: Number(booking.downPayment),
+          lateFinePaid: 0,
+          paymentDate: booking.bookingDate || booking.createdAt,
+          receiptType: 'Product Downpayment',
+        });
+      }
     }
 
     const validReceiptNumberSet = new Set(collectionsList.map(c => c.receiptNumber));

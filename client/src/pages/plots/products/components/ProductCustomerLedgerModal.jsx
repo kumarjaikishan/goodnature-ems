@@ -1,5 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import { DateInput } from '../../../../components/ui/DateInput';
+import api from '../../../../api/axios';
+import { toast } from '../../../../utils/toast';
 import {
   BookOpen,
   X,
@@ -10,12 +13,27 @@ import {
   User,
   DollarSign,
   AlertTriangle,
-  Percent
+  Percent,
+  Plus,
+  Loader2,
+  Receipt,
+  XCircle,
 } from 'lucide-react';
 
-const ProductCustomerLedgerModal = ({ open, onClose, booking, onCollectInstallment }) => {
+const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, onCollectInstallment, onRefresh }) => {
+  const [currentBooking, setCurrentBooking] = useState(initialBooking);
+  const [showPartPayModal, setShowPartPayModal] = useState(false);
+  const [partPaySubmitting, setPartPaySubmitting] = useState(false);
+  const [partPayAmount, setPartPayAmount] = useState('');
+  const [partPayMode, setPartPayMode] = useState('BANK_TRANSFER');
+  const [partPayRef, setPartPayRef] = useState('');
+  const [partPayDate, setPartPayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [partPayRemarks, setPartPayRemarks] = useState('');
+
+  const booking = currentBooking || initialBooking;
   if (!booking) return null;
 
+  const isCancelled = booking.status === 'CANCELLED';
   const cust = booking.customerId || {};
   const prd = booking.productId || {};
   const installments = booking.installments || [];
@@ -23,6 +41,52 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking, onCollectInstallme
   const totalAmount = Number(booking.totalAmount || 0);
   const totalPaid = Number(booking.totalPaid || 0);
   const balanceDue = Math.max(0, totalAmount - totalPaid);
+
+  const totalRefundPaid = (booking.refundPayments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+    + (booking.refundVoucherId && !booking.refundPayments?.length ? Number(booking.refundAmount || 0) : 0);
+  const netSettlementAmount = Number(booking.refundAmount || 0);
+  const pendingSettlementBalance = Math.max(0, netSettlementAmount - totalRefundPaid);
+
+  const handleRecordPartPayment = async (e) => {
+    e.preventDefault();
+    const amt = Number(partPayAmount);
+    if (!amt || amt <= 0) {
+      toast.warning('Please enter a valid disbursement amount');
+      return;
+    }
+    if (amt > pendingSettlementBalance + 0.01) {
+      toast.error(`Disbursement cannot exceed pending balance of ₹${pendingSettlementBalance.toLocaleString('en-IN')}`);
+      return;
+    }
+
+    try {
+      setPartPaySubmitting(true);
+      const res = await api.post(`/plots/product-bookings/${booking._id}/refund-payments`, {
+        amount: amt,
+        paymentMode: partPayMode,
+        transactionReference: partPayRef,
+        paymentDate: partPayDate,
+        remarks: partPayRemarks,
+      });
+      toast.success(res.data?.message || 'Refund part-payment recorded successfully!');
+      setShowPartPayModal(false);
+      setPartPayAmount('');
+      setPartPayRef('');
+      setPartPayRemarks('');
+
+      // Refresh booking details
+      const freshRes = await api.get(`/plots/product-bookings/${booking._id}`);
+      if (freshRes.data?.data) {
+        setCurrentBooking(freshRes.data.data);
+      }
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Error recording refund payment:', err);
+      toast.error(err.response?.data?.message || 'Failed to record refund payment');
+    } finally {
+      setPartPaySubmitting(false);
+    }
+  };
 
   const rateConfig = booking.rateConfig || {};
   const emiGracePeriod = rateConfig.emiGracePeriod ?? 15;
@@ -133,6 +197,87 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking, onCollectInstallme
         </div>
       }
     >
+      {/* Cancellation & Settlement Banner (if booking is cancelled) */}
+      {isCancelled && (
+        <div className="p-4 bg-rose-50/80 border border-rose-200 rounded-2xl space-y-3 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-200 pb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-200 text-rose-900 border border-rose-300">
+                Cancelled &amp; Settle in Ledger
+              </span>
+              <span className="text-xs text-rose-800 font-semibold">
+                Settlement Type: {booking.refundSettlementType === 'INTEREST_RETURN' ? 'Growth Return Added' : 'Cancellation Penalty Deducted'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-rose-900">
+                Effective: {booking.refundDate ? new Date(booking.refundDate).toLocaleDateString('en-IN') : '-'}
+              </span>
+              {pendingSettlementBalance > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPartPayAmount(pendingSettlementBalance);
+                    setShowPartPayModal(true);
+                  }}
+                  className="px-3 py-1 bg-rose-700 hover:bg-rose-800 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <Plus size={13} /> Disburse Part Refund
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div className="bg-white/90 p-2.5 rounded-xl border border-rose-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Deposits Held</span>
+              <span className="font-mono font-bold text-slate-800 text-sm">₹{totalPaid.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="bg-white/90 p-2.5 rounded-xl border border-rose-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                {booking.refundSettlementType === 'INTEREST_RETURN' ? 'Growth Return' : 'Penalty Deduction'}
+              </span>
+              <span className={`font-mono font-bold text-sm ${booking.refundSettlementType === 'INTEREST_RETURN' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {booking.refundSettlementType === 'INTEREST_RETURN'
+                  ? `+ ₹${Number(booking.refundInterestAmount || 0).toLocaleString('en-IN')} (${booking.refundInterestRate || 0}%)`
+                  : `- ₹${Number(booking.refundDeduction || 0).toLocaleString('en-IN')} (${booking.refundDeductionPercent || 0}%)`}
+              </span>
+            </div>
+            <div className="bg-white/90 p-2.5 rounded-xl border border-rose-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Net Refund Payable</span>
+              <span className="font-mono font-bold text-rose-900 text-sm">₹{netSettlementAmount.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="bg-white/90 p-2.5 rounded-xl border border-rose-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Pending Settlement Balance</span>
+              <span className={`font-mono font-bold text-sm ${
+                pendingSettlementBalance <= 0 ? 'text-emerald-700 font-black' : 'text-amber-800'
+              }`}>
+                ₹{pendingSettlementBalance.toLocaleString('en-IN')}
+                {pendingSettlementBalance <= 0 && ' (₹0.00 Settled)'}
+              </span>
+            </div>
+          </div>
+
+          {/* Refund disbursements list if any */}
+          {Array.isArray(booking.refundPayments) && booking.refundPayments.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-rose-200">
+              <div className="text-[11px] font-bold text-rose-900 mb-1 flex items-center gap-1.5">
+                <Receipt size={13} /> Recorded Refund Disbursements ({booking.refundPayments.length}):
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {booking.refundPayments.map((p, idx) => (
+                  <div key={p._id || idx} className="bg-white border border-rose-200 px-2.5 py-1 rounded-lg text-[11px] font-mono flex items-center gap-1.5 text-slate-800">
+                    <span className="font-bold text-rose-700">Part {idx + 1}: ₹{Number(p.amount).toLocaleString('en-IN')}</span>
+                    <span className="text-slate-400">({new Date(p.date).toLocaleDateString('en-IN')})</span>
+                    <span className="text-slate-500 uppercase text-[10px]">[{p.paymentMode}]</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Financial KPI Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -373,6 +518,113 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking, onCollectInstallme
           </table>
         </div>
       </div>
+      {/* Modal for Recording Refund Part Payment */}
+      {showPartPayModal && (
+        <Modalbox
+          open={showPartPayModal}
+          onClose={() => setShowPartPayModal(false)}
+          size="md"
+          title="Disburse Cancellation Refund Part-Payment"
+          subtitle={`Booking #${booking.bookingNumber} • Remaining: ₹${pendingSettlementBalance.toLocaleString('en-IN')}`}
+          icon={<DollarSign size={20} className="text-teal-700" />}
+          footer={
+            <div className="flex items-center justify-end gap-2.5 w-full">
+              <button
+                type="button"
+                disabled={partPaySubmitting}
+                onClick={() => setShowPartPayModal(false)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl font-semibold text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRecordPartPayment}
+                disabled={partPaySubmitting}
+                className="px-5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {partPaySubmitting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Recording...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} /> Record Disbursement
+                  </>
+                )}
+              </button>
+            </div>
+          }
+        >
+          <form onSubmit={handleRecordPartPayment} className="space-y-3.5 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Disbursement Amount (₹) <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={pendingSettlementBalance}
+                value={partPayAmount}
+                onChange={(e) => setPartPayAmount(e.target.value)}
+                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl font-bold font-mono text-sm text-slate-900 outline-none focus:ring-2 focus:ring-rose-200"
+                required
+              />
+              <span className="text-[11px] text-slate-400 mt-0.5 block">
+                Remaining liability: ₹{pendingSettlementBalance.toLocaleString('en-IN')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Payment Mode</label>
+                <select
+                  value={partPayMode}
+                  onChange={(e) => setPartPayMode(e.target.value)}
+                  className="w-full h-10 px-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none"
+                >
+                  <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS)</option>
+                  <option value="CASH">Cash</option>
+                  <option value="CHEQUE">Cheque</option>
+                  <option value="UPI">UPI</option>
+                </select>
+              </div>
+
+              <div>
+                <DateInput
+                  label="Payment Date"
+                  value={partPayDate}
+                  onChange={(e) => setPartPayDate(e.target.value)}
+                  className="h-10 rounded-xl text-xs"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Transaction Reference / UTR</label>
+              <input
+                type="text"
+                placeholder="e.g. UTR / Cheque / Receipt #"
+                value={partPayRef}
+                onChange={(e) => setPartPayRef(e.target.value)}
+                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Remarks</label>
+              <input
+                type="text"
+                placeholder="e.g. First refund part payment disbursed to customer"
+                value={partPayRemarks}
+                onChange={(e) => setPartPayRemarks(e.target.value)}
+                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs outline-none"
+              />
+            </div>
+          </form>
+        </Modalbox>
+      )}
     </Modalbox>
   );
 };

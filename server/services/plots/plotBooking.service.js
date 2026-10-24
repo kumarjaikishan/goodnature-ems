@@ -951,13 +951,46 @@ class PlotBookingService {
         throw ApiError.badRequest('Booking is already cancelled');
       }
 
-      const { deductionAmount = 0, paymentMode = 'BANK_TRANSFER', transactionReference = '', remarks = '', refundDate = new Date() } = refundData;
+      const {
+        settlementType = 'DEDUCTION_PENALTY', // 'DEDUCTION_PENALTY' or 'INTEREST_RETURN'
+        deductionType = 'PERCENT', // 'PERCENT' or 'FLAT'
+        deductionPercent = 0,
+        deductionAmount = 0,
+        interestRate = 0,
+        interestAmount = 0,
+        remarks = '',
+        refundDate = new Date(),
+        initialPaymentAmount = 0,
+        paymentMode = 'BANK_TRANSFER',
+        transactionReference = '',
+      } = refundData;
 
       const receipts = await PlotReceipt.find({ bookingId: booking._id, status: 'APPROVED' }).session(session);
       const totalCollected = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
 
-      const numDeduction = Number(deductionAmount) || 0;
-      const netRefund = Math.max(0, totalCollected - numDeduction);
+      let netRefund = totalCollected;
+      let numDeduction = 0;
+      let numInterest = 0;
+
+      if (settlementType === 'INTEREST_RETURN') {
+        numInterest = Number(interestAmount) || 0;
+        netRefund = Math.round((totalCollected + numInterest) * 100) / 100;
+        booking.refundSettlementType = 'INTEREST_RETURN';
+        booking.refundInterestRate = Number(interestRate) || 0;
+        booking.refundInterestAmount = numInterest;
+        booking.refundDeduction = 0;
+        booking.refundDeductionPercent = 0;
+      } else {
+        // DEDUCTION_PENALTY
+        numDeduction = Number(deductionAmount) || 0;
+        netRefund = Math.max(0, Math.round((totalCollected - numDeduction) * 100) / 100);
+        booking.refundSettlementType = 'DEDUCTION_PENALTY';
+        booking.refundDeductionType = deductionType;
+        booking.refundDeductionPercent = Number(deductionPercent) || 0;
+        booking.refundDeduction = numDeduction;
+        booking.refundInterestRate = 0;
+        booking.refundInterestAmount = 0;
+      }
 
       if (Array.isArray(booking.landSourcing) && booking.landSourcing.length > 0) {
         for (const src of booking.landSourcing) {
@@ -1011,9 +1044,94 @@ class PlotBookingService {
       booking.status = 'CANCELLED';
       booking.refundStatus = 'PROCESSED';
       booking.refundAmount = netRefund;
-      booking.refundDeduction = numDeduction;
       booking.refundDate = new Date(refundDate);
+      booking.refundNotes = remarks || '';
+      booking.refundPayments = [];
+
+      let createdVoucher = null;
+      const initPay = Number(initialPaymentAmount) || 0;
+      if (initPay > 0) {
+        try {
+          const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
+          const vCounter = await Counter.findByIdAndUpdate(
+            `VOUCHER_FY_${fyStr}`,
+            { $inc: { sequence: 1 } },
+            { new: true, upsert: true, session }
+          );
+          const voucherNumber = `VCH-${fyStr}-${String(vCounter.sequence).padStart(4, '0')}`;
+
+          createdVoucher = new Voucher({
+            voucherNumber,
+            voucherType: 'EXPENSE',
+            category: 'Plot Cancellation Refund',
+            amount: initPay,
+            paymentMode,
+            transactionReference,
+            remarks: `Initial refund disbursement for Cancelled Plot Booking #${booking.bookingNumber}. Net Settlement: ₹${netRefund}. ${remarks}`,
+            date: new Date(refundDate),
+            status: 'APPROVED',
+            createdBy: userId,
+          });
+          await createdVoucher.save({ session });
+          booking.refundVoucherId = createdVoucher._id;
+          booking.refundPayments.push({
+            date: new Date(refundDate),
+            amount: initPay,
+            paymentMode,
+            transactionReference,
+            remarks: 'Initial refund payment at cancellation',
+            voucherId: createdVoucher._id,
+            voucherNumber: createdVoucher.voucherNumber,
+            createdBy: userId,
+          });
+        } catch (vErr) {
+          console.warn('[CustomerRefund] Optional voucher generation skipped:', vErr.message);
+        }
+      }
+
       await booking.save({ session });
+
+      await new PlotAuditLog({
+        action: 'PROCESS_CUSTOMER_REFUND',
+        modelName: 'PlotBooking',
+        documentId: booking._id,
+        userId,
+        details: { totalCollected, settlementType, deductionAmount: numDeduction, interestAmount: numInterest, netRefund, initPay },
+      }).save({ session });
+
+      await session.commitTransaction();
+      return { booking, totalCollected, netRefund, voucher: createdVoucher };
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  // ── ADD REFUND PART PAYMENT (Disburse settlement in parts) ──────────
+  async addRefundPartPayment(bookingId, paymentData, userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const booking = await PlotBooking.findById(bookingId).session(session);
+      if (!booking) throw ApiError.notFound('Booking not found');
+      if (booking.status !== 'CANCELLED') {
+        throw ApiError.badRequest('Booking is not cancelled');
+      }
+
+      const {
+        amount,
+        paymentMode = 'CASH',
+        transactionReference = '',
+        remarks = '',
+        date = new Date(),
+      } = paymentData;
+
+      const numAmount = Number(amount);
+      if (!numAmount || numAmount <= 0) {
+        throw ApiError.badRequest('Valid payment amount is required');
+      }
 
       let createdVoucher = null;
       try {
@@ -1029,31 +1147,46 @@ class PlotBookingService {
           voucherNumber,
           voucherType: 'EXPENSE',
           category: 'Plot Cancellation Refund',
-          amount: netRefund,
+          amount: numAmount,
           paymentMode,
           transactionReference,
-          remarks: `Refund for Cancelled Plot Booking #${booking.bookingNumber}. Total Paid: ₹${totalCollected}, Deductions: ₹${numDeduction}, Net Refund: ₹${netRefund}. ${remarks}`,
-          date: new Date(refundDate),
+          remarks: `Part-payment refund for Cancelled Plot Booking #${booking.bookingNumber}. ${remarks}`,
+          date: new Date(date),
           status: 'APPROVED',
           createdBy: userId,
         });
         await createdVoucher.save({ session });
-        booking.refundVoucherId = createdVoucher._id;
-        await booking.save({ session });
       } catch (vErr) {
-        console.warn('[CustomerRefund] Optional voucher generation skipped:', vErr.message);
+        console.warn('[AddRefundPayment] Voucher generation warning:', vErr.message);
       }
 
+      const paymentEntry = {
+        date: new Date(date),
+        amount: numAmount,
+        paymentMode,
+        transactionReference,
+        remarks,
+        voucherId: createdVoucher?._id || null,
+        voucherNumber: createdVoucher?.voucherNumber || '',
+        createdBy: userId,
+      };
+
+      if (!Array.isArray(booking.refundPayments)) {
+        booking.refundPayments = [];
+      }
+      booking.refundPayments.push(paymentEntry);
+      await booking.save({ session });
+
       await new PlotAuditLog({
-        action: 'PROCESS_CUSTOMER_REFUND',
+        action: 'ADD_REFUND_PART_PAYMENT',
         modelName: 'PlotBooking',
         documentId: booking._id,
         userId,
-        details: { totalCollected, deductionAmount: numDeduction, netRefund, paymentMode },
+        details: { amount: numAmount, paymentMode, transactionReference },
       }).save({ session });
 
       await session.commitTransaction();
-      return { booking, totalCollected, netRefund, voucher: createdVoucher };
+      return { booking, payment: paymentEntry, voucher: createdVoucher };
     } catch (err) {
       await session.abortTransaction();
       throw err;
@@ -1339,24 +1472,106 @@ class PlotBookingService {
       });
     });
 
-    // 3. Processed Refund (Debit Reversal)
-    if (booking.refundStatus === 'PROCESSED' && booking.refundAmount > 0) {
-      runningBalance += Number(booking.refundAmount);
+    // 3. Processed Refund & Cancellation entries
+    if (booking.status === 'CANCELLED' || booking.refundStatus === 'PROCESSED') {
+      const cancelDate = booking.refundDate || booking.updatedAt;
+
+      // A. Reversal of Plot Contract Consideration
+      runningBalance -= netPlotValue;
       ledgerEntries.push({
-        date: booking.refundDate || booking.updatedAt,
-        type: 'DEBIT',
-        category: 'REFUND',
-        particulars: `Customer Cancellation Refund Processed (Deduction: ₹${Number(booking.refundDeduction || 0).toLocaleString('en-IN')})`,
-        referenceNumber: 'REFUND-PROCESSED',
-        paymentMode: 'REFUND',
-        debit: Number(booking.refundAmount),
-        credit: 0,
+        date: cancelDate,
+        type: 'CREDIT',
+        category: 'CONTRACT_CANCELLATION',
+        particulars: `Plot Booking Contract Cancelled & Plot #${booking.plotId?.plotNumber || ''} Released to Inventory`,
+        referenceNumber: booking.bookingNumber ? `CNCL-${booking.bookingNumber}` : 'CANCEL-CONTRACT',
+        paymentMode: 'ADJUSTMENT',
+        debit: 0,
+        credit: netPlotValue,
         balance: runningBalance,
-        notes: 'Processed refund to customer',
+        notes: 'Unfulfilled contract consideration reversed upon cancellation',
       });
+
+      // B. Settlement Adjustment (Deduction OR Interest/Return)
+      if (booking.refundSettlementType === 'INTEREST_RETURN' || Number(booking.refundInterestAmount) > 0) {
+        const intAmt = Number(booking.refundInterestAmount || 0);
+        runningBalance -= intAmt;
+        ledgerEntries.push({
+          date: cancelDate,
+          type: 'CREDIT',
+          category: 'INTEREST_RETURN',
+          particulars: `Scheme Buyback Appreciation / Annual Return (${booking.refundInterestRate || booking.annualInterestRate || 0}% P.A.)`,
+          referenceNumber: 'RETURN-CREDIT',
+          paymentMode: 'ADJUSTMENT',
+          debit: 0,
+          credit: intAmt,
+          balance: runningBalance,
+          notes: 'Customer growth & appreciation added to settlement amount',
+        });
+      } else if (booking.refundSettlementType === 'DEDUCTION_PENALTY' || Number(booking.refundDeduction) > 0) {
+        const dedAmt = Number(booking.refundDeduction || 0);
+        runningBalance += dedAmt;
+        const dedLabel = booking.refundDeductionPercent > 0
+          ? `Cancellation Administrative Penalty / Deduction (${booking.refundDeductionPercent}%)`
+          : `Cancellation Administrative Deduction (Flat)`;
+        ledgerEntries.push({
+          date: cancelDate,
+          type: 'DEBIT',
+          category: 'CANCELLATION_DEDUCTION',
+          particulars: dedLabel,
+          referenceNumber: 'PENALTY-ADJ',
+          paymentMode: 'ADJUSTMENT',
+          debit: dedAmt,
+          credit: 0,
+          balance: runningBalance,
+          notes: 'Deducted from customer deposit as per cancellation policy',
+        });
+      }
+
+      // C. Refund Part-Payments to Customer
+      if (Array.isArray(booking.refundPayments) && booking.refundPayments.length > 0) {
+        booking.refundPayments.forEach((p, pIdx) => {
+          const pAmt = Number(p.amount || 0);
+          runningBalance += pAmt;
+          ledgerEntries.push({
+            _id: p._id,
+            date: p.date || cancelDate,
+            type: 'DEBIT',
+            category: 'REFUND_PAYOUT',
+            particulars: `Settlement Refund Paid to Customer (Part ${pIdx + 1})${p.paymentMode ? ` via ${p.paymentMode}` : ''}${p.transactionReference ? ` (Ref: ${p.transactionReference})` : ''}`,
+            referenceNumber: p.voucherNumber || `REF-PART-${pIdx + 1}`,
+            paymentMode: p.paymentMode || 'BANK_TRANSFER',
+            transactionReference: p.transactionReference || '',
+            debit: pAmt,
+            credit: 0,
+            balance: runningBalance,
+            notes: p.remarks || 'Refund disbursement paid to customer',
+          });
+        });
+      } else if (Number(booking.refundAmount) > 0 && booking.refundVoucherId && !booking.refundPayments?.length) {
+        // Fallback for legacy single-voucher refunds
+        const legacyAmt = Number(booking.refundAmount);
+        runningBalance += legacyAmt;
+        ledgerEntries.push({
+          date: cancelDate,
+          type: 'DEBIT',
+          category: 'REFUND_PAYOUT',
+          particulars: `Customer Cancellation Refund Paid via ${booking.refundNotes || 'Bank/Cash'}`,
+          referenceNumber: 'REFUND-PAID',
+          paymentMode: 'REFUND',
+          debit: legacyAmt,
+          credit: 0,
+          balance: runningBalance,
+          notes: 'Full refund disbursed to customer',
+        });
+      }
     }
 
     const lateFineAccrued = installments.reduce((sum, inst) => sum + (Number(inst.lateFine) || 0), 0);
+
+    const totalRefundPaid = (booking.refundPayments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+      + (booking.refundVoucherId && !booking.refundPayments?.length ? Number(booking.refundAmount || 0) : 0);
+    const netSettlementAmount = Number(booking.refundAmount || 0);
+    const pendingSettlementBalance = Math.max(0, netSettlementAmount - totalRefundPaid);
 
     const summary = {
       grossPlotValue: plotValue,
@@ -1365,13 +1580,24 @@ class PlotBookingService {
       totalPaid: totalCollected,
       totalLateFinePaid: totalFineCollected,
       lateFineAccrued,
-      outstandingBalance: Math.max(0, runningBalance),
+      outstandingBalance: booking.status === 'CANCELLED' ? pendingSettlementBalance : Math.max(0, runningBalance),
       totalReceipts: receipts.length,
       installmentsCount: installments.length,
       paidInstallmentsCount: installments.filter((i) => i.status === 'PAID').length,
       pendingInstallmentsCount: installments.filter((i) => i.status !== 'PAID').length,
       status: booking.status,
       scheme: booking.scheme,
+      // Cancellation & Settlement metrics
+      isCancelled: booking.status === 'CANCELLED',
+      refundSettlementType: booking.refundSettlementType || 'NONE',
+      refundDeduction: Number(booking.refundDeduction || 0),
+      refundDeductionPercent: Number(booking.refundDeductionPercent || 0),
+      refundInterestRate: Number(booking.refundInterestRate || 0),
+      refundInterestAmount: Number(booking.refundInterestAmount || 0),
+      netSettlementAmount,
+      totalRefundPaid,
+      pendingSettlementBalance,
+      isFullySettled: booking.status === 'CANCELLED' && pendingSettlementBalance <= 0,
     };
 
     return {
@@ -1458,6 +1684,16 @@ class PlotBookingService {
       if (installmentCount !== undefined) booking.installmentCount = Number(installmentCount) || 0;
       if (discountType !== undefined) booking.discountType = discountType;
       if (discountValue !== undefined) booking.discountValue = Number(discountValue) || 0;
+      if (data.planName !== undefined) booking.planName = data.planName;
+      if (data.projectId !== undefined) booking.projectId = data.projectId || null;
+      if (data.projectName !== undefined) booking.projectName = data.projectName || '';
+      if (data.promoterCommissionPercent !== undefined) booking.promoterCommissionPercent = Number(data.promoterCommissionPercent) || 0;
+      if (data.developerCommissionPercent !== undefined) booking.developerCommissionPercent = Number(data.developerCommissionPercent) || 0;
+      if (data.bpCommissionPercent !== undefined) booking.bpCommissionPercent = Number(data.bpCommissionPercent) || 0;
+      if (data.branchCommissionPercent !== undefined) booking.branchCommissionPercent = Number(data.branchCommissionPercent) || 0;
+      if (data.rdMaturityPercent !== undefined) booking.rdMaturityPercent = Number(data.rdMaturityPercent) || 0;
+      if (data.fdMaturityPercent !== undefined) booking.fdMaturityPercent = Number(data.fdMaturityPercent) || 0;
+      if (data.annualInterestRate !== undefined) booking.annualInterestRate = Number(data.annualInterestRate) || 0;
       if (downpaymentDays !== undefined) {
         booking.downpaymentDays = Number(downpaymentDays) || 90;
         booking.downpaymentMonths = Math.max(1, Math.round(booking.downpaymentDays / 30));
@@ -1654,8 +1890,18 @@ class PlotBookingService {
           booking.emiRate = Number(emiRate) || 0;
         }
 
-        booking.promoterCommissionPercent = 5.0;
-        booking.developerCommissionPercent = 2.0;
+        if (data.promoterCommissionPercent !== undefined) {
+          booking.promoterCommissionPercent = Number(data.promoterCommissionPercent) || 0;
+        }
+        if (data.developerCommissionPercent !== undefined) {
+          booking.developerCommissionPercent = Number(data.developerCommissionPercent) || 0;
+        }
+        if (data.bpCommissionPercent !== undefined) {
+          booking.bpCommissionPercent = Number(data.bpCommissionPercent) || 0;
+        }
+        if (data.branchCommissionPercent !== undefined) {
+          booking.branchCommissionPercent = Number(data.branchCommissionPercent) || 0;
+        }
         if (plotArea > 0) {
           booking.plotValue = Math.round(plotArea * effectiveRate);
         }

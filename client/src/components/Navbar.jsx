@@ -79,7 +79,6 @@ const Navbar = () => {
     "products": "Plot Products",
     "book": "Product Booking",
     "reports": "Plot Reports",
-    "payout-ledger": "Payout Ledger",
     "incentives": "Incentive Matrix",
     "closings": "Incentive Closings",
     "interest-calculator": "Plot Refund & Settlement Calculator",

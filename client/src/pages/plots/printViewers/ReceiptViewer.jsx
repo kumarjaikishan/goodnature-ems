@@ -230,7 +230,9 @@ const ReceiptViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-black text-slate-900 w-[32%] font-mono">{receipt.receiptNumber}</td>
+              <td className="p-2 font-black text-slate-900 w-[32%] font-mono">
+                {(receipt.receiptNumber || '').replace(/^RO-/, '')}
+              </td>
               <td className="p-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Date & Time</span>
