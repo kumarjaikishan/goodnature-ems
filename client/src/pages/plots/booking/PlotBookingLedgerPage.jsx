@@ -183,6 +183,9 @@ const PlotBookingLedgerPage = () => {
         <td style="padding: 7px 8px; text-align: right; font-family: monospace; font-weight: 600; color: ${e.credit > 0 ? '#047857' : '#64748b'};">
           ${e.credit > 0 ? '₹' + e.credit.toLocaleString('en-IN') : '-'}
         </td>
+        <td style="padding: 7px 8px; text-align: right; font-family: monospace; font-weight: 600; color: ${e.lateFinePaid > 0 ? '#b45309' : '#64748b'};">
+          ${e.lateFinePaid > 0 ? '₹' + e.lateFinePaid.toLocaleString('en-IN') : '-'}
+        </td>
         <td style="padding: 7px 8px; text-align: right; font-family: monospace; font-weight: bold; color: #0f172a;">
           ₹${Math.abs(e.balance).toLocaleString('en-IN')} ${e.balance > 0 ? 'Dr' : e.balance === 0 ? 'Settled' : 'Cr'}
         </td>
@@ -324,6 +327,7 @@ const PlotBookingLedgerPage = () => {
               <th style="width: 80px;">Mode</th>
               <th class="right" style="width: 90px;">Debit (₹)</th>
               <th class="right" style="width: 90px;">Credit (₹)</th>
+              <th class="right" style="width: 80px;">Late Fine (₹)</th>
               <th class="right" style="width: 100px;">Balance (₹)</th>
             </tr>
           </thead>
@@ -338,6 +342,9 @@ const PlotBookingLedgerPage = () => {
               </td>
               <td style="padding: 8px; text-align: right; font-family: monospace; color: #047857;">
                 ₹${ledgerEntries.reduce((s, e) => s + (Number(e.credit) || 0), 0).toLocaleString('en-IN')}
+              </td>
+              <td style="padding: 8px; text-align: right; font-family: monospace; color: #b45309;">
+                ₹${ledgerEntries.reduce((s, e) => s + (Number(e.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
               </td>
               <td style="padding: 8px; text-align: right; font-family: monospace; color: ${isCancelled ? (pendingSettlementBalance > 0 ? '#b45309' : '#047857') : (outstandingVal > 0 ? '#b91c1c' : '#047857')};">
                 ${isCancelled ? (pendingSettlementBalance > 0 ? '₹' + pendingSettlementBalance.toLocaleString('en-IN') + ' Cr' : '₹0.00 Settled') : ('₹' + outstandingVal.toLocaleString('en-IN') + (outstandingVal > 0 ? ' Dr' : ' Nil'))}
@@ -865,6 +872,7 @@ const PlotBookingLedgerPage = () => {
                   <th className="p-3 whitespace-nowrap">Payment Mode</th>
                   <th className="p-3 text-right whitespace-nowrap">Debit (₹)</th>
                   <th className="p-3 text-right whitespace-nowrap">Credit (₹)</th>
+                  <th className="p-3 text-right whitespace-nowrap">Late Fine (₹)</th>
                   <th className="p-3 text-right whitespace-nowrap">Running Balance (₹)</th>
                   <th className="p-3 text-center w-20">Action</th>
                 </tr>
@@ -872,7 +880,7 @@ const PlotBookingLedgerPage = () => {
               <tbody className="divide-y divide-slate-100 font-medium">
                 {filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-12 text-center text-slate-400 italic">
+                    <td colSpan={10} className="p-12 text-center text-slate-400 italic">
                       No statement transactions match your search filter.
                     </td>
                   </tr>
@@ -913,6 +921,9 @@ const PlotBookingLedgerPage = () => {
                         <td className="p-3 text-right font-mono font-bold text-emerald-800 whitespace-nowrap">
                           {isCredit ? `₹${e.credit.toLocaleString('en-IN')}` : '-'}
                         </td>
+                        <td className="p-3 text-right font-mono font-semibold text-amber-700 whitespace-nowrap">
+                          {e.lateFinePaid > 0 ? `₹${e.lateFinePaid.toLocaleString('en-IN')}` : '-'}
+                        </td>
                         <td className="p-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                           ₹{Math.abs(e.balance).toLocaleString('en-IN')}{' '}
                           <span className="text-[10px] text-slate-500 font-semibold">
@@ -948,6 +959,9 @@ const PlotBookingLedgerPage = () => {
                   </td>
                   <td className="p-3.5 text-right font-mono text-emerald-800">
                     ₹{ledgerEntries.reduce((s, e) => s + (Number(e.credit) || 0), 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-3.5 text-right font-mono text-amber-800">
+                    ₹{ledgerEntries.reduce((s, e) => s + (Number(e.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-3.5 text-right font-mono text-slate-950">
                     {isCancelled ? (

@@ -267,7 +267,7 @@ const PlotInterestCalculator = () => {
             bk?.paymentType === 'ONE_TIME';
 
           let resolvedRate = null;
-          let resolvedMode = 'COMPOUND_ANNUAL';
+          let resolvedMode = 'SIMPLE';
           let schemeLabel = '';
 
           // Fetch Investment Scheme Config slabs (from Image 2)
@@ -370,6 +370,10 @@ const PlotInterestCalculator = () => {
     const cols = Array.isArray(selectedBooking?.collections) ? selectedBooking.collections : [];
     if (cols.length > 0) {
       cols.forEach((col, idx) => {
+        const lateFine = Number(col.lateFinePaid) || 0;
+        const grossAmount = Number(col.amountPaid) || 0;
+        const principal = Number(col.principalPaid) || Math.max(0, grossAmount - lateFine);
+
         paymentEntries.push({
           id: col._id || `col-${idx}`,
           receiptNumber: col.receiptNumber || `PRD-RCP-${idx + 1}`,
@@ -377,11 +381,15 @@ const PlotInterestCalculator = () => {
           paymentMode: col.paymentMode || 'Cash',
           reference: col.transactionReference || '-',
           depositDate: col.paymentDate ? new Date(col.paymentDate) : (col.createdAt ? new Date(col.createdAt) : new Date(selectedBooking.bookingDate || Date.now())),
-          amount: Number(col.amountPaid) || 0,
+          amount: principal,
+          principalAmount: principal,
+          lateFineAmount: lateFine,
+          grossAmount: principal + lateFine,
           remarks: col.remarks || '',
         });
       });
     } else if (Number(selectedBooking?.downPayment || selectedBooking?.totalPaid) > 0) {
+      const principal = Number(selectedBooking.downPayment || selectedBooking.totalPaid) || 0;
       paymentEntries.push({
         id: 'initial-prd-dp',
         receiptNumber: `PRD-DP-${selectedBooking.bookingNumber}`,
@@ -389,7 +397,10 @@ const PlotInterestCalculator = () => {
         paymentMode: 'Cash / Bank',
         reference: 'Booking Register',
         depositDate: selectedBooking.bookingDate ? new Date(selectedBooking.bookingDate) : new Date(),
-        amount: Number(selectedBooking.downPayment || selectedBooking.totalPaid) || 0,
+        amount: principal,
+        principalAmount: principal,
+        lateFineAmount: 0,
+        grossAmount: principal,
         remarks: 'Initial Booking Deposit',
       });
     }
@@ -407,6 +418,10 @@ const PlotInterestCalculator = () => {
           ? 'Full Payment Deposit'
           : 'Installment Collection';
 
+      const lateFine = Number(rc.lateFinePaid) || 0;
+      const grossAmount = Number(rc.amount) || 0;
+      const principal = Math.max(0, grossAmount - lateFine);
+
       paymentEntries.push({
         id: rc._id,
         receiptNumber: rc.receiptNumber || 'N/A',
@@ -414,11 +429,15 @@ const PlotInterestCalculator = () => {
         paymentMode: rc.paymentMode || 'Cash',
         reference: rc.transactionReference || '-',
         depositDate: depositDate,
-        amount: Number(rc.amount) || 0,
+        amount: principal,
+        principalAmount: principal,
+        lateFineAmount: lateFine,
+        grossAmount: grossAmount,
         remarks: rc.remarks || '',
       });
     });
   } else if (selectedBooking && Number(selectedBooking.bookingAmount) > 0) {
+    const principal = Number(selectedBooking.bookingAmount) || 0;
     paymentEntries.push({
       id: 'initial-booking',
       receiptNumber: selectedBooking.bookingNumber ? `BKG-${selectedBooking.bookingNumber}` : 'INIT-01',
@@ -426,7 +445,10 @@ const PlotInterestCalculator = () => {
       paymentMode: 'Cash / Bank',
       reference: 'Booking Register',
       depositDate: selectedBooking.bookingDate ? new Date(selectedBooking.bookingDate) : new Date(),
-      amount: Number(selectedBooking.bookingAmount) || 0,
+      amount: principal,
+      principalAmount: principal,
+      lateFineAmount: 0,
+      grossAmount: principal,
       remarks: 'Initial Booking Deposit',
     });
   }
@@ -438,6 +460,7 @@ const PlotInterestCalculator = () => {
   targetDate.setHours(23, 59, 59, 999);
 
   let totalDepositedPrincipal = 0;
+  let totalLateFinePaid = 0;
   let totalCalculatedInterest = 0;
 
   const isDeductionMode = settlementMode === 'DEDUCTION_PENALTY';
@@ -451,7 +474,8 @@ const PlotInterestCalculator = () => {
     const daysElapsed = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const yearsElapsed = daysElapsed / 365;
 
-    const principal = item.amount;
+    const principal = item.principalAmount;
+    const lateFine = item.lateFineAmount || 0;
     const rate = isDeductionMode ? 0 : (Number(annualRate) || 0);
 
     let interest = 0;
@@ -467,6 +491,7 @@ const PlotInterestCalculator = () => {
     const totalAmount = Math.round((principal + roundedInterest) * 100) / 100;
 
     totalDepositedPrincipal += principal;
+    totalLateFinePaid += lateFine;
     totalCalculatedInterest += roundedInterest;
 
     return {
@@ -595,186 +620,246 @@ const PlotInterestCalculator = () => {
           </div>
         </div>
 
-        {/* Search and Control Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1 items-end">
-          {/* Booking Search Input with Live Dropdown */}
-          <div className="md:col-span-5 relative flex flex-col gap-1" ref={searchContainerRef}>
-            <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1">
-              Search Booking
-            </label>
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Enter Booking #, Customer Name, or Phone..."
-                  value={searchInput}
-                  onFocus={() => setShowSuggestions(true)}
-                  onChange={(e) => {
-                    setSearchInput(e.target.value);
-                    setShowSuggestions(true);
-                  }}
-                  className="w-full h-11 bg-white border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none pl-10 pr-4 rounded-xl font-medium text-sm text-slate-800 shadow-2xs transition"
-                />
-                <Search size={18} className="text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              <button
-                type="submit"
-                className="ml-2 px-5 h-11 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin text-white" /> : 'Search'}
-              </button>
-            </form>
-
-            {/* Suggestions Dropdown */}
-            {showSuggestions && bookingSuggestions.length > 0 && (
-              <div className="absolute top-full mt-1.5 left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
-                <div className="p-2 bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Matching Bookings ({bookingSuggestions.length})
+        {/* Two-Tier Clean Workflow: Step 1 & Step 2 */}
+        <div className="space-y-4 pt-2">
+          {/* Tier 1: Search & Booking Selection Bar */}
+          <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex-1 relative" ref={searchContainerRef}>
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search by Booking #, Customer Name, or Phone..."
+                    value={searchInput}
+                    onFocus={() => setShowSuggestions(true)}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    className="w-full h-10 bg-white border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none pl-9 pr-4 rounded-lg font-medium text-xs text-slate-800 shadow-2xs transition"
+                  />
+                  <Search size={16} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-                {bookingSuggestions.map((b) => (
-                  <div
-                    key={b._id}
-                    onClick={() => handleSelectBooking(b)}
-                    className="p-3 hover:bg-teal-50/70 border-b border-slate-100 last:border-0 cursor-pointer flex items-center justify-between transition"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-teal-800 text-xs px-2 py-0.5 bg-teal-100/60 rounded">
-                          #{b.bookingNumber}
-                        </span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${b.isProductBooking ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-700'}`}>
-                          {b.isProductBooking ? 'PRODUCT' : 'PLOT'}
-                        </span>
-                        <span className="font-bold text-slate-800 text-xs">
-                          {b.customerId?.name || b.customerName}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {b.isProductBooking
-                          ? `${b.productId?.productName || 'Micro Plot Unit'} (x${b.quantity || 1}) | Ph: ${b.customerId?.mobile || b.customerMobile || 'N/A'}`
-                          : `Plot: ${b.plotId?.plotNumber || 'N/A'} (${b.plotId?.seriesId?.name || 'Standard'}) | Ph: ${b.customerId?.mobile || b.customerMobile || 'N/A'}`}
-                      </p>
-                    </div>
-                    <span className="text-xs font-bold text-slate-700">
-                      ₹{Number(b.isProductBooking ? (b.totalAmount || 0) : (b.plotValue || 0)).toLocaleString('en-IN')}
-                    </span>
+                <button
+                  type="submit"
+                  className="ml-2 px-4 h-10 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin text-white" /> : 'Search'}
+                </button>
+              </form>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && bookingSuggestions.length > 0 && (
+                <div className="absolute top-full mt-1.5 left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="p-2 bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Matching Bookings ({bookingSuggestions.length})
                   </div>
-                ))}
+                  {bookingSuggestions.map((b) => (
+                    <div
+                      key={b._id}
+                      onClick={() => handleSelectBooking(b)}
+                      className="p-3 hover:bg-teal-50/70 border-b border-slate-100 last:border-0 cursor-pointer flex items-center justify-between transition"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-teal-800 text-xs px-2 py-0.5 bg-teal-100/60 rounded">
+                            #{b.bookingNumber}
+                          </span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${b.isProductBooking ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-700'}`}>
+                            {b.isProductBooking ? 'PRODUCT' : 'PLOT'}
+                          </span>
+                          <span className="font-bold text-slate-800 text-xs">
+                            {b.customerId?.name || b.customerName}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {b.isProductBooking
+                            ? `${b.productId?.productName || 'Micro Plot Unit'} (x${b.quantity || 1}) | Ph: ${b.customerId?.mobile || b.customerMobile || 'N/A'}`
+                            : `Plot: ${b.plotId?.plotNumber || 'N/A'} (${b.plotId?.seriesId?.name || 'Standard'}) | Ph: ${b.customerId?.mobile || b.customerMobile || 'N/A'}`}
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-slate-700">
+                        ₹{Number(b.isProductBooking ? (b.totalAmount || 0) : (b.plotValue || 0)).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedBooking && (
+              <div className="flex items-center gap-2 shrink-0 text-xs font-semibold text-slate-600 bg-white px-3 py-1.5 border border-slate-200 rounded-lg">
+                <span className="text-[11px] text-slate-400 uppercase font-bold">Active Contract:</span>
+                <span className="font-mono font-bold text-teal-800">#{selectedBooking.bookingNumber}</span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-700 truncate max-w-[150px]">{selectedBooking.customerId?.name || selectedBooking.customerName}</span>
               </div>
             )}
           </div>
 
-          {/* Settlement Option: Mode Selector (Interest Return vs Deduct) */}
-          <div className="md:col-span-3 flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-700 tracking-wide">
-              Settlement Mode
-            </label>
-            <div className="grid grid-cols-2 p-1 bg-slate-100 border border-slate-200 rounded-xl h-11 items-center">
-              <button
-                type="button"
-                onClick={() => setSettlementMode('INTEREST_RETURN')}
-                className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                  !isDeductionMode
-                    ? 'bg-white text-teal-900 shadow-xs border border-teal-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <TrendingUp size={14} className={!isDeductionMode ? 'text-teal-700' : 'text-slate-400'} />
-                + Interest %
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettlementMode('DEDUCTION_PENALTY')}
-                className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                  isDeductionMode
-                    ? 'bg-white text-rose-800 shadow-xs border border-rose-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Percent size={14} className={isDeductionMode ? 'text-rose-600' : 'text-slate-400'} />
-                - Deduct
-              </button>
+          {/* Tier 2: Settlement Parameters Configuration */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Control 1: Settlement Mode */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Settlement Action
+              </label>
+              <div className="grid grid-cols-2 p-1 bg-slate-100 border border-slate-200 rounded-xl h-11 items-center">
+                <button
+                  type="button"
+                  onClick={() => setSettlementMode('INTEREST_RETURN')}
+                  className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                    !isDeductionMode
+                      ? 'bg-white text-teal-900 shadow-2xs border border-teal-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <TrendingUp size={14} className={!isDeductionMode ? 'text-teal-700' : 'text-slate-400'} />
+                  + Interest Return
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettlementMode('DEDUCTION_PENALTY')}
+                  className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                    isDeductionMode
+                      ? 'bg-white text-rose-800 shadow-2xs border border-rose-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Percent size={14} className={isDeductionMode ? 'text-rose-600' : 'text-slate-400'} />
+                  - Penalty Deduct
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Conditional Controller: Rate Controller OR Deduction Parameter */}
-          {!isDeductionMode ? (
-            <div className="md:col-span-2 flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700 tracking-wide">
-                  Annual Rate
+            {/* Control 2: Calculation Method OR Deduction Type */}
+            {!isDeductionMode ? (
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Interest Formula
                 </label>
-                <span className="text-[10px] font-mono text-teal-700/80 font-medium">
-                  {matchedSchemeInfo ? matchedSchemeInfo : '% P.A.'}
-                </span>
+                <div className="grid grid-cols-2 p-1 bg-slate-100 border border-slate-200 rounded-xl h-11 items-center">
+                  <button
+                    type="button"
+                    onClick={() => setCalculationMode('SIMPLE')}
+                    className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer ${
+                      calculationMode === 'SIMPLE'
+                        ? 'bg-white text-teal-900 shadow-2xs border border-teal-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Simple Interest
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalculationMode('COMPOUND_ANNUAL')}
+                    className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer ${
+                      calculationMode === 'COMPOUND_ANNUAL'
+                        ? 'bg-white text-teal-900 shadow-2xs border border-teal-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Compounding
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center bg-white border border-slate-300 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100 rounded-xl px-3 h-11 shadow-2xs transition">
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  max="100"
-                  value={annualRate}
-                  onChange={(e) => setAnnualRate(e.target.value)}
-                  className="w-full bg-transparent font-bold text-sm text-teal-900 outline-none"
-                  placeholder="10.88"
-                />
-                <span className="text-xs font-bold text-slate-400 whitespace-nowrap ml-1">%</span>
-              </div>
-              {matchedSchemeInfo && (
-                <span className="text-[10px] text-teal-800 font-semibold truncate">
-                  Fixed from Scheme Matrix
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="md:col-span-2 flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700 tracking-wide">
-                  Deduction
+            ) : (
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Deduction Basis
                 </label>
-                <div className="inline-flex rounded-md p-0.5 bg-slate-100 border border-slate-200 text-[10px] font-bold">
+                <div className="grid grid-cols-2 p-1 bg-slate-100 border border-slate-200 rounded-xl h-11 items-center">
                   <button
                     type="button"
                     onClick={() => setDeductionType('PERCENT')}
-                    className={`px-1.5 py-0.5 rounded ${deductionType === 'PERCENT' ? 'bg-white text-rose-800 font-bold shadow-2xs' : 'text-slate-500'}`}
+                    className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer ${
+                      deductionType === 'PERCENT'
+                        ? 'bg-white text-rose-800 shadow-2xs border border-rose-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    %
+                    Percentage (%)
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeductionType('FLAT')}
-                    className={`px-1.5 py-0.5 rounded ${deductionType === 'FLAT' ? 'bg-white text-rose-800 font-bold shadow-2xs' : 'text-slate-500'}`}
+                    className={`h-9 rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer ${
+                      deductionType === 'FLAT'
+                        ? 'bg-white text-rose-800 shadow-2xs border border-rose-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    ₹
+                    Flat Amount (₹)
                   </button>
                 </div>
               </div>
-              <div className="flex items-center bg-white border border-slate-300 focus-within:border-rose-600 focus-within:ring-2 focus-within:ring-rose-100 rounded-xl px-3 h-11 shadow-2xs transition">
-                <input
-                  type="number"
-                  step={deductionType === 'PERCENT' ? '0.5' : '100'}
-                  min="0"
-                  value={deductionValue}
-                  onChange={(e) => setDeductionValue(e.target.value)}
-                  className="w-full bg-transparent font-bold text-sm text-rose-900 outline-none"
-                  placeholder={deductionType === 'PERCENT' ? '20' : '50000'}
-                />
-                <span className="text-xs font-bold text-slate-400 whitespace-nowrap ml-1">
-                  {deductionType === 'PERCENT' ? '%' : '₹'}
-                </span>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* As on Date picker */}
-          <div className="md:col-span-2">
-            <DateInput
-              label={isDeductionMode ? 'Cancellation Date' : 'As on Date'}
-              value={asOnDate}
-              onChange={(e) => setAsOnDate(e.target.value)}
-              className="h-11 rounded-xl !py-0 shadow-2xs"
-            />
+            {/* Control 3: Rate Value OR Deduction Value */}
+            {!isDeductionMode ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Annual Rate (% P.A.)
+                  </label>
+                  {matchedSchemeInfo && (
+                    <span className="text-[10px] font-mono text-teal-700 font-semibold truncate max-w-[120px]">
+                      {matchedSchemeInfo}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center bg-white border border-slate-300 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100 rounded-xl px-3 h-11 shadow-2xs transition">
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    max="100"
+                    value={annualRate}
+                    onChange={(e) => setAnnualRate(e.target.value)}
+                    className="w-full bg-transparent font-bold text-sm text-teal-900 outline-none"
+                    placeholder="10.88"
+                  />
+                  <span className="text-xs font-bold text-slate-400 whitespace-nowrap ml-1">% P.A.</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Penalty Value
+                  </label>
+                  <span className="text-[10px] text-rose-600 font-semibold">
+                    {deductionType === 'PERCENT' ? 'Against Principal' : 'Fixed Charge'}
+                  </span>
+                </div>
+                <div className="flex items-center bg-white border border-slate-300 focus-within:border-rose-600 focus-within:ring-2 focus-within:ring-rose-100 rounded-xl px-3 h-11 shadow-2xs transition">
+                  <input
+                    type="number"
+                    step={deductionType === 'PERCENT' ? '0.5' : '100'}
+                    min="0"
+                    value={deductionValue}
+                    onChange={(e) => setDeductionValue(e.target.value)}
+                    className="w-full bg-transparent font-bold text-sm text-rose-900 outline-none"
+                    placeholder={deductionType === 'PERCENT' ? '20' : '50000'}
+                  />
+                  <span className="text-xs font-bold text-slate-400 whitespace-nowrap ml-1">
+                    {deductionType === 'PERCENT' ? '%' : '₹'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Control 4: As on Date / Cancellation Effective Date */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                {isDeductionMode ? 'Cancellation Date' : 'Settlement / As on Date'}
+              </label>
+              <DateInput
+                value={asOnDate}
+                onChange={(e) => setAsOnDate(e.target.value)}
+                className="h-11 rounded-xl !py-0 shadow-2xs text-xs font-semibold"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -958,6 +1043,7 @@ const PlotInterestCalculator = () => {
               </h3>
               <p className="text-[11px] text-slate-500 mt-1">
                 Across {computedBreakdown.length} deposited transaction(s)
+                {totalLateFinePaid > 0 && ` • ₹${totalLateFinePaid.toLocaleString('en-IN')} Fine Separate`}
               </p>
             </div>
 
@@ -1063,6 +1149,7 @@ const PlotInterestCalculator = () => {
                     <th className="p-3.5">Payment Type</th>
                     <th className="p-3.5">Receipt #</th>
                     <th className="p-3.5 text-right">Principal Paid</th>
+                    <th className="p-3.5 text-right">Late Fine</th>
                     {!isDeductionMode && (
                       <>
                         <th className="p-3.5 text-center">Days Elapsed</th>
@@ -1079,7 +1166,7 @@ const PlotInterestCalculator = () => {
                 <tbody className="divide-y divide-slate-100">
                   {computedBreakdown.length === 0 ? (
                     <tr>
-                      <td colSpan={isDeductionMode ? 6 : 9} className="p-8 text-center text-slate-400 font-medium">
+                      <td colSpan={isDeductionMode ? 7 : 10} className="p-8 text-center text-slate-400 font-medium">
                         No deposited payment records found for this booking.
                       </td>
                     </tr>
@@ -1098,7 +1185,16 @@ const PlotInterestCalculator = () => {
                           {row.receiptNumber}
                         </td>
                         <td className="p-3.5 text-right font-bold text-slate-800 font-mono">
-                          ₹{row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          ₹{row.principalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-mono">
+                          {row.lateFineAmount > 0 ? (
+                            <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                              ₹{row.lateFineAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-medium">-</span>
+                          )}
                         </td>
                         {!isDeductionMode ? (
                           <>
@@ -1138,6 +1234,9 @@ const PlotInterestCalculator = () => {
                       <td className="p-4 text-right font-mono text-sm text-slate-900">
                         ₹{totalDepositedPrincipal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
+                      <td className="p-4 text-right font-mono text-xs font-bold text-amber-800">
+                        {totalLateFinePaid > 0 ? `₹${totalLateFinePaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                      </td>
                       {!isDeductionMode ? (
                         <>
                           <td colSpan="2" className="p-4 text-center text-xs text-slate-500 font-semibold">
@@ -1167,7 +1266,7 @@ const PlotInterestCalculator = () => {
                           <td className="p-3.5 text-right font-mono text-sm text-rose-700">
                             - ₹{calculatedDeduction.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="p-3.5 text-center text-[11px] text-rose-600">
+                          <td colSpan="2" className="p-3.5 text-center text-[11px] text-rose-600">
                             {deductionType === 'PERCENT' ? `${deductionValue}% of ₹${totalDepositedPrincipal.toLocaleString('en-IN')}` : 'Flat Charge'}
                           </td>
                         </tr>
@@ -1178,7 +1277,7 @@ const PlotInterestCalculator = () => {
                           <td className="p-4 text-right font-mono text-base text-white">
                             ₹{netSettlementPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="p-4 text-center text-xs text-emerald-300 font-semibold">
+                          <td colSpan="2" className="p-4 text-center text-xs text-emerald-300 font-semibold">
                             Payable to Customer
                           </td>
                         </tr>
@@ -1314,6 +1413,12 @@ const PlotInterestCalculator = () => {
               <span>Total Deposited Principal:</span>
               <strong className="font-mono text-slate-900">₹{totalDepositedPrincipal.toLocaleString('en-IN')}</strong>
             </div>
+            {totalLateFinePaid > 0 && (
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Late Fine Collected (Non-refundable):</span>
+                <strong className="font-mono text-amber-800">₹{totalLateFinePaid.toLocaleString('en-IN')}</strong>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span>Settlement Adjustment:</span>
               <strong className={`font-mono ${isDeductionMode ? 'text-rose-700' : 'text-emerald-700'}`}>

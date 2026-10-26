@@ -965,8 +965,15 @@ class PlotBookingService {
         transactionReference = '',
       } = refundData;
 
-      const receipts = await PlotReceipt.find({ bookingId: booking._id, status: 'APPROVED' }).session(session);
-      const totalCollected = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+      const receipts = await PlotReceipt.find({ bookingId: booking._id, status: { $ne: 'REJECTED' } }).session(session);
+      let totalPrincipalCollected = receipts.reduce(
+        (sum, r) => sum + Math.max(0, (r.amount || 0) - (Number(r.lateFinePaid) || 0)),
+        0
+      );
+      if (receipts.length === 0 && Number(booking.bookingAmount) > 0) {
+        totalPrincipalCollected = Number(booking.bookingAmount) || 0;
+      }
+      const totalCollected = totalPrincipalCollected;
 
       let netRefund = totalCollected;
       let numDeduction = 0;
@@ -1437,11 +1444,12 @@ class PlotBookingService {
     let totalCollected = 0;
     let totalFineCollected = 0;
     receipts.forEach((rc) => {
-      const amt = Number(rc.amount || 0);
+      const grossAmt = Number(rc.amount || 0);
       const fine = Number(rc.lateFinePaid || 0);
-      totalCollected += amt;
+      const principalAmt = Math.max(0, grossAmt - fine);
+      totalCollected += principalAmt;
       totalFineCollected += fine;
-      runningBalance -= amt;
+      runningBalance -= principalAmt;
 
       const typeLabel =
         rc.receiptType === 'DOWNPAYMENT'
@@ -1464,7 +1472,7 @@ class PlotBookingService {
         bankName: rc.bankName,
         accountNumber: rc.accountNumber,
         debit: 0,
-        credit: amt,
+        credit: principalAmt,
         lateFinePaid: fine,
         balance: runningBalance,
         receiptId: rc._id,

@@ -2,6 +2,30 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Plot Settlement & Cancellation Calculator Layout Realignment [COMPLETED]**:
+  - **Enhancement**:
+    - Replaced the cramped single-line 12-column grid with a structured **Two-Tier Step-by-Step Layout**:
+      - **Tier 1 (Booking Selection)**: Full-width search bar with quick autocomplete suggestions and an active contract pill badge showing the loaded booking number and customer name.
+      - **Tier 2 (Settlement Parameters)**: 4 equal, well-balanced columns with consistent label headers, heights, and button states:
+        1. **Settlement Action**: `+ Interest Return` vs `- Penalty Deduct`.
+        2. **Interest Formula / Basis**: `Simple Interest` vs `Compounding` (or `Percentage (%)` vs `Flat Amount (₹)` in deduction mode).
+        3. **Annual Rate / Penalty Value**: Input with unit suffix and scheme slab info.
+        4. **Settlement / Cancellation Date**: Date picker aligned to the same grid height.
+
+- **Plot Product Booking Allotment Certificate Layout Redesign [COMPLETED]**:
+  - **Requirement**:
+    - For plot product booking certificates (`/dashboard/plots/certificates/:id`):
+      - Remove internal hierarchy & inventory breakdown: Business Associate, Partner Supervisor, Product Item, Dimensions (N/S/E/W), raw Unit Area & Quantity, Land Stock Reference (agreement numbers, raw allocation strings), and Unit Price Rate.
+      - Add / keep clean official allotment fields:
+        - `Total Area / कुल रकबा`: formatted cleanly as `${totalArea} Sq.Ft` (e.g. `400 Sq.Ft` without multiplication breakdown or dismil).
+        - Dedicated clean land identification fields: `Mauja / मौजा`, `Thana No. / थाना`, `Khata No. / खाता`, `Khesra No. / खेसरा`.
+        - For one-time (full payment): Upfront Paid `₹5,000`, Total Valuation `₹5,000`, Payment Status `FULLY SETTLED (100% PAID)`, Amount in Words, and official allotment header.
+  - **Implementation**:
+    - Updated [BookingCertificateViewer.jsx](file:///c:/Users/good%20nature/OneDrive/Desktop/CODING/Ems-goodnature/client/src/pages/plots/printViewers/BookingCertificateViewer.jsx) for `isProductBooking`:
+      - Calculated `unitArea` dynamically from length × width (`dims.north * dims.east`) or `product.areaSqFt`, and computed `totalArea = unitArea * qty`.
+      - Replaced internal associate, supervisor, and inventory rows with dedicated rows for Mauja, Thana, Khata, Khesra, and Total Allocated Area.
+      - Streamlined financial rows for one-time settlement (100% upfront) vs monthly EMI without displaying internal unit price rates or raw agreement stock references.
+
 - **Downpayment & EMI Receipt Number Display and Removal of "RO-" Prefix [COMPLETED]**:
   - **Requirement**:
     - Show `Receipt No.` column in Downpayment (`/dashboard/plots/collections/downpayment`) and EMI (`/dashboard/plots/collections/emi`) collection lists.

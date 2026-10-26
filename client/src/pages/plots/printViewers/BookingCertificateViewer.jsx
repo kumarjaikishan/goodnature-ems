@@ -144,6 +144,29 @@ const BookingCertificateViewer = () => {
       year: 'numeric'
     });
 
+    const lengthFt = Number(dims.north || dims.south || 40);
+    const widthFt = Number(dims.east || dims.west || 1);
+    const calculatedUnitArea = lengthFt * widthFt;
+    const unitArea = Number(product.areaSqFt || calculatedUnitArea || 40);
+    const totalArea = Number(booking.totalAreaSqFt || (unitArea * qty) || 0);
+    const totalDismil = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedDismil) || 0), 0);
+
+    const maujaList =
+      Array.from(new Set(landSourcing.map((s) => s.mauja || s.agreementId?.mauja).filter(Boolean))).join(', ') ||
+      plot.mauja ||
+      '-';
+    const thanaList =
+      Array.from(new Set(landSourcing.map((s) => s.thanaNumber || s.agreementId?.thanaNumber).filter(Boolean))).join(', ') ||
+      '-';
+    const khataList =
+      Array.from(new Set(landSourcing.map((s) => s.khataNumber || s.agreementId?.khataNumber).filter(Boolean))).join(', ') ||
+      plot.khataNo ||
+      '-';
+    const khesraList =
+      Array.from(new Set(landSourcing.map((s) => s.khesraNumber || s.agreementId?.khesraNumber).filter(Boolean))).join(', ') ||
+      plot.plotNumber ||
+      '-';
+
     return (
       <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
         {/* Action Buttons (Hidden on Print) */}
@@ -241,8 +264,8 @@ const BookingCertificateViewer = () => {
 
           {/* Certificate Title */}
           <div className="text-center mb-3 select-none relative z-10">
-            <span className="px-4 py-1 text-slate-900 text-[1rem] font-black uppercase tracking-wider rounded-sm inline-block">
-              CERTIFICATE OF PRODUCT BOOKING &amp; ALLOCATION
+            <span className="px-4 py-1 text-slate-900 text-[1rem] font-black uppercase tracking-wider rounded-sm inline-block border-b-2 border-slate-900">
+              {isFullPayment ? 'PLOT ALLOTMENT CERTIFICATE' : 'CERTIFICATE OF PLOT ALLOTMENT'}
             </span>
           </div>
 
@@ -320,38 +343,16 @@ const BookingCertificateViewer = () => {
                 </td>
               </tr>
 
-              {/* Row 5: Sponsoring Business Associate */}
+              {/* Row 5: Project Name & Booking Status */}
               <tr className="border-b border-slate-100 bg-slate-50/20">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
-                    <span>Business Associate</span>
+                    <span>Project Name</span>
                     <span>:</span>
                   </div>
                 </td>
                 <td className="p-2 font-bold text-slate-900">
-                  {sponsor.name || 'Direct Company'} {sponsor.sponsorCode ? `(${sponsor.sponsorCode})` : ''}
-                </td>
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Partner Supervisor</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {sponsor.sponsorId?.name || '-'}
-                </td>
-              </tr>
-
-              {/* Row 6: Product Name & Code */}
-              <tr className="border-b border-slate-100 bg-slate-50/40">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Product Item</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {product.productName || 'Micro Plot Unit'} {product.productCode ? `(${product.productCode})` : ''}
+                  {booking.projectName || 'GOOD NATURE CITY'}
                 </td>
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
@@ -361,78 +362,81 @@ const BookingCertificateViewer = () => {
                 </td>
                 <td className="p-2">
                   <span className="font-bold text-emerald-800 uppercase text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {booking.status || 'ACTIVE'}
+                    {booking.status || 'COMPLETED'}
                   </span>
                 </td>
               </tr>
 
-              {/* Row 7: Dimensions & Unit Area */}
+              {/* Row 6: Mauja & Thana */}
               <tr className="border-b border-slate-100">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
-                    <span>Dimensions / पैमाइश</span>
+                    <span>Mauja / मौजा</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900 font-mono text-[10px]">
-                  उत्तर: {dims.north ?? 1} ft | दक्षिण: {dims.south ?? 1} ft | पूरब: {dims.east ?? 2} ft | पश्चिम: {dims.west ?? 2} ft
+                <td className="p-2 font-bold text-slate-900 uppercase">
+                  {maujaList}
                 </td>
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
-                    <span>Unit Area &amp; Quantity</span>
+                    <span>Thana No. / थाना</span>
                     <span>:</span>
                   </div>
                 </td>
                 <td className="p-2 font-bold text-slate-900">
-                  {(product.areaSqFt || (dims.north && dims.east ? dims.north * dims.east : 2))} Sq.Ft • <span className="text-teal-800 font-black">{qty} {qty === 1 ? 'Unit' : 'Units'}</span>
+                  {thanaList}
                 </td>
               </tr>
 
-              {/* Row 8: Land Sourcing & Mauja / Thana if available */}
-              {landSourcing.length > 0 && (
-                <tr className="border-b border-slate-100 bg-slate-50/30">
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Land Stock Reference</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td colSpan={3} className="p-2 text-slate-900 font-semibold text-[10.5px]">
-                    {landSourcing.map((src, idx) => (
-                      <span key={idx} className="mr-3 inline-block">
-                        {src.agreementNumber ? <strong className="font-mono text-teal-900 mr-1">Agr #{src.agreementNumber}</strong> : null}
-                        {src.mauja ? `(Mauja: ${src.mauja}${src.thanaNumber ? `, Thana: ${src.thanaNumber}` : ''}) ` : ''}
-                        {src.khataNumber || src.khesraNumber ? `[Khata: ${src.khataNumber || '-'}, Khesra: ${src.khesraNumber || '-'}] ` : ''}
-                        {src.allocatedSqFt ? <span className="text-emerald-700 font-bold">Allocated: {src.allocatedSqFt} Sq.Ft</span> : ''}
-                      </span>
-                    ))}
-                    {plot.plotNumber && (
-                      <span className="font-bold text-slate-900"> | Master Plot #{plot.plotNumber}</span>
-                    )}
-                  </td>
-                </tr>
-              )}
-
-              {/* Row 9: Unit Price & Total Valuation */}
-              <tr className="border-b border-slate-100">
+              {/* Row 7: Khata & Khesra */}
+              <tr className="border-b border-slate-100 bg-slate-50/20">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
-                    <span>Unit Price Rate</span>
+                    <span>Khata No. / खाता</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900">₹{unitPrice.toLocaleString('en-IN')} / Unit</td>
+                <td className="p-2 font-bold text-slate-900 font-mono">
+                  {khataList}
+                </td>
+                <td className="p-2 text-slate-500 font-medium">
+                  <div className="flex justify-between items-center">
+                    <span>Khesra No. / खेसरा</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="p-2 font-bold text-slate-900 font-mono">
+                  {khesraList}
+                </td>
+              </tr>
+
+              {/* Row 8: Total Area */}
+              <tr className="border-b border-slate-100">
+                <td className="p-2 text-slate-500 font-medium">
+                  <div className="flex justify-between items-center">
+                    <span>Total Area / कुल रकबा</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td colSpan={3} className="p-2 font-bold text-slate-900">
+                  <span className="font-black text-teal-900 text-xs">
+                    {totalArea} Sq.Ft
+                  </span>
+                </td>
+              </tr>
+
+              {/* Row 9: Total Valuation & Payment Scheme */}
+              <tr className="border-b border-slate-100 bg-slate-50/20">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
                     <span>Total Valuation</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-black text-slate-900 text-xs">₹{totalValuation.toLocaleString('en-IN')}</td>
-              </tr>
-
-              {/* Row 10: Payment Scheme & Downpayment */}
-              <tr className="border-b border-slate-100 bg-slate-50/20">
+                <td className="p-2 font-black text-slate-900 text-xs">
+                  ₹{totalValuation.toLocaleString('en-IN')}
+                </td>
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
                     <span>Payment Scheme</span>
@@ -442,44 +446,67 @@ const BookingCertificateViewer = () => {
                 <td className="p-2 font-bold text-slate-900">
                   {isFullPayment ? 'One Time (100% Upfront Settlement)' : 'Monthly Installment (EMI)'}
                 </td>
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>{isFullPayment ? 'Upfront Paid' : 'Initial Downpayment'}</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900">
-                  ₹{downPayment.toLocaleString('en-IN')}
-                </td>
               </tr>
 
-              {/* Row 11: Remaining Balance & EMI Duration */}
-              <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Remaining Balance</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900">
-                  ₹{remainingBalance.toLocaleString('en-IN')}
-                </td>
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>{isFullPayment ? 'Payment Status' : 'EMI Tenure & Monthly'}</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {isFullPayment ? (
-                    <span className="text-emerald-700 font-black">FULLY SETTLED</span>
-                  ) : (
-                    `₹${monthlyEmi.toLocaleString('en-IN')} / month for ${tenureMonths} months`
-                  )}
-                </td>
-              </tr>
+              {/* Row 10: Payment Details / Settlement */}
+              {isFullPayment ? (
+                <tr className="border-b border-slate-100">
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Upfront Paid</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-slate-900">
+                    ₹{totalValuation.toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-2 text-slate-500 font-medium">
+                    <div className="flex justify-between items-center">
+                      <span>Payment Status</span>
+                      <span>:</span>
+                    </div>
+                  </td>
+                  <td className="p-2 font-bold text-emerald-700">
+                    FULLY SETTLED (100% PAID)
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  <tr className="border-b border-slate-100">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Downpayment Paid</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900">
+                      ₹{downPayment.toLocaleString('en-IN')}
+                    </td>
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Remaining Balance</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900">
+                      ₹{remainingBalance.toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-slate-100 bg-slate-50/20">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>EMI Tenure & Monthly</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td colSpan={3} className="p-2 font-bold text-slate-900">
+                      ₹{monthlyEmi.toLocaleString('en-IN')} / month for {tenureMonths} months
+                    </td>
+                  </tr>
+                </>
+              )}
 
-              {/* Row 12: Total Amount in Words */}
+              {/* Row 11: Total Amount in Words */}
               <tr className="border-b border-slate-100">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">

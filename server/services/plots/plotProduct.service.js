@@ -1855,7 +1855,14 @@ class PlotProductService {
         throw ApiError.badRequest('Booking is already cancelled and settled');
       }
 
-      const totalCollected = Number(booking.totalPaid || 0);
+      // Calculate total principal paid (excluding late fines)
+      let totalCollected = Number(booking.totalPaid || 0);
+      if (Array.isArray(booking.collections) && booking.collections.length > 0) {
+        totalCollected = booking.collections.reduce(
+          (sum, c) => sum + (Number(c.principalPaid) || Math.max(0, (Number(c.amountPaid) || 0) - (Number(c.lateFinePaid) || 0))),
+          0
+        );
+      }
 
       let netRefund = totalCollected;
       let numDeduction = 0;
