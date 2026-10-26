@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageLoader from '@/components/common/PageLoader';
 import Button from '@/components/ui/Button';
+import Modalbox from '@/components/custommodal/Modalbox';
 import api from '@/api/axios';
 import { toast } from '@/utils/toast';
 import { amountInWords } from '@/utils/numToWord';
@@ -46,9 +47,13 @@ const PlotBookingLedgerPage = () => {
   const [disburseAmount, setDisburseAmount] = useState(0);
   const [disburseDate, setDisburseDate] = useState(new Date().toISOString().split('T')[0]);
   const [disburseMode, setDisburseMode] = useState('BANK_TRANSFER');
+  const [disburseLedgerId, setDisburseLedgerId] = useState('');
   const [disburseRef, setDisburseRef] = useState('');
   const [disburseRemarks, setDisburseRemarks] = useState('');
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
+  const [myCashLedger, setMyCashLedger] = useState(null);
+  const [loadingTreasury, setLoadingTreasury] = useState(false);
 
   const fetchLedger = async () => {
     if (!id) return;
@@ -97,14 +102,67 @@ const PlotBookingLedgerPage = () => {
   const plotArea = plot.plotSize || plot.area || plot.areaSqFt || 0;
   const effectiveRate = b.effectivePlotRate || (plotArea > 0 ? Math.round(grossVal / plotArea) : 0);
 
-  const handleOpenDisburseModal = () => {
+  const fetchTreasury = async () => {
+    try {
+      setLoadingTreasury(true);
+      const [treasuryRes, myCashRes] = await Promise.all([
+        api.get('/ledger/treasury?intent=payment').catch(() => ({ data: {} })),
+        api.get('/ledger/my-cash-account').catch(() => ({ data: null })),
+      ]);
+      const tData = treasuryRes.data?.data || treasuryRes.data || {};
+      const banks = tData.bankLedgers || tData.bankAccounts || [];
+      const cash = tData.cashLedgers || tData.cashAccounts || [];
+      setTreasuryLedgers({ bankLedgers: banks, cashLedgers: cash });
+
+      const myCash = myCashRes.data?.data || myCashRes.data || null;
+      setMyCashLedger(myCash);
+
+      return { banks, myCash };
+    } catch (err) {
+      console.error('Error fetching treasury:', err);
+      return { banks: [], myCash: null };
+    } finally {
+      setLoadingTreasury(false);
+    }
+  };
+
+  const handleOpenDisburseModal = async () => {
     setDisburseAmount(pendingSettlementBalance > 0 ? pendingSettlementBalance : 0);
     setDisburseDate(new Date().toISOString().split('T')[0]);
     setDisburseMode('BANK_TRANSFER');
     setDisburseRef('');
     setDisburseRemarks(`Settlement refund payout to ${customer.name || b.customerName || 'customer'}`);
+
+    const { banks } = await fetchTreasury();
+    if (banks.length > 0) {
+      setDisburseLedgerId(banks[0]._id);
+    } else {
+      setDisburseLedgerId('');
+    }
     setShowDisburseModal(true);
   };
+
+  const handleDisburseModeChange = (newMode) => {
+    setDisburseMode(newMode);
+    if (newMode === 'CASH') {
+      setDisburseLedgerId(myCashLedger?._id || '');
+    } else {
+      const banks = treasuryLedgers.bankLedgers || [];
+      setDisburseLedgerId(banks[0]?._id || '');
+    }
+  };
+
+  const selectedTreasuryLedger = useMemo(() => {
+    if (disburseMode === 'CASH') {
+      return myCashLedger;
+    }
+    return (treasuryLedgers.bankLedgers || []).find((bk) => bk._id === disburseLedgerId);
+  }, [disburseMode, disburseLedgerId, myCashLedger, treasuryLedgers.bankLedgers]);
+
+  const selectedAvailableBalance = Number(
+    selectedTreasuryLedger?.availableBalance ?? selectedTreasuryLedger?.netBalance ?? 0
+  );
+  const isInsufficientTreasury = Number(disburseAmount) > selectedAvailableBalance;
 
   const handleDisburseSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -118,12 +176,18 @@ const PlotBookingLedgerPage = () => {
       return;
     }
 
+    if (disburseMode !== 'CASH' && !disburseLedgerId) {
+      toast.error('Please select an authorized corporate bank account to disburse payment');
+      return;
+    }
+
     setSubmittingPayment(true);
     try {
       await api.post(`/plots/bookings/${b._id}/refund-payments`, {
         amount: amt,
         paymentDate: disburseDate,
         paymentMode: disburseMode,
+        paymentLedgerId: disburseLedgerId || null,
         transactionReference: disburseRef,
         remarks: disburseRemarks,
       });
@@ -764,7 +828,7 @@ const PlotBookingLedgerPage = () => {
                 pendingSettlementBalance > 0 ? 'text-amber-700' : 'text-emerald-600'
               }`}
             >
-              {pendingSettlementBalance > 0 ? 'Cr (Owed to Customer)' : 'Nil (₹0.00 Fully Settled)'}
+              {pendingSettlementBalance > 0 ? 'Cr (Pending Settlement)' : 'Nil (₹0.00 Fully Settled)'}
             </div>
           </div>
         </div>
@@ -870,9 +934,9 @@ const PlotBookingLedgerPage = () => {
                   <th className="p-3 min-w-[240px]">Particulars / Narration</th>
                   <th className="p-3 whitespace-nowrap">Doc / Voucher / Receipt #</th>
                   <th className="p-3 whitespace-nowrap">Payment Mode</th>
+                  <th className="p-3 text-right whitespace-nowrap">Late Fine (₹)</th>
                   <th className="p-3 text-right whitespace-nowrap">Debit (₹)</th>
                   <th className="p-3 text-right whitespace-nowrap">Credit (₹)</th>
-                  <th className="p-3 text-right whitespace-nowrap">Late Fine (₹)</th>
                   <th className="p-3 text-right whitespace-nowrap">Running Balance (₹)</th>
                   <th className="p-3 text-center w-20">Action</th>
                 </tr>
@@ -915,14 +979,14 @@ const PlotBookingLedgerPage = () => {
                             {e.paymentMode || 'N/A'}
                           </span>
                         </td>
+                        <td className="p-3 text-right font-mono font-semibold text-amber-700 whitespace-nowrap">
+                          {e.lateFinePaid > 0 ? `₹${e.lateFinePaid.toLocaleString('en-IN')}` : '-'}
+                        </td>
                         <td className="p-3 text-right font-mono font-semibold text-rose-800 whitespace-nowrap">
                           {isDebit ? `₹${e.debit.toLocaleString('en-IN')}` : '-'}
                         </td>
                         <td className="p-3 text-right font-mono font-bold text-emerald-800 whitespace-nowrap">
                           {isCredit ? `₹${e.credit.toLocaleString('en-IN')}` : '-'}
-                        </td>
-                        <td className="p-3 text-right font-mono font-semibold text-amber-700 whitespace-nowrap">
-                          {e.lateFinePaid > 0 ? `₹${e.lateFinePaid.toLocaleString('en-IN')}` : '-'}
                         </td>
                         <td className="p-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                           ₹{Math.abs(e.balance).toLocaleString('en-IN')}{' '}
@@ -954,21 +1018,21 @@ const PlotBookingLedgerPage = () => {
                   <td colSpan={5} className="p-3.5 uppercase tracking-wide text-slate-700">
                     Total Account Statement Balance
                   </td>
+                  <td className="p-3.5 text-right font-mono text-amber-800">
+                    ₹{ledgerEntries.reduce((s, e) => s + (Number(e.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
+                  </td>
                   <td className="p-3.5 text-right font-mono text-rose-800">
                     ₹{ledgerEntries.reduce((s, e) => s + (Number(e.debit) || 0), 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-3.5 text-right font-mono text-emerald-800">
                     ₹{ledgerEntries.reduce((s, e) => s + (Number(e.credit) || 0), 0).toLocaleString('en-IN')}
                   </td>
-                  <td className="p-3.5 text-right font-mono text-amber-800">
-                    ₹{ledgerEntries.reduce((s, e) => s + (Number(e.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
-                  </td>
                   <td className="p-3.5 text-right font-mono text-slate-950">
                     {isCancelled ? (
                       pendingSettlementBalance > 0 ? (
                         <>
                           ₹{pendingSettlementBalance.toLocaleString('en-IN')}{' '}
-                          <span className="text-[10px] text-amber-700 font-semibold">Cr (Owed)</span>
+                          <span className="text-[10px] text-amber-700 font-semibold">Cr</span>
                         </>
                       ) : (
                         <span className="text-emerald-700">₹0.00 Settled</span>
@@ -1200,155 +1264,206 @@ const PlotBookingLedgerPage = () => {
       </div>
       {/* ──────────────── DISBURSE REFUND PART-PAYMENT MODAL ──────────────── */}
       {showDisburseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 bg-emerald-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                  <Banknote size={22} />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Disburse Refund Payment</h3>
-                  <p className="text-xs text-slate-500">
-                    Booking #{b.bookingNumber} • {customer.name || b.customerName}
-                  </p>
-                </div>
-              </div>
+        <Modalbox
+          open={showDisburseModal}
+          onClose={() => setShowDisburseModal(false)}
+          title="Disburse Refund Payment"
+          subtitle={`Booking #${b.bookingNumber} • ${customer.name || b.customerName || 'Customer'}`}
+          icon={<Banknote size={20} className="text-teal-700" />}
+          maxWidth="max-w-lg"
+          footer={
+            <div className="flex items-center justify-end gap-2.5 w-full">
               <button
                 type="button"
+                disabled={submittingPayment}
                 onClick={() => setShowDisburseModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl font-semibold text-xs cursor-pointer"
               >
-                ✕
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="disburse-refund-payment-form"
+                disabled={submittingPayment}
+                className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {submittingPayment ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Recording...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} /> Confirm &amp; Disburse Payment
+                  </>
+                )}
               </button>
             </div>
-
-            {/* Modal Form */}
-            <form onSubmit={handleDisburseSubmit} className="p-6 space-y-4 text-xs">
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase block">Remaining Liability</span>
-                  <span className="text-base font-mono font-black text-slate-900">
-                    ₹{pendingSettlementBalance.toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase block">Already Disbursed</span>
-                  <span className="text-base font-mono font-bold text-emerald-700">
-                    ₹{totalRefundPaid.toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-
+          }
+        >
+          <form id="disburse-refund-payment-form" onSubmit={handleDisburseSubmit} className="space-y-4 text-xs">
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Disbursement Amount (₹) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max={pendingSettlementBalance}
-                    step="0.01"
-                    required
-                    value={disburseAmount}
-                    onChange={(e) => setDisburseAmount(e.target.value)}
-                    className="w-full h-11 px-3 bg-white border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 rounded-xl font-mono font-bold text-sm text-slate-900 outline-none"
-                    placeholder="Enter amount..."
-                  />
-                  {pendingSettlementBalance > 0 && Number(disburseAmount) !== pendingSettlementBalance && (
-                    <button
-                      type="button"
-                      onClick={() => setDisburseAmount(pendingSettlementBalance)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold cursor-pointer transition"
-                    >
-                      Full Balance
-                    </button>
-                  )}
-                </div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase block">Remaining Liability</span>
+                <span className="text-base font-mono font-black text-slate-900">
+                  ₹{pendingSettlementBalance.toLocaleString('en-IN')}
+                </span>
               </div>
+              <div className="text-right">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase block">Already Disbursed</span>
+                <span className="text-base font-mono font-bold text-emerald-700">
+                  ₹{totalRefundPaid.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
 
-              <div>
-                <DateInput
-                  label="Disbursement Date"
-                  value={disburseDate}
-                  onChange={(e) => setDisburseDate(e.target.value)}
-                  className="h-10 rounded-xl text-xs"
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Disbursement Amount (₹) *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  max={pendingSettlementBalance}
+                  step="0.01"
                   required
+                  value={disburseAmount}
+                  onChange={(e) => setDisburseAmount(e.target.value)}
+                  className="w-full h-11 px-3 bg-white border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 rounded-xl font-mono font-bold text-sm text-slate-900 outline-none"
+                  placeholder="Enter amount..."
                 />
+                {pendingSettlementBalance > 0 && Number(disburseAmount) !== pendingSettlementBalance && (
+                  <button
+                    type="button"
+                    onClick={() => setDisburseAmount(pendingSettlementBalance)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold cursor-pointer transition"
+                  >
+                    Full Balance
+                  </button>
+                )}
               </div>
+            </div>
 
+            <div>
+              <DateInput
+                label="Disbursement Date"
+                value={disburseDate}
+                onChange={(e) => setDisburseDate(e.target.value)}
+                className="h-10 rounded-xl text-xs"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Payment Mode *
                 </label>
                 <select
                   value={disburseMode}
-                  onChange={(e) => setDisburseMode(e.target.value)}
+                  onChange={(e) => handleDisburseModeChange(e.target.value)}
                   className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                 >
                   <option value="BANK_TRANSFER">Bank Transfer (NEFT / RTGS / IMPS)</option>
                   <option value="CHEQUE">Cheque / Demand Draft</option>
+                  <option value="UPI">UPI / QR Transfer</option>
                   <option value="CASH">Cash</option>
-                  <option value="UPI">UPI</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Transaction / Cheque Reference #
+                  {disburseMode === 'CASH' ? 'Source Cash Account (Personal Custody)' : 'Debit From Corporate Bank Account *'}
                 </label>
-                <input
-                  type="text"
-                  value={disburseRef}
-                  onChange={(e) => setDisburseRef(e.target.value)}
-                  placeholder="e.g. UTR / CHQ-104928"
-                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
+                {disburseMode === 'CASH' ? (
+                  <div className="w-full h-10 px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs flex items-center justify-between font-semibold text-slate-700">
+                    <span>{myCashLedger?.name || 'My Cash Account'}</span>
+                    <span className="font-mono text-[11px] text-emerald-700">
+                      ₹{Number(myCashLedger?.availableBalance ?? myCashLedger?.netBalance ?? 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={disburseLedgerId}
+                    onChange={(e) => setDisburseLedgerId(e.target.value)}
+                    className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                  >
+                    {treasuryLedgers.bankLedgers?.length === 0 ? (
+                      <option value="">No authorized company bank accounts found</option>
+                    ) : (
+                      treasuryLedgers.bankLedgers.map((bank) => (
+                        <option key={bank._id} value={bank._id}>
+                          {[bank.bankName, bank.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ')}
+                          {bank.accountNumber ? ` (A/C: ${bank.accountNumber})` : ''} - ₹{(bank.availableBalance ?? bank.netBalance ?? 0).toLocaleString('en-IN')}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Narration / Remarks
-                </label>
-                <textarea
-                  rows={2}
-                  value={disburseRemarks}
-                  onChange={(e) => setDisburseRemarks(e.target.value)}
-                  placeholder="Payment remarks..."
-                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
+            {/* Bank Account Live Balance Info & Safety Warnings */}
+            {selectedTreasuryLedger && (
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-slate-600">
+                  <Banknote size={15} className="text-teal-700" />
+                  <span>Available Balance in Selected Account:</span>
+                </div>
+                <span className={`font-mono font-bold ${isInsufficientTreasury ? 'text-amber-700' : 'text-emerald-700'}`}>
+                  ₹{selectedAvailableBalance.toLocaleString('en-IN')}
+                </span>
               </div>
+            )}
 
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  disabled={submittingPayment}
-                  onClick={() => setShowDisburseModal(false)}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl font-semibold text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingPayment}
-                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {submittingPayment ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" /> Recording...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 size={14} /> Confirm &amp; Disburse Payment
-                    </>
-                  )}
-                </button>
+            {isInsufficientTreasury && (
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2">
+                <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed">
+                  <strong>Balance Notice:</strong> The disbursement amount (₹{Number(disburseAmount).toLocaleString('en-IN')}) exceeds currently available balance (₹{selectedAvailableBalance.toLocaleString('en-IN')}) in this account.
+                </p>
               </div>
-            </form>
-          </div>
-        </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                {disburseMode === 'CHEQUE'
+                  ? 'Cheque / Demand Draft Number *'
+                  : disburseMode === 'UPI'
+                  ? 'UPI Transaction ID / Ref #'
+                  : disburseMode === 'CASH'
+                  ? 'Cash Voucher / Handover Ref (Optional)'
+                  : 'Transaction / UTR Reference # *'}
+              </label>
+              <input
+                type="text"
+                value={disburseRef}
+                onChange={(e) => setDisburseRef(e.target.value)}
+                placeholder={
+                  disburseMode === 'CHEQUE'
+                    ? 'e.g. CHQ-904128'
+                    : disburseMode === 'UPI'
+                    ? 'e.g. UPI-92817263541'
+                    : 'e.g. UTR / NEFT reference number'
+                }
+                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Narration / Remarks
+              </label>
+              <textarea
+                rows={2}
+                value={disburseRemarks}
+                onChange={(e) => setDisburseRemarks(e.target.value)}
+                placeholder="Payment remarks..."
+                className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+          </form>
+        </Modalbox>
       )}
     </div>
   );

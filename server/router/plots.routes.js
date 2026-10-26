@@ -204,6 +204,7 @@ router.delete('/projects/:id', checkPermission('plot_inventory', 4), ctrl.delete
 router.post('/bookings/:id/restructure', checkPermission('plot_booking', 3), ctrl.restructureBooking);
 router.post('/bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.processCustomerRefund);
 router.post('/bookings/:id/refund-payments', checkPermission('plot_booking', 3), ctrl.addRefundPartPayment);
+router.get('/bookings/:id/commissions', checkPermission('plot_booking', 1), ctrl.getBookingCommissions);
 router.get('/bookings/:id/revisions', (req, res, next) => {
   if (req.user?.role === 'sponsor') {
     return next();
@@ -228,6 +229,7 @@ router.put('/product-bookings/:id', checkPermission('plot_booking', 3), ctrl.upd
 router.delete('/product-bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteProductBooking);
 router.post('/product-bookings/:id/collections', checkPermission('plot_booking', 2), ctrl.collectProductInstallment);
 router.get('/product-bookings/:id/ledger', checkPermission('plot_booking', 1), ctrl.getProductCustomerLedger);
+router.get('/product-bookings/:id/commissions', checkPermission('plot_booking', 1), ctrl.getBookingCommissions);
 router.post('/product-bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.cancelProductBookingAndRefund);
 router.post('/product-bookings/:id/refund-payments', checkPermission('plot_booking', 3), ctrl.addProductRefundPartPayment);
 router.get('/product-collections', checkPermission('plot_collection', 1), ctrl.getProductCollections);

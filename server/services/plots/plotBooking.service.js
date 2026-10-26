@@ -18,8 +18,10 @@ const Voucher = require('../../models/voucher');
 const PlotAuditLog = require('../../models/PlotAuditLog');
 const ApiError = require('../../utils/apiError');
 const Branch = require('../../models/branch');
+const accountingService = require('../accountingService');
 const plotConfigService = require('./plotConfig.service');
 const plotDeveloperService = require('./plotDeveloper.service');
+const { disburseRefundTransaction } = require('./plotRefundHelper');
 
 class PlotBookingService {
   // ── BOOKING & HOLD ENGINE ───────────────────────────────────────
@@ -962,6 +964,7 @@ class PlotBookingService {
         refundDate = new Date(),
         initialPaymentAmount = 0,
         paymentMode = 'BANK_TRANSFER',
+        paymentLedgerId = null,
         transactionReference = '',
       } = refundData;
 
@@ -1043,10 +1046,73 @@ class PlotBookingService {
 
       await Plot.findByIdAndUpdate(booking.plotId, { status: 'AVAILABLE' }).session(session);
 
-      await PlotSponsorCommission.updateMany(
-        { bookingId: booking._id },
-        { $set: { status: 'reversed' } }
-      ).session(session);
+      // Commission Reversal to Associate / Partner / Branch Ledgers
+      const shouldReverseCommission = Boolean(refundData.reverseCommission);
+      let reversedCommissionCount = 0;
+      let reversedCommissionTotal = 0;
+
+      if (shouldReverseCommission) {
+        const activeComms = await PlotSponsorCommission.find({
+          bookingId: booking._id,
+          status: 'active',
+        }).session(session);
+
+        for (const comm of activeComms) {
+          const commAmt = Number(comm.fixedAmount || comm.amount || 0);
+          if (commAmt > 0 && (comm.sponsorId || comm.branchId)) {
+            const pct = comm.commissionPercent || comm.fixedPercent || 0;
+            const colAmt = Number(comm.collectionAmount || comm.plotValue || 0);
+            let rcNum = comm.receiptNumber;
+            if (!rcNum && comm.receiptId) {
+              const rc = await PlotReceipt.findById(comm.receiptId).session(session);
+              if (rc) rcNum = rc.receiptNumber;
+            }
+            rcNum = rcNum || 'N/A';
+
+            const roleLabel = comm.commissionRole === 'BRANCH_OVERRIDE'
+              ? 'Branch Override'
+              : comm.commissionRole === 'DEVELOPER_OVERRIDE'
+              ? 'Partner Override'
+              : comm.commissionRole === 'DIRECT_DEVELOPER'
+              ? 'Direct Partner'
+              : 'Business Associate';
+
+            const reversalRemarks = `Reversal: Commission (${pct}%) on ₹${colAmt.toLocaleString('en-IN')} | Receipt #${rcNum} | Booking #${booking.bookingNumber} | ${roleLabel} | Cancellation Reversal`;
+
+            const reversalEntry = await accountingService.recordLedgerEntry({
+              sponsorId: comm.sponsorId || null,
+              branchId: comm.branchId || null,
+              date: new Date(refundDate),
+              type: 'DEBIT',
+              amount: commAmt,
+              source: comm.commissionRole === 'BRANCH_OVERRIDE' ? 'commission_branch' : 'commission_fixed',
+              referenceId: comm._id,
+              remarks: reversalRemarks,
+            }, session);
+
+            comm.status = 'reversed';
+            comm.reversedAt = new Date(refundDate);
+            comm.reversalLedgerEntryId = reversalEntry._id;
+            await comm.save({ session });
+
+            reversedCommissionCount++;
+            reversedCommissionTotal += commAmt;
+          } else {
+            comm.status = 'reversed';
+            comm.reversedAt = new Date(refundDate);
+            await comm.save({ session });
+          }
+        }
+
+        booking.commissionReversed = true;
+        booking.commissionReversalDate = new Date(refundDate);
+        booking.commissionReversalCount = reversedCommissionCount;
+        booking.commissionReversalAmount = reversedCommissionTotal;
+      } else {
+        booking.commissionReversed = false;
+        booking.commissionReversalCount = 0;
+        booking.commissionReversalAmount = 0;
+      }
 
       booking.status = 'CANCELLED';
       booking.refundStatus = 'PROCESSED';
@@ -1058,42 +1124,21 @@ class PlotBookingService {
       let createdVoucher = null;
       const initPay = Number(initialPaymentAmount) || 0;
       if (initPay > 0) {
-        try {
-          const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
-          const vCounter = await Counter.findByIdAndUpdate(
-            `VOUCHER_FY_${fyStr}`,
-            { $inc: { sequence: 1 } },
-            { new: true, upsert: true, session }
-          );
-          const voucherNumber = `VCH-${fyStr}-${String(vCounter.sequence).padStart(4, '0')}`;
-
-          createdVoucher = new Voucher({
-            voucherNumber,
-            voucherType: 'EXPENSE',
-            category: 'Plot Cancellation Refund',
-            amount: initPay,
-            paymentMode,
-            transactionReference,
-            remarks: `Initial refund disbursement for Cancelled Plot Booking #${booking.bookingNumber}. Net Settlement: ₹${netRefund}. ${remarks}`,
-            date: new Date(refundDate),
-            status: 'APPROVED',
-            createdBy: userId,
-          });
-          await createdVoucher.save({ session });
-          booking.refundVoucherId = createdVoucher._id;
-          booking.refundPayments.push({
-            date: new Date(refundDate),
-            amount: initPay,
-            paymentMode,
-            transactionReference,
-            remarks: 'Initial refund payment at cancellation',
-            voucherId: createdVoucher._id,
-            voucherNumber: createdVoucher.voucherNumber,
-            createdBy: userId,
-          });
-        } catch (vErr) {
-          console.warn('[CustomerRefund] Optional voucher generation skipped:', vErr.message);
-        }
+        const { paymentEntry, voucher } = await disburseRefundTransaction({
+          booking,
+          isProduct: false,
+          amount: initPay,
+          paymentMode,
+          paymentLedgerId,
+          transactionReference,
+          remarks: remarks || 'Initial refund payment at cancellation',
+          paymentDate: refundDate,
+          userId,
+          session,
+        });
+        createdVoucher = voucher;
+        booking.refundVoucherId = voucher._id;
+        booking.refundPayments.push(paymentEntry);
       }
 
       await booking.save({ session });
@@ -1129,10 +1174,12 @@ class PlotBookingService {
 
       const {
         amount,
-        paymentMode = 'CASH',
+        paymentMode = 'BANK_TRANSFER',
+        paymentLedgerId = null,
         transactionReference = '',
         remarks = '',
         date = new Date(),
+        paymentDate = date,
       } = paymentData;
 
       const numAmount = Number(amount);
@@ -1140,43 +1187,27 @@ class PlotBookingService {
         throw ApiError.badRequest('Valid payment amount is required');
       }
 
-      let createdVoucher = null;
-      try {
-        const fyStr = `${new Date().getFullYear().toString().slice(-2)}${(new Date().getFullYear() + 1).toString().slice(-2)}`;
-        const vCounter = await Counter.findByIdAndUpdate(
-          `VOUCHER_FY_${fyStr}`,
-          { $inc: { sequence: 1 } },
-          { new: true, upsert: true, session }
-        );
-        const voucherNumber = `VCH-${fyStr}-${String(vCounter.sequence).padStart(4, '0')}`;
+      const netSettlement = Number(booking.refundAmount || 0);
+      const alreadyPaid = (booking.refundPayments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+        + (booking.refundVoucherId && !booking.refundPayments?.length ? Number(booking.refundAmount || 0) : 0);
+      const remainingSettlement = Math.max(0, netSettlement - alreadyPaid);
 
-        createdVoucher = new Voucher({
-          voucherNumber,
-          voucherType: 'EXPENSE',
-          category: 'Plot Cancellation Refund',
-          amount: numAmount,
-          paymentMode,
-          transactionReference,
-          remarks: `Part-payment refund for Cancelled Plot Booking #${booking.bookingNumber}. ${remarks}`,
-          date: new Date(date),
-          status: 'APPROVED',
-          createdBy: userId,
-        });
-        await createdVoucher.save({ session });
-      } catch (vErr) {
-        console.warn('[AddRefundPayment] Voucher generation warning:', vErr.message);
+      if (numAmount > remainingSettlement + 0.01) {
+        throw ApiError.badRequest(`Disbursement amount ₹${numAmount} exceeds remaining refund liability of ₹${remainingSettlement.toLocaleString('en-IN')}`);
       }
 
-      const paymentEntry = {
-        date: new Date(date),
+      const { paymentEntry, voucher } = await disburseRefundTransaction({
+        booking,
+        isProduct: false,
         amount: numAmount,
         paymentMode,
+        paymentLedgerId,
         transactionReference,
         remarks,
-        voucherId: createdVoucher?._id || null,
-        voucherNumber: createdVoucher?.voucherNumber || '',
-        createdBy: userId,
-      };
+        paymentDate: paymentDate || date,
+        userId,
+        session,
+      });
 
       if (!Array.isArray(booking.refundPayments)) {
         booking.refundPayments = [];
@@ -1189,11 +1220,17 @@ class PlotBookingService {
         modelName: 'PlotBooking',
         documentId: booking._id,
         userId,
-        details: { amount: numAmount, paymentMode, transactionReference },
+        details: {
+          amount: numAmount,
+          paymentMode,
+          paymentLedgerId,
+          transactionReference,
+          voucherNumber: voucher.voucherNo,
+        },
       }).save({ session });
 
       await session.commitTransaction();
-      return { booking, payment: paymentEntry, voucher: createdVoucher };
+      return { booking, payment: paymentEntry, voucher };
     } catch (err) {
       await session.abortTransaction();
       throw err;
@@ -1545,7 +1582,7 @@ class PlotBookingService {
             date: p.date || cancelDate,
             type: 'DEBIT',
             category: 'REFUND_PAYOUT',
-            particulars: `Settlement Refund Paid to Customer (Part ${pIdx + 1})${p.paymentMode ? ` via ${p.paymentMode}` : ''}${p.transactionReference ? ` (Ref: ${p.transactionReference})` : ''}`,
+            particulars: `Settlement Refund Paid to Customer (Part ${pIdx + 1})${p.paymentMode ? ` via ${p.paymentMode}` : ''}${p.paymentLedgerName || p.bankName ? ` [${p.paymentLedgerName || p.bankName}]` : ''}${p.transactionReference ? ` (Ref: ${p.transactionReference})` : ''}`,
             referenceNumber: p.voucherNumber || `REF-PART-${pIdx + 1}`,
             paymentMode: p.paymentMode || 'BANK_TRANSFER',
             transactionReference: p.transactionReference || '',

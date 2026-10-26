@@ -25,6 +25,7 @@ const voucherSchema = new mongoose.Schema({
   totalAmount: { type: Number, default: 0 },
   paidAmount: { type: Number, default: 0 },
   remainingAmount: { type: Number, default: 0 },
+  initialPayment: { type: Number, default: 0 },
 
   // Workflow status
   status: {

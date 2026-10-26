@@ -232,16 +232,16 @@ const VoucherList = () => {
 
     try {
       setSubmitting(true);
-      const isDisbursing = Boolean(canApproveVoucher && enableInitialPayment);
+      const isDisbursing = false;
       const payload = {
         date: voucherDate,
         amount: parseFloat(voucherAmount),
         narration: voucherNarration,
         ledgerId: selectedLedgerId,
-        initialPayment: isDisbursing ? (parseFloat(initialPaymentAmount) || 0) : 0,
+        initialPayment: 0,
         paymentMode: initialPaymentMode,
-        paymentLedgerId: isDisbursing ? initialPaymentLedgerId : null,
-        referenceNo: isDisbursing ? initialReferenceNo : "",
+        paymentLedgerId: null,
+        referenceNo: "",
         autoApprove: false
       };
 
@@ -290,7 +290,7 @@ const VoucherList = () => {
     setApprovedNarration(v.remarks || "");
 
     // If creator requested an immediate disbursement on creation, populate it, otherwise 0 (Unpaid)
-    const initPaid = Number(v.paidAmount) || 0;
+    const initPaid = Number(v.paidAmount) > 0 ? Number(v.paidAmount) : Number(v.initialPayment || 0);
     setApproveDisburseAmount(initPaid.toString());
 
     const defPaymentMode = v.paymentTranches?.[0]?.paymentMode || "CASH";
@@ -1256,90 +1256,7 @@ const VoucherList = () => {
             />
           </div>
 
-          {/* Payment & Source Treasury Account Selection (Only for users who have voucher approval authority) */}
-          {!editingVoucher && canApproveVoucher && (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Source Payment Account (Cash / Bank)</span>
-                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={enableInitialPayment}
-                    onChange={(e) => {
-                      setEnableInitialPayment(e.target.checked);
-                      if (e.target.checked && !initialPaymentAmount) {
-                        setInitialPaymentAmount(voucherAmount);
-                      }
-                    }}
-                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
-                  />
-                  <span>Disburse Immediately</span>
-                </label>
-              </div>
-
-              {enableInitialPayment && (
-                <div className="space-y-3 pt-1 border-t border-slate-200/60">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <Select
-                      label="Payment Mode"
-                      size="sm"
-                      options={[
-                        { label: "Cash", value: "CASH" },
-                        { label: "Bank Transfer", value: "BANK_TRANSFER" },
-                        { label: "UPI", value: "UPI" },
-                        { label: "Cheque", value: "CHEQUE" },
-                      ]}
-                      value={initialPaymentMode}
-                      onChange={(e) => {
-                        const newMode = e?.target?.value !== undefined ? e.target.value : e;
-                        setInitialPaymentMode(newMode);
-                        if (newMode === "CASH") {
-                          setInitialPaymentLedgerId(myCashLedger?._id || "");
-                        } else {
-                          const bankList = treasuryLedgers.bankLedgers || [];
-                          setInitialPaymentLedgerId(bankList[0]?._id || "");
-                        }
-                      }}
-                    />
-                    <Select
-                      label={initialPaymentMode === "CASH" ? "Source: My Cash Account" : "Debit From Bank Account"}
-                      size="sm"
-                      required
-                      disabled={initialPaymentMode === "CASH"}
-                      options={getTreasuryOptions(initialPaymentMode)}
-                      value={initialPaymentLedgerId}
-                      onChange={(e) => {
-                        const val = e?.target?.value !== undefined ? e.target.value : e;
-                        setInitialPaymentLedgerId(val);
-                      }}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <NumberInput
-                      label="Immediate Disbursed Amount (₹)"
-                      size="sm"
-                      currency
-                      min="1"
-                      max={voucherAmount || undefined}
-                      placeholder="Disbursed"
-                      value={initialPaymentAmount}
-                      onChange={(e) => setInitialPaymentAmount(e.target.value)}
-                    />
-                    {initialPaymentMode !== "CASH" && (
-                      <Input
-                        label="Reference / Cheque No"
-                        size="sm"
-                        placeholder="Ref No."
-                        value={initialReferenceNo}
-                        onChange={(e) => setInitialReferenceNo(e.target.value)}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Payment & Source Treasury Account Selection (Hidden for now as requested; disbursements are handled upon Approval or via the Record Payment action) */}
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-700 tracking-wide">Narration / Particulars</label>

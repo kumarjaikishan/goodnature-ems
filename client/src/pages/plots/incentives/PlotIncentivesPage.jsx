@@ -120,20 +120,20 @@ const renderSponsorTransactions = (entries, isPartner = false, isExtra = false) 
     <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200 shadow-inner my-2 space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
         <div className="flex items-center gap-2">
-          <span className={`p-1 rounded-md ${isExtra ? 'bg-purple-100 text-purple-800' : 'bg-teal-100 text-teal-800'}`}>
+          <span className="p-1 rounded-md bg-teal-100 text-teal-800">
             <Receipt size={13} />
           </span>
           <span className="text-xs font-bold text-slate-800">
             Period Collection Receipts
           </span>
-          <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full ${isExtra ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
+          <span className="text-[10px] font-semibold border px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border-teal-200">
             {entries.length} {entries.length === 1 ? 'Receipt' : 'Receipts'}
           </span>
         </div>
         <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
           <span>Total Business: <strong className="text-slate-800">₹{totalBusiness.toLocaleString('en-IN')}</strong></span>
           <span className="text-slate-300">|</span>
-          <span>{isExtra ? 'Extra Incentive / Reward' : 'Target Incentive'}: <strong className={`font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>₹{totalInc.toLocaleString('en-IN')}</strong></span>
+          <span>{isExtra ? 'Extra Incentive / Reward' : 'Target Incentive'}: <strong className="font-bold text-emerald-700">₹{totalInc.toLocaleString('en-IN')}</strong></span>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ const renderSponsorTransactions = (entries, isPartner = false, isExtra = false) 
               const payout = Number(isExtra ? (entry.extraIncentiveAmount || 0) : (entry.incentiveAmount ?? entry.amount ?? 0));
 
               return (
-                <tr key={entry._id || idx} className={`transition ${isExtra ? 'hover:bg-purple-50/20' : 'hover:bg-teal-50/20'}`}>
+                <tr key={entry._id || idx} className="transition hover:bg-teal-50/20">
                   <td className="p-2.5 font-mono text-slate-700">
                     <div className="font-bold text-slate-800">{rcpNo}</div>
                     <div className="text-[11px] text-slate-400">{rcpDate}</div>
@@ -207,11 +207,11 @@ const renderSponsorTransactions = (entries, isPartner = false, isExtra = false) 
                     ₹{Number(entry.collectionAmount || 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-2.5 text-center">
-                    <span className={`inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] ${isExtra ? 'bg-purple-100/80 text-purple-800 border border-purple-200' : 'bg-teal-100/80 text-teal-800 border border-teal-200'}`}>
+                    <span className="inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] bg-teal-100/80 text-teal-800 border border-teal-200">
                       {rateStr}
                     </span>
                   </td>
-                  <td className={`p-2.5 text-right font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>
+                  <td className="p-2.5 text-right font-bold text-emerald-700">
                     ₹{payout.toLocaleString('en-IN')}
                   </td>
                 </tr>
@@ -370,17 +370,13 @@ const PlotIncentivesPage = () => {
             <div className="flex items-center gap-1.5 font-bold text-slate-800 text-sm">
               <span>{row.closingName}</span>
               {isExtra && (
-                <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded border border-purple-200">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded border border-teal-200">
                   Extra / Reward
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 font-medium">
-              <span className={`font-bold px-2 py-0.5 rounded-md border font-mono text-[11px] ${
-                isExtra
-                  ? 'bg-purple-50 text-purple-800 border-purple-200/60'
-                  : 'bg-teal-50 text-teal-800 border-teal-200/60'
-              }`}>
+              <span className="font-bold px-2 py-0.5 rounded-md border font-mono text-[11px] bg-teal-50 text-teal-800 border-teal-200/60">
                 {row.closingNumber}
               </span>
               <span>•</span>
@@ -398,7 +394,7 @@ const PlotIncentivesPage = () => {
       cell: (row) => (
         <div className="text-xs font-medium text-slate-700 py-1">
           <div className="flex items-center gap-1 font-semibold text-slate-800">
-            <Calendar size={13} className={row.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-600' : 'text-teal-600'} />
+            <Calendar size={13} className="text-teal-600" />
             <span>
               {new Date(row.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
             </span>
@@ -441,7 +437,7 @@ const PlotIncentivesPage = () => {
           : (row.totalIncentiveCommission ?? row.totalCommission ?? 0);
         return (
           <div className="text-right py-1">
-            <div className={`text-sm font-black ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>
+            <div className="text-sm font-black text-emerald-700">
               ₹{Number(displayAmt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[10px] text-slate-500 font-medium">
@@ -542,7 +538,7 @@ const PlotIncentivesPage = () => {
           ) : (
             <button
               onClick={() => handleOpenCreateModal('EXTRA_INCENTIVE')}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-700/20 active:scale-[0.98] transition cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
             >
               <Sparkles size={16} />
               <span>Process Extra Incentive / Reward</span>
@@ -554,7 +550,7 @@ const PlotIncentivesPage = () => {
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-          <div className={`p-3 rounded-xl border ${activeTab === 'EXTRA_INCENTIVE' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-teal-50 text-teal-700 border-teal-100'}`}>
+          <div className="p-3 rounded-xl border bg-teal-50 text-teal-700 border-teal-100">
             <CheckCircle2 size={22} />
           </div>
           <div>
@@ -576,14 +572,14 @@ const PlotIncentivesPage = () => {
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-          <div className={`p-3 rounded-xl border ${activeTab === 'EXTRA_INCENTIVE' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+          <div className="p-3 rounded-xl border bg-emerald-50 text-emerald-700 border-emerald-100">
             <TrendingUp size={22} />
           </div>
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
               {activeTab === 'EXTRA_INCENTIVE' ? 'Total Extra Incentives' : 'Total Target Incentives'}
             </div>
-            <div className={`text-xl font-black mt-0.5 ${activeTab === 'EXTRA_INCENTIVE' ? 'text-purple-700' : 'text-emerald-700'}`}>
+            <div className="text-xl font-black mt-0.5 text-emerald-700">
               ₹{closings.reduce((sum, c) => sum + (c.totalCommission || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </div>
           </div>
@@ -716,14 +712,14 @@ const PlotIncentivesPage = () => {
                   </div>
                 </div>
 
-                <div className={`p-3.5 rounded-xl border ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'bg-purple-50/80 border-purple-200' : 'bg-emerald-50/80 border-emerald-200'}`}>
-                  <div className={`text-[10px] uppercase font-bold ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                <div className="p-3.5 rounded-xl border bg-emerald-50/80 border-emerald-200">
+                  <div className="text-[10px] uppercase font-bold text-emerald-800">
                     Total Net {selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'Extra Reward' : 'Incentive'} Credited
                   </div>
-                  <div className={`text-lg font-black mt-0.5 ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                  <div className="text-lg font-black mt-0.5 text-emerald-700">
                     ₹{Number(selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? (selectedClosingDetails.totalExtraIncentiveCommission ?? selectedClosingDetails.totalCommission ?? 0) : (selectedClosingDetails.totalIncentiveCommission ?? selectedClosingDetails.totalCommission ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
-                  <div className={`text-[11px] font-medium mt-0.5 ${selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                  <div className="text-[11px] font-medium mt-0.5 text-emerald-800">
                     {selectedClosingDetails.closingType === 'EXTRA_INCENTIVE' ? 'Extra reward % & slab gifts only' : 'Variable target incentive part only'}
                   </div>
                 </div>
@@ -742,26 +738,26 @@ const PlotIncentivesPage = () => {
                     <div className="space-y-2">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
                         <div className="flex items-center gap-2">
-                          <span className={`p-1 rounded-md ${isModalExtra ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
                             <Users size={14} />
                           </span>
                           <span className="text-xs font-bold text-slate-800">
                             Business Associates (Direct Plots & RD/FD Collections)
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isModalExtra ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
                             {associateSponsors.length} {associateSponsors.length === 1 ? 'Associate' : 'Associates'}
                           </span>
                         </div>
                         <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
                           <span>Associate Business: <strong className="text-slate-800">₹{totalAssociateBusiness.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                           <span className="text-slate-300">|</span>
-                          <span>Net {isModalExtra ? 'Extra Reward' : 'Incentive'}: <strong className={`font-bold ${isModalExtra ? 'text-purple-700' : 'text-emerald-700'}`}>₹{totalAssociatePayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                          <span>Net {isModalExtra ? 'Extra Reward' : 'Incentive'}: <strong className="font-bold text-emerald-700">₹{totalAssociatePayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                         </div>
                       </div>
 
-                      <div className={`border rounded-xl overflow-x-auto bg-white shadow-2xs ${isModalExtra ? 'border-purple-100' : 'border-emerald-100'}`}>
+                      <div className="border rounded-xl overflow-x-auto bg-white shadow-2xs border-emerald-100">
                         <table className="w-full text-left text-xs border-collapse min-w-[700px]">
-                          <thead className={`sticky top-0 border-b text-slate-700 font-bold select-none ${isModalExtra ? 'bg-purple-50/70 border-purple-100' : 'bg-emerald-50/70 border-emerald-100'}`}>
+                          <thead className="sticky top-0 border-b text-slate-700 font-bold select-none bg-emerald-50/70 border-emerald-100">
                             <tr>
                               <th className="p-3">Associate Details</th>
                               <th className="p-3 text-right">Achieved Period Business</th>
@@ -800,7 +796,7 @@ const PlotIncentivesPage = () => {
                                             title={isExpanded ? 'Collapse receipts' : 'Expand receipts'}
                                           >
                                             {isExpanded ? (
-                                              <ChevronDown size={15} className={isModalExtra ? 'text-purple-700' : 'text-emerald-700'} />
+                                              <ChevronDown size={15} className="text-emerald-700" />
                                             ) : (
                                               <ChevronRight size={15} />
                                             )}
@@ -809,7 +805,7 @@ const PlotIncentivesPage = () => {
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="text-sm">{sp.sponsorName?.replace(/\s*\([^)]*\)/g, '') || sp.sponsorName}</span>
                                               {entriesCount > 0 && (
-                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${isModalExtra ? 'bg-purple-50 text-purple-700 border-purple-200/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'}`}>
+                                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200/60">
                                                   {entriesCount} {entriesCount === 1 ? 'collection' : 'collections'}
                                                 </span>
                                               )}
@@ -836,11 +832,11 @@ const PlotIncentivesPage = () => {
                                         </div>
                                       </td>
                                       <td className="p-3 text-center">
-                                        <span className={`inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs border ${isModalExtra ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'}`}>
+                                        <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs border bg-emerald-100 text-emerald-800 border-emerald-200">
                                           {isModalExtra ? (sp.rateStr || (sp.rewardTitle ? `🎁 ${sp.rewardTitle}` : '0% Extra')) : (sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%'))}
                                         </span>
                                       </td>
-                                      <td className={`p-3 text-right font-black text-sm ${isModalExtra ? 'text-purple-800 bg-purple-50/40' : 'text-emerald-800 bg-emerald-50/40'}`}>
+                                      <td className="p-3 text-right font-black text-sm text-emerald-800 bg-emerald-50/40">
                                         ₹{Number(spPayout).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                     </tr>

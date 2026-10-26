@@ -348,20 +348,20 @@ const PlotIncentiveProcessPage = () => {
       <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200 shadow-inner my-2 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
           <div className="flex items-center gap-2">
-            <span className={`p-1 rounded-md ${isExtra ? 'bg-purple-100 text-purple-800' : 'bg-teal-100 text-teal-800'}`}>
+            <span className="p-1 rounded-md bg-teal-100 text-teal-800">
               <Receipt size={13} />
             </span>
             <span className="text-xs font-bold text-slate-800">
               Period Collection Receipts
             </span>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isExtra ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-teal-50 text-teal-700 border border-teal-200'}`}>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
               {entries.length} {entries.length === 1 ? 'Receipt' : 'Receipts'}
             </span>
           </div>
           <div className="text-[11px] font-medium text-slate-600 flex items-center gap-3">
             <span>Total Business: <strong className="text-slate-800">₹{totalBusiness.toLocaleString('en-IN')}</strong></span>
             <span className="text-slate-300">|</span>
-            <span>{isExtra ? 'Extra Incentive / Reward' : 'Target Incentive'}: <strong className={`font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>₹{totalInc.toLocaleString('en-IN')}</strong></span>
+            <span>{isExtra ? 'Extra Incentive / Reward' : 'Target Incentive'}: <strong className="font-bold text-emerald-700">₹{totalInc.toLocaleString('en-IN')}</strong></span>
           </div>
         </div>
 
@@ -435,13 +435,11 @@ const PlotIncentiveProcessPage = () => {
                       ₹{Number(entry.collectionAmount || 0).toLocaleString('en-IN')}
                     </td>
                     <td className="p-2.5 text-center">
-                      <span className={`inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
-                        isExtra ? 'bg-purple-100/80 text-purple-800' : 'bg-teal-100/80 text-teal-800'
-                      }`}>
+                      <span className="inline-block font-mono font-bold px-2 py-0.5 rounded text-[11px] bg-teal-100/80 text-teal-800 border border-teal-200">
                         {rateStr}
                       </span>
                     </td>
-                    <td className={`p-2.5 text-right font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>
+                    <td className="p-2.5 text-right font-bold text-emerald-700">
                       ₹{Number(itemPayout).toLocaleString('en-IN')}
                     </td>
                   </tr>
@@ -478,11 +476,7 @@ const PlotIncentiveProcessPage = () => {
                   ? `Edit ${isExtra ? 'Extra Incentive' : 'Target Incentive'}: ${editingClosing?.closingNumber || ''}`
                   : `Process New ${isExtra ? 'Extra Incentive / Reward' : 'Target Incentive'} Closing`}
               </h1>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                isExtra
-                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                  : 'bg-teal-50 text-teal-700 border-teal-200'
-              }`}>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border bg-teal-50 text-teal-700 border-teal-200">
                 {isExtra ? '🎁 Extra Incentive & Rewards' : '🎯 Target Incentive (Periodic)'}
               </span>
             </div>
@@ -506,9 +500,7 @@ const PlotIncentiveProcessPage = () => {
             type="button"
             onClick={handleSubmit}
             disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0 || Boolean(previewData?.overlappingClosing)}
-            className={`px-5 py-2 text-xs font-bold text-white rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
-              isExtra ? 'bg-purple-800 hover:bg-purple-900' : 'bg-teal-800 hover:bg-teal-900'
-            }`}
+            className="px-5 py-2 text-xs font-bold text-white rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-teal-800 hover:bg-teal-900"
           >
             {submitting ? (
               <>
@@ -528,7 +520,7 @@ const PlotIncentiveProcessPage = () => {
       {/* Period Configuration Form */}
       <form onSubmit={handleSubmit} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-          <Calendar size={16} className={isExtra ? 'text-purple-700' : 'text-teal-700'} />
+          <Calendar size={16} className="text-teal-700" />
           <h2 className="text-sm font-bold text-slate-800">
             {isExtra ? 'Extra Incentive & Reward Evaluation Parameters' : 'Target Incentive Evaluation Parameters'}
           </h2>
@@ -580,9 +572,7 @@ const PlotIncentiveProcessPage = () => {
               type="button"
               onClick={handleFetchBreakdown}
               disabled={previewLoading || !formData.startDate || !formData.endDate}
-              className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer h-[34px] ${
-                isExtra ? 'bg-purple-700 hover:bg-purple-800' : 'bg-teal-700 hover:bg-teal-800'
-              }`}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer h-[34px] bg-teal-700 hover:bg-teal-800"
               title="Fetch period collections and calculate progressive slabs"
             >
               {previewLoading ? (
@@ -618,7 +608,7 @@ const PlotIncentiveProcessPage = () => {
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className={isExtra ? 'text-purple-700' : 'text-teal-700'} />
+            <Sparkles size={16} className="text-teal-700" />
             <h2 className="text-sm font-bold text-slate-800">
               Live {isExtra ? 'Extra Incentive & Reward' : 'Target Incentive'} Breakdown Preview
             </h2>
@@ -684,8 +674,8 @@ const PlotIncentiveProcessPage = () => {
         )}
 
         {previewLoading ? (
-          <div className={`p-12 text-center flex flex-col items-center justify-center gap-3 ${isExtra ? 'text-purple-800' : 'text-teal-800'}`}>
-            <Loader2 size={28} className={`animate-spin ${isExtra ? 'text-purple-600' : 'text-teal-600'}`} />
+          <div className="p-12 text-center flex flex-col items-center justify-center gap-3 text-teal-800">
+            <Loader2 size={28} className="animate-spin text-teal-600" />
             <p className="text-xs font-semibold">
               Calculating unclosed collections and progressive {isExtra ? 'extra incentive / reward' : 'target incentive'} slabs...
             </p>
@@ -720,27 +710,25 @@ const PlotIncentiveProcessPage = () => {
                 </div>
               </div>
 
-              <div className={`p-4 rounded-xl border ${isExtra ? 'bg-purple-50/80 border-purple-200' : 'bg-emerald-50/80 border-emerald-200'}`}>
+              <div className="p-4 rounded-xl border bg-emerald-50/80 border-emerald-200">
                 <div className="flex items-center justify-between">
-                  <div className={`text-[10px] uppercase font-bold ${isExtra ? 'text-purple-800' : 'text-emerald-800'}`}>
+                  <div className="text-[10px] uppercase font-bold text-emerald-800">
                     Total Net {isExtra ? 'Extra Reward' : 'Incentive'} Payable
                   </div>
-                  <TrendingUp size={16} className={isExtra ? 'text-purple-700' : 'text-emerald-700'} />
+                  <TrendingUp size={16} className="text-emerald-700" />
                 </div>
-                <div className={`text-xl font-black mt-1 ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>
+                <div className="text-xl font-black mt-1 text-emerald-700">
                   ₹{Number(isExtra ? (previewData.totalExtraIncentiveCommission ?? previewData.totalCommission ?? 0) : (previewData.totalIncentiveCommission ?? previewData.totalCommission ?? 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
-                <div className={`text-[11px] font-medium mt-0.5 ${isExtra ? 'text-purple-800' : 'text-emerald-800'}`}>
+                <div className="text-[11px] font-medium mt-0.5 text-emerald-800">
                   {isExtra ? 'Extra column reward % & gifts only' : 'Variable target incentive part only'}
                 </div>
               </div>
             </div>
 
             {/* Note banner explaining closing mechanics */}
-            <div className={`p-3 border rounded-xl text-xs flex items-start gap-2 ${
-              isExtra ? 'bg-purple-50/70 border-purple-200 text-purple-900' : 'bg-teal-50/70 border-teal-200 text-teal-900'
-            }`}>
-              <Sparkles size={16} className={`shrink-0 mt-0.5 ${isExtra ? 'text-purple-700' : 'text-teal-700'}`} />
+            <div className="p-3 border rounded-xl text-xs flex items-start gap-2 bg-teal-50/70 border-teal-200 text-teal-900">
+              <Sparkles size={16} className="shrink-0 mt-0.5 text-teal-700" />
               <div>
                 <span className="font-bold">{isExtra ? 'Extra Incentive & Rewards Closing: ' : 'Target Incentive Payout: '}</span>
                 <span>
@@ -768,28 +756,26 @@ const PlotIncentiveProcessPage = () => {
                     <div className="space-y-2">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
                         <div className="flex items-center gap-2">
-                          <span className={`p-1 rounded-md ${isExtra ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          <span className="p-1 rounded-md bg-emerald-100 text-emerald-800">
                             <Users size={14} />
                           </span>
                           <span className="text-sm font-bold text-slate-800">
                             Business Associates (Direct Plots & RD/FD Collections)
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isExtra ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
                             {associateSponsors.length} {associateSponsors.length === 1 ? 'Associate' : 'Associates'}
                           </span>
                         </div>
                         <div className="text-xs font-medium text-slate-600 flex items-center gap-3">
                           <span>Associate Business: <strong className="text-slate-800">₹{totalAssociateBusiness.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                           <span className="text-slate-300">|</span>
-                          <span>Net {isExtra ? 'Extra Reward' : 'Incentive'}: <strong className={`font-bold ${isExtra ? 'text-purple-700' : 'text-emerald-700'}`}>₹{totalAssociatePayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
+                          <span>Net {isExtra ? 'Extra Reward' : 'Incentive'}: <strong className="font-bold text-emerald-700">₹{totalAssociatePayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></span>
                         </div>
                       </div>
 
-                      <div className={`border rounded-xl overflow-x-auto bg-white shadow-2xs ${isExtra ? 'border-purple-100' : 'border-emerald-100'}`}>
+                      <div className="border rounded-xl overflow-x-auto bg-white shadow-2xs border-emerald-100">
                         <table className="w-full text-left text-xs border-collapse min-w-[700px]">
-                          <thead className={`border-b text-slate-700 font-bold select-none ${isExtra ? 'bg-purple-50/70 border-purple-100' : 'bg-emerald-50/70 border-emerald-100'}`}>
+                          <thead className="border-b text-slate-700 font-bold select-none bg-emerald-50/70 border-emerald-100">
                             <tr>
                               <th className="p-3">Associate Details</th>
                               <th className="p-3 text-right">Achieved Period Business</th>
@@ -828,7 +814,7 @@ const PlotIncentiveProcessPage = () => {
                                             title={isExpanded ? 'Collapse receipts' : 'Expand receipts'}
                                           >
                                             {isExpanded ? (
-                                              <ChevronDown size={15} className={isExtra ? 'text-purple-700' : 'text-emerald-700'} />
+                                              <ChevronDown size={15} className="text-emerald-700" />
                                             ) : (
                                               <ChevronRight size={15} />
                                             )}
@@ -837,9 +823,7 @@ const PlotIncentiveProcessPage = () => {
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="text-sm">{sp.sponsorName?.replace(/\s*\([^)]*\)/g, '') || sp.sponsorName}</span>
                                               {entriesCount > 0 && (
-                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                                  isExtra ? 'bg-purple-50 text-purple-700 border-purple-200/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
-                                                }`}>
+                                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200/60">
                                                   {entriesCount} {entriesCount === 1 ? 'collection' : 'collections'}
                                                 </span>
                                               )}
@@ -866,13 +850,11 @@ const PlotIncentiveProcessPage = () => {
                                         </div>
                                       </td>
                                       <td className="p-3 text-center">
-                                        <span className={`inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs border ${
-                                          isExtra ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                        }`}>
+                                        <span className="inline-block font-mono font-bold px-2.5 py-0.5 rounded text-xs border bg-emerald-100 text-emerald-800 border-emerald-200">
                                           {isExtra ? (sp.rateStr || (sp.rewardTitle ? `🎁 ${sp.rewardTitle}` : '0% Extra')) : (sp.effectiveIncPct !== undefined ? `+${sp.effectiveIncPct}% Inc.` : (sp.rateStr || '0%'))}
                                         </span>
                                       </td>
-                                      <td className={`p-3 text-right font-black text-sm ${isExtra ? 'text-purple-800 bg-purple-50/40' : 'text-emerald-800 bg-emerald-50/40'}`}>
+                                      <td className="p-3 text-right font-black text-sm text-emerald-800 bg-emerald-50/40">
                                         ₹{Number(spPayout).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
                                     </tr>
@@ -1190,9 +1172,7 @@ const PlotIncentiveProcessPage = () => {
             type="button"
             onClick={handleSubmit}
             disabled={submitting || previewLoading || !previewData || previewData.transactionCount === 0 || Boolean(previewData?.overlappingClosing)}
-            className={`px-6 py-2 text-xs font-bold text-white rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
-              isExtra ? 'bg-purple-800 hover:bg-purple-900' : 'bg-teal-800 hover:bg-teal-900'
-            }`}
+            className="px-6 py-2 text-xs font-bold text-white rounded-xl transition flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-teal-800 hover:bg-teal-900"
           >
             {submitting ? (
               <>

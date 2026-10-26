@@ -316,9 +316,29 @@ const plotBookingSchema = new mongoose.Schema(
         remarks: { type: String, default: '' },
         voucherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Voucher', default: null },
         voucherNumber: { type: String, default: '' },
+        paymentLedgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger', default: null },
+        paymentLedgerName: { type: String, default: '' },
+        bankName: { type: String, default: '' },
+        accountNumber: { type: String, default: '' },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       },
     ],
+    commissionReversed: {
+      type: Boolean,
+      default: false,
+    },
+    commissionReversalDate: {
+      type: Date,
+      default: null,
+    },
+    commissionReversalCount: {
+      type: Number,
+      default: 0,
+    },
+    commissionReversalAmount: {
+      type: Number,
+      default: 0,
+    },
     appliedPremiumHeads: [
       {
         name: { type: String, required: true },

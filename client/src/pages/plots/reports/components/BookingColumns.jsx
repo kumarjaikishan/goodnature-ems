@@ -207,14 +207,16 @@ export const getBookingColumns = ({
             <BookOpen size={14} />
           </button>
 
-          {/* 3. Settlement & Interest Calculator */}
-          <button
-            onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${b._id}&bookingNumber=${b.bookingNumber}`)}
-            title="Plot Refund, Return & Settlement Calculator"
-            className="w-7 h-7 flex items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg transition cursor-pointer border border-teal-200 shadow-2xs hover:border-teal-400"
-          >
-            <Calculator size={14} />
-          </button>
+          {/* 3. Settlement & Interest Calculator (Hidden when cancelled) */}
+          {b.status !== 'CANCELLED' && (
+            <button
+              onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${b._id}&bookingNumber=${b.bookingNumber}`)}
+              title="Plot Refund, Return & Settlement Calculator"
+              className="w-7 h-7 flex items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg transition cursor-pointer border border-teal-200 shadow-2xs hover:border-teal-400"
+            >
+              <Calculator size={14} />
+            </button>
+          )}
 
           {/* 4. Print Booking Receipt (or Certificate) */}
           {b.receiptId ? (
@@ -290,8 +292,8 @@ export const getBookingColumns = ({
             );
           })()}
 
-          {/* 6. Edit Booking Contract */}
-          {canUpdate && (
+          {/* 6. Edit Booking Contract (Hidden when cancelled) */}
+          {canUpdate && b.status !== 'CANCELLED' && (
             <button
               onClick={() => {
                 if (handleEditClick) {
@@ -308,7 +310,7 @@ export const getBookingColumns = ({
           )}
 
           {/* 7. View Revision & Restructuring History */}
-          {canUpdate && (
+          {canUpdate && b.status !== 'CANCELLED' && (
             <button
               onClick={() => openRevisionsModal(b)}
               title="View Contract Revision History & Audits"

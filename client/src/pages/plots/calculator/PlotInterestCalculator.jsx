@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   ArrowLeft,
   IndianRupee,
-  Clock,
   Sparkles,
   Loader2,
   Percent,
@@ -24,8 +23,6 @@ import {
   XCircle,
   CheckCircle2,
   BookOpen,
-  DollarSign,
-  Layers,
 } from 'lucide-react';
 import Modalbox from '../../../components/custommodal/Modalbox';
 
@@ -67,6 +64,21 @@ const PlotInterestCalculator = () => {
   const [initialPayAmount, setInitialPayAmount] = useState(0);
   const [initialPayMode, setInitialPayMode] = useState('BANK_TRANSFER');
   const [initialPayRef, setInitialPayRef] = useState('');
+  const [initialPaymentLedgerId, setInitialPaymentLedgerId] = useState('');
+  const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
+  const [myCashLedger, setMyCashLedger] = useState(null);
+
+  // Commission Reversal State
+  const [reverseCommission, setReverseCommission] = useState(true);
+  const [showCommBreakdown, setShowCommBreakdown] = useState(true);
+  const [bookingCommissions, setBookingCommissions] = useState({
+    commissions: [],
+    totalActiveAmount: 0,
+    totalReversedAmount: 0,
+    totalAmount: 0,
+    activeCount: 0,
+    reversedCount: 0,
+  });
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -242,6 +254,22 @@ const PlotInterestCalculator = () => {
           : { bookingId: bk._id, bookingNumber: bk.bookingNumber }
       );
 
+      // Fetch commissions distributed for this booking
+      try {
+        const commEndpoint = isProduct
+          ? `/plots/product-bookings/${resolvedId}/commissions`
+          : `/plots/bookings/${resolvedId}/commissions`;
+        const commRes = await api.get(commEndpoint);
+        if (commRes.data?.data) {
+          setBookingCommissions(commRes.data.data);
+          if (commRes.data.data.commissions?.length > 0) {
+            setShowCommBreakdown(true);
+          }
+        }
+      } catch (commErr) {
+        console.warn('Could not load commissions for booking:', commErr.message);
+      }
+
       // If booking is already cancelled, load its configured refund settlement parameters
       if (bk?.status === 'CANCELLED') {
         if (
@@ -296,7 +324,7 @@ const PlotInterestCalculator = () => {
 
             if (slabRate !== undefined && slabRate !== null && Number(slabRate) > 0) {
               resolvedRate = Number(slabRate);
-              schemeLabel = `${tenure}M • ${isOneTime ? 'One-Time (F.D.)' : 'EMI (R.D.)'}`;
+              schemeLabel = `${tenure}M • ${isOneTime ? 'One-Time' : 'EMI'}`;
             }
           }
 
@@ -531,6 +559,46 @@ const PlotInterestCalculator = () => {
     window.print();
   };
 
+  const handleOpenCancelModal = async () => {
+    try {
+      const [treasuryRes, myCashRes] = await Promise.all([
+        api.get('/ledger/treasury?intent=payment').catch(() => ({ data: {} })),
+        api.get('/ledger/my-cash-account').catch(() => ({ data: null })),
+      ]);
+      const tData = treasuryRes.data?.data || treasuryRes.data || {};
+      const banks = tData.bankLedgers || tData.bankAccounts || [];
+      const cash = tData.cashLedgers || tData.cashAccounts || [];
+      setTreasuryLedgers({ bankLedgers: banks, cashLedgers: cash });
+      const myCash = myCashRes.data?.data || myCashRes.data || null;
+      setMyCashLedger(myCash);
+      if (initialPayMode === 'CASH') {
+        setInitialPaymentLedgerId(myCash?._id || '');
+      } else if (banks.length > 0) {
+        setInitialPaymentLedgerId(banks[0]._id);
+      }
+    } catch (e) {
+      console.error('Error fetching treasury:', e);
+    }
+    setShowCancelModal(true);
+  };
+
+  const handleInitialModeChange = (newMode) => {
+    setInitialPayMode(newMode);
+    if (newMode === 'CASH') {
+      setInitialPaymentLedgerId(myCashLedger?._id || '');
+    } else {
+      const banks = treasuryLedgers.bankLedgers || [];
+      setInitialPaymentLedgerId(banks[0]?._id || '');
+    }
+  };
+
+  const selectedTreasuryLedger = useMemo(() => {
+    if (initialPayMode === 'CASH') {
+      return myCashLedger;
+    }
+    return (treasuryLedgers.bankLedgers || []).find((b) => b._id === initialPaymentLedgerId);
+  }, [initialPayMode, initialPaymentLedgerId, myCashLedger, treasuryLedgers.bankLedgers]);
+
   // ──────────────── SUBMIT CANCELLATION & SETTLEMENT ACTION ────────────────
   const handleConfirmCancellation = async (e) => {
     if (e) e.preventDefault();
@@ -555,7 +623,9 @@ const PlotInterestCalculator = () => {
             : `Settled with ${annualRate}% Interest Return`),
         initialPaymentAmount: initialPayNow ? (Number(initialPayAmount) || 0) : 0,
         paymentMode: initialPayMode,
+        paymentLedgerId: initialPayNow ? (initialPaymentLedgerId || null) : null,
         transactionReference: initialPayRef,
+        reverseCommission: Boolean(reverseCommission),
       };
 
       const endpoint = isProduct
@@ -571,7 +641,7 @@ const PlotInterestCalculator = () => {
       setShowCancelModal(false);
 
       if (isProduct) {
-        navigate('/dashboard/plots/products?tab=sales');
+        navigate('/dashboard/plots/product-sales');
       } else {
         navigate(`/dashboard/plots/booking/${selectedBooking._id}/ledger`);
       }
@@ -602,9 +672,9 @@ const PlotInterestCalculator = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <button
-              onClick={() => navigate(isProduct ? '/dashboard/plots/products?tab=sales' : '/dashboard/plots/booking')}
+              onClick={() => navigate(isProduct ? '/dashboard/plots/product-sales' : '/dashboard/plots/booking')}
               className="px-3.5 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             >
               <ArrowLeft size={15} /> {isProduct ? 'Product Sales & Bookings' : 'Bookings'}
@@ -861,6 +931,36 @@ const PlotInterestCalculator = () => {
               />
             </div>
           </div>
+
+          {/* Active Contract Commission Reversal Banner & Direct Cancel CTA */}
+          {selectedBooking && selectedBooking.status !== 'CANCELLED' && (
+            <div className="p-3.5 rounded-xl border bg-gradient-to-r from-amber-50/90 via-white to-rose-50/80 border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                  <RotateCcw size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900">
+                      Commission Reversal on Cancellation:
+                    </span>
+                    {bookingCommissions.totalActiveAmount > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px] border border-amber-300">
+                        ₹{bookingCommissions.totalActiveAmount.toLocaleString('en-IN')} Active ({bookingCommissions.activeCount || bookingCommissions.commissions?.length || 0} Distributions)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold text-[10px]">
+                        No active commissions
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Review the exact debit breakdown for Business Associate, Partner, and Branch ledgers below before confirming cancellation.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1024,6 +1124,13 @@ const PlotInterestCalculator = () => {
               </p>
               <p className="text-xs text-slate-600">
                 Remaining Balance: <span className="font-bold text-amber-700">₹{remainingDue.toLocaleString('en-IN')}</span>
+              </p>
+              <p className="text-xs text-slate-600">
+                Commissions: <span className="font-bold text-slate-800">
+                  {selectedBooking.status === 'CANCELLED'
+                    ? (selectedBooking.commissionReversed ? `Reversed (₹${Number(selectedBooking.commissionReversalAmount || 0).toLocaleString('en-IN')})` : 'Not Reversed')
+                    : `₹${bookingCommissions.totalActiveAmount.toLocaleString('en-IN')} Distributed`}
+                </span>
               </p>
             </div>
           </div>
@@ -1310,7 +1417,7 @@ const PlotInterestCalculator = () => {
 
               <button
                 type="button"
-                onClick={() => setShowCancelModal(true)}
+                onClick={handleOpenCancelModal}
                 className="px-5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer shrink-0"
               >
                 <XCircle size={16} /> Cancel & Settle Booking
@@ -1458,6 +1565,112 @@ const PlotInterestCalculator = () => {
             />
           </div>
 
+          {/* Commission Reversal Configuration */}
+          <div className={`p-3.5 rounded-2xl border transition-all ${
+            reverseCommission ? 'bg-amber-50/70 border-amber-200' : 'bg-slate-50 border-slate-200'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none flex-1">
+                <input
+                  type="checkbox"
+                  checked={reverseCommission}
+                  onChange={(e) => setReverseCommission(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-slate-900 text-xs">
+                      Reverse Distributed Commissions (BA, Partner &amp; Branch)
+                    </span>
+                    {bookingCommissions.totalActiveAmount > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                        ₹{bookingCommissions.totalActiveAmount.toLocaleString('en-IN')} to debit
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    {reverseCommission ? (
+                      <>
+                        Debits the exact commission amount previously credited to Associate, Partner &amp; Branch ledgers for each collection receipt with matching reversal narration.
+                      </>
+                    ) : (
+                      <span className="text-rose-600 font-semibold">
+                        ⚠️ Commissions will NOT be reversed. Associate &amp; Partner ledgers will remain untouched and retain credited commissions.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </label>
+
+              {bookingCommissions.commissions?.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowCommBreakdown(!showCommBreakdown)}
+                  className="text-[11px] font-bold text-teal-700 hover:text-teal-900 underline whitespace-nowrap cursor-pointer shrink-0 pt-0.5"
+                >
+                  {showCommBreakdown ? 'Hide Details' : `View (${bookingCommissions.commissions.length})`}
+                </button>
+              )}
+            </div>
+
+            {/* Commission Distribution Breakdown Preview */}
+            {showCommBreakdown && bookingCommissions.commissions?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-amber-200/80 space-y-2 max-h-52 overflow-y-auto pr-1">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span>Commission Distribution Breakdown</span>
+                  <span>{bookingCommissions.activeCount || 0} active • {bookingCommissions.reversedCount || 0} reversed</span>
+                </div>
+                {bookingCommissions.commissions.map((c, idx) => {
+                  const amt = Number(c.fixedAmount || c.amount || 0);
+                  const recipientName = c.sponsorId?.name || (c.branchId ? `${c.branchId.name} Branch` : 'N/A');
+                  const recipientCode = c.sponsorId?.sponsorCode || c.branchId?.branchCode || '';
+                  const roleName = c.commissionRole === 'BRANCH_OVERRIDE'
+                    ? 'Branch Override'
+                    : c.commissionRole === 'DEVELOPER_OVERRIDE'
+                    ? 'Partner Override'
+                    : c.commissionRole === 'DIRECT_DEVELOPER'
+                    ? 'Direct Partner'
+                    : 'Business Associate';
+                  const isRev = c.status === 'reversed';
+
+                  return (
+                    <div
+                      key={c._id || idx}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border text-[11px] transition ${
+                        isRev
+                          ? 'bg-slate-100/80 border-slate-200 opacity-60'
+                          : 'bg-white border-amber-100 shadow-2xs'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                          <span>{recipientName}</span>
+                          {recipientCode && (
+                            <span className="font-mono text-[10px] text-slate-500">({recipientCode})</span>
+                          )}
+                          <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-slate-100 text-slate-700">
+                            {roleName}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Receipt #{c.receiptNumber || c.receiptId?.receiptNumber || 'N/A'} • {c.commissionPercent || c.fixedPercent}% rate on ₹{Number(c.collectionAmount || c.plotValue || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <span className={`font-mono font-bold block ${isRev ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                          ₹{amt.toLocaleString('en-IN')}
+                        </span>
+                        <span className={`text-[9px] font-bold ${isRev ? 'text-slate-400' : (reverseCommission ? 'text-amber-800' : 'text-slate-500')}`}>
+                          {isRev ? 'Already Reversed' : (reverseCommission ? 'Will Debit Ledger' : 'Keep Credited')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Optional Initial Payment Toggle */}
           <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1478,32 +1691,90 @@ const PlotInterestCalculator = () => {
             </label>
 
             {initialPayNow && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Initial Amount (₹)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={netSettlementPayable}
-                    value={initialPayAmount}
-                    onChange={(e) => setInitialPayAmount(e.target.value)}
-                    className="w-full h-9 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold outline-none"
-                    required
-                  />
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Initial Amount (₹) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={netSettlementPayable}
+                      value={initialPayAmount}
+                      onChange={(e) => setInitialPayAmount(e.target.value)}
+                      className="w-full h-9 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Payment Mode *</label>
+                    <select
+                      value={initialPayMode}
+                      onChange={(e) => handleInitialModeChange(e.target.value)}
+                      className="w-full h-9 px-2 bg-white border border-slate-300 rounded-lg text-xs outline-none font-semibold"
+                    >
+                      <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS/IMPS)</option>
+                      <option value="CHEQUE">Cheque / Demand Draft</option>
+                      <option value="UPI">UPI Transfer</option>
+                      <option value="CASH">Cash</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Payment Mode</label>
-                  <select
-                    value={initialPayMode}
-                    onChange={(e) => setInitialPayMode(e.target.value)}
-                    className="w-full h-9 px-2 bg-white border border-slate-300 rounded-lg text-xs outline-none font-semibold"
-                  >
-                    <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS)</option>
-                    <option value="CASH">Cash</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="UPI">UPI</option>
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {initialPayMode === 'CASH' ? 'Source Cash Account' : 'Debit From Corporate Bank Account *'}
+                    </label>
+                    {initialPayMode === 'CASH' ? (
+                      <div className="w-full h-9 px-2.5 bg-slate-100 border border-slate-200 rounded-lg text-xs flex items-center justify-between font-semibold text-slate-700">
+                        <span>{myCashLedger?.name || 'My Cash Account'}</span>
+                        <span className="font-mono text-[11px] text-emerald-700">
+                          ₹{Number(myCashLedger?.availableBalance ?? myCashLedger?.netBalance ?? 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    ) : (
+                      <select
+                        value={initialPaymentLedgerId}
+                        onChange={(e) => setInitialPaymentLedgerId(e.target.value)}
+                        className="w-full h-9 px-2 bg-white border border-slate-300 rounded-lg text-xs outline-none font-semibold"
+                      >
+                        {treasuryLedgers.bankLedgers?.length === 0 ? (
+                          <option value="">No authorized company bank accounts found</option>
+                        ) : (
+                          treasuryLedgers.bankLedgers.map((bank) => (
+                            <option key={bank._id} value={bank._id}>
+                              {[bank.bankName, bank.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ')}
+                              {bank.accountNumber ? ` (A/C: ${bank.accountNumber})` : ''} - ₹{(bank.availableBalance ?? bank.netBalance ?? 0).toLocaleString('en-IN')}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {initialPayMode === 'CHEQUE' ? 'Cheque / DD Number *' : 'Transaction Reference / UTR #'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={initialPayMode === 'CHEQUE' ? 'e.g. CHQ-904128' : 'e.g. UTR / Ref Number'}
+                      value={initialPayRef}
+                      onChange={(e) => setInitialPayRef(e.target.value)}
+                      className="w-full h-9 px-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono outline-none"
+                    />
+                  </div>
                 </div>
+
+                {/* Live Balance display */}
+                {selectedTreasuryLedger && (
+                  <div className="p-2 bg-slate-100/70 border border-slate-200 rounded-lg flex items-center justify-between text-[11px]">
+                    <span className="text-slate-600">Available in Selected Account:</span>
+                    <span className={`font-mono font-bold ${Number(initialPayAmount) > (selectedTreasuryLedger?.availableBalance ?? selectedTreasuryLedger?.netBalance ?? 0) ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      ₹{Number(selectedTreasuryLedger?.availableBalance ?? selectedTreasuryLedger?.netBalance ?? 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             {!initialPayNow && (

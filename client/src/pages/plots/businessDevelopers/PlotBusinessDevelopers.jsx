@@ -525,83 +525,90 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Actions',
-      width: '315px',
+      width: '180px',
       cell: (row) => (
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => handleOpenViewModal(row)}
-            className="p-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition cursor-pointer"
-            title="View Developer Profile Details"
-          >
-            <Eye size={15} />
-          </button>
-          <button
-            onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/network`)}
-            className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-lg transition cursor-pointer"
-            title="View Associates, Customers & Booking Dues Network"
-          >
-            <Users size={15} />
-          </button>
-          <button
-            onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/business-report`)}
-            className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg transition cursor-pointer"
-            title="View Date-Wise Business & Commission Report"
-          >
-            <BarChart3 size={15} />
-          </button>
-          <button
-            onClick={() => {
-              const targetLedgerId = row.ledgerId || row._id;
-              const nameParam = encodeURIComponent(row.name || 'Business Developer');
-              const empIdParam = encodeURIComponent(row.sponsorCode || row.customerId || '');
-              const imgParam = row.profileImage ? `&profileimage=${encodeURIComponent(row.profileImage)}` : '';
-              navigate(`/dashboard/ledger/${targetLedgerId}?name=${nameParam}&empid=${empIdParam}&ledgertype=sponsor${imgParam}`);
-            }}
-            className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg transition cursor-pointer"
-            title="View Universal Account Ledger"
-          >
-            <BookOpen size={15} />
-          </button>
-          {canUpdate && (
+        <div className="flex flex-col gap-1.5 py-1">
+          {/* Row 1: Profile, Network, Business Report, Ledger */}
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={() => handleOpenResetPassword(row)}
-              className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
-              title="Reset Login Password"
+              onClick={() => handleOpenViewModal(row)}
+              className="p-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition cursor-pointer"
+              title="View Developer Profile Details"
             >
-              <KeyRound size={15} />
+              <Eye size={15} />
             </button>
-          )}
-          {canUpdate && (
             <button
-              onClick={() => handleOpenModal(row)}
-              className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
-              title="Edit Developer Information"
+              onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/network`)}
+              className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-lg transition cursor-pointer"
+              title="View Associates, Customers & Booking Dues Network"
             >
-              <Pencil size={15} />
+              <Users size={15} />
             </button>
-          )}
-          {canUpdate && (
             <button
-              onClick={() => handleToggleBlock(row)}
-              className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                row.isBlocked
-                  ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
-                  : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
-              }`}
-              title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
+              onClick={() => navigate(`/dashboard/plots/business-developer/${row._id}/business-report`)}
+              className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg transition cursor-pointer"
+              title="View Date-Wise Business & Commission Report"
             >
-              {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
+              <BarChart3 size={15} />
             </button>
-          )}
-          {canDelete && (
             <button
-              onClick={() => handleDeleteDeveloper(row)}
-              className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
-              title="Delete Business Developer"
+              onClick={() => {
+                const targetLedgerId = row.ledgerId || row._id;
+                const nameParam = encodeURIComponent(row.name || 'Business Developer');
+                const empIdParam = encodeURIComponent(row.sponsorCode || row.customerId || '');
+                const imgParam = row.profileImage ? `&profileimage=${encodeURIComponent(row.profileImage)}` : '';
+                navigate(`/dashboard/ledger/${targetLedgerId}?name=${nameParam}&empid=${empIdParam}&ledgertype=sponsor${imgParam}`);
+              }}
+              className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg transition cursor-pointer"
+              title="View Universal Account Ledger"
             >
-              <Trash2 size={15} />
+              <BookOpen size={15} />
             </button>
-          )}
+          </div>
+
+          {/* Row 2: Reset Password, Edit, Block/Unblock, Delete */}
+          <div className="flex items-center gap-1.5">
+            {canUpdate && (
+              <button
+                onClick={() => handleOpenResetPassword(row)}
+                className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
+                title="Reset Login Password"
+              >
+                <KeyRound size={15} />
+              </button>
+            )}
+            {canUpdate && (
+              <button
+                onClick={() => handleOpenModal(row)}
+                className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
+                title="Edit Developer Information"
+              >
+                <Pencil size={15} />
+              </button>
+            )}
+            {canUpdate && (
+              <button
+                onClick={() => handleToggleBlock(row)}
+                className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                  row.isBlocked
+                    ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
+                    : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
+                }`}
+                title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
+              >
+                {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => handleDeleteDeveloper(row)}
+                className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
+                title="Delete Business Developer"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+          </div>
         </div>
       ),
     },

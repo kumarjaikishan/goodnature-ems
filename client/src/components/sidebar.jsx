@@ -189,6 +189,7 @@ const Sidebar = () => {
             { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: "plot_sponsor" },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
             { menu: "Bookings", link: "/dashboard/plots/booking", roles: OPERATIONAL_ROLES, resource: "plot_booking" },
+            { menu: "Product Sales", link: "/dashboard/plots/product-sales", roles: OPERATIONAL_ROLES, resource: ["plot_booking", "plot_inventory"] },
             { menu: "Incentive", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_sponsor" },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
           ],
@@ -460,7 +461,12 @@ const Sidebar = () => {
                           <div className="p-1 space-y-0.5">
                             {item.children.map((child) => {
                               if (!child.roles.includes(role)) return null;
-                              if (child.resource && !hasPermission(profile, child.resource, 1)) return null;
+                              if (child.resource) {
+                                const allowed = Array.isArray(child.resource)
+                                  ? child.resource.some(r => hasPermission(profile, r, 1))
+                                  : hasPermission(profile, child.resource, 1);
+                                if (!allowed) return null;
+                              }
                               const childPending = getChildPendingCount(child.link);
                               return (
                                 <NavLink

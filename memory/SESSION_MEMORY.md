@@ -2,6 +2,132 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Plot Incentives & Extra Incentive Period Closing: Brand Theme Alignment [COMPLETED]**:
+  - **Requirement**:
+    - Remove all purple-based colors from `/dashboard/plots/incentives?tab=extra` and `/dashboard/plots/incentives/new?type=EXTRA_INCENTIVE`.
+    - Align both pages with the project's standard Good Nature deep teal (`teal-800`, `teal-700`) and emerald (`emerald-700`, `emerald-800`, `emerald-50`) palette.
+  - **Changes**:
+    - [PlotIncentivesPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/incentives/PlotIncentivesPage.jsx): Replaced purple tabs, period summary badges, table headers, and status badges with emerald/teal classes.
+    - [PlotIncentiveProcessPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/incentives/PlotIncentiveProcessPage.jsx): Replaced purple headers, parameter buttons, calendar icons, breakdown preview cards, associate table headers & rows, collection badges, and batch submission buttons with project teal and emerald styles.
+    - Verified zero remaining `purple` color classes in the incentives directory.
+
+- **Employee Performance Dropdown: Same-Name Disambiguation Fix [COMPLETED]**:
+  - **Issue**:
+    - On `/dashboard/performance`, when multiple employees shared the same name (e.g., "Deepak Kumar (Director)" and "Deepak Kumar (Customer Support)"), both entries were highlighted as selected simultaneously.
+    - Cause: The dropdown option `value` was generated as `toSlug(empName)` (e.g. `deepak-kumar`) instead of a unique ID. Since both options had the identical string value `deepak-kumar`, `SearchableSelect` marked both as selected.
+  - **Fix**:
+    - **Frontend ([AttenPerformance.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/attandence/AttenPerformance.jsx))**:
+      - `employeeOptions` now assigns each option a unique `value` using `emp.empId || emp.userid?._id || emp._id`.
+      - `matchedEmployeeInUrl` checks exact `rawId`, `empDocId`, and `empId` before falling back to slug matching for backward compatibility.
+      - `selectedEmployeeValue` maps strictly to the unique ID of the single matched employee so only that employee is highlighted.
+      - `fetchPerformanceData` passes the resolved exact unique employee ID to the backend.
+    - **Navigation ([employeehelper.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/employee/employeehelper.jsx), [Employe.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/employee/Employe.jsx))**:
+      - `onViewAttendance` now passes `row.userid?._id || row._id` directly instead of `row.rawname`.
+    - **Backend ([attandence.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/attandence.js))**:
+      - Updated `employeeAttandence` to search by `empId` before falling back to regex name matching.
+
+- **Plot Management Submenu: Product Sales Dedicated Page & Clean Separation [COMPLETED]**:
+  - **Requirement**:
+    - Completely separate the Product Sales & Bookings functionality from the Plot Products catalog page.
+    - Remove the 2nd tab ("Product Sales & Bookings") entirely from `/dashboard/plots/products`.
+    - Place the dedicated Product Sales functionality exclusively under `/dashboard/plots/product-sales` with its own submenu item "Product Sales" directly below "Bookings" in the sidebar.
+  - **Implementation**:
+    - **Standalone Page ([ProductSalesPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/ProductSalesPage.jsx))**:
+      - Created a dedicated page component specifically rendering `ProductSalesTab` and `ProductCustomerLedgerModal`.
+      - Renders clean top header banner with ShoppingCart icon, total booking counts, and full sales/booking actions (New Sale, View Booking, Collection, Passbook Ledger, Allotment Certificate, Settle/Cancel).
+    - **Plot Products Page Streamlined ([PlotProductsPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/PlotProductsPage.jsx))**:
+      - Completely removed the 2nd tab ("Product Sales & Bookings") from `VALID_TABS`, tab header buttons, and tab rendering.
+      - Page now focuses purely on:
+        1. **Product Master & Dimensions** (`catalog`)
+        2. **Scheme Rules & Returns Matrix** (`schemes`)
+        3. **Target & Extra Incentive Policy** (`incentives`)
+    - **Sidebar & Routes ([sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx), [App.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/App.jsx))**:
+      - Submenu "Product Sales" points directly to `/dashboard/plots/product-sales` rendering `<ProductSalesPage />`.
+      - Route is secured with `RoutePermissionGuard` supporting `resource={["plot_booking", "plot_inventory"]}`.
+
+- **Voucher Immediate Disbursement & Approval Lifecycle Fix [COMPLETED]**:
+  - **Issue**:
+    - When creating a financial voucher with "Disburse Immediately", the voucher was created in `PENDING` status with `paidAmount: 0`. The requested initial payment was discarded or not stored, and when a manager subsequently approved the voucher, it became approved as 100% due (unpaid) or reset already disbursed amounts to due.
+  - **Fix & Clarification**:
+    - **Voucher Model ([voucher.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/voucher.js))**: Added `initialPayment` to `voucherSchema` so initial requested disbursements are preserved.
+    - **Approval Lifecycle ([voucher.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/voucher.js))**:
+      - `createVoucher`: Stores `reqInitialPayment` on the voucher.
+      - `approveVoucher`: Correctly checks `prevPaid` and calculates `additionalDisburse = Math.max(0, disbNum - prevPaid)`. Never resets already paid vouchers to "all due" and prevents duplicate bank ledger debits.
+    - **UI Streamlining ([VoucherList.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/vouchers/VoucherList.jsx))**:
+      - Hidden the "Source Payment Account (Cash / Bank) / Disburse Immediately" section in the Create Financial Voucher modal as requested. Vouchers are created cleanly for expense authorization, and disbursements are executed systematically upon Approval or via the designated "Pay" action.
+
+- **Refund & Settlement Disbursement with Corporate Bank & Cash Treasury Authorization [COMPLETED]**:
+  - **Requirement**:
+    - When returning money / disbursing refund amounts (on `/dashboard/plots/booking/:id/ledger`, `/dashboard/plots/interest-calculator`, and in the product customer ledger modal), implement the exact options and security controls as voucher creation.
+    - When online / bank transfer / cheque / UPI mode is selected, show all available corporate bank accounts the caller is authorized to disburse from (with live available balances and account numbers).
+    - Enforce corporate bank permissions (`caller.bankPermissions` — `accessScope: 'all' | 'selected' | 'none'`, `allowPayments`, `allowedBankIds`).
+    - When cash mode is selected, route through personal custody cash ledger (`myCashLedger`) showing live balance.
+    - Ensure double-entry accounting in the treasury ledger (debiting the bank or cash ledger balance so company funds decrease accurately) and generate a valid financial `Voucher` matching the system schema.
+  - **Implementation**:
+    - **Treasury Helper ([plotRefundHelper.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotRefundHelper.js))**:
+      - `resolveAndAuthorizePaymentLedger`: Enforces caller's bank permissions and cash custody constraints.
+      - `disburseRefundTransaction`: Generates voucher number (`VCH-FY-XXXX`), creates financial `Voucher` (`status: 'PAID'`), atomically records a `DEBIT` entry in the corporate bank or cash ledger via `accountingService.recordLedgerEntry` to decrease balance, and returns the formatted `paymentEntry`.
+    - **Database Schemas ([PlotBooking.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotBooking.js), [PlotProductBooking.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotProductBooking.js))**:
+      - Added `paymentLedgerId`, `paymentLedgerName`, `bankName`, and `accountNumber` to `refundPayments` subdocuments.
+    - **Backend Services ([plotBooking.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotBooking.service.js), [plotProduct.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotProduct.service.js))**:
+      - Integrated `disburseRefundTransaction` into both immediate cancellation settlements and subsequent refund part-payments.
+      - Updated statement formatting in `getBookingLedger` to display `[paymentLedgerName / bankName]`.
+    - **Frontend Interfaces**:
+      - [PlotBookingLedgerPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/booking/PlotBookingLedgerPage.jsx): Refactored the Disburse Refund Payment modal to use the centralized [Modalbox.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/custommodal/Modalbox.jsx) component (`max-w-lg`) with fixed sticky header and footer, responsive `max-h-[92vh]`, and internal body scrolling so form fields never exceed the viewport. Includes corporate bank account selector, live balance display, balance warning alert, and dynamic reference label for NEFT vs Cheque vs UPI.
+      - [PlotInterestCalculator.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/calculator/PlotInterestCalculator.jsx): Added corporate bank account dropdown with live balances for immediate cancellation payouts.
+      - [ProductCustomerLedgerModal.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/components/ProductCustomerLedgerModal.jsx): Added treasury fetching and corporate bank / cash account selection in the product refund part-payment modal.
+
+- **Commission Ledger Reversal on Booking & Product Cancellation [COMPLETED]**:
+  - **Requirement**:
+    - On the Plot Settlement & Cancellation Calculator page (`/dashboard/plots/interest-calculator`), when cancelling either a regular plot booking or a plot product sale booking, provide an option to reverse distributed commissions.
+    - If "Reverse Commission" is chosen:
+      - All commission amounts credited to Business Associates, Partners (override / direct), and Branch Partners for that booking must be debited from their respective ledger accounts.
+      - Each debit entry must have the exact credited amount and proper narration matching the specific transaction (percentage, collection amount, receipt number, booking number, role).
+      - Mark `PlotSponsorCommission` status as `reversed` with `reversedAt` and `reversalLedgerEntryId`.
+    - If "Reverse Commission" is unchecked:
+      - Beneficiaries retain their credited commission and no debit entries are added to their ledgers.
+  - **Implementation**:
+    - **Database Schemas**:
+      - Updated [PlotSponsorCommission.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotSponsorCommission.js): Added `reversedAt` and `reversalLedgerEntryId` fields.
+      - Updated [PlotBooking.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotBooking.js) & [PlotProductBooking.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotProductBooking.js): Added `commissionReversed`, `commissionReversalDate`, `commissionReversalCount`, and `commissionReversalAmount`.
+    - **Backend Services**:
+      - In [plotBooking.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotBooking.service.js) (`processCustomerRefund`) and [plotProduct.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotProduct.service.js) (`cancelProductBookingAndRefund`):
+        - When `reverseCommission: true`: iterated over all active `PlotSponsorCommission` records for the booking and posted corresponding `DEBIT` entries via `accountingService.recordLedgerEntry` using exact matching amounts and detailed transaction narrations referencing receipt numbers and percentages.
+        - Prevented accidental deletion of commissions or entries on cancelled bookings in [plotDeveloper.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotDeveloper.service.js) (`syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions`).
+      - Added endpoint `GET /plots/bookings/:id/commissions` and `GET /plots/product-bookings/:id/commissions` in [plots.routes.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/router/plots.routes.js) and [plots.controller.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/plots.controller.js).
+    - **Frontend Calculator ([PlotInterestCalculator.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/calculator/PlotInterestCalculator.jsx))**:
+      - Added real-time fetch of booking commissions (`bookingCommissions`).
+      - Added prominent `Cancel Booking & Settle` trigger button right in the top header action buttons (next to `Print Statement`) and right below the Settlement Parameters strip in an active commission summary banner.
+      - Added interactive Commission Reversal control in the cancellation modal with toggle (`Reverse Distributed Commissions`), badge indicating total amount to debit (e.g. `₹21,215.66 to debit`), and collapsible breakdown of each beneficiary, receipt #, rate %, and amount (defaulted to expanded so users immediately see each beneficiary).
+      - Updated financial valuation card to display live Commission distribution status.
+
+- **Mandatory Project Assignment for Plot Products & Booking Filter [COMPLETED]**:
+  - **Requirement**:
+    - Make Project Name mandatory (not optional) when creating or updating Plot Products (`/dashboard/plots/products`).
+    - When booking a plot product (`/dashboard/plots/products/book`), choosing the Project Name will show and filter the plot products that belong under that project.
+  - **Implementation**:
+    - **Frontend Modal ([ProductCatalogTab.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/components/ProductCatalogTab.jsx))**:
+      - Updated label to `Project Name *` with required asterisk.
+      - Removed default option `-- All Projects / General Portfolio --` and replaced with required `-- Choose Project * --`.
+      - Added frontend submit validation rejecting submission if `!form.projectId`.
+    - **Backend Schema & Service ([PlotProduct.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotProduct.js), [plotProduct.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotProduct.service.js))**:
+      - Made `projectId` required in the Mongoose schema.
+      - Enforced mandatory `resolvedProjectId` validation on both `createProduct` and `updateProduct`.
+    - **Product Booking Screen ([ProductBookingPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/ProductBookingPage.jsx))**:
+      - Made `Project Name *` mandatory on booking creation.
+      - Selecting a project actively filters the `Select Plot Product` dropdown to show only products registered under that project (with fallback auto-selection of the first product under that project).
+      - Added submission check verifying `form.projectId`.
+    - **Quick Sales Modal ([ProductSalesTab.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/components/ProductSalesTab.jsx))**:
+      - Product option labels clearly display `[Project: {projectName}]`.
+
+- **Button Icon Rendering Fix (React 19 Compatibility) [COMPLETED]**:
+  - **Issue**:
+    - Visiting pages using `<Button startIcon={<Plus size={16} />} />` (e.g. Developer Dashboard) threw `Uncaught Error: Element type is invalid: expected a string or a class/function but got: <Plus />. Check the render method of Button`.
+  - **Root Cause**:
+    - `Button.jsx` used `typeof StartIcon === 'function' || typeof StartIcon === 'object'` to render `<StartIcon />`. In React 19, an instantiated JSX element is an object, leading to `< <Plus /> />`.
+  - **Fix**:
+    - Updated [Button.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/ui/Button.jsx) to check `isValidElement(StartIcon)` / `isValidElement(EndIcon)` first. If already a JSX element, it renders directly; otherwise, it instantiates it as a component (`<StartIcon className={...} />`).
+
 - **Plot Settlement & Cancellation Calculator Layout Realignment [COMPLETED]**:
   - **Enhancement**:
     - Replaced the cramped single-line 12-column grid with a structured **Two-Tier Step-by-Step Layout**:

@@ -227,6 +227,8 @@ const ProductBookingPage = () => {
           setForm((prev) => ({
             ...prev,
             productId: targetProd?._id || '',
+            projectId: targetProd?.projectId || '',
+            projectName: targetProd?.projectName || '',
             customerId: targetCust?._id || '',
             tenureMonths: firstTenure,
             planName: firstPlanName,
@@ -469,6 +471,10 @@ const ProductBookingPage = () => {
       toast.error('Please select a verified customer');
       return;
     }
+    if (!form.projectId) {
+      toast.error('Please select a project');
+      return;
+    }
     if (!form.productId) {
       toast.error('Please select a plot product');
       return;
@@ -535,7 +541,7 @@ const ProductBookingPage = () => {
       if (isEditMode) {
         const res = await api.put(`/plots/product-bookings/${editBookingId}`, payload);
         toast.success(res.data?.message || 'Plot Product Booking updated successfully!');
-        navigate('/dashboard/plots/products?tab=sales');
+        navigate('/dashboard/plots/product-sales');
       } else {
         const res = await api.post('/plots/product-bookings', payload);
         const created = res.data?.data;
@@ -544,7 +550,7 @@ const ProductBookingPage = () => {
         if (created) {
           navigate(`/dashboard/plots/certificates/${created._id}`);
         } else {
-          navigate('/dashboard/plots/products?tab=sales');
+          navigate('/dashboard/plots/product-sales');
         }
       }
     } catch (err) {
@@ -566,7 +572,7 @@ const ProductBookingPage = () => {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/plots/products?tab=sales')}
+            onClick={() => navigate('/dashboard/plots/product-sales')}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 transition cursor-pointer mb-1"
           >
             <ArrowLeft size={14} /> Back to Product Sales &amp; Bookings
@@ -593,7 +599,7 @@ const ProductBookingPage = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/plots/products?tab=sales')}
+            onClick={() => navigate('/dashboard/plots/product-sales')}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
           >
             Cancel
@@ -767,25 +773,39 @@ const ProductBookingPage = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Project Selection (Optional / Pre-filter) */}
+              {/* Project Selection */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Project Selection <span className="text-slate-400 font-normal">(Optional / Under Project)</span>
+                  Project Name <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={form.projectId || ''}
                   onChange={(e) => {
                     const selProjId = e.target.value;
                     const selProj = projects.find((p) => p._id === selProjId);
+                    
+                    // Filter products belonging to this project
+                    const projectProducts = products.filter(
+                      (p) => p.projectId === selProjId || p.projectId?._id === selProjId
+                    );
+                    const matchingPrd = projectProducts.find((p) => p._id === form.productId) || projectProducts[0] || null;
+
                     setForm((prev) => ({
                       ...prev,
                       projectId: selProjId,
                       projectName: selProj?.name || '',
+                      productId: matchingPrd?._id || '',
+                      customUnitPrice: matchingPrd?.unitPrice || '',
                     }));
+
+                    if (matchingPrd) {
+                      updateQuantityAndSyncArea(form.quantity || 1, matchingPrd);
+                    }
                   }}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 text-xs"
+                  required
                 >
-                  <option value="">-- All Projects / General Portfolio --</option>
+                  <option value="">-- Choose Project * --</option>
                   {projects.map((proj) => (
                     <option key={proj._id} value={proj._id}>
                       {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
@@ -808,7 +828,6 @@ const ProductBookingPage = () => {
                       ...prev,
                       productId: prdId,
                       customUnitPrice: prd?.unitPrice || '',
-                      // If product has a project and no project is explicitly selected, pre-populate
                       ...(prd?.projectId && !prev.projectId
                         ? { projectId: prd.projectId, projectName: prd.projectName || '' }
                         : {}),
@@ -820,9 +839,17 @@ const ProductBookingPage = () => {
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 text-xs"
                   required
                 >
-                  <option value="">-- Choose Plot Product --</option>
+                  <option value="">
+                    {form.projectId
+                      ? '-- Choose Plot Product for this Project --'
+                      : '-- Please Select a Project First --'}
+                  </option>
                   {products
-                    .filter((p) => !form.projectId || !p.projectId || p.projectId === form.projectId || p._id === form.productId)
+                    .filter((p) => {
+                      if (!form.projectId) return true;
+                      const pProjId = p.projectId?._id || p.projectId;
+                      return pProjId === form.projectId || p._id === form.productId;
+                    })
                     .map((p) => (
                       <option key={p._id} value={p._id}>
                         {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} ({p.areaSqFt} Sq.Ft) • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}

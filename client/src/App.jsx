@@ -94,6 +94,7 @@ const InstallmentCollection = lazy(() => import('./pages/plots/installments/Inst
 const ProductCollectionsPage = lazy(() => import('./pages/plots/products/ProductCollectionsPage'));
 const PlotSeriesMaster = lazy(() => import('./pages/plots/seriesMaster/PlotSeriesMaster'));
 const PlotProductsPage = lazy(() => import('./pages/plots/products/PlotProductsPage'));
+const ProductSalesPage = lazy(() => import('./pages/plots/products/ProductSalesPage'));
 const ProductBookingPage = lazy(() => import('./pages/plots/products/ProductBookingPage'));
 const PlotReports = lazy(() => import('./pages/plots/reports/PlotReports'));
 const PlotAgreementViewer = lazy(() => import('./pages/plots/printViewers/PlotAgreementViewer'));
@@ -217,6 +218,7 @@ const managementRoutes = (
     <Route path="plots/collections/products/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><ProductCollectionsPage initialView="add" /></RoutePermissionGuard>} />
     <Route path="plots/series-master" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
     <Route path="plots/products" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotProductsPage /></RoutePermissionGuard>} />
+    <Route path="plots/product-sales" element={<RoutePermissionGuard resource={["plot_booking", "plot_inventory"]} action={1}><ProductSalesPage /></RoutePermissionGuard>} />
     <Route path="plots/products/book" element={<RoutePermissionGuard resource="plot_booking" action={2}><ProductBookingPage /></RoutePermissionGuard>} />
     <Route path="plots/products/edit/:id" element={<RoutePermissionGuard resource="plot_booking" action={3}><ProductBookingPage /></RoutePermissionGuard>} />
     <Route path="plots/reports" element={<RoutePermissionGuard resource="plot_reports" action={1}><PlotReports /></RoutePermissionGuard>} />

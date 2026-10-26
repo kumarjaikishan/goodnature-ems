@@ -175,17 +175,7 @@ const ProductCollectionsPage = ({ initialView }) => {
           preselectedBookingId={targetBookingId}
         />
 
-        {/* Printable Receipt Modal if opened */}
-        {receiptModalOpen && selectedCollectionForReceipt && (
-          <ProductReceiptModal
-            open={receiptModalOpen}
-            onClose={() => {
-              setReceiptModalOpen(false);
-              setSelectedCollectionForReceipt(null);
-            }}
-            collection={selectedCollectionForReceipt}
-          />
-        )}
+
       </div>
     );
   }

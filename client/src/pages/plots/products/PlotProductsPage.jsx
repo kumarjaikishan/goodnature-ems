@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingCart, SlidersHorizontal, Award } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Package, SlidersHorizontal, Award } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
 
 // Subcomponents
 import ProductCatalogTab from './components/ProductCatalogTab';
-import ProductSalesTab from './components/ProductSalesTab';
 import ProductSchemeRulesTab from './components/ProductSchemeRulesTab';
 import CommissionPolicyMatrix from '../seriesMaster/components/CommissionPolicyMatrix';
-import ProductCustomerLedgerModal from './components/ProductCustomerLedgerModal';
 
-const VALID_TABS = ['catalog', 'sales', 'schemes', 'incentives'];
+const VALID_TABS = ['catalog', 'schemes', 'incentives'];
 
 const PlotProductsPage = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Active Tab synced with URL query (?tab=catalog|sales|schemes|incentives)
+  // Active Tab synced with URL query (?tab=catalog|schemes|incentives)
   const tabFromUrl = searchParams.get('tab');
   const initialTab = VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'catalog';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -26,7 +23,7 @@ const PlotProductsPage = () => {
   useEffect(() => {
     if (tabFromUrl && VALID_TABS.includes(tabFromUrl) && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
-    } else if (!tabFromUrl) {
+    } else if (!tabFromUrl || !VALID_TABS.includes(tabFromUrl)) {
       setActiveTab('catalog');
     }
   }, [tabFromUrl]);
@@ -44,33 +41,21 @@ const PlotProductsPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [tenures, setTenures] = useState([]);
-  const [bookings, setBookings] = useState([]);
   const [projects, setProjects] = useState([]);
-
-  // Modals state
-  const [selectedLedgerBooking, setSelectedLedgerBooking] = useState(null);
 
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [prdRes, custRes, tenureRes, bkRes, projRes] = await Promise.all([
+      const [prdRes, projRes] = await Promise.all([
         api.get('/plots/products'),
-        api.get('/plots/customers'),
-        api.get('/plots/products/tenures'),
-        api.get('/plots/product-bookings'),
         api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
       ]);
 
       setProducts(prdRes.data?.data || []);
-      setCustomers(custRes.data?.data?.customers || custRes.data?.data || []);
-      setTenures(tenureRes.data?.data || []);
-      setBookings(bkRes.data?.data || []);
       setProjects(projRes.data?.data || []);
     } catch (err) {
       console.error('Failed to load plot products data:', err);
-      toast.error('Failed to load plot products & sales data');
+      toast.error('Failed to load plot products data');
     } finally {
       setLoading(false);
     }
@@ -82,13 +67,11 @@ const PlotProductsPage = () => {
 
   const handleRefresh = async () => {
     try {
-      const [prdRes, bkRes, projRes] = await Promise.all([
+      const [prdRes, projRes] = await Promise.all([
         api.get('/plots/products'),
-        api.get('/plots/product-bookings'),
         api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
       ]);
       setProducts(prdRes.data?.data || []);
-      setBookings(bkRes.data?.data || []);
       setProjects(projRes.data?.data || []);
     } catch (err) {
       console.error('Failed to refresh data:', err);
@@ -98,7 +81,7 @@ const PlotProductsPage = () => {
   if (loading) {
     return (
       <div className="p-6 bg-slate-50 min-h-screen">
-        <PageLoader title="Loading Plot Products &amp; Sales..." subtitle="Fetching micro-plot product master, tenure periods, and customer sales" />
+        <PageLoader title="Loading Plot Products..." subtitle="Fetching micro-plot product master, dimension rules, and schemes" />
       </div>
     );
   }
@@ -135,22 +118,6 @@ const PlotProductsPage = () => {
         </button>
         <button
           type="button"
-          onClick={() => handleTabChange('sales')}
-          className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'sales'
-              ? 'border-teal-800 text-teal-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <ShoppingCart size={16} /> Product Sales &amp; Bookings
-          {bookings.length > 0 && (
-            <span className="px-2 py-0.5 bg-teal-100 text-teal-800 text-xs font-bold rounded-full ml-1">
-              {bookings.length}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
           onClick={() => handleTabChange('schemes')}
           className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'schemes'
@@ -182,19 +149,6 @@ const PlotProductsPage = () => {
           onRefresh={handleRefresh}
         />
       )}
-      {activeTab === 'sales' && (
-        <ProductSalesTab
-          products={products}
-          customers={customers}
-          tenures={tenures}
-          bookings={bookings}
-          loading={loading}
-          onRefresh={handleRefresh}
-          onOpenCertificate={(b) => navigate(`/dashboard/plots/certificates/${b._id}`)}
-          onOpenLedger={(b) => setSelectedLedgerBooking(b)}
-          onOpenCollect={(b) => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
-        />
-      )}
       {activeTab === 'schemes' && (
         <ProductSchemeRulesTab
           onSchemeUpdated={fetchInitialData}
@@ -207,21 +161,6 @@ const PlotProductsPage = () => {
           hideFixedCommission={true}
           title="Plot Product Target & Extra Incentive Policy"
           subtitle="Configure Plot Product period closing collection target slabs, tiered performance incentive %, and closing rewards for Business Associates, Business Partners, and Branch Partners."
-        />
-      )}
-
-      {/* ── MODALS ── */}
-      {/* Customer Ledger Modal */}
-      {selectedLedgerBooking && (
-        <ProductCustomerLedgerModal
-          open={!!selectedLedgerBooking}
-          onClose={() => setSelectedLedgerBooking(null)}
-          booking={selectedLedgerBooking}
-          onRefresh={handleRefresh}
-          onTakeCollection={() => {
-            setSelectedLedgerBooking(null);
-            navigate(`/dashboard/plots/collections/products/add?bookingId=${selectedLedgerBooking._id}`);
-          }}
         />
       )}
     </div>

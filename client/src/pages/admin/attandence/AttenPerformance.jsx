@@ -142,38 +142,55 @@ const AttenPerformance = () => {
     }, [employeeList, selectedBranch]);
 
     // Format filtered employee options for SearchableSelect
+    // Value MUST be unique (empId, userid._id, or _id) to prevent employees with the same name from colliding
     const employeeOptions = useMemo(() => {
         return filteredEmployeeList.map((emp) => {
             const empName = emp?.userid?.name || emp?.name || 'Unnamed';
-            const slug = toSlug(empName) || emp?.userid?._id || emp?._id;
+            const uniqueId = String(emp?.empId || emp?.userid?._id || emp?._id || '');
             const branchName = emp?.branchId?.name || (typeof emp?.branchId === 'string' && !emp.branchId.match(/^[0-9a-fA-F]{24}$/) ? emp.branchId : '');
             const desig = emp?.designation || '';
             const sub = [desig, branchName].filter(Boolean).join(' • ');
 
             return {
                 label: empName,
-                value: slug,
-                rawUserId: emp?.userid?._id || emp?.userid || emp?._id,
+                value: uniqueId,
+                empId: emp?.empId || '',
+                rawUserId: String(emp?.userid?._id || emp?.userid || ''),
+                rawEmpDocId: String(emp?._id || ''),
+                nameSlug: toSlug(empName),
                 subtitle: sub ? `(${sub})` : '',
             };
         });
     }, [filteredEmployeeList]);
 
+    // Match the employee currently in URL against the full employeeList
+    const matchedEmployeeInUrl = useMemo(() => {
+        if (!userid || !employeeList.length) return null;
+        return employeeList.find((emp) => {
+            const empName = emp?.userid?.name || emp?.name || '';
+            const rawId = String(emp?.userid?._id || emp?.userid || emp?._id || '');
+            const empDocId = String(emp?._id || '');
+            const empIdCode = String(emp?.empId || '');
+            const slug = toSlug(empName);
+
+            // Exact ID matches take highest precedence
+            if (rawId === userid || empDocId === userid || empIdCode.toLowerCase() === userid.toLowerCase()) {
+                return true;
+            }
+            // Fallback for legacy slug match
+            return slug === userid;
+        });
+    }, [userid, employeeList]);
+
     // Auto-sync selectedBranch if URL employee has a branch
     useEffect(() => {
-        if (userid && employeeList.length > 0 && selectedBranch === 'all') {
-            const matchedEmp = employeeList.find((emp) => {
-                const empName = emp?.userid?.name || emp?.name || '';
-                const slug = toSlug(empName);
-                const rawId = emp?.userid?._id || emp?.userid || emp?._id;
-                return slug === userid || rawId === userid;
-            });
-            const bId = matchedEmp?.branchId?._id || matchedEmp?.branchId?.id || matchedEmp?.branchId;
+        if (matchedEmployeeInUrl && selectedBranch === 'all') {
+            const bId = matchedEmployeeInUrl?.branchId?._id || matchedEmployeeInUrl?.branchId?.id || matchedEmployeeInUrl?.branchId;
             if (bId && typeof bId === 'string' && bId.match(/^[0-9a-fA-F]{24}$/)) {
                 setSelectedBranch(bId);
             }
         }
-    }, [userid, employeeList, selectedBranch]);
+    }, [matchedEmployeeInUrl, selectedBranch]);
 
     const handleEmployeeChange = (newVal) => {
         if (!newVal) {
@@ -185,12 +202,16 @@ const AttenPerformance = () => {
         navigate(`/dashboard/performance/${newVal}${searchString}`);
     };
 
-    // Selected value for SearchableSelect: match only if userid is provided in URL
+    // Selected value for SearchableSelect: strictly resolves to the single unique value of the matched employee
     const selectedEmployeeValue = useMemo(() => {
         if (!userid) return '';
-        const found = employeeOptions.find(opt => opt.value === userid || opt.rawUserId === userid || toSlug(opt.label) === toSlug(userid));
-        return found ? found.value : userid;
-    }, [employeeOptions, userid]);
+        if (matchedEmployeeInUrl) {
+            const uniqueVal = String(matchedEmployeeInUrl?.empId || matchedEmployeeInUrl?.userid?._id || matchedEmployeeInUrl?._id || '');
+            const foundInOptions = employeeOptions.find(opt => opt.value === uniqueVal);
+            return foundInOptions ? foundInOptions.value : uniqueVal;
+        }
+        return userid;
+    }, [employeeOptions, matchedEmployeeInUrl, userid]);
 
     const setting = useMemo(() => {
         if (!company) return null;
@@ -221,7 +242,11 @@ const AttenPerformance = () => {
         const fetchPerformanceData = async () => {
             try {
                 setLoading(true);
-                const params = { userid };
+                // If we resolved an exact employee document from employeeList, pass its exact ID so backend never ambiguously regexes
+                const resolvedUserId = matchedEmployeeInUrl
+                    ? (matchedEmployeeInUrl.userid?._id || matchedEmployeeInUrl._id || matchedEmployeeInUrl.empId || userid)
+                    : userid;
+                const params = { userid: resolvedUserId };
                 if (selectedMonth !== 'all') params.month = selectedMonth;
                 if (selectedYear !== 'all') params.year = selectedYear;
 

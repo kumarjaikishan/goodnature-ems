@@ -25,6 +25,7 @@ import {
   Edit2,
   Trash2,
   XCircle,
+  Calculator,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { DateInput } from '../../../../components/ui/DateInput';
@@ -321,78 +322,84 @@ const ProductSalesTab = ({
                       </td>
 
                       <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setViewingBooking(b)}
-                            className="p-1.5 text-teal-800 hover:bg-teal-50 rounded-lg transition border border-teal-200/80 cursor-pointer shadow-2xs"
-                            title="View Booking Details"
-                          >
-                            <Eye size={14} />
-                          </button>
+                        <div className="flex flex-col items-end gap-1.5 py-1">
+                          {/* Row 1: View Details, Print Certificate, Print Agreement, View Ledger */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setViewingBooking(b)}
+                              className="p-1.5 text-teal-800 hover:bg-teal-50 rounded-lg transition border border-teal-200/80 cursor-pointer shadow-2xs"
+                              title="View Booking Details"
+                            >
+                              <Eye size={14} />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => onOpenCertificate(b)}
-                            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition border border-teal-200/60 cursor-pointer"
-                            title="Print Booking Certificate / Receipt"
-                          >
-                            <Printer size={14} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => onOpenCertificate(b)}
+                              className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition border border-teal-200/60 cursor-pointer"
+                              title="Print Booking Certificate / Receipt"
+                            >
+                              <Printer size={14} />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/dashboard/plots/product-agreements/${b._id}`)}
-                            className="p-1.5 text-purple-700 hover:bg-purple-50 rounded-lg transition border border-purple-200/60 cursor-pointer"
-                            title="Print Product Agreement"
-                          >
-                            <FileText size={14} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/dashboard/plots/product-agreements/${b._id}`)}
+                              className="p-1.5 text-purple-700 hover:bg-purple-50 rounded-lg transition border border-purple-200/60 cursor-pointer"
+                              title="Print Product Agreement"
+                            >
+                              <FileText size={14} />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => onOpenLedger(b)}
-                            className="p-1.5 text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-indigo-200/60 cursor-pointer"
-                            title="View Customer Ledger & EMI Statement"
-                          >
-                            <BookOpen size={14} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => onOpenLedger(b)}
+                              className="p-1.5 text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-indigo-200/60 cursor-pointer"
+                              title="View Customer Ledger & EMI Statement"
+                            >
+                              <BookOpen size={14} />
+                            </button>
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/dashboard/plots/products/edit/${b._id}`)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition border border-blue-200/60 cursor-pointer"
-                            title="Edit Plot Product Sale & Booking"
-                          >
-                            <Edit2 size={14} />
-                          </button>
+                          {/* Row 2: Edit Booking, Cancel/Settle Calculator, Delete */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/dashboard/plots/products/edit/${b._id}`)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition border border-blue-200/60 cursor-pointer"
+                              title="Edit Plot Product Sale & Booking"
+                            >
+                              <Edit2 size={14} />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/dashboard/plots/interest-calculator?productBookingId=${b._id}&bookingNumber=${encodeURIComponent(b.bookingNumber)}`)}
-                            className={`p-1.5 rounded-lg transition border cursor-pointer ${
-                              b.status === 'CANCELLED'
-                                ? 'text-amber-700 hover:bg-amber-50 border-amber-300 bg-amber-50/50'
-                                : 'text-rose-600 hover:bg-rose-50 border-rose-200/70'
-                            }`}
-                            title={b.status === 'CANCELLED' ? 'View Cancellation & Settlement Statement' : 'Cancel Booking & Settlement Calculator'}
-                          >
-                            <XCircle size={14} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/dashboard/plots/interest-calculator?productBookingId=${b._id}&bookingNumber=${encodeURIComponent(b.bookingNumber)}`)}
+                              className={`p-1.5 rounded-lg transition border cursor-pointer ${
+                                b.status === 'CANCELLED'
+                                  ? 'text-amber-700 hover:bg-amber-50 border-amber-300 bg-amber-50/50'
+                                  : 'text-teal-700 hover:bg-teal-50 border-teal-200/80 bg-teal-50/30'
+                              }`}
+                              title="Maturity or settlement"
+                            >
+                              <Calculator size={14} />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBooking(b)}
-                            disabled={deletingBookingId === b._id}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-50 rounded-lg transition border border-rose-200/60 cursor-pointer"
-                            title="Delete Product Booking"
-                          >
-                            {deletingBookingId === b._id ? (
-                              <Loader2 size={14} className="animate-spin text-rose-600" />
-                            ) : (
-                              <Trash2 size={14} />
-                            )}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBooking(b)}
+                              disabled={deletingBookingId === b._id}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-50 rounded-lg transition border border-rose-200/60 cursor-pointer"
+                              title="Delete Product Booking"
+                            >
+                              {deletingBookingId === b._id ? (
+                                <Loader2 size={14} className="animate-spin text-rose-600" />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -465,7 +472,7 @@ const ProductSalesTab = ({
                 <option value="">-- Choose Product --</option>
                 {products.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {p.productName} ({p.productCode}) — Dimensions: {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
+                    {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}{p.projectName ? ` [Project: ${p.projectName}]` : ''}
                   </option>
                 ))}
               </select>
@@ -923,10 +930,10 @@ const ProductSalesTab = ({
                   <div className="bg-white/90 p-2.5 rounded-lg border border-teal-100 shadow-2xs">
                     <span className="text-[10px] text-slate-500 font-bold uppercase block">Payment Scheme</span>
                     <strong className="text-slate-900 text-xs block font-bold">
-                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'One-Time Full (F.D.)' : 'Monthly EMI (R.D.)'}
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'One-Time Payment' : 'Monthly EMI'}
                     </strong>
                     <span className="text-[10px] text-teal-700 font-medium">
-                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? '100% Upfront Deposit' : 'Recurring Installments'}
+                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'Fully Paid' : 'Recurring Installments'}
                     </span>
                   </div>
 

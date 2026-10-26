@@ -195,6 +195,11 @@ const Employe = () => {
   };
 
   const handleViewAttendance = (identifier) => {
+    // If identifier is an ObjectId or already has unique ID, navigate directly with it
+    if (typeof identifier === 'string' && identifier.match(/^[0-9a-fA-F]{24}$/)) {
+      navigate(`/dashboard/performance/${identifier}`);
+      return;
+    }
     const slug = String(identifier)
       .toLowerCase()
       .trim()

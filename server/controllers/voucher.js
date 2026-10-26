@@ -242,8 +242,9 @@ exports.createVoucher = async (req, res, next) => {
     const voucherNo = await generateVoucherNo(date ? new Date(date) : new Date(), session);
 
     // Initial status: PENDING unless autoApprove is explicitly requested by superadmin/admin
+    const reqInitialPayment = Math.min(Math.max(Number(initialPayment) || 0, 0), amountNum);
     const initialStatus = autoApprove ? 'APPROVED' : 'PENDING';
-    const initPaidNum = autoApprove ? Math.min(Math.max(Number(initialPayment) || 0, 0), amountNum) : 0;
+    const initPaidNum = autoApprove ? reqInitialPayment : 0;
     const remainingNum = amountNum - initPaidNum;
 
     let tranches = [];
@@ -277,6 +278,7 @@ exports.createVoucher = async (req, res, next) => {
       totalAmount: amountNum,
       paidAmount: initPaidNum,
       remainingAmount: remainingNum,
+      initialPayment: reqInitialPayment,
       status: finalStatus,
       createdBy: req.userid,
       approvedBy: autoApprove ? req.userid : null,
@@ -436,12 +438,19 @@ exports.approveVoucher = async (req, res, next) => {
 
     const finalTotal = approvedAmount ? Number(approvedAmount) : (voucher.totalAmount || voucher.entries?.[0]?.amount || 0);
 
-    // If approver specifies an amount, use disbNum; otherwise if voucher had an initialPayment requested on creation and has 0 paid so far, disburse that
-    const effectiveDisburse = disbNum > 0 ? disbNum : (Number(voucher.paidAmount) > 0 ? 0 : Math.min(Number(voucher.initialPayment || 0), finalTotal));
-
     const prevPaid = Number(voucher.paidAmount) || 0;
-    const newPaid = Math.min(prevPaid + effectiveDisburse, finalTotal);
-    const newRemaining = finalTotal - newPaid;
+    let additionalDisburse = 0;
+
+    if (disbNum > prevPaid) {
+      additionalDisburse = Math.min(disbNum - prevPaid, Math.max(0, finalTotal - prevPaid));
+    } else if (prevPaid === 0) {
+      additionalDisburse = disbNum > 0 
+        ? Math.min(disbNum, finalTotal) 
+        : Math.min(Number(voucher.initialPayment || 0), finalTotal);
+    }
+
+    const newPaid = Math.min(prevPaid + additionalDisburse, finalTotal);
+    const newRemaining = Math.max(0, finalTotal - newPaid);
 
     let newStatus = 'APPROVED';
     if (newPaid >= finalTotal && finalTotal > 0) {
@@ -450,10 +459,10 @@ exports.approveVoucher = async (req, res, next) => {
       newStatus = 'PARTIALLY_PAID';
     }
 
-    // Add disbursement tranche if payment amount > 0
-    if (effectiveDisburse > 0) {
+    // Add disbursement tranche if additional payment amount > 0
+    if (additionalDisburse > 0) {
       voucher.paymentTranches.push({
-        amount: effectiveDisburse,
+        amount: additionalDisburse,
         paymentDate: date ? new Date(date) : new Date(),
         paymentMode: paymentMode || 'CASH',
         paymentLedgerId: resolvedPaymentLedger?._id || null,
@@ -519,12 +528,12 @@ exports.approveVoucher = async (req, res, next) => {
     }
 
     // Debit/deduct disbursement amount from Treasury Cash or Bank Ledger
-    if (effectiveDisburse > 0 && resolvedPaymentLedger) {
+    if (additionalDisburse > 0 && resolvedPaymentLedger) {
       await accountingService.recordLedgerEntry({
         ledgerId: resolvedPaymentLedger._id,
         date: date ? new Date(date) : new Date(),
         type: 'DEBIT',
-        amount: effectiveDisburse,
+        amount: additionalDisburse,
         source: 'voucher',
         voucherId: voucher._id,
         referenceId: voucher._id,

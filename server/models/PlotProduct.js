@@ -22,7 +22,7 @@ const plotProductSchema = new mongoose.Schema(
     projectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PlotProject',
-      default: null,
+      required: true,
       index: true,
     },
     projectName: {

@@ -18,6 +18,8 @@ import {
   Loader2,
   Receipt,
   XCircle,
+  Banknote,
+  Building2,
 } from 'lucide-react';
 
 const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, onCollectInstallment, onRefresh }) => {
@@ -29,6 +31,30 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
   const [partPayRef, setPartPayRef] = useState('');
   const [partPayDate, setPartPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [partPayRemarks, setPartPayRemarks] = useState('');
+  const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
+  const [myCashLedger, setMyCashLedger] = useState(null);
+  const [partPayLedgerId, setPartPayLedgerId] = useState('');
+
+  const fetchTreasury = async () => {
+    try {
+      const [treasuryRes, myCashRes] = await Promise.all([
+        api.get('/ledger/treasury?intent=payment').catch(() => ({ data: {} })),
+        api.get('/ledger/my-cash-account').catch(() => ({ data: null })),
+      ]);
+      const tData = treasuryRes.data?.data || treasuryRes.data || {};
+      const banks = tData.bankLedgers || tData.bankAccounts || [];
+      const cash = tData.cashLedgers || tData.cashAccounts || [];
+      setTreasuryLedgers({ bankLedgers: banks, cashLedgers: cash });
+
+      const myCash = myCashRes.data?.data || myCashRes.data || null;
+      setMyCashLedger(myCash);
+
+      return { banks, myCash };
+    } catch (err) {
+      console.error('Error fetching treasury:', err);
+      return { banks: [], myCash: null };
+    }
+  };
 
   const booking = currentBooking || initialBooking;
   if (!booking) return null;
@@ -47,6 +73,42 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
   const netSettlementAmount = Number(booking.refundAmount || 0);
   const pendingSettlementBalance = Math.max(0, netSettlementAmount - totalRefundPaid);
 
+  const handleOpenPartPay = async () => {
+    setPartPayAmount(pendingSettlementBalance > 0 ? pendingSettlementBalance : '');
+    setPartPayDate(new Date().toISOString().split('T')[0]);
+    setPartPayMode('BANK_TRANSFER');
+    setPartPayRef('');
+    setPartPayRemarks(`Settlement refund payout for #${booking.bookingNumber}`);
+    setShowPartPayModal(true);
+
+    const { banks } = await fetchTreasury();
+    if (banks.length > 0) {
+      setPartPayLedgerId(banks[0]._id);
+    } else {
+      setPartPayLedgerId('');
+    }
+  };
+
+  const handlePartPayModeChange = (newMode) => {
+    setPartPayMode(newMode);
+    if (newMode === 'CASH') {
+      if (myCashLedger?._id) setPartPayLedgerId(myCashLedger._id);
+    } else {
+      const firstBank = treasuryLedgers.bankLedgers?.[0];
+      if (firstBank?._id) setPartPayLedgerId(firstBank._id);
+    }
+  };
+
+  const selectedTreasuryLedger = useMemo(() => {
+    if (partPayMode === 'CASH') return myCashLedger;
+    return treasuryLedgers.bankLedgers?.find((b) => b._id === partPayLedgerId) || null;
+  }, [partPayMode, partPayLedgerId, treasuryLedgers, myCashLedger]);
+
+  const selectedAvailableBalance = Number(
+    selectedTreasuryLedger?.availableBalance ?? selectedTreasuryLedger?.netBalance ?? 0
+  );
+  const isInsufficientTreasury = Number(partPayAmount || 0) > selectedAvailableBalance;
+
   const handleRecordPartPayment = async (e) => {
     e.preventDefault();
     const amt = Number(partPayAmount);
@@ -58,12 +120,17 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
       toast.error(`Disbursement cannot exceed pending balance of ₹${pendingSettlementBalance.toLocaleString('en-IN')}`);
       return;
     }
+    if (partPayMode !== 'CASH' && !partPayLedgerId) {
+      toast.error('Please select an authorized corporate bank account to disburse from');
+      return;
+    }
 
     try {
       setPartPaySubmitting(true);
       const res = await api.post(`/plots/product-bookings/${booking._id}/refund-payments`, {
         amount: amt,
         paymentMode: partPayMode,
+        paymentLedgerId: partPayLedgerId,
         transactionReference: partPayRef,
         paymentDate: partPayDate,
         remarks: partPayRemarks,
@@ -216,10 +283,7 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
               {pendingSettlementBalance > 0 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setPartPayAmount(pendingSettlementBalance);
-                    setShowPartPayModal(true);
-                  }}
+                  onClick={handleOpenPartPay}
                   className="px-3 py-1 bg-rose-700 hover:bg-rose-800 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 cursor-pointer shadow-2xs"
                 >
                   <Plus size={13} /> Disburse Part Refund
@@ -577,16 +641,16 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Payment Mode</label>
+                <label className="block font-semibold text-slate-700 mb-1">Payment Mode *</label>
                 <select
                   value={partPayMode}
-                  onChange={(e) => setPartPayMode(e.target.value)}
+                  onChange={(e) => handlePartPayModeChange(e.target.value)}
                   className="w-full h-10 px-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none"
                 >
-                  <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS)</option>
+                  <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS/IMPS)</option>
+                  <option value="CHEQUE">Cheque / Demand Draft</option>
+                  <option value="UPI">UPI / QR Transfer</option>
                   <option value="CASH">Cash</option>
-                  <option value="CHEQUE">Cheque</option>
-                  <option value="UPI">UPI</option>
                 </select>
               </div>
 
@@ -602,13 +666,79 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Transaction Reference / UTR</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {partPayMode === 'CASH' ? 'Source Cash Account (Personal Custody)' : 'Debit From Corporate Bank Account *'}
+              </label>
+              {partPayMode === 'CASH' ? (
+                <div className="w-full h-10 px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs flex items-center justify-between font-semibold text-slate-700">
+                  <span>{myCashLedger?.name || 'My Cash Account'}</span>
+                  <span className="font-mono text-[11px] text-emerald-700">
+                    ₹{Number(myCashLedger?.availableBalance ?? myCashLedger?.netBalance ?? 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ) : (
+                <select
+                  value={partPayLedgerId}
+                  onChange={(e) => setPartPayLedgerId(e.target.value)}
+                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"
+                >
+                  {treasuryLedgers.bankLedgers?.length === 0 ? (
+                    <option value="">No authorized company bank accounts found</option>
+                  ) : (
+                    treasuryLedgers.bankLedgers.map((bank) => (
+                      <option key={bank._id} value={bank._id}>
+                        {[bank.bankName, bank.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ')}
+                        {bank.accountNumber ? ` (A/C: ${bank.accountNumber})` : ''} - ₹{(bank.availableBalance ?? bank.netBalance ?? 0).toLocaleString('en-IN')}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
+            </div>
+
+            {selectedTreasuryLedger && (
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-slate-600">
+                  <Banknote size={15} className="text-teal-700" />
+                  <span>Available Balance in Selected Account:</span>
+                </div>
+                <span className={`font-mono font-bold ${isInsufficientTreasury ? 'text-amber-700' : 'text-emerald-700'}`}>
+                  ₹{selectedAvailableBalance.toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
+
+            {isInsufficientTreasury && (
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2">
+                <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed">
+                  <strong>Balance Notice:</strong> The disbursement amount (₹{Number(partPayAmount).toLocaleString('en-IN')}) exceeds currently available balance (₹{selectedAvailableBalance.toLocaleString('en-IN')}) in this account.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {partPayMode === 'CHEQUE'
+                  ? 'Cheque / Demand Draft Number *'
+                  : partPayMode === 'UPI'
+                  ? 'UPI Transaction ID / Ref #'
+                  : partPayMode === 'CASH'
+                  ? 'Cash Voucher / Handover Ref (Optional)'
+                  : 'Transaction / UTR Reference # *'}
+              </label>
               <input
                 type="text"
-                placeholder="e.g. UTR / Cheque / Receipt #"
+                placeholder={
+                  partPayMode === 'CHEQUE'
+                    ? 'e.g. CHQ-904128'
+                    : partPayMode === 'UPI'
+                    ? 'e.g. UPI-92817263541'
+                    : 'e.g. UTR / NEFT reference number'
+                }
                 value={partPayRef}
                 onChange={(e) => setPartPayRef(e.target.value)}
-                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs outline-none"
+                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"
               />
             </div>
 
@@ -616,10 +746,10 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
               <label className="block font-semibold text-slate-700 mb-1">Remarks</label>
               <input
                 type="text"
-                placeholder="e.g. First refund part payment disbursed to customer"
+                placeholder="e.g. Refund part payment disbursed to customer"
                 value={partPayRemarks}
                 onChange={(e) => setPartPayRemarks(e.target.value)}
-                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs outline-none"
+                className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"
               />
             </div>
           </form>

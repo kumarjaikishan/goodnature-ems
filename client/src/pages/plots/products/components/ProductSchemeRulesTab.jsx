@@ -295,11 +295,11 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
             <div className="space-y-0.5 leading-relaxed">
               <span className="font-bold text-teal-900">Compound Calculation &amp; Actual Plot Sale:</span>
               <p className="text-teal-800 text-[11px]">
-                • <b>EMI (R.D.) Scheme:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate the <b>Maturity Return %</b> on the right using Yearly Compounding.
+                • <b>EMI Scheme:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate the <b>Maturity Return %</b> on the right using Yearly Compounding.
                 <br />
-                • <b>One-Time (F.D.) Scheme:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate the <b>Maturity Return %</b> on the right using Standard Compounding.
+                • <b>One-Time Scheme:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate the <b>Maturity Return %</b> on the right using Standard Compounding.
                 <br />
-                • <b>Independent Rates:</b> RD and FD each have their own rate input directly inside their respective scheme column for the same tenure.
+                • <b>Independent Rates:</b> EMI and One-Time each have their own rate input directly inside their respective scheme column for the same tenure.
                 <br />
                 • <b>Actual Plot Sale:</b> Enter <b>0%</b> for Rates/Returns. Customer return will be 0% while <b>Hierarchy Commissions (BA, BP, Branch Partner)</b> remain active.
                 <br />
@@ -320,24 +320,24 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   </th>
                   <th className="p-3">Plan Name</th>
                   <th className="p-3">Tenure (अवधि)</th>
-                  {/* EMI (R.D.) Scheme: Rate % p.a. | Return % */}
+                  {/* EMI Scheme: Rate % p.a. | Return % */}
                   <th className="p-3 bg-teal-50/70 border-l border-teal-200">
                     <div className="text-teal-950">
                       <div className="flex items-center gap-1.5 font-extrabold">
                         <Coins size={14} className="text-teal-700" />
-                        <span>EMI (R.D.) Scheme</span>
+                        <span>EMI Scheme</span>
                       </div>
                       <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">
                         Rate (% p.a.) | Return (%)
                       </span>
                     </div>
                   </th>
-                  {/* One-Time (F.D.) Scheme: Rate % p.a. | Return % */}
+                  {/* One-Time Scheme: Rate % p.a. | Return % */}
                   <th className="p-3 bg-emerald-50/70 border-l border-emerald-200">
                     <div className="text-emerald-950">
                       <div className="flex items-center gap-1.5 font-extrabold">
                         <TrendingUp size={14} className="text-emerald-700" />
-                        <span>One-Time (F.D.) Scheme</span>
+                        <span>One-Time Scheme</span>
                       </div>
                       <span className="text-[9px] font-semibold text-emerald-700 block mt-0.5">
                         Rate (% p.a.) | Return (%)
@@ -423,7 +423,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                       {/* EMI (R.D.) Scheme: Rate % p.a. | Return % */}
                       <td className="p-3 bg-teal-50/20 border-l border-teal-100">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="RD Annual Rate % p.a. (Used to calculate EMI RD Return %)">
+                          <div className="flex items-center gap-1" title="EMI Annual Rate % p.a. (Used to calculate EMI Return %)">
                             <input
                               type="tel"
                               inputMode="decimal"
@@ -438,12 +438,12 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                                 const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
                                 handleSlabChange(idx, 'rdAnnualInterestRate', cleanVal);
                               }}
-                              title="RD Annual Interest Rate % p.a."
+                              title="EMI Annual Interest Rate % p.a."
                             />
                             <span className="font-bold text-teal-800 text-[11px]">%</span>
                           </div>
                           <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="EMI (R.D.) Maturity Return % (Yearly Compounded)">
+                          <div className="flex items-center gap-1" title="EMI Maturity Return % (Yearly Compounded)">
                             <input
                               type="tel"
                               inputMode="decimal"
@@ -469,10 +469,10 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                         </div>
                       </td>
 
-                      {/* One-Time (F.D.) Scheme: Rate % p.a. | Return % */}
+                      {/* One-Time Scheme: Rate % p.a. | Return % */}
                       <td className="p-3 bg-emerald-50/20 border-l border-emerald-100">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="FD Annual Rate % p.a. (Used to calculate One-Time FD Return %)">
+                          <div className="flex items-center gap-1" title="One-Time Annual Rate % p.a. (Used to calculate One-Time Return %)">
                             <input
                               type="tel"
                               inputMode="decimal"
@@ -487,12 +487,12 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                                 const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
                                 handleSlabChange(idx, 'fdAnnualInterestRate', cleanVal);
                               }}
-                              title="FD Annual Interest Rate % p.a."
+                              title="One-Time Annual Interest Rate % p.a."
                             />
                             <span className="font-bold text-emerald-800 text-[11px]">%</span>
                           </div>
                           <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="One-Time (F.D.) Return % (Holding Period)">
+                          <div className="flex items-center gap-1" title="One-Time Return % (Holding Period)">
                             <input
                               type="tel"
                               inputMode="decimal"

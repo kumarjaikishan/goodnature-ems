@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, isValidElement } from 'react';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -61,20 +61,20 @@ export const Button = forwardRef(({
       {loading ? (
         <Loader2 className={`${currentIconSize} animate-spin`} />
       ) : StartIcon ? (
-        typeof StartIcon === 'function' || typeof StartIcon === 'object' ? (
-          <StartIcon className={currentIconSize} />
-        ) : (
+        isValidElement(StartIcon) ? (
           StartIcon
+        ) : (
+          <StartIcon className={currentIconSize} />
         )
       ) : null}
 
       {children}
 
       {!loading && EndIcon && (
-        typeof EndIcon === 'function' || typeof EndIcon === 'object' ? (
-          <EndIcon className={currentIconSize} />
-        ) : (
+        isValidElement(EndIcon) ? (
           EndIcon
+        ) : (
+          <EndIcon className={currentIconSize} />
         )
       )}
     </button>

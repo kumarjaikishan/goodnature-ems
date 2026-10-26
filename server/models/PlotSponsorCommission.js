@@ -144,6 +144,15 @@ const plotSponsorCommissionSchema = new mongoose.Schema(
       ref: 'Entry',
       default: null,
     },
+    reversedAt: {
+      type: Date,
+      default: null,
+    },
+    reversalLedgerEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Entry',
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -6,6 +6,11 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
+- [x] **Plot Refund & Cancellation Treasury Bank & Cash Disbursement**:
+  - Centralized refund payout helper in `server/services/plots/plotRefundHelper.js` with `resolveAndAuthorizePaymentLedger` and `disburseRefundTransaction`.
+  - Enforced caller bank authorization (`caller.bankPermissions` for `accessScope`, `allowPayments`, and `allowedBankIds`) and cash custody rules.
+  - Automatically debits corporate bank account or user cash account via `accountingService.recordLedgerEntry` and generates official `Voucher` documents with `status: 'PAID'`.
+  - Updated `PlotBookingLedgerPage.jsx`, `PlotInterestCalculator.jsx`, and `ProductCustomerLedgerModal.jsx` to render live corporate bank accounts with available balances and dynamic validation.
 - [x] **Plot Schedulers Integration**:
   - `server/cron/plotHoldScheduler.js` (`initPlotHoldScheduler`) and `server/cron/plotPayoutScheduler.js` (`initPlotPayoutScheduler`) are explicitly invoked on server startup in `server/index.js` with fail-safe error boundaries.
 - [x] **Executive Dashboard (7 Core Modules, Date Range Filters & Role Scoping)**:

@@ -301,7 +301,7 @@ const ProductAgreementViewer = () => {
             <p>
               <strong>3. VALUATION &amp; PAYMENT SCHEDULE:</strong> The total agreed valuation of the fractional unit(s) is <strong>₹{totalValuation.toLocaleString('en-IN')}</strong> ({numberToWords(totalValuation)}).
               {isFullPayment ? (
-                <span> The payment scheme is <strong>One Time Full Payment (100% Upfront Settlement)</strong> for a contract holding period of <strong>{tenureMonths} Months</strong>.</span>
+                <span> The payment scheme is <strong>One Time Payment</strong> for a contract holding period of <strong>{tenureMonths} Months</strong>.</span>
               ) : (
                 <span> Payable via Monthly Installments (EMI) of <strong>₹{monthlyEmi.toLocaleString('en-IN')}</strong> per month over a period of <strong>{tenureMonths} Months</strong>.</span>
               )}

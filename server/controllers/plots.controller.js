@@ -1,6 +1,7 @@
 const plotsService = require('../services/plots.service');
 const kisanLandService = require('../services/kisanLand.service');
 const plotProductService = require('../services/plots/plotProduct.service');
+const PlotSponsorCommission = require('../models/PlotSponsorCommission');
 const ApiResponse = require('../utils/apiResponse');
 const cloudinary = require('../utils/cloudinary');
 
@@ -817,6 +818,41 @@ const updateBookingRevisionNarration = async (req, res, next) => {
   }
 };
 
+const getBookingCommissions = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const isProduct = req.query.isProduct === 'true';
+    const filter = isProduct
+      ? { productBookingId: id }
+      : { $or: [{ bookingId: id }, { productBookingId: id }] };
+
+    const commissions = await PlotSponsorCommission.find(filter)
+      .populate('sponsorId', 'name sponsorCode role mobile')
+      .populate('branchId', 'name branchCode')
+      .populate('receiptId', 'receiptNumber amount date receiptType')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const activeCommissions = commissions.filter((c) => c.status === 'active');
+    const reversedCommissions = commissions.filter((c) => c.status === 'reversed');
+
+    const totalActiveAmount = activeCommissions.reduce((sum, c) => sum + (Number(c.fixedAmount || c.amount) || 0), 0);
+    const totalReversedAmount = reversedCommissions.reduce((sum, c) => sum + (Number(c.fixedAmount || c.amount) || 0), 0);
+    const totalAmount = commissions.reduce((sum, c) => sum + (Number(c.fixedAmount || c.amount) || 0), 0);
+
+    ApiResponse.success(res, {
+      commissions,
+      totalAmount,
+      totalActiveAmount,
+      totalReversedAmount,
+      activeCount: activeCommissions.length,
+      reversedCount: reversedCommissions.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ── KISAN / SELLER DIRECTORY CONTROLLERS ────────────────────────────
 const getKisanSellers = async (req, res, next) => {
   try {
@@ -1202,6 +1238,7 @@ module.exports = {
   addRefundPartPayment,
   getBookingRevisions,
   updateBookingRevisionNarration,
+  getBookingCommissions,
   // Plot Products & Fractional Units Exports
   getPlotProducts,
   getPlotProductById,

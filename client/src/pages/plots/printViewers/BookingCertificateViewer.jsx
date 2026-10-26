@@ -444,7 +444,7 @@ const BookingCertificateViewer = () => {
                   </div>
                 </td>
                 <td className="p-2 font-bold text-slate-900">
-                  {isFullPayment ? 'One Time (100% Upfront Settlement)' : 'Monthly Installment (EMI)'}
+                  {isFullPayment ? 'One Time Payment' : 'Monthly Installment (EMI)'}
                 </td>
               </tr>
 
@@ -467,7 +467,7 @@ const BookingCertificateViewer = () => {
                     </div>
                   </td>
                   <td className="p-2 font-bold text-emerald-700">
-                    FULLY SETTLED (100% PAID)
+                    FULLY PAID
                   </td>
                 </tr>
               ) : (

@@ -99,7 +99,12 @@ class PlotDeveloperService {
     const booking = await query;
     if (!booking) return;
 
-    if (!booking.sponsorId || booking.status === 'HOLD' || booking.status === 'CANCELLED') {
+    // Cancelled bookings preserve their commission and reversal audit history
+    if (booking.status === 'CANCELLED') {
+      return;
+    }
+
+    if (!booking.sponsorId || booking.status === 'HOLD') {
       const delQuery = PlotSponsorCommission.deleteMany({ bookingId: booking._id });
       if (session) delQuery.session(session);
       await delQuery;
@@ -727,8 +732,13 @@ class PlotDeveloperService {
     const booking = await query;
     if (!booking) return;
 
-    // If no sponsor or booking is cancelled, clean up commissions and ledger entries
-    if (!booking.sponsorId || booking.status === 'CANCELLED') {
+    // Cancelled product bookings preserve their commission and reversal audit history
+    if (booking.status === 'CANCELLED') {
+      return;
+    }
+
+    // If no sponsor, clean up commissions and ledger entries
+    if (!booking.sponsorId) {
       const delQuery = PlotSponsorCommission.deleteMany({ productBookingId: booking._id });
       if (session) delQuery.session(session);
       await delQuery;

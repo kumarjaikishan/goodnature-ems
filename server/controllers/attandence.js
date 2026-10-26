@@ -1610,26 +1610,29 @@ const employeeAttandence = async (req, res, next) => {
       }
     }
 
-    // If not found by ObjectId, lookup by name slug or empId
+    // If not found by ObjectId, lookup by empId first, then name slug
     if (!user || !employeedetail) {
-      const cleanSlug = String(userid).replace(/[-_]+/g, ' ').trim();
-      const regex = new RegExp(`^${cleanSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-      
-      const matchedUser = await User.findOne({ name: { $regex: regex } }).select('_id name email role').lean();
-      if (matchedUser) {
-        user = matchedUser;
-        employeedetail = await employee.findOne({ userid: user._id })
-          .select('_id empId userid designation salary profileimage branchId department companyId')
-          .populate({ path: 'branchId', select: 'name defaultsetting setting' })
-          .lean();
-      } else {
-        // Try searching employee by empId
-        employeedetail = await employee.findOne({ empId: { $regex: new RegExp(`^${userid}$`, 'i') } })
-          .select('_id empId userid designation salary profileimage branchId department companyId')
-          .populate({ path: 'branchId', select: 'name defaultsetting setting' })
-          .lean();
-        if (employeedetail && employeedetail.userid) {
-          user = await User.findById(employeedetail.userid).select('_id name email role').lean();
+      // 1. Try searching employee by empId
+      employeedetail = await employee.findOne({ empId: { $regex: new RegExp(`^${userid}$`, 'i') } })
+        .select('_id empId userid designation salary profileimage branchId department companyId')
+        .populate({ path: 'branchId', select: 'name defaultsetting setting' })
+        .lean();
+      if (employeedetail && employeedetail.userid) {
+        user = await User.findById(employeedetail.userid).select('_id name email role').lean();
+      }
+
+      // 2. If not found by empId, fallback to name slug lookup
+      if (!user || !employeedetail) {
+        const cleanSlug = String(userid).replace(/[-_]+/g, ' ').trim();
+        const regex = new RegExp(`^${cleanSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        
+        const matchedUser = await User.findOne({ name: { $regex: regex } }).select('_id name email role').lean();
+        if (matchedUser) {
+          user = matchedUser;
+          employeedetail = await employee.findOne({ userid: user._id })
+            .select('_id empId userid designation salary profileimage branchId department companyId')
+            .populate({ path: 'branchId', select: 'name defaultsetting setting' })
+            .lean();
         }
       }
     }
