@@ -46,14 +46,17 @@ const checkPermission = (permissionName, key) => {
 
             const checkPermKey = (perms) => {
                 if (!perms) return false;
-                // Direct permission check
-                if (perms.hasOwnProperty(permissionName) && Array.isArray(perms[permissionName]) && perms[permissionName].includes(key)) {
-                    return true;
-                }
-                // Fallback for ledger sub-modules -> master "ledger"
-                const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'sponsor_ledger'];
-                if (LEDGER_SUBMODULES.includes(permissionName) && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
-                    return true;
+                const names = Array.isArray(permissionName) ? permissionName : [permissionName];
+                for (const name of names) {
+                    // Direct permission check
+                    if (perms.hasOwnProperty(name) && Array.isArray(perms[name]) && perms[name].includes(key)) {
+                        return true;
+                    }
+                    // Fallback for ledger sub-modules -> master "ledger"
+                    const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
+                    if (LEDGER_SUBMODULES.includes(name) && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
+                        return true;
+                    }
                 }
                 return false;
             };
@@ -65,8 +68,9 @@ const checkPermission = (permissionName, key) => {
             if (checkPermKey(freshPermissions)) {
                 return next();
             } else {
+                const displayName = Array.isArray(permissionName) ? permissionName.join(' or ') : permissionName;
                 return res.status(403).json({
-                    message: `Permission denied: You can't ${legends[key - 1]} ${permissionName}`
+                    message: `Permission denied: You can't ${legends[key - 1]} ${displayName}`
                 });
             }
         } catch (error) {

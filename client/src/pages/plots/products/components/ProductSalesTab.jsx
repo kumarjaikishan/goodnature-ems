@@ -223,7 +223,7 @@ const ProductSalesTab = ({
           onClick={() => navigate('/dashboard/plots/products/book')}
           className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
         >
-          <Plus size={15} /> Sell Plot Product (New Booking)
+          <Plus size={15} /> New Investment Booking
         </button>
       </div>
 
@@ -247,8 +247,8 @@ const ProductSalesTab = ({
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400 space-y-2">
                     <ShoppingCart size={32} className="mx-auto text-slate-300" />
-                    <p className="font-semibold text-slate-600">No product sales or bookings recorded yet.</p>
-                    <p className="text-xs">Click "Sell Plot Product" above to book fractional plot units for a customer.</p>
+                    <p className="font-semibold text-slate-600">No investment bookings recorded yet.</p>
+                    <p className="text-xs">Click "New Investment Booking" above to book fractional plot units for a customer.</p>
                   </td>
                 </tr>
               ) : (

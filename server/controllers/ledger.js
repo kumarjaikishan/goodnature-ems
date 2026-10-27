@@ -367,7 +367,7 @@ const createLedgerForUsers = async () => {
         const primaryLedger = allUserCash[0];
         const expectedName = `${u.name} (Cash Ledger)`;
         let updated = false;
-        if (primaryLedger.name !== expectedName && !primaryLedger.name.includes('(Cash Ledger)')) {
+        if (primaryLedger.name !== expectedName) {
           primaryLedger.name = expectedName;
           updated = true;
         }
@@ -706,7 +706,8 @@ const getTreasuryLedgers = async (req, res) => {
       console.error("Error evaluating bank permissions:", permErr);
     }
 
-    const cashLedgers = enriched.filter(l => {
+    // Granular Cash Permissions Enforcement
+    let cashLedgers = enriched.filter(l => {
       if (l.ledgerType !== 'user_cash') return false;
 
       // Developer accounts are supreme and private: never show developer cash accounts to superadmin, admin, cashier, or accountants unless the logged-in user is developer
@@ -714,13 +715,41 @@ const getTreasuryLedgers = async (req, res) => {
       if (assignedRole === 'developer' && !isDeveloper) {
         return false;
       }
-
-      if (isGlobalAdmin) {
-        return true;
-      }
-      // Non-superadmin users (accountant, cashier, employee, etc.) can ONLY see and debit from their OWN cash ledger
-      return l.assignedUserId?._id?.toString() === req.userid?.toString() || l.assignedUserId?.toString() === req.userid?.toString();
+      return true;
     });
+
+    const isAllRequested = req.query?.all === 'true' || req.query?.all === true;
+    if (!isAllRequested) {
+      try {
+        const User = require('../models/user');
+        const callerUser = await User.findById(req.user?.id || req.userid).select('cashPermissions role').lean();
+        const cashPerm = callerUser?.cashPermissions;
+        const isDeveloperUser = (callerUser?.role || userRole) === 'developer';
+        const isSuperAdminUser = (callerUser?.role || userRole) === 'superadmin';
+
+        if (!isDeveloperUser && (!isSuperAdminUser || (cashPerm && cashPerm.accessScope !== 'all'))) {
+          if (cashPerm && cashPerm.accessScope === 'none') {
+            // No cash access: can only view own cash ledger if any
+            cashLedgers = cashLedgers.filter(c =>
+              String(c.assignedUserId?._id || c.assignedUserId) === String(req.userid)
+            );
+          } else if (cashPerm && cashPerm.accessScope === 'selected') {
+            const allowedSet = new Set((cashPerm.allowedCashLedgerIds || []).map(id => id.toString()));
+            cashLedgers = cashLedgers.filter(c => {
+              const isOwn = String(c.assignedUserId?._id || c.assignedUserId) === String(req.userid);
+              return isOwn || allowedSet.has(c._id.toString());
+            });
+          } else if (!isGlobalAdmin) {
+            // Non-superadmin without custom cashPerm can only see own cash ledger
+            cashLedgers = cashLedgers.filter(c =>
+              String(c.assignedUserId?._id || c.assignedUserId) === String(req.userid)
+            );
+          }
+        }
+      } catch (cashPermErr) {
+        console.error("Error evaluating cash permissions in getTreasuryLedgers:", cashPermErr);
+      }
+    }
 
     return res.status(200).json({
       success: true,

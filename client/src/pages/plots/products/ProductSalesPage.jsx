@@ -75,7 +75,7 @@ const ProductSalesPage = () => {
             <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
               <ShoppingCart size={22} />
             </span>
-            Plot Product Sales &amp; Bookings
+            Investment Bookings
             {bookings.length > 0 && (
               <span className="px-2.5 py-0.5 bg-teal-100 text-teal-800 text-xs font-bold rounded-full">
                 {bookings.length}
@@ -83,7 +83,7 @@ const ProductSalesPage = () => {
             )}
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Manage customer product unit bookings, agreements, collection receipts, and cancellation settlements.
+            Manage customer investment product bookings, agreements, collection receipts, and cancellation settlements.
           </p>
         </div>
       </div>

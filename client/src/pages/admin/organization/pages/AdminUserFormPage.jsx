@@ -27,7 +27,8 @@ import {
     ArrowUpRight,
     Globe,
     Ban,
-    CreditCard
+    CreditCard,
+    Wallet
 } from 'lucide-react';
 import OrganizationLayout from '../OrganizationLayout';
 import { useOrganization } from '../useOrganization';
@@ -75,6 +76,10 @@ const AdminUserFormPage = () => {
     const [bankList, setBankList] = useState([]);
     const [bankListLoading, setBankListLoading] = useState(false);
 
+    // Company Cash Accounts Master (Staff Cash Drawers)
+    const [cashList, setCashList] = useState([]);
+    const [cashListLoading, setCashListLoading] = useState(false);
+
     // Optional password change in Edit mode
     const [changePasswordOpen, setChangePasswordOpen] = useState(false);
     const [newPasswordValue, setNewPasswordValue] = useState('');
@@ -99,6 +104,10 @@ const AdminUserFormPage = () => {
             allowReceipts: true,
             allowPayments: true,
         },
+        cashPermissions: {
+            accessScope: 'all', // 'all' | 'selected' | 'none'
+            allowedCashLedgerIds: [],
+        },
     });
 
     // Check permission
@@ -121,21 +130,25 @@ const AdminUserFormPage = () => {
         );
     }
 
-    // Load registered company bank accounts
+    // Load registered company bank & cash accounts
     useEffect(() => {
-        const fetchBanks = async () => {
+        const fetchTreasuryAccounts = async () => {
             setBankListLoading(true);
+            setCashListLoading(true);
             try {
-                const res = await apiClient({ url: 'ledger/banks' });
+                const res = await apiClient({ url: 'ledger/treasury?all=true' });
                 const banks = res?.bankLedgers || res?.bankAccounts || res?.data?.bankAccounts || [];
+                const cashes = res?.cashLedgers || res?.cashAccounts || res?.data?.cashAccounts || [];
                 setBankList(banks);
+                setCashList(cashes);
             } catch (err) {
-                console.error('Failed to load bank accounts:', err);
+                console.error('Failed to load treasury accounts:', err);
             } finally {
                 setBankListLoading(false);
+                setCashListLoading(false);
             }
         };
-        fetchBanks();
+        fetchTreasuryAccounts();
     }, []);
 
     // Load admin data if edit mode
@@ -189,6 +202,16 @@ const AdminUserFormPage = () => {
                     allowPayments: true,
                 };
 
+                const loadedCashPerms = userRecord.cashPermissions ? {
+                    accessScope: userRecord.cashPermissions.accessScope || 'all',
+                    allowedCashLedgerIds: (userRecord.cashPermissions.allowedCashLedgerIds || []).map((c) =>
+                        typeof c === 'object' ? c._id : c
+                    ),
+                } : {
+                    accessScope: 'all',
+                    allowedCashLedgerIds: [],
+                };
+
                 setForm({
                     name: userRecord.name || '',
                     email: userRecord.email || '',
@@ -200,6 +223,7 @@ const AdminUserFormPage = () => {
                     profileImage: null,
                     permissions: userRecord.permissions ? { ...userRecord.permissions } : fallbackPerms,
                     bankPermissions: loadedBankPerms,
+                    cashPermissions: loadedCashPerms,
                 });
             } catch (err) {
                 console.error('Failed to load user details:', err);
@@ -326,6 +350,57 @@ const AdminUserFormPage = () => {
             bankPermissions: {
                 ...prev.bankPermissions,
                 [field]: !prev.bankPermissions[field],
+            },
+        }));
+    };
+
+    // Cash Permissions Helpers
+    const handleCashScopeChange = (scope) => {
+        setForm((prev) => ({
+            ...prev,
+            cashPermissions: {
+                ...prev.cashPermissions,
+                accessScope: scope,
+                allowedCashLedgerIds: scope === 'selected' && (!prev.cashPermissions?.allowedCashLedgerIds || prev.cashPermissions.allowedCashLedgerIds.length === 0)
+                    ? cashList.map((c) => c._id)
+                    : prev.cashPermissions?.allowedCashLedgerIds || [],
+            },
+        }));
+    };
+
+    const toggleAllowedCash = (cashId) => {
+        setForm((prev) => {
+            const current = prev.cashPermissions?.allowedCashLedgerIds || [];
+            const exists = current.includes(cashId);
+            const updated = exists
+                ? current.filter((id) => id !== cashId)
+                : [...current, cashId];
+            return {
+                ...prev,
+                cashPermissions: {
+                    ...prev.cashPermissions,
+                    allowedCashLedgerIds: updated,
+                },
+            };
+        });
+    };
+
+    const handleSelectAllCash = () => {
+        setForm((prev) => ({
+            ...prev,
+            cashPermissions: {
+                ...prev.cashPermissions,
+                allowedCashLedgerIds: cashList.map((c) => c._id),
+            },
+        }));
+    };
+
+    const handleClearCash = () => {
+        setForm((prev) => ({
+            ...prev,
+            cashPermissions: {
+                ...prev.cashPermissions,
+                allowedCashLedgerIds: [],
             },
         }));
     };
@@ -467,6 +542,7 @@ const AdminUserFormPage = () => {
             formData.append('branchIds', JSON.stringify(form.branchIds || []));
             formData.append('permissions', JSON.stringify(form.permissions || {}));
             formData.append('bankPermissions', JSON.stringify(form.bankPermissions || {}));
+            formData.append('cashPermissions', JSON.stringify(form.cashPermissions || {}));
 
             const url = isEditMode ? `editAdmin/${id}` : 'addAdmin';
 
@@ -532,6 +608,10 @@ const AdminUserFormPage = () => {
     const bankScope = form.bankPermissions?.accessScope || 'all';
     const allowedBanks = form.bankPermissions?.allowedBankIds || [];
     const allBanksSelected = bankList.length > 0 && bankList.every((b) => allowedBanks.includes(b._id));
+
+    const cashScope = form.cashPermissions?.accessScope || 'all';
+    const allowedCashAccounts = form.cashPermissions?.allowedCashLedgerIds || [];
+    const allCashSelected = cashList.length > 0 && cashList.every((c) => allowedCashAccounts.includes(c._id));
 
     return (
         <OrganizationLayout>
@@ -1121,7 +1201,213 @@ const AdminUserFormPage = () => {
                         </div>
                     </div>
 
-                    {/* SECTION 4: Granular Module Permissions (RBAC) */}
+                    {/* SECTION 4: Cash Drawers & Inter-Account Transfer Authority */}
+                    <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-5">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <Wallet size={17} className="text-teal-700" />
+                                <span className="text-slate-800 font-bold text-sm">Cash Drawers & Inter-Account Transfer Authority</span>
+                                <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                    cashScope === 'all'
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                        : cashScope === 'selected'
+                                        ? 'bg-teal-50 text-teal-800 border-teal-200'
+                                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                                }`}>
+                                    {cashScope === 'all' ? 'All Cash Accounts' : cashScope === 'selected' ? `${allowedCashAccounts.length} Selected` : 'No Cash Access'}
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-slate-400">
+                                Controls which staff cash drawers can be selected when initiating Fund Transfers
+                            </span>
+                        </div>
+
+                        {/* Part A: Cash Scope Radio Options */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-700 tracking-wide block">
+                                Staff Cash Drawer Visibility & Transfer Scope
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {/* Option 1: All Cash Accounts */}
+                                <div
+                                    onClick={() => handleCashScopeChange('all')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        cashScope === 'all'
+                                            ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <Globe size={16} className={cashScope === 'all' ? 'text-teal-800' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">All Cash Accounts</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="cashScope"
+                                            checked={cashScope === 'all'}
+                                            onChange={() => handleCashScopeChange('all')}
+                                            className="accent-teal-700"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        Full authority to view and transfer funds to all staff cash drawers across the company.
+                                    </p>
+                                </div>
+
+                                {/* Option 2: Selected Cash Accounts Only */}
+                                <div
+                                    onClick={() => handleCashScopeChange('selected')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        cashScope === 'selected'
+                                            ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <Wallet size={16} className={cashScope === 'selected' ? 'text-teal-800' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">Selected Cash Accounts Only</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="cashScope"
+                                            checked={cashScope === 'selected'}
+                                            onChange={() => handleCashScopeChange('selected')}
+                                            className="accent-teal-700"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        Restrict this user to specifically designated staff cash drawers only during fund transfers.
+                                    </p>
+                                </div>
+
+                                {/* Option 3: No Cash Transfer Access */}
+                                <div
+                                    onClick={() => handleCashScopeChange('none')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        cashScope === 'none'
+                                            ? 'bg-rose-50/80 border-rose-500 ring-2 ring-rose-500/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <Ban size={16} className={cashScope === 'none' ? 'text-rose-700' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">No Cash Transfer Access</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="cashScope"
+                                            checked={cashScope === 'none'}
+                                            onChange={() => handleCashScopeChange('none')}
+                                            className="accent-rose-600"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        Cannot initiate fund transfers to any other staff cash accounts.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Part B: Selected Cash Accounts Checklist (Only visible when scope is 'selected') */}
+                        {cashScope === 'selected' && (
+                            <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-xs font-bold text-slate-800">
+                                            Designated Cash Drawers & Staff Accounts
+                                        </label>
+                                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-100 text-teal-900 font-bold">
+                                            {allowedCashAccounts.length} of {cashList.length} cash accounts selected
+                                        </span>
+                                    </div>
+                                    {cashList.length > 0 && (
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <button
+                                                type="button"
+                                                onClick={allCashSelected ? handleClearCash : handleSelectAllCash}
+                                                className="text-teal-800 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                                            >
+                                                {allCashSelected ? (
+                                                    <>
+                                                        <Square size={13} /> Clear All
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CheckSquare size={13} /> Select All Cash Ledgers
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {cashListLoading ? (
+                                    <div className="py-4 text-center text-xs text-slate-400">Loading cash accounts...</div>
+                                ) : cashList.length === 0 ? (
+                                    <div className="py-4 text-center text-xs text-slate-400 italic">
+                                        No cash accounts found in organization master.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                        {cashList.map((c) => {
+                                            const isChecked = allowedCashAccounts.includes(c._id);
+                                            const assignedUser = c.assignedUserId || {};
+                                            const userName = assignedUser.name || c.name;
+                                            const userRole = assignedUser.role || 'staff';
+                                            const netBal = Number(c.netBalance !== undefined ? c.netBalance : c.availableBalance || 0);
+
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={c._id}
+                                                    onClick={() => toggleAllowedCash(c._id)}
+                                                    className={`p-3 rounded-xl text-left border transition-all cursor-pointer select-none flex flex-col justify-between ${
+                                                        isChecked
+                                                            ? 'bg-teal-50/90 border-teal-500 shadow-xs'
+                                                            : 'bg-white border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="flex items-center gap-2 truncate">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                readOnly
+                                                                className="w-4 h-4 accent-teal-700 text-teal-700 rounded focus:ring-teal-600 border-slate-300 pointer-events-none"
+                                                            />
+                                                            <div className="truncate">
+                                                                <span className="text-xs font-bold text-slate-900 block truncate leading-tight">
+                                                                    {c.name}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-500 font-medium truncate block">
+                                                                    {userName}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">
+                                                            {userRole}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] font-mono text-slate-600 flex justify-between items-center">
+                                                        <span className="text-[10px] text-slate-400">Current Bal:</span>
+                                                        <span className={`font-bold ${netBal >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+                                                            ₹ {netBal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SECTION 5: Granular Module Permissions (RBAC) */}
                     <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
                         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                             <div className="flex items-center gap-2">

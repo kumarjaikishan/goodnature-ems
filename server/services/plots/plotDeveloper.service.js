@@ -2481,9 +2481,9 @@ class PlotDeveloperService {
       throw new Error('Sponsor not found');
     }
     const pwd = newPassword && newPassword.trim() ? newPassword.trim() : '123456';
-    const bcrypt = require('bcrypt');
-    const salt = await bcrypt.genSalt(10);
-    sponsor.password = await bcrypt.hash(pwd, salt);
+    // User schema has a pre("save") hook that automatically hashes sponsor.password with bcrypt.genSalt(10).
+    // Setting plain password ensures it is hashed exactly once.
+    sponsor.password = pwd;
     await sponsor.save();
     return { message: `Password reset successfully for sponsor ${sponsor.name}`, defaultPassword: pwd };
   }

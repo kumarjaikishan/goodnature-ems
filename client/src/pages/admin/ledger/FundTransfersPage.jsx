@@ -128,25 +128,39 @@ export default function FundTransfersPage() {
     treasuryLedgers.cashLedgers.find(
       (c) => String(c.assignedUserId?._id || c.assignedUserId) === currentUserId
     ) ||
-    treasuryLedgers.cashLedgers[0] ||
     null;
+
+  const cashScope = currentUser?.cashPermissions?.accessScope || 'all';
+  const allowedCashIds = (currentUser?.cashPermissions?.allowedCashLedgerIds || []).map(
+    (id) => (typeof id === 'object' ? String(id._id) : String(id))
+  );
+
+  const availableRecipientCashLedgers = treasuryLedgers.cashLedgers.filter((c) => {
+    if (c._id === fromLedgerId) return false;
+    if (isSuperAdmin && cashScope === 'all') return true;
+    if (cashScope === 'none') return false;
+    if (cashScope === 'selected') {
+      return allowedCashIds.includes(String(c._id));
+    }
+    return true;
+  });
 
   const handleOpenTransferModal = () => {
     const myCash = activeMyCash;
     let initialFrom = "";
     if (myCash) {
       initialFrom = myCash._id;
-    } else if (treasuryLedgers.bankLedgers.length > 0) {
+    } else if (isSuperAdmin && treasuryLedgers.bankLedgers.length > 0) {
       initialFrom = treasuryLedgers.bankLedgers[0]._id;
-    } else if (treasuryLedgers.cashLedgers.length > 0) {
+    } else if (isSuperAdmin && treasuryLedgers.cashLedgers.length > 0) {
       initialFrom = treasuryLedgers.cashLedgers[0]._id;
     }
     setFromLedgerId(initialFrom);
 
-    // Pick a destination that is different from initialFrom
+    // Pick a destination that is different from initialFrom and allowed by cash permissions
     const validDest =
       treasuryLedgers.bankLedgers.find((b) => b._id !== initialFrom) ||
-      treasuryLedgers.cashLedgers.find((c) => c._id !== initialFrom);
+      availableRecipientCashLedgers.find((c) => c._id !== initialFrom);
     const destId = validDest ? validDest._id : "";
     setToLedgerId(destId);
 
@@ -809,13 +823,15 @@ export default function FundTransfersPage() {
                     ))}
                 </optgroup>
                 <optgroup label="Recipient Cash Accounts">
-                  {treasuryLedgers.cashLedgers
-                    .filter((c) => c._id !== fromLedgerId)
-                    .map((c) => (
+                  {availableRecipientCashLedgers.length === 0 ? (
+                    <option disabled value="">(No authorized cash drawers)</option>
+                  ) : (
+                    availableRecipientCashLedgers.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.name}
                       </option>
-                    ))}
+                    ))
+                  )}
                 </optgroup>
               </select>
             </div>

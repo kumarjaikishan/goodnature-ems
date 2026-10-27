@@ -110,6 +110,18 @@ const userSchema = new mongoose.Schema({
             type: Boolean,
             default: true
         }
+    },
+    // Granular Cash Drawer & Transfer Permissions
+    cashPermissions: {
+        accessScope: {
+            type: String,
+            enum: ['all', 'selected', 'none'],
+            default: 'all'
+        },
+        allowedCashLedgerIds: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Ledger'
+        }]
     }
 }, { timestamps: true });
 

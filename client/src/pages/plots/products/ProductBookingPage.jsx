@@ -575,7 +575,7 @@ const ProductBookingPage = () => {
             onClick={() => navigate('/dashboard/plots/product-sales')}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 transition cursor-pointer mb-1"
           >
-            <ArrowLeft size={14} /> Back to Product Sales &amp; Bookings
+            <ArrowLeft size={14} /> Back to Investment Bookings
           </button>
           <div className="flex items-center gap-2.5">
             <span className="p-2 bg-teal-50 text-teal-800 border border-teal-200 rounded-xl shadow-2xs">
@@ -584,8 +584,8 @@ const ProductBookingPage = () => {
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 {isEditMode
-                  ? `Edit Plot Product Booking — ${editBookingDoc?.bookingNumber || ''}`
-                  : 'Sell Plot Product & Create Booking'}
+                  ? `Edit Investment Booking — ${editBookingDoc?.bookingNumber || ''}`
+                  : 'Create Investment Booking'}
               </h1>
               <p className="text-xs text-slate-500 font-medium">
                 {isEditMode

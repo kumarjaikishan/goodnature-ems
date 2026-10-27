@@ -2,6 +2,76 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **User Rename vs Cash Ledger Name Desynchronization Fix [COMPLETED]**:
+  - **Issue**:
+    - When logging in as Nawraj Singh Nayan (Cashier), the "From Account (Source)" dropdown in Fund Transfers showed `subodh kumar (Cash Ledger)`.
+  - **Root Causes**:
+    1. **Stale Ledger Name in DB**: The user document (`68aef4129017d8efd4f6a6ca`) was previously named "Subodh Kumar" and later renamed to "Nawraj Singh Nayan". However, in [ledger.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/ledger.js) (`createLedgerForUsers`), the name update condition was `if (primaryLedger.name !== expectedName && !primaryLedger.name.includes('(Cash Ledger)'))`. Because `primaryLedger.name` already included `'(Cash Ledger)'`, it skipped updating the name!
+    2. **Missing Sync on User Edit**: [admin.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/admin.js) (`editAdmin`) updated the User collection without synchronizing the linked `user_cash` ledger title.
+    3. **Unsafe Fallback**: In [FundTransfersPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/ledger/FundTransfersPage.jsx), `activeMyCash` fell back to `treasuryLedgers.cashLedgers[0]`, which could wrongly select another user's cash account if the user ID match failed.
+  - **Fixes**:
+    - Removed `!primaryLedger.name.includes('(Cash Ledger)')` in `createLedgerForUsers()` so renamed users always sync their cash ledger name.
+    - In `editAdmin()`, added automatic synchronization of `Ledger` docs with `assignedUserId: id, ledgerType: 'user_cash'`.
+    - Removed the unsafe `treasuryLedgers.cashLedgers[0]` fallback from `activeMyCash` in `FundTransfersPage.jsx`.
+    - Synchronized Nawraj's ledger name in the database from `subodh kumar (Cash Ledger)` to `Nawraj singh nayan (Cash Ledger)`.
+
+- **Cash Ledgers Granular Permissions & Fund Transfer Selection Scope [COMPLETED]**:
+  - **Requirement**:
+    - Provide a granular permission system for Cash Ledgers/Drawers in user editing (`/dashboard/organization/users/:id/edit`).
+    - When initiating fund transfers in `/dashboard/ledger/transfers`, users should only see and transfer funds to cash drawers authorized for them.
+    - Support "All Cash Accounts", "Selected Cash Accounts Only" (with Select All / Clear All checklist), and "No Cash Transfer Access".
+  - **Implementation**:
+    - **User Schema & Model ([user.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/user.js))**:
+      - Added `cashPermissions: { accessScope: { type: String, enum: ['all', 'selected', 'none'], default: 'all' }, allowedCashLedgerIds: [{ type: ObjectId, ref: 'Ledger' }] }`.
+    - **Admin Controller & FirstFetch ([admin.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/admin.js))**:
+      - Handled `cashPermissions` parsing and saving in `addAdmin` and `editAdmin`.
+      - Populated `cashPermissions.allowedCashLedgerIds` in `getAdmin`, `getAdminById`, and `firstfetch`.
+    - **Treasury & Ledger Controller ([ledger.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/ledger.js))**:
+      - In `getTreasuryLedgers`: filtered cash drawers by caller's `cashPermissions` (unless `all=true` is requested by superadmin or caller is supreme developer/superadmin with all scope).
+    - **Fund Transfer Backend Verification ([fundTransfer.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/fundTransfer.js))**:
+      - In `requestTransfer`: verified `cPerm` (`caller.cashPermissions`) when `toLedger.ledgerType === 'user_cash'`, ensuring non-superadmins can only transfer to authorized cash drawers.
+    - **User Form Frontend ([AdminUserFormPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/organization/pages/AdminUserFormPage.jsx))**:
+      - Added Section 4: "Cash Drawers & Inter-Account Transfer Authority" with scope radio controls, "Select All Cash Ledgers" / "Clear All" buttons, and interactive cash drawer cards with balances.
+    - **Fund Transfer Frontend ([FundTransfersPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/ledger/FundTransfersPage.jsx))**:
+      - Filtered "Recipient Cash Accounts" dropdown by `currentUser?.cashPermissions`, preventing unauthorized cash drawers from appearing.
+
+- **Ledger Submenu "Add Ledger" Redundancy Removal (Option A) [COMPLETED]**:
+  - **Requirement**:
+    - Remove the confusing "Add Ledger" button on entity-specific ledger pages (Employees, Sellers, Business Associates, Business Partners, Branch Partners).
+    - These ledgers are automatically synced reflections of their core domain records.
+  - **Implementation**:
+    - In [ledgerpagelist.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/ledger/ledgerpagelist.jsx), wrapped the "Add Ledger" button to only render when `category === "all"`.
+
+- **Dedicated Incentive & Closings RBAC Permission (`plot_incentive`) [COMPLETED]**:
+  - **Requirement**:
+    - Disentangle the Incentive Matrix page (`/dashboard/plots/incentives`) and closing endpoints from `plot_sponsor`.
+    - Provide a dedicated, granular permission `plot_incentive: "Incentive Closings & Rewards"` in the RBAC permissions matrix.
+  - **Implementation**:
+    - **Permissions Config & Presets ([userPermissionsConfig.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/organization/components/admin/userPermissionsConfig.js), [permission.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/utils/permission.js))**:
+      - Added `plot_incentive` to `AllPermissionNames`, `MODULE_DISPLAY_NAMES`, and `MODULE_CATEGORIES.realestate`.
+      - Configured role presets (`admin`: all [1,2,3,4], `manager`/`accountant`: [1,2,3], `sales`/`auditor`: [1], `cashier`/`hr`: []).
+    - **Backend Routes ([plots.routes.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/router/plots.routes.js))**:
+      - Replaced `plot_sponsor` with `plot_incentive` on `/closings/preview`, `POST /closings`, `GET /closings`, `GET /closings/:id`, `PUT /closings/:id`, and `DELETE /closings/:id`.
+    - **Frontend Route Guards & Navigation ([App.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/App.jsx), [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx))**:
+      - Sidebar "Incentive" menu item now requires `resource: "plot_incentive"`.
+      - Route guards for `/dashboard/plots/incentives`, `/dashboard/plots/incentives/new`, `/dashboard/plots/incentives/edit/:id`, and `/dashboard/plots/closings*` now require `plot_incentive`.
+    - **Granular Action Controls ([PlotIncentivesPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/incentives/PlotIncentivesPage.jsx))**:
+      - Added `canCreate`, `canUpdate`, and `canDelete` permission checks on the "Process Target Incentive" button, batch edit button, and batch delete/reverse button.
+
+- **Plot Booking & Investment Booking Strict RBAC Separation & Authorization Fix [COMPLETED]**:
+  - **Issues**:
+    1. "Investment Booking" was still showing in the sidebar and accessible even when only `plot_booking` was granted (due to an automatic backward-compatibility fallback from `investment_booking` to `plot_booking`).
+    2. "Plot Booking" (`/dashboard/plots/booking`) was showing "Not Authorised" when granted `plot_booking` because the booking list component (`PlotReports.jsx`) queries `/plots/reports/bookings`, which was strictly guarded by `plot_reports` instead of `plot_booking`.
+  - **Fixes**:
+    - **Removed all fallbacks from `investment_booking` to `plot_booking`**:
+      - In [CheckPermission.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/utils/CheckPermission.jsx) and [checkpermission.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/middleware/checkpermission.js), removed the fallback block.
+      - In [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx) and [App.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/App.jsx), set "Investment Booking" routes to strictly require `investment_booking`.
+    - **Authorized Plot Booking Data Access**:
+      - In [plots.routes.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/router/plots.routes.js):
+        - Allowed `['plot_reports', 'plot_booking']` on `/reports/:type` so users with `plot_booking` can view the plot bookings and holds list.
+        - Allowed `['plot_inventory', 'plot_booking']` on `GET /plots` and `GET /series` so users with `plot_booking` can create new bookings.
+        - Separated `/product-bookings*` routes to strictly check `investment_booking`.
+
 - **Plot Incentives & Extra Incentive Period Closing: Brand Theme Alignment [COMPLETED]**:
   - **Requirement**:
     - Remove all purple-based colors from `/dashboard/plots/incentives?tab=extra` and `/dashboard/plots/incentives/new?type=EXTRA_INCENTIVE`.

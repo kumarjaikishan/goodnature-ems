@@ -36,10 +36,11 @@ exports.requestTransfer = async (req, res, next) => {
       return res.status(404).json({ message: "Destination ledger not found" });
     }
 
-    const caller = await User.findById(req.user?.id || req.userid).select('role permissions bankPermissions').lean();
+    const caller = await User.findById(req.user?.id || req.userid).select('role permissions bankPermissions cashPermissions').lean();
     const callerRole = String(caller?.role || req.user?.role || '').toLowerCase();
     const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(callerRole);
     const bPerm = caller?.bankPermissions;
+    const cPerm = caller?.cashPermissions;
 
     // Security: Only the assigned cashier can transfer funds OUT of their personal cash drawer
     if (fromLedger.ledgerType === 'user_cash') {
@@ -70,6 +71,19 @@ exports.requestTransfer = async (req, res, next) => {
           const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
           if (!allowedIds.includes(toLedger._id.toString())) {
             return res.status(403).json({ message: "You are not authorized to transfer funds into this specific bank account." });
+          }
+        }
+      }
+    } else if (toLedger.ledgerType === 'user_cash') {
+      if (!isSuperOrDev) {
+        if (cPerm?.accessScope === 'none') {
+          return res.status(403).json({ message: "You do not have authorization to transfer funds into cash accounts." });
+        }
+        if (cPerm?.accessScope === 'selected') {
+          const allowedIds = (cPerm.allowedCashLedgerIds || []).map(id => id.toString());
+          const isOwn = String(toLedger.assignedUserId) === String(req.user.id || req.user._id || req.userid);
+          if (!isOwn && !allowedIds.includes(toLedger._id.toString())) {
+            return res.status(403).json({ message: "You are not authorized to transfer funds into this specific cash account." });
           }
         }
       }

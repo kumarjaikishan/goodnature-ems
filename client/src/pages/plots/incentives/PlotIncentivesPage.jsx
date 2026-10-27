@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -6,6 +6,7 @@ import DataTable from '@/components/common/DataTable';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import PageLoader from '../../../components/common/PageLoader';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
+import usePermission from '../../../utils/CheckPermission';
 import {
   Calendar,
   Plus,
@@ -19,14 +20,8 @@ import {
   Building2,
   Building,
   Users,
-  IndianRupee,
   Receipt,
   Sparkles,
-  ArrowRight,
-  AlertCircle,
-  FileSpreadsheet,
-  Loader2,
-  ChevronDown,
   ChevronRight,
   Gift
 } from 'lucide-react';
@@ -248,6 +243,10 @@ const PlotIncentivesPage = () => {
 
   const urlTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() => parseTab(urlTab));
+
+  const canCreate = usePermission('plot_incentive', 2);
+  const canUpdate = usePermission('plot_incentive', 3);
+  const canDelete = usePermission('plot_incentive', 4);
 
   useEffect(() => {
     const resolved = parseTab(urlTab);
@@ -476,20 +475,24 @@ const PlotIncentivesPage = () => {
           >
             <Eye size={15} />
           </button>
-          <button
-            onClick={() => handleOpenEditModal(row)}
-            title="Edit Incentive Dates"
-            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition border border-blue-200/60 cursor-pointer"
-          >
-            <Edit2 size={15} />
-          </button>
-          <button
-            onClick={() => handleDeleteClosing(row)}
-            title="Reverse and Delete Incentive Batch"
-            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition border border-rose-200/60 cursor-pointer"
-          >
-            <Trash2 size={15} />
-          </button>
+          {canUpdate && (
+            <button
+              onClick={() => handleOpenEditModal(row)}
+              title="Edit Incentive Dates"
+              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition border border-blue-200/60 cursor-pointer"
+            >
+              <Edit2 size={15} />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => handleDeleteClosing(row)}
+              title="Reverse and Delete Incentive Batch"
+              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition border border-rose-200/60 cursor-pointer"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -526,25 +529,27 @@ const PlotIncentivesPage = () => {
         </div>
 
         {/* Dynamic Action Button for Active Tab */}
-        <div className="flex items-center gap-2.5 pb-2 sm:pb-0">
-          {activeTab === 'TARGET_INCENTIVE' ? (
-            <button
-              onClick={() => handleOpenCreateModal('TARGET_INCENTIVE')}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
-            >
-              <Plus size={16} />
-              <span>Process Target Incentive</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => handleOpenCreateModal('EXTRA_INCENTIVE')}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
-            >
-              <Sparkles size={16} />
-              <span>Process Extra Incentive / Reward</span>
-            </button>
-          )}
-        </div>
+        {canCreate && (
+          <div className="flex items-center gap-2.5 pb-2 sm:pb-0">
+            {activeTab === 'TARGET_INCENTIVE' ? (
+              <button
+                onClick={() => handleOpenCreateModal('TARGET_INCENTIVE')}
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
+              >
+                <Plus size={16} />
+                <span>Process Target Incentive</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleOpenCreateModal('EXTRA_INCENTIVE')}
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
+              >
+                <Sparkles size={16} />
+                <span>Process Extra Incentive / Reward</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Summary KPI Cards */}

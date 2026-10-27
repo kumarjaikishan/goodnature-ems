@@ -415,15 +415,17 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                         </div>
                     </div>
 
-                    {/* Right: Add Ledger Button */}
-                    <Button
-                        icon={<Plus size={15} />}
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleOpenLedgerDialog()}
-                    >
-                        Add Ledger
-                    </Button>
+                    {/* Right: Add Ledger Button (Only on General/All view since domain ledgers are automatically created) */}
+                    {category === "all" && (
+                        <Button
+                            icon={<Plus size={15} />}
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleOpenLedgerDialog()}
+                        >
+                            Add Ledger
+                        </Button>
+                    )}
                 </div>
 
                 {/* Filter Controls Bar */}

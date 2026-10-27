@@ -55,6 +55,7 @@ const PlotBusinessDevelopers = () => {
   const canDelete = usePermission('plot_sponsor', 4);
 
   const [businessDevelopers, setBusinessDevelopers] = useState([]);
+  const [allBusinessPartners, setAllBusinessPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
@@ -145,9 +146,25 @@ const PlotBusinessDevelopers = () => {
     }
   };
 
+  const fetchBusinessPartners = async () => {
+    try {
+      const res = await apiClient({
+        url: 'plots/sponsors',
+        params: { roleType: 'partner', limit: 1000 },
+      });
+      setAllBusinessPartners(res.data || res.sponsors || res || []);
+    } catch (err) {
+      console.error('Failed to fetch business partners:', err);
+    }
+  };
+
   useEffect(() => {
     fetchBusinessDevelopers();
   }, [search, selectedBranchFilter, selectedRoleFilter]);
+
+  useEffect(() => {
+    fetchBusinessPartners();
+  }, []);
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -356,6 +373,7 @@ const PlotBusinessDevelopers = () => {
       }
       setShowModal(false);
       fetchBusinessDevelopers();
+      fetchBusinessPartners();
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || err.message || 'Failed to save business developer');
@@ -721,7 +739,9 @@ const PlotBusinessDevelopers = () => {
         size="2xl"
         title={
           editingDeveloper
-            ? `Edit Business Developer (${editingDeveloper.sponsorCode || ''})`
+            ? createMode === 'partner'
+              ? `Edit Business Partner (${editingDeveloper.sponsorCode || ''})`
+              : `Edit Business Associate (${editingDeveloper.sponsorCode || ''})`
             : createMode === 'partner'
             ? 'Create Business Partner'
             : 'Create Business Associate'
@@ -749,7 +769,9 @@ const PlotBusinessDevelopers = () => {
               loading={submitLoading}
             >
               {editingDeveloper
-                ? 'Update Business Developer'
+                ? createMode === 'partner'
+                  ? 'Update Business Partner'
+                  : 'Update Business Associate'
                 : createMode === 'partner'
                 ? 'Create Business Partner'
                 : 'Create Business Associate'}
@@ -758,52 +780,6 @@ const PlotBusinessDevelopers = () => {
         }
       >
         <form id="developer-form" onSubmit={handleSubmit} className="space-y-4">
-              {/* Role / Developer Type Selector (Only shown when editing an existing developer) */}
-              {editingDeveloper && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                    Designation / Role *
-                  </label>
-                  <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCreateMode('partner');
-                        setFormData((prev) => ({ ...prev, sponsorId: 'direct' }));
-                      }}
-                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        createMode === 'partner'
-                          ? 'bg-white text-amber-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <Crown size={15} className={createMode === 'partner' ? 'text-amber-600' : 'text-slate-400'} />
-                      <span>👑 Business Partner (BP)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCreateMode('associate');
-                        const firstPartner = businessDevelopers.find((s) => !s.sponsorId && s._id !== editingDeveloper?._id);
-                        const partnerBranchId = firstPartner?.branchIds?.[0]?._id || firstPartner?.branchIds?.[0] || '';
-                        setFormData((prev) => ({
-                          ...prev,
-                          sponsorId: prev.sponsorId && prev.sponsorId !== 'direct' ? prev.sponsorId : (firstPartner?._id || ''),
-                          branchId: partnerBranchId || prev.branchId || (availableBranches[0]?._id || ''),
-                        }));
-                      }}
-                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        createMode === 'associate'
-                          ? 'bg-white text-teal-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <Users size={15} className={createMode === 'associate' ? 'text-teal-700' : 'text-slate-400'} />
-                      <span>👥 Business Associate (BA)</span>
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Partner Mode: Branch Selection */}
               {createMode === 'partner' && (
@@ -837,7 +813,8 @@ const PlotBusinessDevelopers = () => {
                       required
                       value={formData.sponsorId === 'direct' ? '' : formData.sponsorId}
                       onChange={(selPartnerId) => {
-                        const partner = businessDevelopers.find((s) => s._id === selPartnerId);
+                        const partnerPool = allBusinessPartners.length > 0 ? allBusinessPartners : businessDevelopers.filter((s) => !s.sponsorId);
+                        const partner = partnerPool.find((s) => s._id === selPartnerId);
                         const partnerBranchId = partner?.branchIds?.[0]?._id || partner?.branchIds?.[0] || '';
                         setFormData((prev) => ({
                           ...prev,
@@ -845,16 +822,24 @@ const PlotBusinessDevelopers = () => {
                           branchId: partnerBranchId || prev.branchId || (availableBranches[0]?._id || ''),
                         }));
                       }}
-                      options={businessDevelopers
-                        .filter((s) => !s.sponsorId && s._id !== editingDeveloper?._id)
-                        .map((sp) => {
+                      options={(() => {
+                        const partnerPool = allBusinessPartners.length > 0 ? allBusinessPartners : businessDevelopers.filter((s) => !s.sponsorId);
+                        const filtered = partnerPool.filter((s) => s._id !== editingDeveloper?._id);
+                        // Ensure existing editing sponsor's partner is present in options even if not in pool
+                        if (editingDeveloper?.sponsorId && typeof editingDeveloper.sponsorId === 'object' && editingDeveloper.sponsorId._id) {
+                          if (!filtered.some((p) => p._id === editingDeveloper.sponsorId._id)) {
+                            filtered.unshift(editingDeveloper.sponsorId);
+                          }
+                        }
+                        return filtered.map((sp) => {
                           const bName = sp.branchIds?.[0]?.name ? ` (${sp.branchIds[0].name})` : '';
                           return {
                             value: sp._id,
                             label: `${sp.name} (${sp.sponsorCode || 'Partner'})`,
                             subtitle: bName ? `Branch:${bName}` : undefined,
                           };
-                        })}
+                        });
+                      })()}
                       placeholder="Select Business Partner..."
                       searchPlaceholder="Search partner by name or code..."
                     />

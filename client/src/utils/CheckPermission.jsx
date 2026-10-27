@@ -21,18 +21,22 @@ export const hasPermission = (profile, resource, action = 1) => {
     const permissions = profile.permissions;
     if (!permissions) return false;
 
-    // 1. Direct resource check
-    const directPerms = permissions[resource];
-    if (Array.isArray(directPerms) && directPerms.includes(action)) {
-        return true;
-    }
+    const resources = Array.isArray(resource) ? resource : [resource];
 
-    // 2. Intelligent sub-module fallback to "ledger"
-    const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'sponsor_ledger'];
-    if (LEDGER_SUBMODULES.includes(resource)) {
-        const ledgerPerms = permissions['ledger'];
-        if (Array.isArray(ledgerPerms) && ledgerPerms.includes(action)) {
+    for (const res of resources) {
+        // 1. Direct resource check
+        const directPerms = permissions[res];
+        if (Array.isArray(directPerms) && directPerms.includes(action)) {
             return true;
+        }
+
+        // 2. Intelligent sub-module fallback to "ledger"
+        const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
+        if (LEDGER_SUBMODULES.includes(res)) {
+            const ledgerPerms = permissions['ledger'];
+            if (Array.isArray(ledgerPerms) && ledgerPerms.includes(action)) {
+                return true;
+            }
         }
     }
 

@@ -24,7 +24,7 @@ router.get('/rate-config', (req, res, next) => {
     return next();
   }
   const perms = req.user?.permissions instanceof Map ? Object.fromEntries(req.user.permissions) : (req.user?.permissions || {});
-  const hasAccess = ['plot_collection', 'plot_booking', 'plot_inventory', 'cash_ledger', 'voucher', 'ledger'].some(resName => Array.isArray(perms[resName]) && perms[resName].includes(1));
+  const hasAccess = ['plot_collection', 'plot_booking', 'investment_booking', 'plot_inventory', 'cash_ledger', 'voucher', 'ledger'].some(resName => Array.isArray(perms[resName]) && perms[resName].includes(1));
   if (hasAccess) {
     return next();
   }
@@ -38,8 +38,8 @@ router.put('/commission-policy', checkPermission('plot_inventory', 3), ctrl.upda
 
 // ── Series Master (inventory setup) ──
 router.post('/series', checkPermission('plot_inventory', 2), ctrl.createSeries);
-router.get('/series', checkPermission('plot_inventory', 1), ctrl.getSeriesList);
-router.get('/series/:id', checkPermission('plot_inventory', 1), ctrl.getSeriesById);
+router.get('/series', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getSeriesList);
+router.get('/series/:id', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getSeriesById);
 router.put('/series/:id', checkPermission('plot_inventory', 3), ctrl.updateSeries);
 router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSeries);
 
@@ -84,7 +84,7 @@ router.get('/customers', (req, res, next) => {
     req.query.sponsorId = req.user.id || req.user._id;
     return next();
   }
-  return checkPermission('plot_customer', 1)(req, res, next);
+  return checkPermission(['plot_customer', 'plot_booking', 'investment_booking'], 1)(req, res, next);
 }, ctrl.getCustomers);
 router.get('/customers/:id', (req, res, next) => {
   if (req.user?.role === 'sponsor') {
@@ -157,21 +157,21 @@ router.put('/receipts/:id/reject', checkPermission('plot_collection', 3), ctrl.r
 
 // ── Dashboard & Reports ──
 router.get('/dashboard/stats', checkPermission('plot_reports', 1), ctrl.getDashboardStats);
-router.get('/reports/:type', checkPermission('plot_reports', 1), ctrl.getReportsData);
+router.get('/reports/:type', checkPermission(['plot_reports', 'plot_booking'], 1), ctrl.getReportsData);
 
 // ── Commission Closings ──
-router.get('/closings/preview', checkPermission('plot_sponsor', 1), ctrl.previewPlotClosing);
-router.post('/closings', checkPermission('plot_sponsor', 2), ctrl.createPlotClosing);
-router.get('/closings', checkPermission('plot_sponsor', 1), ctrl.getPlotClosings);
-router.get('/closings/:id', checkPermission('plot_sponsor', 1), ctrl.getPlotClosingById);
-router.put('/closings/:id', checkPermission('plot_sponsor', 3), ctrl.updatePlotClosing);
-router.delete('/closings/:id', checkPermission('plot_sponsor', 4), ctrl.deletePlotClosing);
+router.get('/closings/preview', checkPermission('plot_incentive', 1), ctrl.previewPlotClosing);
+router.post('/closings', checkPermission('plot_incentive', 2), ctrl.createPlotClosing);
+router.get('/closings', checkPermission('plot_incentive', 1), ctrl.getPlotClosings);
+router.get('/closings/:id', checkPermission('plot_incentive', 1), ctrl.getPlotClosingById);
+router.put('/closings/:id', checkPermission('plot_incentive', 3), ctrl.updatePlotClosing);
+router.delete('/closings/:id', checkPermission('plot_incentive', 4), ctrl.deletePlotClosing);
 
 // ── Kisan Land Agreements & Land Stock Pooling ──
 router.post('/kisan-agreements/upload-document', upload.single('file'), ctrl.uploadLandDocument);
 router.post('/kisan-agreements', checkPermission('plot_inventory', 2), ctrl.createKisanAgreement);
 router.get('/kisan-agreements', checkPermission('plot_inventory', 1), ctrl.getKisanAgreements);
-router.get('/kisan-agreements/sources', checkPermission('plot_inventory', 1), ctrl.getAvailableLandStockSources);
+router.get('/kisan-agreements/sources', checkPermission(['plot_inventory', 'investment_booking', 'plot_booking'], 1), ctrl.getAvailableLandStockSources);
 router.get('/kisan-agreements/:id', checkPermission('plot_inventory', 1), ctrl.getKisanAgreementById);
 router.put('/kisan-agreements/:id', checkPermission('plot_inventory', 3), ctrl.updateKisanAgreement);
 router.delete('/kisan-agreements/:id', checkPermission('plot_inventory', 4), ctrl.deleteKisanAgreement);
@@ -194,7 +194,7 @@ router.put('/purchasers/:id/set-default', checkPermission('plot_inventory', 3), 
 router.delete('/purchasers/:id', checkPermission('plot_inventory', 4), ctrl.deletePurchaser);
 
 // ── Project Master Directory ──
-router.get('/projects', checkPermission('plot_inventory', 1), ctrl.getProjects);
+router.get('/projects', checkPermission(['plot_inventory', 'investment_booking', 'plot_booking'], 1), ctrl.getProjects);
 router.get('/projects/:id', checkPermission('plot_inventory', 1), ctrl.getProjectById);
 router.post('/projects', checkPermission('plot_inventory', 2), ctrl.createProject);
 router.put('/projects/:id', checkPermission('plot_inventory', 3), ctrl.updateProject);
@@ -214,31 +214,31 @@ router.get('/bookings/:id/revisions', (req, res, next) => {
 router.put('/bookings/revisions/:revisionId/narration', checkPermission('plot_booking', 3), ctrl.updateBookingRevisionNarration);
 
 // ── Plot Products & Fractional Units (Master & Sales) ──
-router.get('/products/tenures', checkPermission('plot_inventory', 1), ctrl.getAvailableProductTenures);
-router.get('/products', checkPermission('plot_inventory', 1), ctrl.getPlotProducts);
+router.get('/products/tenures', checkPermission(['plot_inventory', 'investment_booking'], 1), ctrl.getAvailableProductTenures);
+router.get('/products', checkPermission(['plot_inventory', 'investment_booking'], 1), ctrl.getPlotProducts);
 router.post('/products', checkPermission('plot_inventory', 2), ctrl.createPlotProduct);
-router.get('/products/:id', checkPermission('plot_inventory', 1), ctrl.getPlotProductById);
+router.get('/products/:id', checkPermission(['plot_inventory', 'investment_booking'], 1), ctrl.getPlotProductById);
 router.put('/products/:id', checkPermission('plot_inventory', 3), ctrl.updatePlotProduct);
 router.delete('/products/:id', checkPermission('plot_inventory', 4), ctrl.deletePlotProduct);
 
 // ── Product Sales / Bookings & Installment Collections ──
-router.get('/product-bookings', checkPermission('plot_booking', 1), ctrl.getProductBookings);
-router.post('/product-bookings', checkPermission('plot_booking', 2), ctrl.createProductBooking);
-router.get('/product-bookings/:id', checkPermission('plot_booking', 1), ctrl.getProductBookingById);
-router.put('/product-bookings/:id', checkPermission('plot_booking', 3), ctrl.updateProductBooking);
-router.delete('/product-bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteProductBooking);
-router.post('/product-bookings/:id/collections', checkPermission('plot_booking', 2), ctrl.collectProductInstallment);
-router.get('/product-bookings/:id/ledger', checkPermission('plot_booking', 1), ctrl.getProductCustomerLedger);
-router.get('/product-bookings/:id/commissions', checkPermission('plot_booking', 1), ctrl.getBookingCommissions);
-router.post('/product-bookings/:id/refund', checkPermission('plot_booking', 3), ctrl.cancelProductBookingAndRefund);
-router.post('/product-bookings/:id/refund-payments', checkPermission('plot_booking', 3), ctrl.addProductRefundPartPayment);
-router.get('/product-collections', checkPermission('plot_collection', 1), ctrl.getProductCollections);
-router.delete('/product-collections/:bookingId/:receiptNumber', checkPermission('plot_collection', 4), ctrl.deleteProductCollection);
+router.get('/product-bookings', checkPermission('investment_booking', 1), ctrl.getProductBookings);
+router.post('/product-bookings', checkPermission('investment_booking', 2), ctrl.createProductBooking);
+router.get('/product-bookings/:id', checkPermission('investment_booking', 1), ctrl.getProductBookingById);
+router.put('/product-bookings/:id', checkPermission('investment_booking', 3), ctrl.updateProductBooking);
+router.delete('/product-bookings/:id', checkPermission('investment_booking', 4), ctrl.deleteProductBooking);
+router.post('/product-bookings/:id/collections', checkPermission(['investment_booking', 'plot_collection'], 2), ctrl.collectProductInstallment);
+router.get('/product-bookings/:id/ledger', checkPermission('investment_booking', 1), ctrl.getProductCustomerLedger);
+router.get('/product-bookings/:id/commissions', checkPermission('investment_booking', 1), ctrl.getBookingCommissions);
+router.post('/product-bookings/:id/refund', checkPermission('investment_booking', 3), ctrl.cancelProductBookingAndRefund);
+router.post('/product-bookings/:id/refund-payments', checkPermission('investment_booking', 3), ctrl.addProductRefundPartPayment);
+router.get('/product-collections', checkPermission(['plot_collection', 'investment_booking'], 1), ctrl.getProductCollections);
+router.delete('/product-collections/:bookingId/:receiptNumber', checkPermission(['plot_collection', 'investment_booking'], 4), ctrl.deleteProductCollection);
 
 // ── Plots Inventory (Wildcard /:id placed AFTER specific routes) ──
-router.get('/', checkPermission('plot_inventory', 1), ctrl.getPlots);
+router.get('/', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getPlots);
 router.post('/', checkPermission('plot_inventory', 2), ctrl.createPlot);
-router.get('/:id', checkPermission('plot_inventory', 1), ctrl.getPlotById);
+router.get('/:id', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getPlotById);
 router.put('/:id', checkPermission('plot_inventory', 3), ctrl.updatePlot);
 
 module.exports = router;

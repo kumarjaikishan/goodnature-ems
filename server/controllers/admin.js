@@ -478,6 +478,19 @@ const addAdmin = async (req, res, next) => {
             }
         }
 
+        // Parse Granular Cash Drawer & Transfer Permissions
+        if (req.body.cashPermissions !== undefined) {
+            let parsedCashPermissions = undefined;
+            if (typeof req.body.cashPermissions === 'string') {
+                try { parsedCashPermissions = JSON.parse(req.body.cashPermissions); } catch (e) {}
+            } else if (typeof req.body.cashPermissions === 'object') {
+                parsedCashPermissions = req.body.cashPermissions;
+            }
+            if (parsedCashPermissions) {
+                fields.cashPermissions = parsedCashPermissions;
+            }
+        }
+
         let uploadResult = null;
         if (req.file) {
             uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -526,6 +539,7 @@ const getAdmin = async (req, res, next) => {
         })
         .populate('branchIds', 'name branchCode location')
         .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
+        .populate('cashPermissions.allowedCashLedgerIds', 'name ledgerType assignedUserId')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -548,6 +562,7 @@ const getAdminById = async (req, res, next) => {
         })
         .populate('branchIds', 'name branchCode location')
         .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
+        .populate('cashPermissions.allowedCashLedgerIds', 'name ledgerType assignedUserId')
         .lean();
 
         if (!admin) {
@@ -683,6 +698,19 @@ const editAdmin = async (req, res, next) => {
             }
         }
 
+        // Parse Granular Cash Drawer & Transfer Permissions
+        if (req.body.cashPermissions !== undefined) {
+            let parsedCashPermissions = undefined;
+            if (typeof req.body.cashPermissions === 'string') {
+                try { parsedCashPermissions = JSON.parse(req.body.cashPermissions); } catch (e) {}
+            } else if (typeof req.body.cashPermissions === 'object') {
+                parsedCashPermissions = req.body.cashPermissions;
+            }
+            if (parsedCashPermissions) {
+                fields.cashPermissions = parsedCashPermissions;
+            }
+        }
+
         // Handle profile image upload
         if (req.file) {
             const uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -712,6 +740,21 @@ const editAdmin = async (req, res, next) => {
             { $set: fields },
             { new: true }
         );
+
+        // Sync linked user_cash ledger name and image
+        try {
+            const Ledger = mongoose.model('Ledger');
+            const ledgerUpdate = { name: `${name.trim()} (Cash Ledger)` };
+            if (fields.profileImage) {
+                ledgerUpdate.profileImage = fields.profileImage;
+            }
+            await Ledger.updateMany(
+                { assignedUserId: id, ledgerType: 'user_cash' },
+                { $set: ledgerUpdate }
+            );
+        } catch (lErr) {
+            console.error("Error syncing user cash ledger on edit:", lErr);
+        }
 
         if (checkPermission?.invalidatePermissionCache) {
             checkPermission.invalidatePermissionCache(id);
@@ -780,8 +823,9 @@ const firstfetch = async (req, res, next) => {
         const userId = req.user?.id || req.userid;
         const [user, companye, allowedBranchIds] = await Promise.all([
             usermodal.findById(userId)
-                .select('name email profileImage role permissions branchIds bankPermissions')
+                .select('name email profileImage role permissions branchIds bankPermissions cashPermissions')
                 .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
+                .populate('cashPermissions.allowedCashLedgerIds', 'name ledgerType assignedUserId')
                 .lean(),
             company.findOne().lean(),
             getUserAllowedBranchIds(req)
