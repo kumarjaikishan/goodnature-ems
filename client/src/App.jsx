@@ -357,10 +357,10 @@ function App() {
     if (!islogin || !isTokenValid(token)) return;
 
     const role = effectiveRole;
-    if (MANAGEMENT_ROLES.includes(role)) {
-      dispatch(FirstFetch());
-    } else if (role === 'employee') {
+    if (role === 'employee') {
       dispatch(empFirstFetch());
+    } else if (role) {
+      dispatch(FirstFetch());
     }
   }, [islogin, effectiveRole, dispatch]);
 

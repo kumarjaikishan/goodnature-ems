@@ -64,6 +64,21 @@ const Navbar = () => {
     "attandence-import": "Attendance Import",
     "vouchers": "Vouchers",
     "activity-logs": "Activity Logs",
+    // Sponsor / Business Developer Titles
+    "my-commission-rates": "Commission Rates",
+    "commission-structure": "Commission Structure",
+    "my-business": "Business Report",
+    "my-network": "My Network & Customers",
+    "my-customers": "My Customers",
+    "network": "My Network",
+    "my-bookings": "My Plot Bookings",
+    "sponsor-dashboard": "Dashboard",
+    "business-developer-dashboard": "Dashboard",
+    "my-leave-ledger": "My Leave Ledger",
+    "my-ledger": "My Financial Ledger",
+    "seriesMaster": "Plot Series Master",
+    "direct": "Direct Commission",
+    "incentive": "Incentive Commission",
     // Plot Management Titles
     "plots": "Plot Management",
     "inventory": "Plots Inventory",
@@ -211,10 +226,10 @@ const Navbar = () => {
     } else if (pathParts.includes("performance")) {
       pageTitle = "Performance";
     } else {
-      pageTitle = "Page";
+      pageTitle = lastPart.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Dashboard";
     }
   } else {
-    pageTitle = commonTitles[lastPart] || "Page";
+    pageTitle = commonTitles[lastPart] || lastPart.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Page";
   }
 
 

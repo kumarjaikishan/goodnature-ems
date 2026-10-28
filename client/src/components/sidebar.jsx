@@ -310,24 +310,21 @@ const Sidebar = () => {
       {/* Brand Header */}
       <div className="h-[60px] flex items-center gap-3 px-1 mb-2 border-b border-slate-100">
         <span className="shrink-0">
-          {company?.logo ? (
-            <div className="rounded-xl overflow-hidden w-9 h-9 md:h-10 md:w-10 border border-teal-100 shadow-xs">
-              <img
-                className="w-full h-full object-cover"
-                src={cloudinaryUrl(company?.logo, { format: "webp", width: 100, height: 100 })}
-                alt="Company Logo"
-              />
-            </div>
-          ) : (
-            <div className="w-9 h-9 md:h-10 md:w-10 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shadow-xs">
-              <Building2 size={22} />
-            </div>
-          )}
+          <div className="rounded-xl overflow-hidden w-9 h-9 md:h-10 md:w-10 border border-teal-100 shadow-xs flex items-center justify-center bg-white">
+            <img
+              className="w-full h-full object-contain"
+              src={company?.logo ? cloudinaryUrl(company?.logo, { format: "webp", width: 100, height: 100 }) : "/favicon.png"}
+              alt="Company Logo"
+              onError={(e) => {
+                e.currentTarget.src = "/favicon.png";
+              }}
+            />
+          </div>
         </span>
         {showText && (
           <div className="min-w-0">
             <h2 className="capitalize font-bold text-sm text-slate-800 truncate tracking-tight">
-              {company?.name || "Good Nature"}
+              {company?.name || "Goodfeel"}
             </h2>
 
           </div>

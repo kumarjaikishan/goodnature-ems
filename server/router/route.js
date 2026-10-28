@@ -62,9 +62,9 @@ router.route('/departmentlist').get(authmiddlewre, authorizeRoles('superadmin', 
 router.route('/adddepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 2), admin.addDepartment);
 router.route('/updatedepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 3), admin.updatedepartment);
 router.route('/deletedepartment').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("department", 4), admin.deletedepartment);
-router.route('/firstfetch').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.firstfetch);
-router.route('/user/fetchFirst').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.firstfetch);
-router.route('/fetchFirst').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), admin.firstfetch);
+router.route('/firstfetch').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'sponsor', 'developer', 'grant'), admin.firstfetch);
+router.route('/user/fetchFirst').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'sponsor', 'developer', 'grant'), admin.firstfetch);
+router.route('/fetchFirst').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'sponsor', 'developer', 'grant'), admin.firstfetch);
 router.route('/leavehandle').post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 3), admin.leavehandle);
 router.route('/leavehandle/:leaveid').delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 4), admin.deleteleave);
 // router.route('/addcompany').post(authmiddlewre, authorizeRoles('superadmin','superadmin'), admin.addcompany);

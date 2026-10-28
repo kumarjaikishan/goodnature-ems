@@ -372,8 +372,8 @@ const ReceiptViewer = () => {
                     {receipt.lateFineRebate > 0 ? (
                       <span className="text-emerald-600 font-bold">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</span>
                     ) : (
-                      <span className="text-teal-900 font-bold uppercase text-[10px] bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                        Downpayment Voucher
+                      <span className="text-slate-900 font-bold uppercase">
+                        Downpayment
                       </span>
                     )}
                   </td>
