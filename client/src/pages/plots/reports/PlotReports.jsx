@@ -319,7 +319,7 @@ const PlotReports = () => {
               variant="primary"
               size="md"
               startIcon={Plus}
-              onClick={() => navigate('/dashboard/plots/addbooking')}
+              onClick={() => navigate('/dashboard/plots/booking/new')}
             >
               New Booking
             </Button>

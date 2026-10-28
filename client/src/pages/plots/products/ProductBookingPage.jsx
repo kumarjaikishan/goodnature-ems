@@ -25,6 +25,9 @@ import {
   Trash2,
   Search,
   X,
+  Ruler,
+  Calculator,
+  Percent,
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import { DateInput } from '../../../components/ui/DateInput';
@@ -83,6 +86,8 @@ const ProductBookingPage = () => {
     productId: '',
     projectId: '',
     projectName: '',
+    customNorthSouth: '',
+    customEastWest: '',
     quantity: 1,
     customUnitPrice: '',
     tenureMonths: 24,
@@ -96,6 +101,11 @@ const ProductBookingPage = () => {
     fdMaturityPercent: undefined,
     annualInterestRate: undefined,
     paymentType: 'MONTHLY_INSTALLMENT', // 'MONTHLY_INSTALLMENT' | 'FULL_PAYMENT'
+    dpType: 'PERCENT', // 'PERCENT' | 'FLAT' | 'SQFT_RATE'
+    dpVal: 0,
+    downpaymentDays: 90,
+    emiFrequency: 'MONTHLY', // 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY'
+    installmentCount: 24,
     paymentMode: 'cash',
     transactionReference: '',
     bookingDate: new Date().toISOString().split('T')[0],
@@ -131,7 +141,13 @@ const ProductBookingPage = () => {
         // Only show slabs that are NOT marked for Add Booking (showInAddBooking !== true)
         const tenureList = rawTenureList.filter((t) => !t.showInAddBooking);
         const srcList = sourcesRes.data?.data || [];
-        const projList = projectsRes.data?.data || [];
+        const rawProjList = Array.isArray(projectsRes.data?.data)
+          ? projectsRes.data.data
+          : Array.isArray(projectsRes.data)
+          ? projectsRes.data
+          : [];
+        // Only show projects that are NOT marked for Add Booking (showInAddBooking !== true)
+        const projList = rawProjList.filter((p) => !p.showInAddBooking);
 
         setProducts(prodList);
         setCustomers(custList);
@@ -155,12 +171,16 @@ const ProductBookingPage = () => {
           );
 
           const matchedPlanKey = matchedPlan ? (matchedPlan._id || `${matchedPlan.planName || 'plan'}_${matchedPlan.tenureMonths}_${matchedPlan.rdMaturityPercent || 0}`) : '';
+          const bFreq = bData.emiFrequency || 'MONTHLY';
+          const bMult = bFreq === 'QUARTERLY' ? 3 : bFreq === 'HALF_YEARLY' ? 6 : bFreq === 'YEARLY' ? 12 : 1;
 
           setForm({
             customerId: editCust?._id || editCust || '',
             productId: bData.productId?._id || bData.productId || '',
             projectId: bData.projectId?._id || bData.projectId || '',
             projectName: bData.projectName || '',
+            customNorthSouth: bData.dimensionsSnapshot?.northSouth || bData.dimensionsSnapshot?.north || '',
+            customEastWest: bData.dimensionsSnapshot?.eastWest || bData.dimensionsSnapshot?.east || '',
             quantity: bData.quantity || 1,
             customUnitPrice: bData.unitPrice || '',
             tenureMonths: bData.tenureMonths || 24,
@@ -174,6 +194,11 @@ const ProductBookingPage = () => {
             fdMaturityPercent: bData.fdMaturityPercent,
             annualInterestRate: bData.annualInterestRate,
             paymentType: bData.paymentType || 'MONTHLY_INSTALLMENT',
+            dpType: bData.dpType || (Number(bData.downPayment) > 0 ? 'FLAT' : 'PERCENT'),
+            dpVal: bData.dpVal !== undefined ? bData.dpVal : (bData.downPayment || 0),
+            downpaymentDays: bData.downpaymentDays !== undefined ? bData.downpaymentDays : 90,
+            emiFrequency: bFreq,
+            installmentCount: bData.installmentCount || Math.max(1, Math.round((bData.tenureMonths || 24) / bMult)),
             paymentMode: bData.collections?.[0]?.paymentMode || 'cash',
             transactionReference: bData.collections?.[0]?.transactionReference || '',
             bookingDate: bData.bookingDate ? new Date(bData.bookingDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
@@ -231,6 +256,11 @@ const ProductBookingPage = () => {
             projectName: targetProd?.projectName || '',
             customerId: targetCust?._id || '',
             tenureMonths: firstTenure,
+            installmentCount: firstTenure,
+            dpType: 'PERCENT',
+            dpVal: 0,
+            downpaymentDays: 90,
+            emiFrequency: 'MONTHLY',
             planName: firstPlanName,
             selectedPlanKey: firstPlanKey,
             promoterCommissionPercent: firstTenureObj ? Number(initialBaPct) : undefined,
@@ -303,15 +333,72 @@ const ProductBookingPage = () => {
   const totalAmount = Math.round(quantityNum * unitRate * 100) / 100;
   const unitAreaSqFt = selectedProduct?.areaSqFt || (
     Number(selectedProduct?.dimensions?.north || 1) * Number(selectedProduct?.dimensions?.east || 1)
-  ) || 40;
-  const totalRequiredSqFt = Math.round(quantityNum * unitAreaSqFt * 100) / 100;
+  ) || 1;
+
+  // Custom dimension calculation (North-South x East-West)
+  const customNorthSouthNum = Number(form.customNorthSouth) || 0;
+  const customEastWestNum = Number(form.customEastWest) || 0;
+  const hasCustomDimensions = customNorthSouthNum > 0 && customEastWestNum > 0;
+  const customDimensionAreaSqFt = hasCustomDimensions
+    ? Math.round(customNorthSouthNum * customEastWestNum * 100) / 100
+    : 0;
+
+  const totalRequiredSqFt = hasCustomDimensions
+    ? customDimensionAreaSqFt
+    : Math.round(quantityNum * unitAreaSqFt * 100) / 100;
   const totalRequiredDismil = Math.round((totalRequiredSqFt / 435.6) * 100) / 100;
 
   const isFullPayment = form.paymentType === 'FULL_PAYMENT';
   const tenure = Math.max(1, Number(form.tenureMonths) || 24);
-  const monthlyEmi = isFullPayment
-    ? 0
-    : Math.round(totalAmount / tenure);
+
+  // Downpayment amount calculation
+  const downpaymentAmt = useMemo(() => {
+    if (isFullPayment) return totalAmount;
+    const num = Number(form.dpVal) || 0;
+    if (num <= 0) return 0;
+    if (form.dpType === 'FLAT') {
+      return Math.min(totalAmount, Math.round(num));
+    }
+    if (form.dpType === 'PERCENT') {
+      return Math.min(totalAmount, Math.round((totalAmount * num) / 100));
+    }
+    // SQFT_RATE
+    return Math.min(totalAmount, Math.round((totalRequiredSqFt || 1) * num));
+  }, [isFullPayment, totalAmount, form.dpVal, form.dpType, totalRequiredSqFt]);
+
+  const customDpRate = useMemo(() => {
+    if (!totalRequiredSqFt || totalRequiredSqFt <= 0) return 0;
+    return Math.round((downpaymentAmt / totalRequiredSqFt) * 100) / 100;
+  }, [downpaymentAmt, totalRequiredSqFt]);
+
+  const remainingBalance = Math.max(0, totalAmount - downpaymentAmt);
+
+  const freqMultiplier = useMemo(() => {
+    switch (form.emiFrequency) {
+      case 'QUARTERLY': return 3;
+      case 'HALF_YEARLY': return 6;
+      case 'YEARLY': return 12;
+      default: return 1;
+    }
+  }, [form.emiFrequency]);
+
+  const totalTenureMonths = isFullPayment
+    ? tenure
+    : (Number(form.installmentCount) || 1) * freqMultiplier;
+
+  const emiPerInstallmentAmt = useMemo(() => {
+    if (isFullPayment || !form.installmentCount || Number(form.installmentCount) <= 0) return 0;
+    return Math.round(remainingBalance / Number(form.installmentCount));
+  }, [isFullPayment, form.installmentCount, remainingBalance]);
+
+  const monthlyEmi = emiPerInstallmentAmt;
+
+  // Dynamic Due Date Helper (same as PlotBooking Step 3)
+  const getDynamicDueHelper = (bookingDateStr, daysVal) => {
+    const d = bookingDateStr ? new Date(bookingDateStr) : new Date();
+    d.setDate(d.getDate() + Number(daysVal || 90));
+    return `Payment due on or before ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (${daysVal || 90} days).`;
+  };
 
   // Total allocated area across all land sourcing rows
   const totalAllocatedArea = useMemo(() => {
@@ -321,8 +408,17 @@ const ProductBookingPage = () => {
   const totalAllocatedDismil = Math.round((totalAllocatedArea / 435.6) * 100) / 100;
   const isAreaMatched = Math.abs(totalAllocatedArea - totalRequiredSqFt) <= 0.5;
 
+  // Filter land agreements by selected project (must belong to chosen project)
+  const availableAgreementsForProject = useMemo(() => {
+    if (!form.projectId) return allLandSources;
+    return (allLandSources || []).filter((agr) => {
+      const pId = agr.projectId?._id || agr.projectId;
+      return pId && String(pId) === String(form.projectId);
+    });
+  }, [allLandSources, form.projectId]);
+
   // Quantity stepper & updater helper
-  const updateQuantityAndSyncArea = (nextQty, customPrd = null) => {
+  const updateQuantityAndSyncArea = (nextQty, customPrd = null, explicitArea = null) => {
     const qty = Math.max(1, Number(nextQty) || 1);
     setForm((prev) => ({ ...prev, quantity: nextQty }));
 
@@ -331,8 +427,10 @@ const ProductBookingPage = () => {
     if (prd) {
       const uArea = prd.areaSqFt || (
         Number(prd.dimensions?.north || 1) * Number(prd.dimensions?.east || 1)
-      ) || 40;
-      const newReqSqFt = Math.round(qty * uArea * 100) / 100;
+      ) || 1;
+      const newReqSqFt = explicitArea !== null && explicitArea !== undefined
+        ? explicitArea
+        : Math.round(qty * uArea * 100) / 100;
 
       setLandSourcing((prevSourcing) => {
         if (prevSourcing.length === 1 && prevSourcing[0].agreementId) {
@@ -340,6 +438,27 @@ const ProductBookingPage = () => {
         }
         return prevSourcing;
       });
+    }
+  };
+
+  const handleCustomDimensionChange = (field, rawValue) => {
+    // Only allow digits (prevents any non-numeric characters and removes scroll side-effects)
+    const value = String(rawValue ?? '').replace(/[^0-9]/g, '');
+    const nextForm = { ...form, [field]: value };
+    const ns = field === 'customNorthSouth' ? value : form.customNorthSouth;
+    const ew = field === 'customEastWest' ? value : form.customEastWest;
+    const numNs = Number(ns);
+    const numEw = Number(ew);
+
+    if (numNs > 0 && numEw > 0) {
+      const customArea = Math.round(numNs * numEw * 100) / 100;
+      const targetUnitArea = unitAreaSqFt || 1;
+      const calculatedQty = Math.max(1, Math.round(customArea / targetUnitArea));
+      nextForm.quantity = calculatedQty;
+      setForm(nextForm);
+      updateQuantityAndSyncArea(calculatedQty, null, customArea);
+    } else {
+      setForm(nextForm);
     }
   };
 
@@ -406,11 +525,17 @@ const ProductBookingPage = () => {
         ? Number(matched.branchFdCommissionPercent ?? 0)
         : Number(matched.branchRdCommissionPercent ?? 0);
 
+      const planTenure = Number(matched.tenureMonths);
+      const newInstCount = isOneTimeMode
+        ? 0
+        : Math.max(1, Math.round(planTenure / freqMultiplier));
+
       setForm((prev) => ({
         ...prev,
         selectedPlanKey: getPlanKey(matched),
         planName: matched.planName || `A-${matched.tenureMonths}`,
-        tenureMonths: Number(matched.tenureMonths),
+        tenureMonths: planTenure,
+        installmentCount: newInstCount,
         promoterCommissionPercent: baPct,
         developerCommissionPercent: bpPct,
         bpCommissionPercent: bpPct,
@@ -431,6 +556,17 @@ const ProductBookingPage = () => {
     const isOneTimeMode = newPaymentType === 'FULL_PAYMENT';
     setForm((prev) => {
       const updated = { ...prev, paymentType: newPaymentType };
+      if (isOneTimeMode) {
+        updated.dpType = 'PERCENT';
+        updated.dpVal = 100;
+        updated.installmentCount = 0;
+      } else {
+        if (Number(updated.dpVal) === 100) {
+          updated.dpVal = 0;
+        }
+        const planTenure = Number(updated.tenureMonths || currentPlan?.tenureMonths || 24);
+        updated.installmentCount = Math.max(1, Math.round(planTenure / freqMultiplier));
+      }
       if (currentPlan) {
         const baPct = isOneTimeMode
           ? Number(currentPlan.fdPromoterCommissionPercent ?? 5.0)
@@ -453,6 +589,18 @@ const ProductBookingPage = () => {
       }
       return updated;
     });
+  };
+
+  // Handler when changing EMI frequency (Monthly, Quarterly, Half-Yearly, Yearly)
+  const handleEmiFrequencyChange = (newFreq) => {
+    const mult = newFreq === 'QUARTERLY' ? 3 : newFreq === 'HALF_YEARLY' ? 6 : newFreq === 'YEARLY' ? 12 : 1;
+    const baseTenure = Number(form.tenureMonths || currentPlan?.tenureMonths || 24);
+    const newCount = Math.max(1, Math.round(baseTenure / mult));
+    setForm((prev) => ({
+      ...prev,
+      emiFrequency: newFreq,
+      installmentCount: newCount,
+    }));
   };
 
   // Handle Customer Selection
@@ -529,8 +677,37 @@ const ProductBookingPage = () => {
         annualInterestRate: form.annualInterestRate,
         quantity: quantityNum,
         customUnitPrice: form.customUnitPrice !== '' ? Number(form.customUnitPrice) : undefined,
-        downPayment: isFullPayment ? totalAmount : 0,
-        tenureMonths: tenure,
+        customDimensions: (form.customNorthSouth && form.customEastWest) ? {
+          north: Number(form.customNorthSouth),
+          south: Number(form.customNorthSouth),
+          east: Number(form.customEastWest),
+          west: Number(form.customEastWest),
+          northSouth: Number(form.customNorthSouth),
+          eastWest: Number(form.customEastWest),
+          unit: 'feet',
+          dimensionLabel: `${form.customNorthSouth} ft x ${form.customEastWest} ft (N/S: ${form.customNorthSouth} ft, E/W: ${form.customEastWest} ft)`,
+          totalAreaSqFt: totalRequiredSqFt,
+        } : (selectedProduct?.dimensions ? {
+          north: selectedProduct.dimensions.north || 1,
+          south: selectedProduct.dimensions.south || 1,
+          east: selectedProduct.dimensions.east || 1,
+          west: selectedProduct.dimensions.west || 1,
+          northSouth: selectedProduct.dimensions.north || 1,
+          eastWest: selectedProduct.dimensions.east || 1,
+          unit: selectedProduct.dimensions.unit || 'feet',
+          dimensionLabel: selectedProduct.dimensionLabel || `${selectedProduct.dimensions?.north || 1} ft x ${selectedProduct.dimensions?.east || 1} ft`,
+          totalAreaSqFt: totalRequiredSqFt,
+        } : undefined),
+        totalAreaSqFt: totalRequiredSqFt,
+        downPayment: isFullPayment ? totalAmount : downpaymentAmt,
+        downpaymentAmount: isFullPayment ? totalAmount : downpaymentAmt,
+        downpaymentDays: Number(form.downpaymentDays || 90),
+        downpaymentMonths: Math.max(1, Math.round((Number(form.downpaymentDays) || 90) / 30)),
+        emiFrequency: form.emiFrequency || 'MONTHLY',
+        installmentCount: isFullPayment ? 0 : Number(form.installmentCount || 1),
+        dpType: form.dpType || 'PERCENT',
+        dpVal: Number(form.dpVal) || 0,
+        tenureMonths: totalTenureMonths,
         paymentType: form.paymentType,
         paymentMode: isFullPayment ? (form.paymentMode || 'cash') : 'cash',
         transactionReference: isFullPayment ? (form.transactionReference || '') : '',
@@ -541,7 +718,7 @@ const ProductBookingPage = () => {
       if (isEditMode) {
         const res = await api.put(`/plots/product-bookings/${editBookingId}`, payload);
         toast.success(res.data?.message || 'Plot Product Booking updated successfully!');
-        navigate('/dashboard/plots/product-sales');
+        navigate('/dashboard/plots/investment-booking');
       } else {
         const res = await api.post('/plots/product-bookings', payload);
         const created = res.data?.data;
@@ -550,7 +727,7 @@ const ProductBookingPage = () => {
         if (created) {
           navigate(`/dashboard/plots/certificates/${created._id}`);
         } else {
-          navigate('/dashboard/plots/product-sales');
+          navigate('/dashboard/plots/investment-booking');
         }
       }
     } catch (err) {
@@ -572,7 +749,7 @@ const ProductBookingPage = () => {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/plots/product-sales')}
+            onClick={() => navigate('/dashboard/plots/investment-booking')}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 transition cursor-pointer mb-1"
           >
             <ArrowLeft size={14} /> Back to Investment Bookings
@@ -599,7 +776,7 @@ const ProductBookingPage = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/plots/product-sales')}
+            onClick={() => navigate('/dashboard/plots/investment-booking')}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
           >
             Cancel
@@ -833,7 +1010,17 @@ const ProductBookingPage = () => {
                         : {}),
                     }));
                     if (prd) {
-                      updateQuantityAndSyncArea(form.quantity || 1, prd);
+                      if (form.customNorthSouth && form.customEastWest) {
+                        const area = Number(form.customNorthSouth) * Number(form.customEastWest);
+                        const targetUnitArea = prd.areaSqFt || (
+                          Number(prd.dimensions?.north || 1) * Number(prd.dimensions?.east || 1)
+                        ) || 1;
+                        const calculatedQty = Math.max(1, Math.round(area / targetUnitArea));
+                        setForm((prev) => ({ ...prev, quantity: calculatedQty }));
+                        updateQuantityAndSyncArea(calculatedQty, prd, area);
+                      } else {
+                        updateQuantityAndSyncArea(form.quantity || 1, prd);
+                      }
                     }
                   }}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 text-xs"
@@ -876,6 +1063,98 @@ const ProductBookingPage = () => {
                 )}
               </div>
 
+              {/* Custom Dimension Entry (North-South & East-West) */}
+              <div className="sm:col-span-2 p-3.5 bg-gradient-to-r from-teal-50/70 via-emerald-50/40 to-slate-50 border border-teal-200/90 rounded-xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Ruler size={16} className="text-teal-700" />
+                    <span className="text-xs font-bold text-teal-950">
+                      Custom Dimension &amp; Area Specification (माप एवं रकबा)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-teal-700 bg-white/90 px-2 py-0.5 rounded-md border border-teal-200">
+                    Auto-calculates Units &amp; Total Area
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {/* North-South Input */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      North-South (ft) / उत्तर-दक्षिण
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={form.customNorthSouth ?? ''}
+                        onChange={(e) => handleCustomDimensionChange('customNorthSouth', e.target.value)}
+                        onWheel={(e) => e.target.blur()}
+                        placeholder="e.g. 30"
+                        className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">ft</span>
+                    </div>
+                  </div>
+
+                  {/* East-West Input */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      East-West (ft) / पूरब-पश्चिम
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={form.customEastWest ?? ''}
+                        onChange={(e) => handleCustomDimensionChange('customEastWest', e.target.value)}
+                        onWheel={(e) => e.target.blur()}
+                        placeholder="e.g. 40"
+                        className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">ft</span>
+                    </div>
+                  </div>
+
+                  {/* Calculated Area & Units Badge */}
+                  <div className="sm:col-span-2 md:col-span-1 bg-white p-2.5 rounded-lg border border-teal-200/90 flex flex-col justify-center shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider block">
+                        Total Dimension Area
+                      </span>
+                      {hasCustomDimensions && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, customNorthSouth: '', customEastWest: '' }));
+                            updateQuantityAndSyncArea(1);
+                          }}
+                          className="text-[9px] text-rose-500 hover:text-rose-700 underline font-semibold cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="text-base font-black text-teal-950 font-mono">
+                        {(hasCustomDimensions ? customDimensionAreaSqFt : totalRequiredSqFt).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[11px] font-bold text-teal-700">Sq.Ft.</span>
+                      <span className="text-[10px] text-slate-500">
+                        ({Math.round(((hasCustomDimensions ? customDimensionAreaSqFt : totalRequiredSqFt) / 435.6) * 100) / 100} Dismil)
+                      </span>
+                    </div>
+                    {hasCustomDimensions && (
+                      <span className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                        ↳ Auto: {quantityNum} Units (@ {unitAreaSqFt} SqFt/unit)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Quantity Stepper */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -890,11 +1169,12 @@ const ProductBookingPage = () => {
                     <Minus size={16} />
                   </button>
                   <input
-                    type="number"
-                    min="1"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={form.quantity}
                     onChange={(e) => {
-                      const val = e.target.value === '' ? '' : Number(e.target.value);
+                      const val = e.target.value.replace(/[^0-9]/g, '');
                       updateQuantityAndSyncArea(val);
                     }}
                     onBlur={() => {
@@ -902,6 +1182,7 @@ const ProductBookingPage = () => {
                         updateQuantityAndSyncArea(1);
                       }
                     }}
+                    onWheel={(e) => e.target.blur()}
                     className="w-full text-center px-3 py-2 bg-white border border-slate-200 rounded-xl font-black font-mono text-sm text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
                     required
                   />
@@ -923,10 +1204,12 @@ const ProductBookingPage = () => {
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
                   <input
-                    type="number"
-                    min="1"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={form.customUnitPrice}
-                    onChange={(e) => setForm({ ...form, customUnitPrice: e.target.value })}
+                    onChange={(e) => setForm({ ...form, customUnitPrice: e.target.value.replace(/[^0-9]/g, '') })}
+                    onWheel={(e) => e.target.blur()}
                     placeholder={selectedProduct?.unitPrice ? String(selectedProduct.unitPrice) : '10000'}
                     className="w-full pl-8 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl font-bold font-mono text-xs text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
                   />
@@ -962,8 +1245,8 @@ const ProductBookingPage = () => {
                       <CheckCircle2 size={12} />
                     </div>
                     <div>
-                      <div className="font-bold text-xs">Monthly Installment (EMI / R.D.)</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Zero downpayment • Total amount divided equally across tenure months</div>
+                      <div className="font-bold text-xs">Monthly / Periodic Installment (EMI)</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">Flexible downpayment • Remaining on monthly, quarterly, semi-yearly, or yearly EMIs</div>
                     </div>
                   </button>
 
@@ -980,7 +1263,7 @@ const ProductBookingPage = () => {
                       <CheckCircle2 size={12} />
                     </div>
                     <div>
-                      <div className="font-bold text-xs">One-Time Full Payment (F.D. Scheme)</div>
+                      <div className="font-bold text-xs">One-Time Full Payment</div>
                       <div className="text-[11px] text-slate-500 mt-0.5">100% upfront settlement with recorded contract deposit/holding period</div>
                     </div>
                   </button>
@@ -1016,9 +1299,10 @@ const ProductBookingPage = () => {
                     tenures.map((t, idx) => {
                       const isRegistry = Number(t.rdMaturityPercent) === 0 && Number(t.fdMaturityPercent) === 0;
                       const planTag = t.planName ? `${t.planName} — ` : '';
+                      const retPct = isFullPayment ? (t.fdMaturityPercent || 0) : (t.rdMaturityPercent || 0);
                       const suffix = isRegistry
                         ? ` • Actual Plot Sale (0% Return / Registry)`
-                        : ` • Return: RD ${t.rdMaturityPercent || 0}% | FD ${t.fdMaturityPercent || 0}%`;
+                        : ` • Return: ${retPct}%`;
                       const pKey = getPlanKey(t);
                       return (
                         <option key={pKey || idx} value={pKey}>
@@ -1038,33 +1322,223 @@ const ProductBookingPage = () => {
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {isFullPayment
                     ? 'Records holding period for maturity returns or money-back refund on term completion.'
-                    : 'Installments will be equally divided across these tenure months.'}
+                    : 'Installments will be equally divided across the selected installment schedule.'}
                 </p>
+
+                {/* Active Scheme Commission Policy Matrix */}
+                {currentPlan && (
+                  <div className="p-2.5 bg-teal-50/60 border border-teal-200/80 rounded-xl flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
+                    <span className="font-bold text-teal-900 flex items-center gap-1">
+                      <Percent size={13} className="text-teal-700" /> Scheme Commission Policy:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span>
+                        Associate (BA):{' '}
+                        <b className="text-teal-900 font-mono font-bold">
+                          {form.promoterCommissionPercent ?? (isFullPayment ? currentPlan.fdPromoterCommissionPercent : currentPlan.rdPromoterCommissionPercent) ?? (isFullPayment ? 5 : 4)}%
+                        </b>
+                      </span>
+                      <span className="text-teal-300">•</span>
+                      <span>
+                        Partner (BP):{' '}
+                        <b className="text-teal-900 font-mono font-bold">
+                          {form.bpCommissionPercent ?? (isFullPayment ? currentPlan.bpFdCommissionPercent : currentPlan.bpRdCommissionPercent) ?? 1}%
+                        </b>
+                      </span>
+                      <span className="text-teal-300">•</span>
+                      <span>
+                        Branch Partner:{' '}
+                        <b className="text-teal-900 font-mono font-bold">
+                          {form.branchCommissionPercent ?? (isFullPayment ? (currentPlan.branchFdCommissionPercent ?? 0.5) : (currentPlan.branchRdCommissionPercent ?? 0.5)) ?? 0.5}%
+                        </b>
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Calculated Monthly EMI or Downpayment indicator */}
-              <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 mb-1">
-                  {isFullPayment ? 'Upfront Payable' : 'Calculated Monthly EMI (₹)'}
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
-                  <input
-                    type="text"
-                    readOnly
-                    value={isFullPayment ? totalAmount.toLocaleString('en-IN') : monthlyEmi.toLocaleString('en-IN')}
-                    className="w-full pl-8 pr-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl font-black font-mono text-xs text-teal-900 cursor-not-allowed outline-none"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  {isFullPayment
-                    ? 'Total 100% full amount paid upfront.'
-                    : `₹${totalAmount.toLocaleString('en-IN')} ÷ ${tenure} Months = ₹${monthlyEmi.toLocaleString('en-IN')}/mo`}
-                </p>
-              </div>
+              {/* When EMI Installment Plan Active: Show Downpayment, Days, and Frequency */}
+              {!isFullPayment ? (
+                <>
+                  {/* Downpayment */}
+                  <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-teal-50/50 border border-teal-200 rounded-2xl shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
+                        <Calculator size={14} className="text-teal-700" />
+                        Downpayment
+                      </label>
+                      <span className="text-[10px] text-teal-800 font-bold bg-teal-100/80 px-2 py-0.5 rounded-full border border-teal-300">
+                        {form.dpType === 'SQFT_RATE'
+                          ? `₹${form.dpVal || 0}/sqft`
+                          : form.dpType === 'PERCENT'
+                            ? `${form.dpVal || 0}%`
+                            : `Flat ₹`}
+                      </span>
+                    </div>
 
-              {/* Full Payment Details */}
-              {isFullPayment ? (
+                    <div className="flex h-11 rounded-xl border border-teal-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-700 bg-white shadow-2xs">
+                      <select
+                        value={form.dpType}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          let nextVal = form.dpVal;
+                          if (newType === 'FLAT') {
+                            nextVal = downpaymentAmt || 0;
+                          } else if (newType === 'PERCENT') {
+                            nextVal = totalAmount > 0 ? Math.min(100, Math.round(((downpaymentAmt || 0) / totalAmount) * 100)) : 0;
+                          } else if (newType === 'SQFT_RATE') {
+                            nextVal = totalRequiredSqFt > 0 ? Math.round((downpaymentAmt || 0) / totalRequiredSqFt) : 0;
+                          }
+                          setForm({ ...form, dpType: newType, dpVal: nextVal });
+                        }}
+                        className="px-3 bg-teal-50 text-xs font-bold text-teal-900 border-r border-teal-200 outline-none cursor-pointer shrink-0"
+                      >
+                        <option value="PERCENT">% (Percentage)</option>
+                        <option value="FLAT">₹ (Flat)</option>
+                        <option value="SQFT_RATE">₹ / Sq.Ft.</option>
+                      </select>
+                      <input
+                        className="w-full px-3.5 text-sm bg-transparent outline-none text-teal-950 font-bold font-mono"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={form.dpVal}
+                        onChange={(e) => setForm({ ...form, dpVal: e.target.value.replace(/[^0-9]/g, '') })}
+                        placeholder={
+                          form.dpType === 'PERCENT'
+                            ? 'e.g. 25 (%)'
+                            : form.dpType === 'SQFT_RATE'
+                              ? 'e.g. 500 (₹/sqft)'
+                              : 'e.g. 50000 (Flat ₹)'
+                        }
+                      />
+                    </div>
+
+                    <span className="text-[11px] text-teal-800 font-bold truncate">
+                      Total DP: ₹{downpaymentAmt.toLocaleString('en-IN')} {customDpRate > 0 ? `(₹${customDpRate}/sqft eq.)` : ''}
+                    </span>
+                  </div>
+
+                  {/* Due Period (Days) for Downpayment */}
+                  <div className="flex flex-col justify-between gap-1.5 p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800">Due Period (Days) *</label>
+                      <span className="text-[10px] text-slate-400 font-semibold">Standard 90 Days</span>
+                    </div>
+                    <input
+                      className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-mono font-medium text-slate-800 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={form.downpaymentDays ?? 90}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setForm({ ...form, downpaymentDays: val });
+                      }}
+                      placeholder="90"
+                      required
+                    />
+                    <span className="text-[11px] text-teal-700 font-medium truncate">
+                      {getDynamicDueHelper(form.bookingDate, form.downpaymentDays ?? 90)}
+                    </span>
+                  </div>
+
+                  {/* EMI Frequency & Installments Schedule */}
+                  {remainingBalance > 0 ? (
+                    <div className="sm:col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-col gap-3.5">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Calculator size={15} className="text-teal-700" />
+                          EMI Frequency &amp; Installments Schedule
+                        </label>
+                        <span className="text-xs font-black text-teal-900 bg-teal-100/90 border border-teal-300 px-3 py-1 rounded-xl shadow-2xs">
+                          Total Duration: {totalTenureMonths} Months
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Frequency Dropdown */}
+                        <div className="flex flex-col justify-between gap-1.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700">EMI Frequency *</label>
+                            <span className="text-[10px] text-slate-400 font-semibold">Periodicity</span>
+                          </div>
+                          <select
+                            value={form.emiFrequency}
+                            onChange={(e) => handleEmiFrequencyChange(e.target.value)}
+                            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs cursor-pointer"
+                          >
+                            <option value="MONTHLY">Monthly (Every 1 Month)</option>
+                            <option value="QUARTERLY">Quarterly (Every 3 Months)</option>
+                            <option value="HALF_YEARLY">Half-Yearly (Every 6 Months)</option>
+                            <option value="YEARLY">Yearly (Every 12 Months)</option>
+                          </select>
+                          <span className="text-[11px] text-slate-500 font-medium truncate">
+                            Installments due {form.emiFrequency === 'MONTHLY' ? 'every month' : form.emiFrequency === 'QUARTERLY' ? 'every 3 months' : form.emiFrequency === 'HALF_YEARLY' ? 'every 6 months' : 'every 12 months'}
+                          </span>
+                        </div>
+
+                        {/* Installment Count Input */}
+                        <div className="flex flex-col justify-between gap-1.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700">Number of Installments *</label>
+                            <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                              {form.installmentCount || 0} installments
+                            </span>
+                          </div>
+                          <input
+                            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm font-bold font-mono text-slate-900 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs"
+                            type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={form.installmentCount}
+                            onChange={(e) => setForm({ ...form, installmentCount: e.target.value.replace(/[^0-9]/g, '') })}
+                            placeholder="1"
+                            required
+                          />
+
+                          <div className="mt-1.5 flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl w-fit">
+                            <span className="text-sm font-black text-teal-950 font-mono tracking-tight">
+                              {totalTenureMonths} Months
+                            </span>
+                            <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+                              Total Duration
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Installment Amount Breakdown */}
+                      <div className="p-3 bg-teal-50/60 border border-teal-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-teal-600" />
+                          <span className="text-teal-950 font-semibold">
+                            Installment Amount:{' '}
+                            <strong className="text-teal-950 font-black font-mono text-sm">
+                              ₹{emiPerInstallmentAmt.toLocaleString('en-IN')}
+                            </strong>{' '}
+                            / {form.emiFrequency === 'MONTHLY' ? 'month' : form.emiFrequency === 'QUARTERLY' ? 'quarter (3 mos)' : form.emiFrequency === 'HALF_YEARLY' ? 'half-year (6 mos)' : 'year'}
+                          </span>
+                        </div>
+                        <span className="text-teal-800 font-medium font-mono text-[11px]">
+                          Remaining ₹{remainingBalance.toLocaleString('en-IN')} divided across {form.installmentCount || 1} installments
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Booking / Start Date */}
+                  <div className="sm:col-span-2">
+                    <DateInput
+                      label="Booking / Start Date *"
+                      value={form.bookingDate}
+                      onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                /* Full Payment Details */
                 <div className="sm:col-span-2 space-y-3.5 pt-2 border-t border-slate-100">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
                     <div>
@@ -1120,15 +1594,6 @@ const ProductBookingPage = () => {
                       </div>
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="sm:col-span-2">
-                  <DateInput
-                    label="Booking / Start Date"
-                    value={form.bookingDate}
-                    onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
-                    required
-                  />
                 </div>
               )}
 
@@ -1317,7 +1782,7 @@ const ProductBookingPage = () => {
                             }}
                           >
                             <option value="">-- Select Agreement --</option>
-                            {allLandSources.map((agr, aIdx) => (
+                            {availableAgreementsForProject.map((agr, aIdx) => (
                               <option key={`agr_${agr.agreementId || agr._id}_${aIdx}`} value={agr.agreementId || agr._id}>
                                 {agr.agreementNumber || agr.label} (Total Avail: {agr.availableSqFt?.toLocaleString('en-IN')} SqFt)
                               </option>
@@ -1529,8 +1994,13 @@ const ProductBookingPage = () => {
               <div className="font-bold text-slate-900 text-sm">
                 {selectedProduct ? `${selectedProduct.productName} (${quantityNum} ${quantityNum === 1 ? 'Unit' : 'Units'})` : <span className="text-slate-400 italic text-xs">No Product</span>}
               </div>
+              {hasCustomDimensions && (
+                <div className="text-[11px] text-teal-900 font-semibold">
+                  Dimensions: <b>{form.customNorthSouth} ft × {form.customEastWest} ft</b> (N/S: {form.customNorthSouth} ft, E/W: {form.customEastWest} ft)
+                </div>
+              )}
               <div className="text-[11px] text-slate-600">
-                Total Area: <b className="text-teal-800 font-bold">{totalRequiredSqFt} Sq.Ft.</b> ({totalRequiredDismil} Dismil)
+                Total Area: <b className="text-teal-800 font-bold">{totalRequiredSqFt.toLocaleString('en-IN')} Sq.Ft.</b> ({totalRequiredDismil} Dismil)
               </div>
             </div>
 
@@ -1569,7 +2039,7 @@ const ProductBookingPage = () => {
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500 font-medium">Scheme Plan &amp; Tenure:</span>
                 <span className="font-bold text-teal-800">
-                  {form.planName ? `${form.planName} (${tenure}M)` : `${tenure} Months`}
+                  {form.planName ? `${form.planName} (${totalTenureMonths || tenure}M)` : `${totalTenureMonths || tenure} Months`}
                 </span>
               </div>
 
@@ -1579,10 +2049,42 @@ const ProductBookingPage = () => {
                   <span className="font-black font-mono text-emerald-700 text-sm">₹{totalAmount.toLocaleString('en-IN')}</span>
                 </div>
               ) : (
-                <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100">
-                  <span className="text-emerald-700 font-bold">Monthly Installment (EMI):</span>
-                  <span className="font-black font-mono text-emerald-700 text-sm">₹{monthlyEmi.toLocaleString('en-IN')}</span>
-                </div>
+                <>
+                  {downpaymentAmt > 0 && (
+                    <>
+                      <div className="flex justify-between items-center text-xs pt-1">
+                        <span className="text-amber-800 font-semibold">Downpayment:</span>
+                        <span className="font-black font-mono text-amber-800 text-xs">
+                          ₹{downpaymentAmt.toLocaleString('en-IN')}
+                          <span className="text-[10px] text-amber-600 font-normal ml-1">({form.downpaymentDays || 90}d)</span>
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Remaining for EMI:</span>
+                        <span className="font-bold font-mono text-slate-700 text-xs">
+                          ₹{remainingBalance.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                    <span className="text-emerald-700 font-bold">
+                      {form.emiFrequency === 'QUARTERLY'
+                        ? 'Quarterly Installment:'
+                        : form.emiFrequency === 'HALF_YEARLY'
+                        ? 'Half-Yearly Installment:'
+                        : form.emiFrequency === 'YEARLY'
+                        ? 'Yearly Installment:'
+                        : 'Monthly Installment (EMI):'}
+                    </span>
+                    <span className="font-black font-mono text-emerald-700 text-sm">
+                      ₹{emiPerInstallmentAmt.toLocaleString('en-IN')}
+                      <span className="text-[10px] font-normal text-emerald-600 ml-1">
+                        ({form.installmentCount || 1} inst.)
+                      </span>
+                    </span>
+                  </div>
+                </>
               )}
             </div>
 

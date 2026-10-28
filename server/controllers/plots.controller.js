@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const plotsService = require('../services/plots.service');
 const kisanLandService = require('../services/kisanLand.service');
 const plotProductService = require('../services/plots/plotProduct.service');
@@ -34,39 +36,158 @@ const uploadMedia = async (req, res, next) => {
   }
 };
 
+const ALLOWED_DOC_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.tif', '.avif'];
+const ALLOWED_DOC_MIMES = [
+  'application/pdf',
+  'application/x-pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/bmp',
+  'image/x-ms-bmp',
+  'image/tiff',
+  'image/avif',
+];
+
+const checkDocMagicBytes = (filePath) => {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(12);
+    const bytesRead = fs.readSync(fd, buffer, 0, 12, 0);
+    fs.closeSync(fd);
+    if (bytesRead < 4) return false;
+
+    // PDF: %PDF-
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+      return 'pdf';
+    }
+    // JPEG: 0xFF 0xD8 0xFF
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return 'image';
+    }
+    // PNG: 0x89 0x50 0x4E 0x47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+      return 'image';
+    }
+    // GIF: GIF87a or GIF89a (0x47 0x49 0x46)
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+      return 'image';
+    }
+    // BMP: BM (0x42 0x4D)
+    if (buffer[0] === 0x42 && buffer[1] === 0x4d) {
+      return 'image';
+    }
+    // TIFF: II*. (0x49 0x49 0x2A 0x00) or MM.* (0x4D 0x4D 0x00 0x2A)
+    if (
+      (buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2a) ||
+      (buffer[0] === 0x4d && buffer[1] === 0x4d && buffer[2] === 0x00 && buffer[3] === 0x2a)
+    ) {
+      return 'image';
+    }
+    // WEBP: RIFF....WEBP
+    if (
+      buffer[0] === 0x52 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x46 &&
+      buffer[3] === 0x46 &&
+      buffer[8] === 0x57 &&
+      buffer[9] === 0x45 &&
+      buffer[10] === 0x42 &&
+      buffer[11] === 0x50
+    ) {
+      return 'image';
+    }
+
+    return false;
+  } catch (e) {
+    return false;
+  }
+};
+
 const uploadLandDocument = async (req, res, next) => {
+  const filePath = req.file?.path;
+  const cleanupFile = () => {
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {}
+    }
+  };
+
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file provided' });
+      return res.status(400).json({ success: false, message: 'No file provided' });
     }
+
+    // 1. File size check (Max 20MB)
+    const MAX_SIZE = 20 * 1024 * 1024;
+    if (req.file.size > MAX_SIZE) {
+      cleanupFile();
+      return res.status(400).json({
+        success: false,
+        message: 'File size exceeds 20MB limit. Please upload a compressed document.',
+      });
+    }
+
+    // 2. Extension & MIME validation
+    const ext = path.extname(req.file.originalname || '').toLowerCase();
+    const mime = (req.file.mimetype || '').toLowerCase();
+
+    if (!ALLOWED_DOC_EXTENSIONS.includes(ext) || !ALLOWED_DOC_MIMES.includes(mime)) {
+      cleanupFile();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid file format. Only PDF documents and Images (JPG, PNG, WEBP, GIF, BMP, TIFF) are permitted.',
+      });
+    }
+
+    // 3. Magic number inspection (deep file signature check)
+    const detectedType = checkDocMagicBytes(filePath);
+    if (!detectedType) {
+      cleanupFile();
+      return res.status(400).json({
+        success: false,
+        message: 'File header signature verification failed. The file appears to be corrupted or disguised.',
+      });
+    }
+
+    const isPdf = detectedType === 'pdf' || ext === '.pdf';
     const folder = 'ems/kisan_documents';
-    const isPdf = req.file.mimetype === 'application/pdf';
-    
+
+    // 4. Sanitize file name
+    const rawBaseName = path.parse(req.file.originalname).name;
+    const sanitizedBase = rawBaseName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50) || 'doc';
+    const timestamp = Date.now();
+
     const uploadOptions = {
       folder,
-      resource_type: isPdf ? 'raw' : 'auto',
+      resource_type: isPdf ? 'raw' : 'image',
+      public_id: `${sanitizedBase}_${timestamp}${isPdf ? '.pdf' : ''}`,
+      use_filename: true,
+      unique_filename: true,
     };
 
-    const uploadResult = await cloudinary.uploader.upload(req.file.path, uploadOptions);
-
-    if (fs.existsSync(req.file.path)) {
-      fs.unlink(req.file.path, () => {});
+    if (!isPdf) {
+      uploadOptions.quality = 'auto:good';
     }
+
+    const uploadResult = await cloudinary.uploader.upload(filePath, uploadOptions);
+    cleanupFile();
 
     return ApiResponse.success(
       res,
       {
         url: uploadResult.secure_url,
-        fileName: req.file.originalname,
+        fileName: `${sanitizedBase}${ext}`,
         fileSize: req.file.size,
-        format: uploadResult.format || (isPdf ? 'pdf' : 'doc'),
+        format: isPdf ? 'pdf' : (uploadResult.format || ext.replace('.', '')),
+        resourceType: isPdf ? 'raw' : 'image',
       },
       'Document uploaded successfully'
     );
   } catch (error) {
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlink(req.file.path, () => {});
-    }
+    cleanupFile();
     next(error);
   }
 };

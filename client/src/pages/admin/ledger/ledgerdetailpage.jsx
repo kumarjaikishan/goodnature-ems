@@ -13,7 +13,7 @@ import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import { useSelector } from 'react-redux';
 import {
     Filter, RotateCcw, Download, ArrowLeft, Plus,
-    TrendingUp, TrendingDown, Wallet, User, Calendar, CreditCard
+    TrendingUp, TrendingDown, Wallet, User, Calendar, CreditCard, ShieldCheck
 } from 'lucide-react';
 import { swal } from '../../../utils/confirmDialog';
 import PayLedgerModal from './PayLedgerModal';
@@ -229,32 +229,61 @@ const LedgerDetailPage = () => {
     return (
         <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto">
             {/* ── Top Header & Profile Banner ── */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
                     {profile && profile !== 'null' && profile !== 'undefined' ? (
                         <img
                             src={cloudinaryUrl(profile, { format: "webp", width: 100, height: 100 })}
                             alt={ledgerName}
-                            className="w-14 h-14 rounded-full object-cover border-2 border-teal-600 shadow-xs"
+                            className="w-[52px] h-[52px] rounded-full object-cover border border-slate-200"
                         />
                     ) : (
-                        <div className="w-14 h-14 rounded-full bg-teal-50 border border-teal-200 text-teal-800 flex items-center justify-center font-black text-xl shadow-xs">
+                        <div className="w-[52px] h-[52px] rounded-full bg-teal-700 text-white flex items-center justify-center text-lg font-bold border border-slate-200">
                             {ledgerName.charAt(0).toUpperCase()}
                         </div>
                     )}
 
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 capitalize tracking-tight">
+                            <h1 className="text-xl font-bold text-slate-800 tracking-tight">
                                 {ledgerName}
                             </h1>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200/80 uppercase tracking-wider">
-                                {ledgerType === 'employee' ? 'Employee Account' : ledgerType === 'kisan' ? 'Seller Account' : ledgerType === 'associate' ? 'Business Associate Account' : ledgerType === 'branch_partner' ? 'Branch Partner Account' : ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account' : ledgerType === 'user_cash' || ledgerType === 'cash' ? 'Cash Account' : ledgerType === 'bank' ? 'Bank Account' : 'General Ledger'}
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                                (ledgerType === 'branch_partner' || empId?.startsWith('BR-'))
+                                    ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                    : (ledgerType === 'associate' || empId?.startsWith('BA-'))
+                                    ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                    : (ledgerType === 'partner' || empId?.startsWith('BP-') || ledgerType === 'sponsor')
+                                    ? 'bg-teal-50 text-teal-800 border-teal-200'
+                                    : ledgerType === 'employee'
+                                    ? 'bg-teal-50 text-teal-800 border-teal-200'
+                                    : ledgerType === 'kisan'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
+                                {(ledgerType === 'branch_partner' || empId?.startsWith('BR-'))
+                                    ? 'Branch Partner'
+                                    : (ledgerType === 'associate' || empId?.startsWith('BA-'))
+                                    ? 'Business Associate'
+                                    : (ledgerType === 'partner' || empId?.startsWith('BP-') || ledgerType === 'sponsor')
+                                    ? 'Business Partner'
+                                    : ledgerType === 'employee'
+                                    ? 'Employee'
+                                    : ledgerType === 'kisan'
+                                    ? 'Seller'
+                                    : ledgerType === 'user_cash' || ledgerType === 'cash'
+                                    ? 'Cash Account'
+                                    : ledgerType === 'bank'
+                                    ? 'Bank Account'
+                                    : 'General Ledger'}
                             </span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 font-normal">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-1 font-medium">
                             {empId && empId !== 'null' && (
-                                <span>{ledgerType === 'kisan' ? 'PAN / Mobile' : ledgerType === 'sponsor' || ledgerType === 'partner' || ledgerType === 'associate' ? 'Code / ID' : 'Employee ID'}: <strong className="font-mono text-slate-700 font-semibold">{empId}</strong></span>
+                                <span className="flex items-center gap-1 font-mono">
+                                    <ShieldCheck size={14} className="text-slate-400" />
+                                    ID: <strong className="text-slate-700">{empId}</strong>
+                                </span>
                             )}
                             <span>Total Transactions: <strong className="text-slate-700 font-semibold">{filtered.length}</strong></span>
                         </div>

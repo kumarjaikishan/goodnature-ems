@@ -9,9 +9,13 @@ import {
   Layers,
   Users,
   ExternalLink,
+  Eye,
+  FileText,
+  RefreshCw,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { SearchableSelect, DateInput, Input, Button } from '../../../../components/ui';
+import DocumentPreviewModal from './DocumentPreviewModal';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 
@@ -32,6 +36,7 @@ const CreateAgreementModal = ({
 }) => {
   const [activeChaudhiIdx, setActiveChaudhiIdx] = useState(null);
   const [uploadingIdx, setUploadingIdx] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [quickProjectOpen, setQuickProjectOpen] = useState(false);
   const [quickProjectName, setQuickProjectName] = useState('');
   const [quickProjectCode, setQuickProjectCode] = useState('');
@@ -284,6 +289,21 @@ const CreateAgreementModal = ({
 
   const handleFileUpload = async (idx, file) => {
     if (!file) return;
+
+    // Security & format checks
+    const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.tif', '.avif'];
+    const fileExt = '.' + (file.name.split('.').pop() || '').toLowerCase();
+    if (!allowedExts.includes(fileExt)) {
+      toast.error('Invalid file type! Only PDF documents and Images (JPG, PNG, WEBP, GIF, BMP, TIFF) are allowed.');
+      return;
+    }
+
+    const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
+    if (file.size > MAX_SIZE) {
+      toast.error('File size exceeds the 20MB limit. Please upload a smaller or compressed document.');
+      return;
+    }
+
     setUploadingIdx(idx);
     const formData = new FormData();
     formData.append('file', file);
@@ -298,7 +318,8 @@ const CreateAgreementModal = ({
         ...updated[idx],
         fileUrl: data.url || data.secure_url,
         fileName: updated[idx].fileName || file.name.replace(/\.[^/.]+$/, ''),
-        fileSize: file.size,
+        fileSize: data.fileSize || file.size,
+        format: data.format || fileExt.replace('.', ''),
       };
       setCreateForm({ ...createForm, attachments: updated });
       toast.success('Document uploaded successfully!');
@@ -1005,29 +1026,93 @@ const CreateAgreementModal = ({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Upload File (PDF / Image)</label>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <label className="block text-[10px] font-bold text-slate-600">
+                          Upload File (PDF / Image) *
+                        </label>
+                        {att.fileSize > 0 && (
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {(att.fileSize / (1024 * 1024)).toFixed(2)} MB
+                          </span>
+                        )}
+                      </div>
+
                       {att.fileUrl ? (
-                        <div className="flex items-center justify-between h-8 px-2 bg-emerald-50 border border-emerald-300 rounded-lg text-[11px] font-bold text-emerald-800">
-                          <span className="truncate max-w-[120px]">{att.fileName || 'Uploaded File'}</span>
-                          <a
-                            href={att.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-700 hover:underline flex items-center gap-0.5"
-                          >
-                            View <ExternalLink size={11} />
-                          </a>
+                        <div className="flex items-center justify-between h-9 px-2 bg-emerald-50/90 border border-emerald-300 rounded-xl text-[11px] font-bold text-emerald-950 shadow-2xs">
+                          <div className="flex items-center gap-1.5 truncate max-w-[120px]">
+                            {att.fileUrl.toLowerCase().endsWith('.pdf') || att.format === 'pdf' ? (
+                              <div className="w-6 h-6 rounded bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                                <FileText size={13} />
+                              </div>
+                            ) : (
+                              <img
+                                src={att.fileUrl}
+                                alt="thumb"
+                                className="w-6 h-6 rounded object-cover border border-emerald-200 shrink-0 bg-white"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <span className="truncate text-xs font-bold" title={att.fileName}>
+                              {att.fileName || 'Attached File'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDoc(att)}
+                              className="px-2 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title="Preview Document"
+                            >
+                              <Eye size={11} />
+                              <span>View</span>
+                            </button>
+                            <label
+                              className="p-1 hover:bg-emerald-100 text-emerald-700 rounded-lg cursor-pointer transition"
+                              title="Replace / Upload different file"
+                            >
+                              <RefreshCw size={12} className={uploadingIdx === idx ? 'animate-spin' : ''} />
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,image/*,application/pdf"
+                                disabled={uploadingIdx === idx}
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    handleFileUpload(idx, e.target.files[0]);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                            </label>
+                            <a
+                              href={att.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 hover:bg-emerald-100 text-emerald-700 rounded-lg transition"
+                              title="Open in new window"
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          </div>
                         </div>
                       ) : (
-                        <label className="flex items-center justify-center gap-1.5 h-8 bg-white border border-dashed border-teal-400 hover:bg-teal-50 text-teal-700 rounded-lg text-xs font-bold cursor-pointer transition">
-                          <UploadCloud size={14} />
-                          <span>{uploadingIdx === idx ? 'Uploading...' : 'Choose File'}</span>
+                        <label className="flex items-center justify-center gap-1.5 h-9 bg-white border border-dashed border-teal-400 hover:bg-teal-50 text-teal-700 rounded-xl text-xs font-bold cursor-pointer transition shadow-2xs">
+                          <UploadCloud size={14} className={uploadingIdx === idx ? 'animate-bounce' : ''} />
+                          <span>{uploadingIdx === idx ? 'Uploading...' : 'Choose File (PDF / Image)'}</span>
                           <input
                             type="file"
                             className="hidden"
-                            accept="application/pdf,image/*"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,image/*,application/pdf"
                             disabled={uploadingIdx === idx}
-                            onChange={(e) => handleFileUpload(idx, e.target.files[0])}
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleFileUpload(idx, e.target.files[0]);
+                                e.target.value = '';
+                              }
+                            }}
                           />
                         </label>
                       )}
@@ -1113,6 +1198,13 @@ const CreateAgreementModal = ({
           </div>
         </form>
       </Modalbox>
+
+      {/* Interactive Document Preview Modal */}
+      <DocumentPreviewModal
+        open={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        doc={previewDoc}
+      />
     </Modalbox>
   );
 };

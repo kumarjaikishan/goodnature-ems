@@ -25,6 +25,7 @@ const PlotPurchasePage = () => {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [projectFilter, setProjectFilter] = useState('ALL');
   const [page, setPage] = useState(1);
 
   // Top Main Navigation Tab: 'agreements' | 'deeds' | 'sellers' | 'purchasers'
@@ -157,7 +158,13 @@ const PlotPurchasePage = () => {
     setLoading(true);
     try {
       const res = await api.get('/plots/kisan-agreements', {
-        params: { search, status: statusFilter !== 'ALL' ? statusFilter : undefined, page, limit: 50 },
+        params: {
+          search,
+          status: statusFilter !== 'ALL' ? statusFilter : undefined,
+          projectId: projectFilter !== 'ALL' ? projectFilter : undefined,
+          page,
+          limit: 50,
+        },
       });
       const dataList = res.data?.data?.agreements || res.data?.data?.customers || res.data?.data || res.data?.agreements || [];
       setAgreements(Array.isArray(dataList) ? dataList : []);
@@ -213,7 +220,7 @@ const PlotPurchasePage = () => {
 
   useEffect(() => {
     fetchAgreements();
-  }, [page, statusFilter]);
+  }, [page, statusFilter, projectFilter]);
 
   useEffect(() => {
     fetchSellers();
@@ -669,6 +676,9 @@ const PlotPurchasePage = () => {
           setSearch={setSearch}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          projects={projects}
+          projectFilter={projectFilter}
+          setProjectFilter={setProjectFilter}
           setPage={setPage}
           fetchAgreements={fetchAgreements}
           openCreateDeedModal={openCreateDeedModal}

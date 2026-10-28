@@ -486,9 +486,10 @@ const AdminUserFormPage = () => {
         toast.success(`Module ${newModule} added to permissions matrix`);
     };
 
-    // Filter modules by category and search keyword
+    // Filter modules by category and search keyword, preserving canonical grouped order
     const visibleModules = useMemo(() => {
-        const allKeys = Array.from(new Set([...AllPermissionNames, ...Object.keys(form.permissions || {})]));
+        const extraKeys = Object.keys(form.permissions || {}).filter((k) => !AllPermissionNames.includes(k));
+        const allKeys = [...AllPermissionNames, ...extraKeys];
         return allKeys.filter((module) => {
             if (activePermTab !== 'all') {
                 const cat = MODULE_CATEGORIES.find((c) => c.id === activePermTab);

@@ -2,6 +2,125 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Investment Booking: Dimension & Quantity Inputs Numeric Keypad & Mouse Scroll Protection [COMPLETED]**:
+  - **Issue**:
+    - Under Product & Dimension Specifications (`/dashboard/plots/investment-booking/new`), the North-South, East-West, Quantity, and Custom Unit Rate input fields used `type="number"`, which accidentally altered values when users scrolled their mouse wheel while hovering over the input.
+  - **Fix**:
+    - Converted inputs to `type="tel"`, `inputMode="numeric"`, and `pattern="[0-9]*"` in [ProductBookingPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/ProductBookingPage.jsx).
+    - Added strict digits-only regex filtering (`replace(/[^0-9]/g, '')`) in `handleCustomDimensionChange` and input change handlers.
+    - Added `onWheel={(e) => e.target.blur()}` so mouse wheel scrolling never changes the numeric values.
+    - Ensures the numeric keypad is automatically opened on mobile devices.
+
+- **Land Document Attachments: Security Checks & Interactive In-App Preview [COMPLETED]**:
+  - **Requirement**:
+    - Under Land Documents & Attachments in Plot Purchase Agreement (`/dashboard/plots/purchase`), support all file formats (PDFs and images like JPG, JPEG, PNG, WEBP, GIF, BMP, TIFF, AVIF).
+    - Enforce robust multi-layer security checks on file uploads (file size limit, extension whitelist, MIME whitelist, binary magic-byte inspection, filename sanitization, and automatic temp file cleanup).
+    - After uploading, allow users to view/preview attached files directly in-app (modal viewer with responsive PDF iframe and high-resolution image viewer), see file thumbnails, replace files, open in a new tab, or download.
+  - **Implementation**:
+    - **Backend ([plots.controller.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/plots.controller.js))**:
+      - Fixed missing imports (`fs`, `path`) which previously risked crash on temp file cleanup.
+      - Added `checkDocMagicBytes` checking binary file signatures (`%PDF-`, JPEG `0xFFD8FF`, PNG `\x89PNG`, GIF `GIF87a`/`GIF89a`, BMP `BM`, TIFF `II*.`/`MM.*`, WEBP `RIFF....WEBP`).
+      - Validated maximum file size (20MB limit).
+      - Sanitized filenames against path traversal attacks.
+      - Uploaded to Cloudinary with `resource_type: isPdf ? 'raw' : 'image'` and ensured `.pdf` extension is preserved in `public_id` so raw PDFs serve with correct `Content-Type: application/pdf` and direct browser viewability.
+      - Guaranteed cleanup of temporary `./uploads` files in both success and error blocks.
+    - **Frontend Components**:
+      - Created [DocumentPreviewModal.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/components/DocumentPreviewModal.jsx) using `Modalbox`: displays responsive PDF iframe viewer or zoomable image container, header with metadata badges (format, size, category), and "Open in new tab" and "Download" buttons.
+      - Updated [CreateAgreementModal.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/components/CreateAgreementModal.jsx) & [EditAgreementModal.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/components/EditAgreementModal.jsx):
+        - Added client-side security checks (20MB max size, extension whitelist).
+        - Upgraded upload row to show a rich attachment preview card once uploaded: thumbnail/PDF badge, filename, file size, "View" (opens preview modal), "Replace" (re-select file), and "Open in new window" button.
+        - Wired up `DocumentPreviewModal`.
+      - Updated [KisanLedgersDrawer.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/components/KisanLedgersDrawer.jsx):
+        - Updated details drawer attachment cards with thumbnail previews, category badges, "Preview" button opening `DocumentPreviewModal`, and external link.
+
+- **Investment Booking: Downpayment Option & Periodic EMI Frequency Selection [COMPLETED]**:
+  - **Requirement**:
+    - Under the EMI scheme plan in Investment Booking (`/dashboard/plots/investment-booking/new`), provide:
+      1. Downpayment options (`PERCENT`, `FLAT`, `SQFT_RATE`) and calculate the remaining amount for EMI installments.
+      2. Time in days for downpayment (`downpaymentDays`, default 90 days) with dynamic due date preview helper.
+      3. EMI Frequency selection (`MONTHLY`, `QUARTERLY`, `HALF_YEARLY`, `YEARLY`) with periodic installment count and amount calculations (aligned with standard Plot Booking Step 3).
+  - **Implementation**:
+    - **Schema ([PlotProductBooking.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotProductBooking.js))**:
+      - Added fields: `downpaymentDays`, `downpaymentMonths`, `emiFrequency` (`MONTHLY`, `QUARTERLY`, `HALF_YEARLY`, `YEARLY`), `installmentCount`, `dpType`, `dpVal`, and `emiPrincipalAmount`.
+    - **Backend Services ([plotProduct.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotProduct.service.js))**:
+      - `createProductBooking`: Handles `downpaymentAmount`, `downpaymentDays`, `emiFrequency`, `installmentCount`. If `dp > 0`, schedules installment #0 with `status: 'PENDING'` due at `bookingDate + downpaymentDays`. Calculates remaining balance (`totalAmount - dp`) and schedules installments 1..count spaced according to frequency multiplier (Monthly: 1m, Quarterly: 3m, Half-Yearly: 6m, Yearly: 12m).
+      - `updateProductBooking`: Reschedules installment #0 and installments 1..count if no installments were paid yet.
+    - **Frontend Booking Wizard ([ProductBookingPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/ProductBookingPage.jsx))**:
+      - In Step 3 (Payment Plan Scheme & Period), implemented downpayment input card with mode selector (`%`, `Flat ₹`, `₹/Sq.Ft`), input value, calculated DP amount, and remaining balance.
+      - Implemented Downpayment Due Period in Days input with live date helper (`Due Date: DD Mon, YYYY`).
+      - Implemented EMI Frequency selector (`MONTHLY`, `QUARTERLY`, `HALF_YEARLY`, `YEARLY`), Number of Installments input, calculated Periodic Installment amount, and Total Contract Tenure in months.
+      - Updated right-hand Booking Summary sidebar to show Downpayment, remaining balance, and frequency-adjusted installment breakdown.
+    - **Installment Collection & Ledgers ([ProductInstallmentCollectModal.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/components/ProductInstallmentCollectModal.jsx), [ProductCustomerLedgerModal.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/components/ProductCustomerLedgerModal.jsx), [ProductSalesTab.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/components/ProductSalesTab.jsx))**:
+      - Renders installment #0 as `'Downpayment (DP)'` instead of generic `'EMI #0'`.
+      - Displays dynamic periodic frequency and downpayment in booking details modal.
+
+- **Investment Booking: Custom Dimension Entry & Automatic Quantity Calculation [COMPLETED]**:
+  - **Requirement**:
+    - Allow entering custom dimensions like 30 ft North-South and 40 ft East-West in Investment Booking (`/dashboard/plots/investment-booking/new`).
+    - Automatically compute total area (`30 × 40 = 1,200 Sq.Ft`) and auto-calculate Quantity (`1,200 units` for 1 Sq.Ft products).
+    - Sync total valuation with presetted unit price (e.g. ₹1,000 × 1200 = ₹12,00,000) and sync land sourcing allocated area.
+    - Print the dimensions (`30 ft x 40 ft (N/S: 30 ft, E/W: 40 ft)`) and total area (`1,200 Sq.Ft`) on the Investment Booking Certificate, Receipt Voucher, and Agreement.
+  - **Implementation**:
+    - **Schema & Service**:
+      - Updated [PlotProductBooking.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/models/PlotProductBooking.js) to store `northSouth`, `eastWest`, and `totalAreaSqFt` in `dimensionsSnapshot`.
+      - Updated [plotProduct.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotProduct.service.js) in `createProductBooking`, `updateProductBooking`, and `getProductReceiptById` to resolve custom dimensions and sync total area.
+    - **Frontend Booking Form**:
+      - In [ProductBookingPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/ProductBookingPage.jsx), added custom dimension inputs for North-South and East-West under Product Specifications.
+      - Implemented bidirectional auto-calculation: area computes immediately, sets `quantity`, syncs required land sourcing area, and reflects in live Booking Summary.
+    - **Print Viewers**:
+      - [BookingCertificateViewer.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/printViewers/BookingCertificateViewer.jsx): Added Dimensions (`30 ft x 40 ft`) alongside Total Area (`1,200 Sq.Ft`).
+      - [ReceiptViewer.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/printViewers/ReceiptViewer.jsx): Added dimension label and total area to the product receipt voucher.
+      - [ProductAgreementViewer.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/printViewers/ProductAgreementViewer.jsx): Updated Clause 1 to display resolved dimensions and total unit area.
+
+- **Unified Profile Header Design Standard Across All Developer Pages [COMPLETED]**:
+  - Standardized the profile header across [ledgerdetailpage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx), [BusinessDeveloperNetworkPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperNetworkPage.jsx), and [BusinessDeveloperReportPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperReportPage.jsx) to match the clean look of the main Dashboard ([BusinessDeveloperDashboard.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperDashboard.jsx)):
+    - **Avatar**: `w-[52px] h-[52px] rounded-full` circular avatar with teal background.
+    - **Name & Typography**: `text-xl font-bold text-slate-800 tracking-tight`.
+    - **Unified Role Badge**: Compact `px-2 py-0.5 rounded text-[11px] font-semibold border` badge (Title case `Business Partner` in teal, `Business Associate` in blue, `Branch Partner` in purple) replacing inconsistent emojis (`👑`, `👥`) and uppercase blocks.
+    - **Subtext Info**: `<ShieldCheck size={14} className="text-slate-400" /> ID: <strong className="text-slate-700">{id}</strong>`, phone, and partner details.
+
+- **Ledger Detail Account Badge Fix ([ledgerdetailpage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/admin/ledger/ledgerdetailpage.jsx), [BusinessDeveloperLedgerPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperLedgerPage.jsx)) [COMPLETED]**:
+  - **Issue**:
+    - When clicking "Commission Ledger" for an Associate (`BA-19/10/2627/004`), the header badge showed "BUSINESS PARTNER ACCOUNT".
+  - **Root Cause**:
+    - `BusinessDeveloperLedgerPage.jsx` redirected to `/dashboard/ledger/:id` with query param `ledgertype=sponsor`.
+    - `ledgerdetailpage.jsx` had a fallback `ledgerType === 'partner' || ledgerType === 'sponsor' ? 'Business Partner Account'`, ignoring `empId` (`BA-...`).
+  - **Fix**:
+    - In `ledgerdetailpage.jsx`, updated badge logic to inspect `(ledgerType === 'associate' || empId?.startsWith('BA-'))` -> renders `"Business Associate Account"`.
+    - In `BusinessDeveloperLedgerPage.jsx`, computed `computedType` (`associate`, `branch_partner`, or `partner`) before navigating to the ledger.
+
+- **Business Associate vs Business Partner Scope & Badge Fix ([BusinessDeveloperNetworkPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperNetworkPage.jsx), [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx)) [COMPLETED]**:
+  - **Issue**:
+    - When logging in as a Business Associate (`BA-19/10/2627/004`), the Network page showed a `👑 Business Partner` badge instead of `👥 Business Associate`.
+    - It showed a "Business Associates (0)" tab and "Filter Associate" controls, even though an Associate does not have subordinate associates.
+    - The sidebar labeled the menu "My Network & Customers" instead of "My Customers".
+  - **Root Cause**:
+    - `BusinessDeveloperNetworkPage.jsx` calculated `isBusinessPartner = !developer.sponsorId`. Because the backend dashboard payload populated `parentSponsor` instead of `sponsorId`, `developer.sponsorId` was `undefined`, causing `!undefined === true` (evaluating every associate as a partner!).
+  - **Fixes**:
+    - **Accurate Role Evaluation**: Rewrote `isBusinessPartner` in `BusinessDeveloperNetworkPage.jsx` to check `developer.isDeveloperSponsor`, `developer.parentSponsor`, and `developer.sponsorCode` (starts with `BA-` for associate, `BP-` for partner).
+    - **Associate View Streamlined**: For associates, automatically hides the "Business Associates" tab and "Filter Associate" controls, defaults directly to "My Customers", and omits the redundant "Business Associate" column.
+    - **Dynamic Sidebar Menu**: Updated [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx) to display **"My Customers"** for Associates and **"My Network & Customers"** for Partners.
+    - **Auth Payload Enhancement**: In [user.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/controllers/user.js), added `isDeveloperSponsor` directly to the `send` payload on sign-in.
+
+- **Associate & Partner Portal Dashboard Fix ("Entry not found" & Blank Profile) [COMPLETED]**:
+  - **Issue**:
+    - When logging in as a Business Associate or Business Partner (e.g. Anuj Kumar), an error toast "Entry not found" popped up, and the dashboard displayed an empty profile (empty name, "ID: N/A", ₹0 metrics).
+  - **Root Causes**:
+    1. **Missing Schema Registration**: `plotDeveloper.service.js` populated `closingId` on `PlotSponsorCommission`, but `PlotClosing` model was not imported/registered in that service, triggering `MissingSchemaError: Schema hasn't been registered for model "PlotClosing"`.
+    2. **Crashing on Orphan Ledger Entry Deletion**: `syncProductBookingSponsorCommissions` and `syncBookingSponsorCommissions` call `accountingService.deleteLedgerEntry(c.ledgerEntryId)`. If `ledgerEntryId` was already absent or previously cleaned up, `deleteLedgerEntry` threw `Error: Entry not found`. This unhandled rejection broke the entire `getSponsorDashboardStats` endpoint.
+  - **Fixes**:
+    - **Safe Idempotent Deletion ([accountingService.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/accountingService.js))**: Updated `deleteLedgerEntry` to safely return `null` if the entry is already absent instead of throwing an unhandled exception.
+    - **Model Registration ([plotDeveloper.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotDeveloper.service.js))**: Added `const PlotClosing = require('../../models/PlotClosing')` and wrapped `deleteLedgerEntry` in try/catch to safeguard commission sync.
+    - **Defensive Frontend Fallback ([BusinessDeveloperDashboard.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperDashboard.jsx))**: Merged `user.profile` / session state as a fallback for `developer` so the name and sponsor ID are always rendered.
+
+- **Logout Confirmation Dialog & Unified "Good Feel" Single Sign-In [COMPLETED]**:
+  - **Logout Confirmation Button Fix ([sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx))**:
+    - Changed logout confirmation modal button text to "Logout" (was previously defaulting to "Delete" via legacy swal call) and set subtitle to "You will be signed out of your current session."
+  - **Unified "Good Feel" Login ([Login.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/Login.jsx))**:
+    - Streamlined login page to a single sign-in interface without mode switch tabs.
+    - Simplified header to brand title "Good Feel" with subtext "Enter your Email, User ID, or Mobile to sign in", completely removing all role-specific terms (staff, associate, partner, admin).
+    - Accepts Email, User ID (BA-..., BP-...), or Mobile, with automatic backend detection and routing.
+
 - **User Rename vs Cash Ledger Name Desynchronization Fix [COMPLETED]**:
   - **Issue**:
     - When logging in as Nawraj Singh Nayan (Cashier), the "From Account (Source)" dropdown in Fund Transfers showed `subodh kumar (Cash Ledger)`.

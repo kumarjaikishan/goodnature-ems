@@ -52,6 +52,10 @@ const checkPermission = (permissionName, key) => {
                     if (perms.hasOwnProperty(name) && Array.isArray(perms[name]) && perms[name].includes(key)) {
                         return true;
                     }
+                    // Fallback for associate & partner -> plot_sponsor
+                    if (['associate', 'partner'].includes(name) && perms.hasOwnProperty('plot_sponsor') && Array.isArray(perms.plot_sponsor) && perms.plot_sponsor.includes(key)) {
+                        return true;
+                    }
                     // Fallback for ledger sub-modules -> master "ledger"
                     const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
                     if (LEDGER_SUBMODULES.includes(name) && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {

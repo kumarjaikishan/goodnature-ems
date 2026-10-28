@@ -18,13 +18,16 @@ const BusinessDeveloperLedgerPage = () => {
       apiClient({ url: `plots/sponsors/${targetId}/ledger` })
         .then((res) => {
           const sp = res.data?.sponsor;
-          const name = encodeURIComponent(sp?.name || 'Business Developer');
+          const isAssociate = sp?.isDeveloperSponsor === false || Boolean(sp?.parentSponsor) || sp?.sponsorCode?.startsWith('BA-');
+          const isBranchPartner = Boolean(sp?.isBranchPartner);
+          const computedType = isBranchPartner ? 'branch_partner' : (isAssociate ? 'associate' : 'partner');
+          const name = encodeURIComponent(sp?.name || (isAssociate ? 'Business Associate' : 'Business Partner'));
           const empId = encodeURIComponent(sp?.sponsorCode || sp?.customerId || '');
           const imgParam = sp?.profileImage ? `&profileimage=${encodeURIComponent(sp.profileImage)}` : '';
-          navigate(`/dashboard/ledger/${targetId}?name=${name}&empid=${empId}&ledgertype=sponsor${imgParam}`, { replace: true });
+          navigate(`/dashboard/ledger/${targetId}?name=${name}&empid=${empId}&ledgertype=${computedType}${imgParam}`, { replace: true });
         })
         .catch(() => {
-          navigate(`/dashboard/ledger/${targetId}?name=Business Developer&ledgertype=sponsor`, { replace: true });
+          navigate(`/dashboard/ledger/${targetId}?name=Business Developer&ledgertype=associate`, { replace: true });
         });
     }
   }, [targetId, navigate]);

@@ -486,7 +486,7 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
                   return (
                     <tr key={ins._id || idx} className={`hover:bg-slate-50/80 transition ${rowBg}`}>
                       <td className="p-2.5 text-center font-mono font-bold text-slate-700">
-                        {ins.installmentNumber || idx + 1}
+                        {ins.installmentNumber === 0 ? 'DP' : (ins.installmentNumber || idx + 1)}
                       </td>
 
                       <td className="p-2.5 text-slate-800">

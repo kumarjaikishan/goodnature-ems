@@ -20,6 +20,7 @@ import {
   User,
   Briefcase,
   AlertCircle,
+  Crown,
 } from 'lucide-react';
 
 const BusinessDeveloperNetworkPage = () => {
@@ -51,9 +52,31 @@ const BusinessDeveloperNetworkPage = () => {
 
   // Determine if target is a Business Partner or Associate
   const isBusinessPartner = useMemo(() => {
-    if (!developer) return true;
-    return !developer.sponsorId;
-  }, [developer]);
+    // 1. Check loaded developer object
+    if (developer) {
+      if (typeof developer.isDeveloperSponsor === 'boolean') {
+        return developer.isDeveloperSponsor;
+      }
+      if (developer.parentSponsor || developer.sponsorId) {
+        return false;
+      }
+      if (developer.sponsorCode?.startsWith('BA-')) {
+        return false;
+      }
+      if (developer.sponsorCode?.startsWith('BP-')) {
+        return true;
+      }
+    }
+    // 2. Fallback to logged-in profile if viewing self
+    if (!paramId && profile) {
+      if (profile.sponsorCode?.startsWith('BA-')) return false;
+      if (profile.sponsorCode?.startsWith('BP-')) return true;
+      if (typeof profile.isDeveloperSponsor === 'boolean') {
+        return profile.isDeveloperSponsor;
+      }
+    }
+    return false;
+  }, [developer, paramId, profile]);
 
   // 1. Fetch Developer Profile Details
   useEffect(() => {
@@ -68,10 +91,11 @@ const BusinessDeveloperNetworkPage = () => {
         const sp = res.data?.sponsor || res.sponsor || null;
         setDeveloper(sp);
         // If target is an Associate, default tab to customers instead of associates
-        if (sp && sp.parentSponsor) {
-          setActiveTab('customers');
-        } else {
+        const isPartner = sp?.isDeveloperSponsor ?? (!sp?.parentSponsor && !sp?.sponsorCode?.startsWith('BA-'));
+        if (isPartner) {
           setActiveTab('associates');
+        } else {
+          setActiveTab('customers');
         }
       } catch (err) {
         console.error('Failed to load developer profile:', err);
@@ -307,108 +331,118 @@ const BusinessDeveloperNetworkPage = () => {
   ];
 
   // Columns for Customers Table
-  const customerColumns = [
-    {
-      name: 'S.No',
-      selector: (row, idx) => idx + 1,
-      width: '60px',
-    },
-    {
-      name: 'Customer ID',
-      selector: (row) => row.customerId || row.customerCode || 'N/A',
-      sortable: true,
-      cell: (row) => (
-        <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
-          {row.customerId || row.customerCode || 'N/A'}
-        </span>
-      ),
-      width: '140px',
-    },
-    {
-      name: 'Customer Name',
-      selector: (row) => row.name,
-      sortable: true,
-      cell: (row) => (
-        <div className="flex items-center gap-2.5 py-1">
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center">
-            {row.photo || row.profileImage ? (
-              <img
-                src={cloudinaryUrl(row.photo || row.profileImage, { format: 'webp', width: 80, height: 80, crop: 'fill' })}
-                alt={row.name}
-                className="w-full h-full object-cover"
-              />
+  const customerColumns = useMemo(() => {
+    const cols = [
+      {
+        name: 'S.No',
+        selector: (row, idx) => idx + 1,
+        width: '60px',
+      },
+      {
+        name: 'Customer ID',
+        selector: (row) => row.customerId || row.customerCode || 'N/A',
+        sortable: true,
+        cell: (row) => (
+          <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
+            {row.customerId || row.customerCode || 'N/A'}
+          </span>
+        ),
+        width: '140px',
+      },
+      {
+        name: 'Customer Name',
+        selector: (row) => row.name,
+        sortable: true,
+        cell: (row) => (
+          <div className="flex items-center gap-2.5 py-1">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center">
+              {row.photo || row.profileImage ? (
+                <img
+                  src={cloudinaryUrl(row.photo || row.profileImage, { format: 'webp', width: 80, height: 80, crop: 'fill' })}
+                  alt={row.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User size={14} className="text-slate-400" />
+              )}
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 block leading-tight">{row.name}</span>
+              <span className="text-[11px] text-slate-500 font-mono">{row.mobile || ''}</span>
+            </div>
+          </div>
+        ),
+        minWidth: '180px',
+      },
+    ];
+
+    if (isBusinessPartner) {
+      cols.push({
+        name: 'Business Associate',
+        selector: (row) => row.sponsorId?.name || 'Direct',
+        sortable: true,
+        cell: (row) => (
+          <div>
+            {row.sponsorId?.name ? (
+              <div>
+                <span className="font-semibold text-teal-900 text-xs block leading-tight">
+                  {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}
+                </span>
+                <span className="font-mono text-[10px] text-teal-700 bg-teal-50 px-1 py-0.2 rounded border border-teal-200 inline-block mt-0.5">
+                  {row.sponsorId.sponsorCode || 'BA'}
+                </span>
+              </div>
             ) : (
-              <User size={14} className="text-slate-400" />
+              <span className="text-xs text-slate-500 italic">Direct to Partner</span>
             )}
           </div>
-          <div>
-            <span className="font-bold text-slate-900 block leading-tight">{row.name}</span>
-            <span className="text-[11px] text-slate-500 font-mono">{row.mobile || ''}</span>
-          </div>
-        </div>
-      ),
-      minWidth: '180px',
-    },
-    {
-      name: 'Business Associate',
-      selector: (row) => row.sponsorId?.name || 'Direct',
-      sortable: true,
-      cell: (row) => (
-        <div>
-          {row.sponsorId?.name ? (
-            <div>
-              <span className="font-semibold text-teal-900 text-xs block leading-tight">
-                {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}
-              </span>
-              <span className="font-mono text-[10px] text-teal-700 bg-teal-50 px-1 py-0.2 rounded border border-teal-200 inline-block mt-0.5">
-                {row.sponsorId.sponsorCode || 'BA'}
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs text-slate-500 italic">Direct to Partner</span>
-          )}
-        </div>
-      ),
-      minWidth: '170px',
-    },
-    {
-      name: 'Registration Date',
-      selector: (row) => row.createdAt,
-      sortable: true,
-      cell: (row) => (
-        <span className="text-xs text-slate-600 font-mono">
-          {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-        </span>
-      ),
-      width: '130px',
-    },
-    {
-      name: 'Bookings Count',
-      selector: (row) => row.bookingCount || 0,
-      sortable: true,
-      cell: (row) => (
-        <span className="font-bold text-slate-800 font-mono text-xs px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
-          {row.bookingCount || 0}
-        </span>
-      ),
-      width: '130px',
-    },
-    {
-      name: 'Outstanding Due (₹)',
-      selector: (row) => row.totalDue || 0,
-      sortable: true,
-      cell: (row) => (
-        <span
-          className={`font-bold font-mono text-xs px-2 py-0.5 rounded ${
-            Number(row.totalDue) > 0 ? 'bg-amber-50 text-amber-900 border border-amber-200 font-black' : 'text-slate-500'
-          }`}
-        >
-          ₹{(Number(row.totalDue) || 0).toLocaleString('en-IN')}
-        </span>
-      ),
-      width: '160px',
-    },
-  ];
+        ),
+        minWidth: '170px',
+      });
+    }
+
+    cols.push(
+      {
+        name: 'Registration Date',
+        selector: (row) => row.createdAt,
+        sortable: true,
+        cell: (row) => (
+          <span className="text-xs text-slate-600 font-mono">
+            {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+          </span>
+        ),
+        width: '130px',
+      },
+      {
+        name: 'Bookings Count',
+        selector: (row) => row.bookingCount || 0,
+        sortable: true,
+        cell: (row) => (
+          <span className="font-bold text-slate-800 font-mono text-xs px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
+            {row.bookingCount || 0}
+          </span>
+        ),
+        width: '130px',
+      },
+      {
+        name: 'Outstanding Due (₹)',
+        selector: (row) => row.totalDue || 0,
+        sortable: true,
+        cell: (row) => (
+          <span
+            className={`font-bold font-mono text-xs px-2 py-0.5 rounded ${
+              Number(row.totalDue) > 0 ? 'bg-amber-50 text-amber-900 border border-amber-200 font-black' : 'text-slate-500'
+            }`}
+          >
+            ₹{(Number(row.totalDue) || 0).toLocaleString('en-IN')}
+          </span>
+        ),
+        width: '160px',
+      }
+    );
+
+    return cols;
+  }, [isBusinessPartner]);
 
   if (loading) {
     return (
@@ -422,7 +456,7 @@ const BusinessDeveloperNetworkPage = () => {
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto min-h-screen bg-slate-50">
       {/* ── Top Header & Profile Banner ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {developer?.profileImage || developer?.photo ? (
             <img
@@ -433,34 +467,36 @@ const BusinessDeveloperNetworkPage = () => {
                 crop: 'fill',
               })}
               alt={developer?.name}
-              className="w-14 h-14 rounded-2xl object-cover border-2 border-teal-600/30 shadow-xs"
+              className="w-[52px] h-[52px] rounded-full object-cover border border-slate-200"
             />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-teal-800 text-white flex items-center justify-center text-xl font-black shadow-xs">
+            <div className="w-[52px] h-[52px] rounded-full bg-teal-700 text-white flex items-center justify-center text-lg font-bold border border-slate-200">
               {developer?.name?.charAt(0)?.toUpperCase() || 'B'}
             </div>
           )}
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">
                 {developer?.name?.replace(/\s*\([^)]*\)/g, '') || 'Business Developer'}
               </h1>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
-                  isBusinessPartner
-                    ? 'bg-amber-50 text-amber-900 border-amber-200'
-                    : 'bg-teal-50 text-teal-900 border-teal-200'
-                }`}
-              >
-                {isBusinessPartner ? '👑 Business Partner' : '👥 Business Associate'}
+              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                developer?.isBranchPartner
+                  ? 'bg-purple-50 text-purple-800 border-purple-200'
+                  : isBusinessPartner
+                  ? 'bg-teal-50 text-teal-800 border-teal-200'
+                  : 'bg-blue-50 text-blue-800 border-blue-200'
+              }`}>
+                {developer?.isBranchPartner
+                  ? `Branch Partner (${developer.branchName || 'Regional Head'})`
+                  : (isBusinessPartner ? 'Business Partner' : 'Business Associate')}
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-1 font-medium">
               <span className="flex items-center gap-1 font-mono">
-                <ShieldCheck size={14} className="text-teal-700" />
-                ID: <strong className="text-slate-800">{developer?.sponsorCode || 'N/A'}</strong>
+                <ShieldCheck size={14} className="text-slate-400" />
+                ID: <strong className="text-slate-700">{developer?.sponsorCode || 'N/A'}</strong>
               </span>
               {developer?.mobile && (
                 <span className="flex items-center gap-1 font-mono">
@@ -470,8 +506,7 @@ const BusinessDeveloperNetworkPage = () => {
               )}
               {developer?.parentSponsor && (
                 <span className="flex items-center gap-1">
-                  <Crown size={13} className="text-amber-600" />
-                  Partner: <strong className="text-slate-800">{developer.parentSponsor.name}</strong>
+                  Partner: <strong className="text-slate-700">{developer.parentSponsor.name}</strong>
                 </span>
               )}
             </div>

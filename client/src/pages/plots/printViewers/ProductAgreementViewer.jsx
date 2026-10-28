@@ -119,6 +119,7 @@ const ProductAgreementViewer = () => {
   const product = booking.productId || {};
   const sponsor = booking.sponsorId || {};
   const dims = booking.dimensionsSnapshot || product.dimensions || {};
+  const totalAreaSqFt = Number(booking.totalAreaSqFt || dims.totalAreaSqFt || ((product.areaSqFt || (Number(dims.north || 1) * Number(dims.east || 1))) * (booking.quantity || 1)) || 0);
   const landSourcing = booking.landSourcing || [];
 
   const qty = booking.quantity || 1;
@@ -289,7 +290,7 @@ const ProductAgreementViewer = () => {
 
           <div className="space-y-3 text-[11.5px] leading-relaxed text-slate-700">
             <p>
-              <strong>1. ALLOTMENT &amp; SPECIFICATIONS:</strong> The First Party agrees to allocate and the Second Party agrees to subscribe to <strong>{qty} Unit(s)</strong> of Plot Product titled <strong>&quot;{product.productName || 'Micro Plot Unit'}&quot;</strong> (Product Code: {product.productCode || 'PRD-001'}) having North: {dims.north ?? 1} ft, South: {dims.south ?? 1} ft, East: {dims.east ?? 2} ft, West: {dims.west ?? 2} ft dimensions, with a total unit area of <strong>{(product.areaSqFt || (dims.north * dims.east) || 2) * qty} Sq.Ft</strong>.
+              <strong>1. ALLOTMENT &amp; SPECIFICATIONS:</strong> The First Party agrees to allocate and the Second Party agrees to subscribe to <strong>{qty} Unit(s)</strong> of Plot Product titled <strong>&quot;{product.productName || 'Micro Plot Unit'}&quot;</strong> (Product Code: {product.productCode || 'PRD-001'}) having North: {dims.north ?? dims.northSouth ?? 1} ft, South: {dims.south ?? dims.northSouth ?? 1} ft, East: {dims.east ?? dims.eastWest ?? 1} ft, West: {dims.west ?? dims.eastWest ?? 1} ft dimensions, with a total unit area of <strong>{totalAreaSqFt.toLocaleString('en-IN')} Sq.Ft</strong>.
             </p>
 
             {landSourcing.length > 0 && (

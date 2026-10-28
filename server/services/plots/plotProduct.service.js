@@ -483,6 +483,13 @@ class PlotProductService {
       tenureMonths = 24,
       paymentType = 'MONTHLY_INSTALLMENT',
       downPayment = 0,
+      downpaymentAmount,
+      downpaymentDays = 90,
+      downpaymentMonths,
+      emiFrequency = 'MONTHLY',
+      installmentCount,
+      dpType = 'PERCENT',
+      dpVal = 0,
       bookingDate = new Date(),
       remarks = '',
       landSourcing = [],
@@ -510,16 +517,39 @@ class PlotProductService {
       : product.unitPrice;
 
     const totalAmount = Math.round(qty * unitPrice * 100) / 100;
-    const totalArea = Math.round(qty * (product.areaSqFt || 2) * 100) / 100;
-    const isFullPayment = paymentType === 'FULL_PAYMENT';
-    const dp = isFullPayment ? totalAmount : 0;
-    const remainingAmount = isFullPayment ? 0 : totalAmount;
-    const tenure = Math.max(1, Number(tenureMonths) || 24);
 
-    // Compute Monthly EMI in whole round figure (no decimals)
-    const monthlyEmi = isFullPayment
-      ? 0
-      : Math.round(totalAmount / tenure);
+    // Support custom dimension calculation: e.g. 30 North-South x 40 East-West = 1200 Sq.Ft
+    const customDims = data.customDimensions || (data.dimensionsSnapshot ? data.dimensionsSnapshot : null);
+    const customArea = (customDims?.northSouth && customDims?.eastWest)
+      ? Math.round(Number(customDims.northSouth) * Number(customDims.eastWest) * 100) / 100
+      : (customDims?.totalAreaSqFt ? Number(customDims.totalAreaSqFt) : (Number(data.totalAreaSqFt) || null));
+
+    const totalArea = customArea || Math.round(qty * (product.areaSqFt || 2) * 100) / 100;
+    const isFullPayment = paymentType === 'FULL_PAYMENT';
+    const resolvedDpDays = Number(downpaymentDays) || (Number(downpaymentMonths) ? Number(downpaymentMonths) * 30 : 90);
+    const resolvedDpMonths = downpaymentMonths !== undefined ? Number(downpaymentMonths) : Math.max(1, Math.round(resolvedDpDays / 30));
+
+    const emiFreq = emiFrequency || 'MONTHLY';
+    const freqMultiplier = emiFreq === 'QUARTERLY' ? 3 : emiFreq === 'HALF_YEARLY' ? 6 : emiFreq === 'YEARLY' ? 12 : 1;
+    const numInstallments = Number(installmentCount) || 0;
+    const resolvedTenure = tenureMonths !== undefined
+      ? Number(tenureMonths)
+      : (isFullPayment ? 0 : (numInstallments > 0 ? numInstallments * freqMultiplier : 24));
+
+    let dp = 0;
+    if (isFullPayment) {
+      dp = totalAmount;
+    } else {
+      const explicitDp = downpaymentAmount !== undefined
+        ? Number(downpaymentAmount)
+        : (downPayment !== undefined ? Number(downPayment) : 0);
+      dp = Math.min(totalAmount, Math.max(0, explicitDp));
+    }
+
+    const remainingAmount = isFullPayment ? 0 : Math.max(0, totalAmount - dp);
+    const count = isFullPayment ? 0 : (numInstallments > 0 ? numInstallments : Math.max(1, Math.round(resolvedTenure / freqMultiplier)));
+    const emiPerInstallment = (count > 0 && remainingAmount > 0) ? Math.round(remainingAmount / count) : 0;
+    const monthlyEmi = emiPerInstallment;
 
     // Process & Deduct Land Stock from KisanLandAgreement if provided
     const processedSourcing = [];
@@ -593,25 +623,15 @@ class PlotProductService {
     const seq = await Counter.getNextSequence(`PLOT_PRD_BOOKING_${fyStr}`, null, 3);
     const bookingNumber = `PRD-BK-${fyStr}-${seq}`;
 
-    // Generate EMI installments schedule
+    // Generate installments schedule
     const installments = [];
-    if (paymentType === 'MONTHLY_INSTALLMENT' && remainingAmount > 0) {
-      let accumulated = 0;
-      for (let i = 1; i <= tenure; i++) {
-        const dueDate = new Date(bDate);
-        dueDate.setMonth(dueDate.getMonth() + i);
-
-        // Adjust last installment for precision rounding
-        const emiAmt = i === tenure
-          ? Math.round((remainingAmount - accumulated) * 100) / 100
-          : monthlyEmi;
-
-        accumulated += emiAmt;
-
+    if (!isFullPayment) {
+      if (dp > 0) {
+        const dpDueDate = new Date(bDate.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
         installments.push({
-          installmentNumber: i,
-          dueDate,
-          amount: emiAmt,
+          installmentNumber: 0,
+          dueDate: dpDueDate,
+          amount: dp,
           paidAmount: 0,
           status: 'PENDING',
           lateFine: 0,
@@ -620,13 +640,39 @@ class PlotProductService {
           lateDays: 0,
         });
       }
+
+      if (remainingAmount > 0 && count > 0) {
+        let accumulated = 0;
+        for (let i = 1; i <= count; i++) {
+          const dueDate = new Date(bDate);
+          dueDate.setMonth(dueDate.getMonth() + (i * freqMultiplier));
+
+          const emiAmt = i === count
+            ? Math.round((remainingAmount - accumulated) * 100) / 100
+            : emiPerInstallment;
+
+          accumulated += emiAmt;
+
+          installments.push({
+            installmentNumber: i,
+            dueDate,
+            amount: emiAmt,
+            paidAmount: 0,
+            status: 'PENDING',
+            lateFine: 0,
+            lateFinePaid: 0,
+            lateFineRebate: 0,
+            lateDays: 0,
+          });
+        }
+      }
     }
 
     const bookingStatus = isFullPayment ? 'COMPLETED' : 'ACTIVE';
 
     const collections = [];
     let resolvedDpLedgerId = null;
-    if (dp > 0) {
+    if (isFullPayment && dp > 0) {
       const isCash = String(data.paymentMode || 'cash').toLowerCase() === 'cash';
       if (isCash) {
         // Cash receipts ALWAYS enter the physical custody of the collecting cashier
@@ -650,7 +696,7 @@ class PlotProductService {
         transactionReference: data.transactionReference || '',
         paymentDate: bDate,
         installmentNumbers: [],
-        remarks: isFullPayment ? 'Full Payment recorded at time of booking' : 'Initial Downpayment at booking',
+        remarks: 'Full Payment recorded at time of booking',
         collectedById: userId || null,
         ledgerId: resolvedDpLedgerId,
       });
@@ -680,6 +726,60 @@ class PlotProductService {
       if (bDoc?.branchPartnerId) resolvedBranchPartnerId = bDoc.branchPartnerId;
     }
 
+    // Resolve scheme-configured commissions if not explicitly provided
+    let resolvedPromoterCommissionPercent = data.promoterCommissionPercent !== undefined && data.promoterCommissionPercent !== null ? Number(data.promoterCommissionPercent) : undefined;
+    let resolvedBpCommissionPercent = data.bpCommissionPercent !== undefined && data.bpCommissionPercent !== null ? Number(data.bpCommissionPercent) : undefined;
+    let resolvedDeveloperCommissionPercent = data.developerCommissionPercent !== undefined && data.developerCommissionPercent !== null ? Number(data.developerCommissionPercent) : resolvedBpCommissionPercent;
+    let resolvedBranchCommissionPercent = data.branchCommissionPercent !== undefined && data.branchCommissionPercent !== null ? Number(data.branchCommissionPercent) : undefined;
+
+    if (resolvedPromoterCommissionPercent === undefined || resolvedBpCommissionPercent === undefined || resolvedBranchCommissionPercent === undefined) {
+      try {
+        const schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' }) || await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
+        if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
+          let matchedSlab = null;
+          if (data.planName) {
+            matchedSlab = schemeConfig.slabs.find((s) => s.planName === data.planName);
+          }
+          if (!matchedSlab) {
+            matchedSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === Number(resolvedTenure));
+          }
+          if (!matchedSlab) {
+            const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
+            matchedSlab = sortedSlabs.find((s) => Number(s.tenureMonths) >= Number(resolvedTenure)) || sortedSlabs[sortedSlabs.length - 1];
+          }
+
+          if (matchedSlab) {
+            if (isFullPayment) {
+              if (resolvedPromoterCommissionPercent === undefined) {
+                resolvedPromoterCommissionPercent = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
+              }
+              if (resolvedBpCommissionPercent === undefined) {
+                resolvedBpCommissionPercent = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
+              }
+              if (resolvedBranchCommissionPercent === undefined) {
+                resolvedBranchCommissionPercent = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
+              }
+            } else {
+              if (resolvedPromoterCommissionPercent === undefined) {
+                resolvedPromoterCommissionPercent = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
+              }
+              if (resolvedBpCommissionPercent === undefined) {
+                resolvedBpCommissionPercent = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
+              }
+              if (resolvedBranchCommissionPercent === undefined) {
+                resolvedBranchCommissionPercent = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
+              }
+            }
+            if (resolvedDeveloperCommissionPercent === undefined) {
+              resolvedDeveloperCommissionPercent = resolvedBpCommissionPercent;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error looking up scheme config for booking commission defaults:', err);
+      }
+    }
+
     const bookingDoc = new PlotProductBooking({
       bookingNumber,
       bookingDate: bDate,
@@ -696,27 +796,41 @@ class PlotProductService {
       totalAmount,
       totalAreaSqFt: totalArea,
       dimensionsSnapshot: {
-        north: product.dimensions?.north || 1,
-        south: product.dimensions?.south || 1,
-        east: product.dimensions?.east || 2,
-        west: product.dimensions?.west || 2,
-        unit: product.dimensions?.unit || 'feet',
-        dimensionLabel: product.dimensionLabel || `${product.dimensions?.north || 1} ft x ${product.dimensions?.east || 2} ft`,
+        north: Number(customDims?.north ?? customDims?.northSouth ?? product.dimensions?.north ?? 1),
+        south: Number(customDims?.south ?? customDims?.northSouth ?? product.dimensions?.south ?? 1),
+        east: Number(customDims?.east ?? customDims?.eastWest ?? product.dimensions?.east ?? 2),
+        west: Number(customDims?.west ?? customDims?.eastWest ?? product.dimensions?.west ?? 2),
+        northSouth: Number(customDims?.northSouth ?? customDims?.north ?? product.dimensions?.north ?? 1),
+        eastWest: Number(customDims?.eastWest ?? customDims?.east ?? product.dimensions?.east ?? 2),
+        totalAreaSqFt: totalArea,
+        unit: customDims?.unit || product.dimensions?.unit || 'feet',
+        dimensionLabel: customDims?.dimensionLabel || customDims?.label || (
+          customDims?.northSouth && customDims?.eastWest
+            ? `${customDims.northSouth} ft x ${customDims.eastWest} ft (N/S: ${customDims.northSouth} ft, E/W: ${customDims.eastWest} ft)`
+            : (product.dimensionLabel || `${product.dimensions?.north || 1} ft x ${product.dimensions?.east || 2} ft`)
+        ),
       },
       planName: data.planName || '',
-      tenureMonths: tenure,
-      promoterCommissionPercent: data.promoterCommissionPercent !== undefined ? Number(data.promoterCommissionPercent) : undefined,
-      developerCommissionPercent: data.developerCommissionPercent !== undefined ? Number(data.developerCommissionPercent) : (data.bpCommissionPercent !== undefined ? Number(data.bpCommissionPercent) : undefined),
-      bpCommissionPercent: data.bpCommissionPercent !== undefined ? Number(data.bpCommissionPercent) : undefined,
-      branchCommissionPercent: data.branchCommissionPercent !== undefined ? Number(data.branchCommissionPercent) : undefined,
+      tenureMonths: resolvedTenure,
+      promoterCommissionPercent: resolvedPromoterCommissionPercent,
+      developerCommissionPercent: resolvedDeveloperCommissionPercent,
+      bpCommissionPercent: resolvedBpCommissionPercent,
+      branchCommissionPercent: resolvedBranchCommissionPercent,
       rdMaturityPercent: data.rdMaturityPercent !== undefined ? Number(data.rdMaturityPercent) : 0,
       fdMaturityPercent: data.fdMaturityPercent !== undefined ? Number(data.fdMaturityPercent) : 0,
       annualInterestRate: data.annualInterestRate !== undefined ? Number(data.annualInterestRate) : 0,
       paymentType,
       downPayment: dp,
-      remainingAmount: isFullPayment ? 0 : remainingAmount,
+      downpaymentDays: resolvedDpDays,
+      downpaymentMonths: resolvedDpMonths,
+      emiFrequency: emiFreq,
+      installmentCount: count,
+      dpType,
+      dpVal: Number(dpVal) || 0,
+      emiPrincipalAmount: remainingAmount,
+      remainingAmount: isFullPayment ? 0 : totalAmount,
       monthlyEmi: isFullPayment ? 0 : monthlyEmi,
-      totalPaid: dp,
+      totalPaid: isFullPayment ? dp : 0,
       installments,
       collections,
       landSourcing: processedSourcing,
@@ -727,8 +841,8 @@ class PlotProductService {
 
     await bookingDoc.save();
 
-    // Auto-record double-entry credit in treasury ledger for downpayment
-    if (resolvedDpLedgerId && dp > 0) {
+    // Auto-record double-entry credit in treasury ledger for downpayment (if full payment)
+    if (isFullPayment && resolvedDpLedgerId && dp > 0) {
       try {
         await accountingService.recordLedgerEntry({
           ledgerId: resolvedDpLedgerId,
@@ -737,7 +851,7 @@ class PlotProductService {
           amount: dp,
           source: 'receipt',
           referenceId: bookingDoc._id,
-          remarks: `Product Booking DP: PRD-DP-${bookingNumber} - Customer: ${customer.name || 'Customer'}`
+          remarks: `Product Booking Full Payment: PRD-DP-${bookingNumber} - Customer: ${customer.name || 'Customer'}`
         });
       } catch (e) {
         console.error('Error recording ledger entry for product booking DP:', e);
@@ -774,6 +888,14 @@ class PlotProductService {
       customUnitPrice,
       tenureMonths,
       paymentType,
+      downPayment,
+      downpaymentAmount,
+      downpaymentDays,
+      downpaymentMonths,
+      emiFrequency,
+      installmentCount,
+      dpType,
+      dpVal,
       bookingDate,
       status,
       remarks,
@@ -856,9 +978,32 @@ class PlotProductService {
     booking.unitPrice = unitPrice;
 
     const totalAmount = Math.round(newQty * unitPrice * 100) / 100;
-    const totalArea = Math.round(newQty * (targetProduct?.areaSqFt || 2) * 100) / 100;
+    const customDims = data.customDimensions || (data.dimensionsSnapshot ? data.dimensionsSnapshot : null);
+    const customArea = (customDims?.northSouth && customDims?.eastWest)
+      ? Math.round(Number(customDims.northSouth) * Number(customDims.eastWest) * 100) / 100
+      : (customDims?.totalAreaSqFt ? Number(customDims.totalAreaSqFt) : (Number(data.totalAreaSqFt) || null));
+
+    const totalArea = customArea || Math.round(newQty * (targetProduct?.areaSqFt || 2) * 100) / 100;
     booking.totalAmount = totalAmount;
     booking.totalAreaSqFt = totalArea;
+
+    if (customDims) {
+      booking.dimensionsSnapshot = {
+        north: Number(customDims.north ?? customDims.northSouth ?? targetProduct?.dimensions?.north ?? 1),
+        south: Number(customDims.south ?? customDims.northSouth ?? targetProduct?.dimensions?.south ?? 1),
+        east: Number(customDims.east ?? customDims.eastWest ?? targetProduct?.dimensions?.east ?? 2),
+        west: Number(customDims.west ?? customDims.eastWest ?? targetProduct?.dimensions?.west ?? 2),
+        northSouth: Number(customDims.northSouth ?? customDims.north ?? targetProduct?.dimensions?.north ?? 1),
+        eastWest: Number(customDims.eastWest ?? customDims.east ?? targetProduct?.dimensions?.east ?? 2),
+        totalAreaSqFt: totalArea,
+        unit: customDims.unit || targetProduct?.dimensions?.unit || 'feet',
+        dimensionLabel: customDims.dimensionLabel || customDims.label || (
+          customDims.northSouth && customDims.eastWest
+            ? `${customDims.northSouth} ft x ${customDims.eastWest} ft (N/S: ${customDims.northSouth} ft, E/W: ${customDims.eastWest} ft)`
+            : (targetProduct?.dimensionLabel || `${targetProduct?.dimensions?.north || 1} ft x ${targetProduct?.dimensions?.east || 2} ft`)
+        ),
+      };
+    }
 
     const newPaymentType = paymentType || booking.paymentType || 'MONTHLY_INSTALLMENT';
     booking.paymentType = newPaymentType;
@@ -982,16 +1127,39 @@ class PlotProductService {
 
     // Recalculate schedule if no installments were paid yet
     if (!paidInstallments) {
-      const dp = isFullPayment ? totalAmount : 0;
-      const remainingAmount = isFullPayment ? 0 : totalAmount;
-      const monthlyEmi = isFullPayment ? 0 : Math.round(totalAmount / newTenure);
+      const resolvedDpDays = Number(downpaymentDays !== undefined ? downpaymentDays : (booking.downpaymentDays || 90));
+      const resolvedDpMonths = downpaymentMonths !== undefined ? Number(downpaymentMonths) : Math.max(1, Math.round(resolvedDpDays / 30));
+      const emiFreq = emiFrequency || booking.emiFrequency || 'MONTHLY';
+      const freqMultiplier = emiFreq === 'QUARTERLY' ? 3 : emiFreq === 'HALF_YEARLY' ? 6 : emiFreq === 'YEARLY' ? 12 : 1;
+      const numInstallments = Number(installmentCount !== undefined ? installmentCount : (booking.installmentCount || 0));
+      const count = isFullPayment ? 0 : (numInstallments > 0 ? numInstallments : Math.max(1, Math.round(newTenure / freqMultiplier)));
+
+      let dp = 0;
+      if (isFullPayment) {
+        dp = totalAmount;
+      } else {
+        const explicitDp = downpaymentAmount !== undefined
+          ? Number(downpaymentAmount)
+          : (downPayment !== undefined ? Number(downPayment) : (booking.downPayment || 0));
+        dp = Math.min(totalAmount, Math.max(0, explicitDp));
+      }
+
+      const remainingAmount = isFullPayment ? 0 : Math.max(0, totalAmount - dp);
+      const emiAmtPerInst = (count > 0 && remainingAmount > 0) ? Math.round(remainingAmount / count) : 0;
 
       booking.downPayment = dp;
-      booking.remainingAmount = remainingAmount;
-      booking.monthlyEmi = monthlyEmi;
+      booking.downpaymentDays = resolvedDpDays;
+      booking.downpaymentMonths = resolvedDpMonths;
+      booking.emiFrequency = emiFreq;
+      booking.installmentCount = count;
+      if (dpType !== undefined) booking.dpType = dpType;
+      if (dpVal !== undefined) booking.dpVal = Number(dpVal);
+      booking.emiPrincipalAmount = remainingAmount;
+      booking.monthlyEmi = emiAmtPerInst;
 
       if (isFullPayment) {
         booking.totalPaid = dp;
+        booking.remainingAmount = 0;
         booking.installments = [];
         booking.collections = [{
           receiptNumber: `DP-${booking.bookingNumber}`,
@@ -1009,25 +1177,17 @@ class PlotProductService {
         if (!status) booking.status = 'COMPLETED';
       } else {
         booking.totalPaid = 0;
+        booking.remainingAmount = totalAmount;
         booking.collections = [];
         if (!status) booking.status = 'ACTIVE';
 
         const installments = [];
-        let accumulated = 0;
-        for (let i = 1; i <= newTenure; i++) {
-          const dueDate = new Date(bDate);
-          dueDate.setMonth(dueDate.getMonth() + i);
-
-          const emiAmt = i === newTenure
-            ? Math.round((remainingAmount - accumulated) * 100) / 100
-            : monthlyEmi;
-
-          accumulated += emiAmt;
-
+        if (dp > 0) {
+          const dpDueDate = new Date(bDate.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
           installments.push({
-            installmentNumber: i,
-            dueDate,
-            amount: emiAmt,
+            installmentNumber: 0,
+            dueDate: dpDueDate,
+            amount: dp,
             paidAmount: 0,
             status: 'PENDING',
             lateFine: 0,
@@ -1035,6 +1195,32 @@ class PlotProductService {
             lateFineRebate: 0,
             lateDays: 0,
           });
+        }
+
+        if (remainingAmount > 0 && count > 0) {
+          let accumulated = 0;
+          for (let i = 1; i <= count; i++) {
+            const dueDate = new Date(bDate);
+            dueDate.setMonth(dueDate.getMonth() + (i * freqMultiplier));
+
+            const emiAmt = i === count
+              ? Math.round((remainingAmount - accumulated) * 100) / 100
+              : emiAmtPerInst;
+
+            accumulated += emiAmt;
+
+            installments.push({
+              installmentNumber: i,
+              dueDate,
+              amount: emiAmt,
+              paidAmount: 0,
+              status: 'PENDING',
+              lateFine: 0,
+              lateFinePaid: 0,
+              lateFineRebate: 0,
+              lateDays: 0,
+            });
+          }
         }
         booking.installments = installments;
       }
@@ -1622,6 +1808,7 @@ class PlotProductService {
         tenureMonths: booking.tenureMonths || 24,
         planName: booking.planName || '',
         dimensions: booking.dimensionsSnapshot || {},
+        totalAreaSqFt: booking.totalAreaSqFt || (booking.quantity * (booking.productId?.areaSqFt || 1)),
         monthlyEmi: booking.monthlyEmi || 0,
         installmentNumbers: colObj.installmentNumbers || [],
       },
@@ -1636,6 +1823,8 @@ class PlotProductService {
         plotValue: booking.totalAmount || 0,
         downpaymentAmount: booking.downPayment || 0,
         product: booking.productId,
+        dimensionsSnapshot: booking.dimensionsSnapshot || {},
+        totalAreaSqFt: booking.totalAreaSqFt || (booking.quantity * (booking.productId?.areaSqFt || 1)),
       },
       createdBy: colObj.collectedById || booking.createdById,
     };

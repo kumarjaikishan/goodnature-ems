@@ -7,15 +7,21 @@ export const PERMISSION_LABELS = {
 };
 
 export const AllPermissionNames = [
+    // 1. Organization & Core Master
     "branch",
     "department",
     "employee",
     "attandence",
-    "holiday",
     "leave",
+    "holiday",
+    "weekly_off_ledger",
     "salary",
     "advance",
     "voucher",
+
+    // 2. Financial Accounts & Ledgers (All Ledgers Grouped Together)
+    "ledger",
+    "ledger_entry",
     "bank_ledger",
     "cash_ledger",
     "fund_transfer",
@@ -24,18 +30,21 @@ export const AllPermissionNames = [
     "associate_ledger",
     "partner_ledger",
     "branch_ledger",
-    "ledger",
-    "ledger_entry",
-    "weekly_off_ledger",
+
+    // 3. Real Estate & Plot Management
     "plot_inventory",
     "plot_booking",
     "investment_booking",
     "plot_collection",
+    "associate",
+    "partner",
     "plot_sponsor",
     "plot_customer",
     "plot_payout",
     "plot_incentive",
     "plot_reports",
+
+    // 4. System & Others
     "investment",
     "audit_log",
     "notification"
@@ -43,15 +52,21 @@ export const AllPermissionNames = [
 
 // User-friendly descriptive display names for the permission matrix
 export const MODULE_DISPLAY_NAMES = {
+    // Organization & Core HRMS
     branch: "Branches Master",
     department: "Departments Master",
     employee: "Employee Master & Directory",
     attandence: "Attendance & Bio Logs",
-    holiday: "Company Holidays",
     leave: "Leaves & Approvals",
+    holiday: "Company Holidays",
+    weekly_off_ledger: "Employee Weekly-Off (WO/CO) Attendance Ledger",
     salary: "Salary & Payroll Processing",
     advance: "Employee Advance Management",
     voucher: "Payment Vouchers & Expenses",
+
+    // Financial Accounts & Ledgers (All Ledgers Grouped Together)
+    ledger: "Master All Ledgers Overview (Accounting)",
+    ledger_entry: "Financial Journal & Ledger Entries (Accounts)",
     bank_ledger: "Bank Accounts Ledger",
     cash_ledger: "Cash Accounts / In-Hand Cash Ledger",
     fund_transfer: "Inter-Account Fund Transfers",
@@ -60,18 +75,21 @@ export const MODULE_DISPLAY_NAMES = {
     associate_ledger: "Business Associate Ledgers",
     partner_ledger: "Business Partner Ledgers",
     branch_ledger: "Branch Partner Ledgers",
-    ledger: "Master All Ledgers Overview (Accounting)",
-    ledger_entry: "Financial Journal & Ledger Entries (Accounts)",
-    weekly_off_ledger: "Employee Weekly-Off (WO/CO) Attendance Ledger",
+
+    // Real Estate & Plot Management
     plot_inventory: "Plot Inventory & Series Master",
     plot_booking: "Plot Bookings",
     investment_booking: "Investment Bookings",
     plot_collection: "Installments & Payment Collections",
-    plot_sponsor: "Business Associates & Partners",
+    associate: "Business Associate (BA)",
+    partner: "Business Partner (BP)",
+    plot_sponsor: "Business Developers (All)",
     plot_customer: "Plot Customers Directory",
     plot_payout: "Commission Payouts & Schedules",
     plot_incentive: "Incentive Closings & Rewards",
     plot_reports: "Plot Analytics & Business Reports",
+
+    // System & Others
     investment: "Investments Management",
     audit_log: "System Audit Activity Logs",
     notification: "Announcements & Notifications",
@@ -87,22 +105,46 @@ export const MODULE_CATEGORIES = [
     {
         id: "hrms",
         label: "HRMS & Staff",
-        modules: ["employee", "attandence", "leave", "salary", "holiday", "weekly_off_ledger"]
+        modules: ["employee", "attandence", "leave", "holiday", "weekly_off_ledger", "salary"]
     },
     {
         id: "finance",
         label: "Finance & Accounts",
-        modules: ["cash_ledger", "bank_ledger", "fund_transfer", "employee_ledger", "kisan_ledger", "associate_ledger", "partner_ledger", "branch_ledger", "voucher", "advance", "ledger_entry", "ledger"]
+        modules: [
+            "ledger",
+            "ledger_entry",
+            "bank_ledger",
+            "cash_ledger",
+            "fund_transfer",
+            "employee_ledger",
+            "kisan_ledger",
+            "associate_ledger",
+            "partner_ledger",
+            "branch_ledger",
+            "advance",
+            "voucher"
+        ]
     },
     {
         id: "realestate",
         label: "Real Estate & Plots",
-        modules: ["plot_booking", "investment_booking", "plot_collection", "plot_inventory", "plot_customer", "plot_sponsor", "plot_payout", "plot_incentive", "plot_reports"]
+        modules: [
+            "plot_booking",
+            "investment_booking",
+            "plot_collection",
+            "plot_inventory",
+            "associate",
+            "partner",
+            "plot_customer",
+            "plot_payout",
+            "plot_incentive",
+            "plot_reports"
+        ]
     },
     {
         id: "admin",
         label: "Admin & Settings",
-        modules: ["investment", "branch", "department", "audit_log", "notification"]
+        modules: ["branch", "department", "investment", "audit_log", "notification"]
     }
 ];
 
@@ -144,6 +186,8 @@ export const adminPermission = {
     plot_booking: [1, 2, 3, 4],
     investment_booking: [1, 2, 3, 4],
     plot_collection: [1, 2, 3, 4],
+    associate: [1, 2, 3, 4],
+    partner: [1, 2, 3, 4],
     plot_sponsor: [1, 2, 3, 4],
     plot_customer: [1, 2, 3, 4],
     plot_payout: [1, 2, 3, 4],
@@ -179,6 +223,8 @@ export const managerPermission = {
     plot_booking: [1, 2, 3],
     investment_booking: [1, 2, 3],
     plot_collection: [1, 2, 3],
+    associate: [1],
+    partner: [1],
     plot_sponsor: [1],
     plot_customer: [1, 2, 3],
     plot_payout: [1],
@@ -319,6 +365,8 @@ export const salesPermission = {
     plot_booking: [1, 2, 3],
     investment_booking: [1, 2, 3],
     plot_collection: [1, 2],
+    associate: [1, 2],
+    partner: [1, 2],
     plot_sponsor: [1, 2],
     plot_customer: [1, 2, 3, 4],
     plot_payout: [],
@@ -347,6 +395,8 @@ export const auditorPermission = {
     plot_booking: [1],
     investment_booking: [1],
     plot_collection: [1],
+    associate: [1],
+    partner: [1],
     plot_sponsor: [1],
     plot_customer: [1],
     plot_payout: [1],

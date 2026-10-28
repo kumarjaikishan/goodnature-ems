@@ -220,7 +220,7 @@ const ProductSalesTab = ({
 
         <button
           type="button"
-          onClick={() => navigate('/dashboard/plots/products/book')}
+          onClick={() => navigate('/dashboard/plots/investment-booking/new')}
           className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
         >
           <Plus size={15} /> New Investment Booking
@@ -930,7 +930,9 @@ const ProductSalesTab = ({
                   <div className="bg-white/90 p-2.5 rounded-lg border border-teal-100 shadow-2xs">
                     <span className="text-[10px] text-slate-500 font-bold uppercase block">Payment Scheme</span>
                     <strong className="text-slate-900 text-xs block font-bold">
-                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'One-Time Payment' : 'Monthly EMI'}
+                      {viewingBooking.paymentType === 'FULL_PAYMENT'
+                        ? 'One-Time Payment'
+                        : `${viewingBooking.emiFrequency === 'QUARTERLY' ? 'Quarterly' : viewingBooking.emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : viewingBooking.emiFrequency === 'YEARLY' ? 'Yearly' : 'Monthly'} EMI`}
                     </strong>
                     <span className="text-[10px] text-teal-700 font-medium">
                       {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'Fully Paid' : 'Recurring Installments'}
@@ -1045,16 +1047,25 @@ const ProductSalesTab = ({
 
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">
                     <span className="text-[10px] text-slate-400 font-bold uppercase block">
-                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? 'Paid Upfront' : 'Monthly EMI'}
+                      {viewingBooking.paymentType === 'FULL_PAYMENT'
+                        ? 'Paid Upfront'
+                        : `${viewingBooking.emiFrequency === 'QUARTERLY' ? 'Quarterly' : viewingBooking.emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : viewingBooking.emiFrequency === 'YEARLY' ? 'Yearly' : 'Monthly'} EMI`}
                     </span>
                     <strong className="text-teal-800 text-sm font-black font-mono block">
                       {viewingBooking.paymentType === 'FULL_PAYMENT'
                         ? `₹${Number(viewingBooking.totalAmount || 0).toLocaleString('en-IN')}`
-                        : `₹${Number(viewingBooking.monthlyEmi || 0).toLocaleString('en-IN')}/mo`}
+                        : `₹${Number(viewingBooking.monthlyEmi || 0).toLocaleString('en-IN')}/inst.`}
                     </strong>
                     <span className="text-[10px] text-emerald-700 font-bold">
-                      {viewingBooking.paymentType === 'FULL_PAYMENT' ? '100% Upfront Settled' : `${viewingBooking.tenureMonths || 24} EMIs Plan`}
+                      {viewingBooking.paymentType === 'FULL_PAYMENT'
+                        ? '100% Upfront Settled'
+                        : `${viewingBooking.installmentCount || viewingBooking.tenureMonths || 24} EMIs Plan`}
                     </span>
+                    {Number(viewingBooking.downpaymentAmount || 0) > 0 && (
+                      <span className="text-[10px] text-amber-700 font-medium block pt-0.5">
+                        DP: ₹{Number(viewingBooking.downpaymentAmount).toLocaleString('en-IN')} ({viewingBooking.downpaymentDays || 90}d)
+                      </span>
+                    )}
                   </div>
 
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200">

@@ -138,14 +138,16 @@ export default function PlotBookingEditPage() {
       const seriesData = seriesRes.data?.data || seriesRes.data || [];
       const plotsData = plotsRes.data?.data || plotsRes.data || [];
       const configData = ratesRes.data?.data || ratesRes.data || null;
-      const landSourcesData = landSourcesRes.data?.data || landSourcesRes.data || [];
       const projectsData = projectsRes.data?.data || projectsRes.data || [];
+      const addBookingProjects = projectsData.filter(
+        (p) => Boolean(p.showInAddBooking) || String(p._id) === String(b.projectId?._id || b.projectId)
+      );
 
       setSeriesList(seriesData);
       setPlots(plotsData);
       setRateConfig(configData);
       setAvailableLandSources(landSourcesData);
-      setProjects(projectsData);
+      setProjects(addBookingProjects);
 
       // Populate customer
       const cust = b.customerId;
@@ -567,9 +569,10 @@ export default function PlotBookingEditPage() {
   const allLandSources = useMemo(() => {
     const list = [];
     const sourceAgreements = form.projectId
-      ? (availableLandSources || []).filter(
-          (src) => !src.projectId || String(src.projectId._id || src.projectId) === String(form.projectId)
-        )
+      ? (availableLandSources || []).filter((src) => {
+          const pId = src.projectId?._id || src.projectId;
+          return pId && String(pId) === String(form.projectId);
+        })
       : availableLandSources || [];
 
     sourceAgreements.forEach((agr) => {

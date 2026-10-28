@@ -14,6 +14,7 @@ const CommissionPolicyConfig = require('../../models/CommissionPolicyConfig');
 const InvestmentSchemeConfig = require('../../models/InvestmentSchemeConfig');
 const Counter = require('../../models/Counter');
 const Branch = require('../../models/branch');
+const PlotClosing = require('../../models/PlotClosing');
 const ApiError = require('../../utils/apiError');
 const plotConfigService = require('./plotConfig.service');
 
@@ -153,7 +154,11 @@ class PlotDeveloperService {
         trackedReceiptIds.push(c.receiptId);
         if (!validReceiptIdSet.has(c.receiptId.toString())) {
           if (c.ledgerEntryId) {
-            await accountingService.deleteLedgerEntry(c.ledgerEntryId, session);
+            try {
+              await accountingService.deleteLedgerEntry(c.ledgerEntryId, session);
+            } catch (err) {
+              console.warn('Failed deleting ledger entry during commission sync:', err.message);
+            }
           }
           const delDoc = PlotSponsorCommission.deleteOne({ _id: c._id });
           if (session) delDoc.session(session);
@@ -836,7 +841,11 @@ class PlotDeveloperService {
     for (const c of existingComms) {
       if (c.receiptNumber && !validReceiptNumberSet.has(c.receiptNumber)) {
         if (c.ledgerEntryId) {
-          await accountingService.deleteLedgerEntry(c.ledgerEntryId, session);
+          try {
+            await accountingService.deleteLedgerEntry(c.ledgerEntryId, session);
+          } catch (err) {
+            console.warn('Failed deleting ledger entry during product commission sync:', err.message);
+          }
         }
         const delDoc = PlotSponsorCommission.deleteOne({ _id: c._id });
         if (session) delDoc.session(session);
@@ -1000,17 +1009,17 @@ class PlotDeveloperService {
       // Resolve fixed percentages based on tenure slab for BA, BP, and Branch Partner
       let defaultBaFixed = isFdOrOneTime ? 5.0 : 4.0;
       let defaultBpFixed = isFdOrOneTime ? 1.0 : 1.0;
-      let defaultBranchFixed = 0;
+      let defaultBranchFixed = 0.5;
 
       if (matchedSlab) {
         if (isFdOrOneTime) {
           defaultBaFixed = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
           defaultBpFixed = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-          defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0);
+          defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
         } else {
           defaultBaFixed = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
           defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-          defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0);
+          defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
         }
       }
 

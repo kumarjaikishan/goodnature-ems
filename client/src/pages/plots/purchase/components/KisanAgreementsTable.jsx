@@ -20,6 +20,9 @@ const KisanAgreementsTable = ({
   setSearch,
   statusFilter,
   setStatusFilter,
+  projects = [],
+  projectFilter = 'ALL',
+  setProjectFilter,
   setPage,
   fetchAgreements,
   openCreateDeedModal,
@@ -39,7 +42,7 @@ const KisanAgreementsTable = ({
             setPage(1);
             fetchAgreements();
           }}
-          className="flex items-center gap-2 w-full sm:w-96"
+          className="flex items-center gap-2 w-full sm:w-80"
         >
           <div className="relative w-full">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -59,7 +62,25 @@ const KisanAgreementsTable = ({
           </button>
         </form>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Project Filter */}
+          <select
+            value={projectFilter}
+            onChange={(e) => {
+              if (setProjectFilter) setProjectFilter(e.target.value);
+              setPage(1);
+            }}
+            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none cursor-pointer max-w-[200px]"
+          >
+            <option value="ALL">All Projects</option>
+            {projects.map((proj) => (
+              <option key={proj._id} value={proj._id}>
+                {proj.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => {
@@ -78,11 +99,12 @@ const KisanAgreementsTable = ({
             onClick={() => {
               setSearch('');
               setStatusFilter('ALL');
+              if (setProjectFilter) setProjectFilter('ALL');
               setPage(1);
               fetchAgreements();
             }}
             className="h-10 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1"
-            title="Refresh"
+            title="Reset Filters"
           >
             <RefreshCw size={14} />
           </button>

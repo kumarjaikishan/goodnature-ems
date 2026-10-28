@@ -98,6 +98,7 @@ const userLogin = async (req, res, next) => {
       role: isUser.role,
       sponsorCode: isUser.sponsorCode || isUser.customerId,
       mobile: isUser.mobile,
+      isDeveloperSponsor: Boolean(isUser.isDeveloperSponsor || !isUser.sponsorId),
       branchIds: isUser.branchIds || [],
     };
     if (isUser.permissions) {

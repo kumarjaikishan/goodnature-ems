@@ -30,6 +30,11 @@ const plotProjectSchema = new mongoose.Schema(
       default: 'ACTIVE',
       index: true,
     },
+    showInAddBooking: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     createdById: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

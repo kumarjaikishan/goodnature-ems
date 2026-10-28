@@ -13,14 +13,18 @@ import {
   FileText,
   X,
   Compass,
+  Eye,
+  Image as ImageIcon,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import DocumentPreviewModal from './DocumentPreviewModal';
 
 const KisanLedgersDrawer = ({
   open,
   onClose,
   detailData,
 }) => {
+  const [previewDoc, setPreviewDoc] = React.useState(null);
   if (!detailData) return null;
 
   const agr = detailData.agreement || {};
@@ -445,36 +449,78 @@ const KisanLedgersDrawer = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {attachments.map((att, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 bg-white border border-slate-200 rounded-xl space-y-1.5 flex flex-col justify-between shadow-2xs"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 truncate text-xs">{att.fileName}</span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">
-                          {att.fileType || 'Document'}
-                        </span>
+                {attachments.map((att, idx) => {
+                  const isPdf =
+                    (att.fileUrl && att.fileUrl.toLowerCase().endsWith('.pdf')) ||
+                    att.format === 'pdf' ||
+                    att.fileType?.toLowerCase().includes('pdf');
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 flex flex-col justify-between shadow-2xs hover:border-teal-300 transition"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="flex items-center gap-2 truncate">
+                            {isPdf ? (
+                              <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                                <FileText size={15} />
+                              </div>
+                            ) : (
+                              <img
+                                src={att.fileUrl}
+                                alt="thumb"
+                                className="w-7 h-7 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <div className="truncate">
+                              <span className="font-bold text-slate-800 truncate text-xs block" title={att.fileName}>
+                                {att.fileName || 'Attachment'}
+                              </span>
+                              {att.fileSize > 0 && (
+                                <span className="text-[10px] text-slate-400 font-mono block">
+                                  {(att.fileSize / (1024 * 1024)).toFixed(2)} MB
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded-md shrink-0">
+                            {att.fileType || 'Document'}
+                          </span>
+                        </div>
+                        {att.description && (
+                          <p className="text-[11px] text-slate-500 line-clamp-2 italic">{att.description}</p>
+                        )}
                       </div>
-                      {att.description && (
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{att.description}</p>
+
+                      {att.fileUrl && (
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewDoc(att)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg text-xs font-bold transition cursor-pointer"
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
+                          <a
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition border border-slate-200"
+                            title="Open in new window"
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
                       )}
                     </div>
-
-                    {att.fileUrl && (
-                      <a
-                        href={att.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg text-xs font-bold transition cursor-pointer mt-2"
-                      >
-                        <span>View Document</span>
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -490,6 +536,13 @@ const KisanLedgersDrawer = ({
           </button>
         </div>
       </div>
+
+      {/* Interactive Document Preview Modal */}
+      <DocumentPreviewModal
+        open={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        doc={previewDoc}
+      />
     </Modalbox>
   );
 };

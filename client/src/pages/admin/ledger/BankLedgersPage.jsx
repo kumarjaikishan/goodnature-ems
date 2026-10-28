@@ -192,16 +192,8 @@ export default function BankLedgersPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<ArrowRightLeft size={15} />}
-            onClick={() => navigate("/dashboard/ledger/transfers")}
-          >
-            Inter-Account Transfers
-          </Button>
-          {canCreate && (
+        {canCreate && (
+          <div className="flex items-center gap-2">
             <Button
               variant="primary"
               size="sm"
@@ -210,8 +202,8 @@ export default function BankLedgersPage() {
             >
               Add Bank Account
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Summary KPI Cards */}

@@ -42,17 +42,18 @@ const PlotProjectsSection = ({
     location: '',
     description: '',
     status: 'ACTIVE',
+    showInAddBooking: false,
   });
 
   const resetForm = () => {
-    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE' });
+    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE', showInAddBooking: false });
     setEditingProject(null);
     setIsFormOpen(false);
   };
 
   const openCreate = () => {
     setEditingProject(null);
-    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE' });
+    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE', showInAddBooking: false });
     setIsFormOpen(true);
     setIsCollapsed(false);
   };
@@ -65,9 +66,26 @@ const PlotProjectsSection = ({
       location: project.location || '',
       description: project.description || '',
       status: project.status || 'ACTIVE',
+      showInAddBooking: Boolean(project.showInAddBooking),
     });
     setIsFormOpen(true);
     setIsCollapsed(false);
+  };
+
+  const handleToggleAddBooking = async (project, checked) => {
+    try {
+      await api.put(`/plots/projects/${project._id}`, {
+        showInAddBooking: checked,
+      });
+      toast.success(
+        checked
+          ? `"${project.name}" will show in Add Booking`
+          : `"${project.name}" will show in Product Book/Sale`
+      );
+      if (onProjectsChange) onProjectsChange();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update project setting');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -217,6 +235,17 @@ const PlotProjectsSection = ({
                 <option value="COMPLETED">Completed (पूर्ण)</option>
               </select>
             </div>
+            <div className="flex items-center h-10 mt-5">
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.showInAddBooking}
+                  onChange={(e) => setForm({ ...form, showInAddBooking: e.target.checked })}
+                  className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+                />
+                <span>For Plot Booking (Add Booking)</span>
+              </label>
+            </div>
             <div className="flex items-end gap-2">
               <button
                 type="submit"
@@ -243,6 +272,7 @@ const PlotProjectsSection = ({
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
+                <th className="p-3.5 text-center w-28 bg-teal-50/50">Plot Booking</th>
                 <th className="p-3.5 text-left">Project Name</th>
                 <th className="p-3.5 text-left">Code</th>
                 <th className="p-3.5 text-left">Location</th>
@@ -255,7 +285,7 @@ const PlotProjectsSection = ({
             <tbody className="divide-y divide-slate-100">
               {projects.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400 italic font-medium">
+                  <td colSpan="8" className="p-8 text-center text-slate-400 italic font-medium">
                     No projects created yet. Click &quot;Add Project&quot; to create your first project (e.g., Rajgir Phase 1).
                   </td>
                 </tr>
@@ -270,9 +300,34 @@ const PlotProjectsSection = ({
 
                   return (
                     <tr key={project._id} className="hover:bg-slate-50 transition">
+                      <td className="p-3.5 text-center bg-teal-50/30">
+                        <label className="inline-flex items-center justify-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(project.showInAddBooking)}
+                            disabled={!canUpdate}
+                            onChange={(e) => handleToggleAddBooking(project, e.target.checked)}
+                            className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer disabled:cursor-not-allowed"
+                            title={
+                              project.showInAddBooking
+                                ? "Checked: Shown in Add Booking (/dashboard/plots/addbooking)"
+                                : "Unchecked: Shown in Plot Product Booking (/dashboard/plots/products/book)"
+                            }
+                          />
+                        </label>
+                      </td>
                       <td className="p-3.5">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-800 text-xs">{project.name}</span>
+                          {project.showInAddBooking ? (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 border border-teal-200">
+                              Add Booking
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200">
+                              Product Sale
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-3.5 font-mono text-teal-800 font-bold">

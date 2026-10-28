@@ -57,7 +57,14 @@ const BusinessDeveloperDashboard = () => {
     );
   }
 
-  const developer = dashboardData?.sponsor || {};
+  const loggedInProfile = user?.profile || user || {};
+  const developer = {
+    name: loggedInProfile.name,
+    sponsorCode: loggedInProfile.sponsorCode || loggedInProfile.customerId,
+    isDeveloperSponsor: loggedInProfile.isDeveloperSponsor,
+    role: loggedInProfile.role,
+    ...(dashboardData?.sponsor || {})
+  };
   const metrics = dashboardData?.metrics || {};
   const recentBookings = dashboardData?.recentBookings || [];
   const recentCommissions = dashboardData?.recentCommissions || [];

@@ -1707,7 +1707,7 @@ class KisanLandService {
    * Create a new Project
    */
   async createProject(data, userId = null) {
-    const { name, code, location, description, status } = data;
+    const { name, code, location, description, status, showInAddBooking } = data;
     if (!name || !name.trim()) {
       throw ApiError.badRequest('Project name is required');
     }
@@ -1723,6 +1723,7 @@ class KisanLandService {
       location: location ? location.trim() : '',
       description: description ? description.trim() : '',
       status: status || 'ACTIVE',
+      showInAddBooking: Boolean(showInAddBooking),
       createdById: userId,
     });
 
@@ -1752,6 +1753,7 @@ class KisanLandService {
     if (data.location !== undefined) project.location = data.location ? data.location.trim() : '';
     if (data.description !== undefined) project.description = data.description ? data.description.trim() : '';
     if (data.status !== undefined) project.status = data.status;
+    if (data.showInAddBooking !== undefined) project.showInAddBooking = Boolean(data.showInAddBooking);
     project.updatedById = userId;
 
     await project.save();

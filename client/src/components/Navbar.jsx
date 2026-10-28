@@ -72,8 +72,9 @@ const Navbar = () => {
     "sponsors": "Business Developers",
     "sponsor-ledger": "Business Developer Ledger",
     "customers": "Customers",
-    "booking": "Bookings",
+    "booking": "Plot Booking",
     "addbooking": "Create Booking",
+    "investment-booking": "Investment Booking",
     "installments": "Collections",
     "series-master": "Plot Series Master",
     "products": "Plot Products",
@@ -166,6 +167,16 @@ const Navbar = () => {
       } else {
         pageTitle = "Collections";
       }
+    } else if (pathParts.includes("products")) {
+      if (pathParts.includes("book")) {
+        pageTitle = "New Investment Booking";
+      } else if (pathParts.includes("edit")) {
+        pageTitle = "Edit Investment Booking";
+      } else {
+        pageTitle = "Plot Products";
+      }
+    } else if (pathParts.includes("product-sales")) {
+      pageTitle = "Investment Bookings";
     } else if (pathParts.includes("receipts")) {
       pageTitle = "Print Receipt";
     } else if (pathParts.includes("certificates")) {

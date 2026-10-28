@@ -6,6 +6,13 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
+- [x] **Land Document Attachments Security Checks & Interactive In-App Preview**:
+  - Whitelisted document & image file extensions (`.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.avif`) and mime types with a 20MB max file size limit.
+  - Added binary magic bytes / signature validation (`checkDocMagicBytes` for PDF, JPEG, PNG, GIF, BMP, TIFF, WEBP) in `server/controllers/plots.controller.js` to block disguised scripts/executables.
+  - Implemented filename sanitization against path traversal attacks and guaranteed temp file cleanup.
+  - Built universal `DocumentPreviewModal.jsx` featuring responsive PDF iframe preview and high-resolution image viewer with format/size badges, open in new tab, and download buttons.
+  - Upgraded attachment rows in `CreateAgreementModal.jsx` and `EditAgreementModal.jsx` to render live thumbnails, formatted file size, "View" preview modal trigger, "Replace" re-upload option, and external link.
+  - Enhanced `KisanLedgersDrawer.jsx` with thumbnail previews and preview modal trigger.
 - [x] **Plot Refund & Cancellation Treasury Bank & Cash Disbursement**:
   - Centralized refund payout helper in `server/services/plots/plotRefundHelper.js` with `resolveAndAuthorizePaymentLedger` and `disburseRefundTransaction`.
   - Enforced caller bank authorization (`caller.bankPermissions` for `accessScope`, `allowPayments`, and `allowedBankIds`) and cash custody rules.
@@ -47,6 +54,7 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ---
 
+- [x] Investment Booking Downpayment Option & Periodic EMI Frequency Selection (Flat/Percent/SqFt rate downpayment, dynamic due period in days, Monthly/Quarterly/Half-Yearly/Yearly EMI frequency scheduler, and Booking Summary live calculation).
 - [x] First-Class Physical Branch Entity Commission Ledger (0.5% override, direct credit to Branch Ledger account, Section 3 Incentive Closing Target & Extra Slabs, and granular `branch_ledger` RBAC permission).
 - [x] Plot inventory generation and series master management with dimensional config.
 - [x] Plot booking, hold expiry logic, and installment collection with receipt printing.

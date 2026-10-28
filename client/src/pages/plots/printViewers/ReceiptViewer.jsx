@@ -119,6 +119,15 @@ const ReceiptViewer = () => {
   const isProductReceipt = receipt.isProductReceipt || !!receipt.productDetails || !!bookingId.product;
   const productDetails = receipt.productDetails || {};
   const productObj = productDetails.product || bookingId.product || {};
+  const productDims = productDetails.dimensions || bookingId.dimensionsSnapshot || productObj.dimensions || {};
+  const productDimensionLabel = productDims.dimensionLabel || (
+    (productDims.north || productDims.northSouth) && (productDims.east || productDims.eastWest)
+      ? `${productDims.northSouth || productDims.north} ft x ${productDims.eastWest || productDims.east} ft (N/S: ${productDims.northSouth || productDims.north} ft, E/W: ${productDims.eastWest || productDims.east} ft)`
+      : (productObj.dimensionLabel || '')
+  );
+  const productTotalArea = productDetails.totalAreaSqFt || bookingId.totalAreaSqFt || (
+    productDetails.quantity && productObj.areaSqFt ? productDetails.quantity * productObj.areaSqFt : null
+  );
   const customer = bookingId.customerId || {};
   const plot = bookingId.plotId || {};
   const isDownpaymentReceipt = receipt.receiptType === 'DOWNPAYMENT' || receipt.receiptType === 'BOOKING';
@@ -281,11 +290,18 @@ const ReceiptViewer = () => {
               </td>
               <td className="p-2 font-bold text-slate-900">
                 {isProductReceipt ? (
-                  <span>
-                    {productObj.productName || 'Micro Plot Unit'}
-                    {productDetails.quantity ? ` (${productDetails.quantity} Units)` : ''}
-                    {productObj.dimensionLabel ? ` • ${productObj.dimensionLabel}` : ''}
-                  </span>
+                  <div className="space-y-0.5">
+                    <div>
+                      <span>{productObj.productName || 'Micro Plot Unit'}</span>
+                      {productDetails.quantity ? ` (${productDetails.quantity} Units)` : ''}
+                      {productDimensionLabel ? ` • ${productDimensionLabel}` : ''}
+                    </div>
+                    {productTotalArea ? (
+                      <div className="text-[11px] text-teal-800 font-bold font-mono">
+                        Total Area: {productTotalArea.toLocaleString('en-IN')} Sq.Ft
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   `#${plot.plotNumber || '-'} (${plot.plotSize || 0} Sq Ft)`
                 )}

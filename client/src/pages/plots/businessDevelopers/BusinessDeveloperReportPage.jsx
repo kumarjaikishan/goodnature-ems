@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  ShieldCheck,
+  Phone,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -154,32 +156,51 @@ const BusinessDeveloperReportPage = () => {
   return (
     <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
       {/* ── Top Navigation & Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-2xl shadow-xs print:hidden">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/dashboard/plots/business-developer')}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-          >
-            <ArrowLeft size={16} /> Business Developers
-          </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-xl shadow-xs print:hidden">
+        <div className="flex items-center gap-4">
+          {paramId && (
+            <button
+              onClick={() => navigate('/dashboard/plots/business-developer')}
+              className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600 font-bold text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <ArrowLeft size={16} /> Business Developers
+            </button>
+          )}
+
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{developer.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">{developer.name}</h1>
               <span
-                className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${
-                  isDeveloperPartner
-                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                    : 'bg-blue-50 text-blue-800 border border-blue-200'
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                  developer.isBranchPartner
+                    ? 'bg-purple-50 text-purple-800 border-purple-200'
+                    : isDeveloperPartner
+                    ? 'bg-teal-50 text-teal-800 border-teal-200'
+                    : 'bg-blue-50 text-blue-800 border-blue-200'
                 }`}
               >
-                {isDeveloperPartner ? '👑 Business Partner' : '👥 Business Associate'}
+                {developer.isBranchPartner
+                  ? `Branch Partner (${developer.branchName || 'Regional Head'})`
+                  : (isDeveloperPartner ? 'Business Partner' : 'Business Associate')}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Code: <span className="font-mono font-bold text-slate-700">{developer.sponsorCode}</span>
-              {developer.mobile ? ` | Mobile: ${developer.mobile}` : ''}
-              {developer.parentSponsor ? ` | Parent Partner: ${developer.parentSponsor.name} (${developer.parentSponsor.sponsorCode || ''})` : ''}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-1 font-medium">
+              <span className="flex items-center gap-1 font-mono">
+                <ShieldCheck size={14} className="text-slate-400" />
+                ID: <strong className="text-slate-700">{developer.sponsorCode || 'N/A'}</strong>
+              </span>
+              {developer.mobile && (
+                <span className="flex items-center gap-1 font-mono">
+                  <Phone size={13} className="text-slate-400" />
+                  {developer.mobile}
+                </span>
+              )}
+              {developer.parentSponsor && (
+                <span className="flex items-center gap-1">
+                  Partner: <strong className="text-slate-700">{developer.parentSponsor.name}</strong>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

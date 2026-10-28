@@ -106,13 +106,18 @@ export default function PlotBooking() {
       const plotsData = plotsRes.data?.data || plotsRes.data || [];
       const configData = ratesRes.data?.data || ratesRes.data || null;
       const landSourcesData = landSourcesRes.data?.data || landSourcesRes.data || [];
-      const projectsData = projectsRes.data?.data || projectsRes.data || [];
+      const projectsList = Array.isArray(projectsRes.data?.data)
+        ? projectsRes.data.data
+        : Array.isArray(projectsRes.data)
+        ? projectsRes.data
+        : [];
+      const addBookingProjects = projectsList.filter((p) => Boolean(p.showInAddBooking));
 
       setSeriesList(seriesData);
       setPlots(plotsData);
       setRateConfig(configData);
       setAvailableLandSources(landSourcesData);
-      setProjects(projectsData);
+      setProjects(addBookingProjects);
 
       setCustomSqFtRate(1000);
       setDpType('SQFT_RATE');

@@ -144,12 +144,17 @@ const BookingCertificateViewer = () => {
       year: 'numeric'
     });
 
-    const lengthFt = Number(dims.north || dims.south || 40);
-    const widthFt = Number(dims.east || dims.west || 1);
+    const lengthFt = Number(dims.northSouth || dims.north || dims.south || 1);
+    const widthFt = Number(dims.eastWest || dims.east || dims.west || 1);
     const calculatedUnitArea = lengthFt * widthFt;
-    const unitArea = Number(product.areaSqFt || calculatedUnitArea || 40);
-    const totalArea = Number(booking.totalAreaSqFt || (unitArea * qty) || 0);
-    const totalDismil = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedDismil) || 0), 0);
+    const unitArea = Number(product.areaSqFt || calculatedUnitArea || 1);
+    const totalArea = Number(booking.totalAreaSqFt || dims.totalAreaSqFt || (unitArea * qty) || 0);
+    const totalDismil = Math.round((totalArea / 435.6) * 100) / 100;
+    const dimensionLabel = dims.dimensionLabel || (
+      (dims.north || dims.northSouth) && (dims.east || dims.eastWest)
+        ? `${dims.northSouth || dims.north} ft x ${dims.eastWest || dims.east} ft (N/S: ${dims.northSouth || dims.north} ft, E/W: ${dims.eastWest || dims.east} ft)`
+        : (product.dimensionLabel || `${lengthFt} ft x ${widthFt} ft`)
+    );
 
     const maujaList =
       Array.from(new Set(landSourcing.map((s) => s.mauja || s.agreementId?.mauja).filter(Boolean))).join(', ') ||
@@ -360,10 +365,8 @@ const BookingCertificateViewer = () => {
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2">
-                  <span className="font-bold text-emerald-800 uppercase text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {booking.status || 'COMPLETED'}
-                  </span>
+                <td className="p-2 font-bold text-slate-900 uppercase">
+                  OK
                 </td>
               </tr>
 
@@ -411,18 +414,39 @@ const BookingCertificateViewer = () => {
                 </td>
               </tr>
 
-              {/* Row 8: Total Area */}
+              {/* Row 8: Dimensions & Total Area */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="p-2 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Dimensions / परिमाप (माप)</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="p-2 font-bold text-slate-900 w-[32%]">
+                  <span className="font-mono text-slate-900 font-bold block">
+                    {dimensionLabel}
+                  </span>
+                  {(dims.north || dims.northSouth) && (
+                    <span className="text-[10px] text-slate-500 block font-sans font-normal">
+                      North: {dims.north ?? dims.northSouth} ft | South: {dims.south ?? dims.northSouth} ft | East: {dims.east ?? dims.eastWest} ft | West: {dims.west ?? dims.eastWest} ft
+                    </span>
+                  )}
+                </td>
+                <td className="p-2 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
                     <span>Total Area / कुल रकबा</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td colSpan={3} className="p-2 font-bold text-slate-900">
-                  <span className="font-black text-teal-900 text-xs">
-                    {totalArea} Sq.Ft
+                <td className="p-2 font-bold text-slate-900 w-[32%]">
+                  <span className="font-black text-teal-900 text-xs font-mono">
+                    {totalArea.toLocaleString('en-IN')} Sq.Ft
                   </span>
+                  {totalDismil > 0 ? (
+                    <span className="text-[10px] text-slate-500 ml-1.5 font-sans">
+                      ({totalDismil} Dismil)
+                    </span>
+                  ) : null}
                 </td>
               </tr>
 

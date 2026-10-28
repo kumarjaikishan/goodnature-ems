@@ -181,13 +181,13 @@ export const StepTermsAndPayment = ({
     );
   }, [form.bookingDate, form.planName, customSqFtRate, downpaymentAmt, isLandStockValid]);
 
-  // Filter land sources by selected project if chosen in form (memoized)
+  // Filter land sources strictly by selected project if chosen in form (memoized)
   const allLandSources = useMemo(() => {
-    return form.projectId
-      ? (availableLandSources || []).filter(
-        (src) => !src.projectId || String(src.projectId._id || src.projectId) === String(form.projectId)
-      )
-      : availableLandSources || [];
+    if (!form.projectId) return availableLandSources || [];
+    return (availableLandSources || []).filter((src) => {
+      const pId = src.projectId?._id || src.projectId;
+      return pId && String(pId) === String(form.projectId);
+    });
   }, [form.projectId, availableLandSources]);
 
   return (

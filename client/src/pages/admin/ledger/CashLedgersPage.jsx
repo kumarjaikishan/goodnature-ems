@@ -117,18 +117,9 @@ export default function CashLedgersPage() {
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<ArrowRightLeft size={15} />}
-            onClick={() => navigate("/dashboard/ledger/transfers")}
-          >
-            Initiate Fund Transfer
-          </Button>
-        </div>
       </div>
+
+
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -413,8 +413,11 @@ class AccountingService {
    * Hard delete a ledger entry and propagate balance changes.
    */
   async deleteLedgerEntry(entryId, session) {
-    const entryToDelete = await Entry.findById(entryId).session(session);
-    if (!entryToDelete) throw new Error("Entry not found");
+    if (!entryId) return null;
+    const query = Entry.findById(entryId);
+    if (session) query.session(session);
+    const entryToDelete = await query;
+    if (!entryToDelete) return null;
 
     const ledger = await Ledger.findById(entryToDelete.ledgerId).session(session);
     if (!ledger) throw new Error("Ledger not found");

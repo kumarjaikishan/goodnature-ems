@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { swal } from "../utils/confirmDialog";
+import { confirmDialog } from "../utils/confirmDialog";
 import { apiClient } from "../utils/apiClient";
 import {
   LayoutDashboard,
   Network,
   Users,
+  UserCheck,
   CalendarCheck2,
   Banknote,
   Building2,
@@ -186,10 +187,10 @@ const Sidebar = () => {
             { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
-            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: "plot_sponsor" },
+            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: ["associate", "partner", "plot_sponsor"] },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
             { menu: "Plot Booking", link: "/dashboard/plots/booking", roles: OPERATIONAL_ROLES, resource: "plot_booking" },
-            { menu: "Investment Booking", link: "/dashboard/plots/product-sales", roles: OPERATIONAL_ROLES, resource: "investment_booking" },
+            { menu: "Investment Booking", link: "/dashboard/plots/investment-booking", roles: OPERATIONAL_ROLES, resource: "investment_booking" },
             { menu: "Incentive", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_incentive" },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
           ],
@@ -198,7 +199,12 @@ const Sidebar = () => {
 
         { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer", "auditor"], resource: "audit_log" },
         { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
-        { menu: "My Network & Customers", link: "/dashboard/my-network", icon: <Users size={20} />, roles: ["sponsor"] },
+        { 
+          menu: (role === 'sponsor' && (user?.profile?.sponsorCode?.startsWith('BA-') || user?.profile?.isDeveloperSponsor === false)) ? "My Customers" : "My Network & Customers", 
+          link: "/dashboard/my-network", 
+          icon: (role === 'sponsor' && (user?.profile?.sponsorCode?.startsWith('BA-') || user?.profile?.isDeveloperSponsor === false)) ? <UserCheck size={20} /> : <Users size={20} />, 
+          roles: ["sponsor"] 
+        },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
       ],
@@ -214,18 +220,63 @@ const Sidebar = () => {
   ];
 
 
-  const handleLogout = () => {
-    swal({
+  const handleLogout = async () => {
+    const willLogout = await confirmDialog({
       title: "Are you sure you want to logout?",
-      icon: "warning",
-      buttons: true,
-      dangerMode: true,
-    }).then((willLogout) => {
-      if (willLogout) navigate("/logout");
+      text: "You will be signed out of your current session.",
+      confirmText: "Logout",
+      cancelText: "Cancel",
+      isDanger: true,
     });
+    if (willLogout) navigate("/logout");
   };
 
   const showText = isMobile ? sidebarOpen && extended : sidebarOpen;
+
+  // Helper to determine if a sub-item should be active for current path
+  const isSubmenuItemActive = useCallback((childLink) => {
+    if (!childLink) return false;
+    const currentPath = location.pathname;
+    if (currentPath === childLink) return true;
+
+    // Special routing associations:
+    // Investment Booking sub-item should be active on investment-booking and its new/edit routes
+    if (childLink === '/dashboard/plots/investment-booking') {
+      if (
+        currentPath.startsWith('/dashboard/plots/investment-booking') ||
+        currentPath === '/dashboard/plots/product-sales' ||
+        currentPath === '/dashboard/plots/products/book' ||
+        currentPath.startsWith('/dashboard/plots/products/edit')
+      ) {
+        return true;
+      }
+    }
+
+    // Plot Products should NOT be active on /dashboard/plots/investment-booking or /dashboard/plots/products/book
+    if (childLink === '/dashboard/plots/products') {
+      if (
+        currentPath.startsWith('/dashboard/plots/investment-booking') ||
+        currentPath === '/dashboard/plots/product-sales' ||
+        currentPath === '/dashboard/plots/products/book' ||
+        currentPath.startsWith('/dashboard/plots/products/edit')
+      ) {
+        return false;
+      }
+      return currentPath === '/dashboard/plots/products';
+    }
+
+    // Plot Booking sub-item associations
+    if (childLink === '/dashboard/plots/booking') {
+      if (currentPath.startsWith('/dashboard/plots/booking') || currentPath === '/dashboard/plots/addbooking') {
+        return true;
+      }
+    }
+
+    if (childLink !== '/dashboard' && currentPath.startsWith(childLink)) {
+      return true;
+    }
+    return false;
+  }, [location.pathname]);
 
   // Auto-expand parent submenu if current route matches any child link
   useEffect(() => {
@@ -234,12 +285,7 @@ const Sidebar = () => {
       const allowedItems = section.items.filter((item) => item.roles.includes(role));
       allowedItems.forEach((item) => {
         if (item.children) {
-          const hasActiveChild = item.children.some((child) => {
-            if (!child.link) return false;
-            if (location.pathname === child.link) return true;
-            if (child.link !== '/dashboard' && location.pathname.startsWith(child.link)) return true;
-            return false;
-          });
+          const hasActiveChild = item.children.some((child) => isSubmenuItemActive(child.link));
           if (hasActiveChild) {
             activeMenuKey = item.menu;
           }
@@ -250,7 +296,7 @@ const Sidebar = () => {
     if (activeMenuKey) {
       setOpenSubmenu(activeMenuKey);
     }
-  }, [location.pathname, role]);
+  }, [location.pathname, role, isSubmenuItemActive]);
 
   useEffect(() => {
     setHoveredMenu(null);
@@ -324,12 +370,7 @@ const Sidebar = () => {
                   : hoveredMenu === menuId;
 
                 if (item.children) {
-                  const isChildActive = item.children.some((child) => {
-                    if (!child.link) return false;
-                    if (location.pathname === child.link) return true;
-                    if (child.link !== '/dashboard' && location.pathname.startsWith(child.link)) return true;
-                    return false;
-                  });
+                  const isChildActive = item.children.some((child) => isSubmenuItemActive(child.link));
 
                   const groupPendingCount = getGroupPendingCount(item.menu);
                   const hasPendingInGroup = groupPendingCount > 0;
@@ -407,6 +448,7 @@ const Sidebar = () => {
                               if (!allowed) return null;
                             }
                             const childPending = getChildPendingCount(child.link);
+                            const isItemActive = isSubmenuItemActive(child.link);
                             return (
                               <div key={child.menu} className="relative flex items-center">
                                 {/* Tree horizontal branch connector line */}
@@ -415,19 +457,19 @@ const Sidebar = () => {
                                 <NavLink
                                   to={child.link}
                                   onClick={() => setOpenSubmenu(menuId)}
-                                  className={({ isActive }) =>
-                                    `w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-all ${isActive
+                                  className={() =>
+                                    `w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-all ${isItemActive
                                       ? "bg-teal-700 text-white font-semibold shadow-xs"
                                       : "text-slate-600 hover:text-teal-800 hover:bg-teal-50 font-medium"
                                     }`
                                   }
                                 >
-                                  {({ isActive }) => (
+                                  {() => (
                                     <>
                                       <span className="truncate">{child.menu}</span>
                                       {childPending > 0 && (
                                         <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full transition-colors ${
-                                          isActive
+                                          isItemActive
                                             ? 'bg-amber-400 text-teal-950 shadow-2xs font-extrabold'
                                             : 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
                                         }`}>
@@ -468,24 +510,25 @@ const Sidebar = () => {
                                 if (!allowed) return null;
                               }
                               const childPending = getChildPendingCount(child.link);
+                              const isFlyoutItemActive = isSubmenuItemActive(child.link);
                               return (
                                 <NavLink
                                   to={child.link}
                                   key={child.menu}
                                   onClick={() => setHoveredMenu(null)}
-                                  className={({ isActive }) =>
-                                    `flex items-center justify-between px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${isActive
+                                  className={() =>
+                                    `flex items-center justify-between px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition font-medium ${isFlyoutItemActive
                                       ? "bg-teal-700 text-white font-semibold shadow-xs"
                                       : "text-slate-700 hover:text-teal-900 hover:bg-teal-50"
                                     }`
                                   }
                                 >
-                                  {({ isActive }) => (
+                                  {() => (
                                     <>
                                       <span>{child.menu}</span>
                                       {childPending > 0 && (
                                         <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full ${
-                                          isActive ? 'bg-amber-400 text-teal-950' : 'bg-amber-100 text-amber-900 border border-amber-300/80'
+                                          isFlyoutItemActive ? 'bg-amber-400 text-teal-950' : 'bg-amber-100 text-amber-900 border border-amber-300/80'
                                         }`}>
                                           {childPending}
                                         </span>

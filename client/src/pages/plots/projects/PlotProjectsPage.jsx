@@ -39,6 +39,7 @@ const PlotProjectsPage = () => {
     location: '',
     description: '',
     status: 'ACTIVE',
+    showInAddBooking: false,
   });
 
   const fetchProjects = async () => {
@@ -71,6 +72,7 @@ const PlotProjectsPage = () => {
       location: '',
       description: '',
       status: 'ACTIVE',
+      showInAddBooking: false,
     });
     setModalOpen(true);
   };
@@ -83,8 +85,25 @@ const PlotProjectsPage = () => {
       location: p.location || '',
       description: p.description || '',
       status: p.status || 'ACTIVE',
+      showInAddBooking: Boolean(p.showInAddBooking),
     });
     setModalOpen(true);
+  };
+
+  const handleToggleAddBooking = async (p, checked) => {
+    try {
+      await api.put(`/plots/projects/${p._id}`, {
+        showInAddBooking: checked,
+      });
+      toast.success(
+        checked
+          ? `"${p.name}" will show in Add Booking`
+          : `"${p.name}" will show in Product Book/Sale`
+      );
+      fetchProjects();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update project setting');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -272,6 +291,7 @@ const PlotProjectsPage = () => {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                      <th className="p-3.5 text-center w-28 bg-teal-50/50">Plot Booking</th>
                       <th className="p-3.5">Project Name &amp; Code</th>
                       <th className="p-3.5">Location</th>
                       <th className="p-3.5">Description</th>
@@ -283,13 +303,39 @@ const PlotProjectsPage = () => {
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {filteredProjects.map((p) => (
                       <tr key={p._id} className="hover:bg-slate-50/80 transition">
+                        <td className="p-3.5 text-center bg-teal-50/30">
+                          <label className="inline-flex items-center justify-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(p.showInAddBooking)}
+                              onChange={(e) => handleToggleAddBooking(p, e.target.checked)}
+                              className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+                              title={
+                                p.showInAddBooking
+                                  ? "Checked: Shown in Add Booking (/dashboard/plots/addbooking)"
+                                  : "Unchecked: Shown in Plot Product Booking (/dashboard/plots/products/book)"
+                              }
+                            />
+                          </label>
+                        </td>
                         <td className="p-3.5">
                           <div className="flex items-center gap-2.5">
                             <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 flex items-center justify-center font-bold text-xs shrink-0">
                               <Building size={17} />
                             </div>
                             <div>
-                              <div className="font-bold text-slate-900 text-xs">{p.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-xs">{p.name}</span>
+                                {p.showInAddBooking ? (
+                                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 border border-teal-200">
+                                    Add Booking
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200">
+                                    Product Sale
+                                  </span>
+                                )}
+                              </div>
                               {p.code && (
                                 <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 font-semibold inline-block mt-0.5">
                                   {p.code}
@@ -510,6 +556,21 @@ const PlotProjectsPage = () => {
               <option value="INACTIVE">INACTIVE</option>
               <option value="COMPLETED">COMPLETED</option>
             </select>
+          </div>
+
+          <div className="bg-teal-50/60 border border-teal-200/80 p-3 rounded-xl">
+            <label className="flex items-center gap-2.5 text-xs font-bold text-slate-800 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.showInAddBooking}
+                onChange={(e) => setForm({ ...form, showInAddBooking: e.target.checked })}
+                className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+              />
+              <span>Use For Plot Booking (Add Booking)</span>
+            </label>
+            <p className="text-[11px] text-slate-500 ml-6.5 mt-0.5">
+              Checked = shows in Add Booking (/dashboard/plots/addbooking). Unchecked = shows in Plot Product Book/Sale.
+            </p>
           </div>
 
           <div>

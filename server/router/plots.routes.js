@@ -49,34 +49,43 @@ router.get('/sponsors', (req, res, next) => {
     req.query.parentSponsorId = req.user.id || req.user._id;
     return next();
   }
-  return checkPermission('plot_sponsor', 1)(req, res, next);
+  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsors);
 router.get('/sponsors/:id/dashboard', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own dashboard, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
     return next();
   }
-  return checkPermission('plot_sponsor', 1)(req, res, next);
+  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsorDashboardStats);
 router.get('/sponsors/:id/ledger', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own ledger, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
     return next();
   }
-  return checkPermission('plot_sponsor', 1)(req, res, next);
+  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsorLedger);
 router.get('/sponsors/:id/business-report', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own report, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
     return next();
   }
-  return checkPermission('plot_sponsor', 1)(req, res, next);
+  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsorBusinessReport);
-router.post('/sponsors', checkPermission('plot_sponsor', 2), ctrl.createSponsor);
-router.put('/sponsors/:id', checkPermission('plot_sponsor', 3), ctrl.updateSponsor);
-router.delete('/sponsors/:id', checkPermission('plot_sponsor', 4), ctrl.deleteSponsor);
-router.patch('/sponsors/:id/toggle-block', checkPermission('plot_sponsor', 3), ctrl.toggleSponsorBlock);
-router.post('/sponsors/:id/reset-password', checkPermission('plot_sponsor', 3), ctrl.resetSponsorPassword);
+router.post('/sponsors', (req, res, next) => {
+  // If creating an associate (sponsorId present and not 'direct'), check 'associate' permission, else 'partner'
+  const isAssociate = req.body?.sponsorId && req.body.sponsorId !== 'direct';
+  const targetResource = isAssociate ? ['associate', 'plot_sponsor'] : ['partner', 'plot_sponsor'];
+  return checkPermission(targetResource, 2)(req, res, next);
+}, ctrl.createSponsor);
+router.put('/sponsors/:id', (req, res, next) => {
+  const isAssociate = req.body?.sponsorId && req.body.sponsorId !== 'direct';
+  const targetResource = isAssociate ? ['associate', 'plot_sponsor'] : ['partner', 'plot_sponsor'];
+  return checkPermission(targetResource, 3)(req, res, next);
+}, ctrl.updateSponsor);
+router.delete('/sponsors/:id', checkPermission(['associate', 'partner', 'plot_sponsor'], 4), ctrl.deleteSponsor);
+router.patch('/sponsors/:id/toggle-block', checkPermission(['associate', 'partner', 'plot_sponsor'], 3), ctrl.toggleSponsorBlock);
+router.post('/sponsors/:id/reset-password', checkPermission(['associate', 'partner', 'plot_sponsor'], 3), ctrl.resetSponsorPassword);
 
 // ── Customers ──
 router.get('/customers', (req, res, next) => {

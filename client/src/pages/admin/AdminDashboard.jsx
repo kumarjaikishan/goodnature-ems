@@ -137,21 +137,6 @@ const EmpAvatar = ({ emp, isPunchIn, isPresent, isAbsent, isLeave }) => {
   );
 };
 
-// --- Role Badge ---------------------------------------------------------------
-const ROLE_LABELS = {
-  superadmin: { label: 'Super Admin', color: 'bg-teal-900 text-teal-100' },
-  admin:      { label: 'Admin',       color: 'bg-teal-700 text-white' },
-  manager:    { label: 'Manager',     color: 'bg-sky-600 text-white' },
-  accountant: { label: 'Accountant',  color: 'bg-violet-600 text-white' },
-  cashier:    { label: 'Cashier',     color: 'bg-amber-600 text-white' },
-  hr:         { label: 'HR',          color: 'bg-emerald-600 text-white' },
-  sales:      { label: 'Sales',       color: 'bg-rose-600 text-white' },
-  operator:   { label: 'Operator',    color: 'bg-slate-600 text-white' },
-  auditor:    { label: 'Auditor',     color: 'bg-indigo-600 text-white' },
-  staff:      { label: 'Staff',       color: 'bg-slate-500 text-white' },
-  other:      { label: 'Staff',       color: 'bg-slate-500 text-white' },
-  demo:       { label: 'Demo',        color: 'bg-teal-700 text-white' },
-};
 
 // --- Main Dashboard -----------------------------------------------------------
 const AdminDashboard = () => {
@@ -314,8 +299,6 @@ const AdminDashboard = () => {
   const collections = plotStats?.collections || {};
   const inv        = investStats            || {};
 
-  const roleInfo   = ROLE_LABELS[role] || { label: role, color: 'bg-slate-500 text-white' };
-
   // -- Branch label for manager --------------------------------------
   const managerBranchNames = useMemo(() => {
     if (!isManager || !branch?.length || !branchIds.length) return null;
@@ -336,17 +319,6 @@ const AdminDashboard = () => {
   return (
     <div className="p-0 md:p-4 max-w-7xl mx-auto space-y-5 pb-6">
 
-      {/* -- Header ---------------------------------------------------- */}
-      <div className="flex items-center gap-3 flex-wrap mb-1">
-        <span className={`text-[0.65rem] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${roleInfo.color}`}>
-          {roleInfo.label}
-        </span>
-        <p className="text-xs text-slate-500 font-medium">
-          {dayjs().format('dddd, D MMMM YYYY')}
-            {managerBranchNames && <span className="text-teal-700 font-semibold"> &middot; {managerBranchNames}</span>}
-            {' · '}{profile?.name || 'Welcome back'}
-        </p>
-      </div>
 
       {/* -- Executive Dashboard Filter Bar -- */}
       <ExecutiveFilterBar

@@ -481,7 +481,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
                   return (
                     <tr key={ins._id} className={`border-b border-slate-100 transition ${rowBgClass}`}>
                       <td className="p-2 font-bold text-slate-800">
-                        <span>EMI #{ins.installmentNumber}</span>
+                        <span>{ins.installmentNumber === 0 ? 'Downpayment (DP)' : `EMI #${ins.installmentNumber}`}</span>
                         {isActiveRow && (
                           <span className="ml-1.5 px-1.5 py-0.2 text-[0.6rem] font-bold rounded bg-teal-100 text-teal-800">
                             Next Due

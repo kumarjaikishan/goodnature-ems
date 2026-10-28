@@ -30,7 +30,15 @@ export const hasPermission = (profile, resource, action = 1) => {
             return true;
         }
 
-        // 2. Intelligent sub-module fallback to "ledger"
+        // 2. Fallback for associate & partner -> plot_sponsor
+        if (['associate', 'partner'].includes(res)) {
+            const sponsorPerms = permissions['plot_sponsor'];
+            if (Array.isArray(sponsorPerms) && sponsorPerms.includes(action)) {
+                return true;
+            }
+        }
+
+        // 3. Intelligent sub-module fallback to "ledger"
         const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
         if (LEDGER_SUBMODULES.includes(res)) {
             const ledgerPerms = permissions['ledger'];

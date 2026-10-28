@@ -219,6 +219,9 @@ const plotProductBookingSchema = new mongoose.Schema(
       south: Number,
       east: Number,
       west: Number,
+      northSouth: Number,
+      eastWest: Number,
+      totalAreaSqFt: Number,
       unit: String,
       dimensionLabel: String,
     },
@@ -267,6 +270,40 @@ const plotProductBookingSchema = new mongoose.Schema(
       default: 'MONTHLY_INSTALLMENT',
     },
     downPayment: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    downpaymentDays: {
+      type: Number,
+      default: 90,
+      min: 0,
+    },
+    downpaymentMonths: {
+      type: Number,
+      default: 3,
+      min: 0,
+    },
+    emiFrequency: {
+      type: String,
+      enum: ['MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'],
+      default: 'MONTHLY',
+    },
+    installmentCount: {
+      type: Number,
+      default: 24,
+      min: 1,
+    },
+    dpType: {
+      type: String,
+      enum: ['PERCENT', 'FLAT', 'SQFT_RATE'],
+      default: 'PERCENT',
+    },
+    dpVal: {
+      type: Number,
+      default: 0,
+    },
+    emiPrincipalAmount: {
       type: Number,
       default: 0,
       min: 0,

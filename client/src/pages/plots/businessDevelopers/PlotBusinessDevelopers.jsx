@@ -50,9 +50,16 @@ const PlotBusinessDevelopers = () => {
   const { handleImage } = useImageUpload();
   const { branch, profile } = useSelector((state) => state.user || {});
 
-  const canCreate = usePermission('plot_sponsor', 2);
-  const canUpdate = usePermission('plot_sponsor', 3);
-  const canDelete = usePermission('plot_sponsor', 4);
+  // Granular Permissions for Business Partner (BP) and Business Associate (BA)
+  const canReadPartner = usePermission('partner', 1);
+  const canCreatePartner = usePermission('partner', 2);
+  const canUpdatePartner = usePermission('partner', 3);
+  const canDeletePartner = usePermission('partner', 4);
+
+  const canReadAssociate = usePermission('associate', 1);
+  const canCreateAssociate = usePermission('associate', 2);
+  const canUpdateAssociate = usePermission('associate', 3);
+  const canDeleteAssociate = usePermission('associate', 4);
 
   const [businessDevelopers, setBusinessDevelopers] = useState([]);
   const [allBusinessPartners, setAllBusinessPartners] = useState([]);
@@ -125,20 +132,42 @@ const PlotBusinessDevelopers = () => {
   const { request, loading: submitLoading } = useApi();
 
   const fetchBusinessDevelopers = async () => {
+    // If user has no read permission for either role, do not fetch
+    if (!canReadPartner && !canReadAssociate) {
+      setBusinessDevelopers([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = { search };
       if (selectedBranchFilter && selectedBranchFilter !== 'all') {
         params.branchId = selectedBranchFilter;
       }
-      if (selectedRoleFilter && selectedRoleFilter !== 'all') {
+      
+      // Enforce roleType based on permissions
+      if (canReadPartner && !canReadAssociate) {
+        params.roleType = 'partner';
+      } else if (!canReadPartner && canReadAssociate) {
+        params.roleType = 'associate';
+      } else if (selectedRoleFilter && selectedRoleFilter !== 'all') {
         params.roleType = selectedRoleFilter;
       }
+
       const res = await apiClient({
         url: 'plots/sponsors',
         params,
       });
-      setBusinessDevelopers(res.data || res.sponsors || res || []);
+      const dataList = res.data || res.sponsors || res || [];
+      // Client-side safety filter
+      const filtered = dataList.filter((dev) => {
+        const isAssoc = Boolean(dev.sponsorId);
+        if (isAssoc && !canReadAssociate) return false;
+        if (!isAssoc && !canReadPartner) return false;
+        return true;
+      });
+      setBusinessDevelopers(filtered);
     } catch (err) {
       console.error('Failed to fetch business developers:', err);
     } finally {
@@ -585,48 +614,55 @@ const PlotBusinessDevelopers = () => {
           </div>
 
           {/* Row 2: Reset Password, Edit, Block/Unblock, Delete */}
-          <div className="flex items-center gap-1.5">
-            {canUpdate && (
-              <button
-                onClick={() => handleOpenResetPassword(row)}
-                className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
-                title="Reset Login Password"
-              >
-                <KeyRound size={15} />
-              </button>
-            )}
-            {canUpdate && (
-              <button
-                onClick={() => handleOpenModal(row)}
-                className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
-                title="Edit Developer Information"
-              >
-                <Pencil size={15} />
-              </button>
-            )}
-            {canUpdate && (
-              <button
-                onClick={() => handleToggleBlock(row)}
-                className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                  row.isBlocked
-                    ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
-                    : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
-                }`}
-                title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
-              >
-                {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
-              </button>
-            )}
-            {canDelete && (
-              <button
-                onClick={() => handleDeleteDeveloper(row)}
-                className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
-                title="Delete Business Developer"
-              >
-                <Trash2 size={15} />
-              </button>
-            )}
-          </div>
+          {(() => {
+            const isAssoc = Boolean(row.sponsorId);
+            const canUpdateRow = isAssoc ? canUpdateAssociate : canUpdatePartner;
+            const canDeleteRow = isAssoc ? canDeleteAssociate : canDeletePartner;
+            return (
+              <div className="flex items-center gap-1.5">
+                {canUpdateRow && (
+                  <button
+                    onClick={() => handleOpenResetPassword(row)}
+                    className="p-1.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 rounded-lg transition cursor-pointer"
+                    title="Reset Login Password"
+                  >
+                    <KeyRound size={15} />
+                  </button>
+                )}
+                {canUpdateRow && (
+                  <button
+                    onClick={() => handleOpenModal(row)}
+                    className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
+                    title="Edit Developer Information"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                )}
+                {canUpdateRow && (
+                  <button
+                    onClick={() => handleToggleBlock(row)}
+                    className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                      row.isBlocked
+                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200/80'
+                        : 'text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200/80'
+                    }`}
+                    title={row.isBlocked ? 'Unblock Developer Login' : 'Block Developer Login'}
+                  >
+                    {row.isBlocked ? <Unlock size={15} /> : <Lock size={15} />}
+                  </button>
+                )}
+                {canDeleteRow && (
+                  <button
+                    onClick={() => handleDeleteDeveloper(row)}
+                    className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
+                    title="Delete Business Developer"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ),
     },
@@ -640,8 +676,8 @@ const PlotBusinessDevelopers = () => {
           <h1 className="text-2xl font-bold text-slate-800">Business Developers</h1>
           <p className="text-slate-500 text-sm">Manage plot project business partners, associates, and hierarchy</p>
         </div>
-        {canCreate && (
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {canCreatePartner && (
             <Button
               variant="primary"
               size="md"
@@ -651,6 +687,8 @@ const PlotBusinessDevelopers = () => {
             >
               Create Business Partner
             </Button>
+          )}
+          {canCreateAssociate && (
             <Button
               variant="primary"
               size="md"
@@ -660,8 +698,8 @@ const PlotBusinessDevelopers = () => {
             >
               Create Business Associate
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -685,10 +723,23 @@ const PlotBusinessDevelopers = () => {
               onChange={(e) => setSelectedRoleFilter(e.target.value)}
               className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-auto"
             >
-              <option value="all">All Roles (Branch, BP & BA)</option>
-              <option value="branch_partner">🏢 Branch Partners</option>
-              <option value="partner">👑 Business Partners (P/)</option>
-              <option value="associate">👥 Business Associates (A/)</option>
+              {canReadPartner && canReadAssociate && (
+                <>
+                  <option value="all">All Roles (Branch, BP & BA)</option>
+                  <option value="branch_partner">🏢 Branch Partners</option>
+                  <option value="partner">👑 Business Partners (P/)</option>
+                  <option value="associate">👥 Business Associates (A/)</option>
+                </>
+              )}
+              {canReadPartner && !canReadAssociate && (
+                <>
+                  <option value="partner">👑 Business Partners (P/)</option>
+                  <option value="branch_partner">🏢 Branch Partners</option>
+                </>
+              )}
+              {!canReadPartner && canReadAssociate && (
+                <option value="associate">👥 Business Associates (A/)</option>
+              )}
             </select>
           </div>
 
