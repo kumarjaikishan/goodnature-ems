@@ -59,197 +59,213 @@ const rolePolicySchema = new mongoose.Schema(
   { _id: false }
 );
 
-const DEFAULT_PLOT_POLICY = {
-  policyName: 'PLOT_SALE_OCT_DEC_2026',
-  businessType: 'PLOT_SALE',
-  validFrom: new Date('2026-10-01T00:00:00.000Z'),
-  validTo: new Date('2026-12-31T23:59:59.999Z'),
-  roles: [
-    {
-      roleName: 'BUSINESS_ASSOCIATE',
-      fixedCommissionPercent: 5.0,
-      targetSlabs: [
-        { minAmount: 1, maxAmount: 499999, targetIncentivePercent: 2.0, label: '1 - 4,99,999' },
-        { minAmount: 500000, maxAmount: 999999, targetIncentivePercent: 3.0, label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1249999, targetIncentivePercent: 4.0, label: '10,00,000 - 12,49,999' },
-        { minAmount: 1250000, maxAmount: 1499999, targetIncentivePercent: 5.0, label: '12,50,000 - 14,99,999' },
-        { minAmount: 1500000, maxAmount: 1749999, targetIncentivePercent: 6.0, label: '15,00,000 - 17,49,999' },
-        { minAmount: 1750000, maxAmount: 1999999, targetIncentivePercent: 7.0, label: '17,50,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2499999, targetIncentivePercent: 8.0, label: '20,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: null, targetIncentivePercent: 10.0, label: '25,00,000+' },
-      ],
-      extraSlabs: [
-        { minAmount: 500000, maxAmount: 999999, extraIncentivePercent: 0.0, rewardTitle: 'Smartphone / Tablet', label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, extraIncentivePercent: 0.0, rewardTitle: 'Motorcycle / Laptop', label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 4999999, extraIncentivePercent: 1.0, rewardTitle: 'Goa / Thailand Tour', label: '20,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 2.0, rewardTitle: 'Luxury Car / Gold Fund', label: '50,00,000+' },
-      ],
-    },
-    {
-      roleName: 'BUSINESS_PARTNER',
-      fixedCommissionPercent: 2.0,
-      targetSlabs: [
-        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.10, label: '1 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.15, label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2449999, targetIncentivePercent: 0.25, label: '20,00,000 - 24,49,999' },
-        { minAmount: 2500000, maxAmount: 2999999, targetIncentivePercent: 0.40, label: '25,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 3499999, targetIncentivePercent: 0.55, label: '30,00,000 - 34,99,999' },
-        { minAmount: 3500000, maxAmount: 3999999, targetIncentivePercent: 0.70, label: '35,00,000 - 39,99,999' },
-        { minAmount: 4000000, maxAmount: 4999999, targetIncentivePercent: 0.85, label: '40,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 1.00, label: '50,00,000+' },
-      ],
-      extraSlabs: [
-        { minAmount: 1000000, maxAmount: 2499999, extraIncentivePercent: 0.0, rewardTitle: 'Foreign Tour', label: '10,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: 4999999, extraIncentivePercent: 0.25, rewardTitle: 'SUV / Luxury Car', label: '25,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 0.50, rewardTitle: 'Flat / Villa Bonus', label: '50,00,000+' },
-      ],
-    },
-    {
-      roleName: 'BRANCH_PARTNER',
-      fixedCommissionPercent: 0.0,
-      targetSlabs: [
-        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.0, label: '1 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.0, label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2999999, targetIncentivePercent: 0.0, label: '20,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 4999999, targetIncentivePercent: 0.0, label: '30,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.0, label: '50,00,000+' },
-      ],
-      extraSlabs: [
-        { minAmount: 1000000, maxAmount: 2999999, extraIncentivePercent: 0.0, rewardTitle: 'Branch Excellence Award', label: '10,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 4999999, extraIncentivePercent: 0.25, rewardTitle: 'Branch Star Trophy & Cash Bonus', label: '30,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 0.50, rewardTitle: 'Regional Best Branch Award', label: '50,00,000+' },
-      ],
-    },
-  ],
-};
-
-const DEFAULT_INVESTMENT_POLICY = {
-  policyName: 'INVESTMENT_RD_FD_OCT_DEC_2026',
-  businessType: 'INVESTMENT_RD_FD',
-  validFrom: new Date('2026-10-01T00:00:00.000Z'),
-  validTo: new Date('2026-12-31T23:59:59.999Z'),
-  roles: [
-    {
-      roleName: 'BUSINESS_ASSOCIATE',
-      fixedCommissionPercent: 2.50,
-      targetSlabs: [
-        { minAmount: 1, maxAmount: 499999, targetIncentivePercent: 1.00, label: '1 - 4,99,999' },
-        { minAmount: 500000, maxAmount: 999999, targetIncentivePercent: 1.50, label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1249999, targetIncentivePercent: 2.00, label: '10,00,000 - 12,49,999' },
-        { minAmount: 1250000, maxAmount: 1499999, targetIncentivePercent: 2.50, label: '12,50,000 - 14,99,999' },
-        { minAmount: 1500000, maxAmount: 1749999, targetIncentivePercent: 3.00, label: '15,00,000 - 17,49,999' },
-        { minAmount: 1750000, maxAmount: 1999999, targetIncentivePercent: 3.50, label: '17,50,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2499999, targetIncentivePercent: 4.00, label: '20,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: null, targetIncentivePercent: 5.00, label: '25,00,000+' },
-      ],
-      extraSlabs: [
-        { minAmount: 500000, maxAmount: 999999, extraIncentivePercent: 0.0, rewardTitle: 'Smartphone / Tablet', label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, extraIncentivePercent: 0.0, rewardTitle: 'Motorcycle / Laptop', label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 4999999, extraIncentivePercent: 0.5, rewardTitle: 'Goa Tour', label: '20,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 1.0, rewardTitle: 'Gold Fund / Car Bonus', label: '50,00,000+' },
-      ],
-    },
-    {
-      roleName: 'BUSINESS_PARTNER',
-      fixedCommissionPercent: 1.00,
-      targetSlabs: [
-        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.050, label: '1 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.075, label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2449999, targetIncentivePercent: 0.125, label: '20,00,000 - 24,49,999' },
-        { minAmount: 2500000, maxAmount: 2999999, targetIncentivePercent: 0.200, label: '25,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 3499999, targetIncentivePercent: 0.275, label: '30,00,000 - 34,99,999' },
-        { minAmount: 3500000, maxAmount: 3999999, targetIncentivePercent: 0.350, label: '35,00,000 - 39,99,999' },
-        { minAmount: 4000000, maxAmount: 4999999, targetIncentivePercent: 0.425, label: '40,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.500, label: '50,00,000+' },
-      ],
-      extraSlabs: [
-        { minAmount: 1000000, maxAmount: 2499999, extraIncentivePercent: 0.0, rewardTitle: 'Domestic Tour', label: '10,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: 4999999, extraIncentivePercent: 0.15, rewardTitle: 'Foreign Holiday Package', label: '25,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 0.30, rewardTitle: 'Car Bonus Fund', label: '50,00,000+' },
-      ],
-    },
-    {
-      roleName: 'BRANCH_PARTNER',
-      fixedCommissionPercent: 0.0,
-      targetSlabs: [
-        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.0, label: '1 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.0, label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2999999, targetIncentivePercent: 0.0, label: '20,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 4999999, targetIncentivePercent: 0.0, label: '30,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.0, label: '50,00,000+' },
-      ],
-      extraSlabs: [
-        { minAmount: 1000000, maxAmount: 2999999, extraIncentivePercent: 0.0, rewardTitle: 'Branch Investment Trophy', label: '10,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 4999999, extraIncentivePercent: 0.15, rewardTitle: 'Branch Star Trophy & Bonus', label: '30,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 0.30, rewardTitle: 'Regional Top Branch Trophy', label: '50,00,000+' },
-      ],
-    },
-  ],
-};
-
-const DEFAULT_PLOT_PRODUCT_POLICY = {
-  policyName: 'PLOT_PRODUCT_OCT_DEC_2026',
+const UNIFIED_COMMISSION_POLICY = {
+  policyName: 'COMMISSION_POLICY_2026',
   businessType: 'PLOT_PRODUCT',
   validFrom: new Date('2026-10-01T00:00:00.000Z'),
   validTo: new Date('2026-12-31T23:59:59.999Z'),
   roles: [
     {
       roleName: 'BUSINESS_ASSOCIATE',
-      fixedCommissionPercent: 2.50,
+      fixedCommissionPercent: 0.0,
+      extraColumns: [
+        { id: 'col_reward_1', label: 'Reward / Extra Incentive' }
+      ],
       targetSlabs: [
-        { minAmount: 1, maxAmount: 499999, targetIncentivePercent: 1.00, label: '1 - 4,99,999' },
-        { minAmount: 500000, maxAmount: 999999, targetIncentivePercent: 1.50, label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1249999, targetIncentivePercent: 2.00, label: '10,00,000 - 12,49,999' },
-        { minAmount: 1250000, maxAmount: 1499999, targetIncentivePercent: 2.50, label: '12,50,000 - 14,99,999' },
-        { minAmount: 1500000, maxAmount: 1749999, targetIncentivePercent: 3.00, label: '15,00,000 - 17,49,999' },
-        { minAmount: 1750000, maxAmount: 1999999, targetIncentivePercent: 3.50, label: '17,50,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2499999, targetIncentivePercent: 4.00, label: '20,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: null, targetIncentivePercent: 5.00, label: '25,00,000+' },
+        { minAmount: 1, maxAmount: 199999, targetIncentivePercent: 1.0, label: '1 - 1,99,999' },
+        { minAmount: 200000, maxAmount: 299999, targetIncentivePercent: 1.2, label: '2,00,000 - 2,99,999' },
+        { minAmount: 300000, maxAmount: 399999, targetIncentivePercent: 1.4, label: '3,00,000 - 3,99,999' },
+        { minAmount: 400000, maxAmount: 499999, targetIncentivePercent: 1.6, label: '4,00,000 - 4,99,999' },
+        { minAmount: 500000, maxAmount: 599999, targetIncentivePercent: 1.8, label: '5,00,000 - 5,99,999' },
+        { minAmount: 600000, maxAmount: null, targetIncentivePercent: 2.0, label: '6,00,000 & Above' },
       ],
       extraSlabs: [
-        { minAmount: 500000, maxAmount: 999999, extraIncentivePercent: 0.0, rewardTitle: 'Smartphone / Tablet', label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, extraIncentivePercent: 0.0, rewardTitle: 'Motorcycle / Laptop', label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 4999999, extraIncentivePercent: 1.0, rewardTitle: 'Goa / Thailand Tour', label: '20,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 2.0, rewardTitle: 'Luxury Car / Gold Fund', label: '50,00,000+' },
+        {
+          minAmount: 1,
+          maxAmount: 799999,
+          extraIncentivePercent: 0.5,
+          rewardTitle: 'Motorcycle / Laptop',
+          label: '1 - 7,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.5, rewardTitle: 'Motorcycle / Laptop' }],
+        },
+        {
+          minAmount: 800000,
+          maxAmount: 1199999,
+          extraIncentivePercent: 0.6,
+          rewardTitle: 'Goa / Thailand Tour',
+          label: '8,00,000 - 11,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.6, rewardTitle: 'Goa / Thailand Tour' }],
+        },
+        {
+          minAmount: 1200000,
+          maxAmount: 1599999,
+          extraIncentivePercent: 0.7,
+          rewardTitle: 'Luxury Car / Gold Fund',
+          label: '12,00,000 - 15,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.7, rewardTitle: 'Luxury Car / Gold Fund' }],
+        },
+        {
+          minAmount: 1600000,
+          maxAmount: 1999999,
+          extraIncentivePercent: 0.8,
+          rewardTitle: 'Executive Bonus',
+          label: '16,00,000 - 19,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.8, rewardTitle: 'Executive Bonus' }],
+        },
+        {
+          minAmount: 2000000,
+          maxAmount: 2399999,
+          extraIncentivePercent: 0.9,
+          rewardTitle: 'Leadership Bonus',
+          label: '20,00,000 - 23,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.9, rewardTitle: 'Leadership Bonus' }],
+        },
+        {
+          minAmount: 2400000,
+          maxAmount: null,
+          extraIncentivePercent: 1.0,
+          rewardTitle: 'Crown Director Club',
+          label: '24,00,000 & Above',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 1.0, rewardTitle: 'Crown Director Club' }],
+        },
       ],
     },
     {
       roleName: 'BUSINESS_PARTNER',
-      fixedCommissionPercent: 1.00,
+      fixedCommissionPercent: 0.0,
+      extraColumns: [
+        { id: 'col_reward_1', label: 'Reward / Extra Incentive' }
+      ],
       targetSlabs: [
-        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.050, label: '1 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.075, label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2449999, targetIncentivePercent: 0.125, label: '20,00,000 - 24,49,999' },
-        { minAmount: 2500000, maxAmount: 2999999, targetIncentivePercent: 0.200, label: '25,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 3499999, targetIncentivePercent: 0.275, label: '30,00,000 - 34,99,999' },
-        { minAmount: 3500000, maxAmount: 3999999, targetIncentivePercent: 0.350, label: '35,00,000 - 39,99,999' },
-        { minAmount: 4000000, maxAmount: 4999999, targetIncentivePercent: 0.425, label: '40,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.500, label: '50,00,000+' },
+        { minAmount: 1, maxAmount: 399999, targetIncentivePercent: 0.5, label: '1 - 3,99,999' },
+        { minAmount: 400000, maxAmount: 599999, targetIncentivePercent: 0.6, label: '4,00,000 - 5,99,999' },
+        { minAmount: 600000, maxAmount: 799999, targetIncentivePercent: 0.7, label: '6,00,000 - 7,99,999' },
+        { minAmount: 800000, maxAmount: 999999, targetIncentivePercent: 0.8, label: '8,00,000 - 9,99,999' },
+        { minAmount: 1000000, maxAmount: 1199999, targetIncentivePercent: 0.9, label: '10,00,000 - 11,99,999' },
+        { minAmount: 1200000, maxAmount: null, targetIncentivePercent: 1.0, label: '12,00,000 & Above' },
       ],
       extraSlabs: [
-        { minAmount: 1000000, maxAmount: 2499999, extraIncentivePercent: 0.0, rewardTitle: 'Foreign Tour', label: '10,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: 4999999, extraIncentivePercent: 0.25, rewardTitle: 'SUV / Luxury Car', label: '25,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 0.50, rewardTitle: 'Flat / Villa Bonus', label: '50,00,000+' },
+        {
+          minAmount: 1,
+          maxAmount: 1599999,
+          extraIncentivePercent: 0.25,
+          rewardTitle: 'Foreign Tour',
+          label: '1 - 15,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.25, rewardTitle: 'Foreign Tour' }],
+        },
+        {
+          minAmount: 1600000,
+          maxAmount: 2399999,
+          extraIncentivePercent: 0.30,
+          rewardTitle: 'SUV / Luxury Car',
+          label: '16,00,000 - 23,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.30, rewardTitle: 'SUV / Luxury Car' }],
+        },
+        {
+          minAmount: 2400000,
+          maxAmount: 3199999,
+          extraIncentivePercent: 0.35,
+          rewardTitle: 'Flat / Villa Bonus',
+          label: '24,00,000 - 31,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.35, rewardTitle: 'Flat / Villa Bonus' }],
+        },
+        {
+          minAmount: 3200000,
+          maxAmount: 3999999,
+          extraIncentivePercent: 0.40,
+          rewardTitle: 'Partner Elite Shield',
+          label: '32,00,000 - 39,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.40, rewardTitle: 'Partner Elite Shield' }],
+        },
+        {
+          minAmount: 4000000,
+          maxAmount: 4799999,
+          extraIncentivePercent: 0.45,
+          rewardTitle: 'Partner Sovereign Award',
+          label: '40,00,000 - 47,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.45, rewardTitle: 'Partner Sovereign Award' }],
+        },
+        {
+          minAmount: 4800000,
+          maxAmount: null,
+          extraIncentivePercent: 0.50,
+          rewardTitle: 'Chairman Circle Partner',
+          label: '48,00,000 & Above',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.50, rewardTitle: 'Chairman Circle Partner' }],
+        },
       ],
     },
     {
       roleName: 'BRANCH_PARTNER',
       fixedCommissionPercent: 0.0,
+      extraColumns: [
+        { id: 'col_reward_1', label: 'Reward / Extra Incentive' }
+      ],
       targetSlabs: [
-        { minAmount: 1, maxAmount: 999999, targetIncentivePercent: 0.0, label: '1 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, targetIncentivePercent: 0.0, label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 2999999, targetIncentivePercent: 0.0, label: '20,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 4999999, targetIncentivePercent: 0.0, label: '30,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, targetIncentivePercent: 0.0, label: '50,00,000+' },
+        { minAmount: 1, maxAmount: 799999, targetIncentivePercent: 0.5, label: '1 - 7,99,999' },
+        { minAmount: 800000, maxAmount: 1199999, targetIncentivePercent: 0.6, label: '8,00,000 - 11,99,999' },
+        { minAmount: 1200000, maxAmount: 1599999, targetIncentivePercent: 0.7, label: '12,00,000 - 15,99,999' },
+        { minAmount: 1600000, maxAmount: 1999999, targetIncentivePercent: 0.8, label: '16,00,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2399999, targetIncentivePercent: 0.9, label: '20,00,000 - 23,99,999' },
+        { minAmount: 2400000, maxAmount: null, targetIncentivePercent: 1.0, label: '24,00,000 & Above' },
       ],
       extraSlabs: [
-        { minAmount: 1000000, maxAmount: 2999999, extraIncentivePercent: 0.0, rewardTitle: 'Branch Product Trophy', label: '10,00,000 - 29,99,999' },
-        { minAmount: 3000000, maxAmount: 4999999, extraIncentivePercent: 0.25, rewardTitle: 'Branch Star Trophy & Bonus', label: '30,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: 0.50, rewardTitle: 'Regional Top Branch Trophy', label: '50,00,000+' },
+        {
+          minAmount: 1,
+          maxAmount: 3199999,
+          extraIncentivePercent: 0.25,
+          rewardTitle: 'Branch Product Trophy',
+          label: '1 - 31,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.25, rewardTitle: 'Branch Product Trophy' }],
+        },
+        {
+          minAmount: 3200000,
+          maxAmount: 4799999,
+          extraIncentivePercent: 0.30,
+          rewardTitle: 'Branch Star Trophy & Bonus',
+          label: '32,00,000 - 47,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.30, rewardTitle: 'Branch Star Trophy & Bonus' }],
+        },
+        {
+          minAmount: 4800000,
+          maxAmount: 6499999,
+          extraIncentivePercent: 0.35,
+          rewardTitle: 'Regional Top Branch Trophy',
+          label: '48,00,000 - 64,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.35, rewardTitle: 'Regional Top Branch Trophy' }],
+        },
+        {
+          minAmount: 6500000,
+          maxAmount: 7999999,
+          extraIncentivePercent: 0.40,
+          rewardTitle: 'Excellence Shield',
+          label: '65,00,000 - 79,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.40, rewardTitle: 'Excellence Shield' }],
+        },
+        {
+          minAmount: 8000000,
+          maxAmount: 9999999,
+          extraIncentivePercent: 0.45,
+          rewardTitle: 'State Leadership Trophy',
+          label: '80,00,000 - 99,99,999',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.45, rewardTitle: 'State Leadership Trophy' }],
+        },
+        {
+          minAmount: 10000000,
+          maxAmount: null,
+          extraIncentivePercent: 0.50,
+          rewardTitle: 'National Champion Branch Award',
+          label: '1,00,00,000 & Above',
+          extraIncentives: [{ columnId: 'col_reward_1', label: 'Reward / Extra Incentive', percent: 0.50, rewardTitle: 'National Champion Branch Award' }],
+        },
       ],
     },
   ],
 };
+
+const DEFAULT_PLOT_POLICY = UNIFIED_COMMISSION_POLICY;
+const DEFAULT_INVESTMENT_POLICY = UNIFIED_COMMISSION_POLICY;
+const DEFAULT_PLOT_PRODUCT_POLICY = UNIFIED_COMMISSION_POLICY;
 
 const commissionPolicyConfigSchema = new mongoose.Schema(
   {
@@ -267,16 +283,20 @@ const commissionPolicyConfigSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+commissionPolicyConfigSchema.statics.getDefaultCommissionPolicy = function () {
+  return UNIFIED_COMMISSION_POLICY;
+};
+
 commissionPolicyConfigSchema.statics.getDefaultPlotPolicy = function () {
-  return DEFAULT_PLOT_POLICY;
+  return UNIFIED_COMMISSION_POLICY;
 };
 
 commissionPolicyConfigSchema.statics.getDefaultInvestmentPolicy = function () {
-  return DEFAULT_INVESTMENT_POLICY;
+  return UNIFIED_COMMISSION_POLICY;
 };
 
 commissionPolicyConfigSchema.statics.getDefaultPlotProductPolicy = function () {
-  return DEFAULT_PLOT_PRODUCT_POLICY;
+  return UNIFIED_COMMISSION_POLICY;
 };
 
 /**

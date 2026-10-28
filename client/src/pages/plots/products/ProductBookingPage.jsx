@@ -28,6 +28,7 @@ import {
   Ruler,
   Calculator,
   Percent,
+  Lock,
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import { DateInput } from '../../../components/ui/DateInput';
@@ -463,6 +464,7 @@ const ProductBookingPage = () => {
   };
 
   const handleQuantityStep = (delta) => {
+    if (hasCustomDimensions) return;
     const next = Math.max(1, quantityNum + delta);
     updateQuantityAndSyncArea(next);
   };
@@ -827,8 +829,7 @@ const ProductBookingPage = () => {
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs font-black">
                   1
                 </span>
-                <span>Customer Selection &amp; BA Auto-Link</span>
-                <span className="text-rose-500">*</span>
+                <span>Select Customer</span>
               </div>
               {selectedCustomer && (
                 <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
@@ -1063,22 +1064,40 @@ const ProductBookingPage = () => {
                 )}
               </div>
 
-              {/* Custom Dimension Entry (North-South & East-West) */}
-              <div className="sm:col-span-2 p-3.5 bg-gradient-to-r from-teal-50/70 via-emerald-50/40 to-slate-50 border border-teal-200/90 rounded-xl space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Custom Dimension & Pricing Master Card */}
+              <div className="sm:col-span-2 p-4 sm:p-5 bg-gradient-to-br from-slate-50/80 via-teal-50/20 to-emerald-50/25 border border-teal-200/80 rounded-2xl space-y-4">
+                {/* Header */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100/70 pb-3">
                   <div className="flex items-center gap-2">
-                    <Ruler size={16} className="text-teal-700" />
-                    <span className="text-xs font-bold text-teal-950">
-                      Custom Dimension &amp; Area Specification (माप एवं रकबा)
-                    </span>
+                    <div className="p-1.5 rounded-lg bg-teal-100/70 text-teal-800">
+                      <Ruler size={16} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Custom Dimension & Area Specification (माप एवं रकबा)
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Enter North-South & East-West in feet to auto-calculate plot units & area
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-semibold text-teal-700 bg-white/90 px-2 py-0.5 rounded-md border border-teal-200">
-                    Auto-calculates Units &amp; Total Area
-                  </span>
+                  {hasCustomDimensions && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((prev) => ({ ...prev, customNorthSouth: '', customEastWest: '' }));
+                        updateQuantityAndSyncArea(1);
+                      }}
+                      className="px-2 py-1 text-[10px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition cursor-pointer"
+                    >
+                      Clear Dimensions
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {/* North-South Input */}
+                {/* Dimension Inputs + Calculated Area Bar */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* North-South */}
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       North-South (ft) / उत्तर-दक्षिण
@@ -1092,13 +1111,13 @@ const ProductBookingPage = () => {
                         onChange={(e) => handleCustomDimensionChange('customNorthSouth', e.target.value)}
                         onWheel={(e) => e.target.blur()}
                         placeholder="e.g. 30"
-                        className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                        className="w-full pl-3.5 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">ft</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400 pointer-events-none">ft</span>
                     </div>
                   </div>
 
-                  {/* East-West Input */}
+                  {/* East-West */}
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       East-West (ft) / पूरब-पश्चिम
@@ -1112,107 +1131,126 @@ const ProductBookingPage = () => {
                         onChange={(e) => handleCustomDimensionChange('customEastWest', e.target.value)}
                         onWheel={(e) => e.target.blur()}
                         placeholder="e.g. 40"
-                        className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                        className="w-full pl-3.5 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">ft</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400 pointer-events-none">ft</span>
                     </div>
                   </div>
 
-                  {/* Calculated Area & Units Badge */}
-                  <div className="sm:col-span-2 md:col-span-1 bg-white p-2.5 rounded-lg border border-teal-200/90 flex flex-col justify-center shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider block">
-                        Total Dimension Area
-                      </span>
-                      {hasCustomDimensions && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, customNorthSouth: '', customEastWest: '' }));
-                            updateQuantityAndSyncArea(1);
-                          }}
-                          className="text-[9px] text-rose-500 hover:text-rose-700 underline font-semibold cursor-pointer"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
+                  {/* Calculated Area Display */}
+                  <div className="p-3 bg-white border border-teal-200 rounded-xl flex flex-col justify-between shadow-2xs">
+                    <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider block">
+                      Total Dimension Area
+                    </span>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
                       <span className="text-base font-black text-teal-950 font-mono">
                         {(hasCustomDimensions ? customDimensionAreaSqFt : totalRequiredSqFt).toLocaleString('en-IN')}
                       </span>
-                      <span className="text-[11px] font-bold text-teal-700">Sq.Ft.</span>
+                      <span className="text-xs font-bold text-teal-700">Sq.Ft.</span>
                       <span className="text-[10px] text-slate-500">
                         ({Math.round(((hasCustomDimensions ? customDimensionAreaSqFt : totalRequiredSqFt) / 435.6) * 100) / 100} Dismil)
                       </span>
                     </div>
                     {hasCustomDimensions && (
-                      <span className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                        ↳ Auto: {quantityNum} Units (@ {unitAreaSqFt} SqFt/unit)
+                      <span className="text-[10px] text-emerald-700 font-bold mt-0.5 block truncate">
+                        ↳ {quantityNum} Units (@ {unitAreaSqFt} SqFt/unit)
                       </span>
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Quantity Stepper */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Quantity (Units / Pieces) <span className="text-rose-500">*</span>
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityStep(-1)}
-                    className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={form.quantity}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      updateQuantityAndSyncArea(val);
-                    }}
-                    onBlur={() => {
-                      if (!form.quantity || Number(form.quantity) < 1) {
-                        updateQuantityAndSyncArea(1);
-                      }
-                    }}
-                    onWheel={(e) => e.target.blur()}
-                    className="w-full text-center px-3 py-2 bg-white border border-slate-200 rounded-xl font-black font-mono text-sm text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityStep(1)}
-                    className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-              </div>
+                {/* Quantity, Custom Rate & Total Valuation Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-teal-100/70">
+                  {/* Quantity Stepper */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Quantity (Units) <span className="text-rose-500">*</span>
+                      </label>
+                      {hasCustomDimensions && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          <Lock size={10} className="text-amber-600" /> Locked
+                        </span>
+                      )}
+                    </div>
+                    {hasCustomDimensions ? (
+                      <div className="px-3.5 py-2.5 bg-slate-100/90 border border-slate-300 rounded-xl flex items-center justify-between">
+                        <span className="font-black font-mono text-sm text-slate-800">
+                          {form.quantity} Units
+                        </span>
+                        <Lock size={13} className="text-slate-400" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityStep(-1)}
+                          className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={form.quantity}
+                          onChange={(e) => updateQuantityAndSyncArea(e.target.value.replace(/[^0-9]/g, ''))}
+                          onBlur={() => (!form.quantity || Number(form.quantity) < 1) && updateQuantityAndSyncArea(1)}
+                          onWheel={(e) => e.target.blur()}
+                          className="w-full text-center px-3 py-2 bg-white border border-slate-200 rounded-xl font-black font-mono text-sm text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityStep(1)}
+                          className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer font-bold shrink-0"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    )}
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      {hasCustomDimensions ? 'Auto-locked by dimensions' : 'Manual units stepper'}
+                    </span>
+                  </div>
 
-              {/* Editable Custom Unit Price */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Custom Unit Rate (₹) <span className="text-slate-400 font-normal">(Editable)</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={form.customUnitPrice}
-                    onChange={(e) => setForm({ ...form, customUnitPrice: e.target.value.replace(/[^0-9]/g, '') })}
-                    onWheel={(e) => e.target.blur()}
-                    placeholder={selectedProduct?.unitPrice ? String(selectedProduct.unitPrice) : '10000'}
-                    className="w-full pl-8 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl font-bold font-mono text-xs text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none"
-                  />
+                  {/* Custom Unit Rate */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Custom Unit Rate (₹) <span className="text-teal-600 font-semibold">(Editable)</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={form.customUnitPrice}
+                        onChange={(e) => setForm({ ...form, customUnitPrice: e.target.value.replace(/[^0-9]/g, '') })}
+                        onWheel={(e) => e.target.blur()}
+                        placeholder={selectedProduct?.unitPrice ? String(selectedProduct.unitPrice) : '1000'}
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold font-mono text-sm text-slate-900 focus:ring-2 focus:ring-teal-600 outline-none shadow-2xs"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 block truncate">
+                      Catalog: ₹{Number(selectedProduct?.unitPrice || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  {/* Total Value */}
+                  <div className="p-3 bg-gradient-to-br from-teal-700 to-teal-900 text-white rounded-xl flex flex-col justify-between shadow-xs">
+                    <span className="text-[10px] font-bold text-teal-200 uppercase tracking-wider block">
+                      Total Valuation
+                    </span>
+                    <div className="text-lg font-black font-mono tracking-tight">
+                      ₹{totalAmount.toLocaleString('en-IN')}
+                    </div>
+                    <span className="text-[10px] text-teal-100 font-medium block truncate">
+                      {hasCustomDimensions
+                        ? `${customDimensionAreaSqFt.toLocaleString('en-IN')} Sq.Ft × ₹${unitRate.toLocaleString('en-IN')}`
+                        : `${quantityNum.toLocaleString('en-IN')} Units × ₹${unitRate.toLocaleString('en-IN')}`}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

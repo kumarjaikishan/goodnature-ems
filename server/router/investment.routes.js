@@ -9,7 +9,12 @@ router.use(authmiddlewre);
 router.use(authorizeRoles('superadmin', 'admin', 'manager', 'demo', 'grant', 'sponsor'));
 
 // Scheme Config & Rates
-router.get('/config', checkPermission('investment', 1), investmentController.getSchemeConfig);
+router.get('/config', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission(['investment', 'plot_sponsor', 'associate', 'partner'], 1)(req, res, next);
+}, investmentController.getSchemeConfig);
 router.put('/config', checkPermission('investment', 3), investmentController.updateSchemeConfig);
 
 // Stats & Dues Report

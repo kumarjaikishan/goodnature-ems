@@ -2,6 +2,36 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Dedicated Commission Rates & Policy Page for Business Associates & Partners [COMPLETED]**:
+  - **Requirement**:
+    - Build a dedicated, separate page (`CommissionStructurePage.jsx`) to display direct commission rates and target/extra incentive policies for Business Associates and Business Partners without exposing the admin Plot Products page.
+    - Read-only ("only show, no action perform").
+    - Role scoping:
+      - Business Associate (`BA-`): Shows ONLY Business Associate commission rates (Direct Fixed % for EMI & One-Time, and BA Target/Extra Incentive slabs & rewards).
+      - Business Partner (`BP-`): Shows Business Partner commission rates AND Business Associate commission rates (both direct fixed % and target/extra incentive policies for self and team).
+  - **Implementation**:
+    - **Frontend**:
+      - Created [CommissionStructurePage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx) featuring 2 tabs:
+        1. *Direct Commission (Scheme Rules & Returns Matrix)*: Displays active tenure slabs with BA and BP fixed % breakdown.
+        2. *Target & Extra Incentive Policy*: Displays quarterly target collection slabs, additional incentive %, and milestone rewards (with self/team switcher for Business Partners).
+      - Registered routes `/dashboard/my-commission-rates`, `/dashboard/commission-structure`, and `/dashboard/plots/commission-structure` in [App.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/App.jsx).
+      - Added "Commission Rates" navigation link in [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx) and quick-access button on [BusinessDeveloperDashboard.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/BusinessDeveloperDashboard.jsx).
+    - **Backend**:
+      - Updated [plots.routes.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/router/plots.routes.js) and [investment.routes.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/router/investment.routes.js) to allow `sponsor` role read access to `/plots/commission-policy` and `/investments/config`.
+
+- **Investment Booking: Quantity Lock on Custom Dimensions & Inline Total Plot Value [COMPLETED]**:
+  - **Requirement**:
+    - When custom dimensions are entered (e.g., 30 × 40 = 1,200 Sq.Ft or 20 × 60 = 1,200 Sq.Ft), lock the Quantity stepper and text input so it cannot be manually changed while dimensions are active.
+    - Custom Unit Rate (₹) remains fully editable.
+    - Display the Total Value (`Quantity × Rate` / `Area × Rate`, e.g., `1,200 Sq.Ft × ₹1,000 = ₹12,00,000`) directly alongside the Quantity and Custom Rate fields in the form in addition to the right-hand summary panel.
+  - **Implementation**:
+    - **Frontend ([ProductBookingPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/products/ProductBookingPage.jsx))**:
+      - Added `Lock` icon and state guards to Quantity stepper (`-` and `+` buttons disabled with `opacity-60 cursor-not-allowed` when `hasCustomDimensions` is true; `handleQuantityStep` returns early).
+      - Set `readOnly={hasCustomDimensions}` and `disabled={hasCustomDimensions}` on quantity input with custom locked styling and "Locked" badge.
+      - Added auto-lock informative note explaining that clearing dimensions unlocks manual quantity editing.
+      - Custom Unit Rate remains editable as requested.
+      - Added an inline 3-column financial control grid displaying **Quantity (Units)**, **Custom Unit Rate (₹)**, and **Total Value (कुल मूल्य)** with full calculation formula breakdown (`1,200 Sq.Ft × ₹1,000` or `1,200 Units × ₹1,000 = ₹12,00,000`).
+
 - **Investment Booking: Dimension & Quantity Inputs Numeric Keypad & Mouse Scroll Protection [COMPLETED]**:
   - **Issue**:
     - Under Product & Dimension Specifications (`/dashboard/plots/investment-booking/new`), the North-South, East-West, Quantity, and Custom Unit Rate input fields used `type="number"`, which accidentally altered values when users scrolled their mouse wheel while hovering over the input.
@@ -666,6 +696,25 @@ This file records session notes, caveats, and discoveries across active sessions
     - **Database Policy Correction**: Updated `PLOT_PRODUCT` and `PLOT_SALE` target slabs to the intended 10-Lakhs tier scale (`1 - 9,99,999` @ 1%, `10,00,000 - 14,99,999` @ 1.2%, up to `30,00,000 & Above` @ 2.0%). Under this scale, ₹11,00,000 falls accurately into Slab 2 (`₹10,00,000 - ₹14,99,999`) yielding **1.2%** (`₹13,200.00`), and Mahendra's ₹8,30,000 falls into Slab 1 (`₹1 - ₹9,99,999`) yielding **1.0%** (`₹8,300.00`).
     - **Dynamic Slab Labeling (`server/models/CommissionPolicyConfig.js`)**: Replaced stale template strings with dynamic `formatSlabRange` so labels always reflect the true Indian range format (e.g. `₹10,00,000 - ₹14,99,999` or `₹30,00,000 & Above`).
     - **Centralized Amount in Words Utility (`client/src/utils/numToWord.jsx`)**: Built a robust `amountInWords(num, options)` common helper that converts numbers into proper Title Case Indian currency words (e.g. `1499999` -> `"Fourteen Lakh Ninety Nine Thousand Nine Hundred And Ninety Nine Rupees"`). Integrated below all slab inputs in `CommissionPolicyMatrix.jsx`, `PayLedgerModal.jsx`, and `SetupPayoutModal.jsx`.
+
+- **Universal Commission & Incentive Policy Unification & Legacy System Removal [COMPLETED]**:
+  - **Single Commission Architecture**: Removed old/legacy dual commission systems (`PLOT_SALE` vs `INVESTMENT_RD_FD` policy splits).
+  - **Direct Commission**: Governed strictly by `/dashboard/plots/products?tab=schemes` (`/investments/config`) defining instant fixed payouts per plan tenure and payment option (RD vs FD) for Business Associates and Business Partners.
+  - **Target & Extra Incentive Policy**: Governed strictly by `/dashboard/plots/products?tab=incentives` (`CommissionPolicyMatrix.jsx` / `CommissionPolicyConfig.js`). Configured with exact user-specified slabs:
+    - **Business Associate (BA)**:
+      - Target Incentive: ₹1-₹1,99,999: 1.0%; ₹2,00,000-₹2,99,999: 1.2%; ₹3,00,000-₹3,99,999: 1.4%; ₹4,00,000-₹4,99,999: 1.6%; ₹5,00,000-₹5,99,999: 1.8%; ₹6,00,000 & Above: 2.0%.
+      - Extra Incentive & Rewards: ₹1-₹7,99,999: 0.5% (Motorcycle / Laptop); ₹8,00,000-₹11,99,999: 0.6% (Goa / Thailand Tour); ₹12,00,000-₹15,99,999: 0.7% (Luxury Car / Gold Fund); ₹16,00,000-₹19,99,999: 0.8% (Executive Bonus); ₹20,00,000-₹23,99,999: 0.9% (Leadership Bonus); ₹24,00,000 & Above: 1.0% (Crown Director Club).
+    - **Business Partner (BP)**:
+      - Target Incentive: ₹1-₹3,99,999: 0.5%; ₹4,00,000-₹5,99,999: 0.6%; ₹6,00,000-₹7,99,999: 0.7%; ₹8,00,000-₹9,99,999: 0.8%; ₹10,00,000-₹11,99,999: 0.9%; ₹12,00,000 & Above: 1.0%.
+      - Extra Incentive & Rewards: ₹1-₹15,99,999: 0.25% (Foreign Tour); ₹16,00,000-₹23,99,999: 0.30% (SUV / Luxury Car); ₹24,00,000-₹31,99,999: 0.35% (Flat / Villa Bonus); ₹32,00,000-₹39,99,999: 0.40% (Partner Elite Shield); ₹40,00,000-₹47,99,999: 0.45% (Partner Sovereign Award); ₹48,00,000 & Above: 0.50% (Chairman Circle Partner).
+    - **Branch Partner (Regional Head)**:
+      - Target Incentive: ₹1-₹7,99,999: 0.5%; ₹8,00,000-₹11,99,999: 0.6%; ₹12,00,000-₹15,99,999: 0.7%; ₹16,00,000-₹19,99,999: 0.8%; ₹20,00,000-₹23,99,999: 0.9%; ₹24,00,000 & Above: 1.0%.
+      - Extra Incentive & Rewards: ₹1-₹31,99,999: 0.25% (Branch Product Trophy); ₹32,00,000-₹47,99,999: 0.30% (Branch Star Trophy & Bonus); ₹48,00,000-₹64,99,999: 0.35% (Regional Top Branch Trophy); ₹65,00,000-₹79,99,999: 0.40% (Excellence Shield); ₹80,00,000-₹99,99,999: 0.45% (State Leadership Trophy); ₹1,00,00,000 & Above: 0.50% (National Champion Branch Award).
+  - **Closing Aggregation (`plotClosing.service.js`)**: All business sales (both Plot Bookings and Investment RD/FD collections) aggregate together to form the sponsor's total business turnover, and evaluate against this single unified policy.
+  - **UI Cleanup**:
+    - Removed `Policy Type: [Plot Sale (Standard)] [Investment (RD / FD)]` toggle in `CommissionStructurePage.jsx` and `CommissionPolicyMatrix.jsx`.
+    - **Removed Legacy Base Fixed % (1% BP / 2.5% BA)**: Removed the misleading `Base Fixed %` and `Total Effective %` columns and top banner from `CommissionStructurePage.jsx`. The Target Incentive table now strictly displays `Qualifying Collection Range` and `Target Incentive % (At Period Closing)`.
+    - Auto-migrated database policies in MongoDB so `fixedCommissionPercent: 0` is set across all roles and target slabs.
 
 - **Branch Access Scoping (`getemployee`, `Employe.jsx`)**:
   - **Backend**: Added `getUserAllowedBranchIds` helper in `server/controllers/admin.js`. For non-unrestricted roles (e.g. managers), fetches fresh `branchIds` from DB and enforces `{ branchId: { $in: allowedBranchIds } }` on `getemployee`, `employeelist`, `departmentlist`, and `firstfetch`. Even if "all" or no branch query param is passed, never returns employees from unauthorized branches.

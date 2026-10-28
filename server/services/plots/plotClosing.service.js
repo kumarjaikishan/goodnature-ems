@@ -231,9 +231,7 @@ class PlotClosingService {
 
     const commissions = [...plotCommissions, ...investmentCommissions];
 
-    const plotPolicyConfig = await plotConfigService.getCommissionPolicy('PLOT_SALE');
-    const investmentPolicyConfig = await plotConfigService.getCommissionPolicy('INVESTMENT_RD_FD');
-    const productPolicyConfig = await plotConfigService.getCommissionPolicy('PLOT_PRODUCT');
+    const unifiedPolicy = await plotConfigService.getCommissionPolicy('PLOT_PRODUCT');
 
     // Group collections per sponsor or branch entity
     const sponsorMap = {};
@@ -321,48 +319,32 @@ class PlotClosingService {
     const sponsors = Object.values(sponsorMap).map(sp => {
       const roleName = sp.isBranchPartner ? 'BRANCH_PARTNER' : (!sp.isDeveloper ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER');
 
-      // The single unified policy configured in Plot Products applies to all plot sales and plot products
-      const unifiedPolicy = productPolicyConfig || plotPolicyConfig;
-      const plotSlab = CommissionPolicyConfig.resolveSlab(unifiedPolicy, roleName, sp.totalBusiness, isExtra);
-      const prdSlab = plotSlab;
-      const invSlab = CommissionPolicyConfig.resolveSlab(investmentPolicyConfig, roleName, sp.totalBusiness, isExtra);
+      // The single unified policy applies to all business collection (both Plot Bookings and Investment Bookings)
+      const unifiedSlab = CommissionPolicyConfig.resolveSlab(unifiedPolicy, roleName, sp.totalBusiness, isExtra);
 
-      const dominantSlab = sp.entries.some(e => e.isInvestment || e.businessType === 'INVESTMENT_RD_FD') ? invSlab : plotSlab;
       const defaultFixedPct = sp.isBranchPartner ? 0 : (!sp.isDeveloper ? 5.0 : 2.0);
-      const defaultIncPct = isExtra ? dominantSlab.extraIncentivePercent : dominantSlab.baseIncentivePercent;
-      const slabLabel = dominantSlab.slabLabel;
-      const rewardTitle = dominantSlab.rewardTitle || '';
+      const defaultIncPct = isExtra ? (unifiedSlab.extraIncentivePercent || 0) : (unifiedSlab.baseIncentivePercent || unifiedSlab.incentivePercent || 0);
+      const slabLabel = unifiedSlab.slabLabel;
+      const rewardTitle = unifiedSlab.rewardTitle || '';
 
       let spFixedComm = 0;
       let spIncentiveComm = 0;
       let spExtraComm = 0;
 
-      // Calculate each entry's incentive based on closingType and business type
+      // Calculate each entry's incentive based on unified slab and entry collection
       sp.entries.forEach(e => {
-        const isInv = e.isInvestment || e.businessType === 'INVESTMENT_RD_FD';
-        const isPrd = e.businessType === 'PLOT_PRODUCT';
-
-        let applicableSlab = plotSlab;
         let entryFixedPct = 0;
 
         if (e.fixedPercent !== undefined && e.fixedPercent !== null) {
           entryFixedPct = Number(e.fixedPercent);
         } else if (sp.isBranchPartner) {
-          applicableSlab = plotSlab;
           entryFixedPct = 0;
-        } else if (isPrd) {
-          applicableSlab = prdSlab;
-          entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;
-        } else if (isInv) {
-          applicableSlab = invSlab;
-          entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;
         } else {
-          applicableSlab = plotSlab;
-          entryFixedPct = !sp.isDeveloper ? 5.0 : 2.0;
+          entryFixedPct = !sp.isDeveloper ? 2.50 : 1.00;
         }
 
-        const entryIncPct = applicableSlab.baseIncentivePercent || applicableSlab.incentivePercent || 0;
-        const entryExtraPct = applicableSlab.extraIncentivePercent || 0;
+        const entryIncPct = unifiedSlab.baseIncentivePercent || unifiedSlab.incentivePercent || 0;
+        const entryExtraPct = unifiedSlab.extraIncentivePercent || 0;
         const col = Number(e.collectionAmount || 0);
 
         const fAmt = Math.round(col * (entryFixedPct / 100) * 100) / 100;
@@ -377,8 +359,8 @@ class PlotClosingService {
         e.incentiveAmount = iAmt;
         e.extraIncentiveAmount = eAmt;
         e.amount = isExtra ? eAmt : iAmt;
-        e.slabLabel = applicableSlab.slabLabel;
-        e.rewardTitle = applicableSlab.rewardTitle || '';
+        e.slabLabel = unifiedSlab.slabLabel;
+        e.rewardTitle = unifiedSlab.rewardTitle || '';
 
         spFixedComm += fAmt;
         spIncentiveComm += iAmt;
@@ -405,7 +387,7 @@ class PlotClosingService {
         fixedCommission,
         incentiveCommission,
         extraIncentiveCommission,
-        extraIncentivePercent: dominantSlab.extraIncentivePercent || 0,
+        extraIncentivePercent: unifiedSlab.extraIncentivePercent || 0,
         extraRewardTitles: rewardTitle ? [rewardTitle] : [],
         totalCommission: payoutCommission,
         effectiveIncPct: defaultIncPct,

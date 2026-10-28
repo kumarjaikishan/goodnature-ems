@@ -155,6 +155,13 @@ const BusinessDeveloperDashboard = () => {
             <TrendingUp size={15} />
             <span>Business Report</span>
           </button>
+          <button
+            onClick={() => navigate('/dashboard/my-commission-rates')}
+            className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs rounded-lg border border-amber-200 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <Award size={15} className="text-amber-700" />
+            <span>Commission Rates</span>
+          </button>
         </div>
       </div>
 

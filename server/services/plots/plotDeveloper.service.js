@@ -1631,11 +1631,11 @@ class PlotDeveloperService {
     const now = new Date();
     const currentMonthDirectVol = await this.getSponsorPeriodVolume(sponsor._id, now, false);
     const currentMonthTeamVol = await this.getSponsorPeriodVolume(sponsor._id, now, true);
-    const plotPolicy = CommissionPolicyConfig.getDefaultPlotPolicy();
+    const activePolicy = await plotConfigService.getCommissionPolicy();
     const roleName = isBranchPartner ? 'BRANCH_PARTNER' : (sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER');
     const roleDisplay = isBranchPartner ? `Branch Partner (${branchDoc.name})` : (sponsor.sponsorId ? 'Business Associate' : 'Business Partner');
     const evalVolume = isBranchPartner ? (directPlotValue + teamPlotValue) : (sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol);
-    const slabInfo = CommissionPolicyConfig.resolveSlab(plotPolicy, roleName, evalVolume);
+    const slabInfo = CommissionPolicyConfig.resolveSlab(activePolicy, roleName, evalVolume);
 
     const targetTierInfo = {
       roleName,
@@ -1950,10 +1950,10 @@ class PlotDeveloperService {
     const now = new Date();
     const currentMonthDirectVol = await this.getSponsorPeriodVolume(sponsor._id, now, false);
     const currentMonthTeamVol = await this.getSponsorPeriodVolume(sponsor._id, now, true);
-    const plotPolicy = CommissionPolicyConfig.getDefaultPlotPolicy();
+    const activePolicy = await plotConfigService.getCommissionPolicy();
     const roleName = sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER';
     const evalVolume = sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol;
-    const slabInfo = CommissionPolicyConfig.resolveSlab(plotPolicy, roleName, evalVolume);
+    const slabInfo = CommissionPolicyConfig.resolveSlab(activePolicy, roleName, evalVolume);
 
     const targetTierInfo = {
       roleName,

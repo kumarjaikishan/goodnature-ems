@@ -159,8 +159,8 @@ const PlotProductsPage = () => {
           initialBusinessType="PLOT_PRODUCT"
           showTypeToggle={false}
           hideFixedCommission={true}
-          title="Plot Product Target & Extra Incentive Policy"
-          subtitle="Configure Plot Product period closing collection target slabs, tiered performance incentive %, and closing rewards for Business Associates, Business Partners, and Branch Partners."
+          title="Target Incentive & Extra Incentive Policy"
+          subtitle="Configure period closing collection target slabs, tiered performance incentive %, and milestone rewards for Business Associates, Business Partners, and Branch Partners across all sales (Plot Bookings & Investment Bookings)."
         />
       )}
     </div>

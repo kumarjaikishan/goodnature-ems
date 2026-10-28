@@ -33,7 +33,12 @@ router.get('/rate-config', (req, res, next) => {
 router.put('/rate-config', checkPermission('plot_inventory', 3), ctrl.updateRateConfig);
 
 // ── Commission Policy Config (Quarterly Target & Fixed Slabs) ──
-router.get('/commission-policy', checkPermission('plot_inventory', 1), ctrl.getCommissionPolicy);
+router.get('/commission-policy', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    return next();
+  }
+  return checkPermission(['plot_inventory', 'plot_sponsor', 'associate', 'partner'], 1)(req, res, next);
+}, ctrl.getCommissionPolicy);
 router.put('/commission-policy', checkPermission('plot_inventory', 3), ctrl.updateCommissionPolicy);
 
 // ── Series Master (inventory setup) ──

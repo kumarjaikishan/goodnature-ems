@@ -27,11 +27,11 @@ const formatSlabLabel = (min, max) => {
 };
 
 const CommissionPolicyMatrix = ({
-  initialBusinessType = 'PLOT_SALE',
-  showTypeToggle = true,
-  hideFixedCommission = false,
+  initialBusinessType = 'PLOT_PRODUCT',
+  showTypeToggle = false,
+  hideFixedCommission = true,
   title = 'Target Incentive & Extra Incentive Policy',
-  subtitle = 'Configure regular target collection slabs, fixed base rates, and separate extra incentive campaign / reward slabs.',
+  subtitle = 'Configure regular target collection slabs and separate extra incentive campaign / reward slabs for all sales (Plot Bookings & Investment Bookings).',
 }) => {
   const [businessType, setBusinessType] = useState(initialBusinessType);
   const [loading, setLoading] = useState(true);
@@ -44,26 +44,34 @@ const CommissionPolicyMatrix = ({
     setBusinessType(initialBusinessType);
   }, [initialBusinessType]);
 
-  const getDefaultExtraSlabsForRole = (roleName, bType) => {
+  const getDefaultExtraSlabsForRole = (roleName) => {
     if (roleName === 'BUSINESS_ASSOCIATE') {
       return [
-        { minAmount: 500000, maxAmount: 999999, extraIncentivePercent: 0, rewardTitle: 'Smartphone / Tablet', label: '5,00,000 - 9,99,999' },
-        { minAmount: 1000000, maxAmount: 1999999, extraIncentivePercent: 0, rewardTitle: 'Motorcycle / Laptop', label: '10,00,000 - 19,99,999' },
-        { minAmount: 2000000, maxAmount: 4999999, extraIncentivePercent: bType === 'INVESTMENT_RD_FD' ? 0.5 : 1.0, rewardTitle: 'Goa / Thailand Tour', label: '20,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: bType === 'INVESTMENT_RD_FD' ? 1.0 : 2.0, rewardTitle: 'Luxury Car / Gold Fund', label: '50,00,000+' },
+        { minAmount: 1, maxAmount: 799999, extraIncentivePercent: 0.5, rewardTitle: 'Motorcycle / Laptop', label: '1 - 7,99,999' },
+        { minAmount: 800000, maxAmount: 1199999, extraIncentivePercent: 0.6, rewardTitle: 'Goa / Thailand Tour', label: '8,00,000 - 11,99,999' },
+        { minAmount: 1200000, maxAmount: 1599999, extraIncentivePercent: 0.7, rewardTitle: 'Luxury Car / Gold Fund', label: '12,00,000 - 15,99,999' },
+        { minAmount: 1600000, maxAmount: 1999999, extraIncentivePercent: 0.8, rewardTitle: 'Executive Bonus', label: '16,00,000 - 19,99,999' },
+        { minAmount: 2000000, maxAmount: 2399999, extraIncentivePercent: 0.9, rewardTitle: 'Leadership Bonus', label: '20,00,000 - 23,99,999' },
+        { minAmount: 2400000, maxAmount: null, extraIncentivePercent: 1.0, rewardTitle: 'Crown Director Club', label: '24,00,000 & Above' },
       ];
     }
     if (roleName === 'BUSINESS_PARTNER') {
       return [
-        { minAmount: 1000000, maxAmount: 2499999, extraIncentivePercent: 0, rewardTitle: 'Foreign Tour', label: '10,00,000 - 24,99,999' },
-        { minAmount: 2500000, maxAmount: 4999999, extraIncentivePercent: bType === 'INVESTMENT_RD_FD' ? 0.15 : 0.25, rewardTitle: 'SUV / Luxury Car', label: '25,00,000 - 49,99,999' },
-        { minAmount: 5000000, maxAmount: null, extraIncentivePercent: bType === 'INVESTMENT_RD_FD' ? 0.30 : 0.50, rewardTitle: 'Flat / Villa Bonus', label: '50,00,000+' },
+        { minAmount: 1, maxAmount: 1599999, extraIncentivePercent: 0.25, rewardTitle: 'Foreign Tour', label: '1 - 15,99,999' },
+        { minAmount: 1600000, maxAmount: 2399999, extraIncentivePercent: 0.30, rewardTitle: 'SUV / Luxury Car', label: '16,00,000 - 23,99,999' },
+        { minAmount: 2400000, maxAmount: 3199999, extraIncentivePercent: 0.35, rewardTitle: 'Flat / Villa Bonus', label: '24,00,000 - 31,99,999' },
+        { minAmount: 3200000, maxAmount: 3999999, extraIncentivePercent: 0.40, rewardTitle: 'Partner Elite Shield', label: '32,00,000 - 39,99,999' },
+        { minAmount: 4000000, maxAmount: 4799999, extraIncentivePercent: 0.45, rewardTitle: 'Partner Sovereign Award', label: '40,00,000 - 47,99,999' },
+        { minAmount: 4800000, maxAmount: null, extraIncentivePercent: 0.50, rewardTitle: 'Chairman Circle Partner', label: '48,00,000 & Above' },
       ];
     }
     return [
-      { minAmount: 1000000, maxAmount: 2999999, extraIncentivePercent: 0, rewardTitle: 'Branch Excellence Award', label: '10,00,000 - 29,99,999' },
-      { minAmount: 3000000, maxAmount: 4999999, extraIncentivePercent: bType === 'INVESTMENT_RD_FD' ? 0.15 : 0.25, rewardTitle: 'Branch Star Trophy & Bonus', label: '30,00,000 - 49,99,999' },
-      { minAmount: 5000000, maxAmount: null, extraIncentivePercent: bType === 'INVESTMENT_RD_FD' ? 0.30 : 0.50, rewardTitle: 'Regional Best Branch Award', label: '50,00,000+' },
+      { minAmount: 1, maxAmount: 3199999, extraIncentivePercent: 0.25, rewardTitle: 'Branch Product Trophy', label: '1 - 31,99,999' },
+      { minAmount: 3200000, maxAmount: 4799999, extraIncentivePercent: 0.30, rewardTitle: 'Branch Star Trophy & Bonus', label: '32,00,000 - 47,99,999' },
+      { minAmount: 4800000, maxAmount: 6499999, extraIncentivePercent: 0.35, rewardTitle: 'Regional Top Branch Trophy', label: '48,00,000 - 64,99,999' },
+      { minAmount: 6500000, maxAmount: 7999999, extraIncentivePercent: 0.40, rewardTitle: 'Excellence Shield', label: '65,00,000 - 79,99,999' },
+      { minAmount: 8000000, maxAmount: 9999999, extraIncentivePercent: 0.45, rewardTitle: 'State Leadership Trophy', label: '80,00,000 - 99,99,999' },
+      { minAmount: 10000000, maxAmount: null, extraIncentivePercent: 0.50, rewardTitle: 'National Champion Branch Award', label: '1,00,00,000 & Above' },
     ];
   };
 
@@ -197,9 +205,7 @@ const CommissionPolicyMatrix = ({
       };
 
       await api.put(`/plots/commission-policy?type=${policy.businessType}`, payload);
-      toast.success(
-        `${policy.businessType === 'PLOT_SALE' ? 'Plot Sales' : policy.businessType === 'PLOT_PRODUCT' ? 'Plot Products' : 'RD/FD'} Policy saved successfully!`
-      );
+      toast.success('Commission & Incentive Policy saved successfully!');
       fetchPolicy(policy.businessType);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update commission policy');
@@ -487,13 +493,7 @@ const CommissionPolicyMatrix = ({
     const role = policy.roles[roleIndex];
     if (!role) return null;
 
-    const roleFixed =
-      Number(role.fixedCommissionPercent) ||
-      (role.roleName === 'BRANCH_PARTNER'
-        ? 0.0
-        : role.roleName === 'BUSINESS_PARTNER'
-        ? (businessType === 'PLOT_SALE' ? 2.0 : 1.0)
-        : (businessType === 'PLOT_SALE' ? 5.0 : 2.5));
+    const roleFixed = Number(role.fixedCommissionPercent) || 0.0;
 
     return (
       <div key={role.roleName} className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6 space-y-6">
@@ -937,33 +937,6 @@ const CommissionPolicyMatrix = ({
         </div>
 
         <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
-          {/* Business Type Toggle */}
-          {showTypeToggle && (
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setBusinessType('PLOT_SALE')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  businessType === 'PLOT_SALE'
-                    ? 'bg-white text-teal-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building size={14} /> Plot Sales Policy
-              </button>
-              <button
-                type="button"
-                onClick={() => setBusinessType('INVESTMENT_RD_FD')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  businessType === 'INVESTMENT_RD_FD'
-                    ? 'bg-white text-teal-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <TrendingUp size={14} /> RD / FD Investments
-              </button>
-            </div>
-          )}
 
           <button
             type="button"

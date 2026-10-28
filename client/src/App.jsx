@@ -107,6 +107,7 @@ const BusinessDeveloperDashboard = lazy(() => import('./pages/plots/businessDeve
 const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperReportPage'));
 const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
 const BusinessDeveloperNetworkPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperNetworkPage'));
+const CommissionStructurePage = lazy(() => import('./pages/plots/businessDevelopers/CommissionStructurePage'));
 const PlotIncentivesPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
 const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
@@ -272,6 +273,9 @@ const sponsorRoutes = (
     <Route path="my-business" element={<BusinessDeveloperReportPage />} />
     <Route path="my-network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="my-customers" element={<BusinessDeveloperNetworkPage />} />
+    <Route path="my-commission-rates" element={<CommissionStructurePage />} />
+    <Route path="commission-structure" element={<CommissionStructurePage />} />
+    <Route path="plots/commission-structure" element={<CommissionStructurePage />} />
     <Route path="network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="plots/business-developer/:id/network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="my-bookings" element={<BusinessDeveloperBookingsPage />} />

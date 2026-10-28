@@ -348,24 +348,15 @@ const BookingCertificateViewer = () => {
                 </td>
               </tr>
 
-              {/* Row 5: Project Name & Booking Status */}
+              {/* Row 5: Booking Status */}
               <tr className="border-b border-slate-100 bg-slate-50/20">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Project Name</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {booking.projectName || 'GOOD NATURE CITY'}
-                </td>
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
                     <span>Booking Status</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900 uppercase">
+                <td colSpan={3} className="p-2 font-bold text-slate-900 uppercase">
                   OK
                 </td>
               </tr>
@@ -414,39 +405,34 @@ const BookingCertificateViewer = () => {
                 </td>
               </tr>
 
-              {/* Row 8: Dimensions & Total Area */}
+              {/* Row 8: Total Area & Dimensions */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Dimensions / परिमाप (माप)</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900 w-[32%]">
-                  <span className="font-mono text-slate-900 font-bold block">
-                    {dimensionLabel}
-                  </span>
-                  {(dims.north || dims.northSouth) && (
-                    <span className="text-[10px] text-slate-500 block font-sans font-normal">
-                      North: {dims.north ?? dims.northSouth} ft | South: {dims.south ?? dims.northSouth} ft | East: {dims.east ?? dims.eastWest} ft | West: {dims.west ?? dims.eastWest} ft
-                    </span>
-                  )}
-                </td>
                 <td className="p-2 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
                     <span>Total Area / कुल रकबा</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900 w-[32%]">
-                  <span className="font-black text-teal-900 text-xs font-mono">
-                    {totalArea.toLocaleString('en-IN')} Sq.Ft
-                  </span>
-                  {totalDismil > 0 ? (
-                    <span className="text-[10px] text-slate-500 ml-1.5 font-sans">
-                      ({totalDismil} Dismil)
+                <td colSpan={3} className="p-2 font-bold text-slate-900">
+                  <div className="flex flex-wrap items-baseline gap-1.5">
+                    <span className="font-black text-teal-900 text-xs font-mono">
+                      {totalArea.toLocaleString('en-IN')} Sq.Ft
                     </span>
-                  ) : null}
+                    {(lengthFt > 0 && widthFt > 0) ? (
+                      <span className="font-bold text-slate-700 font-mono text-xs">
+                        ({lengthFt}ft x {widthFt} ft)
+                      </span>
+                    ) : product.dimensionLabel ? (
+                      <span className="font-bold text-slate-700 font-mono text-xs">
+                        ({product.dimensionLabel})
+                      </span>
+                    ) : null}
+                  </div>
+                  {(dims.north || dims.northSouth) && (
+                    <span className="text-[10px] text-slate-500 block font-sans font-normal mt-0.5">
+                      North: {dims.north ?? dims.northSouth} ft | South: {dims.south ?? dims.northSouth} ft | East: {dims.east ?? dims.eastWest} ft | West: {dims.west ?? dims.eastWest} ft
+                    </span>
+                  )}
                 </td>
               </tr>
 

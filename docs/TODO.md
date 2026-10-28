@@ -6,6 +6,25 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
+- [x] **Universal Commission & Incentive Policy Unification & Legacy System Removal**:
+  - Unanimously established **Direct Commission** (`/dashboard/plots/products?tab=schemes`) as the sole system for tenure-based upfront commission payouts (RD & FD).
+  - Unanimously established **Target Incentive & Extra Incentive Policy** (`/dashboard/plots/products?tab=incentives`) as the sole system for volume closing incentives & rewards.
+  - Slabs updated to the user-specified tiers:
+    - **Business Associate**: Target Slabs (1 - 1,99,999 @ 1%, up to 6,00,000+ @ 2%) and Extra Milestone Slabs (1 - 7,99,999 @ 0.5% up to 24,00,000+ @ 1%).
+    - **Business Partner**: Target Slabs (1 - 3,99,999 @ 0.5% up to 12,00,000+ @ 1%) and Extra Milestone Slabs (1 - 15,99,999 @ 0.25% up to 48,00,000+ @ 0.5%).
+    - **Branch Partner**: Target Slabs (1 - 7,99,999 @ 0.5% up to 24,00,000+ @ 1%) and Extra Milestone Slabs (1 - 31,99,999 @ 0.25% up to 1,00,00,000+ @ 0.5%).
+  - In [plotClosing.service.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/services/plots/plotClosing.service.js), all business sales (both Plot Bookings and Investment RD/FD collections) aggregate together into the sponsor's total business turnover, resolving against the unified policy.
+  - Removed confusing legacy dual-policy UI toggles (`PLOT_SALE` vs `INVESTMENT_RD_FD`) in [CommissionStructurePage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx) and [CommissionPolicyMatrix.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/seriesMaster/components/CommissionPolicyMatrix.jsx).
+- [x] **Dedicated Commission Rates & Policy Page for Business Associates & Partners**:
+  - Created dedicated read-only [CommissionStructurePage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx) (`/dashboard/my-commission-rates`).
+  - Contains Tab 1 (Direct Commission / Scheme Rules) and Tab 2 (Target & Extra Incentive Policy).
+  - Business Associates only see their own BA fixed rates & incentive slabs.
+  - Business Partners see both Business Partner rates and their team Business Associate rates.
+  - Added navigation links in sidebar and dashboard.
+- [x] **Investment Booking Quantity Lock on Custom Dimensions & Inline Total Plot Value**:
+  - Automatically locks the Quantity field and disables stepper buttons (`+` / `-`) with lock indicators when custom dimensions (e.g. 30 × 40 = 1,200 Sq.Ft) are entered in `/dashboard/plots/investment-booking/new`.
+  - Keeps Custom Unit Rate (₹) editable.
+  - Added live Total Value display (`1,200 Sq.Ft × ₹1,000 = ₹12,00,000` / `Quantity × Rate`) alongside the Quantity and Rate fields in the form in addition to the right-side summary.
 - [x] **Land Document Attachments Security Checks & Interactive In-App Preview**:
   - Whitelisted document & image file extensions (`.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.avif`) and mime types with a 20MB max file size limit.
   - Added binary magic bytes / signature validation (`checkDocMagicBytes` for PDF, JPEG, PNG, GIF, BMP, TIFF, WEBP) in `server/controllers/plots.controller.js` to block disguised scripts/executables.

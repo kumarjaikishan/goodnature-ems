@@ -191,71 +191,68 @@ class PlotConfigService {
   }
 
   // ── COMMISSION POLICY CONFIGURATION ─────────────────────────────
-  async getCommissionPolicy(businessType = 'PLOT_SALE') {
-    let policy = await CommissionPolicyConfig.findOne({ businessType, status: 'active' });
-    const defaultData = businessType === 'PLOT_SALE'
-      ? CommissionPolicyConfig.getDefaultPlotPolicy()
-      : businessType === 'PLOT_PRODUCT'
-      ? CommissionPolicyConfig.getDefaultPlotProductPolicy()
-      : CommissionPolicyConfig.getDefaultInvestmentPolicy();
+  async getCommissionPolicy(businessType = 'PLOT_PRODUCT') {
+    const defaultData = CommissionPolicyConfig.getDefaultCommissionPolicy();
+    let policy = await CommissionPolicyConfig.findOne({
+      businessType: { $in: [businessType, 'PLOT_PRODUCT', 'PLOT_SALE'] },
+      status: 'active',
+    }).sort({ updatedAt: -1 });
 
     if (!policy) {
-      policy = new CommissionPolicyConfig(defaultData);
+      policy = new CommissionPolicyConfig({ ...defaultData, businessType, status: 'active' });
       await policy.save();
-      // Auto-migrate: ensure BRANCH_PARTNER and extraSlabs exist if policy was saved previously
-      let modified = false;
-      const hasBranchPartner = (policy.roles || []).some((r) => r.roleName === 'BRANCH_PARTNER');
-      if (!hasBranchPartner) {
-        const branchPartnerDefault = defaultData.roles.find((r) => r.roleName === 'BRANCH_PARTNER');
-        if (branchPartnerDefault) {
-          policy.roles.push(branchPartnerDefault);
-          modified = true;
-        }
-      }
-
-      (policy.roles || []).forEach((r) => {
-        if (!Array.isArray(r.extraSlabs) || r.extraSlabs.length === 0) {
-          const roleDef = defaultData.roles.find((dr) => dr.roleName === r.roleName);
-          if (roleDef && roleDef.extraSlabs) {
-            r.extraSlabs = roleDef.extraSlabs;
-            modified = true;
-          }
-        }
-      });
-
-      if (modified) {
-        await policy.save();
-      }
+      return policy;
     }
+
+    // Auto-migrate legacy policies if they don't match the new scale (1 - 1,99,999 @ 1.0%)
+    const baRole = (policy.roles || []).find((r) => r.roleName === 'BUSINESS_ASSOCIATE');
+    const isLegacySlab = !baRole || !Array.isArray(baRole.targetSlabs) || baRole.targetSlabs.length !== 6 || baRole.targetSlabs[0]?.maxAmount !== 199999;
+
+    if (isLegacySlab) {
+      policy.roles = defaultData.roles;
+      policy.policyName = defaultData.policyName;
+      await policy.save();
+
+      await CommissionPolicyConfig.updateMany(
+        { status: 'active' },
+        { $set: { roles: defaultData.roles } }
+      );
+    }
+
     return policy;
   }
 
-  async updateCommissionPolicy(businessType = 'PLOT_SALE', data) {
-    let policy = await CommissionPolicyConfig.findOne({ businessType, status: 'active' });
-    if (!policy) {
-      policy = new CommissionPolicyConfig({ ...data, businessType, status: 'active' });
-    } else {
-      if (data.policyName) policy.policyName = data.policyName;
-      if (data.validFrom !== undefined) policy.validFrom = data.validFrom;
-      if (data.validTo !== undefined) policy.validTo = data.validTo;
-      if (data.roles) policy.roles = data.roles;
-    }
-    await policy.save();
+  async updateCommissionPolicy(businessType = 'PLOT_PRODUCT', data) {
+    const defaultData = CommissionPolicyConfig.getDefaultCommissionPolicy();
+    const policyData = {
+      policyName: data.policyName || defaultData.policyName,
+      validFrom: data.validFrom !== undefined ? data.validFrom : defaultData.validFrom,
+      validTo: data.validTo !== undefined ? data.validTo : defaultData.validTo,
+      roles: data.roles || defaultData.roles,
+      status: 'active',
+    };
 
-    // Universal policy sync: when saving PLOT_PRODUCT policy, sync it to PLOT_SALE so it applies everywhere
-    if (businessType === 'PLOT_PRODUCT') {
-      let salePolicy = await CommissionPolicyConfig.findOne({ businessType: 'PLOT_SALE', status: 'active' });
-      if (!salePolicy) {
-        salePolicy = new CommissionPolicyConfig({ ...data, businessType: 'PLOT_SALE', status: 'active' });
+    // Keep all policy collections (PLOT_PRODUCT, PLOT_SALE, INVESTMENT_RD_FD) completely synced to this single unified policy
+    const businessTypesToSync = ['PLOT_PRODUCT', 'PLOT_SALE', 'INVESTMENT_RD_FD'];
+    let primaryPolicy = null;
+
+    for (const bType of businessTypesToSync) {
+      let pol = await CommissionPolicyConfig.findOne({ businessType: bType, status: 'active' });
+      if (!pol) {
+        pol = new CommissionPolicyConfig({ ...policyData, businessType: bType });
       } else {
-        if (data.validFrom !== undefined) salePolicy.validFrom = data.validFrom;
-        if (data.validTo !== undefined) salePolicy.validTo = data.validTo;
-        if (data.roles) salePolicy.roles = data.roles;
+        pol.policyName = `${policyData.policyName}_${bType}`;
+        if (policyData.validFrom !== undefined) pol.validFrom = policyData.validFrom;
+        if (policyData.validTo !== undefined) pol.validTo = policyData.validTo;
+        if (policyData.roles) pol.roles = policyData.roles;
       }
-      await salePolicy.save();
+      await pol.save();
+      if (bType === businessType || !primaryPolicy) {
+        primaryPolicy = pol;
+      }
     }
 
-    return policy;
+    return primaryPolicy;
   }
 }
 
