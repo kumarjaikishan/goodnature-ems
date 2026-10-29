@@ -3,6 +3,7 @@ const Ledger = require('../models/ledger');
 const Entry = require('../models/entry');
 const Employee = require('../models/employee');
 const User = require('../models/user');
+const Branch = require('../models/branch');
 const mongoose = require('mongoose');
 const { generateVoucherNo } = require('../utils/voucherHelper');
 
@@ -136,7 +137,6 @@ class AccountingService {
     const amountNum = Number(amount) || 0;
     const Employee = mongoose.model('employee');
     const User = mongoose.model('User');
-    const Branch = require('../models/branch');
     const postingDate = toUtcDateOnly(date);
 
     // 1. Find the Ledger

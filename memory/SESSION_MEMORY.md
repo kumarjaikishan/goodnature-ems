@@ -2,6 +2,21 @@
 
 This file records session notes, caveats, and discoveries across active sessions.
 
+- **Customer Return % Columns on Commission Rates Page [COMPLETED]**:
+  - **Requirement**: In `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`), display the customer maturity return percentage for EMI (`112%`, `120%`, etc.) and One-Time (`121%`, `135%`, etc.) right after Tenure.
+  - **Constraint**: Do NOT show the internal annual interest rate (% p.a., e.g., `11.286%`, `9.644%`) to sponsor roles.
+  - **Implementation**:
+    - **Frontend**: Added `Customer Return % (EMI)` and `Customer Return % (One-Time)` columns with styled badge indicators in `CommissionStructurePage.jsx`.
+    - **Backend**: Sanitized `getSchemeConfig` in `server/controllers/investment.controller.js` to strip `annualInterestRate`, `rdAnnualInterestRate`, and `fdAnnualInterestRate` for `sponsor` role requests.
+
+- **Voucher Bank Permissions Consolidation (CQ4) [COMPLETED]**:
+  - **Issue**: `createVoucher`, `approveVoucher`, and `recordVoucherPayment` in `server/controllers/voucher.js` duplicated 25+ lines of bank permission queries and dynamic `require('../models/user')` calls.
+  - **Fix**: Extracted logic into `validateBankDisbursementPermission(userId, userRole, paymentLedger, session)`. Reusable across all disbursement routes with transaction session awareness and zero changes to error codes or responses.
+
+- **Ledger Auto-Sync Optimization & Debouncing (B5 / P2) [COMPLETED]**:
+  - **Issue**: `GET /ledger` ran 5 heavy multi-table write-sync loops (`createLedgerForEmployee`, `createLedgerForSponsors`, `createLedgerForKisans`, `createLedgerForUsers`, `createLedgerForBranches`) on every single list request, and `getTreasuryLedgers` / `getMyCashLedger` ran full user table scans on every modal open.
+  - **Fix**: Wrapped the 5 sync routines in `syncAllLedgersSafe()` in `server/controllers/ledger.js` with a 5-minute debounce interval and concurrency lock. Added optional `?sync=true` query param to force sync on demand. In `getMyCashLedger`, removed redundant full user table scan since missing cash ledgers are already created on the fly.
+
 - **Dedicated Commission Rates & Policy Page for Business Associates & Partners [COMPLETED]**:
   - **Requirement**:
     - Build a dedicated, separate page (`CommissionStructurePage.jsx`) to display direct commission rates and target/extra incentive policies for Business Associates and Business Partners without exposing the admin Plot Products page.

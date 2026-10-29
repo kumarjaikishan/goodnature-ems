@@ -14,46 +14,37 @@ export const FirstFetch = createAsyncThunk(
     }
 );
 
+const initialUserState = {
+    profile: null,
+    department: null,
+    adminManager: null,
+    employee: null,
+    company: null,
+    holidays: null,
+    notices: null,
+    branch: null,
+    attandence: null,
+    ledger: null,
+    leaveBalance: null,
+    leavePolicies: [],
+    advance: null,
+    payroll: null,
+    status: 'idle',
+    sidebar: typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
+    extendedonMobile: false,
+    liveAttandence: true,
+    notificationSoundEnabled: true,
+    primaryColor: '#1e293b',
+};
+
 const userSlice = createSlice({
     name: 'user',
-    initialState: {
-        profile: null,
-        department: null,
-        adminManager: null,
-        employee: null,
-        company: null,
-        holidays: null,
-        notices: null,
-        branch: null,
-        attandence: null,
-        ledger: null,
-        leaveBalance: null,
-        leavePolicies: [],
-        advance: null,
-        payroll: null,
-        status: 'idle',
-        sidebar: typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
-        extendedonMobile: false,
-        liveAttandence: true,
-        notificationSoundEnabled: true,
-        primaryColor: '#1e293b',
-    },
+    initialState: initialUserState,
     reducers: {
         userlogout(state, action) {
-            localStorage.clear();
-            state.profile = null;
-            state.department = null;
-            state.adminManager = null;
-            state.employee = null;
-            state.company = null;
-            state.holidays = null;
-            state.notices = null;
-            state.branch = null;
-            state.leaveBalance = null;
-            state.advance = null;
-            state.attandence = null;
-            state.ledger = null;
-            state.payroll = null;
+            localStorage.removeItem("emstoken");
+            localStorage.removeItem("persist:EMS");
+            return { ...initialUserState };
         },
         updateAttendance(state, action) {
             state.attandence = action.payload;

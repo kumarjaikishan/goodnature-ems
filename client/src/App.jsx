@@ -15,6 +15,7 @@ import ScrollToTop from './components/ScrollToTop';
 import { swal } from './utils/confirmDialog';
 import { isTokenValid, clearAuthSession, getRoleFromToken } from './utils/auth';
 import RoutePermissionGuard from './utils/RoutePermissionGuard';
+import ErrorBoundary from './components/ErrorBoundary';
 // import  Errorpage  from './pages/error/Errorpage';
 
 
@@ -509,6 +510,7 @@ function App() {
         }}
       />
       <ScrollToTop />
+      <ErrorBoundary>
       <Suspense
         fallback={<div className="flex items-center justify-center h-screen w-screen bg-white">
           <div className="relative">
@@ -570,6 +572,7 @@ function App() {
           </Routes>
         )}
       </Suspense>
+      </ErrorBoundary>
     </>
   );
 }

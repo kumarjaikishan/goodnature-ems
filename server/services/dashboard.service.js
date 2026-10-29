@@ -214,6 +214,7 @@ class DashboardService {
       const voucherMatch = {
         date: { $gte: start, $lte: end },
         status: { $in: ['APPROVED', 'PAID', 'PARTIALLY_PAID'] },
+        type: 'RECEIPT', // Only actual income receipt vouchers, never payment disbursements
         ...branchFilter
       };
       if (scope.isCashier) {
@@ -252,6 +253,7 @@ class DashboardService {
       const vMatch = {
         date: { $gte: start, $lte: end },
         status: { $in: ['APPROVED', 'PAID', 'PARTIALLY_PAID'] },
+        type: 'RECEIPT',
         ...branchFilter
       };
       if (scope.isCashier) vMatch.createdBy = scope.userObjectId;
@@ -328,6 +330,7 @@ class DashboardService {
       const vMatch = {
         date: { $gte: start, $lte: end },
         status: { $in: ['APPROVED', 'PAID', 'PARTIALLY_PAID'] },
+        type: { $ne: 'RECEIPT' }, // Payment disbursements (MANUAL, SALARY, etc.)
         ...branchFilter
       };
       if (scope.isCashier) vMatch.createdBy = scope.userObjectId;
@@ -411,7 +414,7 @@ class DashboardService {
         .limit(limit)
         .lean();
     } else if (subFilter === 'voucher_expense') {
-      const q = { date: { $gte: start, $lte: end }, status: { $in: ['APPROVED', 'PAID', 'PARTIALLY_PAID'] }, ...branchFilter };
+      const q = { date: { $gte: start, $lte: end }, status: { $in: ['APPROVED', 'PAID', 'PARTIALLY_PAID'] }, type: { $ne: 'RECEIPT' }, ...branchFilter };
       if (scope.isCashier) q.createdBy = scope.userObjectId;
       totalRecords = await Voucher.countDocuments(q);
       detailedRecords = await Voucher.find(q)

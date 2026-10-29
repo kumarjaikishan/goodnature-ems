@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { setlogin } from "../../store/authSlice";
 import { useNavigate } from "react-router-dom";
 import { setuser } from "../../store/userSlice";
+import { resetRedirectFlag } from "../utils/auth";
 import { Eye, EyeOff } from "lucide-react";
 
 const Login = () => {
@@ -30,6 +31,7 @@ const Login = () => {
             });
 
             toast.success(data.message || "Login successful!");
+            resetRedirectFlag();
             localStorage.setItem("emstoken", data.token);
             dispatch(setlogin(true));
             dispatch(setuser(data.user));

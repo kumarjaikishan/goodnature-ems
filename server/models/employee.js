@@ -7,6 +7,11 @@ const policyItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const employeeSchema = new mongoose.Schema({
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company',
+        index: true
+    },
     userid: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'user',
@@ -20,7 +25,7 @@ const employeeSchema = new mongoose.Schema({
     ledgerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Ledger',
-        required: true
+        default: null
     },
     empId: {
         type: String,

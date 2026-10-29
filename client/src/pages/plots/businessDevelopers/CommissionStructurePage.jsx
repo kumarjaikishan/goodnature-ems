@@ -186,12 +186,17 @@ const CommissionStructurePage = () => {
 
           {/* Slabs Table Card */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Layers size={17} className="text-teal-700" />
-                <h3 className="text-sm font-bold text-slate-800">
-                  Customer Plan Tenure &amp; Commission Slabs
-                </h3>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    Customer Plan Tenure &amp; Commission Slabs
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Customer Return displays total maturity return percentage for EMI &amp; One-Time investment plans.
+                  </p>
+                </div>
               </div>
               <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
                 {slabs.length} Active Slabs
@@ -204,6 +209,12 @@ const CommissionStructurePage = () => {
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3 px-4">Plan Name</th>
                     <th className="py-3 px-4">Tenure (अवधि)</th>
+                    <th className="py-3 px-4 bg-sky-50/70 text-sky-950 font-bold whitespace-nowrap">
+                      Customer Return % (EMI)
+                    </th>
+                    <th className="py-3 px-4 bg-blue-50/70 text-blue-950 font-bold whitespace-nowrap">
+                      Customer Return % (One-Time)
+                    </th>
                     <th className="py-3 px-4">Plan Type</th>
                     {/* If Associate View, show only Business Associate columns */}
                     {activeRoleMode === 'associate' ? (
@@ -237,7 +248,7 @@ const CommissionStructurePage = () => {
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {slabs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400 font-normal">
+                      <td colSpan={activeRoleMode === 'associate' ? 7 : 9} className="py-8 text-center text-slate-400 font-normal">
                         No tenure slabs configured yet.
                       </td>
                     </tr>
@@ -250,12 +261,38 @@ const CommissionStructurePage = () => {
                         </td>
 
                         {/* Tenure */}
-                        <td className="py-3.5 px-4 text-slate-700 font-semibold font-mono">
+                        <td className="py-3.5 px-4 text-slate-700 font-semibold font-mono whitespace-nowrap">
                           {slab.tenureMonths} Months ({Math.round((slab.tenureMonths / 12) * 10) / 10}Y)
                         </td>
 
+                        {/* Customer Return % (EMI) */}
+                        <td className="py-3.5 px-4 bg-sky-50/20 font-mono text-sm whitespace-nowrap">
+                          {Number(slab.rdMaturityPercent) > 0 ? (
+                            <span className="inline-block px-2.5 py-1 rounded-lg bg-sky-100/90 text-sky-950 border border-sky-300 font-black">
+                              {Number(slab.rdMaturityPercent)}%
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-semibold text-xs">
+                              0%
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Customer Return % (One-Time) */}
+                        <td className="py-3.5 px-4 bg-blue-50/20 font-mono text-sm whitespace-nowrap">
+                          {Number(slab.fdMaturityPercent) > 0 ? (
+                            <span className="inline-block px-2.5 py-1 rounded-lg bg-blue-100/90 text-blue-950 border border-blue-300 font-black">
+                              {Number(slab.fdMaturityPercent)}%
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-semibold text-xs">
+                              0%
+                            </span>
+                          )}
+                        </td>
+
                         {/* Plan Type */}
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           {Boolean(slab.showInAddBooking || slab.planType === 'REGISTRY_SALE' || slab.planName?.toLowerCase().includes('plot')) ? (
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                               Plot Booking

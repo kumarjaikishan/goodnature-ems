@@ -48,7 +48,7 @@ router.route('/health').get(async (req, res) => {
 });
 
 router.route('/jwtcheck').get(authmiddlewre, (req, res) => {
-  res.status(201).json({
+  res.status(200).json({
     message: "ok"
   })
 });
@@ -312,13 +312,17 @@ router.route('/developer/errors')
 
 router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"), (req, res) => {
   const { project } = req.params;
-  if (!project || !deploy_script[project]) {
+  const scriptPath = deploy_script[String(project).toLowerCase().trim()];
+  if (!scriptPath || typeof scriptPath !== 'string') {
     return res.status(400).json({
       success: false,
       message: `Invalid project identifier. Allowed: ${Object.keys(deploy_script).join(', ')}`
     });
   }
-  exec(`bash ${deploy_script[project]}`, (error, stdout, stderr) => {
+
+  // Security hardening: execute bash with fixed argument array via execFile rather than string shell interpolation
+  const { execFile } = require('child_process');
+  execFile('bash', [scriptPath], (error, stdout, stderr) => {
     if (error) {
       console.error("Deployment error:", error.message);
       return res.status(500).json({
@@ -332,7 +336,6 @@ router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"),
       console.error("Deployment stderr:", stderr);
     }
 
-    console.log("Deployment stdout:", stdout);
     return res.json({
       message: "Deployment triggered successfully!",
       logs: stdout,

@@ -292,23 +292,6 @@ export const getBookingColumns = ({
             );
           })()}
 
-          {/* 6. Edit Booking Contract (Hidden when cancelled) */}
-          {canUpdate && b.status !== 'CANCELLED' && (
-            <button
-              onClick={() => {
-                if (handleEditClick) {
-                  handleEditClick(b);
-                } else if (navigate) {
-                  navigate(`/dashboard/plots/booking/edit/${b._id}`);
-                }
-              }}
-              title="Edit Booking Contract"
-              className="w-7 h-7 flex items-center justify-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
-            >
-              <Edit3 size={14} />
-            </button>
-          )}
-
           {/* 7. View Revision & Restructuring History */}
           {canUpdate && b.status !== 'CANCELLED' && (
             <button
@@ -325,21 +308,6 @@ export const getBookingColumns = ({
             </button>
           )}
 
-          {/* 8. Delete Booking */}
-          {canDelete && (
-            <button
-              onClick={() => openDeleteBookingModal(b)}
-              disabled={deletingId === b._id}
-              title="Delete Booking"
-              className="w-7 h-7 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition cursor-pointer border border-rose-200 disabled:opacity-50 shadow-2xs"
-            >
-              {deletingId === b._id ? (
-                <div className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Trash2 size={14} />
-              )}
-            </button>
-          )}
         </div>
       </div>
     ),

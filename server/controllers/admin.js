@@ -195,7 +195,7 @@ const addemployee = async (req, res, next) => {
 
         await session.commitTransaction();
         session.endSession();
-        res.status(200).json({ message: 'employee Created Successfully' });
+        res.status(201).json({ message: 'employee Created Successfully' });
 
     } catch (error) {
         await session.abortTransaction();
@@ -1177,6 +1177,11 @@ const leavehandle = async (req, res, next) => {
     let { leaveid, status } = req.body;
 
     if (!leaveid || !status) return next({ status: 400, message: "Leave id and status is required" });
+
+    const VALID_LEAVE_STATUSES = ['approved', 'rejected', 'pending'];
+    if (!VALID_LEAVE_STATUSES.includes(status)) {
+        return next({ status: 400, message: `Invalid status '${status}'. Allowed values: ${VALID_LEAVE_STATUSES.join(', ')}` });
+    }
 
     try {
         const query = await leavemodal.findByIdAndUpdate(leaveid, { status }).populate('employeeId', 'userid');

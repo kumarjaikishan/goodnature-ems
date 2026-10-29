@@ -146,8 +146,13 @@ const userLogin = async (req, res, next) => {
 
 const passreset = async (req, res, next) => {
   try {
-    const temptoken = crypto.randomBytes(32).toString('hex');
-    const query = await user.findByIdAndUpdate(req.user.id, { temptoken: temptoken });
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiry = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes TTL
+    const query = await user.findByIdAndUpdate(req.user.id, { 
+      temptoken: hashedToken,
+      temptokenExpiry: expiry 
+    });
     if (!query) {
       return next({ status: 400, message: "UserId is Not Valid" });
     }
@@ -155,7 +160,7 @@ const passreset = async (req, res, next) => {
     <br>
     This mail is regards to your password reset request. 
     <br><br>
-    <a href="https://office.battlefiesta.in/resetpassword/${temptoken}" style="display: inline-block; padding: 4px 20px; background-color: #007bff; color: #fff; text-decoration: none; letter-spacing: 1px;; border-radius: 5px;">Reset Password</a>
+    <a href="https://office.battlefiesta.in/resetpassword/${rawToken}" style="display: inline-block; padding: 4px 20px; background-color: #007bff; color: #fff; text-decoration: none; letter-spacing: 1px;; border-radius: 5px;">Reset Password</a>
     `
     // await sendemail(req.user.email, 'Password Reset', msg);
     // await addJobToQueue(req.user.email, 'Password Reset || BattleFiesta', msg)
@@ -174,16 +179,44 @@ const passreset = async (req, res, next) => {
 const setpassword = async (req, res, next) => {
   const token = req.query.token;
   const password = req.body.password;
+
+  if (!password || typeof password !== 'string' || password.trim().length < 6) {
+    return next({ status: 400, message: 'Password must be at least 6 characters long' });
+  }
+
   try {
-    const query = await user.findOne({ temptoken: token });
+    // Check for hashed token match (new flow) or plaintext match (legacy compatibility)
+    const hashedIncoming = crypto.createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    let query = await user.findOne({
+      temptoken: hashedIncoming,
+      $or: [
+        { temptokenExpiry: { $gt: now } },
+        { temptokenExpiry: null },
+        { temptokenExpiry: { $exists: false } }
+      ]
+    });
 
     if (!query) {
-      return next({ status: 400, message: 'This link has been Expired' });
+      // Fallback check for legacy unhashed tokens that haven't expired
+      query = await user.findOne({
+        temptoken: token,
+        $or: [
+          { temptokenExpiry: { $gt: now } },
+          { temptokenExpiry: null },
+          { temptokenExpiry: { $exists: false } }
+        ]
+      });
+    }
+
+    if (!query) {
+      return next({ status: 400, message: 'This reset link is invalid or has expired' });
     }
 
     const saltRound = await bcrypt.genSalt(10);
     const hash_password = await bcrypt.hash(password, saltRound);
-    const passupdated = await user.updateOne({ _id: query._id }, { password: hash_password, temptoken: '' })
+    const passupdated = await user.updateOne({ _id: query._id }, { password: hash_password, temptoken: '', temptokenExpiry: null })
 
     if (!passupdated) {
       return next({ status: 400, message: 'something went wrong' });

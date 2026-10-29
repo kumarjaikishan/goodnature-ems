@@ -43,8 +43,12 @@ const userSchema = new mongoose.Schema({
     temptoken: {
         type: String,
     },
+    temptokenExpiry: {
+        type: Date,
+    },
     AllPermissionNames: {
-        type: Array,
+        type: [String],
+        default: []
     },
     subscription: {
         plan: {

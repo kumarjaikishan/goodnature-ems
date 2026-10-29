@@ -86,9 +86,10 @@ const Sidebar = () => {
 
   useEffect(() => {
     fetchPendingApprovals();
-    // Poll every 30 seconds for live updates
-    const interval = setInterval(fetchPendingApprovals, 30000);
-    return () => clearInterval(interval);
+    // Refresh pending counts when user navigates routes or when a custom approval update event fires
+    const handleCustomUpdate = () => fetchPendingApprovals();
+    window.addEventListener('ems-refresh-approvals', handleCustomUpdate);
+    return () => window.removeEventListener('ems-refresh-approvals', handleCustomUpdate);
   }, [fetchPendingApprovals, location.pathname]);
 
   const getGroupPendingCount = (groupMenu) => {

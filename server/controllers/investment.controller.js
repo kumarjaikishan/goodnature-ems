@@ -4,7 +4,15 @@ class InvestmentController {
   async getSchemeConfig(req, res) {
     try {
       const config = await investmentService.getSchemeConfig();
-      res.status(200).json({ success: true, data: config });
+      const configObj = config?.toObject ? config.toObject() : JSON.parse(JSON.stringify(config || {}));
+      // Protect internal compounding interest rates from sponsor roles (they only see customer maturity return %)
+      if (req.user?.role === 'sponsor' && Array.isArray(configObj.slabs)) {
+        configObj.slabs = configObj.slabs.map((s) => {
+          const { annualInterestRate, rdAnnualInterestRate, fdAnnualInterestRate, ...rest } = s;
+          return rest;
+        });
+      }
+      res.status(200).json({ success: true, data: configObj });
     } catch (err) {
       res.status(400).json({ success: false, message: err.message });
     }

@@ -99,12 +99,20 @@ class KisanLandService {
 
         const allEntries = await Entry.find({ ledgerId: ledger._id }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
         let running = 0;
+        const bulkOps = [];
         for (const e of allEntries) {
           running += (e.credit || 0) - (e.debit || 0);
           if (e.balance !== running) {
-            e.balance = running;
-            await e.save({ session });
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: e._id },
+                update: { $set: { balance: running } }
+              }
+            });
           }
+        }
+        if (bulkOps.length > 0) {
+          await Entry.bulkWrite(bulkOps, { session });
         }
         ledger.advance = running;
         await ledger.save({ session });

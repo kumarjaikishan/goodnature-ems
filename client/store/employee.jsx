@@ -14,30 +14,26 @@ export const empFirstFetch = createAsyncThunk(
     }
 );
 
+const initialEmployeeState = {
+    profile: null,
+    notification: null,
+    attendance: null,
+    leave: null,
+    salary: null,
+    holiday: null,
+    notices: null,
+    companysetting: null,
+    status: 'idle',
+};
+
 const EmployeeSlice = createSlice({
     name: 'employee',
-    initialState: {
-        profile: null,
-        notification: null,
-        attendance: null,
-        leave: null,
-        salary: null,
-        holiday: null,
-        notices: null,
-        companysetting: null,
-        status: 'idle',
-    },
+    initialState: initialEmployeeState,
     reducers: {
         emplogout(state, action) {
-            localStorage.clear();
-            state.profile = null;
-            state.notification = null;
-            state.attendance = null;
-            state.leave = null;
-            state.salary = null;
-            state.notices = null;
-            state.companysetting = null;
-            state.holiday = null;
+            localStorage.removeItem("emstoken");
+            localStorage.removeItem("persist:EMS");
+            return { ...initialEmployeeState };
         },
     },
     extraReducers: (builder) => {

@@ -35,6 +35,28 @@ async function hasManagerVoucherAccess(managerUserId, jwtBranchIds, voucher, ses
   return false;
 }
 
+async function validateBankDisbursementPermission(userId, userRole, paymentLedger, session = null) {
+  if (!paymentLedger || paymentLedger.ledgerType !== 'bank' || userRole === 'developer') {
+    return null;
+  }
+  const query = User.findById(userId).select('bankPermissions role').lean();
+  if (session) query.session(session);
+  const caller = await query;
+  const bPerm = caller?.bankPermissions;
+  if (bPerm) {
+    if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
+      return "You do not have authorization to select or disburse corporate bank accounts for payment vouchers.";
+    }
+    if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
+      const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+      if (!allowedIds.includes(paymentLedger._id.toString())) {
+        return "You are not authorized to disburse from this designated bank account.";
+      }
+    }
+  }
+  return null;
+}
+
 exports.getVouchers = async (req, res, next) => {
   try {
     const query = { type: 'MANUAL' };
@@ -204,21 +226,9 @@ exports.createVoucher = async (req, res, next) => {
       resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
     }
 
-    if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'bank' && userRole !== 'developer') {
-      const User = require('../models/user');
-      const caller = await User.findById(req.userid).select('bankPermissions role').lean();
-      const bPerm = caller?.bankPermissions;
-      if (bPerm) {
-        if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
-          return res.status(403).json({ message: "You do not have authorization to select or disburse corporate bank accounts for payment vouchers." });
-        }
-        if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
-          const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
-          if (!allowedIds.includes(resolvedPaymentLedger._id.toString())) {
-            return res.status(403).json({ message: "You are not authorized to disburse from this designated bank account." });
-          }
-        }
-      }
+    const bankPermErr = await validateBankDisbursementPermission(req.userid, userRole, resolvedPaymentLedger, session);
+    if (bankPermErr) {
+      return res.status(403).json({ message: bankPermErr });
     }
 
     let branchId;
@@ -418,22 +428,10 @@ exports.approveVoucher = async (req, res, next) => {
         resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
       }
 
-      if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'bank' && userRole !== 'developer') {
-        const User = require('../models/user');
-        const caller = await User.findById(req.userid).select('bankPermissions role').lean();
-        const bPerm = caller?.bankPermissions;
-        if (bPerm) {
-          if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
-            return res.status(403).json({ message: "You do not have authorization to select or disburse corporate bank accounts for payment vouchers." });
-          }
-          if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
-            const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
-            if (!allowedIds.includes(resolvedPaymentLedger._id.toString())) {
-              return res.status(403).json({ message: "You are not authorized to disburse from this designated bank account." });
-            }
-          }
-        }
-      }
+      const bankPermErr = await validateBankDisbursementPermission(req.userid, userRole, resolvedPaymentLedger, session);
+    if (bankPermErr) {
+      return res.status(403).json({ message: bankPermErr });
+    }
     }
 
     const finalTotal = approvedAmount ? Number(approvedAmount) : (voucher.totalAmount || voucher.entries?.[0]?.amount || 0);
@@ -690,21 +688,9 @@ exports.recordVoucherPayment = async (req, res, next) => {
       resolvedPaymentLedger = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
     }
 
-    if (resolvedPaymentLedger && resolvedPaymentLedger.ledgerType === 'bank' && userRole !== 'developer') {
-      const User = require('../models/user');
-      const caller = await User.findById(req.userid).select('bankPermissions role').lean();
-      const bPerm = caller?.bankPermissions;
-      if (bPerm) {
-        if (bPerm.accessScope === 'none' || bPerm.allowPayments === false) {
-          return res.status(403).json({ message: "You do not have authorization to select or disburse corporate bank accounts for payment vouchers." });
-        }
-        if (bPerm.accessScope === 'selected' && bPerm.allowedBankIds) {
-          const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
-          if (!allowedIds.includes(resolvedPaymentLedger._id.toString())) {
-            return res.status(403).json({ message: "You are not authorized to disburse from this designated bank account." });
-          }
-        }
-      }
+    const bankPermErr = await validateBankDisbursementPermission(req.userid, userRole, resolvedPaymentLedger, session);
+    if (bankPermErr) {
+      return res.status(403).json({ message: bankPermErr });
     }
 
     const updatedPaid = currentPaid + payNum;

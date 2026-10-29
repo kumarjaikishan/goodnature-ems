@@ -467,13 +467,34 @@ const createLedgerForBranches = async () => {
   });
 };
 
-const ledger = async (req, res) => {
+let lastLedgerSyncTime = 0;
+let isLedgerSyncing = false;
+const LEDGER_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5-minute debounce interval
+
+const syncAllLedgersSafe = async (force = false) => {
+  const now = Date.now();
+  if (!force && (now - lastLedgerSyncTime < LEDGER_SYNC_INTERVAL_MS || isLedgerSyncing)) {
+    return;
+  }
+  isLedgerSyncing = true;
   try {
     await createLedgerForEmployee();
     await createLedgerForSponsors();
     await createLedgerForKisans();
     await createLedgerForUsers();
     await createLedgerForBranches();
+    lastLedgerSyncTime = Date.now();
+  } catch (syncErr) {
+    console.error("Auto ledger sync failed:", syncErr.message);
+  } finally {
+    isLedgerSyncing = false;
+  }
+};
+
+const ledger = async (req, res) => {
+  try {
+    const forceSync = req.query.sync === 'true';
+    await syncAllLedgersSafe(forceSync);
 
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 0;
@@ -580,36 +601,43 @@ const ledger = async (req, res) => {
       }
     });
 
-    const ledgersWithBalance = await Promise.all(
-      slicedLedgers.map(async (ledger) => {
-        const lastEntry = await Entry.findOne({ ledgerId: ledger._id })
-          .sort({ date: -1, createdAt: -1, _id: -1 });
+    // BATCH OPTIMIZATION (Fixes N+1 query loop)
+    const ledgerIds1 = slicedLedgers.map(l => l._id);
 
-        let heldBalance = 0;
-        try {
-          const pendingTransfers = await FundTransfer.find({
-            fromLedgerId: ledger._id,
-            status: 'PENDING'
-          });
-          heldBalance = pendingTransfers.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-        } catch (e) {}
+    // 1. Batch find latest entry balance per ledger using aggregation
+    const latestEntries1 = await Entry.aggregate([
+      { $match: { ledgerId: { $in: ledgerIds1 } } },
+      { $sort: { date: -1, createdAt: -1, _id: -1 } },
+      { $group: { _id: '$ledgerId', balance: { $first: '$balance' } } }
+    ]);
+    const balanceMap1 = new Map(latestEntries1.map(e => [String(e._id), e.balance]));
 
-        const netBalance = lastEntry ? lastEntry.balance : (ledger.advance || 0);
-        const isBranch = ledger.ledgerType === 'branch' || Boolean(ledger.branchId);
-        const sId = ledger.sponsorId?._id?.toString() || ledger.sponsorId?.toString();
-        const isBranchPartner = isBranch || (sId ? branchPartnerMap.has(sId) : false);
-        const branchPartnerBranch = isBranch ? ledger.branchId : (isBranchPartner ? branchPartnerMap.get(sId) : null);
+    // 2. Batch find pending fund transfers and sum heldBalance
+    const pendingTransfers1 = await FundTransfer.aggregate([
+      { $match: { fromLedgerId: { $in: ledgerIds1 }, status: 'PENDING' } },
+      { $group: { _id: '$fromLedgerId', totalHeld: { $sum: { $toDouble: '$amount' } } } }
+    ]);
+    const heldMap1 = new Map(pendingTransfers1.map(t => [String(t._id), t.totalHeld || 0]));
 
-        return {
-          ...ledger.toObject(),
-          isBranchPartner,
-          branchPartnerBranch,
-          netBalance,
-          heldBalance,
-          availableBalance: netBalance - heldBalance
-        };
-      })
-    );
+    const ledgersWithBalance = slicedLedgers.map((ledger) => {
+      const lidStr = String(ledger._id);
+      const netBalance = balanceMap1.has(lidStr) ? balanceMap1.get(lidStr) : (ledger.advance || 0);
+      const heldBalance = heldMap1.get(lidStr) || 0;
+
+      const isBranch = ledger.ledgerType === 'branch' || Boolean(ledger.branchId);
+      const sId = ledger.sponsorId?._id?.toString() || ledger.sponsorId?.toString();
+      const isBranchPartner = isBranch || (sId ? branchPartnerMap.has(sId) : false);
+      const branchPartnerBranch = isBranch ? ledger.branchId : (isBranchPartner ? branchPartnerMap.get(sId) : null);
+
+      return {
+        ...ledger.toObject(),
+        isBranchPartner,
+        branchPartnerBranch,
+        netBalance,
+        heldBalance,
+        availableBalance: netBalance - heldBalance
+      };
+    });
 
     res.json({ 
       ledgers: ledgersWithBalance,
@@ -627,7 +655,7 @@ const ledger = async (req, res) => {
  */
 const getTreasuryLedgers = async (req, res) => {
   try {
-    await createLedgerForUsers();
+    await syncAllLedgersSafe(false);
 
     const ledgers = await Ledger.find({
       ledgerType: { $in: ['bank', 'user_cash'] },
@@ -638,30 +666,36 @@ const getTreasuryLedgers = async (req, res) => {
 
     const FundTransfer = mongoose.model('FundTransfer');
 
-    const enriched = await Promise.all(
-      ledgers.map(async (l) => {
-        const lastEntry = await Entry.findOne({ ledgerId: l._id })
-          .sort({ date: -1, createdAt: -1, _id: -1 });
-        
-        let heldBalance = 0;
-        try {
-          const pendingTransfers = await FundTransfer.find({
-            fromLedgerId: l._id,
-            status: 'PENDING'
-          });
-          heldBalance = pendingTransfers.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-        } catch (e) {}
+    // BATCH OPTIMIZATION (Fixes N+1 query loop in Treasury Ledgers)
+    const ledgerIds2 = ledgers.map(l => l._id);
 
-        const netBalance = lastEntry ? lastEntry.balance : (l.advance || 0);
+    // 1. Batch find latest entry balance per ledger
+    const latestEntries2 = await Entry.aggregate([
+      { $match: { ledgerId: { $in: ledgerIds2 } } },
+      { $sort: { date: -1, createdAt: -1, _id: -1 } },
+      { $group: { _id: '$ledgerId', balance: { $first: '$balance' } } }
+    ]);
+    const balanceMap2 = new Map(latestEntries2.map(e => [String(e._id), e.balance]));
 
-        return {
-          ...l.toObject(),
-          netBalance,
-          heldBalance,
-          availableBalance: netBalance - heldBalance
-        };
-      })
-    );
+    // 2. Batch find pending fund transfers and sum heldBalance
+    const pendingTransfers2 = await FundTransfer.aggregate([
+      { $match: { fromLedgerId: { $in: ledgerIds2 }, status: 'PENDING' } },
+      { $group: { _id: '$fromLedgerId', totalHeld: { $sum: { $toDouble: '$amount' } } } }
+    ]);
+    const heldMap2 = new Map(pendingTransfers2.map(t => [String(t._id), t.totalHeld || 0]));
+
+    const enriched = ledgers.map((l) => {
+      const lidStr = String(l._id);
+      const netBalance = balanceMap2.has(lidStr) ? balanceMap2.get(lidStr) : (l.advance || 0);
+      const heldBalance = heldMap2.get(lidStr) || 0;
+
+      return {
+        ...l.toObject(),
+        netBalance,
+        heldBalance,
+        availableBalance: netBalance - heldBalance
+      };
+    });
 
     const userRole = req.user?.role;
     const isDeveloper = userRole === 'developer';
@@ -777,8 +811,6 @@ const getTreasuryLedgers = async (req, res) => {
  */
 const getMyCashLedger = async (req, res) => {
   try {
-    await createLedgerForUsers();
-
     let cashLedger = await Ledger.findOne({
       assignedUserId: req.user.id,
       ledgerType: 'user_cash'
@@ -1218,6 +1250,7 @@ module.exports = {
   recalculateBalances,
   getMyLedger,
   createLedgerForUsers,
+  syncAllLedgersSafe,
   getTreasuryLedgers,
   getMyCashLedger,
   createBankLedger,

@@ -75,6 +75,10 @@ export const getRoleFromToken = (token) => {
 // Guard flag to prevent duplicate redirect cascades
 let isRedirectingToLogin = false;
 
+export const resetRedirectFlag = () => {
+  isRedirectingToLogin = false;
+};
+
 /**
  * Completely purges all auth tokens, redux-persist storage, and triggers clean redirect to /login.
  * @param {function} [dispatch] optional redux dispatch
