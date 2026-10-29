@@ -219,6 +219,13 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
       return;
     }
 
+    if (paymentMode !== 'cash') {
+      const cleanRef = (transactionReference || '').trim();
+      if (!cleanRef) {
+        return toast.error('Transaction Reference / UTR / Cheque number is required for bank and online transactions');
+      }
+    }
+
     if (paymentMode === 'cheque') {
       const cleanCheque = (transactionReference || '').trim();
       if (!/^\d{6}$/.test(cleanCheque)) {
@@ -239,7 +246,12 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
       };
 
       const res = await api.post(`/plots/product-bookings/${booking._id}/collections`, payload);
-      toast.success(res.data?.message || 'Product installment collection recorded successfully!');
+      const isCash = String(paymentMode).toLowerCase() === 'cash';
+      if (isCash) {
+        toast.success(res.data?.message || 'Product installment collection recorded successfully!');
+      } else {
+        toast.info('Online collection recorded with PENDING approval status. Awaiting manager/admin verification.');
+      }
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -368,7 +380,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
               {isBankReceiptAllowed && (
                 <>
                   <option value="upi">UPI / Online</option>
-                  <option value="bank_transfer">Bank Transfer / NEFT</option>
+                  <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
                   <option value="cheque">Cheque</option>
                 </>
               )}
@@ -593,7 +605,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
         {paymentMode !== 'cash' && (
           <div>
             <label className="block font-bold text-slate-700 mb-1">
-              {paymentMode === 'cheque' ? 'Cheque Number (6 Digits)' : 'Transaction Reference / UTR Number'}
+              {paymentMode === 'cheque' ? 'Cheque Number (6 Digits) *' : 'Transaction Reference / UTR Number *'}
             </label>
             <input
               type="text"

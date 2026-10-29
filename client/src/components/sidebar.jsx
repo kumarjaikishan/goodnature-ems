@@ -186,7 +186,7 @@ const Sidebar = () => {
           roles: OPERATIONAL_ROLES,
           children: [
 
-            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
+            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: ["associate", "partner", "plot_sponsor"] },

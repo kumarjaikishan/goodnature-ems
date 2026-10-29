@@ -7,7 +7,7 @@ export const PERMISSION_LABELS = {
 };
 
 export const AllPermissionNames = [
-    // 1. Organization & Core Master
+    // 1. Organization & Core HRMS Master
     "branch",
     "department",
     "employee",
@@ -31,20 +31,28 @@ export const AllPermissionNames = [
     "partner_ledger",
     "branch_ledger",
 
-    // 3. Real Estate & Plot Management
+    // 3. Real Estate: Land Procurement & Kisans
+    "plot_purchase",
+    "kisan_seller",
+
+    // 4. Real Estate: Master Inventory & Channels
     "plot_inventory",
-    "plot_booking",
-    "investment_booking",
-    "plot_collection",
+    "plot_customer",
     "associate",
     "partner",
     "plot_sponsor",
-    "plot_customer",
+
+    // 5. Real Estate: Bookings & Agreements
+    "plot_booking",
+    "investment_booking",
+
+    // 6. Real Estate: Collections, Payouts & Business Intelligence
+    "plot_collection",
     "plot_payout",
     "plot_incentive",
     "plot_reports",
 
-    // 4. System & Others
+    // 7. System & Others
     "investment",
     "audit_log",
     "notification"
@@ -71,20 +79,28 @@ export const MODULE_DISPLAY_NAMES = {
     cash_ledger: "Cash Accounts / In-Hand Cash Ledger",
     fund_transfer: "Inter-Account Fund Transfers",
     employee_ledger: "Employee Financial Ledgers",
-    kisan_ledger: "Kisan / Land Seller Ledgers",
+    kisan_ledger: "Kisan / Land Seller Ledgers & Payments",
     associate_ledger: "Business Associate Ledgers",
     partner_ledger: "Business Partner Ledgers",
     branch_ledger: "Branch Partner Ledgers",
 
-    // Real Estate & Plot Management
+    // Real Estate: Land Procurement & Kisans
+    plot_purchase: "Plot Purchase & Land Agreements",
+    kisan_seller: "Land Sellers / Kisans Directory (Add / Edit Kisans)",
+
+    // Real Estate: Master Inventory & Channels
     plot_inventory: "Plot Inventory & Series Master",
-    plot_booking: "Plot Bookings",
-    investment_booking: "Investment Bookings",
-    plot_collection: "Installments & Payment Collections",
+    plot_customer: "Plot Customers Directory",
     associate: "Business Associate (BA)",
     partner: "Business Partner (BP)",
     plot_sponsor: "Business Developers (All)",
-    plot_customer: "Plot Customers Directory",
+
+    // Real Estate: Bookings & Agreements
+    plot_booking: "Plot Bookings & Agreements (Add / Create Agreements)",
+    investment_booking: "Investment Bookings & Agreements (Add / Create Agreements)",
+
+    // Real Estate: Collections, Payouts & Business Intelligence
+    plot_collection: "Installments & Payment Collections",
     plot_payout: "Commission Payouts & Schedules",
     plot_incentive: "Incentive Closings & Rewards",
     plot_reports: "Plot Analytics & Business Reports",
@@ -129,13 +145,16 @@ export const MODULE_CATEGORIES = [
         id: "realestate",
         label: "Real Estate & Plots",
         modules: [
+            "plot_purchase",
+            "kisan_seller",
+            "plot_inventory",
+            "plot_customer",
+            "associate",
+            "partner",
+            "plot_sponsor",
             "plot_booking",
             "investment_booking",
             "plot_collection",
-            "plot_inventory",
-            "associate",
-            "partner",
-            "plot_customer",
             "plot_payout",
             "plot_incentive",
             "plot_reports"
@@ -182,6 +201,8 @@ export const adminPermission = {
     ledger: [1, 2, 3, 4],
     ledger_entry: [1, 2, 3, 4],
     weekly_off_ledger: [1, 2, 3, 4],
+    plot_purchase: [1, 2, 3, 4],
+    kisan_seller: [1, 2, 3, 4],
     plot_inventory: [1, 2, 3, 4],
     plot_booking: [1, 2, 3, 4],
     investment_booking: [1, 2, 3, 4],
@@ -212,13 +233,15 @@ export const managerPermission = {
     fund_transfer: [1, 2],
     bank_ledger: [],
     employee_ledger: [1],
-    kisan_ledger: [],
+    kisan_ledger: [1],
     associate_ledger: [1],
     partner_ledger: [1],
     branch_ledger: [1],
     ledger: [],
     ledger_entry: [1],
     weekly_off_ledger: [1, 2, 3],
+    plot_purchase: [1, 2, 3],
+    kisan_seller: [1, 2, 3],
     plot_inventory: [1],
     plot_booking: [1, 2, 3],
     investment_booking: [1, 2, 3],
@@ -249,17 +272,21 @@ export const accountantPermission = {
     bank_ledger: [1],
     fund_transfer: [1, 2],
     employee_ledger: [1],
-    kisan_ledger: [],
+    kisan_ledger: [1, 2, 3],
     associate_ledger: [1],
     partner_ledger: [1],
     branch_ledger: [1],
     ledger: [],
     ledger_entry: [1, 2, 3],
     weekly_off_ledger: [1],
+    plot_purchase: [1],
+    kisan_seller: [1],
     plot_inventory: [],
     plot_booking: [1],
     investment_booking: [1],
     plot_collection: [1, 2],
+    associate: [],
+    partner: [],
     plot_sponsor: [],
     plot_customer: [1],
     plot_payout: [1, 2, 3],
@@ -291,10 +318,14 @@ export const cashierPermission = {
     ledger: [],
     ledger_entry: [],
     weekly_off_ledger: [],
+    plot_purchase: [],
+    kisan_seller: [],
     plot_inventory: [],
     plot_booking: [1, 2],
     investment_booking: [1, 2],
     plot_collection: [1, 2],
+    associate: [],
+    partner: [],
     plot_sponsor: [],
     plot_customer: [1, 2, 3],
     plot_payout: [],
@@ -326,10 +357,14 @@ export const hrPermission = {
     ledger: [],
     ledger_entry: [],
     weekly_off_ledger: [1, 2, 3, 4],
+    plot_purchase: [],
+    kisan_seller: [],
     plot_inventory: [],
     plot_booking: [],
     investment_booking: [],
     plot_collection: [],
+    associate: [],
+    partner: [],
     plot_sponsor: [],
     plot_customer: [],
     plot_payout: [],
@@ -361,6 +396,8 @@ export const salesPermission = {
     ledger: [],
     ledger_entry: [],
     weekly_off_ledger: [],
+    plot_purchase: [1],
+    kisan_seller: [1],
     plot_inventory: [1],
     plot_booking: [1, 2, 3],
     investment_booking: [1, 2, 3],
@@ -391,6 +428,9 @@ export const auditorPermission = {
     ledger: [1],
     ledger_entry: [1],
     weekly_off_ledger: [1],
+    kisan_ledger: [1],
+    plot_purchase: [1],
+    kisan_seller: [1],
     plot_inventory: [1],
     plot_booking: [1],
     investment_booking: [1],

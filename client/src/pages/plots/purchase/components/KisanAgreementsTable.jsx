@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import usePermission from '../../../../utils/CheckPermission';
 import {
   Search,
   RefreshCw,
@@ -32,6 +33,11 @@ const KisanAgreementsTable = ({
   handleDeleteAgreement,
 }) => {
   const navigate = useNavigate();
+  const canCreateDeed = usePermission(['plot_purchase', 'plot_inventory'], 2);
+  const canPayKisan = usePermission(['kisan_ledger', 'plot_purchase'], 2);
+  const canUpdateAgreement = usePermission(['plot_purchase', 'plot_inventory'], 3);
+  const canDeleteAgreement = usePermission(['plot_purchase', 'plot_inventory'], 4);
+
   return (
     <div className="space-y-4">
       {/* Filter / Search Bar */}
@@ -312,22 +318,26 @@ const KisanAgreementsTable = ({
                             </button>
 
                             {/* 2. + Deed */}
-                            <button
-                              onClick={() => openCreateDeedModal(agr)}
-                              className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                              title="Create / Convert to Registry Deed from this agreement"
-                            >
-                              <ShieldCheck size={12} /> + Deed
-                            </button>
+                            {canCreateDeed && (
+                              <button
+                                onClick={() => openCreateDeedModal(agr)}
+                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                                title="Create / Convert to Registry Deed from this agreement"
+                              >
+                                <ShieldCheck size={12} /> + Deed
+                              </button>
+                            )}
 
                             {/* 3. Pay Kisan */}
-                            <button
-                              onClick={() => openPaymentModal(agr)}
-                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                              title="Record payment to Kisan"
-                            >
-                              <CreditCard size={12} /> Pay
-                            </button>
+                            {canPayKisan && (
+                              <button
+                                onClick={() => openPaymentModal(agr)}
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                                title="Record payment to Kisan"
+                              >
+                                <CreditCard size={12} /> Pay
+                              </button>
+                            )}
                           </div>
 
                           {/* Row 2: Management & Ledger Actions */}
@@ -342,22 +352,26 @@ const KisanAgreementsTable = ({
                             </button>
 
                             {/* 5. Edit Agreement */}
-                            <button
-                              onClick={() => openEditAgreement(agr)}
-                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                              title="Edit Land Agreement"
-                            >
-                              <Edit3 size={12} /> Edit
-                            </button>
+                            {canUpdateAgreement && (
+                              <button
+                                onClick={() => openEditAgreement(agr)}
+                                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                                title="Edit Land Agreement"
+                              >
+                                <Edit3 size={12} /> Edit
+                              </button>
+                            )}
 
                             {/* 6. Delete Agreement */}
-                            <button
-                              onClick={() => handleDeleteAgreement(agr)}
-                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                              title="Delete Agreement"
-                            >
-                              <Trash2 size={12} /> Delete
-                            </button>
+                            {canDeleteAgreement && (
+                              <button
+                                onClick={() => handleDeleteAgreement(agr)}
+                                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                                title="Delete Agreement"
+                              >
+                                <Trash2 size={12} /> Delete
+                              </button>
+                            )}
                           </div>
                         </div>
                       </td>

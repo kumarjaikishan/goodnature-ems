@@ -176,7 +176,7 @@ const Navbar = () => {
       if (pathParts.includes("emi")) {
         pageTitle = pathParts.includes("add") ? "Record EMI Collection" : "EMI Collections";
       } else if (pathParts.includes("downpayment")) {
-        pageTitle = pathParts.includes("add") ? "Record Downpayment" : "Downpayment Collections";
+        pageTitle = pathParts.includes("add") ? "Record Downpayment" : "Downpayment Collection";
       } else if (pathParts.includes("products")) {
         pageTitle = pathParts.includes("add") ? "Record Product Collection" : "Product Collections";
       } else {

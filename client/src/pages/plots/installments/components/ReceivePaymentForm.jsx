@@ -651,9 +651,9 @@ const ReceivePaymentForm = ({
                     {isBankReceiptAllowed && (
                       <>
                         <option value="upi">UPI / Online</option>
-                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
                         <option value="cheque">Cheque</option>
-                        <option value="neft_rtgs">NEFT / RTGS</option>
+
                       </>
                     )}
                   </select>

@@ -28,10 +28,16 @@ import RecordPaymentModal from './components/RecordPaymentModal';
 import CreateDeedModal from './components/CreateDeedModal';
 import EditDeedModal from './components/EditDeedModal';
 import confirmDialog from '../../../utils/confirmDialog';
+import usePermission from '../../../utils/CheckPermission';
 
 const PlotKisanLedgerPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const canCreateDeed = usePermission(['plot_purchase', 'plot_inventory'], 2);
+  const canUpdateDeed = usePermission(['plot_purchase', 'plot_inventory'], 3);
+  const canDeleteDeed = usePermission(['plot_purchase', 'plot_inventory'], 4);
+  const canPayKisan = usePermission(['kisan_ledger', 'plot_purchase'], 2);
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
@@ -282,19 +288,23 @@ const PlotKisanLedgerPage = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={openCreateDeedModal}
-            className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-          >
-            <ShieldCheck size={15} /> + Add Registry Deed
-          </button>
+          {canCreateDeed && (
+            <button
+              onClick={openCreateDeedModal}
+              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+            >
+              <ShieldCheck size={15} /> + Add Registry Deed
+            </button>
+          )}
 
-          <button
-            onClick={openPaymentModal}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-          >
-            <CreditCard size={15} /> + Pay Seller
-          </button>
+          {canPayKisan && (
+            <button
+              onClick={openPaymentModal}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+            >
+              <CreditCard size={15} /> + Pay Seller
+            </button>
+          )}
 
           <button
             onClick={() => window.print()}
@@ -582,7 +592,7 @@ const PlotKisanLedgerPage = () => {
                   {filteredFinancialLedgers.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="p-8 text-center text-slate-400 italic">
-                        No financial transactions recorded yet. Click "+ Pay Kisan" above to record a payment.
+                        No financial transactions recorded yet.{canPayKisan ? ' Click "+ Pay Seller" above to record a payment.' : ''}
                       </td>
                     </tr>
                   ) : (
@@ -932,7 +942,7 @@ const PlotKisanLedgerPage = () => {
                 {agreement?.registryDeeds?.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="p-8 text-center text-slate-400 italic">
-                      No registry deeds converted yet from this agreement. Click "+ Add Registry Deed" above to convert.
+                      No registry deeds converted yet from this agreement.{canCreateDeed ? ' Click "+ Add Registry Deed" above to convert.' : ''}
                     </td>
                   </tr>
                 ) : (
@@ -946,20 +956,27 @@ const PlotKisanLedgerPage = () => {
                       </td>
                       <td className="p-3.5 text-center print:hidden">
                         <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => openEditDeedModal(agreement._id, d)}
-                            className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg cursor-pointer transition"
-                            title="Edit Deed"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteDeed(agreement._id, d)}
-                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg cursor-pointer transition"
-                            title="Delete Deed"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          {canUpdateDeed && (
+                            <button
+                              onClick={() => openEditDeedModal(agreement._id, d)}
+                              className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg cursor-pointer transition"
+                              title="Edit Deed"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                          )}
+                          {canDeleteDeed && (
+                            <button
+                              onClick={() => handleDeleteDeed(agreement._id, d)}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg cursor-pointer transition"
+                              title="Delete Deed"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                          {!canUpdateDeed && !canDeleteDeed && (
+                            <span className="text-slate-300 text-xs px-2">-</span>
+                          )}
                         </div>
                       </td>
                     </tr>

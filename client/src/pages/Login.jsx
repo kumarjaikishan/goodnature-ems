@@ -6,7 +6,7 @@ import { setlogin } from "../../store/authSlice";
 import { useNavigate } from "react-router-dom";
 import { setuser } from "../../store/userSlice";
 import { resetRedirectFlag } from "../utils/auth";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 
 const Login = () => {
     const [identifier, setIdentifier] = useState("");
@@ -114,9 +114,19 @@ const Login = () => {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-md bg-teal-700 hover:bg-teal-800 active:scale-[0.98] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-teal-700/20"
+                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-md bg-teal-700 hover:bg-teal-800 active:scale-[0.98] transition cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed shadow-teal-700/20 flex items-center justify-center gap-2"
                                 >
-                                    {isLoading ? "Authenticating..." : "Sign In"}
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            <span>Authenticating...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LogIn size={16} />
+                                            <span>Sign In</span>
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>

@@ -137,6 +137,7 @@ const ReceiptViewer = () => {
   const outstandingDownpayment = receipt.asOfRemainingDownpayment !== undefined
     ? receipt.asOfRemainingDownpayment
     : 0;
+  const formattedMode = (receipt.paymentMode === 'bank_transfer' || receipt.paymentMode === 'neft_rtgs') ? 'BANK TRANSFER / NEFT / RTGS' : (receipt.paymentMode || '').toUpperCase();
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
@@ -223,8 +224,8 @@ const ReceiptViewer = () => {
 
         {/* Payment Receipt Title */}
         <div className="text-center mb-3 select-none relative z-10">
-          <span className="px-4 py-1 text-slate-900 text-[1rem] font-black uppercase tracking-wider rounded-sm">
-            Payment Receipt
+          <span className={`px-4 py-1 text-[1rem] font-black uppercase tracking-wider rounded-sm ${receipt?.status === 'PENDING' ? 'text-amber-800 bg-amber-50 border border-amber-300' : receipt?.status === 'REJECTED' ? 'text-rose-800 bg-rose-50 border border-rose-300' : 'text-slate-900'}`}>
+            Payment Receipt {receipt?.status && receipt?.status !== 'APPROVED' ? `(${receipt.status === 'PENDING' ? 'PENDING APPROVAL' : 'REJECTED'})` : ''}
           </span>
         </div>
 
@@ -348,7 +349,7 @@ const ReceiptViewer = () => {
                     </div>
                   </td>
                   <td className="p-2 font-bold text-slate-900 uppercase">
-                    {receipt.paymentMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
+                    {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
                   </td>
                   <td className="p-2 text-slate-500 font-medium">
                     <div className="flex justify-between items-center">
@@ -398,7 +399,7 @@ const ReceiptViewer = () => {
                     </div>
                   </td>
                   <td className="p-2 font-bold text-slate-900 uppercase">
-                    {receipt.paymentMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
+                    {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
                   </td>
                   <td className="p-2 text-slate-500 font-medium">
                     <div className="flex justify-between items-center">

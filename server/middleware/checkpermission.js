@@ -56,6 +56,18 @@ const checkPermission = (permissionName, key) => {
                     if (['associate', 'partner'].includes(name) && perms.hasOwnProperty('plot_sponsor') && Array.isArray(perms.plot_sponsor) && perms.plot_sponsor.includes(key)) {
                         return true;
                     }
+                    // Fallback for plot_purchase and kisan_seller -> plot_inventory (if explicit key is not defined on older user records)
+                    if (['plot_purchase', 'kisan_seller'].includes(name) && !perms.hasOwnProperty(name)) {
+                        if (perms.hasOwnProperty('plot_inventory') && Array.isArray(perms.plot_inventory) && perms.plot_inventory.includes(key)) {
+                            return true;
+                        }
+                    }
+                    // Fallback for kisan_seller -> kisan_ledger (if explicit kisan_seller not set, check kisan_ledger)
+                    if (name === 'kisan_seller' && !perms.hasOwnProperty(name)) {
+                        if (perms.hasOwnProperty('kisan_ledger') && Array.isArray(perms.kisan_ledger) && perms.kisan_ledger.includes(key)) {
+                            return true;
+                        }
+                    }
                     // Fallback for ledger sub-modules -> master "ledger"
                     const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
                     if (LEDGER_SUBMODULES.includes(name) && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
@@ -87,4 +99,3 @@ const checkPermission = (permissionName, key) => {
 checkPermission.invalidatePermissionCache = invalidatePermissionCache;
 
 module.exports = checkPermission;
-

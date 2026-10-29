@@ -221,7 +221,18 @@ const AdminUserFormPage = () => {
                     isBlocked: Boolean(userRecord.isBlocked),
                     profilePreview: userRecord.profileImage || '',
                     profileImage: null,
-                    permissions: userRecord.permissions ? { ...userRecord.permissions } : fallbackPerms,
+                    permissions: userRecord.permissions
+                        ? {
+                            ...fallbackPerms,
+                            ...userRecord.permissions,
+                            plot_purchase: userRecord.permissions.plot_purchase !== undefined
+                                ? userRecord.permissions.plot_purchase
+                                : (userRecord.permissions.plot_inventory || fallbackPerms.plot_purchase || []),
+                            kisan_seller: userRecord.permissions.kisan_seller !== undefined
+                                ? userRecord.permissions.kisan_seller
+                                : (userRecord.permissions.kisan_ledger || fallbackPerms.kisan_seller || []),
+                        }
+                        : fallbackPerms,
                     bankPermissions: loadedBankPerms,
                     cashPermissions: loadedCashPerms,
                 });

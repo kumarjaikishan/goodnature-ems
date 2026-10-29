@@ -107,6 +107,22 @@ const collectionTransactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Ledger',
     },
+    status: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: function () { return String(this.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING'; },
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
+    },
   },
   { _id: true, timestamps: true }
 );

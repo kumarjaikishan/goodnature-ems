@@ -181,10 +181,10 @@ const managementRoutes = (
     <Route path="vouchers" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherList /></RoutePermissionGuard>} />
     <Route path="vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherDetails /></RoutePermissionGuard>} />
 
-    <Route path="plots/purchase" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/purchase" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
     <Route path="plots/purchase/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
-    <Route path="plots/agreements" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
-    <Route path="plots/kisan-land" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/agreements" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/kisan-land" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
     <Route path="plots/kisan-ledger/:id" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
     <Route path="plots/agreements/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
     <Route path="plots/kisan-land/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
@@ -227,7 +227,7 @@ const managementRoutes = (
     <Route path="plots/products/book" element={<Navigate to="/dashboard/plots/investment-booking/new" replace />} />
     <Route path="plots/products/edit/:id" element={<RoutePermissionGuard resource="investment_booking" action={3}><ProductBookingPage /></RoutePermissionGuard>} />
     <Route path="plots/reports" element={<RoutePermissionGuard resource="plot_reports" action={1}><PlotReports /></RoutePermissionGuard>} />
-    <Route path="plots/agreements/:id" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotAgreementViewer /></RoutePermissionGuard>} />
+    <Route path="plots/agreements/:id" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotAgreementViewer /></RoutePermissionGuard>} />
     <Route path="plots/product-agreements/:id" element={<RoutePermissionGuard resource={["investment_booking", "plot_inventory"]} action={1}><ProductAgreementViewer /></RoutePermissionGuard>} />
     <Route path="plots/certificates/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
     <Route path="plots/product-certificates/:id" element={<RoutePermissionGuard resource="investment_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />

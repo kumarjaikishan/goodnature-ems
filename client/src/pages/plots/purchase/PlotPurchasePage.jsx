@@ -18,8 +18,10 @@ import EditDeedModal from './components/EditDeedModal';
 import RecordPaymentModal from './components/RecordPaymentModal';
 import KisanLedgersDrawer from './components/KisanLedgersDrawer';
 import ViewDeedModal from './components/ViewDeedModal';
+import usePermission from '../../../utils/CheckPermission';
 
 const PlotPurchasePage = () => {
+  const canCreatePurchase = usePermission(['plot_purchase', 'plot_inventory'], 2);
   const [loading, setLoading] = useState(true);
   const [agreements, setAgreements] = useState([]);
   const [total, setTotal] = useState(0);
@@ -289,50 +291,50 @@ const PlotPurchasePage = () => {
     setEditAgrTarget(agr);
     const parcels = Array.isArray(agr.landParcels) && agr.landParcels.length > 0
       ? agr.landParcels.map((p) => ({
-          _id: p._id,
-          mauja: p.mauja || agr.mauja || '',
-          thanaNumber: p.thanaNumber || agr.thanaNumber || '',
-          khataNumber: p.khataNumber || agr.khataNumber || '',
-          khesraNumber: p.khesraNumber || agr.khesraNumber || '',
-          jamabandiNumber: p.jamabandiNumber || agr.jamabandiNumber || '',
-          chaudhi: {
-            north: p.chaudhi?.north || '',
-            south: p.chaudhi?.south || '',
-            east: p.chaudhi?.east || '',
-            west: p.chaudhi?.west || '',
-          },
-          araziDismil: p.araziDismil !== undefined ? p.araziDismil : '',
-          totalSqFt: p.totalSqFt || 0,
-          ratePerDismil: p.ratePerDismil || agr.ratePerDismil || '',
-          ratePerSqFt: p.ratePerSqFt || 0,
-          totalAmount: p.totalAmount !== undefined ? p.totalAmount : '',
-          remarks: p.remarks || '',
-        }))
+        _id: p._id,
+        mauja: p.mauja || agr.mauja || '',
+        thanaNumber: p.thanaNumber || agr.thanaNumber || '',
+        khataNumber: p.khataNumber || agr.khataNumber || '',
+        khesraNumber: p.khesraNumber || agr.khesraNumber || '',
+        jamabandiNumber: p.jamabandiNumber || agr.jamabandiNumber || '',
+        chaudhi: {
+          north: p.chaudhi?.north || '',
+          south: p.chaudhi?.south || '',
+          east: p.chaudhi?.east || '',
+          west: p.chaudhi?.west || '',
+        },
+        araziDismil: p.araziDismil !== undefined ? p.araziDismil : '',
+        totalSqFt: p.totalSqFt || 0,
+        ratePerDismil: p.ratePerDismil || agr.ratePerDismil || '',
+        ratePerSqFt: p.ratePerSqFt || 0,
+        totalAmount: p.totalAmount !== undefined ? p.totalAmount : '',
+        remarks: p.remarks || '',
+      }))
       : [
-          {
-            mauja: agr.mauja || '',
-            thanaNumber: agr.thanaNumber || '',
-            khataNumber: agr.khataNumber || '',
-            khesraNumber: agr.khesraNumber || '',
-            jamabandiNumber: agr.jamabandiNumber || '',
-            chaudhi: { north: '', south: '', east: '', west: '' },
-            araziDismil: agr.araziDismil !== undefined ? agr.araziDismil : '',
-            totalSqFt: agr.totalSqFt || 0,
-            ratePerDismil: agr.ratePerDismil || '',
-            ratePerSqFt: agr.ratePerSqFt || 0,
-            totalAmount: agr.totalAgreementAmount || '',
-            remarks: '',
-          },
-        ];
+        {
+          mauja: agr.mauja || '',
+          thanaNumber: agr.thanaNumber || '',
+          khataNumber: agr.khataNumber || '',
+          khesraNumber: agr.khesraNumber || '',
+          jamabandiNumber: agr.jamabandiNumber || '',
+          chaudhi: { north: '', south: '', east: '', west: '' },
+          araziDismil: agr.araziDismil !== undefined ? agr.araziDismil : '',
+          totalSqFt: agr.totalSqFt || 0,
+          ratePerDismil: agr.ratePerDismil || '',
+          ratePerSqFt: agr.ratePerSqFt || 0,
+          totalAmount: agr.totalAgreementAmount || '',
+          remarks: '',
+        },
+      ];
 
     const attachments = Array.isArray(agr.attachments)
       ? agr.attachments.map((att) => ({
-          fileName: att.fileName || '',
-          fileType: att.fileType || 'Agreement Scan',
-          fileUrl: att.fileUrl || '',
-          fileSize: att.fileSize || 0,
-          description: att.description || '',
-        }))
+        fileName: att.fileName || '',
+        fileType: att.fileType || 'Agreement Scan',
+        fileUrl: att.fileUrl || '',
+        fileSize: att.fileSize || 0,
+        description: att.description || '',
+      }))
       : [];
 
     setEditAgrForm({
@@ -345,46 +347,46 @@ const PlotPurchasePage = () => {
       landParcels: parcels,
       farmers: Array.isArray(agr.farmers) && agr.farmers.length > 0
         ? agr.farmers.map((f) => ({
-            name: f.name || '',
-            guardianName: f.guardianName || '',
-            relation: f.relation || 'Father',
-            mobile: f.mobile || '',
-            aadhaarNumber: f.aadhaarNumber || '',
-            panNumber: f.panNumber || '',
-            sharePercent: f.sharePercent !== undefined ? f.sharePercent : 100,
-            address: f.address || '',
-          }))
+          name: f.name || '',
+          guardianName: f.guardianName || '',
+          relation: f.relation || 'Father',
+          mobile: f.mobile || '',
+          aadhaarNumber: f.aadhaarNumber || '',
+          panNumber: f.panNumber || '',
+          sharePercent: f.sharePercent !== undefined ? f.sharePercent : 100,
+          address: f.address || '',
+        }))
         : [
-            {
-              name: '',
-              guardianName: '',
-              relation: 'Father',
-              mobile: '',
-              aadhaarNumber: '',
-              panNumber: '',
-              sharePercent: 100,
-              address: '',
-            },
-          ],
+          {
+            name: '',
+            guardianName: '',
+            relation: 'Father',
+            mobile: '',
+            aadhaarNumber: '',
+            panNumber: '',
+            sharePercent: 100,
+            address: '',
+          },
+        ],
       purchasers: Array.isArray(agr.purchasers) && agr.purchasers.length > 0
         ? agr.purchasers.map((p) => ({
-            name: p.name || '',
-            contact: p.contact || p.mobile || '',
-            mobile: p.mobile || p.contact || '',
-            aadhaarNumber: p.aadhaarNumber || '',
-            panNumber: p.panNumber || '',
-            address: p.address || '',
-          }))
+          name: p.name || '',
+          contact: p.contact || p.mobile || '',
+          mobile: p.mobile || p.contact || '',
+          aadhaarNumber: p.aadhaarNumber || '',
+          panNumber: p.panNumber || '',
+          address: p.address || '',
+        }))
         : [
-            {
-              name: '',
-              contact: '',
-              mobile: '',
-              aadhaarNumber: '',
-              panNumber: '',
-              address: '',
-            },
-          ],
+          {
+            name: '',
+            contact: '',
+            mobile: '',
+            aadhaarNumber: '',
+            panNumber: '',
+            address: '',
+          },
+        ],
       attachments,
     });
     setEditAgrOpen(true);
@@ -588,14 +590,16 @@ const PlotPurchasePage = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs md:text-sm rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <Plus size={16} /> New Plot Purchase
-          </button>
-        </div>
+        {canCreatePurchase && (
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs md:text-sm rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus size={16} /> New Plot Purchase
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── METRIC SUMMARY CARDS ── */}
@@ -609,11 +613,10 @@ const PlotPurchasePage = () => {
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200">
         <button
           onClick={() => setMainTab('agreements')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
-            mainTab === 'agreements'
+          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'agreements'
               ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <FileText size={16} />
           Plot Purchase Agreements ({agreements.length})
@@ -621,11 +624,10 @@ const PlotPurchasePage = () => {
 
         <button
           onClick={() => setMainTab('deeds')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
-            mainTab === 'deeds'
+          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'deeds'
               ? 'border-purple-700 text-purple-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <ShieldCheck size={16} />
           Registry Deeds ({allRegistryDeeds.length})
@@ -633,11 +635,10 @@ const PlotPurchasePage = () => {
 
         <button
           onClick={() => setMainTab('sellers')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
-            mainTab === 'sellers'
+          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'sellers'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Users size={16} />
           Land Sellers Directory ({sellers.length})
@@ -645,11 +646,10 @@ const PlotPurchasePage = () => {
 
         <button
           onClick={() => setMainTab('purchasers')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
-            mainTab === 'purchasers'
+          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'purchasers'
               ? 'border-blue-600 text-blue-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Building2 size={16} />
           Purchasers / Buyers Master ({purchasers.length})
@@ -657,11 +657,10 @@ const PlotPurchasePage = () => {
 
         <button
           onClick={() => setMainTab('projects')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${
-            mainTab === 'projects'
+          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'projects'
               ? 'border-teal-800 text-teal-900 bg-teal-50/50 rounded-t-lg'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <FolderKanban size={16} />
           Project Master ({projects.length})
@@ -805,6 +804,11 @@ const PlotPurchasePage = () => {
         deed={viewDeedTarget}
       />
     </div>
+  );
+};
+
+export default PlotPurchasePage;
+    </div >
   );
 };
 

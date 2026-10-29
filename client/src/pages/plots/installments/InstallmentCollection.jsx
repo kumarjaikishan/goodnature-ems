@@ -658,7 +658,13 @@ const InstallmentCollection = ({ type, initialView }) => {
       const receiptStatus = (r.status || 'APPROVED').toUpperCase();
       if (statusFilter !== 'ALL' && receiptStatus !== statusFilter) return false;
       if (paymentTypeFilter !== 'ALL' && r.receiptType !== paymentTypeFilter) return false;
-      if (paymentModeFilter !== 'ALL' && r.paymentMode !== paymentModeFilter) return false;
+      if (paymentModeFilter !== 'ALL') {
+        if (paymentModeFilter === 'bank_transfer') {
+          if (r.paymentMode !== 'bank_transfer' && r.paymentMode !== 'neft_rtgs') return false;
+        } else if (r.paymentMode !== paymentModeFilter) {
+          return false;
+        }
+      }
 
       // Mode-level filtering for Downpayment vs EMI
       if (mode === 'DOWNPAYMENT') {
@@ -706,7 +712,7 @@ const InstallmentCollection = ({ type, initialView }) => {
   );
 
   const pageTitle = mode === 'DOWNPAYMENT'
-    ? (view === 'list' ? 'Downpayment Collections & Receipts' : 'Record Downpayment Collection')
+    ? (view === 'list' ? 'Downpayment Collection' : 'Record Downpayment Collection')
     : mode === 'EMI'
     ? (view === 'list' ? 'EMI Collections & Receipts' : 'Record EMI Installment Collection')
     : (view === 'list' ? 'Installment Collections & Receipts' : 'Record Installment Collection');
@@ -832,9 +838,9 @@ const InstallmentCollection = ({ type, initialView }) => {
                   <option value="ALL">All Payment Modes</option>
                   <option value="cash">Cash</option>
                   <option value="upi">UPI / Online</option>
-                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
                   <option value="cheque">Cheque</option>
-                  <option value="neft_rtgs">NEFT / RTGS</option>
+
                 </select>
               </div>
             </div>

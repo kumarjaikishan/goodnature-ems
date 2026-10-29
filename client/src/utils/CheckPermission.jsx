@@ -12,7 +12,10 @@ export const usePermission = (resource, action = 1) => {
 /**
  * Pure function to check permission when profile object is already available.
  * Supports intelligent parent fallback:
- * - bank_ledger, cash_ledger, fund_transfer, employee_ledger, kisan_ledger, sponsor_ledger -> fallback to "ledger"
+ * - associate, partner -> fallback to "plot_sponsor"
+ * - plot_purchase, kisan_seller -> fallback to "plot_inventory" (if not explicitly defined)
+ * - kisan_seller -> fallback to "kisan_ledger" (if not explicitly defined)
+ * - bank_ledger, cash_ledger, fund_transfer, employee_ledger, kisan_ledger, etc. -> fallback to "ledger"
  */
 export const hasPermission = (profile, resource, action = 1) => {
     if (!profile) return false;
@@ -38,7 +41,23 @@ export const hasPermission = (profile, resource, action = 1) => {
             }
         }
 
-        // 3. Intelligent sub-module fallback to "ledger"
+        // 3. Fallback for plot_purchase and kisan_seller -> plot_inventory (if not explicitly defined)
+        if (['plot_purchase', 'kisan_seller'].includes(res) && !permissions.hasOwnProperty(res)) {
+            const invPerms = permissions['plot_inventory'];
+            if (Array.isArray(invPerms) && invPerms.includes(action)) {
+                return true;
+            }
+        }
+
+        // 4. Fallback for kisan_seller -> kisan_ledger (if not explicitly defined)
+        if (res === 'kisan_seller' && !permissions.hasOwnProperty(res)) {
+            const kisanLedgerPerms = permissions['kisan_ledger'];
+            if (Array.isArray(kisanLedgerPerms) && kisanLedgerPerms.includes(action)) {
+                return true;
+            }
+        }
+
+        // 5. Intelligent sub-module fallback to "ledger"
         const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
         if (LEDGER_SUBMODULES.includes(res)) {
             const ledgerPerms = permissions['ledger'];

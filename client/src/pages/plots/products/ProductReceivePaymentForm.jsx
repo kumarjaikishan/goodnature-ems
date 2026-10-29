@@ -84,7 +84,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
 
         let bAccs = treasuryRes.data?.bankLedgers || treasuryRes.data?.bankAccounts || treasuryRes.data?.data?.bankAccounts || treasuryRes.data?.data?.bankLedgers || [];
         const cAccs = treasuryRes.data?.cashLedgers || treasuryRes.data?.cashAccounts || treasuryRes.data?.data?.cashAccounts || treasuryRes.data?.data?.cashLedgers || [];
-        
+
         if (!isBankReceiptAllowed) {
           bAccs = [];
         }
@@ -314,6 +314,19 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       return;
     }
 
+    const isCash = String(form.paymentMode).toLowerCase() === 'cash';
+    if (!isCash && !form.transactionReference?.trim()) {
+      toast.error('Transaction Reference / UTR / Cheque # is required for bank and online transactions');
+      return;
+    }
+    if (form.paymentMode === 'cheque') {
+      const cleanCheque = form.transactionReference.trim();
+      if (!/^\d{6}$/.test(cleanCheque)) {
+        toast.error('Cheque number must be exactly 6 numeric digits (e.g. 045123)');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const targetInstIds = (dueStats.selectedEmis?.length > 0 ? dueStats.selectedEmis : dueStats.dueEmis).map((i) => i._id);
@@ -329,7 +342,11 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       };
 
       const res = await api.post(`/plots/product-bookings/${selectedBookingId}/collections`, payload);
-      toast.success(res.data?.message || 'Product collection recorded successfully!');
+      if (isCash) {
+        toast.success(res.data?.message || 'Product collection recorded successfully!');
+      } else {
+        toast.info('Online collection recorded with PENDING approval status. Awaiting manager/admin verification.');
+      }
 
       if (onSuccess) {
         onSuccess(res.data?.data);
@@ -564,13 +581,12 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                     return (
                       <tr
                         key={ins._id}
-                        className={`transition-colors ${
-                          isFullyPaid
-                            ? 'bg-emerald-50/30'
-                            : isTarget
+                        className={`transition-colors ${isFullyPaid
+                          ? 'bg-emerald-50/30'
+                          : isTarget
                             ? 'bg-teal-50/50 font-semibold'
                             : 'hover:bg-slate-50/60'
-                        }`}
+                          }`}
                       >
                         <td className="p-3 pl-5 font-mono font-bold text-slate-900">
                           {ins.installmentNumber === 0 ? 'Downpayment' : `EMI #${ins.installmentNumber}`}
@@ -696,7 +712,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-slate-700">
-                    Amount to Collect (INR) *
+                    Amount to Collect (INR) <span className="text-rose-500">*</span>
                   </label>
                   {dueStats.selectedPrincipal > 0 && (
                     <span className="text-[11px] text-slate-500 font-medium">
@@ -815,7 +831,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
               {/* Payment Mode */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
-                  Payment Mode *
+                  Payment Mode <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={form.paymentMode}
@@ -848,7 +864,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
               {/* Receiving Account */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
-                  {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'} *
+                  {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={form.ledgerId || ''}
@@ -879,13 +895,14 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
               {form.paymentMode !== 'cash' && (
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700">
-                    Transaction Reference / Cheque #
+                    Transaction Reference / Cheque <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     placeholder="e.g. UPI-1234567890 or Cheque No."
                     value={form.transactionReference}
                     onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                    required
                     className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
                   />
                 </div>

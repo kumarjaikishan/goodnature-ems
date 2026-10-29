@@ -96,11 +96,11 @@ export const getReceiptColumns = ({
       selector: (row) => row.paymentMode,
       cell: (row) => (
         <span className="font-bold uppercase text-[10px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded whitespace-nowrap">
-          {row.paymentMode}
+          {(row.paymentMode === 'bank_transfer' || row.paymentMode === 'neft_rtgs') ? 'BANK TRANSFER / NEFT / RTGS' : row.paymentMode}
         </span>
       ),
       sortable: true,
-      minWidth: '75px',
+      minWidth: '120px',
       compact: true,
     },
     {

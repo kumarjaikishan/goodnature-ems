@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Calendar, Eye, Edit3, Trash2 } from 'lucide-react';
+import usePermission from '../../../../utils/CheckPermission';
 
 const RegistryDeedsTable = ({
   filteredDeeds,
@@ -11,6 +12,9 @@ const RegistryDeedsTable = ({
   openEditDeedModal,
   handleDeleteDeed,
 }) => {
+  const canUpdateDeed = usePermission(['plot_purchase', 'plot_inventory'], 3);
+  const canDeleteDeed = usePermission(['plot_purchase', 'plot_inventory'], 4);
+
   return (
     <div className="space-y-4">
       {/* Deeds Filter / Search Bar */}
@@ -132,22 +136,26 @@ const RegistryDeedsTable = ({
                           </button>
 
                           {/* Edit Deed */}
-                          <button
-                            onClick={() => openEditDeedModal(deed.parentAgreementId, deed)}
-                            className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1"
-                            title="Edit Deed Details"
-                          >
-                            <Edit3 size={12} /> Edit
-                          </button>
+                          {canUpdateDeed && (
+                            <button
+                              onClick={() => openEditDeedModal(deed.parentAgreementId, deed)}
+                              className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1"
+                              title="Edit Deed Details"
+                            >
+                              <Edit3 size={12} /> Edit
+                            </button>
+                          )}
 
                           {/* Delete Deed */}
-                          <button
-                            onClick={() => handleDeleteDeed(deed.parentAgreementId, deed)}
-                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1"
-                            title="Delete Deed & Restore Stock"
-                          >
-                            <Trash2 size={12} /> Delete
-                          </button>
+                          {canDeleteDeed && (
+                            <button
+                              onClick={() => handleDeleteDeed(deed.parentAgreementId, deed)}
+                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1"
+                              title="Delete Deed & Restore Stock"
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

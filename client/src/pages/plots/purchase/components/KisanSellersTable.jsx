@@ -16,6 +16,7 @@ import { PhoneInput, AadhaarInput, PanInput } from '../../../../components/ui';
 import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
+import usePermission from '../../../../utils/CheckPermission';
 
 const KisanSellersTable = ({
   sellers = [],
@@ -26,6 +27,9 @@ const KisanSellersTable = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const canAddSeller = usePermission(['kisan_seller', 'kisan_ledger', 'plot_purchase'], 2);
+  const canEditSeller = usePermission(['kisan_seller', 'kisan_ledger', 'plot_purchase'], 3);
+  const canDeleteSeller = usePermission(['kisan_seller', 'kisan_ledger', 'plot_purchase'], 4);
 
   const initialForm = {
     name: '',
@@ -152,14 +156,16 @@ const KisanSellersTable = ({
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>Add Land Seller</span>
-          </button>
+          {canAddSeller && (
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>Add Land Seller</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -177,14 +183,16 @@ const KisanSellersTable = ({
             <p className="text-[11px] text-slate-400">
               Add your first Land Seller to easily select them during plot purchase agreements.
             </p>
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 font-bold text-xs rounded-xl border border-teal-200/60 hover:bg-teal-100 transition cursor-pointer"
-            >
-              <Plus size={13} />
-              <span>Add Land Seller</span>
-            </button>
+            {canAddSeller && (
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 font-bold text-xs rounded-xl border border-teal-200/60 hover:bg-teal-100 transition cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Add Land Seller</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -268,22 +276,29 @@ const KisanSellersTable = ({
                     </td>
                     <td className="p-3.5 pr-5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(seller)}
-                          className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
-                          title="Edit Kisan"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(seller)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                          title="Delete Kisan"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {canEditSeller && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(seller)}
+                            className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                            title="Edit Kisan"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        )}
+                        {canDeleteSeller && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(seller)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="Delete Kisan"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                        {!canEditSeller && !canDeleteSeller && (
+                          <span className="text-slate-300 text-xs px-2">-</span>
+                        )}
                       </div>
                     </td>
                   </tr>

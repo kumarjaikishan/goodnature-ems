@@ -491,7 +491,16 @@ const deleteReceipt = async (req, res, next) => {
 
 const approveReceipt = async (req, res, next) => {
   try {
-    const receipt = await plotsService.approveReceipt(req.params.id, req.user);
+    let receipt;
+    try {
+      receipt = await plotsService.approveReceipt(req.params.id, req.user);
+    } catch (err) {
+      if (err.statusCode === 404 || err.message?.toLowerCase().includes('not found')) {
+        receipt = await plotProductService.approveProductCollection(null, req.params.id, req.user);
+      } else {
+        throw err;
+      }
+    }
     ApiResponse.success(res, receipt, 'Collection approved and realized into ledger successfully');
   } catch (error) {
     next(error);
@@ -501,7 +510,16 @@ const approveReceipt = async (req, res, next) => {
 const rejectReceipt = async (req, res, next) => {
   try {
     const { reason } = req.body;
-    const receipt = await plotsService.rejectReceipt(req.params.id, reason, req.user);
+    let receipt;
+    try {
+      receipt = await plotsService.rejectReceipt(req.params.id, reason, req.user);
+    } catch (err) {
+      if (err.statusCode === 404 || err.message?.toLowerCase().includes('not found')) {
+        receipt = await plotProductService.rejectProductCollection(null, req.params.id, reason, req.user);
+      } else {
+        throw err;
+      }
+    }
     ApiResponse.success(res, receipt, 'Collection rejected successfully');
   } catch (error) {
     next(error);
@@ -1142,7 +1160,11 @@ const createProductBooking = async (req, res, next) => {
 const collectProductInstallment = async (req, res, next) => {
   try {
     const result = await plotProductService.collectProductInstallment(req.params.id, req.body, req.user?._id || req.user?.id);
-    ApiResponse.success(res, result, 'Product installment payment collected successfully');
+    const isPending = (result?.status || '').toUpperCase() === 'PENDING';
+    const message = isPending
+      ? 'Product collection submitted with PENDING approval status. Awaiting manager/admin verification.'
+      : 'Product installment payment collected successfully';
+    ApiResponse.success(res, result, message);
   } catch (error) {
     next(error);
   }
@@ -1185,6 +1207,36 @@ const deleteProductCollection = async (req, res, next) => {
       userId
     );
     ApiResponse.success(res, result, 'Product collection receipt deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const approveProductCollection = async (req, res, next) => {
+  try {
+    const { bookingId, receiptNumber } = req.params;
+    const result = await plotProductService.approveProductCollection(
+      bookingId,
+      decodeURIComponent(receiptNumber),
+      req.user
+    );
+    ApiResponse.success(res, result, 'Product collection approved and realized into ledger successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const rejectProductCollection = async (req, res, next) => {
+  try {
+    const { bookingId, receiptNumber } = req.params;
+    const { reason } = req.body;
+    const result = await plotProductService.rejectProductCollection(
+      bookingId,
+      decodeURIComponent(receiptNumber),
+      reason,
+      req.user
+    );
+    ApiResponse.success(res, result, 'Product collection rejected successfully');
   } catch (error) {
     next(error);
   }
@@ -1375,6 +1427,8 @@ module.exports = {
   collectProductInstallment,
   getProductCollections,
   deleteProductCollection,
+  approveProductCollection,
+  rejectProductCollection,
   cancelProductBookingAndRefund,
   addProductRefundPartPayment,
   getProductCustomerLedger,

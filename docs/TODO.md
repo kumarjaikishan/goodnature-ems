@@ -6,6 +6,21 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
+- [x] **Product Collections Maker-Checker Approval Workflow & Required Reference/UTR**:
+  - Mirrored the exact Plot Booking collection approval workflow for Plot Products (`/dashboard/plots/collections/products/add`):
+    - Non-cash transactions (`online`, `bank_transfer`, `cheque`) require a valid reference/UTR/cheque number (6-digit check for cheques).
+    - Non-cash transactions are saved with `PENDING` approval status, preventing immediate ledger crediting and postponing installment realization until authorized maker-checker verification.
+    - Cash transactions are auto-approved (`APPROVED`), credited into the collecting cashier's personal custody cash ledger, and installments marked paid immediately.
+    - Authorized managers/admins can approve or reject pending collections from the collections list table with dedicated modals (`ApproveProductCollection` and `RejectProductCollection`).
+    - Added Status filter (`All Statuses`, `Pending`, `Approved`, `Rejected`) and Status column in `ProductCollectionsPage.jsx`.
+    - Added `rebuildProductBookingInstallmentsState` to deterministically calculate dues and balances only from approved collections.
+
+- [x] **Granular RBAC Permissions for Kisan/Seller Directory, Plot Purchase, Kisan Payments & Booking Agreements**:
+  - Implemented separate, granular permissions: `kisan_seller` (Add/Edit Land Sellers directory), `plot_purchase` (Plot Purchase agreements & deeds), `kisan_ledger` with Action 2 for farmer disbursements/payments, and `plot_booking` (Action 2) & `investment_booking` (Action 2) for creating contracts.
+  - Re-grouped and categorized permissions into clean enterprise sections: *Land Procurement & Kisans*, *Master Inventory & Channels*, *Bookings & Agreements*, *Collections, Payouts & BI*, and *Financial Accounts & Ledgers*.
+  - Full backend and frontend fallback compatibility ensured so existing users retain seamless access while allowing granular restrictions.
+  - Guarded UI action buttons across `PlotPurchasePage.jsx`, `KisanAgreementsTable.jsx`, `RegistryDeedsTable.jsx`, `KisanSellersTable.jsx`, `PlotKisanLedgerPage.jsx`, `ProductSalesTab.jsx`, and `PlotReports.jsx`.
+
 - [x] **Universal Commission & Incentive Policy Unification & Legacy System Removal**:
   - Unanimously established **Direct Commission** (`/dashboard/plots/products?tab=schemes`) as the sole system for tenure-based upfront commission payouts (RD & FD).
   - Unanimously established **Target Incentive & Extra Incentive Policy** (`/dashboard/plots/products?tab=incentives`) as the sole system for volume closing incentives & rewards.

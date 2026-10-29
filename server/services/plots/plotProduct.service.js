@@ -1290,7 +1290,557 @@ class PlotProductService {
     return { message: 'Product booking deleted successfully' };
   }
 
+  // ─── PRODUCT INSTALLMENT COLLECTION & MAKER-CHECKER WORKFLOW ───
+
   async collectProductInstallment(bookingId, data, userId) {
+    const {
+      installmentIds = [],
+      installmentNumber,
+      amount,
+      amountPaid,
+      lateFineRebate = 0,
+      paymentMode = 'cash',
+      transactionReference = '',
+      paymentDate = new Date(),
+      remarks = '',
+    } = data;
+
+    const booking = await PlotProductBooking.findById(bookingId).populate('customerId').populate('productId');
+    if (!booking) throw ApiError.notFound('Product booking not found');
+
+    const colAmount = Number(amountPaid !== undefined && amountPaid !== '' ? amountPaid : amount);
+    if (colAmount <= 0) throw ApiError.badRequest('Collection amount must be greater than 0');
+
+    const isCash = String(paymentMode).toLowerCase() === 'cash';
+
+    // REQUIREMENT: Reference / Cheque number is required for bank and online transactions
+    if (!isCash) {
+      if (!transactionReference || !transactionReference.trim()) {
+        throw ApiError.badRequest('Transaction Reference / UTR / Cheque number is required for bank and online transactions');
+      }
+      if (String(paymentMode).toLowerCase() === 'cheque') {
+        const cleanCheque = transactionReference.trim();
+        if (!/^\d{6}$/.test(cleanCheque)) {
+          throw ApiError.badRequest('Cheque number must be exactly 6 numeric digits (e.g. 045123)');
+        }
+      }
+    }
+
+    const rebateAmount = Number(lateFineRebate) || 0;
+    const pDate = new Date(paymentDate);
+
+    // Generate receipt number: e.g. PRD-RCP-2627-001
+    const curYear = pDate.getFullYear();
+    const curMonth = pDate.getMonth();
+    const startYr = curMonth >= 3 ? curYear : curYear - 1;
+    const endYr = startYr + 1;
+    const fyStr = `${String(startYr).slice(-2)}${String(endYr).slice(-2)}`;
+
+    const seq = await Counter.getNextSequence(`PLOT_PRD_RECEIPT_${fyStr}`, null, 3);
+    const receiptNumber = `PRD-RCP-${fyStr}-${seq}`;
+
+    // Target installments: if specific IDs given, match those. Otherwise, find all pending installments.
+    let targetInsts = [];
+    if (Array.isArray(installmentIds) && installmentIds.length > 0) {
+      targetInsts = booking.installments.filter((ins) => installmentIds.map(String).includes(String(ins._id)));
+    } else if (installmentNumber !== undefined && installmentNumber !== null && installmentNumber !== '') {
+      const single = booking.installments.find((ins) => ins.installmentNumber === Number(installmentNumber));
+      if (single) targetInsts = [single];
+    }
+
+    if (targetInsts.length === 0) {
+      targetInsts = booking.installments.filter((ins) => ins.status !== 'PAID');
+    }
+
+    targetInsts.sort((a, b) => a.installmentNumber - b.installmentNumber);
+    const touchedInstNumbers = targetInsts.map((i) => i.installmentNumber);
+
+    // Resolve target Bank or Cash Ledger
+    let resolvedLedgerId = null;
+    if (isCash) {
+      // Cash receipts ALWAYS enter the physical custody of the collecting cashier
+      const userCashLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' });
+      resolvedLedgerId = userCashLedger?._id || data.ledgerId || null;
+    } else {
+      if (userId) {
+        const collector = await User.findById(userId).select('bankPermissions role').lean();
+        if (collector && collector.role !== 'developer') {
+          const bPerm = collector.bankPermissions;
+          if (bPerm) {
+            if (bPerm.accessScope === 'none' || bPerm.allowReceipts === false) {
+              throw ApiError.badRequest('You do not have authorization to collect payments into corporate bank accounts. Please collect in cash.');
+            }
+            if (bPerm.accessScope === 'selected' && data.ledgerId) {
+              const allowedIds = (bPerm.allowedBankIds || []).map(id => id.toString());
+              if (!allowedIds.includes(data.ledgerId.toString())) {
+                throw ApiError.badRequest('You are not authorized to collect payments into this designated bank account.');
+              }
+            }
+          }
+        }
+      }
+      resolvedLedgerId = data.ledgerId || null;
+      if (!resolvedLedgerId) {
+        const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' });
+        if (defaultBank) resolvedLedgerId = defaultBank._id;
+      }
+    }
+
+    // Save collection transaction history record
+    if (!booking.collections) {
+      booking.collections = [];
+    }
+
+    // Status: Cash is auto-approved ('APPROVED'), online/bank/cheque is created as 'PENDING'
+    const initialStatus = isCash ? 'APPROVED' : 'PENDING';
+    const newCollection = {
+      receiptNumber,
+      amountPaid: colAmount,
+      principalPaid: 0,
+      lateFinePaid: 0,
+      lateFineRebate: rebateAmount,
+      paymentMode,
+      transactionReference: transactionReference?.trim() || '',
+      paymentDate: pDate,
+      installmentNumbers: touchedInstNumbers,
+      remarks,
+      collectedById: userId || null,
+      ledgerId: resolvedLedgerId,
+      status: initialStatus,
+      approvedBy: isCash ? (userId || null) : null,
+      approvedAt: isCash ? new Date() : null,
+      rejectionReason: '',
+    };
+    booking.collections.push(newCollection);
+    await booking.save();
+
+    // Rebuild installments & totals based on approved collections only
+    await this.rebuildProductBookingInstallmentsState(booking._id);
+
+    if (isCash) {
+
+      if (resolvedLedgerId && colAmount > 0) {
+        try {
+          await accountingService.recordLedgerEntry({
+            ledgerId: resolvedLedgerId,
+            date: pDate,
+            type: 'CREDIT',
+            amount: colAmount,
+            source: 'receipt',
+            referenceId: booking._id,
+            remarks: `Product EMI Receipt: ${receiptNumber} (${booking.bookingNumber || ''}) - Customer: ${booking.customerId?.name || 'Customer'}`
+          });
+        } catch (err) {
+          console.error('Error recording ledger entry for product installment collection:', err);
+        }
+      }
+
+      if (booking.sponsorId) {
+        try {
+          await plotDeveloperService.syncProductBookingSponsorCommissions(booking._id);
+        } catch (e) {
+          console.error('Error syncing product booking sponsor commission on installment collection:', e);
+        }
+      }
+    }
+
+    // Reload booking with updated state
+    const updatedBooking = await PlotProductBooking.findById(booking._id).populate('customerId').populate('productId');
+    const rateConfig = await this.getRateConfig();
+    const enriched = this.enrichBookingWithDues(updatedBooking.toObject(), rateConfig, pDate);
+
+    const savedCol = (updatedBooking.collections || []).find((c) => c.receiptNumber === receiptNumber) || newCollection;
+
+    return {
+      _id: savedCol._id,
+      booking: enriched,
+      receiptNumber,
+      collectedAmount: colAmount,
+      principalPaid: savedCol.principalPaid || 0,
+      lateFinePaid: savedCol.lateFinePaid || 0,
+      lateFineRebate: savedCol.lateFineRebate || 0,
+      paymentDate: pDate,
+      paymentMode,
+      transactionReference: transactionReference?.trim() || '',
+      remarks,
+      status: initialStatus,
+    };
+  }
+
+  // Rebuild installments & totals for a product booking by applying only APPROVED receipts chronologically
+  async rebuildProductBookingInstallmentsState(bookingId, session = null) {
+    let query = PlotProductBooking.findById(bookingId);
+    if (session) query = query.session(session);
+    const booking = await query;
+    if (!booking) return null;
+
+    const rateConfig = await this.getRateConfig();
+
+    // Reset all installments to pending initial state
+    if (Array.isArray(booking.installments)) {
+      for (const inst of booking.installments) {
+        inst.paidAmount = 0;
+        inst.paidDate = null;
+        inst.receiptNumber = '';
+        inst.status = 'PENDING';
+        inst.lateDays = 0;
+        inst.lateFine = 0;
+        inst.lateFinePaid = 0;
+        inst.lateFineRebate = 0;
+      }
+    }
+
+    // Apply only APPROVED collections in chronological order
+    const approvedCollections = (booking.collections || [])
+      .filter((c) => (c.status ? c.status === 'APPROVED' : String(c.paymentMode).toLowerCase() === 'cash'))
+      .slice()
+      .sort((a, b) => new Date(a.paymentDate || a.createdAt || 0) - new Date(b.paymentDate || b.createdAt || 0));
+
+    // Zero out realized amounts on pending or rejected collections
+    for (const col of (booking.collections || [])) {
+      if (col.status === 'PENDING' || col.status === 'REJECTED') {
+        col.principalPaid = 0;
+        col.lateFinePaid = 0;
+      }
+    }
+
+    let totalPrincipal = Number(booking.paymentType === 'FULL_PAYMENT' ? (booking.totalAmount || 0) : 0);
+    let totalFinePaid = 0;
+    let totalFineRebate = 0;
+
+    for (const col of approvedCollections) {
+      if (booking.paymentType === 'FULL_PAYMENT' && (col.receiptNumber?.startsWith('DP-') || col.receiptNumber?.startsWith('PRD-DP-'))) {
+        col.principalPaid = booking.totalAmount || col.amountPaid;
+        continue;
+      }
+
+      let remainingPaid = Number(col.amountPaid) || 0;
+      let remainingRebate = Number(col.lateFineRebate) || 0;
+      const pDate = new Date(col.paymentDate || col.createdAt || Date.now());
+
+      let targetInsts = [];
+      if (Array.isArray(col.installmentNumbers) && col.installmentNumbers.length > 0) {
+        targetInsts = (booking.installments || []).filter((i) => col.installmentNumbers.includes(i.installmentNumber));
+      }
+      if (targetInsts.length === 0) {
+        targetInsts = (booking.installments || []).filter((i) => i.status !== 'PAID');
+      }
+      targetInsts.sort((a, b) => a.installmentNumber - b.installmentNumber);
+
+      let colPrincipal = 0;
+      let colFine = 0;
+      let colRebate = 0;
+
+      for (const inst of targetInsts) {
+        if (remainingPaid <= 0 && remainingRebate <= 0) break;
+        if (inst.status === 'PAID') continue;
+
+        const stats = this.computeInstallmentStats(inst, rateConfig, pDate);
+        const effectiveFine = stats.lateFine;
+        inst.lateFine = effectiveFine;
+        inst.lateDays = stats.lateDays;
+
+        // 1. Rebate against unpaid late fine
+        const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+        const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
+        inst.lateFineRebate = (inst.lateFineRebate || 0) + fineRebateThisTime;
+        remainingRebate -= fineRebateThisTime;
+        colRebate += fineRebateThisTime;
+
+        // 2. Payment against late fine
+        const unpaidFineAfterRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
+        const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
+        inst.lateFinePaid = (inst.lateFinePaid || 0) + finePaidThisTime;
+        remainingPaid -= finePaidThisTime;
+        colFine += finePaidThisTime;
+
+        // 3. Payment against principal
+        const unpaidPrincipal = Math.max(0, inst.amount - (inst.paidAmount || 0));
+        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
+        inst.paidAmount = (inst.paidAmount || 0) + principalPaidThisTime;
+        remainingPaid -= principalPaidThisTime;
+        colPrincipal += principalPaidThisTime;
+
+        inst.paidDate = pDate;
+        inst.receiptNumber = col.receiptNumber;
+
+        const isFullyPaid =
+          inst.paidAmount >= inst.amount &&
+          (inst.lateFinePaid + (inst.lateFineRebate || 0)) >= inst.lateFine;
+        inst.status = isFullyPaid ? 'PAID' : 'PARTIAL';
+      }
+
+      col.principalPaid = colPrincipal;
+      col.lateFinePaid = colFine;
+      col.lateFineRebate = colRebate;
+
+      totalPrincipal += colPrincipal;
+      totalFinePaid += colFine;
+      totalFineRebate += colRebate;
+    }
+
+    if (booking.paymentType !== 'FULL_PAYMENT') {
+      booking.totalPaid = totalPrincipal;
+      booking.totalLateFinePaid = totalFinePaid;
+      booking.totalLateFineRebate = totalFineRebate;
+      booking.remainingAmount = Math.max(0, (booking.totalAmount || 0) - booking.totalPaid);
+
+      if (booking.remainingAmount <= 0 && (booking.totalAmount || 0) > 0) {
+        booking.status = 'COMPLETED';
+      } else if (booking.status === 'COMPLETED' && booking.remainingAmount > 0) {
+        booking.status = 'ACTIVE';
+      }
+    }
+
+    if (session) {
+      await booking.save({ session });
+    } else {
+      await booking.save();
+    }
+
+    return booking;
+  }
+
+  // Approve Pending Product Collection (Admin / Branch Manager Action)
+  async approveProductCollection(bookingId, receiptNumber, userOrId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      let booking = null;
+      if (bookingId && mongoose.Types.ObjectId.isValid(bookingId)) {
+        booking = await PlotProductBooking.findById(bookingId).populate('customerId').session(session);
+      }
+      if (!booking) {
+        booking = await PlotProductBooking.findOne({
+          $or: [
+            { 'collections.receiptNumber': receiptNumber },
+            ...(mongoose.Types.ObjectId.isValid(receiptNumber) ? [{ 'collections._id': receiptNumber }] : []),
+          ],
+        }).populate('customerId').session(session);
+      }
+
+      if (!booking) {
+        throw ApiError.notFound('Product booking or collection receipt not found');
+      }
+
+      const col = (booking.collections || []).find(
+        (c) => c.receiptNumber === receiptNumber || c._id?.toString() === receiptNumber
+      );
+
+      if (!col) {
+        throw ApiError.notFound('Collection receipt not found');
+      }
+
+      if (col.status === 'APPROVED') {
+        throw ApiError.badRequest('Receipt is already approved');
+      }
+
+      const adminUserId = userOrId?._id || userOrId?.id || userOrId;
+      if (userOrId && typeof userOrId === 'object' && userOrId.role) {
+        const userRole = userOrId.role;
+        const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+        const isBranchManager = userRole === 'manager';
+
+        if (!isGlobalAdmin && !isBranchManager) {
+          throw ApiError.forbidden('Permission denied: Only administrators or branch managers can approve receipts');
+        }
+      }
+
+      col.status = 'APPROVED';
+      col.approvedBy = adminUserId;
+      col.approvedAt = new Date();
+      col.rejectionReason = '';
+
+      // Realize collection into ledger
+      let targetLedgerId = col.ledgerId;
+      if (!targetLedgerId) {
+        const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' }).session(session);
+        if (defaultBank) {
+          targetLedgerId = defaultBank._id;
+          col.ledgerId = defaultBank._id;
+        }
+      }
+
+      if (targetLedgerId) {
+        const existingBankEntry = await Entry.findOne({
+          ledgerId: targetLedgerId,
+          referenceId: booking._id,
+          remarks: { $regex: col.receiptNumber },
+          source: 'receipt',
+          status: 'active',
+        }).session(session);
+
+        if (!existingBankEntry) {
+          await accountingService.recordLedgerEntry(
+            {
+              ledgerId: targetLedgerId,
+              date: col.paymentDate || new Date(),
+              type: 'CREDIT',
+              amount: Number(col.amountPaid),
+              source: 'receipt',
+              referenceId: booking._id,
+              remarks: `Product EMI Receipt: ${col.receiptNumber} (${booking.bookingNumber || ''}) - Customer: ${booking.customerId?.name || 'Customer'}`,
+            },
+            session
+          );
+        }
+      }
+
+      await booking.save({ session });
+
+      // Rebuild installments state to realize this collection
+      await this.rebuildProductBookingInstallmentsState(booking._id, session);
+
+      // Sync commissions
+      if (booking.sponsorId) {
+        try {
+          await plotDeveloperService.syncProductBookingSponsorCommissions(booking._id, session);
+        } catch (e) {
+          console.error('Error syncing commissions on product receipt approval:', e);
+        }
+      }
+
+      // Audit log
+      try {
+        await new PlotAuditLog({
+          action: 'APPROVE_PRODUCT_RECEIPT',
+          modelName: 'PlotProductBooking',
+          documentId: booking._id,
+          userId: adminUserId,
+          details: { receiptNumber: col.receiptNumber, amount: col.amountPaid, paymentMode: col.paymentMode },
+        }).save({ session });
+      } catch (err) {
+        console.error('Error writing audit log for product receipt approval:', err);
+      }
+
+      await session.commitTransaction();
+
+      const updated = await PlotProductBooking.findById(booking._id).populate('customerId').populate('productId');
+      const rateConfig = await this.getRateConfig();
+      return {
+        _id: col._id,
+        receiptNumber: col.receiptNumber,
+        status: 'APPROVED',
+
+        booking: this.enrichBookingWithDues(updated.toObject(), rateConfig, new Date()),
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  // Reject Pending Product Collection (Admin / Branch Manager Action)
+  async rejectProductCollection(bookingId, receiptNumber, rejectionReason, userOrId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      let booking = null;
+      if (bookingId && mongoose.Types.ObjectId.isValid(bookingId)) {
+        booking = await PlotProductBooking.findById(bookingId).populate('customerId').session(session);
+      }
+      if (!booking) {
+        booking = await PlotProductBooking.findOne({
+          $or: [
+            { 'collections.receiptNumber': receiptNumber },
+            ...(mongoose.Types.ObjectId.isValid(receiptNumber) ? [{ 'collections._id': receiptNumber }] : []),
+          ],
+        }).populate('customerId').session(session);
+      }
+
+      if (!booking) {
+        throw ApiError.notFound('Product booking or collection receipt not found');
+      }
+
+      const col = (booking.collections || []).find(
+        (c) => c.receiptNumber === receiptNumber || c._id?.toString() === receiptNumber
+      );
+
+      if (!col) {
+        throw ApiError.notFound('Collection receipt not found');
+      }
+
+      if (col.status === 'REJECTED') {
+        throw ApiError.badRequest('Receipt is already rejected');
+      }
+
+      const adminUserId = userOrId?._id || userOrId?.id || userOrId;
+      if (userOrId && typeof userOrId === 'object' && userOrId.role) {
+        const userRole = userOrId.role;
+        const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+        const isBranchManager = userRole === 'manager';
+
+        if (!isGlobalAdmin && !isBranchManager) {
+          throw ApiError.forbidden('Permission denied: Only administrators or branch managers can reject receipts');
+        }
+      }
+
+      col.status = 'REJECTED';
+      col.rejectionReason = rejectionReason || 'Rejected by Admin';
+      col.approvedBy = adminUserId;
+      col.approvedAt = new Date();
+
+      // Clean up any ledger entry that was created if this was previously credited
+      const existingBankEntries = await Entry.find({
+        source: 'receipt',
+        referenceId: booking._id,
+        remarks: { $regex: col.receiptNumber },
+      }).session(session);
+
+      for (const e of existingBankEntries) {
+        await accountingService.deleteLedgerEntry(e._id, session);
+      }
+
+      await booking.save({ session });
+
+      // Rebuild installments state to revert any effects
+      await this.rebuildProductBookingInstallmentsState(booking._id, session);
+
+      // Sync commissions
+      if (booking.sponsorId) {
+        try {
+          await plotDeveloperService.syncProductBookingSponsorCommissions(booking._id, session);
+        } catch (e) {
+          console.error('Error syncing commissions on product receipt rejection:', e);
+        }
+      }
+
+      // Audit log
+      try {
+        await new PlotAuditLog({
+          action: 'REJECT_PRODUCT_RECEIPT',
+          modelName: 'PlotProductBooking',
+          documentId: booking._id,
+          userId: adminUserId,
+          details: { receiptNumber: col.receiptNumber, amount: col.amountPaid, rejectionReason },
+        }).save({ session });
+      } catch (err) {
+        console.error('Error writing audit log for product receipt rejection:', err);
+      }
+
+      await session.commitTransaction();
+
+      const updated = await PlotProductBooking.findById(booking._id).populate('customerId').populate('productId');
+      const rateConfig = await this.getRateConfig();
+      return {
+        _id: col._id,
+        receiptNumber: col.receiptNumber,
+        status: 'REJECTED',
+        rejectionReason: col.rejectionReason,
+        booking: this.enrichBookingWithDues(updated.toObject(), rateConfig, new Date()),
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /* ── LEGACY COLLECT REMOVED ──
+  async collectProductInstallment_legacy(bookingId, data, userId) {
     const {
       installmentIds = [],
       installmentNumber,
@@ -1492,6 +2042,8 @@ class PlotProductService {
     };
   }
 
+  */
+
   async getProductCollections(query = {}) {
     const filter = {};
     if (query.bookingId) filter._id = query.bookingId;
@@ -1523,6 +2075,7 @@ class PlotProductService {
           allCollections.push({
             _id: col._id || `${b._id}-${col.receiptNumber}`,
             receiptNumber: col.receiptNumber,
+            status: 'APPROVED',
             bookingId: b._id,
             bookingNumber: b.bookingNumber,
             bookingDate: b.bookingDate,
@@ -1544,6 +2097,10 @@ class PlotProductService {
             installmentNumbers: col.installmentNumbers || [],
             remarks: col.remarks || '',
             collectedBy: col.collectedById || b.createdById || null,
+            status: col.status || (String(col.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING'),
+            approvedBy: col.approvedBy || null,
+            approvedAt: col.approvedAt || null,
+            rejectionReason: col.rejectionReason || '',
           });
         }
       }
@@ -1599,6 +2156,11 @@ class PlotProductService {
             paymentDate: rg.paymentDate,
             installmentNumbers: rg.installmentNumbers,
             remarks: '',
+            status: 'APPROVED',
+
+            approvedBy: b.createdById || null,
+            approvedAt: rg.paymentDate || b.createdAt,
+            rejectionReason: '',
             collectedBy: b.createdById || null,
           });
         }
@@ -1647,6 +2209,11 @@ class PlotProductService {
             paymentDate: b.bookingDate || b.createdAt,
             installmentNumbers: [0],
             remarks: 'Downpayment at Booking',
+            status: 'APPROVED',
+
+            approvedBy: b.createdById || null,
+            approvedAt: b.bookingDate || b.createdAt,
+            rejectionReason: '',
             collectedBy: b.createdById || null,
           });
         }
@@ -1668,6 +2235,11 @@ class PlotProductService {
       });
     }
 
+    // Filter by status if provided
+    if (query.status && query.status !== 'ALL') {
+      filtered = filtered.filter((c) => (c.status || 'APPROVED').toUpperCase() === query.status.toUpperCase());
+    }
+
     // Filter by payment mode
     if (query.paymentMode && query.paymentMode !== 'ALL') {
       filtered = filtered.filter((c) => c.paymentMode?.toLowerCase() === query.paymentMode.toLowerCase());
@@ -1687,7 +2259,17 @@ class PlotProductService {
     filtered.sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
 
     // Calculate KPI Totals
+    const approvedList = filtered.filter((c) => (c.status || 'APPROVED').toUpperCase() === 'APPROVED');
     const summary = {
+      totalCollected: approvedList.reduce((acc, c) => acc + (Number(c.amountPaid) || 0), 0),
+      totalPrincipalPaid: approvedList.reduce((acc, c) => acc + (Number(c.principalPaid) || 0), 0),
+      totalLateFinePaid: approvedList.reduce((acc, c) => acc + (Number(c.lateFinePaid) || 0), 0),
+      totalLateFineRebate: approvedList.reduce((acc, c) => acc + (Number(c.lateFineRebate) || 0), 0),
+      totalReceiptsCount: filtered.length,
+      pendingCount: filtered.filter((c) => (c.status || 'APPROVED').toUpperCase() === 'PENDING').length,
+    };
+    /* LEGACY_SUMMARY_REPLACED */
+    const legacy_summary_ignored = {
       totalCollected: filtered.reduce((acc, c) => acc + (Number(c.amountPaid) || 0), 0),
       totalPrincipalPaid: filtered.reduce((acc, c) => acc + (Number(c.principalPaid) || 0), 0),
       totalLateFinePaid: filtered.reduce((acc, c) => acc + (Number(c.lateFinePaid) || 0), 0),
@@ -1798,8 +2380,12 @@ class PlotProductService {
       transactionReference: colObj.transactionReference || '',
       remarks: colObj.remarks || '',
       createdAt: colObj.paymentDate || colObj.createdAt || booking.bookingDate,
-      status: 'APPROVED',
+
       isProductReceipt: true,
+      status: colObj.status || (String(colObj.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING'),
+      approvedBy: colObj.approvedBy || null,
+      approvedAt: colObj.approvedAt || null,
+      rejectionReason: colObj.rejectionReason || '',
       productDetails: {
         product: booking.productId || {},
         quantity: booking.quantity || 1,
@@ -1923,6 +2509,7 @@ class PlotProductService {
     );
 
     for (const col of remainingCollections) {
+      if (col.status === 'PENDING' || col.status === 'REJECTED') continue;
       let remainingPaid = Number(col.amountPaid) || 0;
       let remainingRebate = Number(col.lateFineRebate) || 0;
       const pDate = new Date(col.paymentDate || col.createdAt || Date.now());
@@ -2163,10 +2750,10 @@ class PlotProductService {
             const roleLabel = comm.commissionRole === 'BRANCH_OVERRIDE'
               ? 'Branch Override'
               : comm.commissionRole === 'DEVELOPER_OVERRIDE'
-              ? 'Partner Override'
-              : comm.commissionRole === 'DIRECT_DEVELOPER'
-              ? 'Direct Partner'
-              : 'Business Associate';
+                ? 'Partner Override'
+                : comm.commissionRole === 'DIRECT_DEVELOPER'
+                  ? 'Direct Partner'
+                  : 'Business Associate';
 
             const reversalRemarks = `Reversal: Commission (${pct}%) on ₹${colAmt.toLocaleString('en-IN')} | Plot Product | Receipt #${rcNum} | Booking #${booking.bookingNumber} | ${roleLabel} | Cancellation Reversal`;
 

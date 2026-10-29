@@ -32,6 +32,7 @@ import { DateInput } from '../../../../components/ui/DateInput';
 import { toast } from '../../../../utils/toast';
 import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
+import usePermission from '../../../../utils/CheckPermission';
 
 const ProductSalesTab = ({
   products,
@@ -50,6 +51,7 @@ const ProductSalesTab = ({
   const [viewingBooking, setViewingBooking] = useState(null);
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const canCreate = usePermission(['investment_booking', 'plot_booking'], 2);
 
   // Form states for creating a new product sale/booking
   const [form, setForm] = useState({
@@ -220,8 +222,8 @@ const ProductSalesTab = ({
 
         <button
           type="button"
-          onClick={() => navigate('/dashboard/plots/investment-booking/new')}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
+          onClick={canCreate ? () => navigate('/dashboard/plots/investment-booking/new') : undefined}
+          className={canCreate ? "inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0" : "hidden"}
         >
           <Plus size={15} /> New Investment Booking
         </button>
@@ -248,7 +250,7 @@ const ProductSalesTab = ({
                   <td colSpan={7} className="p-12 text-center text-slate-400 space-y-2">
                     <ShoppingCart size={32} className="mx-auto text-slate-300" />
                     <p className="font-semibold text-slate-600">No investment bookings recorded yet.</p>
-                    <p className="text-xs">Click "New Investment Booking" above to book fractional plot units for a customer.</p>
+                    <p className="text-xs">{canCreate ? 'Click "New Investment Booking" above to book fractional plot units for a customer.' : 'No investment bookings currently recorded.'}</p>
                   </td>
                 </tr>
               ) : (

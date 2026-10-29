@@ -1,6 +1,65 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Product Collections: Maker-Checker Approval Workflow & Required UTR/Cheque [COMPLETED]**:
+  - **Issue & Root Cause**:
+    - Previously, when making an online/bank collection at `/dashboard/plots/collections/products/add`, it appeared as directly approved rather than `PENDING` awaiting authorized person / ID approval.
+    - Root Causes:
+      1. `collectionTransactionSchema` in `PlotProductBooking.js` had a hardcoded `default: 'APPROVED'`, which defaulted non-cash collections without explicit status to approved. Fixed schema default with dynamic getter: `function() { return String(this.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING'; }`.
+      2. In `plotProduct.service.js`, `rebuildProductBookingInstallmentsState` was only invoked `if (isCash)`. For non-cash collections, it was skipped, leaving installments and balances in an un-recalculated state. Fixed to always invoke `rebuildProductBookingInstallmentsState(bookingId)` on every collection so pending non-cash collections strictly leave installments as unpaid and balance unchanged.
+      3. In `getProductCollections`, `col.status` fallback was hardcoded as `col.status || 'APPROVED'`. Updated to `col.status || (String(col.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING')`.
+      4. In `getProductReceiptById`, a duplicate hardcoded line `status: 'APPROVED'` existed, which overrode provisional status. Updated to return dynamic status.
+      5. In `ProductCollectionsPage.jsx`, `handleCollectionSuccess` unconditionally called `navigate('/dashboard/plots/receipts/${receiptId}')` immediately after creation, opening the receipt bill view as if the payment was cleared. Fixed: when collection is `PENDING`, it returns to `/dashboard/plots/collections/products`, displays an informative toast (`Online collection recorded with PENDING approval status. Awaiting authorized ID / manager verification.`), and refreshes the collections table where the record is shown with the yellow `Pending` badge and actionable `Approve`/`Reject` controls for authorized users (`canUpdate` / admin / manager).
+  - **Fix & Implementation**:
+    - **Model (`PlotProductBooking.js`)**: Added `status` (`'PENDING' | 'APPROVED' | 'REJECTED'`, default: `'APPROVED'`), `approvedBy`, `approvedAt`, and `rejectionReason` to `collectionTransactionSchema`.
+    - **Service (`plotProduct.service.js`)**:
+      - In `collectProductInstallment`: Cash collections remain auto-approved (`'APPROVED'`), credited to the cashier's user cash ledger, and installments realized immediately. Bank, online/UPI, and cheque collections are set to `'PENDING'`, requiring non-empty `transactionReference` (and 6-digit validation for cheque). Pending collections do NOT credit the ledger and do NOT mark installments as paid until approved.
+      - Added `rebuildProductBookingInstallmentsState(bookingId, session)`: Resets installments and applies ONLY `APPROVED` collections chronologically, recalculating `totalPaid`, `remainingAmount`, and setting status `COMPLETED` when paid in full.
+      - Added `approveProductCollection(bookingId, receiptNumber, userOrId)`: Sets status to `APPROVED`, records credit entry in bank ledger, runs `rebuildProductBookingInstallmentsState`, and syncs sponsor commissions.
+      - Added `rejectProductCollection(bookingId, receiptNumber, rejectionReason, userOrId)`: Sets status to `REJECTED`, reverses any ledger entry, and runs `rebuildProductBookingInstallmentsState`.
+      - Updated `getProductCollections`: Includes `status`, `approvedBy`, `approvedAt`, `rejectionReason`, supports `query.status` filter, and calculates KPI totals only on `APPROVED` collections.
+      - Updated `getProductReceiptById`: Dynamically returns receipt status.
+      - Updated `deleteProductCollection`: Skips pending/rejected collections during rebuild.
+    - **Controller & Routes (`plots.controller.js` & `plots.routes.js`)**:
+      - Added `approveProductCollection` and `rejectProductCollection` endpoints:
+        - `PUT /product-collections/:bookingId/:receiptNumber/approve`
+        - `PUT /product-collections/:bookingId/:receiptNumber/reject`
+      - Added fallback in generic `approveReceipt` and `rejectReceipt` routes (`/plots/receipts/:id/approve` and `/plots/receipts/:id/reject`) to also handle product receipts seamlessly.
+    - **Frontend Forms**:
+      - `ProductReceivePaymentForm.jsx`: Enforces required `transactionReference` for non-cash modes with asterisk `*`, regex check for cheques, and displays an informative Maker-Checker Approval banner.
+      - `ProductInstallmentCollectModal.jsx`: Enforces required `transactionReference` for non-cash modes with asterisk `*` and client-side validation.
+    - **Frontend Table & Modals (`ProductCollectionsPage.jsx`)**:
+      - Added Status Filter dropdown (`All Statuses`, `Pending`, `Approved`, `Rejected`).
+      - Added Status column with colored badges (`Clock` for Pending, `CheckCircle2` for Approved, `XCircle` for Rejected).
+      - Added Approve (`Check`) and Reject (`XCircle`) action buttons for pending collections when user has `canUpdate` permission.
+      - Integrated `Modalbox` confirmation modals for approving and rejecting (with rejection reason input).
+    - **Receipt Viewer (`ReceiptViewer.jsx`)**: Displays `(PENDING APPROVAL)` indicator if viewing an unapproved receipt bill.
+
 This file records session notes, caveats, and discoveries across active sessions.
+
+- **Granular RBAC Permissions for Kisan/Seller, Plot Purchase, Kisan Payments & Bookings [COMPLETED]**:
+  - **Requirement**:
+    - Add granular permissions & restrictions for:
+      1. **Seller / Kisan Add/Edit/Delete**: Ability to give permission or restrict adding/editing/deleting sellers (`kisan_seller`).
+      2. **Plot Purchase**: Dedicated permission for land acquisition agreements and registry deeds (`plot_purchase` at `/dashboard/plots/purchase`).
+      3. **Seller / Kisan Payment**: Dedicated action permission to record payments/disbursements to farmers under `kisan_ledger` (Action 2: Create).
+      4. **Plot Booking & Investment Booking Agreements**: Dedicated permissions to create booking contracts (`plot_booking, 2` and `investment_booking, 2`).
+    - Group and rearrange permissions logically in the permission configuration matrix.
+  - **Implementation**:
+    - **Permissions Config (`userPermissionsConfig.js`)**: Added `plot_purchase` and `kisan_seller`. Grouped real estate modules into logical enterprise categories: *Land Procurement & Kisans*, *Master Inventory & Channels*, *Bookings & Agreements*, *Collections, Payouts & BI*. Updated presets for all roles.
+    - **Backend & Frontend Fallback Protection (`checkpermission.js` & `CheckPermission.jsx`)**: Added backward-compatible fallback: existing users without explicit `plot_purchase` or `kisan_seller` gracefully inherit rights from `plot_inventory` and `kisan_ledger`.
+    - **Routes Protected (`plots.routes.js` & `App.jsx`)**:
+      - `/kisan-agreements` & `/deeds`: protected with `['plot_purchase', 'plot_inventory']`.
+      - `/kisan-agreements/:id/payments`: protected with `['kisan_ledger', 'plot_purchase'], 2` (payment disbursement).
+      - `/kisan-sellers`: protected with `['kisan_seller', 'plot_purchase', 'kisan_ledger']` for Create (2), Update (3), Delete (4).
+    - **UI Buttons & Forms Guarded**:
+      - `PlotPurchasePage.jsx`: "+ New Plot Purchase" button guarded by `canCreatePurchase`.
+      - `KisanAgreementsTable.jsx`: "+ Deed", "Pay", "Edit", and "Delete" actions guarded.
+      - `RegistryDeedsTable.jsx`: "Edit" and "Delete" deed actions guarded.
+      - `KisanSellersTable.jsx`: "+ Add Land Seller", Edit, and Delete kisan guarded.
+      - `PlotKisanLedgerPage.jsx`: "+ Add Registry Deed" and "+ Pay Seller" guarded.
+      - `ProductSalesTab.jsx`: "+ New Investment Booking" guarded by `canCreate = usePermission(['investment_booking', 'plot_booking'], 2)`.
+      - `PlotReports.jsx`: "+ New Booking" guarded by `canCreate = usePermission('plot_booking', 2)`.
+      - `AdminUserFormPage.jsx`: Merged fallback permissions so existing users populate checkboxes without undefined states.
 
 - **Customer Return % Columns on Commission Rates Page [COMPLETED]**:
   - **Requirement**: In `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`), display the customer maturity return percentage for EMI (`112%`, `120%`, etc.) and One-Time (`121%`, `135%`, etc.) right after Tenure.
