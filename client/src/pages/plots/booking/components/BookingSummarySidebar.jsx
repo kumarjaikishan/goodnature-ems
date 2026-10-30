@@ -8,7 +8,9 @@ import {
   Sparkles,
   Calculator,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 
 export const BookingSummarySidebar = ({
@@ -33,9 +35,10 @@ export const BookingSummarySidebar = ({
   installmentCount = 1,
   totalTenureMonths = 1,
   selectedPremiumHeads = [],
+  emiTenureAdjustment = { percent: 0, action: 'NONE', amount: 0 },
 }) => {
   const plotArea = selectedPlot?.plotSize || selectedPlot?.area || 0;
-  const resolvedTenure = totalTenureMonths || Number(form.tenureMonths) || 0;
+  const resolvedTenure = isOneTime ? 0 : (totalTenureMonths || Number(form.tenureMonths) || 0);
 
   return (
     <div className="flex flex-col gap-6 sticky top-6">
@@ -196,8 +199,8 @@ export const BookingSummarySidebar = ({
               <span className="text-slate-400 font-semibold uppercase text-[10px]">Payment Plan:</span>
               <span className="font-bold text-slate-800">
                 {isOneTime
-                  ? 'Full Payment'
-                  : `${installmentCount} × ${emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'} (${resolvedTenure} Mos Total)`}
+                  ? 'Full Payment (0 Month)'
+                  : `${installmentCount} x ${emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'} (${resolvedTenure} Mos Total)`}
               </span>
             </div>
           </div>
@@ -211,13 +214,33 @@ export const BookingSummarySidebar = ({
                   <td className="py-2.5 px-3 font-semibold text-slate-600">
                     Gross Plot Value
                     <span className="block text-[10px] text-slate-400 font-normal">
-                      {plotArea} sqft × ₹{effectiveRate}/sqft
+                      {plotArea} sqft x ₹{effectiveRate}/sqft
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
                     ₹{calculatedPlotValue.toLocaleString('en-IN')}
                   </td>
                 </tr>
+
+                {/* 1a. Tenure Scale Adjustment (Discount or Markup) */}
+                {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
+                  <tr className={`border-b border-slate-100 ${emiTenureAdjustment.action === 'ADD' ? 'bg-emerald-50/40' : 'bg-amber-50/50'}`}>
+                    <td className="py-2 px-3 font-semibold text-slate-700">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${emiTenureAdjustment.action === 'ADD' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
+                          {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}{emiTenureAdjustment.percent}%
+                        </span>
+                        <span>Tenure Adjustment ({resolvedTenure}M)</span>
+                      </div>
+                      <span className="block text-[10px] text-slate-400 font-normal">
+                        {emiTenureAdjustment.action === 'ADD' ? 'Markup added for long EMI' : 'Discount deducted for tenure'} ({resolvedTenure}M)
+                      </span>
+                    </td>
+                    <td className={`py-2 px-3 text-right font-mono font-bold ${emiTenureAdjustment.action === 'ADD' ? 'text-emerald-700' : 'text-amber-800'}`}>
+                      {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}₹{emiTenureAdjustment.amount.toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                )}
 
                 {/* 1b. Premium Heads Detail (if any active) */}
                 {selectedPremiumHeads && selectedPremiumHeads.some((h) => h.active) && (
@@ -243,10 +266,10 @@ export const BookingSummarySidebar = ({
                   </tr>
                 )}
 
-                {/* 2. Discount */}
+                {/* 2. Additional Discount */}
                 <tr className="border-b border-slate-100 bg-white">
                   <td className="py-2.5 px-3 font-semibold text-slate-600">
-                    Discount Given
+                    Manual Discount
                     {calculatedDiscount > 0 && (
                       <span className="block text-[10px] text-rose-500 font-medium">
                         Deducted from EMI balance
@@ -263,7 +286,7 @@ export const BookingSummarySidebar = ({
                   <td className="py-2.5 px-3 font-bold text-teal-950">
                     Net Plot Contract Value
                     <span className="block text-[10px] text-teal-700 font-medium">
-                      Gross Value - Discount
+                      Adjusted Plot Value - Manual Discount
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-extrabold text-teal-950 text-sm">
@@ -276,7 +299,7 @@ export const BookingSummarySidebar = ({
                   <td className="py-2.5 px-3 font-semibold text-slate-700">
                     {isOneTime ? 'Full Payment Due (100%)' : 'Downpayment (DP)'}
                     <span className="block text-[10px] text-slate-400 font-normal">
-                      {isOneTime ? '100% full payment' : `₹${customDpRate || 500}/sqft × ${plotArea} sqft (90 days)`}
+                      {isOneTime ? '100% full payment' : `₹${customDpRate || 500}/sqft x ${plotArea} sqft (90 days)`}
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-800">
@@ -306,7 +329,7 @@ export const BookingSummarySidebar = ({
               <div className="p-3 bg-gradient-to-r from-teal-50 via-teal-100/50 to-emerald-50 border-t border-teal-200 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold text-teal-950 uppercase tracking-wider block">
-                    Installment ({installmentCount} × {emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'})
+                    Installment ({installmentCount} x {emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'})
                   </span>
                   <span className="text-[11px] text-teal-700 font-medium">
                     Total {resolvedTenure} mos tenure

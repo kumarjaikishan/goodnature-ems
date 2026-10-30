@@ -252,8 +252,29 @@ class PlotBookingService {
         }
       }
 
+      // Tenure Rate Slabs Adjustment (e.g. 20 months -> 20% Add/Deduct)
+      let tenureAdjPercent = 0;
+      let tenureAdjAction = 'NONE';
+      let tenureAdjAmount = 0;
+
+      const baseCalculatedValue = Math.round(plot.plotSize * basePlotRate * (1 + totalPremiumPercent / 100));
+
+      if (resolvedTenure >= 0 && Array.isArray(rateConfig.emiTenureAdjustments) && rateConfig.emiTenureAdjustments.length > 0) {
+        const matchingSlab = rateConfig.emiTenureAdjustments.find((s) => Number(s.tenureMonths) === Number(resolvedTenure));
+        if (matchingSlab && Number(matchingSlab.percentage) > 0) {
+          tenureAdjPercent = Number(matchingSlab.percentage);
+          tenureAdjAction = matchingSlab.action === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+          tenureAdjAmount = Math.round((baseCalculatedValue * tenureAdjPercent) / 100);
+        }
+      }
+
       const effectiveSqFtRate = basePlotRate * (1 + totalPremiumPercent / 100);
-      const plotValue = Math.round(plot.plotSize * effectiveSqFtRate);
+      let plotValue = baseCalculatedValue;
+      if (tenureAdjAction === 'ADD') {
+        plotValue += tenureAdjAmount;
+      } else if (tenureAdjAction === 'DEDUCT') {
+        plotValue = Math.max(0, plotValue - tenureAdjAmount);
+      }
 
       // 4. Generate Booking number (PB-DD/MM/YY(YY+1)/XXX) and Agreement number (AG-DD/MM/YY(YY+1)/XXX)
       const bookingDateObj = bookingDate ? new Date(bookingDate) : new Date();
@@ -368,6 +389,9 @@ class PlotBookingService {
         emiPrincipalAmount: emiPrincipalAmt,
         emiMonthlyAmount: emiMonthlyAmt,
         downpaymentCalculationBase: 'AFTER_DISCOUNT_EMI',
+        emiTenureAdjustmentPercent: tenureAdjPercent,
+        emiTenureAdjustmentAction: tenureAdjAction,
+        emiTenureAdjustmentAmount: tenureAdjAmount,
         landSourcing: processedSourcing,
       });
       await booking.save({ session });

@@ -2075,7 +2075,6 @@ class PlotProductService {
           allCollections.push({
             _id: col._id || `${b._id}-${col.receiptNumber}`,
             receiptNumber: col.receiptNumber,
-            status: 'APPROVED',
             bookingId: b._id,
             bookingNumber: b.bookingNumber,
             bookingDate: b.bookingDate,

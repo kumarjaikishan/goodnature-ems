@@ -1,0 +1,1 @@
+import{f as e}from"./userSlice-CyDaVqoO.js";import{l as t}from"./index-CZ3hKlE5.js";var n=e.create({baseURL:`/api/`,withCredentials:!0});n.interceptors.request.use(e=>{let t=localStorage.getItem(`emstoken`);return t&&(e.headers.Authorization=`Bearer ${t}`),e}),n.interceptors.response.use(e=>e,e=>(e.response&&e.response.status===401&&t(null,!0),Promise.reject(e)));export{n as t};

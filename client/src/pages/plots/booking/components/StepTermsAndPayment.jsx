@@ -66,6 +66,7 @@ export const StepTermsAndPayment = ({
   togglePremiumHead,
   totalPremiumExtra = 0,
   schemeSlabs = [],
+  emiTenureAdjustment = { percent: 0, action: 'NONE', amount: 0 },
 }) => {
   // Only show slabs checked for Add Booking (Step 3)
   const availableSchemeSlabs = useMemo(() => {
@@ -675,9 +676,20 @@ export const StepTermsAndPayment = ({
                 <Calculator size={15} className="text-teal-700" />
                 EMI Frequency & Installments Schedule
               </label>
-              <span className="text-xs font-black text-teal-900 bg-teal-100/90 border border-teal-300 px-3 py-1 rounded-xl shadow-2xs">
-                Total Tenure: {totalTenureMonths} Months
-              </span>
+              <div className="flex items-center gap-2">
+                {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border flex items-center gap-1 ${
+                    emiTenureAdjustment.action === 'ADD'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : 'bg-amber-50 text-amber-900 border-amber-300'
+                  }`}>
+                    {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}{emiTenureAdjustment.percent}% Tenure {emiTenureAdjustment.action === 'ADD' ? 'Markup' : 'Discount'} (₹{emiTenureAdjustment.amount.toLocaleString('en-IN')})
+                  </span>
+                )}
+                <span className="text-xs font-black text-teal-900 bg-teal-100/90 border border-teal-300 px-3 py-1 rounded-xl shadow-2xs">
+                  Total Tenure: {totalTenureMonths} Months
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -761,9 +773,16 @@ export const StepTermsAndPayment = ({
                 </p>
               </div>
             </div>
-            <span className="px-3 py-1 bg-white text-emerald-800 border border-emerald-300 rounded-xl text-xs font-black font-mono">
-              ₹0 EMI / Month
-            </span>
+            <div className="flex items-center gap-2">
+              {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black font-mono">
+                  -{emiTenureAdjustment.percent}% Full Payment Discount (₹{emiTenureAdjustment.amount.toLocaleString('en-IN')})
+                </span>
+              )}
+              <span className="px-3 py-1 bg-white text-emerald-800 border border-emerald-300 rounded-xl text-xs font-black font-mono">
+                ₹0 EMI / Month
+              </span>
+            </div>
           </div>
         )}
 

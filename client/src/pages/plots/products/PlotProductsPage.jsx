@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, SlidersHorizontal, Award } from 'lucide-react';
+import { Package, SlidersHorizontal, Award, Sliders } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -9,13 +9,14 @@ import PageLoader from '../../../components/common/PageLoader';
 import ProductCatalogTab from './components/ProductCatalogTab';
 import ProductSchemeRulesTab from './components/ProductSchemeRulesTab';
 import CommissionPolicyMatrix from '../seriesMaster/components/CommissionPolicyMatrix';
+import ProductEmiTenureSlabsTab from './components/ProductEmiTenureSlabsTab';
 
-const VALID_TABS = ['catalog', 'schemes', 'incentives'];
+const VALID_TABS = ['catalog', 'schemes', 'incentives', 'emi_slabs'];
 
 const PlotProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Active Tab synced with URL query (?tab=catalog|schemes|incentives)
+  // Active Tab synced with URL query (?tab=catalog|schemes|incentives|emi_slabs)
   const tabFromUrl = searchParams.get('tab');
   const initialTab = VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'catalog';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -98,7 +99,7 @@ const PlotProductsPage = () => {
             Plot Products &amp; Fractional Unit Master
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Configure micro-plot piece products with North/South/East/West dimensions, unit pricing, customer returns, and target commission policies.
+            Configure micro-plot piece products with North/South/East/West dimensions, unit pricing, customer returns, target commission policies, and EMI tenure rate slabs.
           </p>
         </div>
       </div>
@@ -138,6 +139,17 @@ const PlotProductsPage = () => {
         >
           <Award size={16} className="text-teal-700" /> Target &amp; Extra Incentive Policy
         </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('emi_slabs')}
+          className={`pb-3 text-sm font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'emi_slabs'
+              ? 'border-teal-800 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Sliders size={16} className="text-teal-700" /> EMI Tenure Slabs
+        </button>
       </div>
 
       {/* Tab Contents */}
@@ -162,6 +174,9 @@ const PlotProductsPage = () => {
           title="Target Incentive & Extra Incentive Policy"
           subtitle="Configure period closing collection target slabs, tiered performance incentive %, and milestone rewards for Business Associates, Business Partners, and Branch Partners across all sales (Plot Bookings & Investment Bookings)."
         />
+      )}
+      {activeTab === 'emi_slabs' && (
+        <ProductEmiTenureSlabsTab />
       )}
     </div>
   );

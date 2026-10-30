@@ -61,6 +61,26 @@ const rateSlabSchema = new mongoose.Schema({
   },
 }, { _id: true });
 
+const emiTenureAdjustmentSchema = new mongoose.Schema({
+  tenureMonths: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  action: {
+    type: String,
+    enum: ['ADD', 'DEDUCT'],
+    default: 'DEDUCT',
+  },
+  percentage: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100,
+    default: 0,
+  },
+}, { _id: true });
+
 const defaultRateSlabs = [
   { tenureMonths: 0, plotRate: 1000, downpaymentRate: 1000, emiRate: 0, downpaymentDays: 90, downpaymentPercent: 100, emiPercent: 0, effectiveLabel: 'Full Payment' },
   { tenureMonths: 6, plotRate: 1050, downpaymentRate: 500, emiRate: 550, downpaymentDays: 90, downpaymentPercent: 47.6, emiPercent: 52.4, effectiveLabel: '6 Months EMI' },
@@ -74,6 +94,38 @@ const defaultRateSlabs = [
   { tenureMonths: 54, plotRate: 1450, downpaymentRate: 500, emiRate: 950, downpaymentDays: 90, downpaymentPercent: 34.5, emiPercent: 65.5, effectiveLabel: '54 Months EMI' },
   { tenureMonths: 60, plotRate: 1500, downpaymentRate: 500, emiRate: 1000, downpaymentDays: 90, downpaymentPercent: 33.3, emiPercent: 66.7, effectiveLabel: '60 Months EMI' },
 ];
+
+// Generates 0 to 24 Months:
+// 0 month -> 20% DEDUCT (discount)
+// 1 month -> 19% DEDUCT
+// ...
+// 19 month -> 1% DEDUCT
+// 20 month -> 0% DEDUCT
+// 21 month -> 1% ADD
+// 22 month -> 2% ADD
+// 23 month -> 3% ADD
+// 24 month -> 4% ADD
+const generateScaleSlabs = () => {
+  const list = [];
+  for (let m = 0; m <= 24; m++) {
+    if (m <= 20) {
+      list.push({
+        tenureMonths: m,
+        action: 'DEDUCT',
+        percentage: 20 - m,
+      });
+    } else {
+      list.push({
+        tenureMonths: m,
+        action: 'ADD',
+        percentage: m - 20,
+      });
+    }
+  }
+  return list;
+};
+
+const defaultEmiTenureAdjustments = generateScaleSlabs();
 
 const defaultPremiumHeads = [
   { name: 'Corner Plot', extraPercent: 20, description: 'Plot located at corner with two-side open access' },
@@ -154,6 +206,10 @@ const plotRateConfigurationSchema = new mongoose.Schema(
       type: [rateSlabSchema],
       default: defaultRateSlabs,
     },
+    emiTenureAdjustments: {
+      type: [emiTenureAdjustmentSchema],
+      default: defaultEmiTenureAdjustments,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive'],
@@ -167,6 +223,10 @@ const plotRateConfigurationSchema = new mongoose.Schema(
 
 plotRateConfigurationSchema.statics.getDefaultRateSlabs = function () {
   return defaultRateSlabs;
+};
+
+plotRateConfigurationSchema.statics.getDefaultEmiTenureAdjustments = function () {
+  return defaultEmiTenureAdjustments;
 };
 
 plotRateConfigurationSchema.statics.getDefaultPremiumHeads = function () {

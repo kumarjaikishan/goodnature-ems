@@ -9,6 +9,8 @@ import {
   FileText,
   AlertCircle,
   ShieldCheck,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import Button from '../../../../components/ui/Button';
@@ -40,6 +42,7 @@ export const BookingConfirmationModal = ({
   landSourcing = [],
   selectedPremiumHeads = [],
   plotArea,
+  emiTenureAdjustment = { percent: 0, action: 'NONE', amount: 0 },
 }) => {
   if (!isOpen) return null;
 
@@ -58,37 +61,31 @@ export const BookingConfirmationModal = ({
           <Button
             type="button"
             variant="secondary"
-            size="md"
             onClick={onClose}
             disabled={submitLoading}
           >
-            Cancel & Edit
+            Modify Form
           </Button>
           <Button
             type="button"
             variant="primary"
-            size="md"
             onClick={onConfirm}
             loading={submitLoading}
             disabled={submitLoading}
-            startIcon={ShieldCheck}
           >
-            Confirm & Submit Booking
+            Confirm &amp; Submit Booking
           </Button>
         </>
       }
     >
-      <div className="space-y-5">
-
-        {/* Status Notice Banner */}
-        <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900">
-          <Clock size={18} className="text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold block">Authorization Workflow:</span>
-            <span>
-              Once submitted, this plot will be reserved in <strong>PENDING</strong> status. An authorized administrator
-              can review, approve, or reject this booking.
-            </span>
+      <div className="space-y-5 py-2">
+        {/* Top Info Banner */}
+        <div className="p-3.5 bg-teal-50 border border-teal-200 rounded-2xl flex items-start gap-2.5">
+          <ShieldCheck size={18} className="text-teal-700 mt-0.5 shrink-0" />
+          <div className="text-xs text-teal-900 leading-relaxed">
+            <span className="font-bold">Pending Maker-Checker Submission:</span> This booking will be created in{' '}
+            <strong className="text-teal-950 font-bold">PENDING</strong> approval status. Only authorized Managers/Superadmins
+            can review, approve, or reject this booking.
           </div>
         </div>
 
@@ -167,10 +164,10 @@ export const BookingConfirmationModal = ({
           <div className="bg-slate-100/70 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
             <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
               <Banknote size={14} className="text-teal-700" />
-              Financial & Payment Plan Summary
+              Financial &amp; Payment Plan Summary
             </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
-              {isOneTime ? 'ONE TIME FULL PAYMENT' : 'EMI / INSTALLMENTS PLAN'}
+              {isOneTime ? 'ONE TIME FULL PAYMENT (0M)' : `EMI / INSTALLMENTS PLAN (${totalTenureMonths}M)`}
             </span>
           </div>
 
@@ -180,9 +177,25 @@ export const BookingConfirmationModal = ({
               <span className="font-bold font-mono text-slate-900">₹{calculatedPlotValue.toLocaleString('en-IN')}</span>
             </div>
 
+            {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
+              <div className={`flex justify-between items-center px-4 py-2.5 ${emiTenureAdjustment.action === 'ADD' ? 'bg-emerald-50/40 text-emerald-900' : 'bg-amber-50/50 text-amber-900'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${emiTenureAdjustment.action === 'ADD' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
+                    {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}{emiTenureAdjustment.percent}%
+                  </span>
+                  <span className="font-semibold">
+                    {emiTenureAdjustment.action === 'ADD' ? 'Long EMI Markup' : 'Tenure Discount'} ({isOneTime ? '0M' : `${totalTenureMonths}M`})
+                  </span>
+                </div>
+                <span className="font-bold font-mono text-sm">
+                  {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}₹{emiTenureAdjustment.amount.toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
+
             {calculatedDiscount > 0 && (
               <div className="flex justify-between items-center px-4 py-2.5 bg-rose-50/40">
-                <span className="text-rose-700 font-medium">Discount Given</span>
+                <span className="text-rose-700 font-medium">Manual Discount Given</span>
                 <span className="font-bold font-mono text-rose-700">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
               </div>
             )}
@@ -219,7 +232,7 @@ export const BookingConfirmationModal = ({
                 <div className="flex justify-between items-center px-4 py-2.5 bg-teal-50/30">
                   <div>
                     <span className="text-teal-950 font-bold block">
-                      EMI Installment Schedule ({installmentCount} × {emiFrequency})
+                      EMI Installment Schedule ({installmentCount} x {emiFrequency})
                     </span>
                     <span className="text-[10px] text-teal-700 font-medium">
                       Total Tenure Duration: <strong>{totalTenureMonths} Months</strong>
@@ -248,39 +261,27 @@ export const BookingConfirmationModal = ({
         <div className="p-3.5 bg-teal-50/60 border border-teal-200 rounded-2xl space-y-2 text-xs">
           <div className="flex items-center justify-between border-b border-teal-200/80 pb-1.5">
             <span className="font-bold text-teal-950 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-              <FileText size={13} />
-              Land Stock Allocated ({landSourcing.length} Sources)
+              <FileText size={13} className="text-teal-700" />
+              Land Stock Sourcing Allocation ({landSourcing.length} Linked)
             </span>
-            <span className="text-[10px] font-bold text-teal-800 bg-white px-2 py-0.5 rounded-full border border-teal-300">
-              Total: {plotArea} Sq.Ft.
+            <span className="text-[11px] font-bold text-teal-900">
+              Required: {plotArea} Sq.Ft.
             </span>
           </div>
-
-          <div className="space-y-1.5 max-h-32 overflow-y-auto">
-            {landSourcing.map((src, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-2 bg-white/90 border border-teal-200 rounded-xl text-[11px]"
-              >
-                <div>
-                  <span className="font-bold text-slate-800">
-                    {src.sourceType === 'REGISTRY_DEED'
-                      ? `Registry Deed #${src.deedNumber || 'N/A'}`
-                      : `Agreement #${src.agreementNumber || 'N/A'}`}
-                    {src.khesraNumber ? ` — Plot #${src.khesraNumber}` : ''}
-                  </span>
-                  <span className="text-[10px] text-slate-500 block">
-                    {src.mauja ? `Mauja: ${src.mauja}` : ''} {src.thanaNumber ? `| Thana: ${src.thanaNumber}` : ''} {src.khataNumber ? `| Khata: ${src.khataNumber}` : ''}
-                  </span>
-                </div>
-                <div className="text-right font-mono font-bold text-teal-900">
-                  {src.allocatedSqFt} Sq.Ft.
-                </div>
+          <div className="space-y-1.5">
+            {landSourcing.map((src, i) => (
+              <div key={i} className="flex justify-between items-center text-slate-700 bg-white/80 p-2 rounded-lg border border-teal-100">
+                <span className="font-medium truncate max-w-[280px]">
+                  {src.sourceType === 'REGISTRY_DEED' ? '📜 Deed' : '📑 Agr'} #{src.agreementNumber || src.deedNumber || 'N/A'}{' '}
+                  {src.mauja ? `(${src.mauja})` : ''}
+                </span>
+                <span className="font-mono font-bold text-teal-950">
+                  {src.allocatedSqFt} SqFt ({src.allocatedDismil || (Number(src.allocatedSqFt || 0) / 435.6).toFixed(3)} Dismil)
+                </span>
               </div>
             ))}
           </div>
         </div>
-
       </div>
     </Modalbox>
   );

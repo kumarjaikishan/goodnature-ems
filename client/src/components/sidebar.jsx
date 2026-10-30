@@ -54,6 +54,7 @@ const Sidebar = () => {
     voucher: 0,
     downpayment: 0,
     emi: 0,
+    productCollection: 0,
     fundTransfer: 0,
     accountTotal: 0,
     total: 0
@@ -74,6 +75,7 @@ const Sidebar = () => {
           voucher: res.voucher || 0,
           downpayment: res.downpayment || 0,
           emi: res.emi || 0,
+          productCollection: res.productCollection || 0,
           fundTransfer: res.fundTransfer || 0,
           accountTotal: res.accountTotal || 0,
           total: res.total || 0,
@@ -102,6 +104,7 @@ const Sidebar = () => {
     if (childLink === "/dashboard/vouchers") return pendingApprovals.voucher || 0;
     if (childLink === "/dashboard/plots/collections/downpayment") return pendingApprovals.downpayment || 0;
     if (childLink === "/dashboard/plots/collections/emi") return pendingApprovals.emi || 0;
+    if (childLink === "/dashboard/plots/collections/products") return pendingApprovals.productCollection || 0;
     if (childLink === "/dashboard/ledger/transfers") return pendingApprovals.fundTransfer || 0;
     return 0;
   };

@@ -1,6 +1,7 @@
 const User = require('../models/user');
 const Voucher = require('../models/voucher');
 const PlotReceipt = require('../models/PlotReceipt');
+const PlotProductBooking = require('../models/PlotProductBooking');
 const FundTransfer = require('../models/FundTransfer');
 const Ledger = require('../models/ledger');
 
@@ -16,6 +17,7 @@ exports.getPendingApprovalStats = async (req, res, next) => {
         voucher: 0,
         downpayment: 0,
         emi: 0,
+        productCollection: 0,
         fundTransfer: 0,
         accountTotal: 0,
         total: 0
@@ -28,6 +30,7 @@ exports.getPendingApprovalStats = async (req, res, next) => {
         voucher: 0,
         downpayment: 0,
         emi: 0,
+        productCollection: 0,
         fundTransfer: 0,
         accountTotal: 0,
         total: 0
@@ -41,11 +44,13 @@ exports.getPendingApprovalStats = async (req, res, next) => {
     let voucherQuery = null;
     let dpQuery = null;
     let emiQuery = null;
+    let productMatch = null;
 
     if (isGlobalAdmin) {
       voucherQuery = { status: 'PENDING' };
       dpQuery = { status: 'PENDING', receiptType: { $in: ['BOOKING', 'DOWNPAYMENT', 'FULL_PAYMENT'] } };
       emiQuery = { status: 'PENDING', receiptType: 'INSTALLMENT' };
+      productMatch = {};
     } else if (isBranchManager) {
       const managerBranchIds = Array.isArray(dbUser.branchIds) ? dbUser.branchIds : [];
       if (managerBranchIds.length > 0) {
@@ -67,12 +72,16 @@ exports.getPendingApprovalStats = async (req, res, next) => {
           branchId: { $in: managerBranchIds },
           receiptType: 'INSTALLMENT'
         };
+        productMatch = {
+          $or: [
+            { branchId: { $in: managerBranchIds } },
+            { createdById: { $in: branchUserIds } }
+          ]
+        };
       }
     }
 
     // Fund transfers query: live pending transfers that THIS user has authority to approve:
-    // 1. Transfers to user's own cash drawer / personal account
-    // 2. Transfers into bank accounts if user has bank deposit authority (superadmin, dev, or admin with bank permission)
     const userRoleStr = String(dbUser.role || '').toLowerCase();
     const isSuperOrDev = ['superadmin', 'developer', 'grant'].includes(userRoleStr);
     const hasFTApprovePerm = Array.isArray(dbUser?.permissions?.fund_transfer) && dbUser.permissions.fund_transfer.includes(3);
@@ -112,20 +121,47 @@ exports.getPendingApprovalStats = async (req, res, next) => {
       $or: actionableConditions
     };
 
-    const [voucherCount, dpCount, emiCount, fundCount] = await Promise.all([
+    const countProductPending = async () => {
+      try {
+        if (!productMatch) return 0;
+        const res = await PlotProductBooking.aggregate([
+          { $match: productMatch },
+          { $unwind: '$collections' },
+          {
+            $match: {
+              $or: [
+                { 'collections.status': 'PENDING' },
+                {
+                  'collections.status': { $exists: false },
+                  'collections.paymentMode': { $nin: ['cash', 'CASH'] }
+                }
+              ]
+            }
+          },
+          { $count: 'count' }
+        ]);
+        return res.length > 0 ? res[0].count : 0;
+      } catch (err) {
+        return 0;
+      }
+    };
+
+    const [voucherCount, dpCount, emiCount, productCount, fundCount] = await Promise.all([
       voucherQuery ? Voucher.countDocuments(voucherQuery) : 0,
       dpQuery ? PlotReceipt.countDocuments(dpQuery) : 0,
       emiQuery ? PlotReceipt.countDocuments(emiQuery) : 0,
+      countProductPending(),
       fundTransferQuery ? FundTransfer.countDocuments(fundTransferQuery) : 0
     ]);
 
-    const accountTotal = voucherCount + dpCount + emiCount;
+    const accountTotal = voucherCount + dpCount + emiCount + productCount;
     const total = accountTotal + fundCount;
 
     return res.status(200).json({
       voucher: voucherCount,
       downpayment: dpCount,
       emi: emiCount,
+      productCollection: productCount,
       fundTransfer: fundCount,
       accountTotal,
       total

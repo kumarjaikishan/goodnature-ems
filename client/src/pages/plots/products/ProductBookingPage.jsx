@@ -289,25 +289,8 @@ const ProductBookingPage = () => {
           ) || 40;
           const initialReqSqFt = initialQty * initialArea;
 
-          if (srcList.length > 0) {
-            const firstSrc = srcList[0];
-            const firstParcel = firstSrc.parcels?.[0];
-            setLandSourcing([
-              {
-                sourceType: firstSrc.sourceType || 'AGREEMENT',
-                agreementId: firstSrc.agreementId || firstSrc._id,
-                agreementNumber: firstSrc.agreementNumber || firstSrc.label,
-                parcelId: firstParcel?.parcelId || null,
-                khesraNumber: firstParcel?.khesraNumber || firstSrc.khesraNumber || '',
-                mauja: firstParcel?.mauja || firstSrc.mauja || '',
-                thanaNumber: firstParcel?.thanaNumber || firstSrc.thanaNumber || '',
-                khataNumber: firstParcel?.khataNumber || firstSrc.khataNumber || '',
-                allocatedSqFt: initialReqSqFt,
-              },
-            ]);
-          } else {
-            setLandSourcing([]);
-          }
+          // Do not auto-select agreement/plot on initial load
+          setLandSourcing([]);
         }
       } catch (err) {
         console.error('Failed to load product booking master data:', err);
@@ -407,7 +390,9 @@ const ProductBookingPage = () => {
   }, [landSourcing]);
 
   const totalAllocatedDismil = Math.round((totalAllocatedArea / 435.6) * 100) / 100;
-  const isAreaMatched = Math.abs(totalAllocatedArea - totalRequiredSqFt) <= 0.5;
+  const isAreaMatched = landSourcing.length > 0 &&
+    landSourcing.every((s) => s.agreementId && (s.khesraNumber || s.parcelId)) &&
+    Math.abs(totalAllocatedArea - totalRequiredSqFt) <= 0.5;
 
   // Filter land agreements by selected project (must belong to chosen project)
   const availableAgreementsForProject = useMemo(() => {
@@ -1754,7 +1739,7 @@ const ProductBookingPage = () => {
                   const selectedParcel = availableParcels.find(
                     (p) => (src.parcelId && String(p.parcelId) === String(src.parcelId)) ||
                            (src.khesraNumber && String(p.khesraNumber) === String(src.khesraNumber))
-                  ) || availableParcels[0];
+                  ) || null;
 
                   const parcelAvailableSqFt = selectedParcel?.availableSqFt ?? selectedAgr?.availableSqFt ?? 0;
                   const parcelAvailableDismil = selectedParcel?.availableDismil ?? selectedAgr?.availableDismil ?? (parcelAvailableSqFt ? (parcelAvailableSqFt / 435.6).toFixed(2) : 0);
@@ -1797,7 +1782,7 @@ const ProductBookingPage = () => {
                               );
                               if (!chosenAgr) return;
 
-                              const firstParcel = chosenAgr.parcels?.[0];
+                              const firstParcel = chosenAgr.parcels && chosenAgr.parcels.length === 1 ? chosenAgr.parcels[0] : null;
                               const otherRowsTotal = landSourcing
                                 .filter((_, i) => i !== idx)
                                 .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
@@ -1810,7 +1795,7 @@ const ProductBookingPage = () => {
                                 agreementId: chosenAgr.agreementId || chosenAgr._id,
                                 agreementNumber: chosenAgr.agreementNumber || chosenAgr.label,
                                 parcelId: firstParcel?.parcelId || null,
-                                khesraNumber: firstParcel?.khesraNumber || chosenAgr.khesraNumber || '',
+                                khesraNumber: firstParcel?.khesraNumber || (chosenAgr.parcels?.length === 1 ? chosenAgr.khesraNumber : '') || '',
                                 mauja: firstParcel?.mauja || chosenAgr.mauja || '',
                                 thanaNumber: firstParcel?.thanaNumber || chosenAgr.thanaNumber || '',
                                 khataNumber: firstParcel?.khataNumber || chosenAgr.khataNumber || '',
@@ -1839,6 +1824,19 @@ const ProductBookingPage = () => {
                               value={src.parcelId ? String(src.parcelId) : (src.khesraNumber || '')}
                               onChange={(e) => {
                                 const chosenVal = e.target.value;
+                                if (!chosenVal) {
+                                  const updated = [...landSourcing];
+                                  updated[idx] = {
+                                    ...updated[idx],
+                                    parcelId: null,
+                                    khesraNumber: '',
+                                    mauja: '',
+                                    thanaNumber: '',
+                                    khataNumber: '',
+                                  };
+                                  setLandSourcing(updated);
+                                  return;
+                                }
                                 const p = availableParcels.find(
                                   (item) => String(item.parcelId) === chosenVal || String(item.khesraNumber) === chosenVal
                                 );
@@ -1855,6 +1853,7 @@ const ProductBookingPage = () => {
                                 setLandSourcing(updated);
                               }}
                             >
+                              <option value="">-- Select Plot / Khesra --</option>
                               {availableParcels.map((p, pIdx) => (
                                 <option
                                   key={`parcel_${p.parcelId || pIdx}`}

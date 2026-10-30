@@ -116,6 +116,7 @@ const ProductCollectionsPage = ({ initialView }) => {
       toast.success(`Receipt #${approvingCol.receiptNumber} approved & realized into company ledger`);
       setApprovingCol(null);
       fetchCollections(true);
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Approval failed');
     } finally {
@@ -136,6 +137,7 @@ const ProductCollectionsPage = ({ initialView }) => {
       setRejectingCol(null);
       setRejectionReason('');
       fetchCollections(true);
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Rejection failed');
     } finally {
@@ -176,6 +178,7 @@ const ProductCollectionsPage = ({ initialView }) => {
   const handleCollectionSuccess = (result) => {
     navigate('/dashboard/plots/collections/products');
     fetchCollections(true);
+    window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
 
     const isPending = (result?.status || '').toUpperCase() === 'PENDING' || (result?.paymentMode && String(result.paymentMode).toLowerCase() !== 'cash' && (result?.status || '').toUpperCase() !== 'APPROVED');
 
@@ -507,9 +510,17 @@ const ProductCollectionsPage = ({ initialView }) => {
                       {/* Status */}
                       <td className="p-3.5 text-center">
                         {isPending ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-                            <Clock size={11} /> Pending
-                          </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap"
+                              title="Pending Manager / Admin verification"
+                            >
+                              <Clock size={11} /> Pending
+                            </span>
+                            <span className="text-[9px] font-semibold text-slate-400">
+                              Requires Approval
+                            </span>
+                          </div>
                         ) : isRejected ? (
                           <span
                             className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap cursor-help"
@@ -531,22 +542,31 @@ const ProductCollectionsPage = ({ initialView }) => {
                             <>
                               <button
                                 onClick={() => setApprovingCol(col)}
-                                className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer shadow-2xs"
-                                title="Approve Collection & Realize into Ledger"
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center gap-1 text-[11px] font-bold"
+                                title="Approve Bill & Realize into Ledger (Authorized)"
                               >
-                                <Check size={13} />
+                                <Check size={12} />
+                                <span className="hidden sm:inline">Approve</span>
                               </button>
                               <button
                                 onClick={() => {
                                   setRejectingCol(col);
                                   setRejectionReason('');
                                 }}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                                className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center justify-center"
                                 title="Reject Collection"
                               >
                                 <XCircle size={13} />
                               </button>
                             </>
+                          )}
+                          {isPending && !canUpdate && (
+                            <span
+                              className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md whitespace-nowrap cursor-help"
+                              title="Awaiting authorized Admin or Manager approval"
+                            >
+                              Awaiting Auth
+                            </span>
                           )}
 
                           <button

@@ -1,6 +1,34 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
-- **Product Collections: Maker-Checker Approval Workflow & Required UTR/Cheque [COMPLETED]**:
+- **EMI Tenure Rate Adjustment Slabs Configuration & Plot Booking Integration [COMPLETED]**:
+  - **Requirement**:
+    - In http://localhost:5173/dashboard/plots/products, add an additional tab for Admin to configure EMI tenure rate slabs.
+    - Field for EMI month (0 Month up to 20+ Months, with option to add more slabs), action select (ADD or DEDUCT), and percentage field.
+    - Rule scale: 0 Month (Full One-Time Payment) gives 20% discount (deduct), 1 Month gives 19% discount, 2 Months gives 18% discount ... 20 Months is 0% (standard plot rate), and 21+ Months adds markup (+1%, +2%, etc.).
+    - Dynamically applied in Plot Booking (http://localhost:5173/dashboard/plots/booking) in Step 3 (Terms & Payment) on the calculated plot value, and displayed in breakdown tables and modal summaries.
+  - **Implementation**:
+    - **Model**: Added emiTenureAdjustmentSchema to PlotRateConfiguration with tenureMonths, action (ADD | DEDUCT), and percentage. Defaulted to the 0-24 month scale (0M: 20% DEDUCT ... 20M: 0% ... 24M: 4% ADD). Added static helper getDefaultEmiTenureAdjustments().
+    - **Services**: Ensured getRateConfig and updateRateConfig in plotConfig.service.js read and persist emiTenureAdjustments. Updated booking creation logic in plotBooking.service.js to compute emiTenureAdjustmentPercent, emiTenureAdjustmentAction, and emiTenureAdjustmentAmount and persist them in PlotBooking.
+    - **Frontend Products Page**: In PlotProductsPage.jsx, added 4th tab emi_slabs (EMI Tenure Slabs) with ProductEmiTenureSlabsTab.jsx, featuring Add Slab, Delete Slab, Reset 0-24 Scale, live formula preview, and Save Configuration.
+    - **Frontend Booking Wizard**: In PlotBooking.jsx, StepTermsAndPayment.jsx, BookingSummarySidebar.jsx, and BookingConfirmationModal.jsx, added real-time lookup of tenure adjustment based on payment plan mode (0M for One-Time Full Payment, or total tenure months for EMI). Shows clear line items and badges in Step 3, the financial sidebar, and review modal before submission.
+
+- **Product Collections: Maker-Checker Approval Workflow & Pending Notification Badges [COMPLETED]**:
+  - **Issue & Requirement**:
+    - Show pending approval count on the left sidebar under `Product Collections` (just like Downpayment/EMI) and show who is authorized to approve the bills.
+    - When online collections were created, the left sidebar didn't show the pending counter badge on `Product Collections`.
+  - **Implementation**:
+    - **Backend (`approvalController.js`)**:
+      - Integrated `PlotProductBooking.aggregate` to count pending product collections under `productCollection`.
+      - Scoped by user authority: Global Admins (superadmin, admin, developer) see all pending product collections; Branch Managers see pending product collections scoped to their assigned branches/users.
+      - Added `productCollection` count to `accountTotal` and `total`.
+    - **Sidebar (`Sidebar.jsx`)**:
+      - Stored `productCollection` in state and mapped `/dashboard/plots/collections/products` in `getChildPendingCount`.
+      - Shows the live amber counter badge directly on `Product Collections` and rolls it up into `Account`.
+    - **Table UI (`ProductCollectionsPage.jsx`)**:
+      - For pending bills, clearly display `Pending` with `Requires Approval` subtitle.
+      - Action buttons now feature a clear `Approve` label with tooltip indicating authorization (`Approve Bill & Realize into Ledger (Authorized)`).
+      - Users without update permissions see `Awaiting Auth` (indicating waiting on Manager/Admin approval).
+      - Dispatches `ems-refresh-approvals` upon approving, rejecting, or creating a collection to update the sidebar badge in real-time.
   - **Issue & Root Cause**:
     - Previously, when making an online/bank collection at `/dashboard/plots/collections/products/add`, it appeared as directly approved rather than `PENDING` awaiting authorized person / ID approval.
     - Root Causes:

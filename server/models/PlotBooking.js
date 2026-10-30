@@ -231,6 +231,20 @@ const plotBookingSchema = new mongoose.Schema(
       enum: ['AFTER_DISCOUNT', 'BEFORE_DISCOUNT', 'AFTER_DISCOUNT_EMI'],
       default: 'BEFORE_DISCOUNT',
     },
+    // EMI Tenure Rate Adjustment
+    emiTenureAdjustmentPercent: {
+      type: Number,
+      default: 0,
+    },
+    emiTenureAdjustmentAction: {
+      type: String,
+      enum: ['ADD', 'DEDUCT', 'NONE'],
+      default: 'NONE',
+    },
+    emiTenureAdjustmentAmount: {
+      type: Number,
+      default: 0,
+    },
     // Land Stock Sourcing (from one or multiple Kisan Agreements / Registry Deeds)
     landSourcing: [
       {

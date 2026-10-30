@@ -274,7 +274,44 @@ export default function PlotBooking() {
     ? Math.round(baseRate * (1 + totalPremiumExtra / 100) * 100) / 100
     : baseRate;
 
-  const calculatedPlotValue = Math.round(plotArea * effectiveSqFtRate);
+  // Base calculated plot value before EMI tenure adjustment
+  const baseCalculatedPlotValue = Math.round(plotArea * effectiveSqFtRate);
+
+  // EMI Tenure Slabs Adjustment (Lookup from rateConfig.emiTenureAdjustments)
+  const freqMultiplier = useMemo(() => {
+    switch (emiFrequency) {
+      case 'QUARTERLY': return 3;
+      case 'HALF_YEARLY': return 6;
+      case 'YEARLY': return 12;
+      default: return 1;
+    }
+  }, [emiFrequency]);
+
+  const totalTenureMonths = paymentPlanMode === 'ONE_TIME' ? 0 : (Number(installmentCount) || 1) * freqMultiplier;
+
+  const emiTenureAdjustment = useMemo(() => {
+    if (!rateConfig?.emiTenureAdjustments?.length) {
+      return { percent: 0, action: 'NONE', amount: 0 };
+    }
+    const matched = rateConfig.emiTenureAdjustments.find((s) => Number(s.tenureMonths) === Number(totalTenureMonths));
+    if (!matched || !Number(matched.percentage)) {
+      return { percent: 0, action: 'NONE', amount: 0 };
+    }
+    const percent = Number(matched.percentage) || 0;
+    const action = matched.action === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+    const amount = Math.round((baseCalculatedPlotValue * percent) / 100);
+    return { percent, action, amount };
+  }, [paymentPlanMode, totalTenureMonths, rateConfig?.emiTenureAdjustments, baseCalculatedPlotValue]);
+
+  const calculatedPlotValue = useMemo(() => {
+    if (emiTenureAdjustment.action === 'ADD') {
+      return baseCalculatedPlotValue + emiTenureAdjustment.amount;
+    }
+    if (emiTenureAdjustment.action === 'DEDUCT') {
+      return Math.max(0, baseCalculatedPlotValue - emiTenureAdjustment.amount);
+    }
+    return baseCalculatedPlotValue;
+  }, [baseCalculatedPlotValue, emiTenureAdjustment]);
 
   // Discount calculation
   const calculatedDiscount = useMemo(() => {
@@ -313,16 +350,7 @@ export default function PlotBooking() {
   const emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
   const isOneTime = emiPrincipalAmt === 0;
 
-  const freqMultiplier = useMemo(() => {
-    switch (emiFrequency) {
-      case 'QUARTERLY': return 3;
-      case 'HALF_YEARLY': return 6;
-      case 'YEARLY': return 12;
-      default: return 1;
-    }
-  }, [emiFrequency]);
-
-  const totalTenureMonths = isOneTime ? 0 : (Number(installmentCount) || 1) * freqMultiplier;
+  // totalTenureMonths and freqMultiplier defined above with tenure adjustment
 
   const emiPerInstallmentAmt = useMemo(() => {
     if (isOneTime || !installmentCount || Number(installmentCount) <= 0) return 0;
@@ -454,6 +482,9 @@ export default function PlotBooking() {
         rdMaturityPercent: form.rdMaturityPercent !== undefined ? Number(form.rdMaturityPercent) : 0,
         fdMaturityPercent: form.fdMaturityPercent !== undefined ? Number(form.fdMaturityPercent) : 0,
         annualInterestRate: form.annualInterestRate !== undefined ? Number(form.annualInterestRate) : 0,
+        emiTenureAdjustmentPercent: emiTenureAdjustment.percent,
+        emiTenureAdjustmentAction: emiTenureAdjustment.action,
+        emiTenureAdjustmentAmount: emiTenureAdjustment.amount,
         landSourcing: landSourcing,
         appliedPremiumHeads: selectedPremiumHeads
           .filter((h) => h.active)
@@ -576,6 +607,7 @@ export default function PlotBooking() {
               customDpRate={customDpRate}
               remainingBalance={emiPrincipalAmt}
               emiFrequency={emiFrequency}
+        emiTenureAdjustment={emiTenureAdjustment}
               setEmiFrequency={setEmiFrequency}
               installmentCount={installmentCount}
               setInstallmentCount={setInstallmentCount}
@@ -593,9 +625,11 @@ export default function PlotBooking() {
               selectedPlot={selectedPlot}
               projects={projects}
               selectedPremiumHeads={selectedPremiumHeads}
+        
               togglePremiumHead={togglePremiumHead}
               totalPremiumExtra={totalPremiumExtra}
               schemeSlabs={rateConfig?.schemeSlabs || []}
+              emiTenureAdjustment={emiTenureAdjustment}
             />
           )}
 
@@ -624,6 +658,7 @@ export default function PlotBooking() {
           installmentCount={installmentCount}
           totalTenureMonths={totalTenureMonths}
           selectedPremiumHeads={selectedPremiumHeads}
+          emiTenureAdjustment={emiTenureAdjustment}
         />
 
       </div>

@@ -808,8 +808,3 @@ const PlotPurchasePage = () => {
 };
 
 export default PlotPurchasePage;
-    </div >
-  );
-};
-
-export default PlotPurchasePage;

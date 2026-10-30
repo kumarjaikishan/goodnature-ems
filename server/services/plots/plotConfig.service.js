@@ -48,12 +48,17 @@ class PlotConfigService {
         lateFineRate: 24,
         lateFineDailyPercent: 24 / 365,
         rateSlabs: PlotRateConfiguration.getDefaultRateSlabs(),
+        emiTenureAdjustments: PlotRateConfiguration.getDefaultEmiTenureAdjustments(),
       });
       await config.save();
     } else {
       let needsSave = false;
       if (!config.rateSlabs || config.rateSlabs.length === 0) {
         config.rateSlabs = PlotRateConfiguration.getDefaultRateSlabs();
+        needsSave = true;
+      }
+      if (!config.emiTenureAdjustments || config.emiTenureAdjustments.length === 0) {
+        config.emiTenureAdjustments = PlotRateConfiguration.getDefaultEmiTenureAdjustments();
         needsSave = true;
       }
       if (!config.premiumHeads || config.premiumHeads.length === 0) {
@@ -167,6 +172,16 @@ class PlotConfigService {
       }
       if (data.rateSlabs && Array.isArray(data.rateSlabs)) {
         config.rateSlabs = data.rateSlabs;
+      }
+      if (data.emiTenureAdjustments && Array.isArray(data.emiTenureAdjustments)) {
+        config.emiTenureAdjustments = data.emiTenureAdjustments
+          .filter(a => Number(a.tenureMonths) >= 0)
+          .map(a => ({
+            tenureMonths: Number(a.tenureMonths),
+            action: a.action === 'DEDUCT' ? 'DEDUCT' : 'ADD',
+            percentage: Math.max(0, Math.min(100, Number(a.percentage) || 0)),
+          }))
+          .sort((a, b) => a.tenureMonths - b.tenureMonths);
       }
     }
     await config.save();
