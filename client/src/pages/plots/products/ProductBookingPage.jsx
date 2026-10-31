@@ -1696,38 +1696,13 @@ const ProductBookingPage = () => {
             </div>
 
             {landSourcing.length === 0 ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                  <span>
-                    {allLandSources.length === 0
-                      ? 'No active agreements with available stock found in Purchase & Land Master.'
-                      : 'No agreement selected. Click "+ Add Land Source" to allocate land stock.'}
-                  </span>
-                </div>
-                {allLandSources.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLandSourcing([
-                        {
-                          sourceType: 'AGREEMENT',
-                          agreementId: '',
-                          agreementNumber: '',
-                          parcelId: null,
-                          khesraNumber: '',
-                          mauja: '',
-                          thanaNumber: '',
-                          khataNumber: '',
-                          allocatedSqFt: totalRequiredSqFt,
-                        },
-                      ]);
-                    }}
-                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer shrink-0"
-                  >
-                    + Add Land Source
-                  </button>
-                )}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-2 text-xs text-amber-900">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>
+                  {allLandSources.length === 0
+                    ? 'No active agreements with available stock found in Purchase & Land Master.'
+                    : 'No agreement selected. Click "+ Add Land Source" above to allocate land stock.'}
+                </span>
               </div>
             ) : (
               <div className="space-y-3">

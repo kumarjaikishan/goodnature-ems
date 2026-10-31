@@ -2254,8 +2254,15 @@ class PlotProductService {
       filtered = filtered.filter((c) => new Date(c.paymentDate) <= e);
     }
 
-    // Sort descending by payment date
-    filtered.sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
+    // Sort descending by payment date / creation, and for ties/same day sort by receipt number descending
+    filtered.sort((a, b) => {
+      const timeA = new Date(a.paymentDate || a.createdAt || 0).getTime();
+      const timeB = new Date(b.paymentDate || b.createdAt || 0).getTime();
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      return String(b.receiptNumber || '').localeCompare(String(a.receiptNumber || ''), undefined, { numeric: true });
+    });
 
     // Calculate KPI Totals
     const approvedList = filtered.filter((c) => (c.status || 'APPROVED').toUpperCase() === 'APPROVED');

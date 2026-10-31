@@ -254,13 +254,6 @@ export const StepTermsAndPayment = ({
               );
             })}
           </select>
-          {!form.planName && (
-            <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
-              <AlertCircle size={13} className="shrink-0" />
-              Scheme Plan selection is required to determine Associate, Partner, and Branch Partner commissions before booking can proceed.
-            </p>
-          )}
-
           {currentSchemeSlab ? (
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-teal-200 shadow-2xs">
@@ -296,8 +289,9 @@ export const StepTermsAndPayment = ({
               </span>
             </div>
           ) : (
-            <p className="text-[11px] text-teal-800/90 font-medium">
-              Choose a scheme plan to auto-apply tenure and fixed hierarchy commissions for BA, BP & Branch Partner.
+            <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
+              <AlertCircle size={13} className="shrink-0" />
+              Scheme Plan selection is required to determine Associate, Partner, and Branch Partner commissions before booking can proceed.
             </p>
           )}
         </div>

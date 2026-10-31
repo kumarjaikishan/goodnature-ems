@@ -196,7 +196,7 @@ const Sidebar = () => {
             { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
             { menu: "Plot Booking", link: "/dashboard/plots/booking", roles: OPERATIONAL_ROLES, resource: "plot_booking" },
             { menu: "Investment Booking", link: "/dashboard/plots/investment-booking", roles: OPERATIONAL_ROLES, resource: "investment_booking" },
-            { menu: "Incentive", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_incentive" },
+            { menu: "Incentive Closing", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_incentive" },
             { menu: "Reports", link: "/dashboard/plots/reports", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
           ],
         },

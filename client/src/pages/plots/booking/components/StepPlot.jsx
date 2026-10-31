@@ -79,7 +79,7 @@ export const StepPlot = ({
           <Button variant="secondary" size="sm" onClick={prevStep} startIcon={ChevronLeft}>
             Back
           </Button>
-          <Button variant="primary" size="sm" onClick={handleNextClick} endIcon={ChevronRight}>
+          <Button variant="primary" size="sm" onClick={handleNextClick} endIcon={ChevronRight} disabled={!selectedPlot}>
             Next: Payment Details
           </Button>
         </div>
@@ -303,7 +303,7 @@ export const StepPlot = ({
         <Button variant="secondary" size="sm" onClick={prevStep} startIcon={ChevronLeft}>
           Back
         </Button>
-        <Button variant="primary" size="sm" onClick={handleNextClick} endIcon={ChevronRight}>
+        <Button variant="primary" size="sm" onClick={handleNextClick} endIcon={ChevronRight} disabled={!selectedPlot}>
           Next: Payment Details
         </Button>
       </div>

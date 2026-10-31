@@ -195,9 +195,9 @@ const ProductCollectionsPage = ({ initialView }) => {
     }
   };
 
-  // Filter Collections
+  // Filter & Sort Collections (Latest date and latest receipt number on top)
   const filteredCollections = useMemo(() => {
-    return collections.filter((c) => {
+    const list = collections.filter((c) => {
       // Payment mode filter
       if (paymentModeFilter !== 'ALL' && c.paymentMode?.toLowerCase() !== paymentModeFilter.toLowerCase()) {
         return false;
@@ -224,6 +224,15 @@ const ProductCollectionsPage = ({ initialView }) => {
       const pNameMatch = c.product?.productName?.toLowerCase().includes(q);
       const refMatch = c.transactionReference?.toLowerCase().includes(q);
       return rMatch || bMatch || cNameMatch || cCodeMatch || cMobMatch || pNameMatch || refMatch;
+    });
+
+    return [...list].sort((a, b) => {
+      const timeA = new Date(a.paymentDate || a.createdAt || 0).getTime();
+      const timeB = new Date(b.paymentDate || b.createdAt || 0).getTime();
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      return String(b.receiptNumber || '').localeCompare(String(a.receiptNumber || ''), undefined, { numeric: true });
     });
   }, [collections, searchQuery, paymentModeFilter, statusFilter]);
 

@@ -85,7 +85,7 @@ export const StepCustomer = ({
           >
             <UserPlus size={14} /> Register Customer
           </Link>
-          <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight}>
+          <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight} disabled={!selectedCustomer}>
             Next: Choose Plot
           </Button>
         </div>
@@ -212,7 +212,7 @@ export const StepCustomer = ({
 
       {/* Bottom Actions Bar */}
       <div className="flex items-center justify-end border-t border-slate-200 pt-4 mt-1">
-        <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight}>
+        <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight} disabled={!selectedCustomer}>
           Next: Choose Plot
         </Button>
       </div>

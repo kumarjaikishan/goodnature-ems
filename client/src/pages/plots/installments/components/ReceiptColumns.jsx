@@ -12,38 +12,33 @@ export const getReceiptColumns = ({
   canDelete = true,
 }) => [
     {
-      name: 'Date',
-      selector: (row) => row.createdAt,
-      cell: (row) => (
-        <span className="text-slate-600 font-medium whitespace-nowrap text-xs">
-          {new Date(row.createdAt).toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-          })}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '95px',
-      compact: true,
-    },
-    {
-      name: 'Receipt No.',
+      name: 'Receipt # & Date',
       selector: (row) => (row.receiptNumber || '').replace(/^RO-/, ''),
       cell: (row) => {
         const cleanNo = (row.receiptNumber || '').replace(/^RO-/, '');
+        const dateStr = row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }) : '-';
+
         return (
-          <span
-            onClick={() => navigate(`/dashboard/plots/receipts/${row._id}`)}
-            className="font-bold text-teal-800 hover:text-teal-950 hover:underline tracking-tight font-mono text-xs whitespace-nowrap cursor-pointer select-all"
-            title="Click to View / Print Receipt"
-          >
-            {cleanNo || '-'}
-          </span>
+          <div className="flex flex-col gap-0.5 text-left py-0.5">
+            <span
+              onClick={() => navigate(`/dashboard/plots/receipts/${row._id}`)}
+              className="font-bold text-teal-800 hover:text-teal-950 hover:underline tracking-tight font-mono text-xs whitespace-nowrap cursor-pointer select-all"
+              title="Click to View / Print Receipt"
+            >
+              {cleanNo || '-'}
+            </span>
+            <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
+              {dateStr}
+            </span>
+          </div>
         );
       },
       sortable: true,
-      minWidth: '155px',
+      minWidth: '150px',
     },
     {
       name: 'Customer',
@@ -94,11 +89,21 @@ export const getReceiptColumns = ({
     {
       name: 'Mode',
       selector: (row) => row.paymentMode,
-      cell: (row) => (
-        <span className="font-bold uppercase text-[10px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded whitespace-nowrap">
-          {(row.paymentMode === 'bank_transfer' || row.paymentMode === 'neft_rtgs') ? 'BANK TRANSFER / NEFT / RTGS' : row.paymentMode}
-        </span>
-      ),
+      cell: (row) => {
+        const mode = (row.paymentMode === 'bank_transfer' || row.paymentMode === 'neft_rtgs') ? 'BANK/ONLINE' : row.paymentMode;
+        return (
+          <div className="flex flex-col text-left gap-0.5">
+            <span className="font-bold uppercase text-[10px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded whitespace-nowrap w-fit">
+              {mode}
+            </span>
+            {row.transactionReference ? (
+              <span className="font-mono text-[10px] text-slate-500 truncate max-w-[110px]" title={row.transactionReference}>
+                Ref: {row.transactionReference}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
       sortable: true,
       minWidth: '120px',
       compact: true,
@@ -152,17 +157,7 @@ export const getReceiptColumns = ({
       sortable: true,
       minWidth: '100px',
     },
-    {
-      name: 'Ref No.',
-      selector: (row) => row.transactionReference || '-',
-      cell: (row) => (
-        <span className="font-mono text-xs text-slate-500 truncate max-w-[80px]" title={row.transactionReference || '-'}>
-          {row.transactionReference || '-'}
-        </span>
-      ),
-      sortable: true,
-      minWidth: '80px',
-    },
+
     {
       name: 'Actions',
       minWidth: '100px',

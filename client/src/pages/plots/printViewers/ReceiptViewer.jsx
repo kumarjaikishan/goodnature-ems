@@ -137,7 +137,7 @@ const ReceiptViewer = () => {
   const outstandingDownpayment = receipt.asOfRemainingDownpayment !== undefined
     ? receipt.asOfRemainingDownpayment
     : 0;
-  const formattedMode = (receipt.paymentMode === 'bank_transfer' || receipt.paymentMode === 'neft_rtgs') ? 'BANK TRANSFER / NEFT / RTGS' : (receipt.paymentMode || '').toUpperCase();
+  const formattedMode = (receipt.paymentMode === 'bank_transfer' || receipt.paymentMode === 'neft_rtgs') ? 'BANK/ONLINE' : (receipt.paymentMode || '').toUpperCase();
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">

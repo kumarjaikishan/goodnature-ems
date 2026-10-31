@@ -95,7 +95,7 @@ const Navbar = () => {
     "products": "Plot Products",
     "book": "Product Booking",
     "reports": "Plot Reports",
-    "incentives": "Incentive Matrix",
+    "incentives": "Incentive Closing",
     "closings": "Incentive Closings",
     "interest-calculator": "Plot Refund & Settlement Calculator",
   };
