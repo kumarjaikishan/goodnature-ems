@@ -1,5 +1,29 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Organization User Login Username Prefix & Domain Standardization [COMPLETED]**:
+  - **Requirement**: In User Management Add / Edit modal & page, show fixed `@goodfeelsd.com` on the right side of the input. Admin inputs only the username prefix (e.g. `nawrajsingh`), creating `nawrajsingh@goodfeelsd.com` as the login username.
+  - **Fix**: In `AdminUserFormPage.jsx` and `UserFormModal.jsx`, replaced domain replacement with `.split('@')[0]` so existing accounts with domains like `@gmail.com` cleanly populate only the username prefix. Enhanced `onChange` to automatically strip any `@` domain entered.
+
+- **Standalone Plot Price Calculator Simplification & Fixed Rate Integration [COMPLETED]**:
+  - **Requirement**:
+    1. Remove the reference table below ("Complete EMI Tenure Slabs Scale (0 to 24 Months)").
+    2. Fix the Plot Selling Rate so it is locked/read-only, populated directly from the admin-configured `baseSqFtRate` (from `Plot Series Master` > `Plot Configuration & Rates`).
+    3. Allow user to enter/adjust only the EMI month:
+       - Entering `0` means all downpayment / one-time payment with a 20% discount.
+       - Entering `1` month gives 19% discount, `2` months gives 18% discount, up to 20 months (0% base), and 21+ months adds markup (+1% per month).
+       - Live plot value updates dynamically with gross value, discount/adjustment, net payable value, downpayment, and monthly EMI.
+  - **Implementation**:
+    - Updated `PlotPriceCalculatorTab.jsx`:
+      - Locked `baseSqFtRate` input as read-only with a lock badge.
+      - Replaced dropdown with an interactive numeric stepper & input for EMI Tenure (Months) plus quick-select chips (`0M`, `1M`, `3M`, `6M`, `12M`, `20M`, `24M`) and a dynamic live calculation banner.
+      - Removed the 0 to 24 months simulation table completely.
+      - In live pricing breakdown, `0 Month` cleanly indicates 100% full cash downpayment and zero installments.
+  - **Requirement 1**: In `Plot Configuration & Rates` tab of Plot Series Master (`/dashboard/plots/series-master`), added dedicated card for `Plot Booking Base Rate (₹/Sq.Ft)` saving to `baseSqFtRate`, which auto-fills the default selling sqft rate in New Plot Booking (`/dashboard/plots/booking/new`).
+  - **Requirement 2**: Separated `/dashboard/price-calculator` into its own standalone page (`PlotPriceCalculatorPage.jsx`) displaying only the price & tenure simulation tool.
+  - **Requirement 3**: Removed the Price Calculator tab from `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`), retaining only the **Plan** and **Commission** tabs.
+  - **Requirement 4**: In Plot Booking Step 1 (`StepCustomer.jsx`), removed duplicate bottom "Next: Choose Plot" button.
+  - **Requirement 5**: In `BookingCertificateViewer.jsx`, removed top-right Booking No and Date labels, and displayed the Amount in Words right below Total Valuation in a muted faded subtitle.
+
 - **EMI Tenure Rate Adjustment Slabs Configuration & Plot Booking Integration [COMPLETED]**:
   - **Requirement**:
     - In http://localhost:5173/dashboard/plots/products, add an additional tab for Admin to configure EMI tenure rate slabs.

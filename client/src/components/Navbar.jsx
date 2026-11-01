@@ -264,7 +264,19 @@ const Navbar = () => {
 
         <div className='flex flex-col items-end px-1'>
           <span className='text-[10px] md:text-xs font-semibold text-slate-800 leading-4 capitalize'>{user?.profile?.name}</span>
-          <p className='text-[8px] md:text-[10px] text-teal-700 font-medium text-right capitalize'>{user?.profile?.role === 'grant' ? 'User' : user?.profile?.role}</p>
+          <p className='text-[8px] md:text-[10px] text-teal-700 font-medium text-right capitalize'>
+            {(() => {
+              const p = user?.profile;
+              if (!p) return '';
+              if (p.role === 'grant') return 'User';
+              if (p.role === 'sponsor') {
+                if (p.isBranchPartner || p.sponsorCode?.startsWith('BRP-')) return 'Branch Partner';
+                if (p.isDeveloperSponsor || p.sponsorCode?.startsWith('BP-')) return 'Business Partner';
+                return 'Business Associate';
+              }
+              return p.role;
+            })()}
+          </p>
         </div>
         {user?.profile?.role === 'employee' ? (
           profile?.profileimage ? (

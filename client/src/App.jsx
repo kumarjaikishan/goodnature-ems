@@ -109,6 +109,7 @@ const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDev
 const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
 const BusinessDeveloperNetworkPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperNetworkPage'));
 const CommissionStructurePage = lazy(() => import('./pages/plots/businessDevelopers/CommissionStructurePage'));
+const PlotPriceCalculatorPage = lazy(() => import('./pages/plots/businessDevelopers/PlotPriceCalculatorPage'));
 const PlotIncentivesPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
 const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
@@ -233,6 +234,11 @@ const managementRoutes = (
     <Route path="plots/product-certificates/:id" element={<RoutePermissionGuard resource="investment_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
     <Route path="plots/receipts/:id" element={<RoutePermissionGuard resource="plot_collection" action={1}><ReceiptViewer /></RoutePermissionGuard>} />
     <Route path="plots/interest-calculator" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotInterestCalculator /></RoutePermissionGuard>} />
+    <Route path="price-calculator" element={<PlotPriceCalculatorPage />} />
+    <Route path="plots/price-calculator" element={<PlotPriceCalculatorPage />} />
+    <Route path="my-commission-rates" element={<CommissionStructurePage />} />
+    <Route path="commission-structure" element={<CommissionStructurePage />} />
+    <Route path="plots/commission-structure" element={<CommissionStructurePage />} />
     <Route path="plots/incentives" element={<RoutePermissionGuard resource="plot_incentive" action={1}><PlotIncentivesPage /></RoutePermissionGuard>} />
     <Route path="plots/incentives/new" element={<RoutePermissionGuard resource="plot_incentive" action={2}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />
     <Route path="plots/incentives/edit/:id" element={<RoutePermissionGuard resource="plot_incentive" action={3}><PlotIncentiveProcessPage /></RoutePermissionGuard>} />
@@ -276,6 +282,7 @@ const sponsorRoutes = (
     <Route path="my-customers" element={<BusinessDeveloperNetworkPage />} />
     <Route path="my-commission-rates" element={<CommissionStructurePage />} />
     <Route path="commission-structure" element={<CommissionStructurePage />} />
+    <Route path="price-calculator" element={<PlotPriceCalculatorPage />} />
     <Route path="plots/commission-structure" element={<CommissionStructurePage />} />
     <Route path="network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="plots/business-developer/:id/network" element={<BusinessDeveloperNetworkPage />} />

@@ -210,12 +210,7 @@ export const StepCustomer = ({
         </div>
       )}
 
-      {/* Bottom Actions Bar */}
-      <div className="flex items-center justify-end border-t border-slate-200 pt-4 mt-1">
-        <Button variant="primary" size="sm" onClick={nextStep} endIcon={ChevronRight} disabled={!selectedCustomer}>
-          Next: Choose Plot
-        </Button>
-      </div>
+
     </div>
   );
 };

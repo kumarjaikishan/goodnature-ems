@@ -125,7 +125,7 @@ const KisanAgreementsTable = ({
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold select-none">
                 <th className="p-3.5 uppercase">Agreement No & Date</th>
                 <th className="p-3.5 uppercase">Land Particulars</th>
-                <th className="p-3.5 uppercase">Land Seller</th>
+                <th className="p-3.5 uppercase w-[150px] max-w-[170px]">Land Seller</th>
                 <th className="p-3.5 uppercase text-right">Agreed Area</th>
                 <th className="p-3.5 uppercase text-right">Registered Area</th>
                 <th className="p-3.5 uppercase text-left min-w-[210px]">Actions</th>
@@ -258,13 +258,18 @@ const KisanAgreementsTable = ({
                       </td>
 
                       {/* Land Seller (Buyers removed) */}
-                      <td className="p-3.5">
+                      <td className="p-3.5 w-[150px] max-w-[170px]">
                         <div className="space-y-1">
                           {agr.farmers && agr.farmers.length > 0 ? (
                             <div>
-                              <span className="font-bold text-slate-800 block text-xs">{agr.farmers[0].name}</span>
+                              <span
+                                className="font-bold text-slate-800 block text-xs leading-snug break-words"
+                                title={agr.farmers.map(f => f.name).filter(Boolean).join(', ')}
+                              >
+                                {agr.farmers[0].name ? agr.farmers[0].name.replace(/,([^\s])/g, ', $1') : ''}
+                              </span>
                               {agr.farmers[0].mobile && (
-                                <span className="text-[10px] text-slate-400 block">{agr.farmers[0].mobile}</span>
+                                <span className="text-[10px] text-slate-400 block font-mono mt-0.5">{agr.farmers[0].mobile}</span>
                               )}
                               {agr.farmers.length > 1 && (
                                 <span className="inline-block mt-0.5 text-[9px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">

@@ -823,7 +823,7 @@ const firstfetch = async (req, res, next) => {
         const userId = req.user?.id || req.userid;
         const [user, companye, allowedBranchIds] = await Promise.all([
             usermodal.findById(userId)
-                .select('name email profileImage role permissions branchIds bankPermissions cashPermissions')
+                .select('name email profileImage role permissions branchIds bankPermissions cashPermissions sponsorCode customerCode isDeveloperSponsor sponsorId mobile')
                 .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
                 .populate('cashPermissions.allowedCashLedgerIds', 'name ledgerType assignedUserId')
                 .lean(),

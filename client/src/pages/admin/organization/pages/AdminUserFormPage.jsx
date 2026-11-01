@@ -214,7 +214,7 @@ const AdminUserFormPage = () => {
 
                 setForm({
                     name: userRecord.name || '',
-                    email: userRecord.email || '',
+                    email: (userRecord.email || '').split('@')[0],
                     password: '',
                     role: userRecord.role || 'admin',
                     branchIds: assignedBranchIds,
@@ -523,10 +523,12 @@ const AdminUserFormPage = () => {
             toast.error('Please enter full name');
             return;
         }
-        if (!form.email.trim()) {
-            toast.error('Please enter valid email address');
+        const cleanUsername = form.email.trim().replace(/@goodfeelsd\.com$/i, '').replace(/@.*/, '').trim();
+        if (!cleanUsername) {
+            toast.error('Please enter username for login');
             return;
         }
+        const fullEmail = `${cleanUsername}@goodfeelsd.com`;
         if (!isEditMode && !form.password) {
             toast.error('Please set an initial password');
             return;
@@ -545,7 +547,7 @@ const AdminUserFormPage = () => {
             }
 
             formData.append('name', form.name.trim());
-            formData.append('email', form.email.trim());
+            formData.append('email', fullEmail);
             formData.append('role', form.role);
             if (!isEditMode && form.password) {
                 formData.append('password', form.password);
@@ -732,14 +734,28 @@ const AdminUserFormPage = () => {
                                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     />
 
-                                    <Input
-                                        label="Email Address (Login Username)"
-                                        type="email"
-                                        required
-                                        placeholder="e.g. user@goodnature.com"
-                                        value={form.email}
-                                        onChange={(e) => setForm({ ...form, email: e.target.value })}
-                                    />
+                                    <div className="flex flex-col gap-1 w-full">
+                                        <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1">
+                                            Login Username / Email
+                                            <span className="text-red-500 font-bold">*</span>
+                                        </label>
+                                        <div className="relative flex items-center w-full rounded-xl border border-slate-300 hover:border-slate-400 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100/80 bg-white shadow-xs overflow-hidden transition-all duration-150">
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="e.g. dharmendra"
+                                                value={(form.email || '').split('@')[0]}
+                                                onChange={(e) => {
+                                                    const clean = e.target.value.replace(/@goodfeelsd\.com$/i, '').replace(/\s+/g, '').toLowerCase();
+                                                    setForm({ ...form, email: clean });
+                                                }}
+                                                className="flex-1 h-10 px-3.5 text-sm text-slate-800 outline-none bg-transparent font-medium"
+                                            />
+                                            <div className="px-3.5 h-10 flex items-center bg-slate-100 border-l border-slate-200 text-slate-600 font-semibold text-xs select-none tracking-tight">
+                                                @goodfeelsd.com
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">

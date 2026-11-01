@@ -301,7 +301,7 @@ const VoucherDetails = () => {
   const paidAmount = Number(voucher.paidAmount) || 0;
   const remainingAmount = voucher.remainingAmount !== undefined ? Number(voucher.remainingAmount) : Math.max(totalDebit - paidAmount, 0);
   const status = voucher.status || "APPROVED";
-  const logoUrl = company?.logo ? cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 }) : null;
+  const logoUrl = "/logo.webp";
 
   // Dynamically resolve payment mode & bank/cash source
   const getVoucherPaymentMode = () => {

@@ -257,14 +257,7 @@ const BookingCertificateViewer = () => {
               </div>
             </div>
 
-            <div className="text-right flex flex-col items-end">
-              <div className="text-[11px] text-slate-500 font-medium">
-                Booking No: <strong className="font-mono text-slate-900">{booking.bookingNumber}</strong>
-              </div>
-              <div className="text-[11px] text-slate-500 font-medium">
-                Date: <strong className="text-slate-900">{bookingDateFormatted}</strong>
-              </div>
-            </div>
+
           </div>
 
           {/* Certificate Title */}
@@ -444,8 +437,13 @@ const BookingCertificateViewer = () => {
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-black text-slate-900 text-xs">
-                  ₹{totalValuation.toLocaleString('en-IN')}
+                <td className="p-2">
+                  <span className="font-black text-slate-900 text-xs">
+                    ₹{totalValuation.toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-sans font-normal block mt-0.5 capitalize">
+                    ({numberToWords(totalValuation)})
+                  </span>
                 </td>
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
@@ -516,18 +514,7 @@ const BookingCertificateViewer = () => {
                 </>
               )}
 
-              {/* Row 11: Total Amount in Words */}
-              <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Amount in Words</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td colSpan={3} className="p-2 font-bold text-slate-900">
-                  {numberToWords(totalValuation)}
-                </td>
-              </tr>
+
             </tbody>
           </table>
 
@@ -845,8 +832,13 @@ const BookingCertificateViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-black text-slate-900 text-xs">
-                ₹{Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)).toLocaleString('en-IN')}
+              <td className="p-2">
+                <span className="font-black text-slate-900 text-xs">
+                  ₹{Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[10px] text-slate-500 font-sans font-normal block mt-0.5 capitalize">
+                  ({numberToWords(Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)))})
+                </span>
               </td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
@@ -941,16 +933,7 @@ const BookingCertificateViewer = () => {
               </td>
             </tr>
 
-            {/* Row 11: Net Payable Amount in Words */}
-            <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Amount in Words</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td colSpan={3} className="p-2 font-bold text-slate-900">{numberToWords(Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)))}</td>
-            </tr>
+
           </tbody>
         </table>
 

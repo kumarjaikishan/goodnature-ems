@@ -1,0 +1,1 @@
+function e(e,t={}){if(!e)return null;let{width:n,height:r,crop:i=`fill`,format:a=`webp`,quality:o=`auto`,blur:s}=t,c=[];n&&c.push(`w_${n}`),r&&c.push(`h_${r}`),i&&c.push(`c_${i}`),o&&c.push(`q_${o}`),s&&c.push(`e_blur:${s}`),a&&c.push(`f_${a}`);let l=c.join(`,`),[u,d]=e.split(`upload/`);return`${u}upload/${l}/${d}`}export{e as t};

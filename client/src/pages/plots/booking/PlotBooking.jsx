@@ -119,7 +119,8 @@ export default function PlotBooking() {
       setAvailableLandSources(landSourcesData);
       setProjects(addBookingProjects);
 
-      setCustomSqFtRate(1000);
+      const defaultBaseRate = Number(configData?.baseSqFtRate) || 1000;
+      setCustomSqFtRate(defaultBaseRate);
       setDpType('SQFT_RATE');
       setDpVal(500);
     } catch (err) {

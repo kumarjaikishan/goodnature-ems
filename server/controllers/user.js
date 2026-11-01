@@ -70,7 +70,10 @@ const userLogin = async (req, res, next) => {
       name: isUser.name,
       role: isUser.role,
       profileImage: isUser.profileImage,
-      email: isUser.email
+      email: isUser.email,
+      sponsorCode: isUser.sponsorCode || isUser.customerId || '',
+      isDeveloperSponsor: Boolean(isUser.isDeveloperSponsor || !isUser.sponsorId),
+      isBranchPartner: Boolean(isUser.isBranchPartner)
     }
     if (isUser.role !== 'admin' && isUser.role !== 'superadmin') {
       tobe.employeeId = isUser.employeeId;

@@ -11,7 +11,7 @@ const TenurePlotRatesMatrix = ({
   return (
     <form onSubmit={handleUpdateRates} className="space-y-6">
       {/* Top Config Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Settlement Rate */}
         <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3 flex flex-col justify-between">
           <div>
@@ -37,6 +37,35 @@ const TenurePlotRatesMatrix = ({
             </div>
           </div>
           <p className="text-[11px] text-slate-400">Used in customer plot refund &amp; settlement calculations.</p>
+        </div>
+
+        {/* Card: Default Plot Booking Rate (₹/Sq.Ft) */}
+        <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-3">
+              <SlidersHorizontal size={18} className="text-teal-700" />
+              <span>Plot Booking Base Rate</span>
+            </div>
+            <div>
+              <label className={labelCls}>Default Rate (₹ / Sq.Ft.)</label>
+              <input
+                className={inputCls}
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="e.g. 1000"
+                value={rateConfig.baseSqFtRate ?? ''}
+                onChange={(e) =>
+                  setRateConfig({
+                    ...rateConfig,
+                    baseSqFtRate: e.target.value.replace(/[^0-9]/g, ''),
+                  })
+                }
+                required
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400">Default base selling rate loaded in new plot bookings (Step 3).</p>
         </div>
 
         {/* Card 2: Downpayment Grace Period */}
