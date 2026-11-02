@@ -1,5 +1,35 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Plot Price Calculator Downpayment & EMI Discount Logic Refined [COMPLETED]**:
+  - **Requirement**:
+    - When an EMI plan is selected (e.g. 1 month, 2 months, etc.):
+      - Downpayment is ALWAYS fixed at 40% of the **gross plot value** (not discounted, and not 40% of net value).
+      - The tenure discount (e.g. 19% for 1 month, 18% for 2 months) is deducted entirely from the **remaining 60% EMI balance**, NOT from the downpayment.
+    - When 0 month (Full One-Time Payment) is chosen, downpayment remains 100% (all downpayment) with the 20% discount.
+  - **Implementation**:
+    - In `client/src/pages/plots/businessDevelopers/components/PlotPriceCalculatorTab.jsx`:
+      - Replaced variable downpayment with fixed 40% of gross value: `Math.round((grossPlotValue * 40) / 100)`.
+      - Remaining EMI principal computed as `netPlotValue - downpaymentAmount` which equals `(0.60 * grossPlotValue) - adjustmentAmount`.
+      - Removed variable range slider and replaced with fixed 40% initial downpayment indicator.
+      - Updated Payment Terms Schedule breakdown to clearly show Downpayment Amount (40% of Gross Value) and Remaining EMI Principal with discount deducted.
+
+
+- **Commission Structure Incentive & Reward Column Headers and Slabs Adjusted [COMPLETED]**:
+  - **Requirement**:
+    1. In `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`):
+       - Under **Commission Slab**, rename associate column headers from `Business Associate Fixed % (EMI)` / `Business Associate Fixed % (One-Time)` to simply `EMI %` and `One-Time %`.
+       - Under **Incentive Slab**, rename column `TARGET INCENTIVE %` to `Performance Incentive %`.
+       - Under **Reward Slab**, rename column `EXTRA INCENTIVE %` to `Performance Reward %`.
+       - Remove `+` prefix from every percentage badge in the Reward Slab table rows (e.g. `+0.5%` -> `0.5%`).
+  - **Implementation**:
+    - In `client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx`:
+      - Updated associate column headers in Commission Slab to `EMI %` and `One-Time %` (and simplified partner view to `Partner EMI %` / `Partner One-Time %` / `Associate EMI %` / `Associate One-Time %`).
+      - Replaced `Target Incentive %` with `Performance Incentive %`.
+      - Replaced `Extra Incentive %` with `Performance Reward %`.
+      - Replaced `+{extraPct}%` with `{extraPct}%`.
+      - Updated summary banner subtext accordingly.
+
+
 - **Commission Structure Page Section Headers & Sidebar Menu Renamed [COMPLETED]**:
   - **Requirement**:
     1. On `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`), rename:

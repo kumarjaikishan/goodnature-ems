@@ -363,25 +363,25 @@ const CommissionStructurePage = () => {
                     {activeRoleMode === 'associate' ? (
                       <>
                         <th className="py-3 px-4 bg-teal-50/70 text-teal-950 font-bold">
-                          Business Associate Fixed % (EMI)
+                          EMI %
                         </th>
                         <th className="py-3 px-4 bg-emerald-50/70 text-emerald-950 font-bold">
-                          Business Associate Fixed % (One-Time)
+                          One-Time %
                         </th>
                       </>
                     ) : (
                       <>
                         <th className="py-3 px-4 bg-purple-50/70 text-purple-950 font-bold">
-                          Business Partner Fixed % (EMI)
+                          Partner EMI %
                         </th>
                         <th className="py-3 px-4 bg-purple-100/60 text-purple-950 font-bold">
-                          Business Partner Fixed % (One-Time)
+                          Partner One-Time %
                         </th>
                         <th className="py-3 px-4 bg-teal-50/70 text-teal-950 font-bold">
-                          Business Associate Fixed % (EMI)
+                          Associate EMI %
                         </th>
                         <th className="py-3 px-4 bg-emerald-50/70 text-emerald-950 font-bold">
-                          Business Associate Fixed % (One-Time)
+                          Associate One-Time %
                         </th>
                       </>
                     )}
@@ -477,7 +477,7 @@ const CommissionStructurePage = () => {
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                  Target incentive % and milestone rewards are evaluated on your total collection volume across Plot Bookings &amp; Investment Bookings.
+                  Performance incentive % and performance rewards are evaluated on your total collection volume across Plot Bookings &amp; Investment Bookings.
                 </p>
               </div>
             </div>
@@ -509,7 +509,7 @@ const CommissionStructurePage = () => {
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3 px-4">Qualifying Collection Range</th>
-                    <th className="py-3 px-4 text-center">Target Incentive %</th>
+                    <th className="py-3 px-4 text-center">Performance Incentive %</th>
                     <th className="py-3 px-4 text-center">Closing Payout Status</th>
                   </tr>
                 </thead>
@@ -570,7 +570,7 @@ const CommissionStructurePage = () => {
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3 px-4">Milestone Turnover Slab</th>
-                    <th className="py-3 px-4">Extra Incentive %</th>
+                    <th className="py-3 px-4">Performance Reward %</th>
                     <th className="py-3 px-4">Official Campaign Reward Title</th>
                   </tr>
                 </thead>
@@ -598,7 +598,7 @@ const CommissionStructurePage = () => {
                           <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
                             {Number(extraPct) > 0 ? (
                               <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 text-emerald-900 border border-emerald-200 font-mono font-black text-xs">
-                                +{extraPct}%
+                                {extraPct}%
                               </span>
                             ) : (
                               <span className="text-slate-400">Award / Gift Only</span>

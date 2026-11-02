@@ -43,7 +43,6 @@ export const PlotPriceCalculatorTab = () => {
   const [plotArea, setPlotArea] = useState(1200); // Sq.Ft.
   const [baseSqFtRate, setBaseSqFtRate] = useState(1250); // Fixed from Admin Settings (₹ / Sq.Ft.)
   const [selectedTenure, setSelectedTenure] = useState(0); // 0 = One-Time / All Downpayment (20% Discount)
-  const [customDownpaymentPercent, setCustomDownpaymentPercent] = useState(40); // 40% default DP for EMI
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -122,9 +121,9 @@ export const PlotPriceCalculatorTab = () => {
 
   const downpaymentAmount = useMemo(() => {
     if (isOneTime) return netPlotValue; // 100% full downpayment for 0 month
-    const dpPct = Math.max(0, Math.min(100, Number(customDownpaymentPercent) || 40));
-    return Math.round((netPlotValue * dpPct) / 100);
-  }, [netPlotValue, isOneTime, customDownpaymentPercent]);
+    // For EMI plan, downpayment is always fixed 40% of gross plot value (discount not deducted from downpayment)
+    return Math.round((grossPlotValue * 40) / 100);
+  }, [grossPlotValue, netPlotValue, isOneTime]);
 
   const remainingEmiPrincipal = useMemo(() => {
     if (isOneTime) return 0;
@@ -313,28 +312,19 @@ export const PlotPriceCalculatorTab = () => {
 
           {/* 4. Downpayment % Input (only visible if EMI Tenure > 0) */}
           {tenureMonths > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700">
-                  Initial Downpayment (DP %)
-                </label>
-                <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                  {customDownpaymentPercent}% (₹{downpaymentAmount.toLocaleString('en-IN')})
+            <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-slate-700">
+                    Initial Downpayment (Fixed 40%)
+                  </label>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Fixed 40% of gross value (discount deducted from EMI)
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-bold text-teal-800 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200">
+                  ₹{downpaymentAmount.toLocaleString('en-IN')}
                 </span>
-              </div>
-              <input
-                type="range"
-                min="10"
-                max="90"
-                step="5"
-                value={customDownpaymentPercent}
-                onChange={(e) => setCustomDownpaymentPercent(Number(e.target.value))}
-                className="w-full accent-teal-700 cursor-pointer h-2 bg-slate-200 rounded-lg"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
-                <span>10% Min</span>
-                <span>40% Standard</span>
-                <span>90% Max</span>
               </div>
             </div>
           )}
@@ -430,7 +420,7 @@ export const PlotPriceCalculatorTab = () => {
               <span className="font-mono font-bold text-slate-900">
                 ₹{downpaymentAmount.toLocaleString('en-IN')}{' '}
                 <span className="text-[10px] text-slate-500">
-                  ({tenureMonths === 0 ? '100% - All Downpayment' : `${customDownpaymentPercent}%`})
+                  ({tenureMonths === 0 ? '100% - All Downpayment' : '40% of Gross Value'})
                 </span>
               </span>
             </div>
@@ -438,7 +428,14 @@ export const PlotPriceCalculatorTab = () => {
             {tenureMonths > 0 ? (
               <>
                 <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-200/70">
-                  <span className="text-slate-600 font-medium">Remaining Balance Principal:</span>
+                  <div>
+                    <span className="text-slate-600 font-medium">Remaining Balance Principal (EMI):</span>
+                    {currentAdjustment.percentage > 0 && (
+                      <span className="block text-[10px] text-slate-400">
+                        Remaining 60% Gross (₹{Math.round(grossPlotValue * 0.6).toLocaleString('en-IN')}) {currentAdjustment.action === 'DEDUCT' ? `-${currentAdjustment.percentage}% discount` : `+${currentAdjustment.percentage}% markup`}
+                      </span>
+                    )}
+                  </div>
                   <span className="font-mono font-bold text-slate-800">
                     ₹{remainingEmiPrincipal.toLocaleString('en-IN')}
                   </span>
@@ -450,7 +447,7 @@ export const PlotPriceCalculatorTab = () => {
                     <span className="text-slate-800 font-bold">Monthly Installment (EMI):</span>
                   </div>
                   <span className="font-mono font-black text-sm text-teal-800">
-                    ₹{monthlyEmi.toLocaleString('en-IN')} / month ({tenureMonths} months)
+                    ₹{monthlyEmi.toLocaleString('en-IN')} / month ({tenureMonths} {tenureMonths === 1 ? 'month' : 'months'})
                   </span>
                 </div>
               </>
