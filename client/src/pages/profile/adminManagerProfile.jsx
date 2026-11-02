@@ -1,8 +1,7 @@
-import { Mail, Settings, Edit2 } from "lucide-react";
+import { Mail, Settings, Edit2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "../../utils/toast";
-import { swal } from "../../utils/confirmDialog";
 import useImageUpload from "../../utils/imageresizer";
 import { FirstFetch } from "../../../store/userSlice";
 import Modalbox from "../../components/custommodal/Modalbox";
@@ -21,6 +20,18 @@ const AdminManagerProfile = () => {
   const [name, setname] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
 
+  // Change Password Modal States
+  const [passModalOpen, setPassModalOpen] = useState(false);
+  const [passForm, setPassForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [passLoading, setPassLoading] = useState(false);
+
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -36,33 +47,37 @@ const AdminManagerProfile = () => {
     setprofile((prev) => ({ ...prev, profileImage: previewUrl }));
   };
 
-  const resetpassword = async () => {
-    let id;
+  const handlePasswordChange = async (e) => {
+    if (e) e.preventDefault();
+    if (!passForm.newPassword || passForm.newPassword.trim().length < 4) {
+      toast.error("New password must be at least 4 characters long");
+      return;
+    }
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      toast.error("New password and confirm password do not match");
+      return;
+    }
+
+    setPassLoading(true);
     try {
-      setisloading(true);
-      id = toast.loading("Please wait...");
-
-      const data = await apiClient({
-        url: "resetrequest"
+      const res = await apiClient({
+        url: "change-password",
+        method: "POST",
+        body: {
+          currentPassword: passForm.currentPassword.trim(),
+          newPassword: passForm.newPassword.trim()
+        }
       });
-
-      setisloading(false);
-      swal({ title: data.extramessage, icon: "success" });
-
-      toast.update(id, {
-        render: data.message,
-        type: "success",
-        isLoading: false,
-        autoClose: 2100,
-      });
-    } catch (error) {
-      setisloading(false);
-      toast.update(id, {
-        render: error.message,
-        type: "warn",
-        isLoading: false,
-        autoClose: 2200,
-      });
+      toast.success(res.message || "Password changed successfully!");
+      setPassModalOpen(false);
+      setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowCurrentPass(false);
+      setShowNewPass(false);
+      setShowConfirmPass(false);
+    } catch (err) {
+      toast.error(err.message || "Failed to change password");
+    } finally {
+      setPassLoading(false);
     }
   };
 
@@ -126,9 +141,6 @@ const AdminManagerProfile = () => {
                 <h1 className="text-xl font-bold text-slate-900 capitalize">
                   {profilee?.name}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
-                  {profilee?.role}
-                </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                 <Mail size={14} className="text-slate-400" />
@@ -137,84 +149,190 @@ const AdminManagerProfile = () => {
             </div>
           </div>
 
-          {/* Action buttons */}
-          {profile?.role === "superadmin" && (
-            <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
-              <Button
-                onClick={() => { setname(profilee?.name || ''); setEditOpen(true); }}
-                disabled={isLoading}
-                variant="primary"
-              >
-                <Edit2 size={14} /> Edit Profile
-              </Button>
+          {/* Action buttons (Available for all authenticated users) */}
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
+            <Button
+              onClick={() => { setname(profilee?.name || ''); setEditOpen(true); }}
+              disabled={isLoading}
+              variant="primary"
+            >
+              <Edit2 size={14} /> Edit Profile
+            </Button>
 
-              <Button
-                onClick={resetpassword}
-                disabled={isLoading}
-                variant="secondary"
-              >
-                Send Password Reset Link
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Edit Profile Modal */}
-      <Modalbox open={EditOpen} onClose={() => setEditOpen(false)}>
-        <div className="w-[380px] max-w-[92vw] p-6 bg-white rounded-2xl space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-800">Edit Profile</h2>
-            <button type="button" onClick={() => setEditOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-          </div>
-
-          <div className="space-y-4">
-            <Input
-              label="Full Name"
-              value={name}
-              onChange={(e) => setname(e.target.value)}
-              placeholder="Your name"
-            />
-
-            {/* Avatar file upload */}
-            <div className="flex justify-center">
-              <div className="relative group">
-                {profilee?.profileImage ? (
-                  <img
-                    src={profilee?.profileImage}
-                    alt={profilee?.name}
-                    className="w-20 h-20 rounded-full object-cover border-2 border-teal-600"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-2xl">
-                    {profilee?.name?.charAt(0)?.toUpperCase()}
-                  </div>
-                )}
-                <input
-                  type="file"
-                  ref={inputRef}
-                  className="hidden"
-                  onChange={handlePhotoChange}
-                  accept="image/*"
-                />
-                <button
-                  type="button"
-                  onClick={() => inputRef.current && inputRef.current.click()}
-                  className="absolute bottom-0 right-0 rounded-full bg-teal-800 hover:bg-teal-900 text-white p-1.5 shadow cursor-pointer transition"
-                >
-                  <Edit2 size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={isLoading} onClick={handlesave}>
-              Save Changes
+            <Button
+              onClick={() => setPassModalOpen(true)}
+              disabled={isLoading}
+              variant="secondary"
+            >
+              <KeyRound size={14} /> Change Password
             </Button>
           </div>
         </div>
+      )}
+
+      {/* 1. Edit Profile Modal (Using Standard Common Modalbox) */}
+      <Modalbox
+        open={EditOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit Profile"
+        subtitle="Update your display name and profile picture"
+        icon={<Edit2 size={18} />}
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" loading={isLoading} onClick={handlesave}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Full Name"
+            value={name}
+            onChange={(e) => setname(e.target.value)}
+            placeholder="Your name"
+          />
+
+          {/* Avatar file upload */}
+          <div className="flex flex-col items-center justify-center pt-1">
+            <span className="text-xs font-semibold text-slate-600 mb-2">Profile Photo</span>
+            <div className="relative group">
+              {profilee?.profileImage ? (
+                <img
+                  src={profilee?.profileImage}
+                  alt={profilee?.name}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-teal-600 shadow-sm"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-2xl shadow-sm">
+                  {profilee?.name?.charAt(0)?.toUpperCase()}
+                </div>
+              )}
+              <input
+                type="file"
+                ref={inputRef}
+                className="hidden"
+                onChange={handlePhotoChange}
+                accept="image/*"
+              />
+              <button
+                type="button"
+                onClick={() => inputRef.current && inputRef.current.click()}
+                className="absolute bottom-0 right-0 rounded-full bg-teal-800 hover:bg-teal-900 text-white p-1.5 shadow cursor-pointer transition"
+                title="Change Photo"
+              >
+                <Edit2 size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modalbox>
+
+      {/* 2. Direct Change Password Modal (Using Standard Common Modalbox) */}
+      <Modalbox
+        open={passModalOpen}
+        onClose={() => setPassModalOpen(false)}
+        title="Change Account Password"
+        subtitle="Update your login password directly here without requiring an email link"
+        icon={<KeyRound size={18} />}
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPassModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              loading={passLoading}
+              onClick={handlePasswordChange}
+            >
+              Update Password
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          {/* Current Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Current Password
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type={showCurrentPass ? "text" : "password"}
+                value={passForm.currentPassword}
+                onChange={(e) => setPassForm({ ...passForm, currentPassword: e.target.value })}
+                placeholder="Enter current password (if known)"
+                className="w-full h-10 px-3 pr-10 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPass(!showCurrentPass)}
+                className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* New Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              New Password <span className="text-red-500">*</span>
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type={showNewPass ? "text" : "password"}
+                required
+                value={passForm.newPassword}
+                onChange={(e) => setPassForm({ ...passForm, newPassword: e.target.value })}
+                placeholder="Minimum 4 characters"
+                className="w-full h-10 px-3 pr-10 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPass(!showNewPass)}
+                className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm New Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Confirm New Password <span className="text-red-500">*</span>
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type={showConfirmPass ? "text" : "password"}
+                required
+                value={passForm.confirmPassword}
+                onChange={(e) => setPassForm({ ...passForm, confirmPassword: e.target.value })}
+                placeholder="Re-enter new password"
+                className="w-full h-10 px-3 pr-10 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPass(!showConfirmPass)}
+                className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <button type="submit" className="hidden" />
+        </form>
       </Modalbox>
     </div>
   );

@@ -212,7 +212,7 @@ const Sidebar = () => {
           roles: ["sponsor"] 
         },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
-        { menu: "Commission Rates", link: "/dashboard/my-commission-rates", icon: <Award size={20} />, roles: ["sponsor"] },
+        { menu: "Plan & Commission", link: "/dashboard/my-commission-rates", icon: <Award size={20} />, roles: ["sponsor"] },
         { menu: "Price Calculator", link: "/dashboard/price-calculator", icon: <Calculator size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
       ],

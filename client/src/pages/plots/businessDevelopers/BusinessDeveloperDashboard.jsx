@@ -122,7 +122,7 @@ const BusinessDeveloperDashboard = () => {
             <div className="p-2 rounded-lg bg-amber-600 text-white">
               <Award size={18} />
             </div>
-            <span>Commission Rates</span>
+            <span>Plan & Commission</span>
           </button>
         </div>
       </div>

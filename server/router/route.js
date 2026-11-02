@@ -56,6 +56,7 @@ router.route('/jwtcheck').get(authmiddlewre, (req, res) => {
 router.route('/signin').post(authLimiter, users.userLogin);
 router.route('/resetrequest').get(authmiddlewre, authorizeRoles('superadmin'), users.passreset);
 router.route('/setpassword').post(authLimiter, users.setpassword);
+router.route('/change-password').post(authmiddlewre, users.changeMyPassword);
 // router.route('/signup').post(users.userRegister);
 
 router.route('/departmentlist').get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("department", 1), admin.departmentlist);

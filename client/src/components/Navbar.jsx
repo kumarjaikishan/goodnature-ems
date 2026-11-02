@@ -65,7 +65,7 @@ const Navbar = () => {
     "vouchers": "Vouchers",
     "activity-logs": "Activity Logs",
     // Sponsor / Business Developer Titles
-    "my-commission-rates": "Commission Rates",
+    "my-commission-rates": "Plan & Commission",
     "commission-structure": "Commission Structure",
     "my-business": "Business Report",
     "my-network": "My Network & Customers",

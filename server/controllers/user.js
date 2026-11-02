@@ -233,4 +233,58 @@ const setpassword = async (req, res, next) => {
   }
 }
 
-module.exports = { userRegister, userLogin, passreset, setpassword };
+
+const changeMyPassword = async (req, res, next) => {
+  try {
+    const userId = req.user?.id || req.userid;
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+      return res.status(400).json({ message: 'New password must be at least 4 characters long' });
+    }
+
+    const targetUser = await user.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User account not found' });
+    }
+
+    // Verify current password if provided
+    if (currentPassword && typeof currentPassword === 'string' && currentPassword.trim().length > 0) {
+      const isMatch = await targetUser.checkpassword(currentPassword);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password does not match' });
+      }
+    }
+
+    // Assign new password (pre-save hook in user model will hash it with bcrypt)
+    targetUser.password = newPassword.trim();
+    await targetUser.save();
+
+    try {
+      await logActivity({
+        userId: targetUser._id,
+        companyId: targetUser.companyId,
+        action: 'UPDATE',
+        resource: 'auth',
+        description: `User ${targetUser.name} (${targetUser.role}) changed their account password directly from profile`,
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (logErr) {
+      console.warn('Audit log error (ignored):', logErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    return next({ status: 500, message: error.message || 'Failed to change password' });
+  }
+};
+
+module.exports = { userRegister, userLogin, passreset, setpassword, changeMyPassword };

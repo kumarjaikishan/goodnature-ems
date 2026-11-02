@@ -1,8 +1,32 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Commission Structure Page Section Headers & Sidebar Menu Renamed [COMPLETED]**:
+  - **Requirement**:
+    1. On `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`), rename:
+       - "Direct Fixed Commission Structure" -> "Commission Slab"
+       - "Target Collection Slabs & Additional Incentive %" -> "Incentive Slab"
+       - "Extra Incentive Campaign Slabs & Performance Rewards" -> "Reward Slab"
+    2. Rename the left sidebar menu item for `/dashboard/my-commission-rates` from "Commission Rates" to "Plan & Commission".
+    3. Update Navbar and dashboard quick-link title to match "Plan & Commission".
+  - **Implementation**:
+    - `client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx`: Updated table card headings to `Commission Slab`, `Incentive Slab`, and `Reward Slab`.
+    - `client/src/components/sidebar.jsx`: Updated menu label to `Plan & Commission`.
+    - `client/src/components/Navbar.jsx`: Updated route mapping for `my-commission-rates` to `Plan & Commission`.
+    - `client/src/pages/plots/businessDevelopers/BusinessDeveloperDashboard.jsx`: Updated quick-link button label to `Plan & Commission`.
+
+
 - **Organization User Login Username Prefix & Domain Standardization [COMPLETED]**:
   - **Requirement**: In User Management Add / Edit modal & page, show fixed `@goodfeelsd.com` on the right side of the input. Admin inputs only the username prefix (e.g. `nawrajsingh`), creating `nawrajsingh@goodfeelsd.com` as the login username.
   - **Fix**: In `AdminUserFormPage.jsx` and `UserFormModal.jsx`, replaced domain replacement with `.split('@')[0]` so existing accounts with domains like `@gmail.com` cleanly populate only the username prefix. Enhanced `onChange` to automatically strip any `@` domain entered.
+
+- **Direct Password Change & Profile Modals Standardized with Common Modalbox [COMPLETED]**:
+  - **Requirement**: Allow all created users (Cashier, Accountant, Manager, Admin, Superadmin, Business Associate, Business Partner, and Employees) to change their password directly on the Profile page without requiring an email reset link, and ensure both profile modals use the centralized `Modalbox` component props (`title`, `subtitle`, `icon`, `maxWidth`, `footer`).
+  - **Implementation**:
+    - **Backend Controller & Route**: Added `changeMyPassword` in `server/controllers/user.js` and mounted `POST /change-password` in `server/router/route.js` behind `authmiddlewre`. Validates new password length (min 4 chars), verifies current password if provided, hashes with bcrypt via model hook, and logs audit activity.
+    - **Frontend (`AdminManagerProfile.jsx` & `profile.jsx`)**:
+      - Replaced inner manual modal structures with the shared `Modalbox` component using standard props: `title`, `subtitle`, `icon`, `maxWidth="max-w-md"`, and `footer` buttons.
+      - Edit Profile Modal: clean avatar preview/upload and name input with proper `Modalbox` header and footer.
+      - Change Password Modal: Current Password (if known), New Password, and Confirm New Password with show/hide password visibility toggles, proper `Modalbox` header and footer.
 
 - **Standalone Plot Price Calculator Simplification & Fixed Rate Integration [COMPLETED]**:
   - **Requirement**:

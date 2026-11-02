@@ -341,7 +341,7 @@ const CommissionStructurePage = () => {
                 <Coins size={17} className="text-teal-700" />
                 <div>
                   <h4 className="text-sm font-bold text-slate-800">
-                    Direct Fixed Commission Structure
+                    Commission Slab
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium">
                     Fixed commission percentage credited directly upon booking &amp; installment collection.
@@ -496,7 +496,7 @@ const CommissionStructurePage = () => {
               <div className="flex items-center gap-2">
                 <Target size={17} className="text-teal-700" />
                 <h4 className="text-sm font-bold text-slate-800">
-                  Target Collection Slabs &amp; Additional Incentive %
+                  Incentive Slab
                 </h4>
               </div>
               <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
@@ -557,7 +557,7 @@ const CommissionStructurePage = () => {
               <div className="flex items-center gap-2">
                 <Gift size={17} className="text-amber-600" />
                 <h4 className="text-sm font-bold text-slate-800">
-                  Extra Incentive Campaign Slabs &amp; Performance Rewards
+                  Reward Slab
                 </h4>
               </div>
               <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">

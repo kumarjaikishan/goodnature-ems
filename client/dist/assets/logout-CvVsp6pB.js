@@ -1,0 +1,1 @@
+import{r as e}from"./rolldown-runtime-hePW80VL.js";import{Xn as t}from"./vendor-react-CA0Sap-K.js";import{u as n}from"./vendor-redux-Bl9vJsb3.js";import{c as r,g as i}from"./index-DGDjC5Jc.js";var a=e(t(),1),o=()=>{let e=n(),t=i();return(0,a.useEffect)(()=>{r(e,!1),t(`/login`,{replace:!0})},[e,t]),null};export{o as default};
