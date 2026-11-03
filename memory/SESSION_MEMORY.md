@@ -1,5 +1,19 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Fixed Granular Ledger Entry (Add/Edit/Delete) Permission Resolution [COMPLETED]**:
+  - **Issue**: When an admin gives a user (such as Cashier Nawraj) access to a specific ledger module like Cash Accounts (`cash_ledger`) with Create/Update permissions, the user was unable to see "Add Entry", "Edit Entry", or delete manual transaction entries on that ledger's statement page.
+  - **Cause**:
+    1. In `ledgerdetailpage.jsx`, entry permissions were hard-coded to check ONLY the generic `ledger_entry` permission key (`hasPermission(userProfile, 'ledger_entry', 2/3/4)`), ignoring specific ledger module permissions (`cash_ledger`, `bank_ledger`, `associate_ledger`, etc.) granted to the user.
+    2. In backend `server/middleware/checkpermission.js`, `checkPermission('ledger_entry', key)` did not resolve target ledger IDs to check if the user had Create/Update/Delete permissions on the corresponding specific ledger submodule (e.g. `cash_ledger`).
+  - **Fix**:
+    1. In `client/src/pages/admin/ledger/ledgerdetailpage.jsx`, introduced `getLedgerPermissionResource` and `checkLedgerActionPermission`. It evaluates permissions across:
+       - Direct `ledger_entry` permission
+       - Master `ledger` overview permission
+       - Specific ledger submodule (`cash_ledger` for cash accounts, `bank_ledger` for banks, `employee_ledger`, `kisan_ledger`, `associate_ledger`, `partner_ledger`, `branch_ledger`).
+    2. In `client/src/utils/CheckPermission.jsx`, added `ledger_entry` to `LEDGER_SUBMODULES` so master `ledger` access cascades seamlessly.
+    3. In `server/middleware/checkpermission.js`, implemented dynamic ledger resolution (`resolveLedgerModule`) for `ledger_entry` routes (`POST /ledgerentry`, `PUT /ledgerentry/:id`, `DELETE /ledgerentry/:id`, `GET /entries/:id`). It checks whether the user holds permission for the targeted ledger type, properly granting or restricting operational access.
+  - **Build Status**: Verified via `npm run build --prefix client` — 0 errors.
+
 - **Fixed Double Active Highlighting between Plot Purchase and Purchasers / Buyers [COMPLETED]**:
   - **Issue**: When navigating to `/dashboard/plots/purchasers` (Purchasers / Buyers Master), both "Purchasers / Buyers" and "Plot Purchase" were simultaneously highlighted in the left sidebar.
   - **Cause**: In `client/src/components/sidebar.jsx`, `isSubmenuItemActive` previously used `currentPath.startsWith(childLink)`. Because `/dashboard/plots/purchasers` shares the same string prefix as `/dashboard/plots/purchase`, "Plot Purchase" mistakenly evaluated to active.

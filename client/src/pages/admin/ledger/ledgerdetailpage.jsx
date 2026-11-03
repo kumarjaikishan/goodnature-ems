@@ -246,12 +246,42 @@ const LedgerDetailPage = () => {
 
     const { user: authUser } = useSelector((state) => state.auth || {});
     const currentUser = useSelector((state) => state.user?.profile || state.user || {});
-    const userProfile = useSelector((state) => state.user?.profile);
+    const userProfile = useSelector((state) => state.user?.profile || state.auth?.user || state.user);
     const isSponsorUser = currentUser?.role === 'sponsor' || authUser?.role === 'sponsor';
     const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(userProfile?.role?.toLowerCase());
-    const canCreateEntry = isSuperAdmin || hasPermission(userProfile, 'ledger_entry', 2);
-    const canEditEntry = isSuperAdmin || hasPermission(userProfile, 'ledger_entry', 3);
-    const canDeleteEntry = isSuperAdmin || hasPermission(userProfile, 'ledger_entry', 4);
+
+    const getLedgerPermissionResource = (type, id, name = '') => {
+        const lowerName = (name || '').toLowerCase();
+        if (type === 'user_cash' || type === 'cash' || lowerName.includes('cash ledger') || lowerName.includes('(cash)')) return 'cash_ledger';
+        if (type === 'bank' || lowerName.includes('bank account') || lowerName.includes('(bank)')) return 'bank_ledger';
+        if (type === 'employee') return 'employee_ledger';
+        if (type === 'kisan') return 'kisan_ledger';
+        if (type === 'branch_partner' || (id && id.startsWith('BR-'))) return 'branch_ledger';
+        if (type === 'associate' || (id && id.startsWith('BA-'))) return 'associate_ledger';
+        if (type === 'partner' || (id && id.startsWith('BP-'))) return 'partner_ledger';
+        if (type === 'sponsor') {
+            if (id && id.startsWith('BA-')) return 'associate_ledger';
+            if (id && id.startsWith('BP-')) return 'partner_ledger';
+            if (id && id.startsWith('BR-')) return 'branch_ledger';
+            return ['associate_ledger', 'partner_ledger', 'branch_ledger'];
+        }
+        return 'ledger';
+    };
+
+    const checkLedgerActionPermission = (actionNum) => {
+        if (isSuperAdmin) return true;
+        // 1. Direct ledger_entry permission
+        if (hasPermission(userProfile, 'ledger_entry', actionNum)) return true;
+        // 2. Master ledger overview permission
+        if (hasPermission(userProfile, 'ledger', actionNum)) return true;
+        // 3. Specific ledger module permission (e.g. cash_ledger, bank_ledger, associate_ledger, etc.)
+        const specificResource = getLedgerPermissionResource(ledgerType, empId, ledgerName);
+        return hasPermission(userProfile, specificResource, actionNum);
+    };
+
+    const canCreateEntry = checkLedgerActionPermission(2);
+    const canEditEntry = checkLedgerActionPermission(3);
+    const canDeleteEntry = checkLedgerActionPermission(4);
 
     return (
         <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto">

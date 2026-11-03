@@ -25,6 +25,59 @@ const invalidatePermissionCache = (userId) => {
     }
 };
 
+const resolveLedgerModule = async (req) => {
+    try {
+        let ledgerId = req.body?.ledgerId;
+        const paramId = req.params?.id;
+
+        if (!ledgerId && paramId) {
+            const urlPath = (req.baseUrl || '') + (req.path || '') + (req.originalUrl || '');
+            if (urlPath.includes('ledgerentry')) {
+                const Entry = require('../models/entry');
+                const entry = await Entry.findById(paramId).select('ledgerId').lean();
+                if (entry) ledgerId = entry.ledgerId;
+            } else {
+                ledgerId = paramId;
+            }
+        }
+
+        if (!ledgerId) return null;
+
+        const Ledger = require('../models/ledger');
+        let ledger = await Ledger.findById(ledgerId).select('ledgerType empId sponsorId employeeId kisanSellerId branchId name').lean();
+        if (!ledger) {
+            ledger = await Ledger.findOne({
+                $or: [
+                    { sponsorId: ledgerId },
+                    { employeeId: ledgerId },
+                    { kisanSellerId: ledgerId },
+                    { branchId: ledgerId }
+                ]
+            }).select('ledgerType empId name').lean();
+        }
+
+        if (!ledger) return null;
+
+        const type = ledger.ledgerType;
+        const empId = ledger.empId;
+
+        if (type === 'user_cash' || type === 'cash') return 'cash_ledger';
+        if (type === 'bank') return 'bank_ledger';
+        if (type === 'employee') return 'employee_ledger';
+        if (type === 'kisan') return 'kisan_ledger';
+        if (type === 'branch') return 'branch_ledger';
+        if (type === 'sponsor') {
+            if (empId?.startsWith('BA-')) return 'associate_ledger';
+            if (empId?.startsWith('BP-')) return 'partner_ledger';
+            if (empId?.startsWith('BR-')) return 'branch_ledger';
+            return ['associate_ledger', 'partner_ledger', 'branch_ledger'];
+        }
+        return 'ledger';
+    } catch {
+        return null;
+    }
+};
+
 const checkPermission = (permissionName, key) => {
     return async (req, res, next) => {
         try {
@@ -68,8 +121,8 @@ const checkPermission = (permissionName, key) => {
                             return true;
                         }
                     }
-                    // Fallback for ledger sub-modules -> master "ledger"
-                    const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
+                    // Fallback for ledger sub-modules & ledger_entry -> master "ledger"
+                    const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger', 'ledger_entry'];
                     if (LEDGER_SUBMODULES.includes(name) && perms.hasOwnProperty('ledger') && Array.isArray(perms.ledger) && perms.ledger.includes(key)) {
                         return true;
                     }
@@ -83,12 +136,30 @@ const checkPermission = (permissionName, key) => {
 
             if (checkPermKey(freshPermissions)) {
                 return next();
-            } else {
-                const displayName = Array.isArray(permissionName) ? permissionName.join(' or ') : permissionName;
-                return res.status(403).json({
-                    message: `Permission denied: You can't ${legends[key - 1]} ${displayName}`
-                });
             }
+
+            // Additional dynamic resolution for ledger_entry:
+            // If user has permission on the specific ledger being targeted (e.g. cash_ledger, bank_ledger), allow access
+            const names = Array.isArray(permissionName) ? permissionName : [permissionName];
+            if (names.includes('ledger_entry')) {
+                const specificModule = await resolveLedgerModule(req);
+                if (specificModule) {
+                    const modulesToCheck = Array.isArray(specificModule) ? specificModule : [specificModule];
+                    const hasSpecificPerm = modulesToCheck.some(mod =>
+                        freshPermissions.hasOwnProperty(mod) &&
+                        Array.isArray(freshPermissions[mod]) &&
+                        freshPermissions[mod].includes(key)
+                    );
+                    if (hasSpecificPerm) {
+                        return next();
+                    }
+                }
+            }
+
+            const displayName = Array.isArray(permissionName) ? permissionName.join(' or ') : permissionName;
+            return res.status(403).json({
+                message: `Permission denied: You can't ${legends[key - 1]} ${displayName}`
+            });
         } catch (error) {
             console.error("Permission check error:", error);
             return res.status(500).json({ message: "Internal server error" });

@@ -58,7 +58,7 @@ export const hasPermission = (profile, resource, action = 1) => {
         }
 
         // 5. Intelligent sub-module fallback to "ledger"
-        const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger'];
+        const LEDGER_SUBMODULES = ['bank_ledger', 'cash_ledger', 'fund_transfer', 'employee_ledger', 'kisan_ledger', 'associate_ledger', 'partner_ledger', 'branch_ledger', 'ledger_entry'];
         if (LEDGER_SUBMODULES.includes(res)) {
             const ledgerPerms = permissions['ledger'];
             if (Array.isArray(ledgerPerms) && ledgerPerms.includes(action)) {
