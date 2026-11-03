@@ -176,9 +176,9 @@ const Navbar = () => {
       if (pathParts.includes("emi")) {
         pageTitle = pathParts.includes("add") ? "Record EMI Collection" : "EMI Collections";
       } else if (pathParts.includes("downpayment")) {
-        pageTitle = pathParts.includes("add") ? "Record Downpayment" : "Downpayment Collection";
+        pageTitle = pathParts.includes("add") ? "Record Down Payment" : "Down Payment Collection";
       } else if (pathParts.includes("products")) {
-        pageTitle = pathParts.includes("add") ? "Record Product Collection" : "Product Collections";
+        pageTitle = pathParts.includes("add") ? "Record Investment Collection" : "Investment Collection";
       } else {
         pageTitle = "Collections";
       }

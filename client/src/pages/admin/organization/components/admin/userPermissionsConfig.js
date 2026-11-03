@@ -100,7 +100,7 @@ export const MODULE_DISPLAY_NAMES = {
     investment_booking: "Investment Bookings & Agreements (Add / Create Agreements)",
 
     // Real Estate: Collections, Payouts & Business Intelligence
-    plot_collection: "Installments & Payment Collections",
+    plot_collection: "Collections (Down Payment, EMI & Investment)",
     plot_payout: "Commission Payouts & Schedules",
     plot_incentive: "Incentive Closings & Rewards",
     plot_reports: "Plot Analytics & Business Reports",

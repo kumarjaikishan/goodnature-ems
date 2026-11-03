@@ -266,9 +266,9 @@ const ProductCollectionsPage = ({ initialView }) => {
       {/* Top Action Buttons */}
       <div className="flex items-center justify-between gap-3 pt-0 pb-0.5">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Product Collections &amp; Receipts</h1>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Investment Collection &amp; Receipts</h1>
           <p className="text-slate-500 text-xs mt-0.5">
-            Manage plot product installment receipts, maker-checker approvals &amp; collections
+            Manage plot investment installment receipts, maker-checker approvals &amp; collections
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -423,7 +423,7 @@ const ProductCollectionsPage = ({ initialView }) => {
             <div className="w-16 h-16 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Receipt className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">No Product Collections Found</h3>
+            <h3 className="text-base font-bold text-slate-900">No Investment Collections Found</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
               {searchQuery || paymentModeFilter !== 'ALL' || statusFilter !== 'ALL'
                 ? 'No receipts matched your search filters. Try adjusting your query.'

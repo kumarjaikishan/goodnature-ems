@@ -161,9 +161,9 @@ const Sidebar = () => {
           icon: <Wallet size={20} />,
           roles: OPERATIONAL_ROLES,
           children: [
-            { menu: "Downpayment", link: "/dashboard/plots/collections/downpayment", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
+            { menu: "Down Payment", link: "/dashboard/plots/collections/downpayment", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
             { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
-            { menu: "Product Collections", link: "/dashboard/plots/collections/products", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
+            { menu: "Investment Collection", link: "/dashboard/plots/collections/products", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
             { menu: "Payroll", link: "/dashboard/payroll", roles: OPERATIONAL_ROLES, resource: "salary" },
             { menu: "Advance", link: "/dashboard/advance", roles: OPERATIONAL_ROLES, resource: "advance" },
             { menu: "Vouchers", link: "/dashboard/vouchers", roles: OPERATIONAL_ROLES, resource: "voucher" },

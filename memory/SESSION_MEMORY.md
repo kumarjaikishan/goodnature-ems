@@ -1,5 +1,35 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Operational Transaction Data Reset Script [COMPLETED]**:
+  - **Requirement**: Create a dedicated reset script to clear all transactional data: plot bookings, investment bookings, downpayments, EMIs, product collections, vouchers, and reset all ledgers to ₹0 balance except seller/kisan initial agreement values.
+  - **Implementation**:
+    - Created [server/scripts/resetOperationalData.js](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/scripts/resetOperationalData.js).
+    - Added npm script `"reset:data"` in [server/package.json](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/server/package.json) (`npm run reset:data`).
+    - What it resets:
+      1. **Plot Bookings**: Deletes `PlotBooking`, revisions, installments, payments, closings, payout vouchers, and sponsor commissions.
+      2. **Plot Status**: Resets all `Plot` records back to `status: 'AVAILABLE'`.
+      3. **Investment Bookings & Accounts**: Deletes `PlotProductBooking`, `InvestmentAccount`, `InvestmentInstallment`, `InvestmentReceipt`, and `InvestmentCommission`.
+      4. **Collections & Receipts**: Deletes all `PlotReceipt` records (Downpayments, EMIs, Product collections).
+      5. **Vouchers & Transfers**: Deletes all `Voucher` and `FundTransfer` records.
+      6. **Land Stock**: Clears booking allocation records from `LandStockLedger` and restores available sqft pools on all `KisanLandAgreement` records.
+      7. **Ledgers & Financial Entries**: Deletes all `Entry` records except `source: 'kisan_agreement'`. Deletes any kisan debit/payment records from `KisanLedger`. Resets all Bank, Cash, Sponsor, Branch, and Expense ledgers to ₹0 (`advance: 0, openingBalance: 0`). Re-evaluates and preserves initial agreement values on all Kisan ledgers.
+      8. **Counters**: Resets numbering sequences (Bookings, Receipts, Vouchers, Transfers) back to #1.
+
+
+- **Sidebar Menu Renames & Permission Verification: Down Payment & Investment Collection [COMPLETED]**:
+  - **Requirement**:
+    - Under the "Account" section in the left sidebar, rename "Downpayment" to "Down Payment" and "Product Collections" to "Investment Collection".
+    - Check and ensure no permissions or approval notification badges are affected by this change.
+  - **Verification & Implementation**:
+    - **Permissions Intact**: Sidebar visibility checks use `child.resource` (`"plot_collection"`), NOT the display string `child.menu`. Route guards (`RoutePermissionGuard`), frontend hooks (`usePermission('plot_collection', ...)`), and backend API routes (`checkPermission('plot_collection', ...)`) all authenticate against the resource identifier `plot_collection`. No permission checks were affected.
+    - **Pending Badges Intact**: `getChildPendingCount` evaluates against route URLs (`/dashboard/plots/collections/downpayment` and `/dashboard/plots/collections/products`), ensuring pending counters continue working seamlessly.
+    - **Display Updates**:
+      - `client/src/components/sidebar.jsx`: Renamed to `Down Payment` and `Investment Collection`.
+      - `client/src/components/Navbar.jsx`: Updated page title mapping to `Down Payment Collection` and `Investment Collection`.
+      - `client/src/pages/plots/products/ProductCollectionsPage.jsx`: Updated header title and empty state text to `Investment Collection & Receipts`.
+      - `client/src/pages/admin/organization/components/admin/userPermissionsConfig.js`: Clarified label for `plot_collection` as `Collections (Down Payment, EMI & Investment)`.
+
+
 - **Plot Price Calculator Downpayment & EMI Discount Logic Refined [COMPLETED]**:
   - **Requirement**:
     - When an EMI plan is selected (e.g. 1 month, 2 months, etc.):
