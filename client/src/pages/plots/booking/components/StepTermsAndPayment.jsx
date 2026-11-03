@@ -254,41 +254,7 @@ export const StepTermsAndPayment = ({
               );
             })}
           </select>
-          {currentSchemeSlab ? (
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-teal-200 shadow-2xs">
-                <span className="text-slate-400 text-[10px] uppercase font-bold">Tenure:</span>
-                <strong className="text-slate-800 font-mono font-bold">{currentSchemeSlab.tenureMonths} Months</strong>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 shadow-2xs" title="Business Associate Commission">
-                <span className="text-emerald-700 text-[10px] uppercase font-bold">BA:</span>
-                <strong className="text-emerald-900 font-mono font-bold">
-                  {paymentPlanMode === 'ONE_TIME'
-                    ? `${currentSchemeSlab.fdPromoterCommissionPercent ?? 5}%`
-                    : `${currentSchemeSlab.rdPromoterCommissionPercent ?? 4}%`}
-                </strong>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 shadow-2xs" title="Business Partner Team Override">
-                <span className="text-blue-700 text-[10px] uppercase font-bold">BP:</span>
-                <strong className="text-blue-900 font-mono font-bold">
-                  {paymentPlanMode === 'ONE_TIME'
-                    ? `${currentSchemeSlab.bpFdCommissionPercent ?? 1}%`
-                    : `${currentSchemeSlab.bpRdCommissionPercent ?? 1}%`}
-                </strong>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 border border-purple-200 shadow-2xs" title="Branch Partner Commission">
-                <span className="text-purple-700 text-[10px] uppercase font-bold">Branch:</span>
-                <strong className="text-purple-900 font-mono font-bold">
-                  {paymentPlanMode === 'ONE_TIME'
-                    ? `${currentSchemeSlab.branchFdCommissionPercent ?? 0}%`
-                    : `${currentSchemeSlab.branchRdCommissionPercent ?? 0}%`}
-                </strong>
-              </span>
-            </div>
-          ) : (
+          {!currentSchemeSlab && (
             <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
               <AlertCircle size={13} className="shrink-0" />
               Scheme Plan selection is required to determine Associate, Partner, and Branch Partner commissions before booking can proceed.

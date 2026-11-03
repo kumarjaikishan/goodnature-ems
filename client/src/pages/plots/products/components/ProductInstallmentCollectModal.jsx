@@ -1,3 +1,21 @@
+const resolveSubmissionDateTime = (dateVal) => {
+  if (!dateVal) return new Date().toISOString();
+  const now = new Date();
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
+    const [y, m, d] = dateVal.trim().split('-').map(Number);
+    if (
+      y === now.getFullYear() &&
+      m === (now.getMonth() + 1) &&
+      d === now.getDate()
+    ) {
+      return now.toISOString();
+    }
+    const combined = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    return combined.toISOString();
+  }
+  return new Date(dateVal).toISOString();
+};
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import Modalbox from '../../../../components/custommodal/Modalbox';
@@ -15,7 +33,8 @@ import {
   AlertCircle,
   Clock,
   CheckCircle2,
-  Percent
+  Percent,
+  Building2
 } from 'lucide-react';
 import numberToWords from '../../../../utils/numToWord';
 
@@ -27,6 +46,24 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
   const [transactionReference, setTransactionReference] = useState('');
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Customer Bank Details (for online/bank/cheque)
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
+
+  useEffect(() => {
+    if (booking?.customerId && typeof booking.customerId === 'object') {
+      const cust = booking.customerId;
+      setBankName(cust.bankName || '');
+      setAccountNumber(cust.accountNumber || '');
+      setAccountHolderName(cust.accountHolderName || cust.name || '');
+      setIfscCode(cust.ifscCode || '');
+      setBankBranch(cust.bankBranch || '');
+    }
+  }, [booking, open]);
 
   // Treasury Accounts State
   const profile = useSelector((state) => state.user?.profile);
@@ -235,14 +272,22 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
 
     setLoading(true);
     try {
+      const isCash = String(paymentMode).toLowerCase() === 'cash';
       const payload = {
         amountPaid: colAmt,
         lateFineRebate: Number(lateFineRebate) || 0,
         paymentMode,
-        transactionReference: paymentMode === 'cash' ? '' : transactionReference.trim(),
-        paymentDate,
+        transactionReference: isCash ? '' : transactionReference.trim(),
+        paymentDate: resolveSubmissionDateTime(paymentDate),
         ledgerId: selectedLedgerId || undefined,
         remarks,
+        bankDetails: !isCash ? {
+          bankName: (bankName || '').trim(),
+          bankBranch: (bankBranch || '').trim(),
+          accountNumber: (accountNumber || '').trim(),
+          accountHolderName: (accountHolderName || '').trim(),
+          ifscCode: (ifscCode || '').trim(),
+        } : undefined,
       };
 
       const res = await api.post(`/plots/product-bookings/${booking._id}/collections`, payload);
@@ -615,6 +660,81 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none text-xs"
               required
             />
+          </div>
+        )}
+
+        {/* Customer Bank Details for all non-cash collections */}
+        {paymentMode !== 'cash' && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2.5">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+              <div className="flex items-center gap-1.5">
+                <Building2 size={14} className="text-teal-700" />
+                <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+                  Customer Bank Details
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-500 font-medium">
+                (Used for Online/Bank/Cheque Verification)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Bank Name</label>
+                <input
+                  type="text"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                  placeholder="e.g. State Bank of India, HDFC"
+                  value={bankName || ''}
+                  onChange={(e) => setBankName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Account Number</label>
+                <input
+                  type="text"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                  placeholder="e.g. 123456789012"
+                  value={accountNumber || ''}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Account Holder Name</label>
+                <input
+                  type="text"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                  placeholder="e.g. Customer Name / Company"
+                  value={accountHolderName || ''}
+                  onChange={(e) => setAccountHolderName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">IFSC Code</label>
+                <input
+                  type="text"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition uppercase"
+                  maxLength={11}
+                  placeholder="e.g. SBIN0001234"
+                  value={ifscCode || ''}
+                  onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Branch Name</label>
+                <input
+                  type="text"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                  placeholder="e.g. Main Branch"
+                  value={bankBranch || ''}
+                  onChange={(e) => setBankBranch(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
         )}
 

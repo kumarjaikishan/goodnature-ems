@@ -1,5 +1,128 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Fixed Collection Receipt Time & UTC Midnight 05:30 AM Artifact [COMPLETED]**:
+  - **Issue**: Payment receipts (`ReceiptViewer.jsx`) showed time as `05:30 AM` (e.g. `03 Nov 2026, 05:30 AM`) even when created in the evening/night. This occurred because collection forms submitted date-only strings (`YYYY-MM-DD`), which JavaScript parsed as UTC midnight (`00:00:00.000Z`). In Indian Standard Time (UTC+5:30), `00:00:00.000Z` renders as `05:30 AM`.
+  - **Implementation**:
+    1. `client/src/pages/plots/printViewers/ReceiptViewer.jsx`: Updated `formatReceiptDateTime(dateVal, fallbackVal)` to detect UTC midnight date strings. If detected, it falls back to the real document creation timestamp (`receipt.updatedAt`), preventing the `05:30 AM` artifact on existing receipts. Also updated the Customer Bank Details row to display for all non-cash modes (`!isCash`).
+    2. `client/src/pages/plots/installments/InstallmentCollection.jsx`, `ProductReceivePaymentForm.jsx`, and `ProductInstallmentCollectModal.jsx`: Added `resolveSubmissionDateTime` to attach the exact current local time (hours, minutes, seconds) when submitting collections for today, or preserving the time-of-day for custom dates.
+    3. `server/services/plots/plotCollection.service.js` & `server/services/plots/plotProduct.service.js`: Added check in `collectInstallment` and `collectProductInstallment` so that if an incoming `customDate` has UTC midnight (00:00:00), it automatically attaches the current local time of day instead of setting midnight UTC.
+  - **Build Status**: Verified via `npm run build --prefix client` and `node -c` on backend — compiled cleanly with 0 errors.
+
+- **Customer Bank Details for All Non-Cash Collections & Auto-Prefill with Editable Inputs [COMPLETED]**:
+  - **Requirement**: In Downpayment collection (`/dashboard/plots/collections/downpayment/add`), EMI collection (`/dashboard/plots/collections/emi/add`), and Investment collection (`/dashboard/plots/collections/products/add` & modal), when selecting any online/bank payment mode (UPI / Online, Bank Transfer / NEFT / RTGS, Cheque), ask for customer bank details (Bank Name, Branch Name, IFSC Code, Account Number, Account Holder Name). Auto-prefill them if the customer's profile already has bank details, while keeping them completely editable.
+  - **Implementation**:
+    1. `client/src/pages/plots/installments/components/ReceivePaymentForm.jsx`: Changed visibility condition from `form.paymentMode === 'cheque'` to `form.paymentMode !== 'cash'`. Renamed title to "Customer Bank Details". Added prefill logic on payment mode change from `selectedBooking.customerId`.
+    2. `client/src/pages/plots/installments/InstallmentCollection.jsx`: In `handleBookingSelect` and booking details fetch, auto-prefill `bankName`, `bankBranch`, `accountNumber`, `accountHolderName`, `ifscCode` from `customerId`. Updated `handleSubmit` payload to send `bankDetails` for all non-cash modes (`paymentMode !== 'cash'`).
+    3. `client/src/pages/plots/installments/components/CollectionModals.jsx`: In `EditReceiptModal`, updated visibility to `editForm.paymentMode !== 'cash'` and added Branch Name field.
+    4. `client/src/pages/plots/products/ProductReceivePaymentForm.jsx`: Added customer bank details state, auto-prefill on booking selection and mode switch, rendered "Customer Bank Details" card for non-cash modes, and included `bankDetails` in the collection payload.
+    5. `client/src/pages/plots/products/components/ProductInstallmentCollectModal.jsx`: Added bank details state and inputs for non-cash collections, auto-prefilled from `booking.customerId`, and passed in collection submission.
+    6. `server/models/PlotProductBooking.js`: Added `bankName`, `bankBranch`, `accountNumber`, `accountHolderName`, `ifscCode` to `collectionTransactionSchema`.
+    7. `server/models/InvestmentReceipt.js`: Added `bankBranch`, `accountNumber`, `accountHolderName`, `ifscCode` fields.
+    8. `server/services/plots/plotCollection.service.js`: Persist `bankDetails` to `PlotReceipt` for all non-cash modes (`!isCash`). Auto-updates customer bank details in `PlotCustomer` profile.
+    9. `server/services/plots/plotProduct.service.js`: In `collectProductInstallment`, accept `bankDetails`, update `PlotCustomer` profile, and persist bank fields in `PlotProductBooking.collections`. Populated customer bank fields in `getProductBookings`.
+  - **Build Status**: Verified via `npm run build --prefix client` and `node -c` on backend — compiled cleanly with 0 errors.
+
+- **Removed Scheme Commission Policy Matrix in Investment Booking [COMPLETED]**:
+  - **Requirement**: In Investment Booking (`/dashboard/plots/investment-booking/new`), under section `3. Payment Plan Scheme & Period`, remove the bottom scheme details box containing `% Scheme Commission Policy: Associate (BA): ... • Partner (BP): ... • Branch Partner: ...`.
+  - **Implementation**:
+    - File: `client/src/pages/plots/products/ProductBookingPage.jsx`.
+    - Removed the `{/* Active Scheme Commission Policy Matrix */}` card element directly beneath the `EMI Scheme Plan & Tenure` select box.
+    - Cleaned up unused `Percent` icon import.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled in 3.56s with 0 errors.
+
+- **Removed Tenure & Commission Badges from Scheme Plan Selection in Booking [COMPLETED]**:
+  - **Requirement**: While creating or editing a plot booking, remove the badge pills (`TENURE`, `BA`, `BP`, `BRANCH`) rendered directly underneath the **SCHEME PLAN** dropdown selector.
+  - **Implementation**:
+    - Removed the badge pill group from `client/src/pages/plots/booking/components/StepTermsAndPayment.jsx` (New Booking step 3).
+    - Also removed the corresponding badge pills from `client/src/pages/plots/booking/PlotBookingEditPage.jsx` (Edit Booking page).
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled in 2.92s with 0 errors.
+
+- **Receipt Layout, Amount in Words & Plot Number Formatting [COMPLETED]**:
+  - **Requirement**: In `ReceiptViewer.jsx` (Payment Receipt print/view page for Down Payment and EMI collections):
+    1. Show amount in words directly inside the same cell as Amount Paid, placed just below the amount in smaller text `({numberToWords(...)})`, and remove the redundant separate bottom row for "Amount in Words".
+    2. Format "Down Payment" with proper spacing (`DOWN PAYMENT` / `Down Payment`), eliminating `"DOWNPAYMENT"`.
+    3. Format Plot Number cleanly as `A005 | 1200 sqft` (removing `#` prefix and writing area as `| <size> sqft`).
+    4. For online transactions (or pending clearance), display a bill status line in small font below in the bill: `* Bill Status: Approval Pending` (or `Approved`).
+  - **Implementation**:
+    - File: `client/src/pages/plots/printViewers/ReceiptViewer.jsx`.
+    - Integrated clean plot number and area formatting: `((plotNumber).replace(/^#/, '') + ' | ' + size + ' sqft')`.
+    - Amount Paid cell now contains amount + words in parentheses.
+    - Added online transaction detection (`isOnlinePayment`) and dynamic `* Bill Status: Approval Pending` / `Approved` in the footer notice section.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled in 3.48s with 0 errors.
+
+- **Integrated `GuardianInput` & Cleaned Address Title in Kisan Sellers Table [COMPLETED]**:"
+
+  - **Requirement**: In "Add / Edit Land Seller Details" ([KisanSellersTable.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/components/KisanSellersTable.jsx)), replace the standalone text input with the new common `GuardianInput` featuring the left-side selectable relation prefix (`S/o`, `D/o`, `W/o`, `H/o`, `C/o`). In the address field, simplify the label to just `"Address"` (replacing `"Village / Full Address"`).
+  - **Implementation**:
+    1. `client/src/components/ui/GuardianInput.jsx`: Added smart relation normalization mapping (e.g. `'Father'`, `'Son of'` &rarr; `'S/o'`, `'Wife of'` &rarr; `'W/o'`, etc.) and dynamic option inclusion so existing database records render their prefix smoothly.
+    2. `client/src/pages/plots/purchase/components/KisanSellersTable.jsx`: Replaced the Guardian text input with `GuardianInput` bound to `form.relation` (default `'S/o'`) and `form.guardianName`. Updated address input label to `"Address"`.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled in 2.98s with 0 errors.
+
+- **Reusable `GuardianInput` UI Component & Business Partner Integration [COMPLETED]**:
+  - **Requirement**: Create a reusable, standardized form input component for collecting guardian/relative names with a selectable prefix (`S/o`, `D/o`, `W/o`, `H/o`, `C/o`) on the left side, designed for project-wide reusability. Integrate it into the "Create/Edit Business Partner & Associate" modal.
+  - **Implementation**:
+    1. `client/src/components/ui/GuardianInput.jsx`:
+       - Created unified component adhering to the deep teal / emerald styling standards with focus-within ring transitions.
+       - Built-in relation options: `S/o`, `D/o`, `W/o`, `H/o`, `C/o` (supports custom options and multiple sizes `sm`, `md`, `lg`).
+       - Supports both dual props (`relation`, `onRelationChange`, `value`, `onChange`) and single object prop (`value={{ relation, name }}`).
+    2. `client/src/components/ui/index.js`: Re-exported `GuardianInput` for universal import from `@/components/ui`.
+    3. `client/src/pages/plots/businessDevelopers/PlotBusinessDevelopers.jsx`:
+       - Paired `Full Name` and `GuardianInput` side-by-side in a 2-column responsive grid.
+       - Integrated state bindings for `relationType` (default `'S/o'`) and `fatherOrHusbandName`.
+       - Rendered guardian details in the Business Developer profile view modal.
+    4. `server/services/plots/plotDeveloper.service.js`:
+       - Added `relationType` and `fatherOrHusbandName` to `createSponsor` and `updateSponsor` to persist guardian information in the `User` document.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled in 3.83s with 0 errors.
+
+- **URL Query Sync for Plot Purchase Main Tabs [COMPLETED]**:
+  - **Requirement**: Synchronize the main navigation tabs on Plot Purchase & Land Master (`/dashboard/plots/purchase`) with the URL query parameter `?tab=agreements|deeds|sellers`. When any tab is active and the user refreshes the page, the user remains on the exact same active tab.
+  - **Implementation**:
+    1. In `client/src/pages/plots/purchase/PlotPurchasePage.jsx`:
+       - Integrated `useSearchParams` from `react-router-dom`.
+       - Added `TAB_ALIASES` mapping supporting `'agreements'`, `'deeds'`, and `'sellers'` (including aliases like `land_sellers`, `registry_deeds`, etc.).
+       - Initialized `mainTab` from URL parameter `searchParams.get('tab')`.
+       - Implemented `handleMainTabChange` which updates state and synchronizes URL query with `{ replace: true }` without page reload.
+       - Handled browser back/forward history via `useEffect([tabParam])`.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled in 4.46s with 0 errors.
+
+- **Standardized Common Modalbox & UI Components in Plot Purchase [COMPLETED]**:
+  - **Requirement**: Use the centralized common `Modalbox` component from `components/ui` (standard header with icon, title, subtitle, close button, and docked footer) instead of custom ad-hoc modal headers, raw inputs, and custom close buttons.
+  - **Touched Files**:
+    1. `client/src/components/ui/index.js`: Re-exported `Modalbox` alongside `Modal` for direct imports from `@/components/ui` or `../../../../components/ui`.
+    2. `client/src/pages/plots/purchase/components/KisanSellersTable.jsx`: Standardized "Edit Land Seller Details" / "Add New Land Seller" modal to use `<Modalbox>` props (`title`, `subtitle`, `icon`, `maxWidth="max-w-2xl"`, `footer` with `<Button variant="outline">` and `<Button variant="primary">`) and standardized `Input`, `PhoneInput`, `AadhaarInput`, `PanInput`.
+    3. `client/src/pages/plots/purchase/components/PurchasersTable.jsx`: Standardized "Edit Purchaser / Buyer" / "Add New Purchaser / Buyer" modal with the same unified `Modalbox`, `Input`, and `Button` pattern.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled cleanly with 0 errors.
+
+- **Special Dedicated Authority for Plot & Investment Collections & Transactions [COMPLETED]**:
+  - **Requirement**: Separate transaction visibility control from the 4-number RBAC matrix (`[Read, Create, Update, Delete]`) and general accounting ledgers (`cash_ledger` and `bank_ledger`). Provide a special section card in User Management above the RBAC table (matching the style of "Cash Drawers & Inter-Account Transfer Authority") to configure:
+    1. **All Transactions (Cash & Bank/Online)** (`both`)
+    2. **Cash Transactions Only** (`cash_only`)
+    3. **Bank & Online Transactions Only** (`bank_only`)
+    4. **Restricted (Neither)** (`none`)
+  - **Scope Limitation**:
+    Strictly applies ONLY to:
+    1. Plot Booking Ledger: `/dashboard/plots/booking/:id/ledger`
+    2. Investment Booking Ledger: Customer ledger in Product Bookings
+    3. Down Payment Collections: `/dashboard/plots/collections/downpayment`
+    4. EMI Collections: `/dashboard/plots/collections/emi`
+    5. Investment Collections: `/dashboard/plots/collections/products`
+    *(General ledgers, vouchers, personal accounts, and cash drawers are completely unaffected).*
+  - **Schema & Persistence**:
+    - Added `plotTransactionScope: { type: String, enum: ['both', 'cash_only', 'bank_only', 'none'], default: 'both' }` to `server/models/user.js`.
+    - Updated `server/controllers/admin.js` (`addAdmin`, `editAdmin`, and `firstfetch` select) to read and persist `plotTransactionScope`.
+  - **UI Authority Card in User Edit**:
+    - In `client/src/pages/admin/organization/pages/AdminUserFormPage.jsx`: Rendered dedicated Special Section Card above the Granular Module Permissions table with 4 card choices (Globe, Wallet, CreditCard, Ban) and live state badges.
+  - **Frontend & Backend Scoping**:
+    - `server/utils/transactionPermission.js` & `client/src/utils/transactionPermission.js`: Resolve `{ canViewCash, canViewBank }` strictly from `plotTransactionScope`.
+    - `PlotBookingLedgerPage.jsx`: Statement entries and receipts filtered by scope; running balance recalculated dynamically; live status banner shown.
+    - `InstallmentCollection.jsx`: Down Payment and EMI receipts filtered by scope; status banner rendered.
+    - `ProductCollectionsPage.jsx`: Investment collections filtered by scope; status banner rendered.
+    - `server/controllers/plots.controller.js` (`getBookingLedger`, `getProductCustomerLedger`) & `server/services/plots/plotCollection.service.js` (`getReceipts`): Scoped to `plotTransactionScope`.
+  - **Reversion of Unrelated Files**:
+    - Completely reverted `server/controllers/ledger.js`, `server/controllers/voucher.js`, `client/src/pages/admin/ledger/ledgerdetailpage.jsx`, `client/src/pages/vouchers/VoucherList.jsx`, and `client/src/pages/plots/purchase/PlotKisanLedgerPage.jsx`.
+    - Restored `cash_ledger` and `bank_ledger` labels in `userPermissionsConfig.js`.
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled cleanly with 0 errors.
+
 - **Fixed Granular Ledger Entry (Add/Edit/Delete) Permission Resolution [COMPLETED]**:
   - **Issue**: When an admin gives a user (such as Cashier Nawraj) access to a specific ledger module like Cash Accounts (`cash_ledger`) with Create/Update permissions, the user was unable to see "Add Entry", "Edit Entry", or delete manual transaction entries on that ledger's statement page.
   - **Cause**:

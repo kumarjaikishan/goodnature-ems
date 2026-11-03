@@ -11,8 +11,7 @@ import {
   RefreshCw,
   Building,
 } from 'lucide-react';
-import Modalbox from '../../../../components/custommodal/Modalbox';
-import { PhoneInput, AadhaarInput, PanInput } from '../../../../components/ui';
+import { Modalbox, Input, Button, PhoneInput, AadhaarInput, PanInput, GuardianInput } from '../../../../components/ui';
 import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
@@ -34,7 +33,7 @@ const KisanSellersTable = ({
   const initialForm = {
     name: '',
     guardianName: '',
-    relation: 'Father',
+    relation: 'S/o',
     mobile: '',
     aadhaarNumber: '',
     panNumber: '',
@@ -61,7 +60,7 @@ const KisanSellersTable = ({
     setForm({
       name: seller.name || '',
       guardianName: seller.guardianName || '',
-      relation: seller.relation || 'Father',
+      relation: seller.relation || 'S/o',
       mobile: seller.mobile || '',
       aadhaarNumber: seller.aadhaarNumber || '',
       panNumber: seller.panNumber || '',
@@ -313,192 +312,172 @@ const KisanSellersTable = ({
       <Modalbox
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        outside={false}
+        title={editingSeller ? 'Edit Land Seller Details' : 'Add New Land Seller'}
+        subtitle="Master directory profile for quick selection in Plot Purchase agreements."
+        icon={<Users size={20} />}
         maxWidth="max-w-2xl"
-        showClose={false}
-      >
-        <div className="p-5 md:p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-teal-50 text-teal-700 rounded-xl border border-teal-200/60">
-                <Users size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {editingSeller ? 'Edit Land Seller Details' : 'Add New Land Seller'}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Master directory profile for quick selection in Plot Purchase agreements.
-                </p>
-              </div>
-            </div>
-            <button
+        footer={
+          <div className="flex items-center justify-end gap-2.5">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setModalOpen(false)}
-              className="text-slate-400 hover:text-slate-600 font-bold p-1 text-base cursor-pointer"
             >
-              ✕
-            </button>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="kisan-seller-form"
+              variant="primary"
+              size="sm"
+              loading={submitting}
+              disabled={submitting}
+            >
+              {editingSeller ? 'Update Kisan / Seller' : 'Save Kisan / Seller'}
+            </Button>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Seller Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Seller Full Name"
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-xl px-3 text-xs font-bold text-slate-800 outline-none"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Guardian / Father Name</label>
-                <input
-                  type="text"
-                  placeholder="Guardian / Father Name"
-                  className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none"
-                  value={form.guardianName}
-                  onChange={(e) => setForm({ ...form, guardianName: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number</label>
-                <PhoneInput
-                  placeholder="Mobile Number"
-                  className="h-9 text-xs font-medium"
-                  value={form.mobile}
-                  onChange={(e) => setForm({ ...form, mobile: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Aadhaar Number</label>
-                <AadhaarInput
-                  placeholder="12 digit Aadhaar No."
-                  className="h-9 text-xs font-medium"
-                  value={form.aadhaarNumber}
-                  onChange={(e) => setForm({ ...form, aadhaarNumber: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">PAN Card</label>
-                <PanInput
-                  placeholder="10 character PAN No."
-                  className="h-9 text-xs"
-                  value={form.panNumber}
-                  onChange={(e) => setForm({ ...form, panNumber: e.target.value })}
-                />
-              </div>
-            </div>
-
+        }
+      >
+        <form id="kisan-seller-form" onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">Village / Full Address</label>
-              <input
-                type="text"
-                placeholder="Village / Full Address"
-                className="h-9 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              <Input
+                label="Seller Full Name"
+                required
+                placeholder="Seller Full Name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
 
-            {/* Bank Details Collapsible/Card */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
-              <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                <Building size={14} className="text-teal-700" />
-                <span>Bank Account Details (Optional)</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Bank Name</label>
-                  <input
-                    type="text"
-                    placeholder="Bank Name (e.g. SBI, PNB)"
-                    className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-medium outline-none"
-                    value={form.bankDetails?.bankName || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        bankDetails: { ...form.bankDetails, bankName: e.target.value },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Account Number</label>
-                  <input
-                    type="text"
-                    placeholder="Account Number"
-                    className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-mono outline-none"
-                    value={form.bankDetails?.accountNumber || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        bankDetails: { ...form.bankDetails, accountNumber: e.target.value },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">IFSC Code</label>
-                  <input
-                    type="text"
-                    placeholder="IFSC Code"
-                    className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-mono uppercase outline-none"
-                    value={form.bankDetails?.ifscCode || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        bankDetails: { ...form.bankDetails, ifscCode: e.target.value.toUpperCase() },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Branch</label>
-                  <input
-                    type="text"
-                    placeholder="Branch Location"
-                    className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-medium outline-none"
-                    value={form.bankDetails?.branch || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        bankDetails: { ...form.bankDetails, branch: e.target.value },
-                      })
-                    }
-                  />
-                </div>
-              </div>
+            <div>
+              <GuardianInput
+                label="Guardian / Father Name"
+                relation={form.relation || 'S/o'}
+                onRelationChange={(rel) => setForm({ ...form, relation: rel })}
+                value={form.guardianName || ''}
+                onChange={(e) => setForm({ ...form, guardianName: e.target.value })}
+                placeholder="Guardian / Father Name"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1 mb-1">
+                Mobile Number
+              </label>
+              <PhoneInput
+                placeholder="Mobile Number"
+                className="h-9 text-xs font-medium"
+                value={form.mobile}
+                onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+              />
             </div>
 
-            {/* Footer buttons */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-2 text-xs font-bold text-white bg-teal-700 hover:bg-teal-800 rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
-              >
-                {submitting ? 'Saving...' : editingSeller ? 'Update Kisan / Seller' : 'Save Kisan / Seller'}
-              </button>
+            <div>
+              <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1 mb-1">
+                Aadhaar Number
+              </label>
+              <AadhaarInput
+                placeholder="12 digit Aadhaar No."
+                className="h-9 text-xs font-medium"
+                value={form.aadhaarNumber}
+                onChange={(e) => setForm({ ...form, aadhaarNumber: e.target.value })}
+              />
             </div>
-          </form>
-        </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 tracking-wide flex items-center gap-1 mb-1">
+                PAN Card
+              </label>
+              <PanInput
+                placeholder="10 character PAN No."
+                className="h-9 text-xs"
+                value={form.panNumber}
+                onChange={(e) => setForm({ ...form, panNumber: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Input
+              label="Address"
+              placeholder="Enter Address"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
+
+          {/* Bank Details Collapsible/Card */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
+            <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Building size={14} className="text-teal-700" />
+              <span>Bank Account Details (Optional)</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <Input
+                  label="Bank Name"
+                  size="sm"
+                  placeholder="Bank Name (e.g. SBI, PNB)"
+                  value={form.bankDetails?.bankName || ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      bankDetails: { ...form.bankDetails, bankName: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Input
+                  label="Account Number"
+                  size="sm"
+                  placeholder="Account Number"
+                  className="font-mono"
+                  value={form.bankDetails?.accountNumber || ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      bankDetails: { ...form.bankDetails, accountNumber: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Input
+                  label="IFSC Code"
+                  size="sm"
+                  placeholder="IFSC Code"
+                  className="font-mono uppercase"
+                  value={form.bankDetails?.ifscCode || ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      bankDetails: { ...form.bankDetails, ifscCode: e.target.value.toUpperCase() },
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Input
+                  label="Branch"
+                  size="sm"
+                  placeholder="Branch Location"
+                  value={form.bankDetails?.branch || ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      bankDetails: { ...form.bankDetails, branch: e.target.value },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </form>
       </Modalbox>
     </div>
   );

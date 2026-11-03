@@ -119,10 +119,10 @@ export const EditReceiptModal = ({
             </div>
           )}
 
-          {editForm.paymentMode === 'cheque' && (
+          {editForm.paymentMode !== 'cash' && (
             <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2.5">
               <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                Customer Cheque Bank Details
+                Customer Bank Details
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
@@ -164,6 +164,16 @@ export const EditReceiptModal = ({
                     placeholder="e.g. HDFC0001234"
                     value={editForm.ifscCode || ''}
                     onChange={(e) => setEditForm({ ...editForm, ifscCode: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelCls}>Branch Name</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="e.g. Main Branch"
+                    value={editForm.bankBranch || ''}
+                    onChange={(e) => setEditForm({ ...editForm, bankBranch: e.target.value })}
                   />
                 </div>
               </div>

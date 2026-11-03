@@ -428,7 +428,7 @@ class PlotProductService {
       .populate('productId', 'productName productCode dimensions dimensionLabel areaSqFt unitPrice')
       .populate('plotId', 'plotNumber plotSize plotType seriesId dimensions')
       .populate('projectId', 'name code location')
-      .populate('customerId', 'name customerId customerCode mobile email address fatherOrHusbandName')
+      .populate('customerId', 'name customerId customerCode mobile email address fatherOrHusbandName bankName bankBranch accountNumber accountHolderName ifscCode')
       .populate('landSourcing.agreementId', 'agreementNumber mauja khataNumber khesraNumber thanaNumber')
       .populate({
         path: 'sponsorId',
@@ -1327,7 +1327,27 @@ class PlotProductService {
     }
 
     const rebateAmount = Number(lateFineRebate) || 0;
-    const pDate = new Date(paymentDate);
+    let pDate = new Date();
+    if (paymentDate) {
+      const parsed = new Date(paymentDate);
+      if (!isNaN(parsed.getTime())) {
+        if (parsed.getUTCHours() === 0 && parsed.getUTCMinutes() === 0 && parsed.getUTCSeconds() === 0) {
+          const now = new Date();
+          if (
+            parsed.getUTCFullYear() === now.getUTCFullYear() &&
+            parsed.getUTCMonth() === now.getUTCMonth() &&
+            parsed.getUTCDate() === now.getUTCDate()
+          ) {
+            pDate = now;
+          } else {
+            pDate = new Date(parsed);
+            pDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+          }
+        } else {
+          pDate = parsed;
+        }
+      }
+    }
 
     // Generate receipt number: e.g. PRD-RCP-2627-001
     const curYear = pDate.getFullYear();
@@ -1391,6 +1411,30 @@ class PlotProductService {
       booking.collections = [];
     }
 
+    // Extract customer bank details for online/bank/cheque collections
+    const bDetails = data.bankDetails || {
+      bankName: data.bankName,
+      bankBranch: data.bankBranch,
+      accountNumber: data.accountNumber,
+      accountHolderName: data.accountHolderName,
+      ifscCode: data.ifscCode,
+    };
+
+    // If customer bank details are provided for online/bank/cheque collection, also update PlotCustomer profile
+    if (!isCash && bDetails && (bDetails.bankName || bDetails.accountNumber) && booking.customerId) {
+      const custUpdate = {};
+      if (bDetails.bankName) custUpdate.bankName = bDetails.bankName.trim();
+      if (bDetails.bankBranch) custUpdate.bankBranch = bDetails.bankBranch.trim();
+      if (bDetails.accountNumber) custUpdate.accountNumber = bDetails.accountNumber.trim();
+      if (bDetails.accountHolderName) custUpdate.accountHolderName = bDetails.accountHolderName.trim();
+      if (bDetails.ifscCode) custUpdate.ifscCode = bDetails.ifscCode.trim();
+
+      if (Object.keys(custUpdate).length > 0) {
+        const custId = booking.customerId._id || booking.customerId;
+        await PlotCustomer.findByIdAndUpdate(custId, { $set: custUpdate });
+      }
+    }
+
     // Status: Cash is auto-approved ('APPROVED'), online/bank/cheque is created as 'PENDING'
     const initialStatus = isCash ? 'APPROVED' : 'PENDING';
     const newCollection = {
@@ -1401,6 +1445,11 @@ class PlotProductService {
       lateFineRebate: rebateAmount,
       paymentMode,
       transactionReference: transactionReference?.trim() || '',
+      bankName: !isCash ? (bDetails?.bankName?.trim() || '') : '',
+      bankBranch: !isCash ? (bDetails?.bankBranch?.trim() || '') : '',
+      accountNumber: !isCash ? (bDetails?.accountNumber?.trim() || '') : '',
+      accountHolderName: !isCash ? (bDetails?.accountHolderName?.trim() || '') : '',
+      ifscCode: !isCash ? (bDetails?.ifscCode?.trim() || '') : '',
       paymentDate: pDate,
       installmentNumbers: touchedInstNumbers,
       remarks,

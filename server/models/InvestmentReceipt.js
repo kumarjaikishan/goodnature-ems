@@ -56,6 +56,26 @@ const investmentReceiptSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    bankBranch: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    accountNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    accountHolderName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    ifscCode: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     chequeNumber: {
       type: String,
       default: '',

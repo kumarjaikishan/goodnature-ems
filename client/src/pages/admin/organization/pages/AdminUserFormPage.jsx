@@ -28,7 +28,9 @@ import {
     Globe,
     Ban,
     CreditCard,
-    Wallet
+    Wallet,
+    Banknote,
+    ShieldAlert
 } from 'lucide-react';
 import OrganizationLayout from '../OrganizationLayout';
 import { useOrganization } from '../useOrganization';
@@ -108,6 +110,7 @@ const AdminUserFormPage = () => {
             accessScope: 'all', // 'all' | 'selected' | 'none'
             allowedCashLedgerIds: [],
         },
+        plotTransactionScope: 'both', // 'both' | 'cash_only' | 'bank_only' | 'none'
     });
 
     // Check permission
@@ -235,6 +238,7 @@ const AdminUserFormPage = () => {
                         : fallbackPerms,
                     bankPermissions: loadedBankPerms,
                     cashPermissions: loadedCashPerms,
+                    plotTransactionScope: userRecord.plotTransactionScope || 'both',
                 });
             } catch (err) {
                 console.error('Failed to load user details:', err);
@@ -416,6 +420,13 @@ const AdminUserFormPage = () => {
         }));
     };
 
+    const handlePlotTransactionScopeChange = (scope) => {
+        setForm((prev) => ({
+            ...prev,
+            plotTransactionScope: scope,
+        }));
+    };
+
     // RBAC Presets
     const handleApplyPreset = (presetType) => {
         if (presetType === 'all') {
@@ -557,6 +568,7 @@ const AdminUserFormPage = () => {
             formData.append('permissions', JSON.stringify(form.permissions || {}));
             formData.append('bankPermissions', JSON.stringify(form.bankPermissions || {}));
             formData.append('cashPermissions', JSON.stringify(form.cashPermissions || {}));
+            formData.append('plotTransactionScope', form.plotTransactionScope || 'both');
 
             const url = isEditMode ? `editAdmin/${id}` : 'addAdmin';
 
@@ -1433,6 +1445,151 @@ const AdminUserFormPage = () => {
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    {/* SECTION: Plot & Investment Transactions & Collections Authority */}
+                    <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <Banknote size={18} className="text-teal-700" />
+                                <span className="text-slate-800 font-bold text-sm">Plot & Investment Transactions & Collections Authority</span>
+                                <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                    (form.plotTransactionScope || 'both') === 'both'
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                        : form.plotTransactionScope === 'cash_only'
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                        : form.plotTransactionScope === 'bank_only'
+                                        ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                                }`}>
+                                    {(form.plotTransactionScope || 'both') === 'both'
+                                        ? 'All (Cash & Bank/Online)'
+                                        : form.plotTransactionScope === 'cash_only'
+                                        ? 'Cash Only'
+                                        : form.plotTransactionScope === 'bank_only'
+                                        ? 'Bank & Online Only'
+                                        : 'Restricted'}
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-slate-400">
+                                Controls Cash vs Bank/Online transaction visibility in Booking Ledgers & Collections
+                            </span>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-700 tracking-wide block">
+                                Transaction Visibility Scope in Plot Bookings, Investments & Collections (Down Payment & EMI)
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {/* Option 1: Both */}
+                                <div
+                                    onClick={() => handlePlotTransactionScopeChange('both')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        (form.plotTransactionScope || 'both') === 'both'
+                                            ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <Globe size={16} className={(form.plotTransactionScope || 'both') === 'both' ? 'text-teal-800' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">All Transactions</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="plotTransactionScope"
+                                            checked={(form.plotTransactionScope || 'both') === 'both'}
+                                            onChange={() => handlePlotTransactionScopeChange('both')}
+                                            className="accent-teal-700"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        Full visibility of Cash, Cheque, UPI, NEFT, and Bank transfers across all booking ledgers and collections.
+                                    </p>
+                                </div>
+
+                                {/* Option 2: Cash Only */}
+                                <div
+                                    onClick={() => handlePlotTransactionScopeChange('cash_only')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        form.plotTransactionScope === 'cash_only'
+                                            ? 'bg-amber-50/80 border-amber-600 ring-2 ring-amber-600/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <Wallet size={16} className={form.plotTransactionScope === 'cash_only' ? 'text-amber-800' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">Cash Only</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="plotTransactionScope"
+                                            checked={form.plotTransactionScope === 'cash_only'}
+                                            onChange={() => handlePlotTransactionScopeChange('cash_only')}
+                                            className="accent-amber-600"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        User sees ONLY physical in-hand cash transactions. Corporate bank, cheque, UPI, and online receipts will remain hidden.
+                                    </p>
+                                </div>
+
+                                {/* Option 3: Bank & Online Only */}
+                                <div
+                                    onClick={() => handlePlotTransactionScopeChange('bank_only')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        form.plotTransactionScope === 'bank_only'
+                                            ? 'bg-blue-50/80 border-blue-600 ring-2 ring-blue-600/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <CreditCard size={16} className={form.plotTransactionScope === 'bank_only' ? 'text-blue-800' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">Bank & Online Only</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="plotTransactionScope"
+                                            checked={form.plotTransactionScope === 'bank_only'}
+                                            onChange={() => handlePlotTransactionScopeChange('bank_only')}
+                                            className="accent-blue-600"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        User sees ONLY corporate bank transfers, cheques, and online/UPI transactions. In-hand cash receipts will remain hidden.
+                                    </p>
+                                </div>
+
+                                {/* Option 4: No Financial Access */}
+                                <div
+                                    onClick={() => handlePlotTransactionScopeChange('none')}
+                                    className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                                        form.plotTransactionScope === 'none'
+                                            ? 'bg-rose-50/80 border-rose-500 ring-2 ring-rose-500/20 shadow-xs'
+                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <Ban size={16} className={form.plotTransactionScope === 'none' ? 'text-rose-700' : 'text-slate-400'} />
+                                            <span className="text-xs font-bold text-slate-900">Restricted (None)</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="plotTransactionScope"
+                                            checked={form.plotTransactionScope === 'none'}
+                                            onChange={() => handlePlotTransactionScopeChange('none')}
+                                            className="accent-rose-600"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1">
+                                        Completely hides financial transaction entries and receipt collections in booking ledgers and collection lists.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* SECTION 5: Granular Module Permissions (RBAC) */}

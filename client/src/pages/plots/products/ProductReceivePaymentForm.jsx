@@ -1,3 +1,21 @@
+const resolveSubmissionDateTime = (dateVal) => {
+  if (!dateVal) return new Date().toISOString();
+  const now = new Date();
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
+    const [y, m, d] = dateVal.trim().split('-').map(Number);
+    if (
+      y === now.getFullYear() &&
+      m === (now.getMonth() + 1) &&
+      d === now.getDate()
+    ) {
+      return now.toISOString();
+    }
+    const combined = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    return combined.toISOString();
+  }
+  return new Date(dateVal).toISOString();
+};
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -17,7 +35,8 @@ import {
   Loader2,
   Package,
   Layers,
-  DollarSign
+  DollarSign,
+  Building2,
 } from 'lucide-react';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
 import { DateInput } from '../../../components/ui/DateInput';
@@ -55,6 +74,11 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
     transactionReference: '',
     remarks: '',
     ledgerId: '',
+    bankName: '',
+    bankBranch: '',
+    accountNumber: '',
+    accountHolderName: '',
+    ifscCode: '',
   });
 
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -145,6 +169,17 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       const res = await api.get(`/plots/product-bookings/${bookingId}`);
       const bData = res.data?.data || null;
       setSelectedBooking(bData);
+      const cust = bData?.customerId;
+      if (cust && typeof cust === 'object') {
+        setForm((prev) => ({
+          ...prev,
+          bankName: prev.bankName || cust.bankName || '',
+          bankBranch: prev.bankBranch || cust.bankBranch || '',
+          accountNumber: prev.accountNumber || cust.accountNumber || '',
+          accountHolderName: prev.accountHolderName || cust.accountHolderName || cust.name || '',
+          ifscCode: prev.ifscCode || cust.ifscCode || '',
+        }));
+      }
     } catch {
       toast.error('Failed to fetch product booking details');
       setSelectedBooking(null);
@@ -336,9 +371,16 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
         lateFineRebate: Number(form.lateFineRebate) || 0,
         paymentMode: form.paymentMode,
         transactionReference: form.transactionReference.trim(),
-        paymentDate: form.paymentDate,
+        paymentDate: resolveSubmissionDateTime(form.paymentDate),
         ledgerId: form.ledgerId || undefined,
         remarks: form.remarks.trim(),
+        bankDetails: !isCash ? {
+          bankName: (form.bankName || '').trim(),
+          bankBranch: (form.bankBranch || '').trim(),
+          accountNumber: (form.accountNumber || '').trim(),
+          accountHolderName: (form.accountHolderName || '').trim(),
+          ifscCode: (form.ifscCode || '').trim(),
+        } : undefined,
       };
 
       const res = await api.post(`/plots/product-bookings/${selectedBookingId}/collections`, payload);
@@ -840,7 +882,17 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                     const newMode = e.target.value;
                     const isCash = String(newMode).toLowerCase() === 'cash';
                     const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
-                    setForm({ ...form, paymentMode: newMode, ledgerId: defaultId });
+                    const cust = selectedBooking?.customerId;
+                    setForm((prev) => ({
+                      ...prev,
+                      paymentMode: newMode,
+                      ledgerId: defaultId,
+                      bankName: prev.bankName || cust?.bankName || '',
+                      bankBranch: prev.bankBranch || cust?.bankBranch || '',
+                      accountNumber: prev.accountNumber || cust?.accountNumber || '',
+                      accountHolderName: prev.accountHolderName || cust?.accountHolderName || cust?.name || '',
+                      ifscCode: prev.ifscCode || cust?.ifscCode || '',
+                    }));
                   }}
                   required
                   className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
@@ -905,6 +957,81 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                     required
                     className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
                   />
+                </div>
+              )}
+
+              {/* Customer Bank Details for all non-cash (UPI/Online, Bank Transfer, Cheque) */}
+              {form.paymentMode !== 'cash' && (
+                <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={16} className="text-teal-700" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                        Customer Bank Details
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      (Used for Online/Bank/Cheque Verification & Record)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700 mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        placeholder="e.g. State Bank of India, HDFC Bank"
+                        value={form.bankName || ''}
+                        onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700 mb-1">Account Number</label>
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        placeholder="e.g. 123456789012"
+                        value={form.accountNumber || ''}
+                        onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700 mb-1">Account Holder Name</label>
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        placeholder="e.g. Customer Name / Company Name"
+                        value={form.accountHolderName || ''}
+                        onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-700 mb-1">IFSC Code</label>
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition uppercase"
+                        maxLength={11}
+                        placeholder="e.g. SBIN0001234"
+                        value={form.ifscCode || ''}
+                        onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <label className="text-xs font-semibold text-slate-700 mb-1">Branch Name</label>
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        placeholder="e.g. Main Branch"
+                        value={form.bankBranch || ''}
+                        onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

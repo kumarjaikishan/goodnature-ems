@@ -8,6 +8,7 @@ import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
 import { DateInput } from '../../../components/ui/DateInput';
+import { GuardianInput } from '../../../components/ui/GuardianInput';
 import {
   Pencil,
   Edit2,
@@ -268,6 +269,8 @@ const PlotBusinessDevelopers = () => {
       const existingBranchId = developer.branchIds?.[0]?._id || developer.branchIds?.[0] || '';
       setFormData({
         name: developer.name || '',
+        relationType: developer.relationType || 'S/o',
+        fatherOrHusbandName: developer.fatherOrHusbandName || '',
         email: developer.email || '',
         mobile: developer.mobile || '',
         address: developer.address || '',
@@ -293,6 +296,8 @@ const PlotBusinessDevelopers = () => {
       setCreateMode(mode);
       setFormData({
         name: '',
+        relationType: 'S/o',
+        fatherOrHusbandName: '',
         email: '',
         mobile: '',
         address: '',
@@ -922,16 +927,29 @@ const PlotBusinessDevelopers = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
-                  placeholder="Enter full name"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div>
+                  <GuardianInput
+                    label="Guardian / Father Name"
+                    relation={formData.relationType || 'S/o'}
+                    onRelationChange={(rel) => setFormData({ ...formData, relationType: rel })}
+                    value={formData.fatherOrHusbandName || ''}
+                    onChange={(e) => setFormData({ ...formData, fatherOrHusbandName: e.target.value })}
+                    placeholder="Father / Guardian name"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1245,6 +1263,11 @@ const PlotBusinessDevelopers = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-white text-base tracking-tight">{viewingDeveloper.name}</h3>
+                    {viewingDeveloper.fatherOrHusbandName && (
+                      <p className="text-xs text-teal-100 font-medium">
+                        {viewingDeveloper.relationType || 'S/o'} {viewingDeveloper.fatherOrHusbandName}
+                      </p>
+                    )}
                     {viewingDeveloper.status === 'active' ? (
                       <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
                         Active

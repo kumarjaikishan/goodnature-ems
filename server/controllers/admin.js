@@ -491,6 +491,11 @@ const addAdmin = async (req, res, next) => {
             }
         }
 
+        // Plot & Investment Collections & Transactions Scope
+        if (req.body.plotTransactionScope !== undefined) {
+            fields.plotTransactionScope = req.body.plotTransactionScope;
+        }
+
         let uploadResult = null;
         if (req.file) {
             uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -711,6 +716,11 @@ const editAdmin = async (req, res, next) => {
             }
         }
 
+        // Plot & Investment Collections & Transactions Scope
+        if (req.body.plotTransactionScope !== undefined) {
+            fields.plotTransactionScope = req.body.plotTransactionScope;
+        }
+
         // Handle profile image upload
         if (req.file) {
             const uploadResult = await cloudinary.uploader.upload(req.file.path, {
@@ -823,7 +833,7 @@ const firstfetch = async (req, res, next) => {
         const userId = req.user?.id || req.userid;
         const [user, companye, allowedBranchIds] = await Promise.all([
             usermodal.findById(userId)
-                .select('name email profileImage role permissions branchIds bankPermissions cashPermissions sponsorCode customerCode isDeveloperSponsor sponsorId mobile')
+                .select('name email profileImage role permissions branchIds bankPermissions cashPermissions plotTransactionScope sponsorCode customerCode isDeveloperSponsor sponsorId mobile')
                 .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
                 .populate('cashPermissions.allowedCashLedgerIds', 'name ledgerType assignedUserId')
                 .lean(),

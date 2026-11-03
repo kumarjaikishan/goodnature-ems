@@ -45,10 +45,22 @@ const numberToWords = (num) => {
   return words + ' Rupees Only';
 };
 
-const formatReceiptDateTime = (dateVal) => {
+const formatReceiptDateTime = (dateVal, fallbackVal = null) => {
   if (!dateVal) return '-';
-  const d = new Date(dateVal);
+  let d = new Date(dateVal);
   if (isNaN(d.getTime())) return '-';
+
+  // If dateVal was stored as UTC midnight (00:00:00.000Z, which renders as 05:30 AM in IST)
+  // use the actual document timestamp from fallbackVal (such as updatedAt)
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    if (fallbackVal) {
+      const fb = new Date(fallbackVal);
+      if (!isNaN(fb.getTime()) && !(fb.getUTCHours() === 0 && fb.getUTCMinutes() === 0 && fb.getUTCSeconds() === 0)) {
+        d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), fb.getHours(), fb.getMinutes(), fb.getSeconds());
+      }
+    }
+  }
+
   const dateStr = d.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -138,6 +150,12 @@ const ReceiptViewer = () => {
     ? receipt.asOfRemainingDownpayment
     : 0;
   const formattedMode = (receipt.paymentMode === 'bank_transfer' || receipt.paymentMode === 'neft_rtgs') ? 'BANK/ONLINE' : (receipt.paymentMode || '').toUpperCase();
+  const isOnlinePayment = receipt.paymentMode === 'bank_transfer' ||
+    receipt.paymentMode === 'neft_rtgs' ||
+    receipt.paymentMode === 'online' ||
+    receipt.paymentMode === 'cheque' ||
+    formattedMode.includes('BANK') ||
+    formattedMode.includes('ONLINE');
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
@@ -250,7 +268,7 @@ const ReceiptViewer = () => {
                 </div>
               </td>
               <td className="p-2 font-bold text-slate-900 w-[32%] font-mono">
-                {formatReceiptDateTime(receipt.createdAt)}
+                {formatReceiptDateTime(receipt.createdAt, receipt.updatedAt)}
               </td>
             </tr>
 
@@ -304,7 +322,13 @@ const ReceiptViewer = () => {
                     ) : null}
                   </div>
                 ) : (
-                  `#${plot.plotNumber || '-'} (${plot.plotSize || 0} Sq Ft)`
+                  (() => {
+                    const cleanPlotNo = (plot.plotNumber || bookingId.plotNumber || '').replace(/^#/, '');
+                    const size = plot.plotSize || bookingId.plotSize || bookingId.areaSqFt;
+                    if (!cleanPlotNo && !size) return '-';
+                    if (cleanPlotNo && size) return `${cleanPlotNo} | ${size} sqft`;
+                    return cleanPlotNo || `${size} sqft`;
+                  })()
                 )}
               </td>
             </tr>
@@ -328,7 +352,14 @@ const ReceiptViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-black text-slate-900">₹{receipt.amount?.toLocaleString('en-IN')}</td>
+              <td className="p-2 font-black text-slate-900">
+                <div className="text-sm font-black text-slate-900">
+                  ₹{receipt.amount?.toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] font-semibold text-slate-500 mt-0.5 normal-case font-sans">
+                  ({numberToWords(receipt.amount || 0)})
+                </div>
+              </td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
                   <span>Late Fine Paid</span>
@@ -373,8 +404,8 @@ const ReceiptViewer = () => {
                     {receipt.lateFineRebate > 0 ? (
                       <span className="text-emerald-600 font-bold">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</span>
                     ) : (
-                      <span className="text-slate-900 font-bold uppercase">
-                        Downpayment
+                      <span className="text-slate-900 font-bold uppercase tracking-wider">
+                        Down Payment
                       </span>
                     )}
                   </td>
@@ -424,8 +455,8 @@ const ReceiptViewer = () => {
               </>
             )}
 
-            {/* Customer Bank Details only for Cheque Payments */}
-            {receipt.paymentMode === 'cheque' && (receipt.bankName || receipt.accountNumber || receipt.ifscCode) && (
+            {/* Customer Bank Details for all Non-Cash Payments */}
+            {receipt.paymentMode !== 'cash' && (receipt.bankName || receipt.accountNumber || receipt.ifscCode) && (
               <tr className="border-b border-slate-100 bg-slate-50/50">
                 <td className="p-2 text-slate-500 font-medium">
                   <div className="flex justify-between items-center">
@@ -449,16 +480,7 @@ const ReceiptViewer = () => {
               </tr>
             )}
 
-            {/* Row 6 (Amount in Words) */}
-            <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Amount in Words</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td colSpan={3} className="p-2 font-bold text-slate-900">{numberToWords(receipt.amount || 0)}</td>
-            </tr>
+
 
             {/* Row 8 (Narration / Description) */}
             {receipt.remarks && (
@@ -484,14 +506,19 @@ const ReceiptViewer = () => {
           </div>
         </div>
 
-        {/* Notice line */}
-        <div className="mb-2 text-[9.5px] text-slate-500 font-semibold italic select-none border-t border-slate-100 pt-2 flex flex-col gap-0.5">
+        {/* Notice line & Bill Status */}
+        <div className="mb-2 text-[9.5px] text-slate-500 font-semibold italic select-none border-t border-slate-100 pt-2 flex flex-col gap-1">
+          {isOnlinePayment && (
+            <p className="text-[10px] text-amber-700 font-bold not-italic">
+              * Bill Status: {receipt.status === 'APPROVED' ? 'Approved' : 'Approval Pending'}
+            </p>
+          )}
           <p>
             * Note: This receipt is issued subject to realization of payment (applicable for Cheque, DD, UPI, RTGS, NEFT, etc.).
           </p>
-          {receipt.status === 'PENDING' && (
+          {!isOnlinePayment && receipt.status === 'PENDING' && (
             <p className="text-amber-700 font-bold not-italic">
-              * Payment Status: Pending verification & administrative clearance.
+              * Bill Status: Approval Pending.
             </p>
           )}
           {receipt.status === 'REJECTED' && (

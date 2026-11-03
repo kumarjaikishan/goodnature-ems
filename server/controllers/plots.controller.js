@@ -388,6 +388,47 @@ const getBookingLedger = async (req, res, next) => {
       delete data.booking.landSourcing;
     }
 
+    // Granular Cash vs Bank/Online transaction permission filtering
+    const { getUserTransactionPermissions, isCashTransaction, isBankTransaction } = require('../utils/transactionPermission');
+    const { canViewCash, canViewBank } = await getUserTransactionPermissions(req.user);
+    data.canViewCash = canViewCash;
+    data.canViewBank = canViewBank;
+
+    if (!canViewCash || !canViewBank) {
+      if (Array.isArray(data.ledgerEntries)) {
+        data.ledgerEntries = data.ledgerEntries.filter(entry => {
+          // Keep contract consideration for context
+          if (entry.category === 'BOOKING_CONSIDERATION') return true;
+
+          const isCash = isCashTransaction(entry);
+          const isBank = isBankTransaction(entry);
+
+          if (isCash && !canViewCash) return false;
+          if (isBank && !canViewBank) return false;
+          if (!isCash && !isBank && !canViewCash && !canViewBank) return false;
+
+          return true;
+        });
+
+        // Recompute running balance for the viewable entries
+        let runningBalance = 0;
+        data.ledgerEntries = data.ledgerEntries.map(entry => {
+          runningBalance += (Number(entry.debit || 0) - Number(entry.credit || 0));
+          return { ...entry, balance: runningBalance };
+        });
+      }
+
+      if (Array.isArray(data.receipts)) {
+        data.receipts = data.receipts.filter(rc => {
+          const isCash = isCashTransaction(rc);
+          const isBank = isBankTransaction(rc);
+          if (isCash && !canViewCash) return false;
+          if (isBank && !canViewBank) return false;
+          return true;
+        });
+      }
+    }
+
     ApiResponse.success(res, data, 'Booking ledger retrieved successfully');
   } catch (error) {
     next(error);
@@ -1271,6 +1312,35 @@ const addProductRefundPartPayment = async (req, res, next) => {
 const getProductCustomerLedger = async (req, res, next) => {
   try {
     const result = await plotProductService.getProductCustomerLedger(req.params.id);
+    const { getUserTransactionPermissions, isCashTransaction, isBankTransaction } = require('../utils/transactionPermission');
+    const { canViewCash, canViewBank } = await getUserTransactionPermissions(req.user);
+
+    if (result && (!canViewCash || !canViewBank)) {
+      result.canViewCash = canViewCash;
+      result.canViewBank = canViewBank;
+
+      if (Array.isArray(result.ledgerEntries)) {
+        result.ledgerEntries = result.ledgerEntries.filter(entry => {
+          if (entry.category === 'PRODUCT_CONSIDERATION' || entry.category === 'CONTRACT') return true;
+          const isCash = isCashTransaction(entry);
+          const isBank = isBankTransaction(entry);
+          if (isCash && !canViewCash) return false;
+          if (isBank && !canViewBank) return false;
+          return true;
+        });
+      }
+
+      if (Array.isArray(result.receipts)) {
+        result.receipts = result.receipts.filter(rc => {
+          const isCash = isCashTransaction(rc);
+          const isBank = isBankTransaction(rc);
+          if (isCash && !canViewCash) return false;
+          if (isBank && !canViewBank) return false;
+          return true;
+        });
+      }
+    }
+
     ApiResponse.success(res, result, 'Product customer ledger retrieved successfully');
   } catch (error) {
     next(error);

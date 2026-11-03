@@ -126,6 +126,12 @@ const userSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Ledger'
         }]
+    },
+    // Plot & Investment Collections & Transactions Visibility Authority
+    plotTransactionScope: {
+        type: String,
+        enum: ['both', 'cash_only', 'bank_only', 'none'],
+        default: 'both'
     }
 }, { timestamps: true });
 

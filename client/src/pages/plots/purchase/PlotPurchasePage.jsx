@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Building2, Plus, FileText, ShieldCheck, Users } from 'lucide-react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -29,8 +30,46 @@ const PlotPurchasePage = () => {
   const [projectFilter, setProjectFilter] = useState('ALL');
   const [page, setPage] = useState(1);
 
-  // Top Main Navigation Tab: 'agreements' | 'deeds' | 'sellers' | 'purchasers'
-  const [mainTab, setMainTab] = useState('agreements');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Top Main Navigation Tab: 'agreements' | 'deeds' | 'sellers' (synced with URL ?tab=...)
+  const TAB_ALIASES = {
+    agreements: 'agreements',
+    agreement: 'agreements',
+    deeds: 'deeds',
+    deed: 'deeds',
+    registry: 'deeds',
+    registry_deeds: 'deeds',
+    sellers: 'sellers',
+    seller: 'sellers',
+    land_sellers: 'sellers',
+    kisan_sellers: 'sellers',
+  };
+  const tabParam = searchParams.get('tab')?.toLowerCase();
+  const initialTab = TAB_ALIASES[tabParam] || 'agreements';
+  const [mainTab, setMainTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (tabParam) {
+      const mapped = TAB_ALIASES[tabParam];
+      if (mapped && mapped !== mainTab) {
+        setMainTab(mapped);
+      }
+    } else if (mainTab !== 'agreements') {
+      setMainTab('agreements');
+    }
+  }, [tabParam]);
+
+  const handleMainTabChange = (newTab) => {
+    setMainTab(newTab);
+    const newParams = new URLSearchParams(searchParams);
+    if (newTab === 'agreements') {
+      newParams.delete('tab');
+    } else {
+      newParams.set('tab', newTab);
+    }
+    setSearchParams(newParams, { replace: true });
+  };
   const [deedSearch, setDeedSearch] = useState('');
 
   // Kisan / Sellers Master State
@@ -611,7 +650,7 @@ const PlotPurchasePage = () => {
       {/* ── TOP-LEVEL MAIN TABS ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200">
         <button
-          onClick={() => setMainTab('agreements')}
+          onClick={() => handleMainTabChange('agreements')}
           className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'agreements'
               ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -622,7 +661,7 @@ const PlotPurchasePage = () => {
         </button>
 
         <button
-          onClick={() => setMainTab('deeds')}
+          onClick={() => handleMainTabChange('deeds')}
           className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'deeds'
               ? 'border-purple-700 text-purple-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -633,7 +672,7 @@ const PlotPurchasePage = () => {
         </button>
 
         <button
-          onClick={() => setMainTab('sellers')}
+          onClick={() => handleMainTabChange('sellers')}
           className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'sellers'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'

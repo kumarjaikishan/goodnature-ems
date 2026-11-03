@@ -90,6 +90,32 @@ const collectionTransactionSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Customer Bank details for non-cash (UPI/Online, Bank Transfer, Cheque) collections
+    bankName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    bankBranch: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    accountNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    accountHolderName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    ifscCode: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     paymentDate: {
       type: Date,
       default: Date.now,

@@ -27,7 +27,6 @@ import {
   X,
   Ruler,
   Calculator,
-  Percent,
   Lock,
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
@@ -1348,36 +1347,7 @@ const ProductBookingPage = () => {
                     : 'Installments will be equally divided across the selected installment schedule.'}
                 </p>
 
-                {/* Active Scheme Commission Policy Matrix */}
-                {currentPlan && (
-                  <div className="p-2.5 bg-teal-50/60 border border-teal-200/80 rounded-xl flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
-                    <span className="font-bold text-teal-900 flex items-center gap-1">
-                      <Percent size={13} className="text-teal-700" /> Scheme Commission Policy:
-                    </span>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span>
-                        Associate (BA):{' '}
-                        <b className="text-teal-900 font-mono font-bold">
-                          {form.promoterCommissionPercent ?? (isFullPayment ? currentPlan.fdPromoterCommissionPercent : currentPlan.rdPromoterCommissionPercent) ?? (isFullPayment ? 5 : 4)}%
-                        </b>
-                      </span>
-                      <span className="text-teal-300">•</span>
-                      <span>
-                        Partner (BP):{' '}
-                        <b className="text-teal-900 font-mono font-bold">
-                          {form.bpCommissionPercent ?? (isFullPayment ? currentPlan.bpFdCommissionPercent : currentPlan.bpRdCommissionPercent) ?? 1}%
-                        </b>
-                      </span>
-                      <span className="text-teal-300">•</span>
-                      <span>
-                        Branch Partner:{' '}
-                        <b className="text-teal-900 font-mono font-bold">
-                          {form.branchCommissionPercent ?? (isFullPayment ? (currentPlan.branchFdCommissionPercent ?? 0.5) : (currentPlan.branchRdCommissionPercent ?? 0.5)) ?? 0.5}%
-                        </b>
-                      </span>
-                    </div>
-                  </div>
-                )}
+
               </div>
 
               {/* When EMI Installment Plan Active: Show Downpayment, Days, and Frequency */}

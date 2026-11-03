@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { getTransactionPermissions, isCashTransaction, isBankTransaction } from '../../../utils/transactionPermission';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
@@ -39,6 +41,8 @@ const ProductCollectionsPage = ({ initialView }) => {
   const canCreate = usePermission('plot_collection', 2);
   const canUpdate = usePermission('plot_collection', 3);
   const canDelete = usePermission('plot_collection', 4);
+  const profile = useSelector((state) => state.user?.profile);
+  const { canViewCash, canViewBank } = getTransactionPermissions(profile);
 
   const [collections, setCollections] = useState([]);
   const [summary, setSummary] = useState({
@@ -198,6 +202,14 @@ const ProductCollectionsPage = ({ initialView }) => {
   // Filter & Sort Collections (Latest date and latest receipt number on top)
   const filteredCollections = useMemo(() => {
     const list = collections.filter((c) => {
+      // Cash vs Bank permission filtering
+      if (!canViewCash || !canViewBank) {
+        const isCash = isCashTransaction(c);
+        const isBank = isBankTransaction(c);
+        if (isCash && !canViewCash) return false;
+        if (isBank && !canViewBank) return false;
+        if (!isCash && !isBank && !canViewCash && !canViewBank) return false;
+      }
       // Payment mode filter
       if (paymentModeFilter !== 'ALL' && c.paymentMode?.toLowerCase() !== paymentModeFilter.toLowerCase()) {
         return false;
@@ -234,7 +246,7 @@ const ProductCollectionsPage = ({ initialView }) => {
       }
       return String(b.receiptNumber || '').localeCompare(String(a.receiptNumber || ''), undefined, { numeric: true });
     });
-  }, [collections, searchQuery, paymentModeFilter, statusFilter]);
+  }, [collections, searchQuery, paymentModeFilter, statusFilter, canViewCash, canViewBank]);
 
   const formatDate = (dateVal) => {
     if (!dateVal) return '-';
@@ -410,6 +422,50 @@ const ProductCollectionsPage = ({ initialView }) => {
           </div>
         </div>
       </div>
+
+      {/* ── Transaction Visibility Status Banner ── */}
+      {(!canViewCash || !canViewBank) && (
+        <div className={`rounded-xl px-4 py-2.5 flex items-center justify-between text-xs shadow-2xs border ${
+          canViewCash && !canViewBank
+            ? 'bg-amber-50/90 border-amber-200 text-amber-900'
+            : !canViewCash && canViewBank
+            ? 'bg-blue-50/90 border-blue-200 text-blue-900'
+            : 'bg-rose-50/90 border-rose-200 text-rose-900'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${
+              canViewCash && !canViewBank
+                ? 'bg-amber-500 animate-pulse'
+                : !canViewCash && canViewBank
+                ? 'bg-blue-500 animate-pulse'
+                : 'bg-rose-500'
+            }`} />
+            <span className="font-bold">
+              {canViewCash && !canViewBank
+                ? 'Cash Collections Only:'
+                : !canViewCash && canViewBank
+                ? 'Bank & Online Collections Only:'
+                : 'Collections Access Restricted:'}
+            </span>
+            <span className="font-medium">
+              {canViewCash && !canViewBank
+                ? 'Corporate bank and digital payment receipts are restricted by your user role permissions.'
+                : !canViewCash && canViewBank
+                ? 'Physical in-hand cash receipts are restricted by your user role permissions.'
+                : 'You do not have permission to view cash or bank collections.'}
+            </span>
+          </div>
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+            canViewCash && !canViewBank
+              ? 'bg-amber-100 text-amber-800'
+              : !canViewCash && canViewBank
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-rose-100 text-rose-800'
+          }`}>
+            {(!canViewCash && !canViewBank) ? 'Restricted' : 'Filter Active'}
+          </span>
+        </div>
+      )}
 
       {/* Collections Data Table */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">

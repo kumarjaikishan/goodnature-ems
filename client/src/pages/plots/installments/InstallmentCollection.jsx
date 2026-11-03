@@ -1,3 +1,21 @@
+const resolveSubmissionDateTime = (dateVal) => {
+  if (!dateVal) return new Date().toISOString();
+  const now = new Date();
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
+    const [y, m, d] = dateVal.trim().split('-').map(Number);
+    if (
+      y === now.getFullYear() &&
+      m === (now.getMonth() + 1) &&
+      d === now.getDate()
+    ) {
+      return now.toISOString();
+    }
+    const combined = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    return combined.toISOString();
+  }
+  return new Date(dateVal).toISOString();
+};
+
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import api from '../../../api/axios';
@@ -9,6 +27,7 @@ import PageLoader from '../../../components/common/PageLoader';
 import Button from '@/components/ui/Button';
 import { Plus, ArrowLeft, Search } from 'lucide-react';
 import usePermission from '../../../utils/CheckPermission';
+import { getTransactionPermissions, isCashTransaction, isBankTransaction } from '../../../utils/transactionPermission';
 
 import { getReceiptColumns } from './components/ReceiptColumns';
 import ReceivePaymentForm from './components/ReceivePaymentForm';
@@ -30,6 +49,7 @@ const InstallmentCollection = ({ type, initialView }) => {
 
   const profile = useSelector((state) => state.user?.profile);
   const userRole = profile?.role;
+  const { canViewCash, canViewBank } = getTransactionPermissions(profile);
   const isIndividualCollector = ['cashier', 'accountant', 'operator', 'sales', 'staff'].includes(userRole);
   const isBranchManager = userRole === 'manager';
 
@@ -310,6 +330,17 @@ const InstallmentCollection = ({ type, initialView }) => {
         const singleBRes = await api.get(`/plots/bookings/${bookingId}`);
         b = singleBRes.data?.data || singleBRes.data;
         if (b) {
+          const singleCust = b?.customerId;
+          if (singleCust && typeof singleCust === 'object') {
+            setForm((f) => ({
+              ...f,
+              bankName: f.bankName || singleCust.bankName || '',
+              bankBranch: f.bankBranch || singleCust.bankBranch || '',
+              accountNumber: f.accountNumber || singleCust.accountNumber || '',
+              accountHolderName: f.accountHolderName || singleCust.accountHolderName || singleCust.name || '',
+              ifscCode: f.ifscCode || singleCust.ifscCode || '',
+            }));
+          }
           setBookings((prev) => {
             if (prev.some((item) => String(item._id) === String(b._id))) return prev;
             return [b, ...prev];
@@ -320,6 +351,7 @@ const InstallmentCollection = ({ type, initialView }) => {
       }
     }
 
+    const cust = b?.customerId;
     setSelectedBooking(b || null);
     setInstallments([]);
     setSelectedInstIds([]);
@@ -327,11 +359,11 @@ const InstallmentCollection = ({ type, initialView }) => {
       ...f,
       amountPaid: '',
       lateFineRebate: '',
-      bankName: '',
-      bankBranch: '',
-      accountNumber: '',
-      accountHolderName: '',
-      ifscCode: '',
+      bankName: cust?.bankName || '',
+      bankBranch: cust?.bankBranch || '',
+      accountNumber: cust?.accountNumber || '',
+      accountHolderName: cust?.accountHolderName || cust?.name || '',
+      ifscCode: cust?.ifscCode || '',
     }));
     setDetailsLoading(true);
 
@@ -579,13 +611,13 @@ const InstallmentCollection = ({ type, initialView }) => {
         ledgerId: form.ledgerId || undefined,
         installmentIds: targetIds,
         selectedInstallmentIds: targetIds,
-        createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : undefined,
-        bankDetails: form.paymentMode === 'cheque' ? {
-          bankName: form.bankName || '',
-          bankBranch: form.bankBranch || '',
-          accountNumber: form.accountNumber || '',
-          accountHolderName: form.accountHolderName || '',
-          ifscCode: form.ifscCode || '',
+        createdAt: form.createdAt ? resolveSubmissionDateTime(form.createdAt) : undefined,
+        bankDetails: form.paymentMode !== 'cash' ? {
+          bankName: (form.bankName || '').trim(),
+          bankBranch: (form.bankBranch || '').trim(),
+          accountNumber: (form.accountNumber || '').trim(),
+          accountHolderName: (form.accountHolderName || '').trim(),
+          ifscCode: (form.ifscCode || '').trim(),
         } : undefined,
       };
 
@@ -666,6 +698,15 @@ const InstallmentCollection = ({ type, initialView }) => {
         }
       }
 
+      // Granular Cash vs Bank filtering
+      if (!canViewCash || !canViewBank) {
+        const isCash = isCashTransaction(r);
+        const isBank = isBankTransaction(r);
+        if (isCash && !canViewCash) return false;
+        if (isBank && !canViewBank) return false;
+        if (!isCash && !isBank && !canViewCash && !canViewBank) return false;
+      }
+
       // Mode-level filtering for Downpayment vs EMI
       if (mode === 'DOWNPAYMENT') {
         if (r.receiptType !== 'DOWNPAYMENT' && r.receiptType !== 'FULL_PAYMENT') return false;
@@ -695,7 +736,7 @@ const InstallmentCollection = ({ type, initialView }) => {
         txRef.includes(query)
       );
     });
-  }, [receipts, searchQuery, statusFilter, paymentTypeFilter, paymentModeFilter, mode]);
+  }, [receipts, searchQuery, statusFilter, paymentTypeFilter, paymentModeFilter, mode, canViewCash, canViewBank]);
 
   const receiptColumns = useMemo(
     () =>
@@ -870,6 +911,50 @@ const InstallmentCollection = ({ type, initialView }) => {
               </div>
             </div>
           </div>
+
+          {/* ── Transaction Visibility Status Banner ── */}
+          {(!canViewCash || !canViewBank) && (
+            <div className={`rounded-xl px-4 py-2.5 flex items-center justify-between text-xs shadow-2xs border ${
+              canViewCash && !canViewBank
+                ? 'bg-amber-50/90 border-amber-200 text-amber-900'
+                : !canViewCash && canViewBank
+                ? 'bg-blue-50/90 border-blue-200 text-blue-900'
+                : 'bg-rose-50/90 border-rose-200 text-rose-900'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${
+                  canViewCash && !canViewBank
+                    ? 'bg-amber-500 animate-pulse'
+                    : !canViewCash && canViewBank
+                    ? 'bg-blue-500 animate-pulse'
+                    : 'bg-rose-500'
+                }`} />
+                <span className="font-bold">
+                  {canViewCash && !canViewBank
+                    ? 'Cash Collections Only:'
+                    : !canViewCash && canViewBank
+                    ? 'Bank & Online Collections Only:'
+                    : 'Collections Access Restricted:'}
+                </span>
+                <span className="font-medium">
+                  {canViewCash && !canViewBank
+                    ? 'Corporate bank and digital payment receipts are restricted by your user role permissions.'
+                    : !canViewCash && canViewBank
+                    ? 'Physical in-hand cash receipts are restricted by your user role permissions.'
+                    : 'You do not have permission to view cash or bank collections.'}
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                canViewCash && !canViewBank
+                  ? 'bg-amber-100 text-amber-800'
+                  : !canViewCash && canViewBank
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-rose-100 text-rose-800'
+              }`}>
+                {(!canViewCash && !canViewBank) ? 'Restricted' : 'Filter Active'}
+              </span>
+            </div>
+          )}
 
           {/* DataTable */}
           <div className="bg-white rounded-2xl shadow-2xs border border-slate-200 overflow-hidden">

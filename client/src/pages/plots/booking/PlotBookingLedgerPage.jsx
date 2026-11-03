@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { getTransactionPermissions, isCashTransaction, isBankTransaction } from '../../../utils/transactionPermission';
 import PageLoader from '@/components/common/PageLoader';
 import Button from '@/components/ui/Button';
 import Modalbox from '@/components/custommodal/Modalbox';
@@ -36,6 +38,8 @@ import {
 const PlotBookingLedgerPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const userProfile = useSelector((state) => state.user?.profile || state.auth?.user || state.user);
+  const { canViewCash, canViewBank } = useMemo(() => getTransactionPermissions(userProfile), [userProfile]);
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
@@ -202,18 +206,42 @@ const PlotBookingLedgerPage = () => {
     }
   };
 
+  // Granular Cash vs Bank/Online transaction filtering
+  const viewableEntries = useMemo(() => {
+    if (canViewCash && canViewBank) return ledgerEntries;
+
+    const filtered = ledgerEntries.filter((entry) => {
+      if (entry.category === 'BOOKING_CONSIDERATION') return true;
+
+      const isCash = isCashTransaction(entry);
+      const isBank = isBankTransaction(entry);
+
+      if (isCash && !canViewCash) return false;
+      if (isBank && !canViewBank) return false;
+      if (!isCash && !isBank && !canViewCash && !canViewBank) return false;
+
+      return true;
+    });
+
+    let running = 0;
+    return filtered.map((e) => {
+      running += (Number(e.debit || 0) - Number(e.credit || 0));
+      return { ...e, balance: running };
+    });
+  }, [ledgerEntries, canViewCash, canViewBank]);
+
   // Filtered Statement Entries
   const filteredEntries = useMemo(() => {
-    if (!searchFilter.trim()) return ledgerEntries;
+    if (!searchFilter.trim()) return viewableEntries;
     const q = searchFilter.toLowerCase();
-    return ledgerEntries.filter(
+    return viewableEntries.filter(
       (entry) =>
         entry.particulars?.toLowerCase().includes(q) ||
         entry.referenceNumber?.toLowerCase().includes(q) ||
         entry.paymentMode?.toLowerCase().includes(q) ||
         entry.notes?.toLowerCase().includes(q)
     );
-  }, [ledgerEntries, searchFilter]);
+  }, [viewableEntries, searchFilter]);
 
   // Official Print Statement Generation
   const handlePrintStatement = () => {
@@ -229,7 +257,7 @@ const PlotBookingLedgerPage = () => {
       year: 'numeric',
     });
 
-    const entriesHtml = ledgerEntries
+    const entriesHtml = viewableEntries
       .map(
         (e, idx) => `
       <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
@@ -925,7 +953,32 @@ const PlotBookingLedgerPage = () => {
 
         {/* Tab 1: Financial Running Ledger Statement */}
         {activeTab === 'statement' && (
-          <div className="overflow-x-auto">
+          <div>
+            {canViewCash && !canViewBank && (
+              <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs mb-3">
+                <div className="flex items-center gap-2">
+                  <Banknote size={16} className="text-amber-700 shrink-0" />
+                  <span><strong>Cash Transactions Only:</strong> Displaying cash collections & receipts. Corporate bank and digital transactions are restricted for your account.</span>
+                </div>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-200/70 text-amber-900 shrink-0">Cash Role Active</span>
+              </div>
+            )}
+            {!canViewCash && canViewBank && (
+              <div className="px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs mb-3">
+                <div className="flex items-center gap-2">
+                  <Building2 size={16} className="text-blue-700 shrink-0" />
+                  <span><strong>Bank & Online Transactions Only:</strong> Displaying bank transfer, cheque, and digital receipts. In-hand cash transactions are restricted for your account.</span>
+                </div>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-blue-200/70 text-blue-900 shrink-0">Bank Role Active</span>
+              </div>
+            )}
+            {!canViewCash && !canViewBank && (
+              <div className="px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs font-semibold flex items-center gap-2 shadow-2xs mb-3">
+                <AlertTriangle size={16} className="text-rose-700 shrink-0" />
+                <span><strong>Transaction Access Restricted:</strong> You do not have permission to view cash or corporate bank financial transactions.</span>
+              </div>
+            )}
+            <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold select-none">
                 <tr>
@@ -1019,13 +1072,13 @@ const PlotBookingLedgerPage = () => {
                     Total Account Statement Balance
                   </td>
                   <td className="p-3.5 text-right font-mono text-amber-800">
-                    ₹{ledgerEntries.reduce((s, e) => s + (Number(e.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
+                    ₹{viewableEntries.reduce((s, e) => s + (Number(e.lateFinePaid) || 0), 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-3.5 text-right font-mono text-rose-800">
-                    ₹{ledgerEntries.reduce((s, e) => s + (Number(e.debit) || 0), 0).toLocaleString('en-IN')}
+                    ₹{viewableEntries.reduce((s, e) => s + (Number(e.debit) || 0), 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-3.5 text-right font-mono text-emerald-800">
-                    ₹{ledgerEntries.reduce((s, e) => s + (Number(e.credit) || 0), 0).toLocaleString('en-IN')}
+                    ₹{viewableEntries.reduce((s, e) => s + (Number(e.credit) || 0), 0).toLocaleString('en-IN')}
                   </td>
                   <td className="p-3.5 text-right font-mono text-slate-950">
                     {isCancelled ? (
@@ -1050,6 +1103,7 @@ const PlotBookingLedgerPage = () => {
                 </tr>
               </tfoot>
             </table>
+          </div>
           </div>
         )}
 

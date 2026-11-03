@@ -644,7 +644,17 @@ const ReceivePaymentForm = ({
                       const newMode = e.target.value;
                       const isCash = String(newMode).toLowerCase() === 'cash';
                       const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
-                      setForm({ ...form, paymentMode: newMode, ledgerId: defaultId });
+                      const cust = selectedBooking?.customerId;
+                      setForm((prev) => ({
+                        ...prev,
+                        paymentMode: newMode,
+                        ledgerId: defaultId,
+                        bankName: prev.bankName || cust?.bankName || '',
+                        bankBranch: prev.bankBranch || cust?.bankBranch || '',
+                        accountNumber: prev.accountNumber || cust?.accountNumber || '',
+                        accountHolderName: prev.accountHolderName || cust?.accountHolderName || cust?.name || '',
+                        ifscCode: prev.ifscCode || cust?.ifscCode || '',
+                      }));
                     }}
                   >
                     <option value="cash">Cash</option>
@@ -735,18 +745,18 @@ const ReceivePaymentForm = ({
                   </div>
                 )}
 
-                {/* Customer Bank Details only for Cheque Payments */}
-                {form.paymentMode === 'cheque' && (
+                {/* Customer Bank Details for all Non-Cash Payments */}
+                {form.paymentMode !== 'cash' && (
                   <div className="sm:col-span-2 lg:col-span-3 p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
                     <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
                       <div className="flex items-center gap-2">
                         <Building2 size={16} className="text-teal-700" />
                         <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                          Customer Cheque Bank Details
+                          Customer Bank Details
                         </span>
                       </div>
                       <span className="text-[11px] text-slate-500 font-medium">
-                        (Used for Cheque/Bank Verification & Record)
+                        (Used for Online/Bank/Cheque Verification & Record)
                       </span>
                     </div>
 

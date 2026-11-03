@@ -7,62 +7,19 @@ import Modalbox from '../../../components/custommodal/Modalbox';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import DateInput from '../../../components/ui/DateInput';
-import Select from '../../../components/ui/Select';
 import { amountInWords } from '../../../utils/numToWord';
 import {
     CreditCard,
-    CheckCircle2,
-    Wallet,
     Calendar,
     FileText,
-    ArrowUpRight,
-    Zap,
     ShieldCheck
 } from 'lucide-react';
-
-const PAYMENT_MODES = [
-    { label: 'Cash', value: 'CASH' },
-    { label: 'Bank Transfer (NEFT/RTGS/IMPS)', value: 'BANK_TRANSFER' },
-    { label: 'UPI / Online', value: 'UPI' },
-    { label: 'Cheque / DD', value: 'CHEQUE' },
-    { label: 'Online Gateway', value: 'ONLINE' },
-];
 
 export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     const [voucherDate, setVoucherDate] = useState(dayjs().format('YYYY-MM-DD'));
     const [amount, setAmount] = useState('');
     const [narration, setNarration] = useState('');
-    const [autoDisburse, setAutoDisburse] = useState(true);
-    const [paymentMode, setPaymentMode] = useState('CASH');
-    const [paymentLedgerId, setPaymentLedgerId] = useState('');
-    const [referenceNo, setReferenceNo] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
-    const [myCashLedger, setMyCashLedger] = useState(null);
-
-    const fetchTreasury = async () => {
-        try {
-            const [treasuryData, myCashData] = await Promise.all([
-                apiClient({ url: 'ledger/treasury', params: { intent: 'payment' } }),
-                apiClient({ url: 'ledger/my-cash-account' }).catch(() => null)
-            ]);
-            const banks = treasuryData?.bankLedgers || treasuryData?.bankAccounts || [];
-            const cash = treasuryData?.cashLedgers || treasuryData?.cashAccounts || [];
-            setTreasuryLedgers({ bankLedgers: banks, cashLedgers: cash });
-
-            const myCash = myCashData?.data || myCashData || null;
-            setMyCashLedger(myCash);
-
-            setPaymentLedgerId(prev => {
-                if (paymentMode === 'CASH') {
-                    return myCash?._id || '';
-                }
-                return prev || banks[0]?._id || '';
-            });
-        } catch (err) {
-            console.error('Error fetching treasury in PayLedgerModal:', err);
-        }
-    };
 
     const roundAmount = (val) => {
         if (val === null || val === undefined || val === '') return '';
@@ -75,12 +32,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
     // Populate default values when ledger changes or modal opens
     useEffect(() => {
         if (open && ledger) {
-            fetchTreasury();
             setVoucherDate(dayjs().format('YYYY-MM-DD'));
-            setPaymentMode('CASH');
-            setPaymentLedgerId(myCashLedger?._id || '');
-            setReferenceNo('');
-            setAutoDisburse(true);
 
             // Pre-fill positive balance if payable
             const currentNet = Number(ledger.netBalance) || 0;
@@ -94,51 +46,15 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
         }
     }, [open, ledger]);
 
-    const getTreasuryOptions = (mode) => {
-        if (mode === 'CASH') {
-            if (!myCashLedger) return [{ label: 'My Cash Account (Personal Custody)', value: '' }];
-            const bal = myCashLedger.availableBalance ?? myCashLedger.netBalance ?? 0;
-            return [{
-                label: `${myCashLedger.name || 'My Cash Account'} (₹ ${Number(bal).toLocaleString('en-IN')})`,
-                value: myCashLedger._id
-            }];
-        } else {
-            const banks = treasuryLedgers.bankLedgers || [];
-            if (banks.length === 0) return [{ label: 'No Company Bank Accounts Found', value: '' }];
-            return banks.map((b) => {
-                const bankTitle = [b.bankName, b.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ') || 'Bank Account';
-                const accSuffix = b.accountNumber ? ` (A/C: ${b.accountNumber})` : '';
-                const balSuffix = ` - ₹ ${(b.availableBalance ?? b.netBalance ?? 0).toLocaleString('en-IN')}`;
-                return {
-                    label: `${bankTitle}${accSuffix}${balSuffix}`,
-                    value: b._id
-                };
-            });
-        }
-    };
-
-    const handlePaymentModeChange = (e) => {
-        const newMode = e?.target?.value !== undefined ? e.target.value : e;
-        setPaymentMode(newMode);
-        if (newMode === 'CASH') {
-            setPaymentLedgerId(myCashLedger?._id || '');
-        } else {
-            const banks = treasuryLedgers.bankLedgers || [];
-            setPaymentLedgerId(banks[0]?._id || '');
-        }
-    };
-
     if (!ledger) return null;
 
     const netBalance = Number(ledger.netBalance) || 0;
-    const isPayable = netBalance >= 0;
+    const isPayable = netBalance > 0;
 
-    // Determine type tag
-    const isEmp = ledger.ledgerType === 'employee' || Boolean(ledger.employeeId);
-    const isKisan = ledger.ledgerType === 'kisan' || Boolean(ledger.kisanSellerId);
-    const isSpon = ledger.ledgerType === 'sponsor' || Boolean(ledger.sponsorId);
-    const isAssociate = isSpon && Boolean(ledger.sponsorId?.sponsorId);
-    const isPartner = isSpon && !ledger.sponsorId?.sponsorId;
+    const isEmp = ledger.ledgerType === 'employee' || Boolean(ledger.empId && ledger.empId.startsWith('EMP'));
+    const isKisan = ledger.ledgerType === 'kisan';
+    const isAssociate = ledger.ledgerType === 'associate' || Boolean(ledger.empId && ledger.empId.startsWith('BA-'));
+    const isPartner = ledger.ledgerType === 'partner' || Boolean(ledger.empId && ledger.empId.startsWith('BP-'));
 
     const tagLabel = isEmp
         ? 'Employee'
@@ -222,10 +138,6 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
             return toast.warn('Please select a valid date');
         }
 
-        if (autoDisburse && paymentMode !== 'CASH' && !paymentLedgerId) {
-            return toast.warn('Please select a company bank account to disburse payment from');
-        }
-
         try {
             setSubmitting(true);
             const cleanAmount = Math.round(numAmount * 100) / 100;
@@ -234,11 +146,11 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                 date: voucherDate,
                 amount: cleanAmount,
                 narration: narration.trim() || `Voucher payment to ${ledger.name}`,
-                autoApprove: autoDisburse,
-                initialPayment: autoDisburse ? cleanAmount : 0,
-                paymentMode: autoDisburse ? paymentMode : 'CASH',
-                paymentLedgerId: autoDisburse ? (paymentLedgerId || null) : null,
-                referenceNo: autoDisburse ? referenceNo.trim() : ''
+                autoApprove: false,
+                initialPayment: 0,
+                paymentMode: 'CASH',
+                paymentLedgerId: null,
+                referenceNo: ''
             };
 
             const res = await apiClient({
@@ -248,18 +160,15 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
             });
 
             toast.success(
-                autoDisburse
-                    ? `Payment voucher #${res.voucher?.voucherNo || ''} created & disbursed successfully`
-                    : `Voucher #${res.voucher?.voucherNo || ''} submitted for approval`
+                res.message || `Payment voucher #${res.voucher?.voucherNo || ''} submitted successfully!`
             );
 
-            if (onSuccess) {
-                onSuccess(res.voucher);
-            }
+            if (onSuccess) onSuccess(res.voucher);
             onClose();
-        } catch (error) {
-            console.error('Error creating payment voucher:', error);
-            toast.error(error.message || 'Failed to create payment voucher');
+        } catch (err) {
+            console.error('Error issuing voucher:', err);
+            const errMsg = err.message || err.payload?.message || 'Failed to issue payment voucher';
+            toast.error(errMsg);
         } finally {
             setSubmitting(false);
         }
@@ -270,7 +179,7 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
             open={open}
             onClose={onClose}
             title="Make Payment / Issue Voucher"
-            subtitle="Create an official payment voucher and disburse funds to this ledger"
+            subtitle="Create an official payment voucher for this ledger"
             maxWidth="max-w-xl"
             footer={
                 <>
@@ -291,9 +200,9 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                         icon={<CreditCard size={15} />}
                         loading={submitting}
                     >
-                        {autoDisburse
-                            ? `Pay ₹${amount && !isNaN(Number(amount)) ? Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`
-                            : 'Create Voucher'}
+                        {amount && !isNaN(Number(amount)) && Number(amount) > 0
+                            ? `Issue Voucher (₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+                            : 'Issue Voucher'}
                     </Button>
                 </>
             }
@@ -353,39 +262,44 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                     </div>
                 </div>
 
-                {/* Form Fields Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    {/* Voucher Date */}
+                {/* Voucher Date & Amount Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
+                        <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                            <Calendar size={13} className="text-teal-700" />
+                            Voucher Date <span className="text-rose-500">*</span>
+                        </label>
                         <DateInput
-                            label="Voucher Date *"
                             value={voucherDate}
-                            onChange={(val) => setVoucherDate(val)}
+                            onChange={(e) => {
+                                const val = e?.target?.value !== undefined ? e.target.value : e;
+                                setVoucherDate(val);
+                            }}
+                            max={dayjs().format('YYYY-MM-DD')}
                             required
                         />
                     </div>
 
-                    {/* Voucher Amount */}
                     <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="text-xs font-semibold text-slate-700">
-                                Amount (₹) *
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                <FileText size={13} className="text-teal-700" />
+                                Amount (₹) <span className="text-rose-500">*</span>
                             </label>
-                            {netBalance > 0 && (
+                            {isPayable && (
                                 <button
                                     type="button"
-                                    onClick={() => setAmount(roundAmount(netBalance))}
-                                    className="text-[11px] font-bold text-teal-700 hover:text-teal-900 hover:underline cursor-pointer"
+                                    onClick={() => setAmount(roundAmount(Math.abs(netBalance)))}
+                                    className="text-[11px] text-teal-700 hover:text-teal-800 font-bold hover:underline cursor-pointer"
                                 >
-                                    Pay Full (₹{Number(roundAmount(netBalance)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                    Pay Full (₹{Math.abs(netBalance).toLocaleString('en-IN')})
                                 </button>
                             )}
                         </div>
                         <Input
-                            type="tel"
+                            type="text"
                             inputMode="decimal"
-                            pattern="[0-9]*[.]?[0-9]*"
-                            placeholder="e.g. 5000"
+                            placeholder="0.00"
                             value={amount}
                             onChange={handleAmountChange}
                             onKeyDown={handleAmountKeyDown}
@@ -397,74 +311,6 @@ export const PayLedgerModal = ({ open, onClose, ledger, onSuccess }) => {
                             </p>
                         )}
                     </div>
-                </div>
-
-                {/* Immediate Disbursement Toggle */}
-                <div className="bg-slate-50/90 rounded-xl p-3.5 border border-slate-200 space-y-3">
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={autoDisburse}
-                            onChange={(e) => setAutoDisburse(e.target.checked)}
-                            className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300"
-                        />
-                        <div className="flex items-center gap-1.5">
-                            <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
-                            <span className="text-xs font-bold text-slate-800">
-                                Disburse & Settle Payment Immediately
-                            </span>
-                        </div>
-                    </label>
-
-                    {autoDisburse ? (
-                        <div className="space-y-3 pt-2 border-t border-slate-200/80">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                                        Payment Mode *
-                                    </label>
-                                    <Select
-                                        value={paymentMode}
-                                        onChange={handlePaymentModeChange}
-                                        options={treasuryLedgers.bankLedgers?.length > 0 ? PAYMENT_MODES : PAYMENT_MODES.filter(m => m.value === 'CASH')}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                                        {paymentMode === 'CASH' ? 'Disbursing From (My Cash)' : 'Disbursing Bank Account *'}
-                                    </label>
-                                    <Select
-                                        value={paymentLedgerId}
-                                        disabled={paymentMode === 'CASH'}
-                                        onChange={(e) => {
-                                            const val = e?.target?.value !== undefined ? e.target.value : e;
-                                            setPaymentLedgerId(val);
-                                        }}
-                                        options={getTreasuryOptions(paymentMode)}
-                                    />
-                                </div>
-                            </div>
-
-                            {paymentMode !== 'CASH' && (
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                                        Ref / Cheque / UTR No.
-                                    </label>
-                                    <Input
-                                        placeholder="e.g. UTR / Cheque / Txn ID"
-                                        value={referenceNo}
-                                        onChange={(e) => setReferenceNo(e.target.value)}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
-                            <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0" />
-                            <span>This voucher will be submitted as <strong>Pending Approval</strong> and can be approved/disbursed later from the Vouchers dashboard.</span>
-                        </div>
-                    )}
                 </div>
 
                 {/* Narration */}
