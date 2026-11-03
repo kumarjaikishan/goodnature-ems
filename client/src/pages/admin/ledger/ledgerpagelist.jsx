@@ -6,6 +6,7 @@ import { swal } from "../../../utils/confirmDialog";
 import useImageUpload from "../../../utils/imageresizer";
 import { useSelector } from "react-redux";
 import Modalbox from "../../../components/custommodal/Modalbox";
+import { hasPermission } from "../../../utils/CheckPermission";
 import Loader from "../../../utils/loader";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { LayoutGrid, Table, Coins, Wallet, Scale, Search, MoreVertical, Eye, Edit2, Trash2, Plus, X, CreditCard, Building2 } from "lucide-react";
@@ -24,6 +25,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const [sortBy, setSortBy] = useState("name_asc");
     const navigate = useNavigate();
     const { ledger } = useSelector(e => e.user);
+    const profile = useSelector((state) => state.user?.profile);
+    const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(profile?.role?.toLowerCase());
+    const canEditLedger = isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 3);
+    const canDeleteLedger = isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 4);
     const [editLedgerId, setEditLedgerId] = useState(null);
     const [editLedgerName, setEditLedgerName] = useState("");
     const [editOpen, setEditOpen] = useState(false);
@@ -186,6 +191,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     };
 
     const handleOpenLedgerDialog = (ledgerItem = null) => {
+        if (ledgerItem && !canEditLedger) {
+            toast.error("Permission denied: You are not authorized to edit this ledger");
+            return;
+        }
         if (ledgerItem) {
             setEditLedgerName(ledgerItem.name);
             setEditLedgerId(ledgerItem._id);
@@ -661,28 +670,32 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                     >
                                                         <CreditCard size={14} className="text-emerald-600" /> Pay / Voucher
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveMenuId(null);
-                                                            handleOpenLedgerDialog(l);
-                                                        }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                                                    >
-                                                        <Edit2 size={14} /> Edit
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveMenuId(null);
-                                                            deleteLedger(l);
-                                                        }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
-                                                    >
-                                                        <Trash2 size={14} /> Delete
-                                                    </button>
+                                                    {canEditLedger && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveMenuId(null);
+                                                                handleOpenLedgerDialog(l);
+                                                            }}
+                                                            className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                                        >
+                                                            <Edit2 size={14} /> Edit
+                                                        </button>
+                                                    )}
+                                                    {canDeleteLedger && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveMenuId(null);
+                                                                deleteLedger(l);
+                                                            }}
+                                                            className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                                                        >
+                                                            <Trash2 size={14} /> Delete
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -848,22 +861,26 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                     >
                                                         <Eye size={14} />
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        title="Edit Ledger"
-                                                        onClick={() => handleOpenLedgerDialog(l)}
-                                                        className="p-1.5 rounded-lg text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
-                                                    >
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        title="Delete Ledger"
-                                                        onClick={() => deleteLedger(l)}
-                                                        className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-200 transition-colors cursor-pointer"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                    {canEditLedger && (
+                                                        <button
+                                                            type="button"
+                                                            title="Edit Ledger"
+                                                            onClick={() => handleOpenLedgerDialog(l)}
+                                                            className="p-1.5 rounded-lg text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
+                                                        >
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                    )}
+                                                    {canDeleteLedger && (
+                                                        <button
+                                                            type="button"
+                                                            title="Delete Ledger"
+                                                            onClick={() => deleteLedger(l)}
+                                                            className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -883,7 +900,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
 
             {/* Add / Edit Ledger Modal */}
             <Modalbox
-                open={editOpen}
+                open={editOpen && canEditLedger}
                 onClose={() => setEditOpen(false)}
                 size="md"
                 title={editLedgerId ? "Edit Ledger" : "Add New Ledger"}

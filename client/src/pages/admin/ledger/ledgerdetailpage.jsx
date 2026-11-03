@@ -6,6 +6,7 @@ import DateInput from '@/components/ui/DateInput';
 import { toast } from '../../../utils/toast';
 import dayjs from 'dayjs';
 import { getLedgerColumns } from './ledgerhelper';
+import { hasPermission } from '../../../utils/CheckPermission';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { useCustomStyles } from '../attandence/attandencehelper';
 import Loader from '../../../utils/loader';
@@ -116,6 +117,10 @@ const LedgerDetailPage = () => {
     };
 
     const handleDeleteEntry = async (idx) => {
+        if (!canDeleteEntry) {
+            toast.error("Permission denied: You are not authorized to delete transaction entries");
+            return;
+        }
         swal({
             title: `Are you sure you want to delete this entry?`,
             text: 'Once deleted, this transaction cannot be recovered.',
@@ -133,6 +138,8 @@ const LedgerDetailPage = () => {
                     fetchEnteries();
                 } catch (err) {
                     console.error('Error deleting entry:', err);
+                    const errMsg = err.message || err.payload?.message || 'Failed to delete transaction entry';
+                    toast.error(errMsg);
                 }
             }
         });
@@ -161,6 +168,15 @@ const LedgerDetailPage = () => {
     const saveEntry = async (e) => {
         if (e) e.preventDefault();
         if (savingEntry) return;
+
+        if (editIndex && !canEditEntry) {
+            toast.error("Permission denied: You are not authorized to update transaction entries");
+            return;
+        }
+        if (!editIndex && !canCreateEntry) {
+            toast.error("Permission denied: You are not authorized to create transaction entries");
+            return;
+        }
         if (!entry.particular || entry.particular.trim() === '') {
             toast.warn("Particular field can't be blank");
             return;
@@ -205,12 +221,18 @@ const LedgerDetailPage = () => {
             fetchEnteries();
         } catch (error) {
             console.error('Error saving entry:', error);
+            const errMsg = error.message || error.payload?.message || 'Failed to save transaction entry';
+            toast.error(errMsg);
         } finally {
             setSavingEntry(false);
         }
     };
 
     const handleEditEntry = (entryItem) => {
+        if (!canEditEntry) {
+            toast.error("Permission denied: You are not authorized to edit this transaction entry");
+            return;
+        }
         const formattedDate = new Date(entryItem.date).toISOString().split("T")[0];
         setEntry({
             date: formattedDate,
@@ -224,7 +246,12 @@ const LedgerDetailPage = () => {
 
     const { user: authUser } = useSelector((state) => state.auth || {});
     const currentUser = useSelector((state) => state.user?.profile || state.user || {});
+    const userProfile = useSelector((state) => state.user?.profile);
     const isSponsorUser = currentUser?.role === 'sponsor' || authUser?.role === 'sponsor';
+    const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(userProfile?.role?.toLowerCase());
+    const canCreateEntry = isSuperAdmin || hasPermission(userProfile, 'ledger_entry', 2);
+    const canEditEntry = isSuperAdmin || hasPermission(userProfile, 'ledger_entry', 3);
+    const canDeleteEntry = isSuperAdmin || hasPermission(userProfile, 'ledger_entry', 4);
 
     return (
         <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto">
@@ -305,12 +332,14 @@ const LedgerDetailPage = () => {
                             >
                                 <CreditCard size={15} /> Pay / Issue Voucher
                             </button>
-                            <button
-                                onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}
-                                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
-                            >
-                                <Plus size={15} /> Add Entry
-                            </button>
+                            {canCreateEntry && (
+                                <button
+                                    onClick={() => { setOpen(true); setEditIndex(null); setEntry(init); }}
+                                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                                >
+                                    <Plus size={15} /> Add Entry
+                                </button>
+                            )}
                         </>
                     )}
                     <button
@@ -437,7 +466,7 @@ const LedgerDetailPage = () => {
             {/* ── Transaction Entries Table ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
                 <DataTable
-                    columns={getLedgerColumns(handleEditEntry, handleDeleteEntry, employee, navigate, isSponsorUser)}
+                    columns={getLedgerColumns(handleEditEntry, handleDeleteEntry, employee, navigate, isSponsorUser, { canEdit: canEditEntry, canDelete: canDeleteEntry })}
                     data={filtered || []}
                     pagination
                     customStyles={useCustomStyles()}

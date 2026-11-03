@@ -218,8 +218,8 @@ router.route("/entries/:id").get(authmiddlewre, (req, res, next) => {
 router.route("/ledger").post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 2), upload.single('image'), ledger.createLedger)
 
 router.route("/ledger/:id")
-  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 3), upload.single('image'), ledger.updateLedger)
-  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger", 4), ledger.deleteLedger);
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission(["commission_ledger_action", "ledger"], 3), upload.single('image'), ledger.updateLedger)
+  .delete(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission(["commission_ledger_action", "ledger"], 4), ledger.deleteLedger);
 
 router.route("/ledgerentry").post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), checkPermission("ledger_entry", 2), ledger.createEntry)
 

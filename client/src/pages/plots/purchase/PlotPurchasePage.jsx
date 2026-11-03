@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Building2, Plus, FileText, ShieldCheck, Users, FolderKanban } from 'lucide-react';
+import { Building2, Plus, FileText, ShieldCheck, Users } from 'lucide-react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import confirmDialog from '../../../utils/confirmDialog';
@@ -9,8 +9,7 @@ import KisanSummaryMetrics from './components/KisanSummaryMetrics';
 import KisanAgreementsTable from './components/KisanAgreementsTable';
 import RegistryDeedsTable from './components/RegistryDeedsTable';
 import KisanSellersTable from './components/KisanSellersTable';
-import PurchasersTable from './components/PurchasersTable';
-import ProjectsTable from './components/ProjectsTable';
+// Purchasers and Projects have been moved to dedicated pages
 import CreateAgreementModal from './components/CreateAgreementModal';
 import EditAgreementModal from './components/EditAgreementModal';
 import CreateDeedModal from './components/CreateDeedModal';
@@ -643,28 +642,6 @@ const PlotPurchasePage = () => {
           <Users size={16} />
           Land Sellers Directory ({sellers.length})
         </button>
-
-        <button
-          onClick={() => setMainTab('purchasers')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'purchasers'
-              ? 'border-blue-600 text-blue-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-        >
-          <Building2 size={16} />
-          Purchasers / Buyers Master ({purchasers.length})
-        </button>
-
-        <button
-          onClick={() => setMainTab('projects')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'projects'
-              ? 'border-teal-800 text-teal-900 bg-teal-50/50 rounded-t-lg'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-        >
-          <FolderKanban size={16} />
-          Project Master ({projects.length})
-        </button>
       </div>
 
       {/* ── TAB 1: PLOT PURCHASE AGREEMENTS ── */}
@@ -708,24 +685,6 @@ const PlotPurchasePage = () => {
           sellers={sellers}
           loading={sellersLoading}
           fetchSellers={fetchSellers}
-        />
-      )}
-
-      {/* ── TAB 4: PURCHASERS / BUYERS MASTER DIRECTORY ── */}
-      {mainTab === 'purchasers' && (
-        <PurchasersTable
-          purchasers={purchasers}
-          loading={purchasersLoading}
-          fetchPurchasers={fetchPurchasers}
-        />
-      )}
-
-      {/* ── TAB 5: PROJECT MASTER DIRECTORY ── */}
-      {mainTab === 'projects' && (
-        <ProjectsTable
-          projects={projects}
-          loading={projectsLoading}
-          fetchProjects={fetchProjects}
         />
       )}
 

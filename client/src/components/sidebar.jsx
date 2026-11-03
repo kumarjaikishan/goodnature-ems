@@ -191,6 +191,7 @@ const Sidebar = () => {
           children: [
 
             { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
+            { menu: "Purchasers / Buyers", link: "/dashboard/plots/purchasers", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: ["associate", "partner", "plot_sponsor"] },
@@ -212,7 +213,15 @@ const Sidebar = () => {
           roles: ["sponsor"] 
         },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
-        { menu: "Plan & Commission", link: "/dashboard/my-commission-rates", icon: <Award size={20} />, roles: ["sponsor"] },
+        {
+          menu: "Plan & Commission",
+          icon: <Award size={20} />,
+          roles: ["sponsor"],
+          children: [
+            { menu: "Plan", link: "/dashboard/my-plans", roles: ["sponsor"] },
+            { menu: "Commission", link: "/dashboard/my-commission-rates", roles: ["sponsor"] },
+          ],
+        },
         { menu: "Price Calculator", link: "/dashboard/price-calculator", icon: <Calculator size={20} />, roles: ["sponsor"] },
         { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
       ],
@@ -280,7 +289,7 @@ const Sidebar = () => {
       }
     }
 
-    if (childLink !== '/dashboard' && currentPath.startsWith(childLink)) {
+    if (childLink !== '/dashboard' && (currentPath === childLink || currentPath.startsWith(childLink + '/'))) {
       return true;
     }
     return false;
@@ -316,9 +325,9 @@ const Sidebar = () => {
       {/* Brand Header */}
       <div className="h-[60px] flex items-center gap-3 px-1 mb-2 border-b border-slate-100">
         <span className="shrink-0">
-          <div className="rounded-xl overflow-hidden w-9 h-9 md:h-10 md:w-10 border border-teal-100 shadow-xs flex items-center justify-center bg-white">
+          <div className="w-9 h-9 md:h-10 md:w-10 flex items-center justify-center bg-transparent">
             <img
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain bg-transparent mix-blend-multiply"
               src="/logo.webp"
               alt="Company Logo"
               onError={(e) => {

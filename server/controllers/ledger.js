@@ -1008,6 +1008,20 @@ const updateLedger = async (req, res) => {
       return res.status(404).json({ message: "Ledger not found" });
     }
 
+    // Special Protection: Edit option is restricted to Superadmin or IDs explicitly authorized by Superadmin
+    const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(req.user?.role);
+    if (!isSuperAdmin) {
+      const userPerms = req.user?.permissions instanceof Map
+        ? Object.fromEntries(req.user.permissions)
+        : (req.user?.permissions || {});
+      const hasEditPerm = Array.isArray(userPerms.commission_ledger_action) && userPerms.commission_ledger_action.includes(3);
+      if (!hasEditPerm) {
+        return res.status(403).json({
+          message: "Permission denied: Ledger edit option is restricted to Superadmin or explicitly authorized IDs."
+        });
+      }
+    }
+
     const profileImage = ledger.profileImage;
 
     // Handle image upload if file provided
@@ -1106,11 +1120,27 @@ const Entries = async (req, res) => {
 const deleteLedger = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedLedger = await Ledger.findByIdAndDelete(id);
 
-    if (!deletedLedger) {
+    const ledger = await Ledger.findById(id);
+    if (!ledger) {
       return res.status(404).json({ message: "Ledger not found" });
     }
+
+    // Special Protection: Delete option is restricted to Superadmin or IDs explicitly authorized by Superadmin
+    const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(req.user?.role);
+    if (!isSuperAdmin) {
+      const userPerms = req.user?.permissions instanceof Map
+        ? Object.fromEntries(req.user.permissions)
+        : (req.user?.permissions || {});
+      const hasDeletePerm = Array.isArray(userPerms.commission_ledger_action) && userPerms.commission_ledger_action.includes(4);
+      if (!hasDeletePerm) {
+        return res.status(403).json({
+          message: "Permission denied: Ledger delete option is restricted to Superadmin or explicitly authorized IDs."
+        });
+      }
+    }
+
+    const deletedLedger = await Ledger.findByIdAndDelete(id);
 
     if (deletedLedger.profileImage && deletedLedger.profileImage !== "") {
       await removePhotoBySecureUrl([deletedLedger.profileImage]);

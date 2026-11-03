@@ -27,6 +27,7 @@ const permission = {
     investment: [1, 2, 3, 4],
     audit_log: [1, 4],
     notification: [1, 2, 3, 4],
+    commission_ledger_action: [3, 4],
   },
   Admin: {
     branch: [1, 2, 3, 4],
@@ -55,6 +56,7 @@ const permission = {
     investment: [1, 2, 3, 4],
     audit_log: [1],
     notification: [1, 2, 3, 4],
+    commission_ledger_action: [],
   },
   manager: {
     branch: [1],

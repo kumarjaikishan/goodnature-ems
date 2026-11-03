@@ -18,7 +18,9 @@ const VOUCHER_SOURCES = new Set(['voucher', 'voucher_payment', 'receipt']);
  */
 const PAYROLL_SOURCES = new Set(['payroll', 'salary']);
 
-export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, isReadOnly = false) => {
+export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, isReadOnly = false, permissions = {}) => {
+    const canEdit = permissions?.canEdit !== undefined ? permissions.canEdit : true;
+    const canDelete = permissions?.canDelete !== undefined ? permissions.canDelete : true;
     const cols = [
         {
             name: "S.No",
@@ -161,24 +163,31 @@ export const getLedgerColumns = (handleEdit, handleDelete, employee, navigate, i
 
                 // ─── 1. MANUAL ENTRY → full edit + delete ───────────────────────
                 if (MANUAL_SOURCES.has(src)) {
+                    if (!canEdit && !canDelete) {
+                        return <span className="text-slate-400 text-xs italic">—</span>;
+                    }
                     return (
                         <div className="flex items-center justify-start gap-1.5 w-full">
-                            <button
-                                type="button"
-                                className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                                title="Edit Manual Entry"
-                                onClick={() => handleEdit(row)}
-                            >
-                                <Edit2 size={14} />
-                            </button>
-                            <button
-                                type="button"
-                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                                title="Delete Manual Entry"
-                                onClick={() => handleDelete(row._id)}
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {canEdit && (
+                                <button
+                                    type="button"
+                                    className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                                    title="Edit Manual Entry"
+                                    onClick={() => handleEdit(row)}
+                                >
+                                    <Edit2 size={14} />
+                                </button>
+                            )}
+                            {canDelete && (
+                                <button
+                                    type="button"
+                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                    title="Delete Manual Entry"
+                                    onClick={() => handleDelete(row._id)}
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     );
                 }

@@ -8,10 +8,14 @@ import Modalbox from "../../components/custommodal/Modalbox";
 import { apiClient } from "../../utils/apiClient";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
+import { getRoleFromToken } from "../../utils/auth";
 
 const AdminManagerProfile = () => {
   const [isload] = useState(false);
-  const { profile } = useSelector((state) => state.user);
+  const user = useSelector((state) => state.user);
+  const { profile } = user;
+  const currentRole = (user?.profile?.role || profile?.role || getRoleFromToken())?.toLowerCase();
+  const isSuperAdmin = currentRole === 'superadmin';
   const [profilee, setprofile] = useState(null);
   const [isLoading, setisloading] = useState(false);
   const { handleImage } = useImageUpload();
@@ -151,13 +155,15 @@ const AdminManagerProfile = () => {
 
           {/* Action buttons (Available for all authenticated users) */}
           <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
-            <Button
-              onClick={() => { setname(profilee?.name || ''); setEditOpen(true); }}
-              disabled={isLoading}
-              variant="primary"
-            >
-              <Edit2 size={14} /> Edit Profile
-            </Button>
+            {isSuperAdmin && (
+              <Button
+                onClick={() => { setname(profilee?.name || ''); setEditOpen(true); }}
+                disabled={isLoading}
+                variant="primary"
+              >
+                <Edit2 size={14} /> Edit Profile
+              </Button>
+            )}
 
             <Button
               onClick={() => setPassModalOpen(true)}
@@ -170,9 +176,10 @@ const AdminManagerProfile = () => {
         </div>
       )}
 
-      {/* 1. Edit Profile Modal (Using Standard Common Modalbox) */}
-      <Modalbox
-        open={EditOpen}
+      {/* 1. Edit Profile Modal (Only Superadmin) */}
+      {isSuperAdmin && (
+        <Modalbox
+          open={EditOpen}
         onClose={() => setEditOpen(false)}
         title="Edit Profile"
         subtitle="Update your display name and profile picture"
@@ -230,7 +237,8 @@ const AdminManagerProfile = () => {
             </div>
           </div>
         </div>
-      </Modalbox>
+        </Modalbox>
+      )}
 
       {/* 2. Direct Change Password Modal (Using Standard Common Modalbox) */}
       <Modalbox

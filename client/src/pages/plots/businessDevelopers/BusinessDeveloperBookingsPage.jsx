@@ -240,7 +240,7 @@ const BusinessDeveloperBookingsPage = () => {
   ];
 
   if (loading) {
-    return <PageLoader title="Loading Business Developer Bookings..." subtitle="Fetching direct and downline plot contracts" />;
+    return <PageLoader title="Loading Bookings..." subtitle="Fetching direct and downline plot contracts" />;
   }
 
   return (
@@ -248,12 +248,8 @@ const BusinessDeveloperBookingsPage = () => {
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-teal-50 border border-teal-200 text-teal-800 rounded-full text-xs font-bold mb-2">
-            <Building2 size={14} className="text-teal-700" />
-            <span>Business Developer Portfolio</span>
-          </div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
-            My Plot Bookings & Team Portfolio
+            My Plot Bookings
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Track gross booking values, applied discounts, customer collections, and outstanding dues.

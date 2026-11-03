@@ -109,10 +109,12 @@ const BusinessDeveloperReportPage = lazy(() => import('./pages/plots/businessDev
 const BusinessDeveloperBookingsPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperBookingsPage'));
 const BusinessDeveloperNetworkPage = lazy(() => import('./pages/plots/businessDevelopers/BusinessDeveloperNetworkPage'));
 const CommissionStructurePage = lazy(() => import('./pages/plots/businessDevelopers/CommissionStructurePage'));
+const CustomerPlansPage = lazy(() => import('./pages/plots/businessDevelopers/CustomerPlansPage'));
 const PlotPriceCalculatorPage = lazy(() => import('./pages/plots/businessDevelopers/PlotPriceCalculatorPage'));
 const PlotIncentivesPage = lazy(() => import('./pages/plots/incentives/PlotIncentivesPage'));
 const PlotIncentiveProcessPage = lazy(() => import('./pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('./pages/plots/purchase/PlotPurchasePage'));
+const PurchasersMasterPage = lazy(() => import('./pages/plots/purchase/PurchasersMasterPage'));
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
 const PlotBookingLedgerPage = lazy(() => import('./pages/plots/booking/PlotBookingLedgerPage'));
@@ -183,6 +185,7 @@ const managementRoutes = (
     <Route path="vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherDetails /></RoutePermissionGuard>} />
 
     <Route path="plots/purchase" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+    <Route path="plots/purchasers" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PurchasersMasterPage /></RoutePermissionGuard>} />
     <Route path="plots/purchase/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
     <Route path="plots/agreements" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
     <Route path="plots/kisan-land" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
@@ -236,6 +239,9 @@ const managementRoutes = (
     <Route path="plots/interest-calculator" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotInterestCalculator /></RoutePermissionGuard>} />
     <Route path="price-calculator" element={<PlotPriceCalculatorPage />} />
     <Route path="plots/price-calculator" element={<PlotPriceCalculatorPage />} />
+    <Route path="my-plans" element={<CustomerPlansPage />} />
+    <Route path="plans" element={<CustomerPlansPage />} />
+    <Route path="plots/plans" element={<CustomerPlansPage />} />
     <Route path="my-commission-rates" element={<CommissionStructurePage />} />
     <Route path="commission-structure" element={<CommissionStructurePage />} />
     <Route path="plots/commission-structure" element={<CommissionStructurePage />} />
@@ -280,6 +286,9 @@ const sponsorRoutes = (
     <Route path="my-business" element={<BusinessDeveloperReportPage />} />
     <Route path="my-network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="my-customers" element={<BusinessDeveloperNetworkPage />} />
+    <Route path="my-plans" element={<CustomerPlansPage />} />
+    <Route path="plans" element={<CustomerPlansPage />} />
+    <Route path="plots/plans" element={<CustomerPlansPage />} />
     <Route path="my-commission-rates" element={<CommissionStructurePage />} />
     <Route path="commission-structure" element={<CommissionStructurePage />} />
     <Route path="price-calculator" element={<PlotPriceCalculatorPage />} />

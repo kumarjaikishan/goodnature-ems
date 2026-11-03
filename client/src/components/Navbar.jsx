@@ -65,7 +65,9 @@ const Navbar = () => {
     "vouchers": "Vouchers",
     "activity-logs": "Activity Logs",
     // Sponsor / Business Developer Titles
-    "my-commission-rates": "Plan & Commission",
+    "my-plans": "Plan",
+    "plans": "Plan",
+    "my-commission-rates": "Commission",
     "commission-structure": "Commission Structure",
     "my-business": "Business Report",
     "my-network": "My Network & Customers",
@@ -81,6 +83,8 @@ const Navbar = () => {
     "incentive": "Incentive Commission",
     // Plot Management Titles
     "plots": "Plot Management",
+    "purchase": "Plot Purchase",
+    "purchasers": "Purchasers / Buyers Master",
     "inventory": "Plots Inventory",
     "business-developer": "Business Developer",
     "business-developers": "Business Developers",

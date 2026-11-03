@@ -30,6 +30,7 @@ export const AllPermissionNames = [
     "associate_ledger",
     "partner_ledger",
     "branch_ledger",
+    "commission_ledger_action",
 
     // 3. Real Estate: Land Procurement & Kisans
     "plot_purchase",
@@ -83,6 +84,7 @@ export const MODULE_DISPLAY_NAMES = {
     associate_ledger: "Business Associate Ledgers",
     partner_ledger: "Business Partner Ledgers",
     branch_ledger: "Branch Partner Ledgers",
+    commission_ledger_action: "Commission Ledgers (Edit & Delete Authorization)",
 
     // Real Estate: Land Procurement & Kisans
     plot_purchase: "Plot Purchase & Land Agreements",
@@ -137,6 +139,7 @@ export const MODULE_CATEGORIES = [
             "associate_ledger",
             "partner_ledger",
             "branch_ledger",
+            "commission_ledger_action",
             "advance",
             "voucher"
         ]
@@ -181,6 +184,7 @@ export const ROLE_OPTIONS = [
 ];
 
 export const adminPermission = {
+    commission_ledger_action: [],
     branch: [1, 2, 3, 4],
     department: [1, 2, 3, 4],
     employee: [1, 2, 3, 4],
@@ -220,6 +224,7 @@ export const adminPermission = {
 };
 
 export const managerPermission = {
+    commission_ledger_action: [],
     branch: [1],
     department: [1, 2, 3],
     employee: [1, 2, 3],
@@ -259,6 +264,7 @@ export const managerPermission = {
 };
 
 export const accountantPermission = {
+    commission_ledger_action: [],
     branch: [1],
     department: [1],
     employee: [1],
@@ -298,6 +304,7 @@ export const accountantPermission = {
 };
 
 export const cashierPermission = {
+    commission_ledger_action: [],
     branch: [1],
     department: [1],
     employee: [1],
@@ -337,6 +344,7 @@ export const cashierPermission = {
 };
 
 export const hrPermission = {
+    commission_ledger_action: [],
     branch: [1],
     department: [1, 2, 3],
     employee: [1, 2, 3, 4],
@@ -376,6 +384,7 @@ export const hrPermission = {
 };
 
 export const salesPermission = {
+    commission_ledger_action: [],
     branch: [1],
     department: [1],
     employee: [1],
@@ -415,6 +424,7 @@ export const salesPermission = {
 };
 
 export const auditorPermission = {
+    commission_ledger_action: [],
     branch: [1],
     department: [1],
     employee: [1],

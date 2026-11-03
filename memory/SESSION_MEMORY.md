@@ -1,5 +1,89 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Fixed Double Active Highlighting between Plot Purchase and Purchasers / Buyers [COMPLETED]**:
+  - **Issue**: When navigating to `/dashboard/plots/purchasers` (Purchasers / Buyers Master), both "Purchasers / Buyers" and "Plot Purchase" were simultaneously highlighted in the left sidebar.
+  - **Cause**: In `client/src/components/sidebar.jsx`, `isSubmenuItemActive` previously used `currentPath.startsWith(childLink)`. Because `/dashboard/plots/purchasers` shares the same string prefix as `/dashboard/plots/purchase`, "Plot Purchase" mistakenly evaluated to active.
+  - **Fix**: Replaced prefix matching with strict path segment matching: `currentPath === childLink || currentPath.startsWith(childLink + '/')`. This prevents substring collisions while preserving active highlighting for nested child routes (e.g. `/dashboard/plots/purchase/:id/ledger`).
+  - **Build Status**: Verified via `npm run build --prefix client` — compiled with zero errors.
+
+- **Completely Removed Project Master Page, Route, and Files [COMPLETED]**:
+  - **Requirement**: Completely remove the "Project Master" page (`/dashboard/plots/projects`), its left sidebar menu item, its route, and delete all associated files and components.
+  - **Implementation**:
+    - **Deleted Files**: Removed `client/src/pages/plots/projects/` directory (`PlotProjectsPage.jsx` and `components/TenurePeriodCommissionMatrix.jsx`), and deleted `client/src/pages/plots/purchase/components/ProjectsTable.jsx`.
+    - **Sidebar**: Removed the `Project Master` menu item from `client/src/components/sidebar.jsx` under `Plot Management`.
+    - **Routing**: Removed `PlotProjectsPage` lazy-import and `/dashboard/plots/projects` route guard from `client/src/App.jsx`.
+    - **Navbar**: Removed the `"projects": "Project Master"` title entry from `client/src/components/Navbar.jsx`.
+    - **Build Status**: Verified via `npm run build --prefix client` — compiled with zero errors.
+
+- **Commission Ledgers Edit & Delete Restricted to Superadmin & Authorized IDs [COMPLETED]**:
+  - **Requirement**: In Business Associates Commission Ledgers (and partner/branch commission ledgers), the Edit (Pencil) and Delete (Trash) options must be visible and executable ONLY by Superadmin and specific user IDs explicitly authorized by Superadmin. For all other roles/IDs, these options must remain completely hidden on the frontend and strictly protected at the backend API level.
+  - **Implementation**:
+    1. **Special Permission Registered**:
+       - Added permission identifier `commission_ledger_action` ("Commission Ledgers (Edit & Delete Authorization)") in `client/src/pages/admin/organization/components/admin/userPermissionsConfig.js` under `finance` and `AllPermissionNames`.
+       - In all default preset roles (`adminPermission`, `managerPermission`, etc.), `commission_ledger_action` defaults to `[]` (empty), ensuring no role automatically gains edit or delete privileges.
+       - In `server/utils/permission.js`, granted `commission_ledger_action: [3, 4]` strictly to `superAdmin` only.
+    2. **Frontend UI Protection (`ledgerpagelist.jsx`)**:
+       - In `client/src/pages/admin/ledger/ledgerpagelist.jsx`:
+         - Computed `canEditLedger` (`isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 3)`).
+         - Computed `canDeleteLedger` (`isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 4)`).
+         - Wrapped both Table view action buttons and Card view action buttons with `{canEditLedger && ...}` and `{canDeleteLedger && ...}`.
+         - Guarded `handleOpenLedgerDialog`, `deleteLedger`, and `Modalbox` (`open={editOpen && canEditLedger}`) to block unpermitted executions.
+    3. **Backend API Protection (`server/controllers/ledger.js` & `server/router/route.js`)**:
+       - In `server/controllers/ledger.js`:
+         - `updateLedger` (`PUT /ledger/:id`): Blocks non-superadmins without `commission_ledger_action: 3` with 403 Forbidden.
+         - `deleteLedger` (`DELETE /ledger/:id`): Blocks non-superadmins without `commission_ledger_action: 4` with 403 Forbidden.
+       - In `server/router/route.js`: Attached `checkPermission(["commission_ledger_action", "ledger"], ...)` to the routes.
+
+- **Hidden 'Edit Profile' Option for Non-Superadmin Users [COMPLETED]**:
+  - **Requirement**: Hide the "Edit Profile" button and modal on `/dashboard/profile` for all roles except `superadmin`.
+  - **Implementation**:
+    - In `client/src/pages/profile/adminManagerProfile.jsx`:
+      - Determined `isSuperAdmin` using user profile state and JWT token (`(user?.profile?.role || profile?.role || getRoleFromToken())?.toLowerCase() === 'superadmin'`).
+      - Wrapped the `<Button variant="primary"><Edit2 size={14} /> Edit Profile</Button>` button with `{isSuperAdmin && ...}`.
+      - Wrapped the Edit Profile `<Modalbox ... />` with `{isSuperAdmin && ...}` so non-superadmins cannot view or trigger profile modification modals.
+      - Aligns with backend `server/router/route.js:128` which already restricts `/update-profile` to `authorizeRoles('superadmin')`.
+
+- **Removed Background & Border from Sidebar Logo [COMPLETED]**:
+  - **Requirement**: Remove any background, borders, and card wrapping from the company logo in the sidebar brand header.
+  - **Implementation**:
+    - In `client/src/components/sidebar.jsx`, replaced the boxed container styling `rounded-xl overflow-hidden ... border border-teal-100 shadow-xs ... bg-white` with a clean, transparent flex container `<div className="w-9 h-9 md:h-10 md:w-10 flex items-center justify-center bg-transparent">`.
+    - Added `bg-transparent mix-blend-multiply` to `<img />` so the logo sits naturally and cleanly against the sidebar without any card background, borders, or shadows.
+
+- **Separated Purchasers / Buyers Master and Project Master into Dedicated Pages & Submenus [COMPLETED]**:
+  - **Requirement**: In `Plot Purchase` (`/dashboard/plots/purchase`), separate the `Purchasers / Buyers Master` and `Project Master` tabs into 2 distinct dedicated pages and 2 individual submenus under `Plot Management` in the left sidebar, ensuring nothing breaks (permissions, routes, modal dependencies).
+  - **Implementation**:
+    - **Dedicated Purchasers Page**: Created [PurchasersMasterPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/PurchasersMasterPage.jsx) mounted at `/dashboard/plots/purchasers`. It wraps [PurchasersTable.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/components/PurchasersTable.jsx) with complete CRUD, default buyer assignment, and search capabilities.
+    - **Dedicated Projects Page**: Integrated [PlotProjectsPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/projects/PlotProjectsPage.jsx) mounted at `/dashboard/plots/projects`, featuring full project CRUD, "Show in Add Booking" toggles, and project commission policy slabs.
+    - **Cleaned PlotPurchasePage**: Removed tabs 4 and 5 from [PlotPurchasePage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/purchase/PlotPurchasePage.jsx) (and unused imports), while preserving backend fetch and state passed down to `CreateAgreementModal` / `EditAgreementModal` / filters so agreement creation and filtering remain 100% operational.
+    - **Sidebar Submenus**: Added `{ menu: "Purchasers / Buyers", link: "/dashboard/plots/purchasers", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] }` and `{ menu: "Project Master", link: "/dashboard/plots/projects", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] }` under `Plot Management` in [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx).
+    - **Route & Breadcrumbs**: Registered routes in [App.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/App.jsx) with `RoutePermissionGuard`, and added `"purchasers": "Purchasers / Buyers Master"` and `"projects": "Project Master"` in [Navbar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/Navbar.jsx).
+
+- **CustomerPlansPage Endpoint Correction [COMPLETED]**:
+  - **Issue**: On `/dashboard/my-plans` (`CustomerPlansPage.jsx`), an error toast `Failed to load scheme configuration` appeared.
+  - **Fix**: Corrected the endpoint URL from `/plots/scheme-config` to `/investments/config` (which provides the official `InvestmentSchemeConfig` tenure and return slabs).
+
+
+- **Removed 'Business Developer Portfolio' Badge on My Bookings Page [COMPLETED]**:
+  - **Requirement**: On `/dashboard/my-bookings` (`BusinessDeveloperBookingsPage.jsx`), remove the top "Business Developer Portfolio" badge and clean up the page title to "My Plot Bookings" so Business Associates and Partners see consistent, clean labeling.
+  - **Implementation**:
+    - In `client/src/pages/plots/businessDevelopers/BusinessDeveloperBookingsPage.jsx`:
+      - Removed the `<div className="inline-flex ...">Business Developer Portfolio</div>` badge above the header title.
+      - Simplified header title to `My Plot Bookings`.
+      - Simplified loader title to `Loading Bookings...`.
+
+
+- **Separated Plan & Commission into 2 Dedicated Pages with 2 Sidebar Submenus [COMPLETED]**:
+  - **Requirement**: Separate the combined `Plan & Commission` page (`/dashboard/my-commission-rates`) into 2 distinct pages without on-page tabs, and provide 2 submenus under `Plan & Commission` in the left sidebar:
+    1. **Plan** (`/dashboard/my-plans`): Customer Plan Tenure & Return slabs.
+    2. **Commission** (`/dashboard/my-commission-rates`): Commission Slab, Incentive Slab, and Reward Slab.
+  - **Implementation**:
+    - Created [CustomerPlansPage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/CustomerPlansPage.jsx) dedicated to customer plan tenures, interest rates, and maturity return matrices for EMI and One-Time plans.
+    - Updated [CommissionStructurePage.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx) to remove tab switches, rendering the commission, incentive, and reward slabs directly.
+    - Updated [sidebar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/sidebar.jsx) with parent menu `Plan & Commission` having two expandable submenus: `Plan` (`/dashboard/my-plans`) and `Commission` (`/dashboard/my-commission-rates`).
+    - Registered routes `/dashboard/my-plans`, `/dashboard/plans`, and `/dashboard/plots/plans` in [App.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/App.jsx).
+    - Updated [Navbar.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/components/Navbar.jsx) to display `"Plan"` and `"Commission"`.
+
+
 - **Operational Transaction Data Reset Script [COMPLETED]**:
   - **Requirement**: Create a dedicated reset script to clear all transactional data: plot bookings, investment bookings, downpayments, EMIs, product collections, vouchers, and reset all ledgers to ₹0 balance except seller/kisan initial agreement values.
   - **Implementation**:
