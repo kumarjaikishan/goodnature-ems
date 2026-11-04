@@ -65,6 +65,11 @@ const plotSchema = new mongoose.Schema(
       enum: ['AVAILABLE', 'HOLD', 'BOOKED', 'CANCELLED', 'REGISTERED'],
       default: 'AVAILABLE',
     },
+    isHidden: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     // Dimensions in Ft: North, South, East, West
     dimensions: {
       north: { type: Number, default: 0 },

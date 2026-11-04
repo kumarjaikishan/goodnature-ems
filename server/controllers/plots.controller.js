@@ -241,7 +241,7 @@ const createSeries = async (req, res, next) => {
 
 const getSeriesList = async (req, res, next) => {
   try {
-    const list = await plotsService.getSeriesList();
+    const list = await plotsService.getSeriesList(req.query);
     ApiResponse.success(res, list);
   } catch (error) {
     next(error);

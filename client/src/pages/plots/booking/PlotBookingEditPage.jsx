@@ -121,10 +121,10 @@ export default function PlotBookingEditPage() {
       const [bookingRes, seriesRes, plotsRes, ratesRes, landSourcesRes, projectsRes] = await Promise.all([
         api.get(`/plots/bookings/${id}`),
         api.get('/plots/series'),
-        api.get('/plots?limit=5000'),
+        api.get('/plots?limit=5000&unhiddenOnly=true'),
         api.get('/plots/rate-config').catch(() => ({ data: { data: null } })),
         api.get('/plots/kisan-agreements/sources').catch(() => ({ data: { data: [] } })),
-        api.get('/plots/projects').catch(() => ({ data: { data: [] } })),
+        api.get('/plots/projects?unhiddenOnly=true').catch(() => ({ data: { data: [] } })),
       ]);
 
       const b = bookingRes.data?.data || bookingRes.data;

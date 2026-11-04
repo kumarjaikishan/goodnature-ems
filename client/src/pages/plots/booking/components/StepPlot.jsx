@@ -31,6 +31,7 @@ export const StepPlot = ({
   const standalonePlots = useMemo(() => {
     if (!selectedProjectId) return [];
     return plots.filter((p) => {
+      if (p.isHidden) return false;
       const sId = p.seriesId?._id || p.seriesId;
       if (sId) return false;
       const pId = p.projectId?._id || p.projectId;
@@ -43,7 +44,7 @@ export const StepPlot = ({
     if (!selectedProjectId) return 0;
     let count = 0;
     filteredSeries.forEach((s) => {
-      const sPlots = plots.filter((p) => (p.seriesId?._id || p.seriesId) === s._id);
+      const sPlots = plots.filter((p) => !p.isHidden && (p.seriesId?._id || p.seriesId) === s._id);
       count += sPlots.filter((p) => p.status === 'AVAILABLE').length;
     });
     count += standalonePlots.filter((p) => p.status === 'AVAILABLE').length;

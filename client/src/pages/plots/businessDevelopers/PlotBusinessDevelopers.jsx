@@ -1512,16 +1512,6 @@ const PlotBusinessDevelopers = () => {
               </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setResetPasswordValue('123456')}
-              className="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition cursor-pointer"
-            >
-              Default (123456)
-            </button>
-          </div>
         </form>
       </Modalbox>
     </div>

@@ -74,7 +74,7 @@ export const MODULE_DISPLAY_NAMES = {
     voucher: "Payment Vouchers & Expenses",
 
     // Financial Accounts & Ledgers (All Ledgers Grouped Together)
-    ledger: "Master All Ledgers Overview (Accounting)",
+    ledger: "Master All Ledgers & Custom Ledgers (Create / Edit Accounts)",
     ledger_entry: "Financial Journal & Ledger Entries (Accounts)",
     bank_ledger: "Bank Accounts Ledger",
     cash_ledger: "Cash Accounts / In-Hand Cash Ledger",

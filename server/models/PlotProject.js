@@ -35,6 +35,11 @@ const plotProjectSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    isHidden: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     createdById: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

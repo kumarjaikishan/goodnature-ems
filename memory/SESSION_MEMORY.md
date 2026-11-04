@@ -1,5 +1,76 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Plot & Project Hide/Unhide Feature and Business Associate/Partner Availability Portal [COMPLETED]**:
+  - **Requirement**:
+    1. On `Plot Series Master` (`/dashboard/plots/series-master`), give admin the capability to hide any plot or an entire project.
+    2. Hidden plots (or plots under hidden projects) must NOT show in New Plot Booking (`/dashboard/plots/booking`).
+    3. Create a new dedicated page and menu for Business Associates & Partners (`role: 'sponsor'`) and admin (`/dashboard/plot-availability` & `/dashboard/plots/availability`) where they can view unhidden plots (like A001, A002, etc.) with color indication (Available = Emerald, Booked = Rose, Hold = Amber, Registered = Purple), filtered project-wise, while hidden plots are strictly excluded.
+  - **Implementation**:
+    1. **Database Models**:
+       - `server/models/PlotProject.js`: Added `isHidden: { type: Boolean, default: false, index: true }`.
+       - `server/models/Plot.js`: Added `isHidden: { type: Boolean, default: false, index: true }`.
+    2. **Backend Services & Routes**:
+       - `server/services/kisanLand.service.js`: Supported `unhiddenOnly` and `isHidden` filters in `getProjects`, and handled `isHidden` in `createProject` and `updateProject`.
+       - `server/services/plots/plotInventory.service.js`: In `getPlots`, when `unhiddenOnly === 'true'` (or for sponsors), filters out `isHidden: true` plots AND all plots belonging to hidden projects (`PlotProject.find({ isHidden: true })`). Handled `isHidden` in `createPlot` and `updatePlot`.
+       - `server/services/plots/plotBooking.service.js`: Added hard validation in `createBookingOrHold` rejecting any attempt to book a plot that is hidden or belongs to a hidden project.
+       - `server/router/plots.routes.js`: Automatically forced `unhiddenOnly = 'true'` when `role === 'sponsor'` fetches projects or plots, and granted sponsors read access to `/plots/projects`, `/plots/series`, and `/plots`.
+    3. **Admin Series & Inventory Master**:
+       - `client/src/pages/plots/seriesMaster/components/PlotProjectsSection.jsx`: Added Visibility column with interactive Eye/EyeOff toggle buttons and status badges for projects. Added `form.isHidden` checkbox in the Add/Edit Project form.
+       - `client/src/pages/plots/seriesMaster/components/ConfigurePlotModal.jsx`: Added "Plot Visibility" card with an interactive switch toggle to hide/unhide plots.
+       - `client/src/pages/plots/seriesMaster/components/SeriesLayoutGrid.jsx`: Added quick one-click Eye/EyeOff toggle button on each plot card, rendered amber `HIDDEN` badges on hidden plot cards, and added legend item.
+       - `client/src/pages/plots/seriesMaster/PlotSeriesMaster.jsx`: Added `handleQuickTogglePlotHide` and passed it down to `SeriesLayoutGrid`.
+    4. **Booking Exclusion**:
+       - `PlotBooking.jsx` and `PlotBookingEditPage.jsx`: Fetched plots and projects with `unhiddenOnly=true`.
+       - `StepPlot.jsx`: Filtered out any plots or projects marked `isHidden`.
+    5. **New Plot Availability Page for BA / BP & Admin**:
+       - `client/src/pages/plots/availability/PlotAvailabilityPage.jsx`: Created full-featured page with project selector, series block filter, status filter cards (Available, Booked, Hold, Registered), plot number search, visual layout grid with color codes, and read-only plot specifications modal (dimensions, boundaries, size, valuation).
+       - `client/src/components/sidebar.jsx`: Added "Plot Availability" to sponsor menu (`/dashboard/plot-availability`) and Plot Management menu (`/dashboard/plots/availability`).
+       - `client/src/App.jsx`: Registered routes with lazy loading.
+       - `client/src/components/Navbar.jsx`: Added breadcrumb titles.
+  - **Build Status**: Verified via `node -c` on all modified backend files and `npm run build --prefix client` (built cleanly in 3.20s).
+
+- **Fixed Plot Booking Default SqFt Rate Sync in Inventory & Configure Plot Modal [COMPLETED]**:
+  - **Issue**: Admin set the Default Rate under "Plot Booking Base Rate" to `1499` in `Series & Inventory` (`/dashboard/plots/series-master`), but clicking unbooked plots (e.g. `Plot A003`) in the inventory grid opened "Configure Plot" showing `BASE RATE: ₹1000/sqft` and `EFFECTIVE RATE: ₹1000/sqft` instead of `1499`.
+  - **Root Cause**:
+    1. In `ConfigurePlotModal.jsx`, `baseRate` was computed as `Number(selectedPlot?.baseRate) || Number(rateConfig.baseSqFtRate) || 1000`. Because plots created earlier had `baseRate: 1000` stored directly in MongoDB, it prioritized the plot's stale document rate over the admin's master configured `rateConfig.baseSqFtRate` (1499).
+    2. In `plotConfig.service.js`, `updateRateConfig` saved `baseSqFtRate` into `PlotRateConfiguration`, but did not update existing unbooked plots (`status: { $in: ['AVAILABLE', 'HOLD'] }`) in MongoDB.
+    3. In `plotInventory.service.js`, `getPlots` and `updatePlot` did not synchronize unbooked plots with the active `baseSqFtRate`.
+  - **Implementation**:
+    1. `client/src/pages/plots/seriesMaster/components/ConfigurePlotModal.jsx`: For unbooked plots (`!isLocked`), prioritize `rateConfig.baseSqFtRate` over `selectedPlot.baseRate`. (Locked booked plots still preserve their contract rate).
+    2. `client/src/pages/plots/seriesMaster/PlotSeriesMaster.jsx`: In `handleConfigSubmit`, explicitly pass `baseRate: activeBaseRate` (`1499`) in the PUT payload.
+    3. `server/services/plots/plotConfig.service.js`: In `updateRateConfig`, automatically update all unbooked plots (`AVAILABLE` and `HOLD`) with the new `baseSqFtRate`, recalculating their `effectiveRate` and `totalPlotValue`.
+    4. `server/services/plots/plotInventory.service.js`: In `getPlots`, dynamically align unbooked plots with the active `baseSqFtRate` and update any stale plots in the background. In `updatePlot`, default unbooked plots to `rateConfig.baseSqFtRate`.
+  - **Build Status**: Verified via `node -c` on backend and `npm run build --prefix client` (built cleanly in 3.78s).
+
+- **Custom Ledger Creation Permission & Non-Superadmin Access [COMPLETED]**:
+  - **Issue**: Non-superadmin user roles could not create or add custom ledgers, and administrators could not identify which permission governed it.
+  - **Findings**:
+    1. The permission governing custom financial ledgers in the EMS 4-number CRUD standard (`1: Read, 2: Create, 3: Update, 4: Delete`) is **`ledger`**:
+       - `ledger: 1` -> View Ledgers
+       - `ledger: 2` -> Create Custom Ledgers
+       - `ledger: 3` -> Edit Custom Ledgers
+       - `ledger: 4` -> Delete Custom Ledgers
+    2. In `client/src/pages/admin/organization/components/admin/userPermissionsConfig.js`, the module was labeled `"Master All Ledgers Overview (Accounting)"`, making it non-obvious that action `2` creates custom ledgers.
+    3. In `client/src/pages/admin/ledger/ledgerpagelist.jsx`:
+       - `canCreateLedger` was missing entirely.
+       - Line 903 modal box check was `open={editOpen && canEditLedger}` where `canEditLedger` was hardcoded to `isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 3)`. As a result, non-superadmins with `ledger: 2` had `editOpen = true` but the modal remained closed.
+    4. In `server/controllers/ledger.js`:
+       - `updateLedger` and `deleteLedger` checked only `commission_ledger_action` (3 & 4), ignoring users possessing general `ledger` (3 & 4) permissions.
+  - **Implementation**:
+    1. `client/src/pages/admin/ledger/ledgerpagelist.jsx`:
+       - Defined `canCreateLedger = isSuperAdmin || hasPermission(profile, 'ledger', 2);`
+       - Updated `canEditLedger = isSuperAdmin || hasPermission(profile, 'ledger', 3) || hasPermission(profile, 'commission_ledger_action', 3);`
+       - Updated `canDeleteLedger = isSuperAdmin || hasPermission(profile, 'ledger', 4) || hasPermission(profile, 'commission_ledger_action', 4);`
+       - Updated "Add Ledger" button guard: `{category === "all" && canCreateLedger && (`
+       - In `handleOpenLedgerDialog`, checked `canCreateLedger` for new ledgers and `canEditLedger` for existing ledgers with helpful toasts.
+       - Updated Modalbox open prop: `open={editOpen && (editLedgerId ? canEditLedger : canCreateLedger)}`.
+    2. `server/controllers/ledger.js`:
+       - Allowed users with `ledger: 3` or `commission_ledger_action: 3` in `updateLedger`.
+       - Allowed users with `ledger: 4` or `commission_ledger_action: 4` in `deleteLedger`.
+    3. `client/src/pages/admin/organization/components/admin/userPermissionsConfig.js`:
+       - Clarified the display label to: `"Master All Ledgers & Custom Ledgers (Create / Edit Accounts)"`.
+  - **Build Status**: Verified via `node -c server/controllers/ledger.js` and `npm run build --prefix client` (built cleanly in 4.01s).
+
 - **Fixed Collection Receipt Time & UTC Midnight 05:30 AM Artifact [COMPLETED]**:
   - **Issue**: Payment receipts (`ReceiptViewer.jsx`) showed time as `05:30 AM` (e.g. `03 Nov 2026, 05:30 AM`) even when created in the evening/night. This occurred because collection forms submitted date-only strings (`YYYY-MM-DD`), which JavaScript parsed as UTC midnight (`00:00:00.000Z`). In Indian Standard Time (UTC+5:30), `00:00:00.000Z` renders as `05:30 AM`.
   - **Implementation**:

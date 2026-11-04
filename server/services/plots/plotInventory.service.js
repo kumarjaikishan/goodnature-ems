@@ -71,6 +71,7 @@ class PlotInventoryService {
         lateFineFrequency: resolvedFreq,
         lateFineRate: resolvedRate,
         lateFineDailyPercent: resolvedDailyPercent,
+        isHidden: Boolean(data.isHidden),
       });
       await series.save({ session });
 
@@ -106,6 +107,7 @@ class PlotInventoryService {
           effectiveRate,
           totalPlotValue,
           status: 'AVAILABLE',
+          isHidden: Boolean(data.isHidden),
         });
       }
 
@@ -131,8 +133,12 @@ class PlotInventoryService {
     }
   }
 
-  async getSeriesList() {
-    return PlotSeriesMaster.find().sort({ createdAt: -1 });
+  async getSeriesList(filters = {}) {
+    const query = {};
+    if (filters.unhiddenOnly === 'true' || filters.unhiddenOnly === true) {
+      query.isHidden = { $ne: true };
+    }
+    return PlotSeriesMaster.find(query).sort({ createdAt: -1 });
   }
 
   async getSeriesById(id) {
@@ -178,6 +184,10 @@ class PlotInventoryService {
       series.endNumber = newEnd;
     }
 
+    if (data.isHidden !== undefined) {
+      series.isHidden = Boolean(data.isHidden);
+      await Plot.updateMany({ seriesId: id }, { $set: { isHidden: series.isHidden } });
+    }
     series.name = data.name ?? series.name;
     series.remarks = data.remarks ?? series.remarks;
     series.defaultPlotType = data.defaultPlotType ?? series.defaultPlotType;
@@ -324,6 +334,23 @@ class PlotInventoryService {
     if (filters.search) {
       query.plotNumber = { $regex: filters.search, $options: 'i' };
     }
+    if (filters.unhiddenOnly === 'true' || filters.unhiddenOnly === true) {
+      query.isHidden = { $ne: true };
+      const PlotProject = require('../../models/PlotProject');
+      const [hiddenProjects, hiddenSeries] = await Promise.all([
+        PlotProject.find({ isHidden: true }).select('_id').lean(),
+        PlotSeriesMaster.find({ isHidden: true }).select('_id').lean(),
+      ]);
+      if (hiddenSeries.length > 0) {
+        query.seriesId = { $nin: hiddenSeries.map(s => s._id) };
+      }
+      if (hiddenProjects.length > 0) {
+        const hiddenProjectIds = hiddenProjects.map(p => p._id);
+        query.projectId = { $nin: hiddenProjectIds };
+      }
+    } else if (filters.isHidden !== undefined) {
+      query.isHidden = filters.isHidden === 'true' || filters.isHidden === true;
+    }
 
     const page = parseInt(filters.page) || 1;
     const limit = parseInt(filters.limit) || 40;
@@ -385,6 +412,36 @@ class PlotInventoryService {
       }
     }
 
+    // Ensure all unbooked plots (AVAILABLE or HOLD) reflect the active base rate from rateConfig
+    const rateConfig = await plotConfigService.getRateConfig();
+    const activeBaseRate = Number(rateConfig?.baseSqFtRate) || 1000;
+    const stalePlots = [];
+
+    for (const p of plots) {
+      if (p.status === 'AVAILABLE' || p.status === 'HOLD') {
+        if (!p.baseRate || p.baseRate !== activeBaseRate) {
+          p.baseRate = activeBaseRate;
+          const multiplier = plotConfigService.calculatePlotMultiplier(p, rateConfig);
+          p.effectiveRate = Math.round(activeBaseRate * multiplier * 100) / 100;
+          p.totalPlotValue = Math.round((Number(p.plotSize) || 0) * p.effectiveRate);
+          stalePlots.push(p);
+        }
+      }
+    }
+
+    if (stalePlots.length > 0) {
+      Promise.all(
+        stalePlots.map((sp) =>
+          Plot.updateOne(
+            { _id: sp._id },
+            { $set: { baseRate: sp.baseRate, effectiveRate: sp.effectiveRate, totalPlotValue: sp.totalPlotValue } }
+          )
+        )
+      ).catch((err) => {
+        console.error('Failed to sync plot base rates in background:', err);
+      });
+    }
+
     return {
       plots,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
@@ -392,7 +449,7 @@ class PlotInventoryService {
   }
 
   async createPlot(data, userId) {
-    const { seriesId, plotNumber, plotSize, plotType, premiumHeads, baseRate, sequenceNumber, remarks, dimensions, boundaries } = data;
+    const { seriesId, plotNumber, plotSize, plotType, premiumHeads, baseRate, sequenceNumber, remarks, dimensions, boundaries, isHidden } = data;
     if (!plotNumber || !plotSize) {
       throw ApiError.badRequest('Plot Number and Plot Size are required');
     }
@@ -442,6 +499,7 @@ class PlotInventoryService {
       effectiveRate,
       totalPlotValue,
       status: 'AVAILABLE',
+      isHidden: Boolean(isHidden),
       remarks: remarks || '',
     });
 
@@ -503,6 +561,7 @@ class PlotInventoryService {
       return plot;
     }
 
+    if (data.isHidden !== undefined) plot.isHidden = Boolean(data.isHidden);
     if (data.plotType !== undefined) plot.plotType = data.plotType;
     if (data.premiumHeads !== undefined && Array.isArray(data.premiumHeads)) {
       plot.premiumHeads = data.premiumHeads;
@@ -510,12 +569,13 @@ class PlotInventoryService {
       plot.plotType = hasCorner ? 'CORNER' : 'NORMAL';
     }
     plot.plotSize = data.plotSize ?? plot.plotSize;
-    plot.baseRate = data.baseRate ?? plot.baseRate;
+    const rateConfig = await plotConfigService.getRateConfig();
+    const activeBaseRate = Number(rateConfig?.baseSqFtRate) || 1000;
+    plot.baseRate = data.baseRate !== undefined ? Number(data.baseRate) : (activeBaseRate || plot.baseRate);
     if (data.dimensions !== undefined) plot.dimensions = data.dimensions;
     if (data.boundaries !== undefined) plot.boundaries = data.boundaries;
 
     // Recalculate values
-    const rateConfig = await plotConfigService.getRateConfig();
     const multiplier = plotConfigService.calculatePlotMultiplier(plot, rateConfig);
 
     plot.effectiveRate = Math.round(plot.baseRate * multiplier * 100) / 100;

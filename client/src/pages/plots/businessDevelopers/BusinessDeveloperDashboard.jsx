@@ -67,17 +67,28 @@ const BusinessDeveloperDashboard = () => {
           />
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Welcome, {developer.name}!
+        {/* Line 1: Welcome To (small) */}
+        <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          Welcome To
+        </span>
+
+        {/* Line 2: Name (big) */}
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+          {developer.name}
         </h1>
 
-        {/* Small ID Badge directly below name */}
-        {developer.sponsorCode && developer.sponsorCode !== 'N/A' && (
-          <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-slate-600 font-mono font-medium">
-            <ShieldCheck size={13} className="text-teal-700" />
-            <span>ID: <strong className="text-slate-800 font-bold">{developer.sponsorCode}</strong></span>
-          </div>
-        )}
+        {/* Line 3: ID and beside it the Role/Designation */}
+        <div className="mt-2.5 inline-flex flex-wrap items-center justify-center gap-2 text-xs">
+          {developer.sponsorCode && developer.sponsorCode !== 'N/A' && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 font-mono font-medium">
+              <ShieldCheck size={13} className="text-teal-700" />
+              <span>ID: <strong className="text-slate-900 font-bold">{developer.sponsorCode}</strong></span>
+            </div>
+          )}
+          <span className="px-2.5 py-1 rounded-md bg-teal-50 border border-teal-200 text-teal-800 font-bold">
+            {roleTitle}
+          </span>
+        </div>
 
         <p className="text-sm text-slate-500 max-w-md mt-3 font-medium">
           Welcome to your official Goodfeel partner portal. Access your customer network, ledger statements, and business performance below.

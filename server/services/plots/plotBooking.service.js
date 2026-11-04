@@ -71,6 +71,16 @@ class PlotBookingService {
       if (plot.status !== 'AVAILABLE') {
         throw ApiError.badRequest(`Plot ${plot.plotNumber} is not available (Status: ${plot.status})`);
       }
+      if (plot.isHidden) {
+        throw ApiError.badRequest(`Plot ${plot.plotNumber} is hidden and cannot be booked`);
+      }
+      if (plot.projectId) {
+        const PlotProject = require('../../models/PlotProject');
+        const proj = await PlotProject.findById(plot.projectId).session(session);
+        if (proj?.isHidden) {
+          throw ApiError.badRequest(`Project "${proj.name}" is currently hidden and its plots cannot be booked`);
+        }
+      }
 
       // Resolve branchId and branchPartnerId
       let resolvedBranchId = data.branchId || null;

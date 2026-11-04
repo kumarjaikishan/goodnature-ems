@@ -43,7 +43,13 @@ router.put('/commission-policy', checkPermission('plot_inventory', 3), ctrl.upda
 
 // ── Series Master (inventory setup) ──
 router.post('/series', checkPermission('plot_inventory', 2), ctrl.createSeries);
-router.get('/series', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getSeriesList);
+router.get('/series', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    req.query.unhiddenOnly = 'true';
+    return next();
+  }
+  return checkPermission(['plot_inventory', 'plot_booking'], 1)(req, res, next);
+}, ctrl.getSeriesList);
 router.get('/series/:id', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getSeriesById);
 router.put('/series/:id', checkPermission('plot_inventory', 3), ctrl.updateSeries);
 router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSeries);
@@ -210,7 +216,13 @@ router.put('/purchasers/:id/set-default', checkPermission(['plot_purchase', 'plo
 router.delete('/purchasers/:id', checkPermission(['plot_purchase', 'plot_inventory'], 4), ctrl.deletePurchaser);
 
 // ── Project Master Directory ──
-router.get('/projects', checkPermission(['plot_purchase', 'plot_inventory', 'investment_booking', 'plot_booking'], 1), ctrl.getProjects);
+router.get('/projects', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    req.query.unhiddenOnly = 'true';
+    return next();
+  }
+  return checkPermission(['plot_purchase', 'plot_inventory', 'investment_booking', 'plot_booking'], 1)(req, res, next);
+}, ctrl.getProjects);
 router.get('/projects/:id', checkPermission(['plot_purchase', 'plot_inventory'], 1), ctrl.getProjectById);
 router.post('/projects', checkPermission(['plot_purchase', 'plot_inventory'], 2), ctrl.createProject);
 router.put('/projects/:id', checkPermission(['plot_purchase', 'plot_inventory'], 3), ctrl.updateProject);
@@ -254,7 +266,13 @@ router.put('/product-collections/:bookingId/:receiptNumber/approve', checkPermis
 router.put('/product-collections/:bookingId/:receiptNumber/reject', checkPermission(['plot_collection', 'investment_booking'], 3), ctrl.rejectProductCollection);
 
 // ── Plots Inventory (Wildcard /:id placed AFTER specific routes) ──
-router.get('/', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getPlots);
+router.get('/', (req, res, next) => {
+  if (req.user?.role === 'sponsor') {
+    req.query.unhiddenOnly = 'true';
+    return next();
+  }
+  return checkPermission(['plot_inventory', 'plot_booking'], 1)(req, res, next);
+}, ctrl.getPlots);
 router.post('/', checkPermission('plot_inventory', 2), ctrl.createPlot);
 router.get('/:id', checkPermission(['plot_inventory', 'plot_booking'], 1), ctrl.getPlotById);
 router.put('/:id', checkPermission('plot_inventory', 3), ctrl.updatePlot);

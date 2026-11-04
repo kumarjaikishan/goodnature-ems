@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Building2, FileText, ExternalLink, Sparkles, Check, Info } from 'lucide-react';
+import { Building2, FileText, ExternalLink, Sparkles, Check, Info, Eye, EyeOff } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 
 const ConfigurePlotModal = ({
@@ -50,7 +50,10 @@ const ConfigurePlotModal = ({
 
   // Calculation metrics
   const totalExtraPercent = selectedHeads.reduce((sum, h) => sum + (Number(h.extraPercent) || 0), 0);
-  const baseRate = Number(selectedPlot?.baseRate) || Number(rateConfig.baseSqFtRate) || 1000;
+  // For unbooked/available plots, always use the active base rate set by Admin in Plot Configuration & Rates
+  const baseRate = isLocked
+    ? (Number(selectedPlot?.baseRate) || Number(rateConfig.baseSqFtRate) || 1000)
+    : (Number(rateConfig.baseSqFtRate) || Number(selectedPlot?.baseRate) || 1000);
   const effectiveRate = Math.round(baseRate * (1 + totalExtraPercent / 100) * 100) / 100;
   const plotAreaNum = parseFloat(configForm.plotSize) || 0;
   const totalPlotValue = Math.round(plotAreaNum * effectiveRate);
@@ -163,6 +166,60 @@ const ConfigurePlotModal = ({
               </div>
             </div>
           )}
+
+                    {/* Plot Visibility Switch Card */}
+          <div
+            onClick={() => setConfigForm((prev) => ({ ...prev, isHidden: !prev.isHidden }))}
+            className={`relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+              configForm.isHidden
+                ? 'bg-amber-50/90 border-amber-300 shadow-xs ring-1 ring-amber-300/60'
+                : 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                  configForm.isHidden
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-emerald-600 text-white shadow-xs'
+                }`}
+              >
+                {configForm.isHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-800">Plot Visibility</span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      configForm.isHidden
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    }`}
+                  >
+                    {configForm.isHidden ? 'Hidden (छुपा हुआ)' : 'Visible (दृश्यमान)'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {configForm.isHidden
+                    ? 'Hidden from bookings, Business Associates & Partner plot availability map'
+                    : 'Visible and available across all booking & plot availability modules'}
+                </p>
+              </div>
+            </div>
+
+            {/* Styled Toggle Pill */}
+            <div
+              className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
+                configForm.isHidden ? 'bg-amber-600' : 'bg-emerald-600'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${
+                  configForm.isHidden ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </div>
+          </div>
 
           {/* Plot Premium / PLC Heads Multi-Select Group */}
           <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-4 space-y-3">

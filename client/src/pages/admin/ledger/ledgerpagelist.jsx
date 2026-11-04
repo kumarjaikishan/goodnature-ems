@@ -27,8 +27,9 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const { ledger } = useSelector(e => e.user);
     const profile = useSelector((state) => state.user?.profile);
     const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(profile?.role?.toLowerCase());
-    const canEditLedger = isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 3);
-    const canDeleteLedger = isSuperAdmin || hasPermission(profile, 'commission_ledger_action', 4);
+    const canCreateLedger = isSuperAdmin || hasPermission(profile, 'ledger', 2);
+    const canEditLedger = isSuperAdmin || hasPermission(profile, 'ledger', 3) || hasPermission(profile, 'commission_ledger_action', 3);
+    const canDeleteLedger = isSuperAdmin || hasPermission(profile, 'ledger', 4) || hasPermission(profile, 'commission_ledger_action', 4);
     const [editLedgerId, setEditLedgerId] = useState(null);
     const [editLedgerName, setEditLedgerName] = useState("");
     const [editOpen, setEditOpen] = useState(false);
@@ -193,6 +194,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const handleOpenLedgerDialog = (ledgerItem = null) => {
         if (ledgerItem && !canEditLedger) {
             toast.error("Permission denied: You are not authorized to edit this ledger");
+            return;
+        }
+        if (!ledgerItem && !canCreateLedger) {
+            toast.error("Permission denied: You are not authorized to create custom ledgers");
             return;
         }
         if (ledgerItem) {
@@ -425,7 +430,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                     </div>
 
                     {/* Right: Add Ledger Button (Only on General/All view since domain ledgers are automatically created) */}
-                    {category === "all" && (
+                    {category === "all" && canCreateLedger && (
                         <Button
                             icon={<Plus size={15} />}
                             variant="primary"
@@ -900,7 +905,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
 
             {/* Add / Edit Ledger Modal */}
             <Modalbox
-                open={editOpen && canEditLedger}
+                open={editOpen && (editLedgerId ? canEditLedger : canCreateLedger)}
                 onClose={() => setEditOpen(false)}
                 size="md"
                 title={editLedgerId ? "Edit Ledger" : "Add New Ledger"}

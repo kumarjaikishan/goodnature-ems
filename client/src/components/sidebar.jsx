@@ -29,6 +29,7 @@ import {
   Wallet,
   Award,
   Calculator,
+  Grid3X3,
 } from "lucide-react";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
 
@@ -193,6 +194,7 @@ const Sidebar = () => {
             { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
             { menu: "Purchasers / Buyers", link: "/dashboard/plots/purchasers", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
+            { menu: "Plot Availability", link: "/dashboard/plots/availability", roles: OPERATIONAL_ROLES, resource: ["plot_inventory", "plot_booking"] },
             { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: ["associate", "partner", "plot_sponsor"] },
             { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
@@ -213,6 +215,7 @@ const Sidebar = () => {
           roles: ["sponsor"] 
         },
         { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
+        { menu: "Plot Availability", link: "/dashboard/plot-availability", icon: <Grid3X3 size={20} />, roles: ["sponsor"] },
         {
           menu: "Plan & Commission",
           icon: <Award size={20} />,

@@ -1014,7 +1014,7 @@ const updateLedger = async (req, res) => {
       const userPerms = req.user?.permissions instanceof Map
         ? Object.fromEntries(req.user.permissions)
         : (req.user?.permissions || {});
-      const hasEditPerm = Array.isArray(userPerms.commission_ledger_action) && userPerms.commission_ledger_action.includes(3);
+      const hasEditPerm = (Array.isArray(userPerms.commission_ledger_action) && userPerms.commission_ledger_action.includes(3)) || (Array.isArray(userPerms.ledger) && userPerms.ledger.includes(3));
       if (!hasEditPerm) {
         return res.status(403).json({
           message: "Permission denied: Ledger edit option is restricted to Superadmin or explicitly authorized IDs."
@@ -1132,7 +1132,7 @@ const deleteLedger = async (req, res) => {
       const userPerms = req.user?.permissions instanceof Map
         ? Object.fromEntries(req.user.permissions)
         : (req.user?.permissions || {});
-      const hasDeletePerm = Array.isArray(userPerms.commission_ledger_action) && userPerms.commission_ledger_action.includes(4);
+      const hasDeletePerm = (Array.isArray(userPerms.commission_ledger_action) && userPerms.commission_ledger_action.includes(4)) || (Array.isArray(userPerms.ledger) && userPerms.ledger.includes(4));
       if (!hasDeletePerm) {
         return res.status(403).json({
           message: "Permission denied: Ledger delete option is restricted to Superadmin or explicitly authorized IDs."

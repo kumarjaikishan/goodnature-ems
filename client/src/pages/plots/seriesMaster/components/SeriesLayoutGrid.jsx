@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Plus } from 'lucide-react';
+import { Edit2, Trash2, Plus, Eye, EyeOff } from 'lucide-react';
 
 const getPlotCardColor = (status) => {
   switch (status) {
@@ -27,6 +27,7 @@ const SeriesLayoutGrid = ({
   handleDeleteSeries,
   openCreatePlot,
   openConfigPlot,
+  onTogglePlotHide,
   canCreate = true,
   canUpdate = true,
   canDelete = true,
@@ -59,6 +60,7 @@ const SeriesLayoutGrid = ({
                   'Default Type',
                   'Format',
                   'Remarks',
+                  'Visibility',
                   ...(canUpdate || canDelete ? ['Actions'] : []),
                 ].map((h) => (
                   <th key={h} className="p-3.5">
@@ -99,6 +101,18 @@ const SeriesLayoutGrid = ({
                     </td>
                     <td className="p-3.5 font-mono text-slate-500">{s.numberFormat}</td>
                     <td className="p-3.5 text-slate-500 italic max-w-xs truncate">{s.remarks || '-'}</td>
+                    <td className="p-3.5">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          s.isHidden
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        }`}
+                      >
+                        {s.isHidden ? <EyeOff size={11} /> : <Eye size={11} />}
+                        <span>{s.isHidden ? 'Hidden' : 'Visible'}</span>
+                      </span>
+                    </td>
                     {(canUpdate || canDelete) && (
                       <td className="p-3.5">
                         <div className="flex items-center gap-2">
@@ -170,6 +184,11 @@ const SeriesLayoutGrid = ({
                       {s.projectName}
                     </span>
                   )}
+                  {s.isHidden && (
+                    <span className="text-xs bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-lg font-bold flex items-center gap-1">
+                      <EyeOff size={12} /> Block Hidden
+                    </span>
+                  )}
                   <span className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded-lg font-bold">
                     {s.plotArea} Sq Ft
                   </span>
@@ -219,14 +238,21 @@ const SeriesLayoutGrid = ({
                       >
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-xs font-black tracking-wider text-slate-900">{p.plotNumber}</span>
-                          {hasPremium && (
+                          <div className="flex items-center gap-1">
+                            {p.isHidden && (
+                              <span className="text-[0.52rem] bg-amber-600 text-white font-extrabold px-1 py-0.5 rounded flex items-center gap-0.5" title="Hidden from booking & partners">
+                                <EyeOff size={9} /> HIDDEN
+                              </span>
+                            )}
+                            {hasPremium && (
                             <span
                               className="text-[0.52rem] bg-teal-800 text-white font-black px-1.5 py-0.5 rounded leading-none truncate max-w-[65px]"
                               title={heads.map(h => `${h.name} (+${h.extraPercent}%)`).join(', ') || `Corner (+${totalExtra}%)`}
                             >
                               {heads.length === 1 ? heads[0].name.toUpperCase() : `+${totalExtra}% PLC`}
                             </span>
-                          )}
+                            )}
+                          </div>
                         </div>
 
                         <div className="my-0.5">
@@ -249,7 +275,10 @@ const SeriesLayoutGrid = ({
                           <span className="text-[0.58rem] font-bold uppercase tracking-wider opacity-90">
                             {isAvailable ? 'Available' : p.status}
                           </span>
-                          <Edit2 size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                          <div className="flex items-center gap-1.5">
+                            
+                            <Edit2 size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600" />
+                          </div>
                         </div>
                       </div>
                     );

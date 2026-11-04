@@ -13,6 +13,8 @@ import {
   MapPin,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 const PlotProjectsSection = ({
@@ -43,17 +45,18 @@ const PlotProjectsSection = ({
     description: '',
     status: 'ACTIVE',
     showInAddBooking: false,
+    isHidden: false,
   });
 
   const resetForm = () => {
-    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE', showInAddBooking: false });
+    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE', showInAddBooking: false, isHidden: false });
     setEditingProject(null);
     setIsFormOpen(false);
   };
 
   const openCreate = () => {
     setEditingProject(null);
-    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE', showInAddBooking: false });
+    setForm({ name: '', code: '', location: '', description: '', status: 'ACTIVE', showInAddBooking: false, isHidden: false });
     setIsFormOpen(true);
     setIsCollapsed(false);
   };
@@ -67,6 +70,7 @@ const PlotProjectsSection = ({
       description: project.description || '',
       status: project.status || 'ACTIVE',
       showInAddBooking: Boolean(project.showInAddBooking),
+      isHidden: Boolean(project.isHidden),
     });
     setIsFormOpen(true);
     setIsCollapsed(false);
@@ -85,6 +89,20 @@ const PlotProjectsSection = ({
       if (onProjectsChange) onProjectsChange();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update project setting');
+    }
+  };
+
+  const handleToggleHideProject = async (project, isHidden) => {
+    try {
+      await api.put(`/plots/projects/${project._id}`, { isHidden });
+      toast.success(
+        isHidden
+          ? `Project "${project.name}" is now hidden from bookings & partners`
+          : `Project "${project.name}" is now visible`
+      );
+      if (onProjectsChange) onProjectsChange();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update project visibility');
     }
   };
 
@@ -235,31 +253,127 @@ const PlotProjectsSection = ({
                 <option value="COMPLETED">Completed (पूर्ण)</option>
               </select>
             </div>
-            <div className="flex items-center h-10 mt-5">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={form.showInAddBooking}
-                  onChange={(e) => setForm({ ...form, showInAddBooking: e.target.checked })}
-                  className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
-                />
-                <span>For Plot Booking (Add Booking)</span>
-              </label>
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="h-10 px-5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer disabled:opacity-60"
+            {/* Modern Option Cards */}
+            <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Option 1: For Plot Booking Switch Card */}
+              <div
+                onClick={() => setForm((prev) => ({ ...prev, showInAddBooking: !prev.showInAddBooking }))}
+                className={`relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                  form.showInAddBooking
+                    ? 'bg-teal-50/80 border-teal-300 shadow-xs'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
               >
-                {submitting ? 'Saving...' : editingProject ? 'Update Project' : 'Create Project'}
-              </button>
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                      form.showInAddBooking
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    <CheckCircle size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-800">For Plot Booking (Add Booking)</span>
+                      {form.showInAddBooking ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-teal-100 text-teal-800">Active</span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">Product Sale</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {form.showInAddBooking
+                        ? 'Project appears in New Plot Booking dropdown'
+                        : 'Shown in Product Booking / Sales flow'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Styled Toggle Pill */}
+                <div
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
+                    form.showInAddBooking ? 'bg-teal-700' : 'bg-slate-300'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${
+                      form.showInAddBooking ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Option 2: Project Visibility Switch Card */}
+              <div
+                onClick={() => setForm((prev) => ({ ...prev, isHidden: !prev.isHidden }))}
+                className={`relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                  form.isHidden
+                    ? 'bg-amber-50/90 border-amber-300 shadow-xs ring-1 ring-amber-300/60'
+                    : 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                      form.isHidden
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-emerald-600 text-white shadow-xs'
+                    }`}
+                  >
+                    {form.isHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-800">Project Visibility</span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          form.isHidden
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        }`}
+                      >
+                        {form.isHidden ? 'Hidden (छुपा हुआ)' : 'Visible (दृश्यमान)'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {form.isHidden
+                        ? 'Hidden from bookings, BA & partner availability'
+                        : 'Visible across all portals & plot availability page'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Styled Toggle Pill */}
+                <div
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
+                    form.isHidden ? 'bg-amber-600' : 'bg-emerald-600'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${
+                      form.isHidden ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
               <button
                 type="button"
                 onClick={resetForm}
-                className="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer"
+                className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer"
               >
                 Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="h-9 px-6 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs disabled:opacity-60"
+              >
+                {submitting ? 'Saving...' : editingProject ? 'Update Project' : 'Create Project'}
               </button>
             </div>
           </form>
@@ -279,13 +393,14 @@ const PlotProjectsSection = ({
                 <th className="p-3.5 text-left">Description</th>
                 <th className="p-3.5 text-left">Series &amp; Plots</th>
                 <th className="p-3.5 text-left">Status</th>
+                <th className="p-3.5 text-center w-28">Visibility</th>
                 {(canUpdate || canDelete) && <th className="p-3.5 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {projects.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-400 italic font-medium">
+                  <td colSpan="9" className="p-8 text-center text-slate-400 italic font-medium">
                     No projects created yet. Click &quot;Add Project&quot; to create your first project (e.g., Rajgir Phase 1).
                   </td>
                 </tr>
@@ -371,6 +486,22 @@ const PlotProjectsSection = ({
                           )}
                           {project.status}
                         </span>
+                      </td>
+                      <td className="p-3.5 text-center">
+                        <button
+                          type="button"
+                          disabled={!canUpdate}
+                          onClick={() => handleToggleHideProject(project, !project.isHidden)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition cursor-pointer disabled:cursor-not-allowed ${
+                            project.isHidden
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                          }`}
+                          title={project.isHidden ? "Click to unhide project" : "Click to hide project from bookings & partners"}
+                        >
+                          {project.isHidden ? <EyeOff size={11} /> : <Eye size={11} />}
+                          <span>{project.isHidden ? 'Hidden' : 'Visible'}</span>
+                        </button>
                       </td>
                       {(canUpdate || canDelete) && (
                         <td className="p-3.5 text-right">

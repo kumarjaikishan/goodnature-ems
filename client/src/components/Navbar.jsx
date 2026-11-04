@@ -74,6 +74,8 @@ const Navbar = () => {
     "my-customers": "My Customers",
     "network": "My Network",
     "my-bookings": "My Plot Bookings",
+    "plot-availability": "Plot Availability & Map",
+    "availability": "Plot Availability",
     "sponsor-dashboard": "Dashboard",
     "business-developer-dashboard": "Dashboard",
     "my-leave-ledger": "My Leave Ledger",

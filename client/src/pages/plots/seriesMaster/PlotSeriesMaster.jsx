@@ -75,6 +75,7 @@ const PlotSeriesMaster = () => {
     remarks: '',
     gracePeriodDays: 15,
     lateFineDailyPercent: 0.05,
+    isHidden: false,
   });
 
   const [editForm, setEditForm] = useState({
@@ -90,6 +91,7 @@ const PlotSeriesMaster = () => {
     remarks: '',
     gracePeriodDays: 15,
     lateFineDailyPercent: 0.05,
+    isHidden: false,
   });
 
   const [plotForm, setPlotForm] = useState({
@@ -103,6 +105,7 @@ const PlotSeriesMaster = () => {
     dimensions: { north: 0, south: 0, east: 0, west: 0 },
     boundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
+    isHidden: false,
   });
 
   const [configForm, setConfigForm] = useState({
@@ -112,6 +115,7 @@ const PlotSeriesMaster = () => {
     dimensions: { north: 0, south: 0, east: 0, west: 0 },
     boundaries: { north: '', south: '', east: '', west: '' },
     remarks: '',
+    isHidden: false,
   });
 
   const fetchData = async () => {
@@ -201,6 +205,7 @@ const PlotSeriesMaster = () => {
         remarks: '',
         gracePeriodDays: rateConfig.lateFineGraceDays ?? 15,
         lateFineDailyPercent: rateConfig.lateFineDailyPercent ?? 0.05,
+        isHidden: false,
       });
       fetchData();
     } catch (err) {
@@ -228,6 +233,7 @@ const PlotSeriesMaster = () => {
         west: series.defaultDimensions?.west ?? 0,
       },
       remarks: series.remarks || '',
+      isHidden: Boolean(series.isHidden),
       gracePeriodDays: series.gracePeriodDays ?? rateConfig.lateFineGraceDays ?? 15,
       lateFineDailyPercent: series.lateFineDailyPercent ?? rateConfig.lateFineDailyPercent ?? 0.05,
     });
@@ -401,8 +407,20 @@ const PlotSeriesMaster = () => {
         west: plot.boundaries?.west || '',
       },
       remarks: plot.remarks || '',
+      isHidden: Boolean(plot.isHidden),
     });
     setShowConfigModal(true);
+  };
+
+  const handleQuickTogglePlotHide = async (plot) => {
+    try {
+      const nextHidden = !plot.isHidden;
+      await api.put(`/plots/${plot._id}`, { isHidden: nextHidden });
+      toast.success(`Plot ${plot.plotNumber} is now ${nextHidden ? 'hidden from bookings & partners' : 'visible'}`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update plot visibility');
+    }
   };
 
   const handleConfigSubmit = async (e) => {
@@ -410,8 +428,14 @@ const PlotSeriesMaster = () => {
     if (!selectedPlot) return;
     setSubmitLoading(true);
     try {
+      const isLocked = selectedPlot.status === 'BOOKED' || selectedPlot.status === 'REGISTERED';
+      const activeBaseRate = !isLocked && rateConfig.baseSqFtRate
+        ? Number(rateConfig.baseSqFtRate)
+        : (Number(selectedPlot.baseRate) || 1000);
       await api.put(`/plots/${selectedPlot._id}`, {
         ...configForm,
+        baseRate: activeBaseRate,
+        isHidden: Boolean(configForm.isHidden),
         dimensions: {
           north: Number(configForm.dimensions.north) || 0,
           south: Number(configForm.dimensions.south) || 0,
@@ -597,6 +621,7 @@ const PlotSeriesMaster = () => {
             handleDeleteSeries={handleDeleteSeries}
             openCreatePlot={openCreatePlot}
             openConfigPlot={openConfigPlot}
+            onTogglePlotHide={handleQuickTogglePlotHide}
             canCreate={canCreate}
             canUpdate={canUpdate}
             canDelete={canDelete}

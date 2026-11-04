@@ -118,6 +118,7 @@ const PurchasersMasterPage = lazy(() => import('./pages/plots/purchase/Purchaser
 const PlotKisanLedgerPage = lazy(() => import('./pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('./pages/plots/booking/PlotBookingEditPage'));
 const PlotBookingLedgerPage = lazy(() => import('./pages/plots/booking/PlotBookingLedgerPage'));
+const PlotAvailabilityPage = lazy(() => import('./pages/plots/availability/PlotAvailabilityPage'));
 
 
 // 🔹 Operational / Management Roles Constant
@@ -238,7 +239,12 @@ const managementRoutes = (
     <Route path="plots/receipts/:id" element={<RoutePermissionGuard resource="plot_collection" action={1}><ReceiptViewer /></RoutePermissionGuard>} />
     <Route path="plots/interest-calculator" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotInterestCalculator /></RoutePermissionGuard>} />
     <Route path="price-calculator" element={<PlotPriceCalculatorPage />} />
+    <Route path="plot-availability" element={<PlotAvailabilityPage />} />
+    <Route path="plots/availability" element={<PlotAvailabilityPage />} />
     <Route path="plots/price-calculator" element={<PlotPriceCalculatorPage />} />
+    <Route path="plots/availability" element={<RoutePermissionGuard resource={["plot_inventory", "plot_booking"]} action={1}><PlotAvailabilityPage /></RoutePermissionGuard>} />
+    <Route path="plots/plot-availability" element={<RoutePermissionGuard resource={["plot_inventory", "plot_booking"]} action={1}><PlotAvailabilityPage /></RoutePermissionGuard>} />
+    <Route path="plot-availability" element={<PlotAvailabilityPage />} />
     <Route path="my-plans" element={<CustomerPlansPage />} />
     <Route path="plans" element={<CustomerPlansPage />} />
     <Route path="plots/plans" element={<CustomerPlansPage />} />
@@ -292,6 +298,8 @@ const sponsorRoutes = (
     <Route path="my-commission-rates" element={<CommissionStructurePage />} />
     <Route path="commission-structure" element={<CommissionStructurePage />} />
     <Route path="price-calculator" element={<PlotPriceCalculatorPage />} />
+    <Route path="plot-availability" element={<PlotAvailabilityPage />} />
+    <Route path="plots/availability" element={<PlotAvailabilityPage />} />
     <Route path="plots/commission-structure" element={<CommissionStructurePage />} />
     <Route path="network" element={<BusinessDeveloperNetworkPage />} />
     <Route path="plots/business-developer/:id/network" element={<BusinessDeveloperNetworkPage />} />

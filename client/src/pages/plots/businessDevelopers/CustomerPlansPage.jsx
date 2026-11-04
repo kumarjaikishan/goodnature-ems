@@ -55,6 +55,20 @@ const CustomerPlansPage = () => {
 
   const slabs = schemeConfig?.slabs || [];
 
+  const formatRate = (val) => {
+    if (val === undefined || val === null || isNaN(Number(val))) return '0%';
+    const num = Number(val);
+    if (num === 0) return '0%';
+    return `${num.toFixed(2)}%`;
+  };
+
+  const formatMaturity = (val) => {
+    if (val === undefined || val === null || isNaN(Number(val))) return '0%';
+    const num = Number(val);
+    if (num === 0) return '0%';
+    return `${Number.isInteger(num) ? num : num.toFixed(2)}%`;
+  };
+
   return (
     <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto pb-24">
       {/* ── Top Bar: Role badge & Admin perspective toggle if needed ── */}
@@ -91,8 +105,8 @@ const CustomerPlansPage = () => {
       )}
 
       {/* Slabs Table Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+      <div className="bg-white border border-slate-300 rounded-2xl shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <Layers size={17} className="text-teal-700" />
             <div>
@@ -104,27 +118,37 @@ const CustomerPlansPage = () => {
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
             {slabs.length} Active Slabs
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-center text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                <th className="py-3 px-4 w-36">Plan Type</th>
-                <th className="py-3 px-4 w-28">Plan Name</th>
-                <th className="py-3 px-4 w-36">Tenure (अवधि)</th>
-                <th className="py-3 px-5 bg-teal-50/80 text-teal-950 font-bold whitespace-nowrap border-l border-teal-100">
-                  After cancellation refund % (EMI Plan)
+              {/* Top Group Header Row */}
+              <tr className="border-b border-slate-300 text-xs font-bold text-slate-800 select-none">
+                <th
+                  rowSpan={2}
+                  className="py-4 px-4 bg-[#e2ede0] text-slate-900 font-extrabold text-sm border-r border-slate-300 w-44"
+                >
+                  Plan Name
                 </th>
-                <th className="py-3 px-5 bg-amber-50/80 text-amber-950 font-bold whitespace-nowrap border-l border-amber-100">
-                  After cancellation refund % (One Time Plan)
+                <th
+                  colSpan={2}
+                  className="py-3 px-4 bg-[#eaf4eb] text-slate-900 font-extrabold border-r border-slate-300"
+                >
+                  After Cancellation Refund % For (EMI Plan)
+                </th>
+                <th
+                  colSpan={2}
+                  className="py-3 px-4 bg-[#fef5e7] text-slate-900 font-extrabold"
+                >
+                  After Cancellation Refund % For (100% Down payment Plan)
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className="divide-y divide-slate-300 font-medium">
               {slabs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-400 font-normal">
@@ -132,70 +156,47 @@ const CustomerPlansPage = () => {
                   </td>
                 </tr>
               ) : (
-                slabs.map((slab, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/60 transition">
-                    {/* Plan Type at first column */}
-                    <td className="py-3.5 px-4 whitespace-nowrap w-36">
-                      {Boolean(slab.showInAddBooking || slab.planType === 'REGISTRY_SALE' || slab.planName?.toLowerCase().includes('plot')) ? (
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                          Plot Booking
-                        </span>
-                      ) : (
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Investment Booking
-                        </span>
-                      )}
-                    </td>
+                slabs.map((slab, idx) => {
+                  const isStriped = idx % 2 === 1;
+                  const rowBg = isStriped ? 'bg-[#e5e7eb]' : 'bg-[#f9fafb]';
+                  const emiBg = isStriped ? 'bg-[#d8e8dc]' : 'bg-[#f0f7f2]';
+                  const oneTimeBg = isStriped ? 'bg-[#faebd7]' : 'bg-[#fef9f1]';
 
-                    {/* Plan Name */}
-                    <td className="py-3.5 px-4 font-mono font-black text-slate-800 w-28">
-                      {slab.planName || `PLAN-${slab.tenureMonths}M`}
-                    </td>
+                  const emiRate = slab.rdAnnualInterestRate ?? slab.annualInterestRate ?? 0;
+                  const emiMaturity = slab.rdMaturityPercent ?? 0;
 
-                    {/* Tenure */}
-                    <td className="py-3.5 px-4 text-slate-700 font-semibold font-mono whitespace-nowrap w-36">
-                      {slab.tenureMonths} Months ({Math.round((slab.tenureMonths / 12) * 10) / 10}Y)
-                    </td>
+                  const oneTimeRate = slab.fdAnnualInterestRate ?? slab.annualInterestRate ?? 0;
+                  const oneTimeMaturity = slab.fdMaturityPercent ?? 0;
 
-                    {/* EMI Plan: Distinct teal background with strict fixed-width column alignment */}
-                    <td className="py-3.5 px-5 bg-teal-50/30 border-l border-teal-100/70 whitespace-nowrap">
-                      <div className="grid grid-cols-[100px_16px_72px] items-center">
-                        <span className="w-[100px] h-7 flex items-center justify-center rounded-md bg-white text-teal-900 border border-teal-200 font-mono text-xs font-semibold shadow-2xs tabular-nums text-center">
-                          {Number(slab.rdAnnualInterestRate ?? slab.annualInterestRate ?? 0)}% p.a.
-                        </span>
-                        <span className="text-slate-300 text-center select-none font-bold">|</span>
-                        {Number(slab.rdMaturityPercent) > 0 ? (
-                          <span className="w-[72px] h-7 flex items-center justify-center rounded-md bg-teal-600 text-white font-mono text-xs font-bold shadow-2xs tabular-nums text-center">
-                            {Number(slab.rdMaturityPercent)}%
-                          </span>
-                        ) : (
-                          <span className="w-[72px] h-7 flex items-center justify-center rounded-md bg-slate-100 text-slate-500 font-mono text-xs font-medium tabular-nums text-center border border-slate-200">
-                            0%
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                  return (
+                    <tr key={idx} className={`border-b border-slate-300 transition-colors`}>
+                      {/* Plan Name */}
+                      <td className={`py-3.5 px-4 font-mono font-black text-slate-900 text-sm border-r border-slate-300 ${rowBg}`}>
+                        {slab.planName || `PLAN-${slab.tenureMonths}M`}
+                      </td>
 
-                    {/* One-Time Plan: Distinct warm amber/orange background with strict fixed-width column alignment */}
-                    <td className="py-3.5 px-5 bg-amber-50/30 border-l border-amber-100/70 whitespace-nowrap">
-                      <div className="grid grid-cols-[100px_16px_72px] items-center">
-                        <span className="w-[100px] h-7 flex items-center justify-center rounded-md bg-white text-amber-900 border border-amber-200 font-mono text-xs font-semibold shadow-2xs tabular-nums text-center">
-                          {Number(slab.fdAnnualInterestRate ?? slab.annualInterestRate ?? 0)}% p.a.
-                        </span>
-                        <span className="text-slate-300 text-center select-none font-bold">|</span>
-                        {Number(slab.fdMaturityPercent) > 0 ? (
-                          <span className="w-[72px] h-7 flex items-center justify-center rounded-md bg-amber-600 text-white font-mono text-xs font-bold shadow-2xs tabular-nums text-center">
-                            {Number(slab.fdMaturityPercent)}%
-                          </span>
-                        ) : (
-                          <span className="w-[72px] h-7 flex items-center justify-center rounded-md bg-slate-100 text-slate-500 font-mono text-xs font-medium tabular-nums text-center border border-slate-200">
-                            0%
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      {/* EMI Plan: Interest Rate p.a. (2 decimals) */}
+                      <td className={`py-3.5 px-4 font-mono font-bold text-slate-900 border-r border-slate-300 w-36 ${emiBg}`}>
+                        {formatRate(emiRate)}
+                      </td>
+
+                      {/* EMI Plan: Maturity % */}
+                      <td className={`py-3.5 px-4 font-mono font-extrabold text-teal-950 border-r border-slate-300 w-36 ${emiBg}`}>
+                        {formatMaturity(emiMaturity)}
+                      </td>
+
+                      {/* One Time / 100% DP Plan: Interest Rate p.a. (2 decimals) */}
+                      <td className={`py-3.5 px-4 font-mono font-bold text-slate-900 border-r border-slate-300 w-36 ${oneTimeBg}`}>
+                        {formatRate(oneTimeRate)}
+                      </td>
+
+                      {/* One Time / 100% DP Plan: Maturity % */}
+                      <td className={`py-3.5 px-4 font-mono font-extrabold text-amber-950 w-36 ${oneTimeBg}`}>
+                        {formatMaturity(oneTimeMaturity)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -206,4 +207,3 @@ const CustomerPlansPage = () => {
 };
 
 export default CustomerPlansPage;
-

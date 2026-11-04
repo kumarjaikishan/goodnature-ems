@@ -1,102 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
 import {
-  Award,
-  SlidersHorizontal,
-  Coins,
   TrendingUp,
-  Target,
-  Sparkles,
-  Gift,
-  ShieldCheck,
+  Percent,
+  Coins,
   Building2,
   Users,
-  CheckCircle2,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
-import { toast } from '../../../utils/toast';
+import { useSelector } from 'react-redux';
 
+/**
+ * CommissionStructurePage
+ * Displays:
+ *  1. Commission Slab % (Plan | Down Payment Fix Commission % | EMI Payment Fix Commission %)
+ *  2. Incentive Slab % (Performance Business Target | Performance Incentive %)
+ *  3. Reward Slab % (Yearly Performance Business Target | Yearly Performance Reward %)
+ *
+ * Refined with professional colors, subtle elegant 1px borders, and responsive 3-column layout.
+ */
 const CommissionStructurePage = () => {
-  const user = useSelector((state) => state.user);
-  const profile = user?.profile || user || {};
+  const { user } = useSelector((state) => state.auth);
 
-  // Detect whether viewer is Business Partner or Business Associate
-  const isDirectPartner = Boolean(
-    profile.isDeveloperSponsor === true ||
-    profile.sponsorCode?.startsWith('BP-') ||
-    profile.role === 'partner'
-  );
-  const isDirectAssociate = Boolean(
-    profile.isDeveloperSponsor === false ||
-    profile.sponsorCode?.startsWith('BA-') ||
-    profile.role === 'associate'
-  );
-  const isAdminOrStaff = ['superadmin', 'admin', 'manager', 'developer'].includes(profile.role);
-
-  // If Admin/Staff, let them toggle perspective; otherwise lock to their role
-  const [adminViewRole, setAdminViewRole] = useState(isDirectPartner ? 'partner' : 'associate');
-  const activeRoleMode = isAdminOrStaff ? adminViewRole : (isDirectPartner ? 'partner' : 'associate');
-
-
-
-  // For Business Partner viewing incentive tab: can view BP or BA policies
-  const [partnerIncentiveViewRole, setPartnerIncentiveViewRole] = useState('BUSINESS_PARTNER');
-
-  // Data states
   const [loading, setLoading] = useState(true);
   const [schemeConfig, setSchemeConfig] = useState(null);
   const [policyData, setPolicyData] = useState(null);
 
-  // Fetch Scheme Config (Direct Commission) & Commission Policy (Target & Extra Incentives)
+  const userRole = user?.role?.name || user?.role || '';
+  const isAdminOrStaff = ['admin', 'superadmin', 'accountant', 'manager'].includes(userRole.toLowerCase());
+  const isDirectPartner = userRole === 'BUSINESS_PARTNER' || user?.designation === 'Business Partner';
+
+  const [adminViewRole, setAdminViewRole] = useState(isDirectPartner ? 'partner' : 'associate');
+  const activeRoleMode = isAdminOrStaff ? adminViewRole : (isDirectPartner ? 'partner' : 'associate');
+
+  // For Business Partner viewing incentive tab: can view BP or BA policies
+  const [partnerIncentiveViewRole, setPartnerIncentiveViewRole] = useState('BUSINESS_PARTNER');
+
   useEffect(() => {
-    let isMounted = true;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [schemeRes, policyRes] = await Promise.all([
-          api.get('/investments/config').catch((err) => {
-            console.warn('Failed to load scheme config:', err);
-            return { data: { data: null } };
-          }),
-          api.get('/plots/commission-policy').catch((err) => {
-            console.warn('Failed to load commission policy:', err);
-            return { data: { data: null } };
-          }),
-        ]);
-
-        if (isMounted) {
-          if (schemeRes.data?.data) {
-            setSchemeConfig(schemeRes.data.data);
-          }
-          if (policyRes.data?.data) {
-            setPolicyData(policyRes.data.data);
-          }
-        }
-      } catch (err) {
-        if (isMounted) {
-          toast.error('Failed to load commission policies');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchData();
-    return () => {
-      isMounted = false;
-    };
+    fetchConfigs();
   }, []);
+
+  const fetchConfigs = async () => {
+    try {
+      setLoading(true);
+      const [schemeRes, policyRes] = await Promise.allSettled([
+        api.get('/investments/config'),
+        api.get('/plots/commission-policy'),
+      ]);
+
+      if (schemeRes.status === 'fulfilled' && schemeRes.value?.data?.success) {
+        setSchemeConfig(schemeRes.value.data.data);
+      }
+      if (policyRes.status === 'fulfilled' && policyRes.value?.data?.success) {
+        setPolicyData(policyRes.value.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching commission configuration:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="p-6 bg-slate-50 min-h-screen">
-        <PageLoader
-          title="Loading Commission Policies..."
-          subtitle="Fetching official direct commission slabs and incentive structures"
-        />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <PageLoader message="Loading commission & incentive slabs..." />
       </div>
     );
   }
@@ -104,9 +72,6 @@ const CommissionStructurePage = () => {
   const slabs = schemeConfig?.slabs || [];
   const policyRoles = policyData?.roles || [];
 
-  // Filter incentive roles according to user's identity
-  // - BA sees only BUSINESS_ASSOCIATE
-  // - BP sees BUSINESS_PARTNER or BUSINESS_ASSOCIATE (via partnerIncentiveViewRole toggle)
   const selectedPolicyRole = policyRoles.find((r) => {
     if (activeRoleMode === 'associate') {
       return r.roleName === 'BUSINESS_ASSOCIATE';
@@ -114,8 +79,26 @@ const CommissionStructurePage = () => {
     return r.roleName === partnerIncentiveViewRole;
   }) || policyRoles[0];
 
+  const targetSlabs = selectedPolicyRole?.targetSlabs || [];
+  const extraSlabs = selectedPolicyRole?.extraSlabs || [];
+
+  const formatPct = (val) => {
+    if (val === undefined || val === null || isNaN(Number(val))) return '0%';
+    const num = Number(val);
+    if (num === 0) return '0%';
+    return Number.isInteger(num) ? `${num}%` : `${num.toFixed(2)}%`;
+  };
+
+  const formatTargetRange = (slab) => {
+    if (slab.label) return slab.label;
+    if (slab.maxAmount) {
+      return `₹${Number(slab.minAmount).toLocaleString('en-IN')} - ₹${Number(slab.maxAmount).toLocaleString('en-IN')}`;
+    }
+    return `₹${Number(slab.minAmount).toLocaleString('en-IN')} & Above`;
+  };
+
   return (
-    <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto pb-24">
+    <div className="p-4 md:p-6 bg-slate-50/70 min-h-screen space-y-5 max-w-[1600px] mx-auto pb-24 font-sans text-slate-800">
       {/* ── Top Bar: Role badge & Admin perspective toggle if needed ── */}
       {isAdminOrStaff && (
         <div className="flex items-center justify-between pb-1">
@@ -149,325 +132,220 @@ const CommissionStructurePage = () => {
         </div>
       )}
 
-      {/* ── COMMISSION STRUCTURE (FIXED SLABS + INCENTIVES + REWARDS) ── */}
-      <div className="space-y-4">
-          {/* Partner Role Selector */}
-          {activeRoleMode === 'partner' && (
-            <div className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-slate-500 uppercase">View Policy For:</span>
-                <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setPartnerIncentiveViewRole('BUSINESS_PARTNER')}
-                    className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                      partnerIncentiveViewRole === 'BUSINESS_PARTNER'
-                        ? 'bg-purple-700 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    🏢 Business Partner (Self)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPartnerIncentiveViewRole('BUSINESS_ASSOCIATE')}
-                    className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                      partnerIncentiveViewRole === 'BUSINESS_ASSOCIATE'
-                        ? 'bg-teal-700 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    👥 Business Associate (Team)
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 0. Direct Fixed Commission on Bookings & Investments */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Coins size={17} className="text-teal-700" />
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">
-                    Commission Slab
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    Fixed commission percentage credited directly upon booking &amp; installment collection.
-                  </p>
-                </div>
-              </div>
-              <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
-                {slabs.length} Plans Active
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4">Plan Type</th>
-                    <th className="py-3 px-4">Plan Name</th>
-                    <th className="py-3 px-4">Tenure (अवधि)</th>
-                    {activeRoleMode === 'associate' ? (
-                      <>
-                        <th className="py-3 px-4 bg-teal-50/70 text-teal-950 font-bold">
-                          EMI %
-                        </th>
-                        <th className="py-3 px-4 bg-emerald-50/70 text-emerald-950 font-bold">
-                          One-Time %
-                        </th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="py-3 px-4 bg-purple-50/70 text-purple-950 font-bold">
-                          Partner EMI %
-                        </th>
-                        <th className="py-3 px-4 bg-purple-100/60 text-purple-950 font-bold">
-                          Partner One-Time %
-                        </th>
-                        <th className="py-3 px-4 bg-teal-50/70 text-teal-950 font-bold">
-                          Associate EMI %
-                        </th>
-                        <th className="py-3 px-4 bg-emerald-50/70 text-emerald-950 font-bold">
-                          Associate One-Time %
-                        </th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {slabs.length === 0 ? (
-                    <tr>
-                      <td colSpan={activeRoleMode === 'associate' ? 5 : 7} className="py-8 text-center text-slate-400 font-normal">
-                        No tenure slabs configured yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    slabs.map((slab, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/60 transition">
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          {Boolean(slab.showInAddBooking || slab.planType === 'REGISTRY_SALE' || slab.planName?.toLowerCase().includes('plot')) ? (
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                              Plot Booking
-                            </span>
-                          ) : (
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Investment Booking
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 font-mono font-black text-slate-800">
-                          {slab.planName || `PLAN-${slab.tenureMonths}M`}
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-700 font-semibold font-mono whitespace-nowrap">
-                          {slab.tenureMonths} Months ({Math.round((slab.tenureMonths / 12) * 10) / 10}Y)
-                        </td>
-                        {activeRoleMode === 'associate' ? (
-                          <>
-                            <td className="py-3.5 px-4 bg-teal-50/30 font-mono font-black text-teal-850 text-sm">
-                              <span className="px-2.5 py-1 rounded-lg bg-teal-100/80 text-teal-900 border border-teal-200 font-bold">
-                                {Number(slab.rdPromoterCommissionPercent ?? 4.0)}%
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 bg-emerald-50/30 font-mono font-black text-emerald-850 text-sm">
-                              <span className="px-2.5 py-1 rounded-lg bg-emerald-100/80 text-emerald-900 border border-emerald-200 font-bold">
-                                {Number(slab.fdPromoterCommissionPercent ?? 5.0)}%
-                              </span>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="py-3.5 px-4 bg-purple-50/30 font-mono text-sm">
-                              <span className="px-2.5 py-1 rounded-lg bg-purple-100/80 text-purple-900 border border-purple-200 font-black">
-                                {Number(slab.bpRdCommissionPercent ?? 1.0)}%
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 bg-purple-50/50 font-mono text-sm">
-                              <span className="px-2.5 py-1 rounded-lg bg-purple-200/70 text-purple-900 border border-purple-300 font-black">
-                                {Number(slab.bpFdCommissionPercent ?? 1.5)}%
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 bg-teal-50/30 font-mono text-sm">
-                              <span className="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 font-bold">
-                                {Number(slab.rdPromoterCommissionPercent ?? 4.0)}%
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 bg-emerald-50/30 font-mono text-sm">
-                              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-                                {Number(slab.fdPromoterCommissionPercent ?? 5.0)}%
-                              </span>
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Policy Active Details Banner */}
-          <div className="p-4 bg-gradient-to-r from-teal-50 via-emerald-50/50 to-slate-50 border border-teal-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-teal-700 text-white rounded-xl shadow-xs">
-                <Award size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                  <span>
-                    {selectedPolicyRole?.roleName === 'BUSINESS_PARTNER'
-                      ? 'Business Partner Incentive Policy'
-                      : 'Business Associate Incentive Policy'}
-                  </span>
-                  <span className="text-[10px] font-bold text-teal-700 bg-white px-2 py-0.5 rounded-full border border-teal-200">
-                    Active Cycle: {policyData?.policyName || 'Quarterly'}
-                  </span>
-                </h3>
-                <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                  Performance incentive % and performance rewards are evaluated on your total collection volume across Plot Bookings &amp; Investment Bookings.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[11px] text-slate-500 font-medium">Policy Period:</span>
-              <span className="px-2.5 py-1 bg-white font-mono font-bold text-xs text-slate-800 rounded-lg border border-slate-200">
-                {policyData?.validFrom ? new Date(policyData.validFrom).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Current Period'}
-              </span>
-            </div>
-          </div>
-
-          {/* 1. Target Collection Slabs Table */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target size={17} className="text-teal-700" />
-                <h4 className="text-sm font-bold text-slate-800">
-                  Incentive Slab
-                </h4>
-              </div>
-              <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                Quarterly Target
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4">Qualifying Collection Range</th>
-                    <th className="py-3 px-4 text-center">Performance Incentive %</th>
-                    <th className="py-3 px-4 text-center">Closing Payout Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {(!selectedPolicyRole?.targetSlabs || selectedPolicyRole.targetSlabs.length === 0) ? (
-                    <tr>
-                      <td colSpan={3} className="py-6 text-center text-slate-400 font-normal">
-                        No target collection slabs configured for this role.
-                      </td>
-                    </tr>
-                  ) : (
-                    selectedPolicyRole.targetSlabs.map((slab, sIdx) => {
-                      const incPct = Number(slab.targetIncentivePercent || 0);
-                      return (
-                        <tr key={sIdx} className="hover:bg-slate-50/50 transition">
-                          <td className="py-3.5 px-4 font-bold text-slate-800">
-                            {slab.label || (
-                              slab.maxAmount
-                                ? `₹${Number(slab.minAmount).toLocaleString('en-IN')} - ₹${Number(slab.maxAmount).toLocaleString('en-IN')}`
-                                : `₹${Number(slab.minAmount).toLocaleString('en-IN')} & Above`
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="px-3 py-1 rounded-lg bg-teal-100/90 text-teal-900 border border-teal-200 font-mono font-black text-xs">
-                              {incPct}%
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-[11px] font-semibold text-slate-600">
-                              Credited At Period Closing
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 2. Extra Incentive & Campaign Rewards Slabs */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Gift size={17} className="text-amber-600" />
-                <h4 className="text-sm font-bold text-slate-800">
-                  Reward Slab
-                </h4>
-              </div>
-              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                Milestone Rewards
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4">Milestone Turnover Slab</th>
-                    <th className="py-3 px-4">Performance Reward %</th>
-                    <th className="py-3 px-4">Official Campaign Reward Title</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {(!selectedPolicyRole?.extraSlabs || selectedPolicyRole.extraSlabs.length === 0) ? (
-                    <tr>
-                      <td colSpan={3} className="py-6 text-center text-slate-400 font-normal">
-                        No extra incentive milestone slabs configured.
-                      </td>
-                    </tr>
-                  ) : (
-                    selectedPolicyRole.extraSlabs.map((slab, eIdx) => {
-                      const primaryInc = slab.extraIncentives?.[0] || {};
-                      const extraPct = primaryInc.percent ?? slab.extraIncentivePercent ?? 0;
-                      const reward = slab.rewardTitle || primaryInc.rewardTitle || '-';
-                      return (
-                        <tr key={eIdx} className="hover:bg-slate-50/50 transition">
-                          <td className="py-3.5 px-4 font-bold text-slate-800">
-                            {slab.label || (
-                              slab.maxAmount
-                                ? `₹${Number(slab.minAmount).toLocaleString('en-IN')} - ₹${Number(slab.maxAmount).toLocaleString('en-IN')}`
-                                : `₹${Number(slab.minAmount).toLocaleString('en-IN')} & Above`
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
-                            {Number(extraPct) > 0 ? (
-                              <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 text-emerald-900 border border-emerald-200 font-mono font-black text-xs">
-                                {extraPct}%
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">Award / Gift Only</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 font-bold text-slate-800 flex items-center gap-2">
-                            <Sparkles size={14} className="text-amber-500 shrink-0" />
-                            <span>{reward}</span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+      {/* Partner Role Selector */}
+      {activeRoleMode === 'partner' && (
+        <div className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">View Policy For:</span>
+            <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPartnerIncentiveViewRole('BUSINESS_PARTNER')}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                  partnerIncentiveViewRole === 'BUSINESS_PARTNER'
+                    ? 'bg-purple-700 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Building2 size={13} /> Business Partner (Self)
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPartnerIncentiveViewRole('BUSINESS_ASSOCIATE')}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                  partnerIncentiveViewRole === 'BUSINESS_ASSOCIATE'
+                    ? 'bg-teal-700 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Users size={13} /> Business Associate (Downline Team)
+                </span>
+              </button>
             </div>
           </div>
         </div>
+      )}
 
+      {/* ── 3 INCENTIVE SLAB TABLES IN ONE HORIZONTAL ROW (RESPONSIVE IN MOBILE) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+        {/* ═══════════ TABLE 1: COMMISSION SLAB % ═══════════ */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
+          {/* Main Table Banner */}
+          <div className="h-14 px-4 bg-emerald-50/90 flex items-center justify-center border-b border-slate-200">
+            <div className="inline-flex items-center justify-center gap-2">
+              <Coins size={16} className="text-emerald-700" />
+              <h2 className="text-sm sm:text-base font-bold uppercase tracking-wider text-emerald-950">
+                Commission Slab %
+              </h2>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1 flex flex-col">
+            <table className="w-full text-center text-xs border-collapse">
+              <thead>
+                <tr className="h-12 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50/80">
+                  <th className="py-2 px-3 border-r border-slate-200 w-24">
+                    Plan
+                  </th>
+                  <th className="py-2 px-3 border-r border-slate-200 leading-tight">
+                    Down Payment Fix Commission %
+                  </th>
+                  <th className="py-2 px-3 leading-tight">
+                    EMI Payment Fix Commission %
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="font-medium text-slate-800">
+                {slabs.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-slate-400 font-normal">
+                      No plans configured yet.
+                    </td>
+                  </tr>
+                ) : (
+                  slabs.map((slab, idx) => {
+                    const isEven = idx % 2 === 0;
+                    const rowBg = isEven ? 'bg-white' : 'bg-slate-50/70 hover:bg-slate-100/60';
+
+                    const dpComm = activeRoleMode === 'associate'
+                      ? slab.fdPromoterCommissionPercent
+                      : slab.bpFdCommissionPercent;
+
+                    const emiComm = activeRoleMode === 'associate'
+                      ? slab.rdPromoterCommissionPercent
+                      : slab.bpRdCommissionPercent;
+
+                    return (
+                      <tr key={idx} className={`h-11 border-b border-slate-200 transition-colors ${rowBg}`}>
+                        <td className="py-2 px-3 font-mono font-bold border-r border-slate-200 text-xs text-slate-900">
+                          {slab.planName || `PLAN-${slab.tenureMonths}M`}
+                        </td>
+                        <td className="py-2 px-3 font-mono font-bold border-r border-slate-200 text-xs text-emerald-800">
+                          {formatPct(dpComm)}
+                        </td>
+                        <td className="py-2 px-3 font-mono font-bold text-xs text-teal-800">
+                          {formatPct(emiComm)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ═══════════ TABLE 2: INCENTIVE SLAB % ═══════════ */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
+          {/* Main Table Banner */}
+          <div className="h-14 px-4 bg-sky-50/90 flex items-center justify-center border-b border-slate-200">
+            <div className="inline-flex items-center justify-center gap-2">
+              <TrendingUp size={16} className="text-sky-700" />
+              <h2 className="text-sm sm:text-base font-bold uppercase tracking-wider text-sky-950">
+                Incentive Slab %
+              </h2>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1 flex flex-col">
+            <table className="w-full text-center text-xs border-collapse">
+              <thead>
+                <tr className="h-12 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50/80">
+                  <th className="py-2 px-3 border-r border-slate-200 leading-tight">
+                    Performance Business Target
+                  </th>
+                  <th className="py-2 px-3 leading-tight w-32">
+                    Performance Incentive %
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="font-medium text-slate-800">
+                {targetSlabs.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="py-6 text-center text-slate-400 font-normal">
+                      No incentive target slabs configured.
+                    </td>
+                  </tr>
+                ) : (
+                  targetSlabs.map((slab, idx) => {
+                    const isEven = idx % 2 === 0;
+                    const rowBg = isEven ? 'bg-white' : 'bg-slate-50/70 hover:bg-slate-100/60';
+                    const incPct = slab.targetIncentivePercent ?? 0;
+
+                    return (
+                      <tr key={idx} className={`h-11 border-b border-slate-200 transition-colors ${rowBg}`}>
+                        <td className="py-2 px-3 font-semibold border-r border-slate-200 text-xs text-slate-900">
+                          {formatTargetRange(slab)}
+                        </td>
+                        <td className="py-2 px-3 font-mono font-bold text-xs text-sky-800">
+                          {formatPct(incPct)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ═══════════ TABLE 3: REWARD SLAB % ═══════════ */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
+          {/* Main Table Banner */}
+          <div className="h-14 px-4 bg-teal-50/90 flex items-center justify-center border-b border-slate-200">
+            <div className="inline-flex items-center justify-center gap-2">
+              <Percent size={16} className="text-teal-700" />
+              <h2 className="text-sm sm:text-base font-bold uppercase tracking-wider text-teal-950">
+                Reward Slab %
+              </h2>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1 flex flex-col">
+            <table className="w-full text-center text-xs border-collapse">
+              <thead>
+                <tr className="h-12 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50/80">
+                  <th className="py-2 px-3 border-r border-slate-200 leading-tight">
+                    Yearly Performance Business Target
+                  </th>
+                  <th className="py-2 px-3 leading-tight w-32">
+                    Yearly Performance Reward %
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="font-medium text-slate-800">
+                {extraSlabs.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="py-6 text-center text-slate-400 font-normal">
+                      No yearly reward slabs configured.
+                    </td>
+                  </tr>
+                ) : (
+                  extraSlabs.map((slab, idx) => {
+                    const isEven = idx % 2 === 0;
+                    const rowBg = isEven ? 'bg-white' : 'bg-slate-50/70 hover:bg-slate-100/60';
+                    const rewardPct = slab.extraIncentivePercent ?? 0;
+
+                    return (
+                      <tr key={idx} className={`h-11 border-b border-slate-200 transition-colors ${rowBg}`}>
+                        <td className="py-2 px-3 font-semibold border-r border-slate-200 text-xs text-slate-900">
+                          {formatTargetRange(slab)}
+                        </td>
+                        <td className="py-2 px-3 font-mono font-bold text-xs text-teal-800">
+                          {formatPct(rewardPct)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

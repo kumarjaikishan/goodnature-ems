@@ -1693,6 +1693,12 @@ class KisanLandService {
     if (query.status) {
       filter.status = query.status;
     }
+    if (query.unhiddenOnly === 'true' || query.unhiddenOnly === true) {
+      filter.isHidden = { $ne: true };
+    }
+    if (query.isHidden !== undefined) {
+      filter.isHidden = query.isHidden === 'true' || query.isHidden === true;
+    }
 
     const projects = await PlotProject.find(filter)
       .populate('createdById', 'name email')
@@ -1715,7 +1721,7 @@ class KisanLandService {
    * Create a new Project
    */
   async createProject(data, userId = null) {
-    const { name, code, location, description, status, showInAddBooking } = data;
+    const { name, code, location, description, status, showInAddBooking, isHidden } = data;
     if (!name || !name.trim()) {
       throw ApiError.badRequest('Project name is required');
     }
@@ -1732,6 +1738,7 @@ class KisanLandService {
       description: description ? description.trim() : '',
       status: status || 'ACTIVE',
       showInAddBooking: Boolean(showInAddBooking),
+      isHidden: Boolean(isHidden),
       createdById: userId,
     });
 
@@ -1762,6 +1769,7 @@ class KisanLandService {
     if (data.description !== undefined) project.description = data.description ? data.description.trim() : '';
     if (data.status !== undefined) project.status = data.status;
     if (data.showInAddBooking !== undefined) project.showInAddBooking = Boolean(data.showInAddBooking);
+    if (data.isHidden !== undefined) project.isHidden = Boolean(data.isHidden);
     project.updatedById = userId;
 
     await project.save();

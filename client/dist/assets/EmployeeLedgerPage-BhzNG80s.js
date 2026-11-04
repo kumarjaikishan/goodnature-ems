@@ -1,1 +1,0 @@
-import"./rolldown-runtime-hePW80VL.js";import{Yn as e,t}from"./vendor-react-CPmUdLAT.js";import{t as n}from"./ledgerpagelist-sFZWdwAx.js";e();var r=t(),i=()=>(0,r.jsx)(n,{category:`employee`,defaultView:`table`});export{i as default};

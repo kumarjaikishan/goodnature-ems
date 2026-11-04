@@ -202,6 +202,19 @@ class PlotConfigService {
       }
     );
 
+    // Sync unbooked plots with the updated baseSqFtRate and recalculate effectiveRate & totalPlotValue
+    if (config.baseSqFtRate) {
+      const Plot = require('../../models/Plot');
+      const unbookedPlots = await Plot.find({ status: { $in: ['AVAILABLE', 'HOLD'] } });
+      for (const p of unbookedPlots) {
+        p.baseRate = config.baseSqFtRate;
+        const multiplier = this.calculatePlotMultiplier(p, config);
+        p.effectiveRate = Math.round(config.baseSqFtRate * multiplier * 100) / 100;
+        p.totalPlotValue = Math.round((Number(p.plotSize) || 0) * p.effectiveRate);
+        await p.save();
+      }
+    }
+
     return config;
   }
 

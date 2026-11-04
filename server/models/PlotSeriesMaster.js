@@ -96,6 +96,11 @@ const plotSeriesMasterSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    isHidden: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive'],
