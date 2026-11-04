@@ -242,8 +242,8 @@ const ReceiptViewer = () => {
 
         {/* Payment Receipt Title */}
         <div className="text-center mb-3 select-none relative z-10">
-          <span className={`px-4 py-1 text-[1rem] font-black uppercase tracking-wider rounded-sm ${receipt?.status === 'PENDING' ? 'text-amber-800 bg-amber-50 border border-amber-300' : receipt?.status === 'REJECTED' ? 'text-rose-800 bg-rose-50 border border-rose-300' : 'text-slate-900'}`}>
-            Payment Receipt {receipt?.status && receipt?.status !== 'APPROVED' ? `(${receipt.status === 'PENDING' ? 'PENDING APPROVAL' : 'REJECTED'})` : ''}
+          <span className="px-4 py-1 text-[1rem] font-black uppercase tracking-wider rounded-sm text-slate-900">
+            Payment Receipt
           </span>
         </div>
 
@@ -303,6 +303,33 @@ const ReceiptViewer = () => {
               </td>
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
+                  <span>Guardian / S/o</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="p-2 font-bold text-slate-900">
+                {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName ? (
+                  <span>
+                    {customer.relationType ? `${customer.relationType} ` : ''}
+                    {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName}
+                  </span>
+                ) : (
+                  '-'
+                )}
+              </td>
+            </tr>
+
+            {/* Row 3 */}
+            <tr className="border-b border-slate-100">
+              <td className="p-2 text-slate-500 font-medium">
+                <div className="flex justify-between items-center">
+                  <span>Address</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="p-2 font-bold text-slate-900">{customer.address || '-'}</td>
+              <td className="p-2 text-slate-500 font-medium">
+                <div className="flex justify-between items-center">
                   <span>{isProductReceipt ? 'Product / Unit' : 'Plot Number'}</span>
                   <span>:</span>
                 </div>
@@ -331,17 +358,6 @@ const ReceiptViewer = () => {
                   })()
                 )}
               </td>
-            </tr>
-
-            {/* Row 3 (Address takes full width) */}
-            <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Address</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td colSpan={3} className="p-2 font-bold text-slate-900">{customer.address || '-'}</td>
             </tr>
 
             {/* Row 4 */}
@@ -455,30 +471,7 @@ const ReceiptViewer = () => {
               </>
             )}
 
-            {/* Customer Bank Details for all Non-Cash Payments */}
-            {receipt.paymentMode !== 'cash' && (receipt.bankName || receipt.accountNumber || receipt.ifscCode) && (
-              <tr className="border-b border-slate-100 bg-slate-50/50">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Customer Bank Details</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td colSpan={3} className="p-2 font-bold text-slate-800 text-xs">
-                  <span>{receipt.bankName || 'Bank'}</span>
-                  {receipt.bankBranch && <span className="text-slate-600 font-normal"> ({receipt.bankBranch})</span>}
-                  {receipt.accountNumber && (
-                    <span className="ml-2 font-mono">| A/C: {receipt.accountNumber}</span>
-                  )}
-                  {receipt.accountHolderName && (
-                    <span className="ml-2 text-slate-600 font-normal">| Holder: {receipt.accountHolderName}</span>
-                  )}
-                  {receipt.ifscCode && (
-                    <span className="ml-2 font-mono text-slate-700">| IFSC: {receipt.ifscCode}</span>
-                  )}
-                </td>
-              </tr>
-            )}
+
 
 
 

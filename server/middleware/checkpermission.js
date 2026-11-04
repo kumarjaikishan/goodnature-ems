@@ -109,9 +109,12 @@ const checkPermission = (permissionName, key) => {
                     if (['associate', 'partner'].includes(name) && perms.hasOwnProperty('plot_sponsor') && Array.isArray(perms.plot_sponsor) && perms.plot_sponsor.includes(key)) {
                         return true;
                     }
-                    // Fallback for plot_purchase and kisan_seller -> plot_inventory (if explicit key is not defined on older user records)
-                    if (['plot_purchase', 'kisan_seller'].includes(name) && !perms.hasOwnProperty(name)) {
+                    // Fallback for plot_purchase, kisan_seller and purchasers_master -> plot_inventory / plot_purchase (if explicit key is not defined on older user records)
+                    if (['plot_purchase', 'kisan_seller', 'purchasers_master'].includes(name) && !perms.hasOwnProperty(name)) {
                         if (perms.hasOwnProperty('plot_inventory') && Array.isArray(perms.plot_inventory) && perms.plot_inventory.includes(key)) {
+                            return true;
+                        }
+                        if (perms.hasOwnProperty('plot_purchase') && Array.isArray(perms.plot_purchase) && perms.plot_purchase.includes(key)) {
                             return true;
                         }
                     }

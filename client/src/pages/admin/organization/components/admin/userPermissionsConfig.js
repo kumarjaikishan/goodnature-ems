@@ -35,6 +35,7 @@ export const AllPermissionNames = [
     // 3. Real Estate: Land Procurement & Kisans
     "plot_purchase",
     "kisan_seller",
+    "purchasers_master",
 
     // 4. Real Estate: Master Inventory & Channels
     "plot_inventory",
@@ -89,6 +90,7 @@ export const MODULE_DISPLAY_NAMES = {
     // Real Estate: Land Procurement & Kisans
     plot_purchase: "Plot Purchase & Land Agreements",
     kisan_seller: "Land Sellers / Kisans Directory (Add / Edit Kisans)",
+    purchasers_master: "Purchasers / Authorized Buyers Master (Add / Edit Buyers)",
 
     // Real Estate: Master Inventory & Channels
     plot_inventory: "Plot Inventory & Series Master",
@@ -150,6 +152,7 @@ export const MODULE_CATEGORIES = [
         modules: [
             "plot_purchase",
             "kisan_seller",
+            "purchasers_master",
             "plot_inventory",
             "plot_customer",
             "associate",
@@ -207,6 +210,7 @@ export const adminPermission = {
     weekly_off_ledger: [1, 2, 3, 4],
     plot_purchase: [1, 2, 3, 4],
     kisan_seller: [1, 2, 3, 4],
+    purchasers_master: [1, 2, 3, 4],
     plot_inventory: [1, 2, 3, 4],
     plot_booking: [1, 2, 3, 4],
     investment_booking: [1, 2, 3, 4],
@@ -247,6 +251,7 @@ export const managerPermission = {
     weekly_off_ledger: [1, 2, 3],
     plot_purchase: [1, 2, 3],
     kisan_seller: [1, 2, 3],
+    purchasers_master: [1, 2, 3],
     plot_inventory: [1],
     plot_booking: [1, 2, 3],
     investment_booking: [1, 2, 3],
@@ -287,6 +292,7 @@ export const accountantPermission = {
     weekly_off_ledger: [1],
     plot_purchase: [1],
     kisan_seller: [1],
+    purchasers_master: [1],
     plot_inventory: [],
     plot_booking: [1],
     investment_booking: [1],
@@ -407,6 +413,7 @@ export const salesPermission = {
     weekly_off_ledger: [],
     plot_purchase: [1],
     kisan_seller: [1],
+    purchasers_master: [1],
     plot_inventory: [1],
     plot_booking: [1, 2, 3],
     investment_booking: [1, 2, 3],
@@ -441,6 +448,7 @@ export const auditorPermission = {
     kisan_ledger: [1],
     plot_purchase: [1],
     kisan_seller: [1],
+    purchasers_master: [1],
     plot_inventory: [1],
     plot_booking: [1],
     investment_booking: [1],

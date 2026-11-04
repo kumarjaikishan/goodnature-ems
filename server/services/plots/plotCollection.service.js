@@ -1204,7 +1204,7 @@ class PlotCollectionService {
         .populate({
           path: 'bookingId',
           populate: [
-            { path: 'customerId', select: 'name customerId mobile address email' },
+            { path: 'customerId', select: 'name customerId mobile address email fatherOrHusbandName relationType guardianName' },
             { path: 'sponsorId', select: 'name customerId' },
             { path: 'plotId', populate: { path: 'seriesId' } }
           ],
@@ -1223,7 +1223,7 @@ class PlotCollectionService {
         .populate({
           path: 'bookingId',
           populate: [
-            { path: 'customerId', select: 'name customerId mobile address email' },
+            { path: 'customerId', select: 'name customerId mobile address email fatherOrHusbandName relationType guardianName' },
             { path: 'sponsorId', select: 'name customerId' },
             { path: 'plotId', populate: { path: 'seriesId' } },
           ],

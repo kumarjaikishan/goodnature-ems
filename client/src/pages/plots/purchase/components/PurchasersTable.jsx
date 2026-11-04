@@ -16,12 +16,17 @@ import { Modalbox, Input, Button, PhoneInput, AadhaarInput, PanInput } from '../
 import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
+import { usePermission } from '../../../../utils/CheckPermission';
 
 const PurchasersTable = ({
   purchasers = [],
   loading = false,
   fetchPurchasers,
 }) => {
+  const canCreate = usePermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 2);
+  const canUpdate = usePermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 3);
+  const canDelete = usePermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 4);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPurchaser, setEditingPurchaser] = useState(null);
@@ -150,14 +155,16 @@ const PurchasersTable = ({
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>Add New Purchaser / Buyer</span>
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>Add New Purchaser / Buyer</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -175,14 +182,16 @@ const PurchasersTable = ({
             <p className="text-[11px] text-slate-400">
               Add company entities or individual buyers to default them in Plot Purchase agreements.
             </p>
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 font-bold text-xs rounded-xl border border-teal-200/60 hover:bg-teal-100 transition cursor-pointer"
-            >
-              <Plus size={13} />
-              <span>Add New Purchaser</span>
-            </button>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 font-bold text-xs rounded-xl border border-teal-200/60 hover:bg-teal-100 transition cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Add New Purchaser</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -253,7 +262,7 @@ const PurchasersTable = ({
                           <Star size={12} className="fill-amber-500 text-amber-500" />
                           <span>Default Buyer</span>
                         </span>
-                      ) : (
+                      ) : canUpdate ? (
                         <button
                           type="button"
                           onClick={() => handleSetDefault(p)}
@@ -261,26 +270,32 @@ const PurchasersTable = ({
                         >
                           Make Default
                         </button>
+                      ) : (
+                        <span className="text-slate-300">-</span>
                       )}
                     </td>
                     <td className="p-3.5 pr-5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(p)}
-                          className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
-                          title="Edit Purchaser"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(p)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                          title="Delete Purchaser"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(p)}
+                            className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                            title="Edit Purchaser"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(p)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="Delete Purchaser"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -41,9 +41,9 @@ export const hasPermission = (profile, resource, action = 1) => {
             }
         }
 
-        // 3. Fallback for plot_purchase and kisan_seller -> plot_inventory (if not explicitly defined)
-        if (['plot_purchase', 'kisan_seller'].includes(res) && !permissions.hasOwnProperty(res)) {
-            const invPerms = permissions['plot_inventory'];
+        // 3. Fallback for plot_purchase, kisan_seller and purchasers_master -> plot_inventory / plot_purchase (if not explicitly defined)
+        if (['plot_purchase', 'kisan_seller', 'purchasers_master'].includes(res) && !permissions.hasOwnProperty(res)) {
+            const invPerms = permissions['plot_inventory'] || permissions['plot_purchase'];
             if (Array.isArray(invPerms) && invPerms.includes(action)) {
                 return true;
             }

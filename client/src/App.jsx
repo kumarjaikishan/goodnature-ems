@@ -186,7 +186,7 @@ const managementRoutes = (
     <Route path="vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherDetails /></RoutePermissionGuard>} />
 
     <Route path="plots/purchase" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
-    <Route path="plots/purchasers" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PurchasersMasterPage /></RoutePermissionGuard>} />
+    <Route path="plots/purchasers" element={<RoutePermissionGuard resource={["purchasers_master", "plot_purchase", "plot_inventory"]} action={1}><PurchasersMasterPage /></RoutePermissionGuard>} />
     <Route path="plots/purchase/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
     <Route path="plots/agreements" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
     <Route path="plots/kisan-land" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />

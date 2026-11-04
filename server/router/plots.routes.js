@@ -209,11 +209,11 @@ router.put('/kisan-sellers/:id', checkPermission(['kisan_seller', 'plot_purchase
 router.delete('/kisan-sellers/:id', checkPermission(['kisan_seller', 'plot_purchase', 'kisan_ledger'], 4), ctrl.deleteKisanSeller);
 
 // ── Purchaser / Buyer Directory Master ──
-router.get('/purchasers', checkPermission(['plot_purchase', 'plot_inventory'], 1), ctrl.getPurchasers);
-router.post('/purchasers', checkPermission(['plot_purchase', 'plot_inventory'], 2), ctrl.createPurchaser);
-router.put('/purchasers/:id', checkPermission(['plot_purchase', 'plot_inventory'], 3), ctrl.updatePurchaser);
-router.put('/purchasers/:id/set-default', checkPermission(['plot_purchase', 'plot_inventory'], 3), ctrl.setDefaultPurchaser);
-router.delete('/purchasers/:id', checkPermission(['plot_purchase', 'plot_inventory'], 4), ctrl.deletePurchaser);
+router.get('/purchasers', checkPermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 1), ctrl.getPurchasers);
+router.post('/purchasers', checkPermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 2), ctrl.createPurchaser);
+router.put('/purchasers/:id', checkPermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 3), ctrl.updatePurchaser);
+router.put('/purchasers/:id/set-default', checkPermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 3), ctrl.setDefaultPurchaser);
+router.delete('/purchasers/:id', checkPermission(['purchasers_master', 'plot_purchase', 'plot_inventory'], 4), ctrl.deletePurchaser);
 
 // ── Project Master Directory ──
 router.get('/projects', (req, res, next) => {

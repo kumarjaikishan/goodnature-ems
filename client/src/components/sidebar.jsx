@@ -192,7 +192,7 @@ const Sidebar = () => {
           children: [
 
             { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
-            { menu: "Purchasers / Buyers", link: "/dashboard/plots/purchasers", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
+            { menu: "Purchasers / Buyers", link: "/dashboard/plots/purchasers", roles: OPERATIONAL_ROLES, resource: ["purchasers_master", "plot_purchase", "plot_inventory"] },
             { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
             { menu: "Plot Availability", link: "/dashboard/plots/availability", roles: OPERATIONAL_ROLES, resource: ["plot_inventory", "plot_booking"] },
             { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
