@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Filter, RefreshCw, Building2 } from 'lucide-react';
+import { Filter, RefreshCw, Building2 } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const FY_OPTIONS = [
@@ -27,7 +27,6 @@ export const ExecutiveFilterBar = ({
   availableBranches = [],
   onRefresh,
   loading = false,
-  dateLabel = ''
 }) => {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
@@ -63,15 +62,8 @@ export const ExecutiveFilterBar = ({
           })}
         </div>
 
-        {/* Active Range Badge & Refresh */}
+        {/* Refresh Action Button */}
         <div className="flex items-center gap-2">
-          {dateLabel && (
-            <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold px-3 py-1 rounded-xl">
-              <Calendar size={13} className="text-teal-700 shrink-0" />
-              <span>{dateLabel}</span>
-            </div>
-          )}
-
           <button
             type="button"
             onClick={onRefresh}

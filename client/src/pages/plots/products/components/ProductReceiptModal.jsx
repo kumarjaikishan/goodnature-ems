@@ -97,7 +97,18 @@ const ProductReceiptModal = ({ open, onClose, collection }) => {
                 </div>
               ) : null}
               <div>
-                <h1 className="text-xl font-black tracking-tight text-teal-900 uppercase">
+                <img
+                  src="/name_and_tagline.webp"
+                  alt={companyName}
+                  className="h-10 object-contain object-left mb-1"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) {
+                      e.currentTarget.nextSibling.style.display = 'block';
+                    }
+                  }}
+                />
+                <h1 className="hidden text-xl font-black tracking-tight text-teal-900 uppercase">
                   {companyName}
                 </h1>
                 <p className="text-xs text-slate-500 font-medium">{companyAddress}</p>

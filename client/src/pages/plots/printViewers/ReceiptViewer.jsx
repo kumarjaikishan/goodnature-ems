@@ -232,9 +232,22 @@ const ReceiptViewer = () => {
                   <img src={cloudinaryUrl(company.logo, { format: "webp", width: 120, height: 120 })} alt="Company Logo" className="w-full h-full object-contain" />
                 </div>
               ) : null}
-              <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">{companyName}</h1>
-                <p className="text-[10px] text-gray-500">Plot Management & Development</p>
+              <div className="flex flex-col">
+                <img
+                  src="/name_and_tagline.webp"
+                  alt={companyName}
+                  className="h-10 object-contain object-left"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) {
+                      e.currentTarget.nextSibling.style.display = 'block';
+                    }
+                  }}
+                />
+                <div className="hidden">
+                  <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">{companyName}</h1>
+                  <p className="text-[10px] text-gray-500">Plot Management & Development</p>
+                </div>
               </div>
             </div>
 

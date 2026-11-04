@@ -87,7 +87,7 @@ const PlotAvailabilityPage = () => {
         setRateConfig(rateRes.data.data);
       }
 
-      if (!selectedProjectId && unhiddenProjects.length > 0) {
+      if ((!selectedProjectId || selectedProjectId === 'ALL') && unhiddenProjects.length > 0) {
         setSelectedProjectId(String(unhiddenProjects[0]._id));
       }
     } catch (err) {
@@ -256,7 +256,7 @@ const PlotAvailabilityPage = () => {
           <div className="md:col-span-5">
             <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
               <Building2 size={13} className="text-slate-500" />
-              Project (परियोजना)
+              Project
             </label>
             <select
               value={selectedProjectId}
@@ -266,7 +266,7 @@ const PlotAvailabilityPage = () => {
               }}
               className="w-full h-9 bg-white border border-slate-300 focus:ring-1 focus:ring-slate-400 outline-none px-3 rounded-lg text-xs font-medium text-slate-800 transition cursor-pointer"
             >
-              <option value="ALL">All Projects (समस्त परियोजनाएँ)</option>
+              {projects.length === 0 && <option value="">No Projects Available</option>}
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>
                   {p.name} {p.location ? `— ${p.location}` : ''}
@@ -332,12 +332,12 @@ const PlotAvailabilityPage = () => {
             onClick={() => setStatusFilter('ALL')}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
               statusFilter === 'ALL'
-                ? 'bg-slate-900 text-white border-slate-900'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
             <span>All Plots</span>
-            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'ALL' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'ALL' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {metrics.total}
             </span>
           </button>
@@ -348,13 +348,13 @@ const PlotAvailabilityPage = () => {
             onClick={() => setStatusFilter('AVAILABLE')}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
               statusFilter === 'AVAILABLE'
-                ? 'bg-slate-900 text-white border-slate-900'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>Available</span>
-            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'AVAILABLE' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'AVAILABLE' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {metrics.available}
             </span>
           </button>
@@ -365,13 +365,13 @@ const PlotAvailabilityPage = () => {
             onClick={() => setStatusFilter('BOOKED')}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
               statusFilter === 'BOOKED'
-                ? 'bg-slate-900 text-white border-slate-900'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span className="w-2 h-2 rounded-full bg-rose-500" />
             <span>Booked</span>
-            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'BOOKED' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'BOOKED' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {metrics.booked}
             </span>
           </button>
@@ -382,13 +382,13 @@ const PlotAvailabilityPage = () => {
             onClick={() => setStatusFilter('HOLD')}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
               statusFilter === 'HOLD'
-                ? 'bg-slate-900 text-white border-slate-900'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-500" />
             <span>Hold</span>
-            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'HOLD' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'HOLD' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {metrics.hold}
             </span>
           </button>
@@ -399,13 +399,13 @@ const PlotAvailabilityPage = () => {
             onClick={() => setStatusFilter('REGISTERED')}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
               statusFilter === 'REGISTERED'
-                ? 'bg-slate-900 text-white border-slate-900'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-slate-600" />
+            <span className="w-2 h-2 rounded-full bg-purple-500" />
             <span>Registered</span>
-            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'REGISTERED' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.2 rounded ${statusFilter === 'REGISTERED' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {metrics.registered}
             </span>
           </button>

@@ -16,6 +16,7 @@ import { swal } from './utils/confirmDialog';
 import { isTokenValid, clearAuthSession, getRoleFromToken } from './utils/auth';
 import RoutePermissionGuard from './utils/RoutePermissionGuard';
 import ErrorBoundary from './components/ErrorBoundary';
+import PageLoader from './components/common/PageLoader';
 // import  Errorpage  from './pages/error/Errorpage';
 
 
@@ -535,67 +536,35 @@ function App() {
       />
       <ScrollToTop />
       <ErrorBoundary>
-      <Suspense
-        fallback={<div className="flex items-center justify-center h-screen w-screen bg-white">
-          <div className="relative">
-            <Settings
-              className="animate-spin"
-              style={{ animationDuration: "2.5s" }}
-              size={60}
-              color="teal"
-            />
-            <Settings
-              className="absolute -bottom-4 left-0 animate-spin"
-              style={{ animationDuration: "3s" }}
-              size={25}
-              color="teal"
-            />
-          </div>
-        </div>}
-      >
-        {hasValidAuth && !effectiveRole ? (
-          <div className="flex items-center justify-center h-screen w-screen bg-white">
-            <div className="relative">
-              <Settings
-                className="animate-spin"
-                style={{ animationDuration: "2.5s" }}
-                size={60}
-                color="teal"
+        <Suspense fallback={<PageLoader fullScreen={true} />}>
+          {hasValidAuth && !effectiveRole ? (
+            <PageLoader fullScreen={true} />
+          ) : (
+            <Routes>
+              {/* Public routes */}
+              <Route path="/resetpassword/:token" element={<PasswordReset />} />
+
+              <Route
+                path="/login"
+                element={hasValidAuth ? <Navigate to="/dashboard" replace /> : <Login />}
               />
-              <Settings
-                className="absolute -bottom-4 left-0 animate-spin"
-                style={{ animationDuration: "3s" }}
-                size={25}
-                color="teal"
+              <Route
+                path="/"
+                element={!hasValidAuth ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
               />
-            </div>
-          </div>
-        ) : (
-          <Routes>
-            {/* Public routes */}
-            <Route path="/resetpassword/:token" element={<PasswordReset />} />
+              <Route path="/logout" element={<Logout />} />
 
-            <Route
-              path="/login"
-              element={hasValidAuth ? <Navigate to="/dashboard" replace /> : <Login />}
-            />
-            <Route
-              path="/"
-              element={!hasValidAuth ? <Navigate to="/login" replace /> : <Navigate to="/dashboard" replace />}
-            />
-            <Route path="/logout" element={<Logout />} />
+              {/* Role based routes */}
+              {roleRoute}
 
-            {/* Role based routes */}
-            {roleRoute}
-
-            {/* Fallback */}
-            <Route
-              path="*"
-              element={!hasValidAuth ? <Navigate to="/login" replace /> : <Errorpage />}
-            />
-          </Routes>
-        )}
-      </Suspense>
+              {/* Fallback */}
+              <Route
+                path="*"
+                element={!hasValidAuth ? <Navigate to="/login" replace /> : <Errorpage />}
+              />
+            </Routes>
+          )}
+        </Suspense>
       </ErrorBoundary>
     </>
   );

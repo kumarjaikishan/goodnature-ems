@@ -1,5 +1,16 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Plot Availability Scoped to Business Associate & Partner Portals Only [COMPLETED]**:
+  - **Requirement**: Removed "Plot Availability" from Admin / Superadmin / Management "Plot Management" sidebar menu (`client/src/components/sidebar.jsx`), keeping it exclusively in the Business Associate & Partner (`roles: ["sponsor"]`) sidebar at `/dashboard/plot-availability`.
+  - **Build Status**: Verified via `npm run build --prefix client` (Exit code 0).
+
+- **Branded Good Feel Loader & Clean Full-Screen Restructure [COMPLETED]**:
+  - **Requirement**:
+    1. Redesign system loaders (`PageLoader.jsx`, `ContentLoader.jsx`, `utils/loader.jsx`) to feature the Good Feel brand logo with a smooth breathing zoom-in / zoom-out animation and ambient gradient backlight glow.
+    2. Remove the old rotating dashed gears and outer box pod as requested by the user, leaving a floating emblem with sleek uppercase `LOADING` and animated wave dots / micro-progress bar.
+    3. Ensure `App.jsx` cleanly uses `<PageLoader fullScreen={true} />` as the top-level Suspense and session-check fallback while routing directly to dashboard and views without premature or double loaders.
+  - **Build Status**: Verified via `npm run build --prefix client` (Exit code 0).
+
 - **Plot & Project Hide/Unhide Feature and Business Associate/Partner Availability Portal [COMPLETED]**:
   - **Requirement**:
     1. On `Plot Series Master` (`/dashboard/plots/series-master`), give admin the capability to hide any plot or an entire project.

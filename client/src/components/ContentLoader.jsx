@@ -1,40 +1,83 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
 
 const ContentLoader = () => {
-    return (
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] w-full transition-all duration-500 animate-in fade-in">
-            <div className="relative flex items-center justify-center">
-                {/* Background soft glow */}
-                <div className="absolute inset-0 bg-teal-500/10 blur-3xl rounded-full scale-150 animate-pulse"></div>
-                
-                <div className="relative z-10 animate-spin [animation-duration:3s]">
-                    <Settings
-                        className="text-teal-600 drop-shadow-lg"
-                        size={60}
-                    />
-                </div>
-                
-                <div className="absolute -bottom-2 -right-2 z-20 animate-spin [animation-direction:reverse] [animation-duration:2s]">
-                    <Settings
-                        className="text-teal-400 drop-shadow-md"
-                        size={25}
-                    />
-                </div>
-            </div>
-            
-            <div className="mt-8 flex flex-col items-center animate-in fade-in duration-500 delay-150">
-                <p className="text-teal-700 font-semibold tracking-wide text-sm uppercase opacity-80">
-                    Loading Content
-                </p>
-                <div className="mt-2 flex gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce [animation-delay:0ms]"></span>
-                    <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce [animation-delay:150ms]"></span>
-                    <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-bounce [animation-delay:300ms]"></span>
-                </div>
-            </div>
+  return (
+    <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] w-full transition-all duration-500 animate-in fade-in select-none">
+      <style>{`
+        @keyframes gfBreathing {
+          0%, 100% {
+            transform: scale(0.90);
+            filter: drop-shadow(0 4px 14px rgba(13, 148, 136, 0.15));
+          }
+          50% {
+            transform: scale(1.10);
+            filter: drop-shadow(0 14px 28px rgba(13, 148, 136, 0.28));
+          }
+        }
+        @keyframes gfAuraPulse {
+          0%, 100% {
+            transform: scale(0.85);
+            opacity: 0.30;
+          }
+          50% {
+            transform: scale(1.25);
+            opacity: 0.65;
+          }
+        }
+        @keyframes gfStream {
+          0% {
+            transform: translateX(-100%);
+          }
+          50% {
+            transform: translateX(120%);
+          }
+          100% {
+            transform: translateX(300%);
+          }
+        }
+        .animate-gf-breathing {
+          animation: gfBreathing 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        .animate-gf-aura {
+          animation: gfAuraPulse 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        .animate-gf-stream {
+          animation: gfStream 1.8s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Centerpiece Container */}
+      <div className="relative flex items-center justify-center w-28 h-28">
+        <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-teal-500/25 via-emerald-400/20 to-teal-300/25 blur-2xl animate-gf-aura pointer-events-none" />
+        <img
+          src="/logo.webp"
+          alt="Good Feel Logo"
+          className="relative w-20 h-20 object-contain animate-gf-breathing select-none z-10"
+          onError={(e) => {
+            e.currentTarget.src = '/favicon.png';
+          }}
+        />
+      </div>
+
+      {/* Typography & Stream Bar */}
+      <div className="mt-5 flex flex-col items-center gap-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold tracking-[0.28em] text-slate-700 uppercase">
+            Loading
+          </span>
+          <span className="flex items-center gap-1 ml-0.5">
+            <span className="w-1 h-1 rounded-full bg-teal-600 animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-1 h-1 rounded-full bg-teal-600 animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" />
+          </span>
         </div>
-    );
+
+        <div className="w-28 h-[2.5px] bg-slate-200/80 rounded-full overflow-hidden relative">
+          <div className="absolute top-0 bottom-0 w-14 bg-gradient-to-r from-transparent via-teal-600 to-emerald-500 rounded-full animate-gf-stream" />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ContentLoader;
