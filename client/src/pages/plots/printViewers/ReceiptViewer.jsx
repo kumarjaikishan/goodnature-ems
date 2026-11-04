@@ -157,6 +157,11 @@ const ReceiptViewer = () => {
     formattedMode.includes('BANK') ||
     formattedMode.includes('ONLINE');
 
+  const totalPaidAmount = Number(receipt.amount || 0);
+  const lateFinePaid = Number(receipt.lateFinePaid || 0);
+  // Principal paid = total receipt amount minus late fine paid (if any)
+  const principalAmountPaid = Math.max(0, totalPaidAmount - lateFinePaid);
+
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
       {/* Action Buttons (Hidden on Print) */}
@@ -368,12 +373,12 @@ const ReceiptViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-black text-slate-900">
-                <div className="text-sm font-black text-slate-900">
-                  ₹{receipt.amount?.toLocaleString('en-IN')}
+              <td className="p-2 text-slate-900 font-bold">
+                <div className="text-xs font-bold text-emerald-800">
+                  ₹{principalAmountPaid.toLocaleString('en-IN')}
                 </div>
-                <div className="text-[10px] font-semibold text-slate-500 mt-0.5 normal-case font-sans">
-                  ({numberToWords(receipt.amount || 0)})
+                <div className="text-[10px] font-medium text-slate-500 mt-0.5 normal-case font-sans">
+                  ({numberToWords(principalAmountPaid)})
                 </div>
               </td>
               <td className="p-2 text-slate-500 font-medium">
@@ -382,7 +387,7 @@ const ReceiptViewer = () => {
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-red-600">₹{(receipt.lateFinePaid || 0).toLocaleString('en-IN')}</td>
+              <td className="p-2 font-bold text-rose-700">₹{lateFinePaid.toLocaleString('en-IN')}</td>
             </tr>
 
             {/* Row 5 & 5b: Payment Mode & Outstanding datacells */}
@@ -404,7 +409,7 @@ const ReceiptViewer = () => {
                       <span>:</span>
                     </div>
                   </td>
-                  <td className="p-2 font-black text-amber-800">
+                  <td className="p-2 font-bold text-slate-800">
                     ₹{(outstandingDownpayment || 0).toLocaleString('en-IN')}
                   </td>
                 </tr>
@@ -418,7 +423,7 @@ const ReceiptViewer = () => {
                   </td>
                   <td className="p-2 font-bold text-slate-900">
                     {receipt.lateFineRebate > 0 ? (
-                      <span className="text-emerald-600 font-bold">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</span>
+                      <span className="text-emerald-700 font-bold">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</span>
                     ) : (
                       <span className="text-slate-900 font-bold uppercase tracking-wider">
                         Down Payment
@@ -431,7 +436,7 @@ const ReceiptViewer = () => {
                       <span>:</span>
                     </div>
                   </td>
-                  <td className="p-2 font-black text-indigo-700">
+                  <td className="p-2 font-bold text-slate-800">
                     ₹{(outstandingBalance || 0).toLocaleString('en-IN')}
                   </td>
                 </tr>
@@ -454,7 +459,7 @@ const ReceiptViewer = () => {
                       <span>:</span>
                     </div>
                   </td>
-                  <td className="p-2 font-black text-indigo-700">₹{(outstandingBalance || 0).toLocaleString('en-IN')}</td>
+                  <td className="p-2 font-bold text-slate-800">₹{(outstandingBalance || 0).toLocaleString('en-IN')}</td>
                 </tr>
 
                 {receipt.lateFineRebate > 0 && (
@@ -465,7 +470,7 @@ const ReceiptViewer = () => {
                         <span>:</span>
                       </div>
                     </td>
-                    <td colSpan={3} className="p-2 font-bold text-emerald-600">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</td>
+                    <td colSpan={3} className="p-2 font-bold text-emerald-700">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</td>
                   </tr>
                 )}
               </>
