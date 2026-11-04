@@ -1,18 +1,28 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from 'react-redux';
 import { clearAuthSession } from '../utils/auth';
+import PageLoader from '../components/common/PageLoader';
 
 const Logout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   useEffect(() => {
-    clearAuthSession(dispatch, false);
-    navigate('/login', { replace: true });
+    const timer = setTimeout(() => {
+      clearAuthSession(dispatch, false);
+      navigate('/login', { replace: true });
+    }, 250);
+    return () => clearTimeout(timer);
   }, [dispatch, navigate]);
 
-  return null;
+  return (
+    <PageLoader
+      fullScreen={true}
+      title="Logging out..."
+      subtitle="Securely terminating your session"
+    />
+  );
 };
 
 export default Logout;

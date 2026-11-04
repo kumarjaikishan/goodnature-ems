@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertTriangle, Info, X } from 'lucide-react';
+import { AlertTriangle, Info, X, Loader2 } from 'lucide-react';
 
 /**
  * Modern Confirmation Dialog powered by Clean React Portal (Matching Sonner/Sweetalert aesthetics)
@@ -11,7 +11,9 @@ import { AlertTriangle, Info, X } from 'lucide-react';
  *   text: "Once deleted, you will not be able to recover this Data!",
  *   confirmText: "Delete",
  *   cancelText: "Cancel",
- *   isDanger: true
+ *   loadingText: "Processing...",
+ *   isDanger: true,
+ *   onConfirm: async () => { ... } // optional callback that keeps loader active until finished
  * });
  * if (proceed) { ... }
  */
@@ -28,7 +30,9 @@ export const confirmDialog = (options = {}) => {
     text = 'Once deleted, you will not be able to recover this Data!',
     confirmText = 'Delete',
     cancelText = 'Cancel',
+    loadingText = 'Please wait...',
     isDanger = true,
+    onConfirm = null,
   } = config;
 
   return new Promise((resolve) => {
@@ -47,25 +51,44 @@ export const confirmDialog = (options = {}) => {
       }, 150);
     };
 
-    const handleConfirm = () => {
-      cleanup();
-      resolve(true);
-    };
-
-    const handleCancel = () => {
-      cleanup();
-      resolve(false);
-    };
-
     const DialogComponent = () => {
+      const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+      const handleConfirm = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        try {
+          if (typeof onConfirm === 'function') {
+            await onConfirm();
+          } else {
+            // Provide smooth visual confirmation feedback so the user always sees click registration and loading spinner
+            await new Promise((r) => setTimeout(r, 250));
+          }
+          cleanup();
+          resolve(true);
+        } catch {
+          setIsSubmitting(false);
+          cleanup();
+          resolve(false);
+        }
+      };
+
+      const handleCancel = () => {
+        if (isSubmitting) return;
+        cleanup();
+        resolve(false);
+      };
+
       React.useEffect(() => {
         const onKeyDown = (e) => {
+          if (isSubmitting) return;
           if (e.key === 'Escape') handleCancel();
           if (e.key === 'Enter') handleConfirm();
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-      }, []);
+      }, [isSubmitting]);
 
       return (
         <div
@@ -80,7 +103,8 @@ export const confirmDialog = (options = {}) => {
             <button
               type="button"
               onClick={handleCancel}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              disabled={isSubmitting}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <X size={17} />
             </button>
@@ -113,7 +137,8 @@ export const confirmDialog = (options = {}) => {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="flex-1 py-2.5 px-4 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition cursor-pointer"
+                disabled={isSubmitting}
+                className="flex-1 py-2.5 px-4 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>
@@ -121,13 +146,21 @@ export const confirmDialog = (options = {}) => {
               <button
                 type="button"
                 onClick={handleConfirm}
-                className={`flex-1 py-2.5 px-4 text-xs font-bold text-white rounded-xl shadow-xs transition cursor-pointer ${
+                disabled={isSubmitting}
+                className={`flex-1 py-2.5 px-4 text-xs font-bold text-white rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-85 disabled:cursor-not-allowed ${
                   isDanger
-                    ? 'bg-rose-600 hover:bg-rose-700'
-                    : 'bg-teal-700 hover:bg-teal-800'
+                    ? 'bg-rose-600 hover:bg-rose-700 active:scale-95'
+                    : 'bg-teal-700 hover:bg-teal-800 active:scale-95'
                 }`}
               >
-                {confirmText}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <span>{loadingText}</span>
+                  </>
+                ) : (
+                  <span>{confirmText}</span>
+                )}
               </button>
             </div>
           </div>
@@ -163,5 +196,3 @@ export const swal = (opts, ...args) => {
 };
 
 export default confirmDialog;
-
-

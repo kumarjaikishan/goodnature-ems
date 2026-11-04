@@ -87,6 +87,7 @@ export const DataTable = ({
     if (sortServer || !sortColumn) return data;
 
     const selector = sortColumn.selector;
+    const sortFunction = sortColumn.sortFunction;
     return [...data].sort((a, b) => {
       if (typeof sortFunction === 'function') {
         const res = sortFunction(a, b);

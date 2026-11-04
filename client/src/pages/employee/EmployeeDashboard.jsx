@@ -16,6 +16,10 @@ import {
 
 dayjs.extend(isSameOrBefore);
 
+const motion = {
+  div: ({ initial, animate, variants, whileHover, whileTap, transition, ...props }) => <div {...props} />
+};
+
 const EmployeeDashboard = () => {
   const { attendance, companysetting, holiday, notices, profile, leave } = useSelector((state) => state.employee);
   const [holidaylist, setholidaylist] = useState(null);

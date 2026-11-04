@@ -1,41 +1,16 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { clearAuthSession } from "../utils/auth";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { getSidebarMenuConfig, OPERATIONAL_ROLES } from "./sidebar/sidebarMenuConfig";
+import { cloudinaryUrl } from "../utils/imageurlsetter";
 import { confirmDialog } from "../utils/confirmDialog";
 import { apiClient } from "../utils/apiClient";
-import {
-  LayoutDashboard,
-  Network,
-  Users,
-  UserCheck,
-  CalendarCheck2,
-  Banknote,
-  Building2,
-  CalendarDays,
-  BookOpen,
-  Receipt,
-  UserCircle2,
-  Settings,
-  LogOut,
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  History,
-  TrendingUp,
-  Coins,
-  ShieldAlert,
-  Gauge,
-  KeyRound,
-  Wallet,
-  Award,
-  Calculator,
-  Grid3X3,
-} from "lucide-react";
-import { cloudinaryUrl } from "../utils/imageurlsetter";
-
 import { hasPermission } from "../utils/CheckPermission";
 
 const Sidebar = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const { company: adminCompany, profile: adminProfile } = useSelector((state) => state.user);
@@ -62,10 +37,6 @@ const Sidebar = () => {
     total: 0
   });
 
-  const OPERATIONAL_ROLES = [
-    "admin", "superadmin", "manager", "accountant", "cashier", "hr", "sales", "operator", "auditor", "staff", "other", "demo"
-  ];
-
   // Fetch pending approvals count (Vouchers, Downpayment, EMI, Fund Transfers)
   const fetchPendingApprovals = useCallback(async () => {
     try {
@@ -90,7 +61,6 @@ const Sidebar = () => {
 
   useEffect(() => {
     fetchPendingApprovals();
-    // Refresh pending counts when user navigates routes or when a custom approval update event fires
     const handleCustomUpdate = () => fetchPendingApprovals();
     window.addEventListener('ems-refresh-approvals', handleCustomUpdate);
     return () => window.removeEventListener('ems-refresh-approvals', handleCustomUpdate);
@@ -111,143 +81,23 @@ const Sidebar = () => {
     return 0;
   };
 
-  const menu = [
-    {
-      title: "Menu",
-      items: [
-        { menu: "Dashboard", link: "/dashboard", icon: <LayoutDashboard size={20} />, roles: [...OPERATIONAL_ROLES, "employee", "sponsor", "developer"] },
-        { menu: "Permissions", link: "/dashboard/permission", icon: <KeyRound size={20} />, roles: ["developer"] },
-        { menu: "API Monitor", link: "/dashboard/api-monitor", icon: <Gauge size={20} />, roles: ["developer"] },
-        { menu: "Error Logs", link: "/dashboard/error-logs", icon: <ShieldAlert size={20} />, roles: ["developer"] },
-        {
-          menu: "Organization",
-          icon: <Network size={20} />,
-          roles: ["admin", "superadmin"],
-          children: [
-            { menu: "Company Info", link: "/dashboard/organization/company", roles: ["admin", "superadmin"] },
-            { menu: "Branches", link: "/dashboard/organization/branches", roles: ["admin", "superadmin"], resource: "branch" },
-            { menu: "Departments", link: "/dashboard/organization/departments", roles: ["admin", "superadmin"], resource: "department" },
-            { menu: "User Management", link: "/dashboard/organization/users", roles: ["superadmin"] },
-            { menu: "Attendance Rules", link: "/dashboard/organization/rules", roles: ["admin", "superadmin"], resource: "attandence" },
-            { menu: "Device Management", link: "/dashboard/organization/devices", roles: ["admin", "superadmin"] },
-            { menu: "Telegram", link: "/dashboard/organization/telegram", roles: ["admin", "superadmin"] },
-            { menu: "Payroll Policies", link: "/dashboard/organization/payroll", roles: ["admin", "superadmin"], resource: "salary" },
-            { menu: "Leave Policies", link: "/dashboard/organization/leave-policies", roles: ["admin", "superadmin"], resource: "leave" },
-          ],
-        },
-        {
-          menu: "Employees",
-          icon: <Users size={20} />,
-          roles: [...OPERATIONAL_ROLES, "employee"],
-          children: [
-            { menu: "Employee", link: "/dashboard/employe", roles: OPERATIONAL_ROLES, resource: "employee" },
-            { menu: "Leave Request", link: "/dashboard/leave-request", roles: [...OPERATIONAL_ROLES, "employee"], resource: "leave", icon: <FileText size={18} /> },
-            { menu: "Leave Balance", link: "/dashboard/leave-ledger", roles: OPERATIONAL_ROLES, resource: "leave", icon: <History size={18} /> },
-            { menu: "Leave Ledger", link: "/dashboard/my-leave-ledger", roles: ["employee"], icon: <History size={18} />, hidden: !company?.leaveSettings?.allowEmployeeToSeeLedger },
-          ].filter(c => !c.hidden),
-        },
-        {
-          menu: "Attendance",
-          icon: <CalendarCheck2 size={20} />,
-          roles: [...OPERATIONAL_ROLES, "employee"],
-          children: [
-            { menu: "Attendance", link: "/dashboard/attandence", roles: OPERATIONAL_ROLES, resource: "attandence" },
-            { menu: "Performance", link: "/dashboard/performance", roles: OPERATIONAL_ROLES, resource: "attandence" },
-            { menu: "Emp Attendance", link: "/dashboard/empattandence", roles: ["employee"] },
-            { menu: "Report", link: "/dashboard/attandence_Report", roles: OPERATIONAL_ROLES, resource: "attandence" },
-          ],
-        },
-        {
-          menu: "Account",
-          icon: <Wallet size={20} />,
-          roles: OPERATIONAL_ROLES,
-          children: [
-            { menu: "Down Payment", link: "/dashboard/plots/collections/downpayment", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
-            { menu: "EMI", link: "/dashboard/plots/collections/emi", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
-            { menu: "Investment Collection", link: "/dashboard/plots/collections/products", roles: OPERATIONAL_ROLES, resource: "plot_collection" },
-            { menu: "Payroll", link: "/dashboard/payroll", roles: OPERATIONAL_ROLES, resource: "salary" },
-            { menu: "Advance", link: "/dashboard/advance", roles: OPERATIONAL_ROLES, resource: "advance" },
-            { menu: "Vouchers", link: "/dashboard/vouchers", roles: OPERATIONAL_ROLES, resource: "voucher" },
-          ],
-        },
-        {
-          menu: "Ledger",
-          icon: <BookOpen size={20} />,
-          roles: OPERATIONAL_ROLES,
-          children: [
-            { menu: "Bank Accounts", link: "/dashboard/ledger/banks", roles: OPERATIONAL_ROLES, resource: "bank_ledger" },
-            { menu: "Cash Accounts", link: "/dashboard/ledger/cash-accounts", roles: OPERATIONAL_ROLES, resource: "cash_ledger" },
-            { menu: "Fund Transfers", link: "/dashboard/ledger/transfers", roles: OPERATIONAL_ROLES, resource: "fund_transfer" },
-            { menu: "Employee", link: "/dashboard/ledger/employees", roles: OPERATIONAL_ROLES, resource: "employee_ledger" },
-            { menu: "Seller", link: "/dashboard/ledger/sellers", roles: OPERATIONAL_ROLES, resource: "kisan_ledger" },
-            { menu: "Business Associate", link: "/dashboard/ledger/business-associates", roles: OPERATIONAL_ROLES, resource: "associate_ledger" },
-            { menu: "Business Partner", link: "/dashboard/ledger/business-partners", roles: OPERATIONAL_ROLES, resource: "partner_ledger" },
-            { menu: "Branch Partner", link: "/dashboard/ledger/branch-partners", roles: OPERATIONAL_ROLES, resource: "branch_ledger" },
-          ],
-        },
-        {
-          menu: "Plot Management",
-          icon: <Building2 size={20} />,
-          roles: OPERATIONAL_ROLES,
-          children: [
-
-            { menu: "Plot Purchase", link: "/dashboard/plots/purchase", roles: OPERATIONAL_ROLES, resource: ["plot_purchase", "plot_inventory"] },
-            { menu: "Purchasers / Buyers", link: "/dashboard/plots/purchasers", roles: OPERATIONAL_ROLES, resource: ["purchasers_master", "plot_purchase", "plot_inventory"] },
-            { menu: "Series & Inventory", link: "/dashboard/plots/series-master", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
-            { menu: "Plot Products", link: "/dashboard/plots/products", roles: OPERATIONAL_ROLES, resource: "plot_inventory" },
-            { menu: "Business Developer", link: "/dashboard/plots/business-developer", roles: OPERATIONAL_ROLES, resource: ["associate", "partner", "plot_sponsor"] },
-            { menu: "Customers", link: "/dashboard/plots/customers", roles: OPERATIONAL_ROLES, resource: "plot_customer" },
-            { menu: "Plot Booking", link: "/dashboard/plots/booking", roles: OPERATIONAL_ROLES, resource: "plot_booking" },
-            { menu: "Investment Booking", link: "/dashboard/plots/investment-booking", roles: OPERATIONAL_ROLES, resource: "investment_booking" },
-            { menu: "Incentive Closing", link: "/dashboard/plots/incentives", roles: OPERATIONAL_ROLES, resource: "plot_incentive" },
-            { menu: "Reports", link: "/dashboard/plots/reports", roles: OPERATIONAL_ROLES, resource: "plot_reports" },
-          ],
-        },
-        { menu: "Holiday", link: "/dashboard/holiday", icon: <CalendarDays size={20} />, roles: OPERATIONAL_ROLES, resource: "holiday" },
-
-        { menu: "Activity Logs", link: "/dashboard/activity-logs", icon: <History size={20} />, roles: ["superadmin", "admin", "developer", "auditor"], resource: "audit_log" },
-        { menu: "Commission Ledger", link: "/dashboard/ledger", icon: <BookOpen size={20} />, roles: ["sponsor"] },
-        { 
-          menu: (role === 'sponsor' && (user?.profile?.sponsorCode?.startsWith('BA-') || user?.profile?.isDeveloperSponsor === false)) ? "My Customers" : "My Network & Customers", 
-          link: "/dashboard/my-network", 
-          icon: (role === 'sponsor' && (user?.profile?.sponsorCode?.startsWith('BA-') || user?.profile?.isDeveloperSponsor === false)) ? <UserCheck size={20} /> : <Users size={20} />, 
-          roles: ["sponsor"] 
-        },
-        { menu: "My Plot Bookings", link: "/dashboard/my-bookings", icon: <Building2 size={20} />, roles: ["sponsor"] },
-        { menu: "Plot Availability", link: "/dashboard/plot-availability", icon: <Grid3X3 size={20} />, roles: ["sponsor"] },
-        {
-          menu: "Plan & Commission",
-          icon: <Award size={20} />,
-          roles: ["sponsor"],
-          children: [
-            { menu: "Plan", link: "/dashboard/my-plans", roles: ["sponsor"] },
-            { menu: "Commission", link: "/dashboard/my-commission-rates", roles: ["sponsor"] },
-          ],
-        },
-        { menu: "Price Calculator", link: "/dashboard/price-calculator", icon: <Calculator size={20} />, roles: ["sponsor"] },
-        { menu: "Business Report", link: "/dashboard/my-business", icon: <TrendingUp size={20} />, roles: ["sponsor"] },
-      ],
-    },
-    {
-      title: "Others",
-      items: [
-        { menu: "Profile", link: "/dashboard/profile", icon: <UserCircle2 size={20} />, roles: [...OPERATIONAL_ROLES, "employee", "grant", "sponsor"] },
-        { menu: "Setting", link: "/dashboard/setting", icon: <Settings size={20} />, roles: [...OPERATIONAL_ROLES, "employee"] },
-        { menu: "Logout", isLogout: true, icon: <LogOut size={20} />, roles: [...OPERATIONAL_ROLES, "employee", "developer", "grant", "sponsor"] },
-      ],
-    },
-  ];
-
+  const menu = getSidebarMenuConfig({ role, company, user });
 
   const handleLogout = async () => {
-    const willLogout = await confirmDialog({
+    await confirmDialog({
       title: "Are you sure you want to logout?",
       text: "You will be signed out of your current session.",
       confirmText: "Logout",
       cancelText: "Cancel",
+      loadingText: "Logging out...",
       isDanger: true,
+      onConfirm: async () => {
+        // Visual feedback to cleanly display the loader & button state
+        await new Promise((r) => setTimeout(r, 400));
+        clearAuthSession(dispatch, false);
+        navigate("/login", { replace: true });
+      },
     });
-    if (willLogout) navigate("/logout");
   };
 
   const showText = isMobile ? sidebarOpen && extended : sidebarOpen;
@@ -343,7 +193,7 @@ const Sidebar = () => {
             <img
               src="/name_and_tagline.webp"
               alt="Goodfeel"
-              className="h-8 max-w-[140px] object-contain"
+              className="h-12 max-w-[140px] object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 if (e.currentTarget.nextSibling) {
@@ -494,11 +344,10 @@ const Sidebar = () => {
                                     <>
                                       <span className="truncate">{child.menu}</span>
                                       {childPending > 0 && (
-                                        <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full transition-colors ${
-                                          isItemActive
-                                            ? 'bg-amber-400 text-teal-950 shadow-2xs font-extrabold'
-                                            : 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
-                                        }`}>
+                                        <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full transition-colors ${isItemActive
+                                          ? 'bg-amber-400 text-teal-950 shadow-2xs font-extrabold'
+                                          : 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
+                                          }`}>
                                           {childPending}
                                         </span>
                                       )}
@@ -553,9 +402,8 @@ const Sidebar = () => {
                                     <>
                                       <span>{child.menu}</span>
                                       {childPending > 0 && (
-                                        <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full ${
-                                          isFlyoutItemActive ? 'bg-amber-400 text-teal-950' : 'bg-amber-100 text-amber-900 border border-amber-300/80'
-                                        }`}>
+                                        <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold rounded-full ${isFlyoutItemActive ? 'bg-amber-400 text-teal-950' : 'bg-amber-100 text-amber-900 border border-amber-300/80'
+                                          }`}>
                                           {childPending}
                                         </span>
                                       )}

@@ -33,6 +33,7 @@ Ems-goodnature/
 │   │   ├── apiMonitorController.js # In-memory API monitoring statistics
 │   │   ├── attandence.js       # Punch-in/out, biometric processing, and attendance analytics
 │   │   ├── developer.js        # Developer utilities and permission matrix management
+│   │   ├── esslLogs.controller.js  # Biometric eSSL device live logs & developer monitoring
 │   │   ├── holiday.js          # Company holiday master
 │   │   ├── leave.js            # Leave applications and approvals
 │   │   ├── leaveBalance.js     # Monthly leave balance accrual
@@ -102,10 +103,18 @@ Ems-goodnature/
     ├── package.json            # React, Redux Toolkit, MUI, Tailwind dependencies
     ├── vite.config.js          # Vite build configuration
     └── src/
-        ├── App.jsx             # Top-level router with role-based protected routes
+        ├── App.jsx             # Top-level router with role-scoped lazy loading
         ├── main.jsx            # React root mount and Redux Provider setup
         ├── api/                # Axios instance and API call wrappers
+        ├── routes/             # Role-scoped sub-router modules (lazy-loaded based on user role)
+        │   ├── SponsorRoutes.jsx    # Business Associate & Business Partner routes
+        │   ├── EmployeeRoutes.jsx   # Employee self-service routes
+        │   ├── DeveloperRoutes.jsx  # Developer utilities & system monitoring routes
+        │   └── ManagementRoutes.jsx # Superadmin, Admin, Branch Manager, Accountant & Cashier routes
         ├── components/         # Reusable UI components and modal dialogs
+        │   ├── common/         # Standardized PageLoader, DataTable, SearchableSelect, Input, Button
+        │   ├── sidebar/        # Modular sidebar navigation & role menu config (sidebarMenuConfig.jsx)
+        │   └── custommodal/    # Modalbox animated dialogs
         ├── pages/              # View pages grouped by feature area
         │   ├── admin/          # Admin dashboard, attendance, employee, organization & ledger
         │   │   ├── organization/   # Branch & company management with Branch Partner assignment
@@ -114,6 +123,7 @@ Ems-goodnature/
         │   ├── employee/       # Employee self-service dashboard, attendance, leave
         │   ├── manager/        # Branch manager views
         │   ├── plots/          # Plot dashboard, inventory, bookings, installments, payouts
+        │   │   ├── availability/   # Dedicated Plot Availability visual layout & inventory status
         │   │   ├── booking/        # Plot booking lists, creation, and dedicated full-page booking ledger
         │   │   ├── businessDevelopers/ # 3-tier portal: Branch Partner, Business Partner, Business Associate
         │   │   ├── customers/      # Customer directory and onboarding

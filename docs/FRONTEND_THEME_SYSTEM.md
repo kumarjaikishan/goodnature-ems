@@ -58,11 +58,12 @@ if (loading) {
 ```
 
 ### Key Visual & Behavioral Rules:
-1. **Content Area Isolation (Never Block Sidebar/Navbar)**: Page loaders must ALWAYS render within the page content area (`fullScreen={false}`). The Sidebar and Navigation header must remain visible, interactive, and accessible at all times without full-screen overlays.
-2. **Concentric Symmetric Rings**: A counter-rotating outer ring and dashed orbit around a central brand gradient orb.
-3. **Radial Soft Glow**: Symmetrical ambient blur in teal/emerald hues.
-4. **Harmonious Typography**: Centered, bold title and muted caption.
-5. **Staggered Dot Pulse**: Multi-stage indicator dots matching the theme.
+1. **Content Area Isolation (Never Block Sidebar/Navbar)**: In-page loaders must ALWAYS render within the page content area (`fullScreen={false}`). The Sidebar and Navigation header remain visible, interactive, and accessible at all times without full-screen overlays. For initial app load / auth check, `fullScreen={true}` provides a clean centered backdrop.
+2. **Floating Brand Logo with Breathing Zoom**: High-resolution Good Feel emblem (`/gf.png`) animated with a gentle, premium breathing zoom (`scale: 0.95 -> 1.05`) powered by smooth bezier easing (`cubic-bezier(0.4, 0, 0.2, 1)`).
+3. **No Outer Box/Pod Artifacts**: Clean floating presentation without rectangular frames, borders, or rounded cards behind the logo.
+4. **Ambient Radial Aura**: Soft, pulsating background halo (`bg-gradient-to-tr from-teal-500/20 to-emerald-400/20 blur-2xl`) harmonized with Good Nature theme tokens.
+5. **Uppercase Monospace Indicator**: Clean uppercase `LOADING` with tracking (`tracking-[0.25em]`) and animated wave dots (`.` `..` `...`).
+6. **Micro-Progress Stream**: A sleek 40px gradient stream line (`from-teal-600 via-emerald-400 to-teal-600`) pulsating below the indicator.
 
 ---
 
@@ -94,4 +95,4 @@ if (loading) {
 ---
 
 ## 5. Icon Standards
-All icons across pages use **Heroicons 2 (`react-icons/hi2`)** for modern, crisp line weights (e.g., `HiOutlineBuildingOffice2`, `HiOutlineCurrencyRupee`, `HiOutlineDocumentText`, `HiOutlineSparkles`, `HiOutlineEye`, `HiOutlineArrowDownTray`).
+All icons across pages use **Heroicons 2 (`react-icons/hi2`)** or modern Lucide icons (`lucide-react`) for crisp line weights and uniform sizing.

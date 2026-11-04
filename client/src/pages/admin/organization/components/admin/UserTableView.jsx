@@ -2,7 +2,7 @@ import React from "react";
 import {
     Edit2, Trash2, KeyRound, User,
     CheckCircle2, XCircle,
-    Lock, Unlock
+    Lock, Unlock, Copy, Check
 } from "lucide-react";
 import { getRoleBadgeStyle, getRoleDisplayLabel } from "./userPermissionsConfig";
 
@@ -12,6 +12,8 @@ export default function UserTableView({
     onEdit,
     onResetPassword,
     onDelete,
+    copiedEmail,
+    onCopyEmail,
     canUpdate = true,
     canDelete = true,
 }) {
@@ -53,7 +55,24 @@ export default function UserTableView({
                                             )}
                                             <div>
                                                 <span className="font-bold text-slate-800 block">{admin.name}</span>
-                                                <span className="text-[11px] text-slate-400">{admin.email}</span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onCopyEmail?.(admin.email);
+                                                        }}
+                                                        className="text-slate-400 hover:text-teal-700 p-0.5 rounded transition cursor-pointer hover:bg-slate-100 shrink-0"
+                                                        title="Copy ID to clipboard"
+                                                    >
+                                                        {copiedEmail === admin.email ? (
+                                                            <Check size={12} className="text-emerald-600" />
+                                                        ) : (
+                                                            <Copy size={12} />
+                                                        )}
+                                                    </button>
+                                                    <span className="text-[11px] text-slate-500 font-mono">{admin.email}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>

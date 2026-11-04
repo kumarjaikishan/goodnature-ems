@@ -138,6 +138,7 @@ export default function PlotBookingEditPage() {
       const seriesData = seriesRes.data?.data || seriesRes.data || [];
       const plotsData = plotsRes.data?.data || plotsRes.data || [];
       const configData = ratesRes.data?.data || ratesRes.data || null;
+      const landSourcesData = landSourcesRes.data?.data || landSourcesRes.data || [];
       const projectsData = projectsRes.data?.data || projectsRes.data || [];
       const addBookingProjects = projectsData.filter(
         (p) => Boolean(p.showInAddBooking) || String(p._id) === String(b.projectId?._id || b.projectId)

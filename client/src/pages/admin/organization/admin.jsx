@@ -198,8 +198,10 @@ export default function SuperAdminDashboard() {
     };
 
     const copyEmail = (email) => {
+        if (!email) return;
         navigator.clipboard.writeText(email);
         setCopiedEmail(email);
+        toast.success(`Copied "${email}" to clipboard!`);
         setTimeout(() => setCopiedEmail(null), 2000);
     };
 
@@ -307,6 +309,8 @@ export default function SuperAdminDashboard() {
                         setpassmodal(true);
                     }}
                     onDelete={handleDelete}
+                    copiedEmail={copiedEmail}
+                    onCopyEmail={copyEmail}
                     canUpdate={canUpdate}
                     canDelete={canDelete}
                 />

@@ -17,9 +17,10 @@
   - Use `ApiResponse` helper methods (`ApiResponse.success`, `ApiResponse.created`, `ApiResponse.paginated`) in controllers.
 
 ### Frontend (React 19 / Vite)
-- **Component Architecture**:
+- **Component Architecture & Routing**:
   - Use functional components with hooks.
-  - Wrap heavy routes in React `lazy()` and render within `<Suspense>`.
+  - **Role-Scoped Code Splitting**: Never declare all 60+ routes in a single monolithic App.jsx. Route definitions must be partitioned into role-scoped sub-routers (client/src/routes/): SponsorRoutes.jsx, EmployeeRoutes.jsx, DeveloperRoutes.jsx, and ManagementRoutes.jsx. App.jsx dynamically loads ONLY the sub-router bundle corresponding to the logged-in user's role.
+  - Wrap sub-routers and views in React lazy() and render within <Suspense> with <PageLoader />.
 - **State & Storage**:
   - Use Redux slices for global auth/user state (`FirstFetch`, `empFirstFetch`).
   - Persist tokens in localStorage (`token` or auth state) and pass via `Authorization: Bearer <token>` header.

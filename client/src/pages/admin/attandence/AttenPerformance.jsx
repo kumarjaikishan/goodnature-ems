@@ -13,6 +13,7 @@ import { useSelector } from 'react-redux';
 import { RotateCcw, Clock, Info, MessageSquareWarning, User } from 'lucide-react';
 import EmployeeProfileCard from '../../../components/performanceCard';
 import { useCustomStyles } from './attandencehelper';
+import { swal } from '../../../utils/confirmDialog';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

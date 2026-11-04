@@ -254,11 +254,11 @@ const CommissionStructurePage = () => {
             <table className="w-full text-center text-xs border-collapse">
               <thead>
                 <tr className="h-12 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50/80">
-                  <th className="py-2 px-3 border-r border-slate-200 leading-tight">
+                  <th className="py-2.5 px-2.5 border-r border-slate-200 leading-tight w-[56%]">
                     Performance Business Target
                   </th>
-                  <th className="py-2 px-3 leading-tight w-32">
-                    Performance Incentive %
+                  <th className="py-2.5 px-2.5 leading-tight w-[44%]">
+                    Performance<br className="hidden sm:inline" /> Incentive %
                   </th>
                 </tr>
               </thead>
@@ -308,11 +308,11 @@ const CommissionStructurePage = () => {
             <table className="w-full text-center text-xs border-collapse">
               <thead>
                 <tr className="h-12 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50/80">
-                  <th className="py-2 px-3 border-r border-slate-200 leading-tight">
+                  <th className="py-2.5 px-2.5 border-r border-slate-200 leading-tight w-[55%]">
                     Yearly Performance Business Target
                   </th>
-                  <th className="py-2 px-3 leading-tight w-32">
-                    Yearly Performance Reward %
+                  <th className="py-2.5 px-2.5 leading-tight w-[45%]">
+                    Yearly Performance<br className="hidden sm:inline" /> Reward %
                   </th>
                 </tr>
               </thead>

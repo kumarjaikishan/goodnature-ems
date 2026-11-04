@@ -72,8 +72,15 @@ This document tracks known tasks, technical debt, and pending improvements ident
     - Fixed Branch Manager query scoping in `plotCollection.service.js` `getReceipts` (scoped by `branchId: { $in: user.branchIds }`).
     - Enforced Cashier/Accountant isolation strictly to own created vouchers & receipts (`createdBy: req.userid`).
     - Guarded `getReceiptById`, `updateReceipt`, `deleteReceipt`, `approveReceipt`, `rejectReceipt` against IDOR / unauthorized cross-branch viewing.
-- [ ] **Controller Refactoring**:
-  - `server/controllers/attandence.js` (~1778 lines) and `server/controllers/admin.js` (~1500+ lines) contain significant business logic that can gradually be delegated into services (`services/attendanceService.js`, `services/employeeService.js`).
+- [x] **Role-Scoped Router Architecture & Chunk Isolation**:
+  - Partitioned client router from monolithic `App.jsx` into 4 dedicated sub-routers in `client/src/routes/`: `SponsorRoutes.jsx`, `EmployeeRoutes.jsx`, `DeveloperRoutes.jsx`, and `ManagementRoutes.jsx`.
+  - Non-administrative roles (e.g. Business Associates / Partners) only download the lightweight `SponsorRoutes` chunk (1.5 kB gzip) and their specific pages (`PlotAvailabilityPage`, `CustomerPlansPage`, etc.).
+  - Main bundle size reduced from 169.6 kB to 151.8 kB. Zero admin component manifests or endpoints are leaked to field agents.
+- [x] **Backend Controller Refactoring & eSSL Sub-Controller Extraction**:
+  - Extracted eSSL biometric device monitoring & log bulk operations from `server/controllers/admin.js` into dedicated `server/controllers/esslLogs.controller.js`.
+  - Backward compatibility 100% maintained via clean re-exports in dmin.js.
+- [ ] **Further Service Layer Delegations**:
+  - `server/controllers/attandence.js` (~1778 lines) and remaining portions of `server/controllers/admin.js` (~1300 lines) can continue to delegate business logic into `services/`.
 - [ ] **Attendance Excel Import**:
   - Verify edge cases for bulk import date formatting when users upload CSV/Excel files with non-standard local date strings.
 - [ ] **Client Bundle Optimization & Migration Plan**:
@@ -83,6 +90,7 @@ This document tracks known tasks, technical debt, and pending improvements ident
   - Phase 4: Drop-in CJS ESM Interop verified and centralized via `DataTable.jsx` [COMPLETED].
   - Phase 5: Dynamic lazy-loading Excel parser & exporter (`excelHelper.js`) reducing initial bundle weight by over ~400KB on `AttendanceExcelImport.jsx` and `Holiday.jsx` [COMPLETED].
   - Phase 6: Completely purged deprecated membership module from frontend [COMPLETED].
+  - Phase 7: Role-scoped code splitting and lazy loading isolation via `client/src/routes/` [COMPLETED].
 - [ ] **Automated Test Coverage**:
   - Backend currently contains skeleton test directories (`server/test/`, `server/tests/`) with no active automated test suites. Set up unit/integration tests for payroll calculation and plot installment ledgers.
 

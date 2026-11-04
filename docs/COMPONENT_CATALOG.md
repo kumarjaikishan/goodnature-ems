@@ -137,7 +137,7 @@ const columns = [
 ## 4. Standardized Symmetrical Page Loader
 
 ### Centralized Loader (`client/src/components/common/PageLoader.jsx`)
-Organic, branded Good Nature symmetrical pulse & orbit loader. **Never block the sidebar/navbar**. Always render inside the page content area.
+Floating Good Feel brand emblem with smooth breathing zoom animation, ambient radial aura, uppercase tracking indicator, and micro progress stream line. **Never block the sidebar/navbar** during in-page loads (`fullScreen={false}`). Use `fullScreen={true}` exclusively for initial app-level authentication bootstrapping.
 
 ```jsx
 import PageLoader from '../../components/common/PageLoader';

@@ -291,7 +291,6 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
       };
 
       const res = await api.post(`/plots/product-bookings/${booking._id}/collections`, payload);
-      const isCash = String(paymentMode).toLowerCase() === 'cash';
       if (isCash) {
         toast.success(res.data?.message || 'Product installment collection recorded successfully!');
       } else {

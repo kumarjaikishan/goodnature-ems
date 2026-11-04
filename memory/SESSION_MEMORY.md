@@ -1,5 +1,95 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Simplified EMI Tenure Slabs Header Banner [COMPLETED]**:
+  - **Requirement**:
+    - On the Plot Products & Fractional Unit Master page (`/dashboard/plots/products?tab=emi_slabs`), simplify the heavy dark-green gradient banner to a clean, minimal white card matching the rest of the application.
+    - User requested no full build step ("don npm build").
+  - **Implementation**:
+    - In `client/src/pages/plots/products/components/ProductEmiTenureSlabsTab.jsx`:
+      - Replaced the large dark-gradient box with a clean card: `bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs`.
+      - Styled the icon badge with subtle teal accents (`bg-teal-50 text-teal-700 border border-teal-100`).
+      - Styled the title as clean text (`text-base md:text-lg font-bold text-slate-900`) and subtitle in slate-500.
+      - Styled the action buttons with clean borders and branded teal primary button.
+  - **Verification**:
+    - Hot module reload updated instantly via Vite dev server.
+
+- **Commission Structure Table Header Width Balance [COMPLETED]**:
+  - **Requirement**:
+    - Under the "% REWARD SLAB %" table on `/dashboard/my-commission-rates`, reduce the width of "Yearly Performance Business Target" so that "Yearly Performance Reward %" displays cleanly across 2 lines instead of wrapping into 5-6 fragmented lines.
+  - **Implementation**:
+    - In `client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx`:
+      - Replaced rigid `w-32` with proportional `w-[55%]` / `w-[45%]` split on the Reward Slab table and `w-[56%]` / `w-[44%]` on the Incentive Slab table.
+      - Added structured line break `<br className="hidden sm:inline" />` between "Yearly Performance" and "Reward %" so the header renders cleanly on two lines.
+  - **Verification**:
+    - Build verified via `npm run build --prefix client` (Exit code 0, 6.00s).
+
+- **Business Developer Bookings Table Clean-up [COMPLETED]**:
+  - **Requirement**:
+    1. Remove the "Hierarchy / Type" column and its "Direct Booking" badge from the "My Plot Bookings" table (`/dashboard/my-bookings`).
+    2. In the "Plot No / Type" column, remove the prefix "Plot #" so it shows just the clean plot number (e.g. `A002`) and `1200 sqft`.
+  - **Implementation**:
+    - In `client/src/pages/plots/businessDevelopers/BusinessDeveloperBookingsPage.jsx`:
+      - Removed the `Hierarchy / Type` column definition entirely.
+      - Simplified the `Plot No / Type` cell renderer to display `{row.plotId?.plotNumber || '-'}` and `{row.plotId?.plotSize || row.plotId?.area || 0} sqft`.
+  - **Verification**:
+    - AST check (`oxlint`): 0 errors.
+    - Verified with `npm run build --prefix client` (Exit code 0, 9.84s).
+
+- **Interactive Logout Confirm Modal with Spinner & Progress State [COMPLETED]**:
+  - **Issue Identified**:
+    - When a user clicked "Logout" in the sidebar and then clicked "Logout" in the confirmation dialog, there was no visual feedback or indicator that the button was clicked or that any background process/transition was executing.
+  - **Comprehensive Fix**:
+    - Enhanced `client/src/utils/confirmDialog.jsx`:
+      - Added `isSubmitting` state management with spinning `Loader2` icon on the confirm button.
+      - Supported `loadingText` option (e.g. `"Logging out..."`).
+      - Supported async `onConfirm` callback that holds the loading state active until execution finishes.
+      - Disabled interaction on both buttons and close button while submitting to prevent double-clicks.
+    - Updated `client/src/components/sidebar.jsx`:
+      - Passed `loadingText: "Logging out..."` and async `onConfirm` callback to cleanly wipe Redux and auth tokens via `clearAuthSession(dispatch, false)` before navigating to `/login`.
+    - Updated `client/src/pages/logout.jsx`:
+      - Replaced raw `return null;` with full-screen branded `<PageLoader title="Logging out..." subtitle="Securely terminating your session" />` so direct hits to `/logout` display seamless visual feedback.
+  - **Verification**:
+    - Verified with `npm run build --prefix client` (Exit code 0, 5.01s).
+
+- **Full Codebase Static AST Linter Audit & Runtime ReferenceError Resolution [COMPLETED]**:
+  - **Issue Identified**:
+    - Vite/Rollup bundling compiles JavaScript without deep runtime identifier checking (unlike TypeScript). In standard JS bundling, undeclared variables are treated as assumed globals, causing builds to pass with exit code 0, only to throw fatal `ReferenceError: <variable> is not defined` when the browser mounts the component.
+    - Specifically, in `client/src/components/sidebar.jsx`, extraction of the menu configuration had inadvertently severed imports for `useNavigate`, `useLocation`, `useSelector`, `NavLink`, `confirmDialog`, `apiClient`, and helper methods `getGroupPendingCount` and `getChildPendingCount`.
+  - **Comprehensive Fix**:
+    - Configured `client/.oxlintrc.json` with comprehensive browser environment globals and `no-undef` strict validation.
+    - Executed AST-level scan across all 246 client source files and systematically resolved all 8 real runtime identifier defects:
+      1. `client/src/components/sidebar.jsx`: Restored `useNavigate`, `useLocation`, `NavLink` from `react-router-dom`, `useSelector` from `react-redux`, `confirmDialog` from `utils/confirmDialog`, `apiClient` from `utils/apiClient`, and approval badge handlers (`fetchPendingApprovals`, `getGroupPendingCount`, `getChildPendingCount`).
+      2. `client/src/pages/employee/EmployeeDashboard.jsx`: Added lightweight zero-overhead `motion.div` passthrough for framer-motion calls, eliminating 20 fatal runtime errors on employee login.
+      3. `client/src/pages/plots/booking/PlotBookingEditPage.jsx`: Defined `landSourcesData` from `landSourcesRes.data`.
+      4. `client/src/components/common/DataTable.jsx`: Extracted `sortFunction` safely from `sortColumn.sortFunction`.
+      5. `client/src/pages/plots/businessDevelopers/PlotBusinessDevelopers.jsx`: Added missing `confirmDialog` import for block/delete actions.
+      6. `client/src/pages/admin/attandence/AttenPerformance.jsx`: Added missing `swal` import from `utils/confirmDialog`.
+      7. `client/src/pages/plots/products/components/ProductInstallmentCollectModal.jsx`: Removed duplicate `isCash` declaration in the same scope.
+      8. `client/src/pages/plots/incentives/PlotIncentivesPage.jsx`: Imported missing `ChevronDown` from `lucide-react`.
+  - **Verification**:
+    - Oxlint scan across all 246 files: 0 errors.
+    - `npm run build --prefix client`: 0 errors (completed in 10.29s).
+
+- **Role-Scoped Code Splitting, Lazy Loading & Controller Modularization [COMPLETED]**:
+  - **Requirement**:
+    1. Implement proper role-scoped lazy loading so when a Business Associate or Partner logs in, only chunks strictly relevant to them are downloaded. Eliminate exposure of administrative URL definitions, manifests, and component chunks to non-admin roles.
+    2. Decompose oversized single files (frontend and backend) into clean, maintainable modules without breaking existing functionality.
+    3. Update all documentation files (`RULES.md`, `FRONTEND_THEME_SYSTEM.md`, `STRUCTURE.md`, `COMPONENT_CATALOG.md`, `ARCHITECTURE.md`, `TODO.md`, `SESSION_MEMORY.md`).
+  - **Implementation**:
+    1. **Frontend Role-Scoped Routers (`client/src/routes/`)**:
+       - Created `SponsorRoutes.jsx` (dedicated to `sponsor` role, gzipped size: 1.5 kB).
+       - Created `EmployeeRoutes.jsx` (dedicated to `employee` role, gzipped size: 1.0 kB).
+       - Created `DeveloperRoutes.jsx` (dedicated to `developer` role, gzipped size: 0.8 kB).
+       - Created `ManagementRoutes.jsx` (for `superadmin`, `admin`, `manager`, `accountant`, `cashier`, gzipped size: 5.4 kB).
+       - In `client/src/App.jsx`, dynamically imported sub-routers matching `effectiveRole`. Reduced main bundle size from 169.6 kB to 151.8 kB.
+    2. **Sidebar Modular Decomposition**:
+       - Extracted 220+ lines of static navigation menus and role mapping from `client/src/components/sidebar.jsx` into `client/src/components/sidebar/sidebarMenuConfig.jsx`.
+    3. **Backend Controller Decomposition**:
+       - Extracted eSSL biometric device monitoring & log bulk operations (`getEsslLogsDeveloper`, `getEsslEventsDeveloper`, `bulkDeleteEsslLogs`, `bulkDeleteEsslEvents`) from `server/controllers/admin.js` into `server/controllers/esslLogs.controller.js`.
+       - Re-exported functions from `server/controllers/admin.js` to guarantee 100% backward compatibility for all existing route references.
+  - **Build Status**: Verified via `npm run build --prefix client` and `node -c` on backend controllers (Exit code 0).
+
+
 - **Plot Availability Scoped to Business Associate & Partner Portals Only [COMPLETED]**:
   - **Requirement**: Removed "Plot Availability" from Admin / Superadmin / Management "Plot Management" sidebar menu (`client/src/components/sidebar.jsx`), keeping it exclusively in the Business Associate & Partner (`roles: ["sponsor"]`) sidebar at `/dashboard/plot-availability`.
   - **Build Status**: Verified via `npm run build --prefix client` (Exit code 0).

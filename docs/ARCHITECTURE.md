@@ -140,3 +140,27 @@ graph TD
    │   Branch Turnover KPI, full branch subordinate network, and direct link to statement.
    └── Monthly Closing (plotClosing.service.js): Evaluates Section 3 Branch Partner slabs for monthly targets.
 ```
+
+
+---
+
+## 4. Frontend Role-Scoped Routing & Bundle Isolation Architecture
+
+To guarantee security and client-side isolation, the frontend employs a **Role-Scoped Router Architecture** (`client/src/routes/`):
+
+```mermaid
+graph TD
+    App["App.jsx (Root Entry)"] --> AuthCheck{"Determine effectiveRole"}
+    AuthCheck -->|sponsor| Sponsor["SponsorRoutes.jsx (Chunk: 1.5 kB gzip)"]
+    AuthCheck -->|employee| Employee["EmployeeRoutes.jsx (Chunk: 1.0 kB gzip)"]
+    AuthCheck -->|developer| Developer["DeveloperRoutes.jsx (Chunk: 0.8 kB gzip)"]
+    AuthCheck -->|admin / superadmin / manager / accountant / cashier| Mgmt["ManagementRoutes.jsx (Chunk: 5.4 kB gzip)"]
+
+    Sponsor --> SponsorPages["Plot Availability, My Network, Customer Plans, Business Report"]
+    Mgmt --> AdminPages["Employee Master, Payroll, Ledger Payouts, Organization Settings, Plot Inventory"]
+```
+
+### Architectural Benefits:
+1. **Zero Admin Surface Exposure**: Non-administrative users (such as Business Associates or Partners) never receive or download route definitions, imports, or chunks related to admin configuration, company settings, employee records, payroll, or ledger management.
+2. **Minimalist Bandwidth**: The `SponsorRoutes` chunk is ~1.5 kB gzip, allowing instant route transitions on mobile networks for field business associates.
+3. **Defense-in-Depth**: In addition to backend `Role_middleware` and `checkpermission`, unauthorized direct URL access fails at the client router level without mounting or resolving administrative chunks.

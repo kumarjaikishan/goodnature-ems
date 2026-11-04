@@ -23,6 +23,7 @@ import {
   Receipt,
   Sparkles,
   ChevronRight,
+  ChevronDown,
   Gift
 } from 'lucide-react';
 import { swal } from '../../../utils/confirmDialog';

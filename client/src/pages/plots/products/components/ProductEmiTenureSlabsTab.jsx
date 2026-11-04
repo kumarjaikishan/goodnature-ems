@@ -161,44 +161,43 @@ export default function ProductEmiTenureSlabsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Banner / Header Card */}
-      <div className="bg-gradient-to-r from-teal-900 via-teal-800 to-emerald-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Banner / Header Card - Simple Clean Look */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                <Sliders size={18} />
+              <span className="p-1.5 rounded-lg bg-teal-50 text-teal-700 border border-teal-100">
+                <Sliders size={16} />
               </span>
-              <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-300">
+              <span className="text-[11px] uppercase font-bold tracking-wider text-teal-700">
                 Plot Pricing Policy
               </span>
             </div>
-            <h2 className="text-xl md:text-2xl font-black tracking-tight text-white">
+            <h2 className="text-base md:text-lg font-bold tracking-tight text-slate-900">
               EMI Tenure Rate Adjustment Slabs
             </h2>
-            <p className="text-xs md:text-sm text-teal-100/80 max-w-2xl leading-relaxed">
-              Define the percentage discount (<span className="text-amber-300 font-bold">DEDUCT</span>) or markup (<span className="text-emerald-300 font-bold">ADD</span>) applied to the total plot value based on the chosen EMI duration during Plot Booking.
+            <p className="text-xs text-slate-500 max-w-2xl leading-relaxed">
+              Define the percentage discount (<span className="text-amber-700 font-bold">DEDUCT</span>) or markup (<span className="text-emerald-700 font-bold">ADD</span>) applied to the total plot value based on the chosen EMI duration during Plot Booking.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
               onClick={handleResetDefaults}
-              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm font-semibold transition flex items-center gap-2 border border-white/10 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center gap-1.5 border border-slate-200 shadow-2xs cursor-pointer"
               title="Reset to 0-24 months standard scale defaults"
             >
-              <RotateCcw size={15} />
+              <RotateCcw size={14} className="text-slate-500" />
               Reset 0-24 Scale
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-teal-950 text-xs md:text-sm font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/30 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
             >
-              <Save size={16} />
+              <Save size={15} />
               {saving ? 'Saving...' : 'Save Configuration'}
             </button>
           </div>
