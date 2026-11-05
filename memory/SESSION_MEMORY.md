@@ -1,5 +1,27 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Resilient API Error Handling & Gateway Sanitization [COMPLETED]**:
+  - **Issue Identified**:
+    - When the backend server was offline, unreachable, or port misconfigured, Nginx/proxy/hosting returned HTML error pages (502/503/504/404).
+    - `apiClient.js` unconditionally called `await response.json()` before checking response content-type or status, causing V8 to throw `SyntaxError: Unexpected token '<', "<html> <h"... is not valid JSON`, which was toasted directly to the user.
+    - Raw network errors like `Failed to fetch` were also directly toasted.
+  - **Comprehensive Fix**:
+    - In `client/src/utils/apiClient.js`:
+      - Wrapped network fetch in try/catch to intercept connection refused / port errors, returning clean *"Unable to connect to server. Please verify the server address or check your connection."*.
+      - Added `getStatusErrorMessage()` to map standard status codes (502, 503, 504, 500, 404, 403) to friendly human messages.
+      - Safely checked `contentType.includes("application/json")` before parsing JSON, preventing HTML parser syntax crashes.
+      - Removed `body` from GET/HEAD requests to adhere to strict fetch standards.
+    - In `client/src/utils/useApi.js`:
+      - Intercepted and sanitized any low-level parser errors (`Unexpected token`, `is not valid JSON`, `Failed to fetch`) before setting error state or showing toasts.
+      - Removed dead/unused `logger2` function.
+    - In `client/src/pages/Login.jsx`:
+      - Added fallback message sanitization in login submission error catch.
+    - In `client/src/api/axios.js`:
+      - Added network & 502/503/504 status message normalization in response error interceptor.
+  - **Verification**:
+    - Lint/AST verified via `oxlint`: 0 warnings, 0 errors across all 4 touched files.
+    - No full build run to keep Vite dev server HMR instant.
+
 - **Login Page Mobile Responsiveness & Illustration Display [COMPLETED]**:
   - **Requirement**:
     - Hide the girl illustration on mobile screens so it only appears on desktop view.

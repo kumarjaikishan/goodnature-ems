@@ -39,7 +39,21 @@ const Login = () => {
             navigate("/dashboard");
         } catch (error) {
             console.error("Login error:", error);
-            toast.error(error.message || "Login failed. Please verify credentials.");
+            let displayMsg = error.message || "Login failed. Please verify credentials.";
+            if (
+                displayMsg.includes("Unexpected token") ||
+                displayMsg.includes("is not valid JSON") ||
+                displayMsg.includes("JSON.parse")
+            ) {
+                displayMsg = "Server unavailable. Please try again later.";
+            } else if (
+                displayMsg.includes("Failed to fetch") ||
+                displayMsg.includes("NetworkError") ||
+                displayMsg.includes("Load failed")
+            ) {
+                displayMsg = "Server unavailable. Please try again later.";
+            }
+            toast.error(displayMsg);
         }
     };
 

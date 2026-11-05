@@ -36,12 +36,29 @@ export const useApi = () => {
             return result;
 
         } catch (err) {
-            setError(err.message);
-            console.log(err);
+            let userMessage = err.message || "Unexpected error occurred";
+
+            // Sanitize raw technical errors / parser syntax errors before displaying to user
+            if (
+                userMessage.includes("Unexpected token") ||
+                userMessage.includes("is not valid JSON") ||
+                userMessage.includes("JSON.parse")
+            ) {
+                userMessage = "Server unavailable. Please try again later.";
+            } else if (
+                userMessage.includes("Failed to fetch") ||
+                userMessage.includes("NetworkError") ||
+                userMessage.includes("Load failed")
+            ) {
+                userMessage = "Server unavailable. Please try again later.";
+            }
+
+            setError(userMessage);
+            console.error("API Request Error:", err);
 
             const currentPath = window.location.pathname;
             const isAuthPage = currentPath === "/logout" || currentPath === "/login";
-            const msg = (err?.message || "").toLowerCase();
+            const msg = (userMessage || "").toLowerCase();
             
             // Only 401 (Unauthorized / Invalid or Expired Token) should force a redirect to /logout.
             // 403 (Forbidden / Permission Denied) is an RBAC restriction; the user remains logged in.
@@ -52,16 +69,20 @@ export const useApi = () => {
                 msg.includes("unauthorized");
 
             if (err.isApiError && !isAuthPage) {
-                toast.warn(err.message, { autoClose: 3500, toastId: isAuthFailure ? "auth-toast" : undefined });
+                toast.warn(userMessage, { autoClose: 3500, toastId: isAuthFailure ? "auth-toast" : undefined });
             } else if (!isAuthPage) {
-                toast.error(err.message || "Unexpected error occurred", { toastId: isAuthFailure ? "auth-toast" : undefined });
+                toast.error(userMessage, { toastId: isAuthFailure ? "auth-toast" : undefined });
             }
 
             if (isAuthFailure && currentPath !== "/logout") {
                 navigate("/logout", { replace: true });
             }
 
-            throw err;
+            const cleanErr = new Error(userMessage);
+            cleanErr.status = err.status;
+            cleanErr.isApiError = err.isApiError;
+            cleanErr.payload = err.payload;
+            throw cleanErr;
         } finally {
             setLoading(false);
         }
@@ -95,10 +116,3 @@ const logger = (detail) => {
     localStorage.setItem("apiLogs", JSON.stringify(finalLogs));
 };
 
-const logger2 = (detail) => {
-    const prev = JSON.parse(localStorage.getItem("apiLogs")) || [];
-
-    const updated = [...prev, detail];
-
-    localStorage.setItem("apiLogs", JSON.stringify(updated));
-};

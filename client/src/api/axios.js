@@ -20,6 +20,11 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       clearAuthSession(null, true);
     }
+    if (!error.response) {
+      error.message = "Server unavailable. Please try again later.";
+    } else if (error.response.status >= 502 && error.response.status <= 504) {
+      error.message = `Server unavailable. Please try again later.`;
+    }
     return Promise.reject(error);
   }
 );
