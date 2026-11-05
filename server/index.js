@@ -23,9 +23,18 @@ require('./conn/conn');
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
+
   "https://local.battlefiesta.in",
+
   "http://demo.goodfeelsd.com",
   "https://demo.goodfeelsd.com",
+
+  "http://goodfeelsd.com",
+  "https://goodfeelsd.com",
+
+  "http://www.goodfeelsd.com",
+  "https://www.goodfeelsd.com",
+
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
