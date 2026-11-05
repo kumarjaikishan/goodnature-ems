@@ -44,15 +44,15 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-b from-teal-100/60 via-slate-50 to-white p-4 sm:p-6 select-none">
+        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-teal-100/60 via-slate-50 to-white p-4 sm:p-6 select-none">
             {/* Main Card */}
-            <div className="flex flex-col md:flex-row items-center md:items-stretch shadow-xl bg-white rounded-3xl overflow-hidden w-full max-w-[820px] border border-slate-200">
-                {/* Left Side Illustration Image */}
-                <div className="w-full md:w-[380px] min-h-[260px] md:min-h-full flex-shrink-0 bg-slate-50 flex items-center justify-center p-0 overflow-hidden border-b md:border-b-0 md:border-r border-slate-100">
+            <div className="flex flex-col md:flex-row items-center md:items-stretch shadow-xl bg-white rounded-2xl sm:rounded-3xl overflow-hidden w-full max-w-[420px] md:max-w-[820px] border border-slate-200">
+                {/* Left Side Illustration Image (Desktop only) */}
+                <div className="hidden md:flex w-[380px] min-h-full shrink-0 bg-slate-50 items-center justify-center p-0 overflow-hidden border-r border-slate-100">
                     <img
                         src="https://res.cloudinary.com/dusxlxlvm/image/upload/v1756013721/ems/assets/10782895_19199299_1_q2oxsf.svg"
                         alt="Login Illustration"
-                        className="w-full h-full min-h-[260px] md:min-h-[440px] object-cover object-center"
+                        className="w-full h-full min-h-[440px] object-cover object-center"
                     />
                 </div>
 
@@ -60,12 +60,35 @@ const Login = () => {
                 <div className="flex items-center justify-center w-full md:w-[440px] p-6 sm:p-8 md:p-10">
                     <div className="w-full space-y-6">
                         {/* Title Header */}
-                        <div>
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                                Good Feel
-                            </h2>
-                            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                                Enter ID and Password
+                        <div className="text-center">
+                            <div className="flex items-center justify-center gap-2.5 sm:gap-3.5">
+                                <div className="w-13 h-13 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center">
+                                    <img
+                                        src="/logo.webp"
+                                        alt="Company Logo"
+                                        className="w-full h-full object-contain mix-blend-multiply"
+                                        onError={(e) => {
+                                            e.currentTarget.src = "/favicon.png";
+                                        }}
+                                    />
+                                </div>
+                                <img
+                                    src="/name_and_tagline.webp"
+                                    alt="Good Feel"
+                                    className="h-13 sm:h-16 max-w-[170px] sm:max-w-[220px] object-contain"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        if (e.currentTarget.nextSibling) {
+                                            e.currentTarget.nextSibling.style.display = 'block';
+                                        }
+                                    }}
+                                />
+                                <h2 className="hidden text-2xl font-black text-slate-900 tracking-tight">
+                                    Good Feel
+                                </h2>
+                            </div>
+                            <p className="text-xs sm:text-sm font-medium text-slate-500 mt-2.5">
+                                Sign in to your account
                             </p>
                         </div>
 
@@ -82,7 +105,7 @@ const Login = () => {
                                     value={identifier}
                                     onChange={(e) => setIdentifier(e.target.value)}
                                     placeholder="Enter ID"
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition"
+                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition"
                                 />
                             </div>
 
@@ -98,7 +121,7 @@ const Login = () => {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Enter Password"
-                                        className="w-full px-3.5 py-2.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition"
+                                        className="w-full px-3.5 py-2.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition"
                                     />
                                     <button
                                         type="button"
@@ -114,7 +137,7 @@ const Login = () => {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-md bg-teal-700 hover:bg-teal-800 active:scale-[0.98] transition cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed shadow-teal-700/20 flex items-center justify-center gap-2"
+                                    className="w-full py-3 sm:py-3.5 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-md bg-teal-700 hover:bg-teal-800 active:scale-[0.98] transition cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed shadow-teal-700/20 flex items-center justify-center gap-2"
                                 >
                                     {isLoading ? (
                                         <>

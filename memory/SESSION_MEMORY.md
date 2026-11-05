@@ -1,5 +1,19 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Login Page Mobile Responsiveness & Illustration Display [COMPLETED]**:
+  - **Requirement**:
+    - Hide the girl illustration on mobile screens so it only appears on desktop view.
+    - Ensure the login card and header are fully responsive, clean, and fit on mobile screens without unnecessary scrolling.
+  - **Implementation**:
+    - In `client/src/pages/Login.jsx`:
+      - Changed illustration container to `hidden md:flex`, displaying the illustration exclusively on desktop screens (`>= 768px`).
+      - Updated main card width to `w-full max-w-[420px] md:max-w-[820px]` and corner rounding to `rounded-2xl sm:rounded-3xl`.
+      - Replaced `w-screen` with `w-full` on container to prevent horizontal scrollbars on mobile viewports.
+      - Scaled logo & tagline responsively (`w-13 h-13 sm:w-16 sm:h-16` and `h-13 sm:h-16 max-w-[170px] sm:max-w-[220px]`).
+      - Set input font sizes to `text-base sm:text-sm` to prevent mobile iOS Safari auto-zoom on field focus.
+  - **Verification**:
+    - Verified fast AST/lint check via `oxlint`: 0 errors.
+
 - **Simplified EMI Tenure Slabs Header Banner [COMPLETED]**:
   - **Requirement**:
     - On the Plot Products & Fractional Unit Master page (`/dashboard/plots/products?tab=emi_slabs`), simplify the heavy dark-green gradient banner to a clean, minimal white card matching the rest of the application.
