@@ -2,15 +2,6 @@ import React from 'react';
 import {
   Building2,
   User,
-  Tag,
-  Calendar,
-  CheckCircle2,
-  Sparkles,
-  Calculator,
-  ArrowRight,
-  ShieldCheck,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react';
 
 export const BookingSummarySidebar = ({
@@ -39,6 +30,7 @@ export const BookingSummarySidebar = ({
 }) => {
   const plotArea = selectedPlot?.plotSize || selectedPlot?.area || 0;
   const resolvedTenure = isOneTime ? 0 : (totalTenureMonths || Number(form.tenureMonths) || 0);
+  const baseGrossAmount = Math.round(plotArea * (effectiveRate || 0));
 
   return (
     <div className="flex flex-col gap-6 sticky top-6">
@@ -153,16 +145,15 @@ export const BookingSummarySidebar = ({
 
       {/* Step 3 Full Financial Table & Contract Summary */}
       {step === 3 && (
-        <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-2xl flex flex-col gap-5">
+        <div className="bg-white border border-slate-200 shadow-sm p-5 rounded-2xl flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-teal-700" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
               Contract Financial Summary
             </h3>
             <span
-              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${form.bookingType === 'HOLD'
-                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                  : 'bg-teal-100 text-teal-800 border border-teal-200'
+              className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${form.bookingType === 'HOLD'
+                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                  : 'bg-teal-50 text-teal-800 border border-teal-200'
                 }`}
             >
               {form.bookingType || 'BOOKING'}
@@ -218,7 +209,7 @@ export const BookingSummarySidebar = ({
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                    ₹{calculatedPlotValue.toLocaleString('en-IN')}
+                    ₹{(baseGrossAmount > 0 ? baseGrossAmount : calculatedPlotValue).toLocaleString('en-IN')}
                   </td>
                 </tr>
 
@@ -266,7 +257,7 @@ export const BookingSummarySidebar = ({
                   </tr>
                 )}
 
-                {/* 2. Additional Discount */}
+                {/* 2. Additional Manual Discount */}
                 <tr className="border-b border-slate-100 bg-white">
                   <td className="py-2.5 px-3 font-semibold text-slate-600">
                     Manual Discount
@@ -280,6 +271,21 @@ export const BookingSummarySidebar = ({
                     {calculatedDiscount > 0 ? `- ₹${calculatedDiscount.toLocaleString('en-IN')}` : '₹0'}
                   </td>
                 </tr>
+
+                {/* 2b. Total Combined Discount if both tenure discount and manual discount exist */}
+                {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && emiTenureAdjustment.action === 'DEDUCT' && calculatedDiscount > 0 && (
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <td className="py-2 px-3 font-bold text-slate-700 uppercase text-[10px]">
+                      Total Combined Discount
+                      <span className="block text-[9px] text-slate-400 font-normal">
+                        Tenure Discount + Manual Discount
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-bold text-emerald-800 text-xs">
+                      - ₹{(emiTenureAdjustment.amount + calculatedDiscount).toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                )}
 
                 {/* 3. Net Plot Contract Value */}
                 <tr className="border-b border-slate-200 bg-teal-50/40">
@@ -326,20 +332,20 @@ export const BookingSummarySidebar = ({
 
             {/* 6. Installment Breakdown Card */}
             {!isOneTime && (
-              <div className="p-3 bg-gradient-to-r from-teal-50 via-teal-100/50 to-emerald-50 border-t border-teal-200 flex items-center justify-between">
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-bold text-teal-950 uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
                     Installment ({installmentCount} x {emiFrequency === 'MONTHLY' ? 'Monthly' : emiFrequency === 'QUARTERLY' ? 'Quarterly' : emiFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'})
                   </span>
-                  <span className="text-[11px] text-teal-700 font-medium">
+                  <span className="text-[11px] text-slate-500 font-medium">
                     Total {resolvedTenure} mos tenure
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-base font-black font-mono text-teal-950">
+                  <span className="text-base font-bold font-mono text-slate-900">
                     ₹{emiMonthlyAmt.toLocaleString('en-IN')}
                   </span>
-                  <span className="text-[10px] text-teal-700 block font-bold">
+                  <span className="text-[10px] text-slate-500 block font-medium">
                     / {emiFrequency === 'MONTHLY' ? 'Month' : emiFrequency === 'QUARTERLY' ? 'Quarter' : emiFrequency === 'HALF_YEARLY' ? '6 Mos' : 'Year'}
                   </span>
                 </div>

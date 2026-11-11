@@ -817,50 +817,82 @@ const BookingCertificateViewer = () => {
               </tr>
             )}
 
-            {/* Row 7: Plot Value, Discount & Net Payable */}
-            <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Plot Value</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-black text-slate-900">₹{(booking.plotValue || 0).toLocaleString('en-IN')}</td>
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Discount</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-bold text-emerald-700">₹{(booking.discount || 0).toLocaleString('en-IN')}</td>
-            </tr>
+            {/* Row 7: Gross Plot Value & Total Discount (Periodic + Manual) */}
+            {(() => {
+              const manualDisc = Number(booking.discount || 0);
+              const tenureDisc = booking.emiTenureAdjustmentAction === 'DEDUCT' ? Number(booking.emiTenureAdjustmentAmount || 0) : 0;
+              const tenureMarkup = booking.emiTenureAdjustmentAction === 'ADD' ? Number(booking.emiTenureAdjustmentAmount || 0) : 0;
+              const totalCombinedDisc = manualDisc + tenureDisc;
+              const baseGrossPlotVal = Number(booking.plotValue || 0) + tenureDisc - tenureMarkup;
+              const netPayable = Math.max(0, (booking.plotValue || 0) - manualDisc);
 
-            {/* Row 8: Net Payable & Payment Scheme */}
-            <tr className="border-b border-slate-100 bg-slate-50/20">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Net Payable Amount</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2">
-                <span className="font-black text-slate-900 text-xs">
-                  ₹{Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)).toLocaleString('en-IN')}
-                </span>
-                <span className="text-[10px] text-slate-500 font-sans font-normal block mt-0.5 capitalize">
-                  ({numberToWords(Math.max(0, (booking.plotValue || 0) - (booking.discount || 0)))})
-                </span>
-              </td>
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Payment Scheme</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-bold text-slate-900">
-                {booking.scheme === 'FULL_PAYMENT' ? 'One Time (Full Payment)' : 'Monthly Installment (EMI)'}
-              </td>
-            </tr>
+              return (
+                <>
+                  <tr className="border-b border-slate-100">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Gross Plot Value</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-black text-slate-900">
+                      ₹{(baseGrossPlotVal > 0 ? baseGrossPlotVal : (booking.plotValue || 0)).toLocaleString('en-IN')}
+                    </td>
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Total Discount</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-emerald-700">
+                      <div>
+                        <span>₹{totalCombinedDisc.toLocaleString('en-IN')}</span>
+                        {tenureDisc > 0 && manualDisc > 0 ? (
+                          <span className="text-[9px] text-slate-500 font-normal block mt-0.5">
+                            (Periodic: ₹{tenureDisc.toLocaleString('en-IN')} + Manual: ₹{manualDisc.toLocaleString('en-IN')})
+                          </span>
+                        ) : tenureDisc > 0 ? (
+                          <span className="text-[9px] text-slate-500 font-normal block mt-0.5">
+                            (Periodic Tenure Discount: {booking.emiTenureAdjustmentPercent ? `${booking.emiTenureAdjustmentPercent}%` : ''})
+                          </span>
+                        ) : manualDisc > 0 ? (
+                          <span className="text-[9px] text-slate-500 font-normal block mt-0.5">
+                            (Manual Discount)
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Row 8: Net Payable & Payment Scheme */}
+                  <tr className="border-b border-slate-100 bg-slate-50/20">
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Net Payable Amount</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <span className="font-black text-slate-900 text-xs">
+                        ₹{netPayable.toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-sans font-normal block mt-0.5 capitalize">
+                        ({numberToWords(netPayable)})
+                      </span>
+                    </td>
+                    <td className="p-2 text-slate-500 font-medium">
+                      <div className="flex justify-between items-center">
+                        <span>Payment Scheme</span>
+                        <span>:</span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-bold text-slate-900">
+                      {booking.scheme === 'FULL_PAYMENT' ? 'One Time (Full Payment)' : 'Monthly Installment (EMI)'}
+                    </td>
+                  </tr>
+                </>
+              );
+            })()}
 
             {/* Row 9: Downpayment Amount & Downpayment Due Date */}
             {(() => {

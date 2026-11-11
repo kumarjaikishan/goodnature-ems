@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import TablePagination from "../../../components/common/TablePagination";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
 import PageLoader from "../../../components/common/PageLoader";
-import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import {
@@ -11,12 +11,9 @@ import {
   Search,
   ArrowRightLeft,
   Eye,
-  User,
   Coins,
-  ShieldAlert,
   LayoutGrid,
   Table as TableIcon,
-  Plus
 } from "lucide-react";
 
 import { useSelector } from "react-redux";
@@ -30,6 +27,13 @@ export default function CashLedgersPage() {
   const [filteredLedgers, setFilteredLedgers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState("table");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const paginatedLedgers = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredLedgers.slice(start, start + rowsPerPage);
+  }, [filteredLedgers, currentPage, rowsPerPage]);
 
   useEffect(() => {
     fetchCashLedgers();
@@ -82,6 +86,7 @@ export default function CashLedgersPage() {
       );
     }
     setFilteredLedgers(result);
+    setCurrentPage(1);
   }, [searchQuery, cashLedgers]);
 
   const totalCashInCustody = cashLedgers.reduce((sum, c) => sum + (Number(c.netBalance) || 0), 0);
@@ -213,8 +218,9 @@ export default function CashLedgersPage() {
 
       {/* Card View */}
       {viewType === "card" ? (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredLedgers.map((cash) => {
+          {paginatedLedgers.map((cash) => {
             const netBal = Number(cash.netBalance) || 0;
             const heldBal = Number(cash.heldBalance) || 0;
             const availBal = Number(cash.availableBalance) || 0;
@@ -313,6 +319,18 @@ export default function CashLedgersPage() {
             );
           })}
         </div>
+        {filteredLedgers.length > 0 && (
+          <div className="mt-4 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+            <TablePagination
+              currentPage={currentPage}
+              totalItems={filteredLedgers.length}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
+          </div>
+        )}
+        </>
       ) : (
         /* Table View */
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-x-auto">
@@ -328,7 +346,7 @@ export default function CashLedgersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredLedgers.map((cash) => {
+              {paginatedLedgers.map((cash) => {
                 const user = cash.assignedUserId || {};
                 return (
                   <tr key={cash._id} className="hover:bg-slate-50/80 transition-colors">
@@ -396,6 +414,15 @@ export default function CashLedgersPage() {
               })}
             </tbody>
           </table>
+          {filteredLedgers.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalItems={filteredLedgers.length}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
+          )}
         </div>
       )}
     </div>

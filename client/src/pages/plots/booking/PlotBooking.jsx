@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
   ArrowLeft,
-  Sparkles
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
@@ -480,6 +479,12 @@ export default function PlotBooking() {
         developerCommissionPercent: form.developerCommissionPercent !== undefined ? Number(form.developerCommissionPercent) : 1.0,
         bpCommissionPercent: form.bpCommissionPercent !== undefined ? Number(form.bpCommissionPercent) : 1.0,
         branchCommissionPercent: form.branchCommissionPercent !== undefined ? Number(form.branchCommissionPercent) : 0.5,
+        downpaymentPromoterCommissionPercent: form.downpaymentPromoterCommissionPercent !== undefined ? Number(form.downpaymentPromoterCommissionPercent) : undefined,
+        emiPromoterCommissionPercent: form.emiPromoterCommissionPercent !== undefined ? Number(form.emiPromoterCommissionPercent) : undefined,
+        downpaymentBpCommissionPercent: form.downpaymentBpCommissionPercent !== undefined ? Number(form.downpaymentBpCommissionPercent) : undefined,
+        emiBpCommissionPercent: form.emiBpCommissionPercent !== undefined ? Number(form.emiBpCommissionPercent) : undefined,
+        downpaymentBranchCommissionPercent: form.downpaymentBranchCommissionPercent !== undefined ? Number(form.downpaymentBranchCommissionPercent) : undefined,
+        emiBranchCommissionPercent: form.emiBranchCommissionPercent !== undefined ? Number(form.emiBranchCommissionPercent) : undefined,
         rdMaturityPercent: form.rdMaturityPercent !== undefined ? Number(form.rdMaturityPercent) : 0,
         fdMaturityPercent: form.fdMaturityPercent !== undefined ? Number(form.fdMaturityPercent) : 0,
         annualInterestRate: form.annualInterestRate !== undefined ? Number(form.annualInterestRate) : 0,
@@ -675,6 +680,7 @@ export default function PlotBooking() {
         seriesList={seriesList}
         customSqFtRate={customSqFtRate}
         effectiveSqFtRate={effectiveSqFtRate}
+        baseCalculatedPlotValue={baseCalculatedPlotValue}
         calculatedPlotValue={calculatedPlotValue}
         calculatedDiscount={calculatedDiscount}
         discountType={discountType}
@@ -692,6 +698,7 @@ export default function PlotBooking() {
         landSourcing={landSourcing}
         selectedPremiumHeads={selectedPremiumHeads}
         plotArea={plotArea}
+        emiTenureAdjustment={emiTenureAdjustment}
       />
     </div>
   );

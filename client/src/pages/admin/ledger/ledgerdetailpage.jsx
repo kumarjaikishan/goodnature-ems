@@ -9,12 +9,10 @@ import { getLedgerColumns } from './ledgerhelper';
 import { hasPermission } from '../../../utils/CheckPermission';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { useCustomStyles } from '../attandence/attandencehelper';
-import Loader from '../../../utils/loader';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import { useSelector } from 'react-redux';
 import {
-    Filter, RotateCcw, Download, ArrowLeft, Plus,
-    TrendingUp, TrendingDown, Wallet, User, Calendar, CreditCard, ShieldCheck
+    RotateCcw, Download, ArrowLeft, Plus, CreditCard, ShieldCheck
 } from 'lucide-react';
 import { swal } from '../../../utils/confirmDialog';
 import PayLedgerModal from './PayLedgerModal';
@@ -487,10 +485,6 @@ const LedgerDetailPage = () => {
                         </button>
                     )}
                 </div>
-
-                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
-                    Showing <strong className="text-teal-800 font-bold">{filtered.length}</strong> of {entries.length} records
-                </span>
             </div>
 
             {/* ── Transaction Entries Table ── */}
@@ -498,6 +492,7 @@ const LedgerDetailPage = () => {
                 <DataTable
                     columns={getLedgerColumns(handleEditEntry, handleDeleteEntry, employee, navigate, isSponsorUser, { canEdit: canEditEntry, canDelete: canDeleteEntry })}
                     data={filtered || []}
+                    progressPending={loading}
                     pagination
                     customStyles={useCustomStyles()}
                     highlightOnHover

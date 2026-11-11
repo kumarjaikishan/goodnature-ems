@@ -357,6 +357,69 @@ class PlotBookingService {
         if (proj) resolvedProjectName = proj.name;
       }
 
+      // 3c. Hierarchy Commission Snapshot Locking (Fixed for Contract Lifetime)
+      const InvestmentSchemeConfig = mongoose.model('InvestmentSchemeConfig');
+      let schemeConfig = null;
+      try {
+        schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' }).session(session) ||
+          await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 }).session(session);
+      } catch (err) {
+        console.warn('Could not load InvestmentSchemeConfig for booking snapshot:', err.message);
+      }
+
+      let matchedSchemeSlab = null;
+      if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
+        if (planName) {
+          matchedSchemeSlab = schemeConfig.slabs.find((s) => s.planName === planName);
+        }
+        if (!matchedSchemeSlab) {
+          matchedSchemeSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === resolvedTenure);
+        }
+        if (!matchedSchemeSlab) {
+          const sorted = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
+          matchedSchemeSlab = sorted.find((s) => Number(s.tenureMonths) >= resolvedTenure) || sorted[sorted.length - 1];
+        }
+      }
+
+      const lockedDpBaPct = Number(
+        data.downpaymentPromoterCommissionPercent ??
+        matchedSchemeSlab?.fdPromoterCommissionPercent ??
+        promoterCommissionPercent ??
+        5.0
+      );
+      const lockedEmiBaPct = Number(
+        data.emiPromoterCommissionPercent ??
+        matchedSchemeSlab?.rdPromoterCommissionPercent ??
+        promoterCommissionPercent ??
+        4.0
+      );
+      const lockedDpBpPct = Number(
+        data.downpaymentBpCommissionPercent ??
+        matchedSchemeSlab?.bpFdCommissionPercent ??
+        bpCommissionPercent ??
+        developerCommissionPercent ??
+        1.0
+      );
+      const lockedEmiBpPct = Number(
+        data.emiBpCommissionPercent ??
+        matchedSchemeSlab?.bpRdCommissionPercent ??
+        bpCommissionPercent ??
+        developerCommissionPercent ??
+        1.0
+      );
+      const lockedDpBranchPct = Number(
+        data.downpaymentBranchCommissionPercent ??
+        matchedSchemeSlab?.branchFdCommissionPercent ??
+        branchCommissionPercent ??
+        0.5
+      );
+      const lockedEmiBranchPct = Number(
+        data.emiBranchCommissionPercent ??
+        matchedSchemeSlab?.branchRdCommissionPercent ??
+        branchCommissionPercent ??
+        0.5
+      );
+
       const booking = new PlotBooking({
         bookingNumber,
         agreementNumber,
@@ -386,10 +449,16 @@ class PlotBookingService {
         effectivePlotRate: effectiveSqFtRate,
         emiRate: emiRatePerSqFt,
         planName: planName || '',
-        promoterCommissionPercent: Number(promoterCommissionPercent !== undefined ? promoterCommissionPercent : 5.0),
-        developerCommissionPercent: Number(developerCommissionPercent !== undefined ? developerCommissionPercent : (bpCommissionPercent !== undefined ? bpCommissionPercent : 2.0)),
-        bpCommissionPercent: Number(bpCommissionPercent !== undefined ? bpCommissionPercent : (developerCommissionPercent !== undefined ? developerCommissionPercent : 2.0)),
-        branchCommissionPercent: Number(branchCommissionPercent !== undefined ? branchCommissionPercent : 0),
+        promoterCommissionPercent: resolvedScheme === 'FULL_PAYMENT' ? lockedDpBaPct : lockedEmiBaPct,
+        developerCommissionPercent: resolvedScheme === 'FULL_PAYMENT' ? lockedDpBpPct : lockedEmiBpPct,
+        bpCommissionPercent: resolvedScheme === 'FULL_PAYMENT' ? lockedDpBpPct : lockedEmiBpPct,
+        branchCommissionPercent: resolvedScheme === 'FULL_PAYMENT' ? lockedDpBranchPct : lockedEmiBranchPct,
+        downpaymentPromoterCommissionPercent: lockedDpBaPct,
+        emiPromoterCommissionPercent: lockedEmiBaPct,
+        downpaymentBpCommissionPercent: lockedDpBpPct,
+        emiBpCommissionPercent: lockedEmiBpPct,
+        downpaymentBranchCommissionPercent: lockedDpBranchPct,
+        emiBranchCommissionPercent: lockedEmiBranchPct,
         rdMaturityPercent: Number(rdMaturityPercent || 0),
         fdMaturityPercent: Number(fdMaturityPercent || 0),
         annualInterestRate: Number(annualInterestRate || 0),

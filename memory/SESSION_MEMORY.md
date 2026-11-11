@@ -1,5 +1,234 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Periodic (Tenure) vs Manual Discount Separation Across Booking, Review Modal, Details Page, and Certificate [COMPLETED]**:
+  - **Requirement**:
+    1. During plot booking (`/dashboard/plots/booking/new`), two discounts can exist: Periodic / Tenure Discount (e.g., `-14% Tenure Adjustment (6M)`: `-₹8,81,412`) and Manual Discount (e.g., `Manual Discount Given`: `-₹12,500`).
+    2. Review confirmation modal (`BookingConfirmationModal.jsx`) must show both discounts separately along with the combined total discount.
+    3. Booking Details page (`/dashboard/plots/booking/:id`) in the "Booking Contract & Financial Terms" section must display both discounts separately (Periodic/Tenure Discount, Manual Discount, and Total Combined Discount).
+    4. Printable Booking Certificate (`BookingCertificateViewer.jsx`) must show the combined total discount with an explanatory breakdown showing `(Periodic: ₹... + Manual: ₹...)` and correct Gross Plot Value.
+  - **Implementation**:
+    - `client/src/pages/plots/booking/PlotBooking.jsx`:
+      - Passed `baseCalculatedPlotValue` and `emiTenureAdjustment` props to `<BookingConfirmationModal />`.
+    - `client/src/pages/plots/booking/components/BookingConfirmationModal.jsx`:
+      - Received `baseCalculatedPlotValue` and `emiTenureAdjustment`.
+      - Displayed `Gross Plot Value`, `Periodic / Tenure Discount`, `Manual Discount Given`, and `Total Discount (Periodic + Manual)`.
+    - `client/src/pages/plots/booking/components/BookingSummarySidebar.jsx`:
+      - Displayed base gross amount, separate periodic adjustment, manual discount, and combined discount.
+    - `client/src/pages/plots/booking/PlotBookingDetails.jsx`:
+      - Extracted `manualDiscount`, `tenureDiscount` (when `emiTenureAdjustmentAction === 'DEDUCT'`), `totalCombinedDiscount`, and `baseGrossValue`.
+      - Updated top KPI cards: `Total Plot Value (Gross)` and `Discount Granted (Total)` with granular breakdown.
+      - Updated "Booking Contract & Financial Terms" card: displays `Gross Plot Value (Base)`, `Periodic / Tenure Discount`, `Manual Discount Given`, `Total Combined Discount`, and `Net Plot Contract Value`.
+    - `client/src/pages/plots/printViewers/BookingCertificateViewer.jsx`:
+      - Row 7 & 8: Displays `Gross Plot Value` and `Total Discount` (combined sum), with secondary breakdown note `(Periodic: ₹... + Manual: ₹...)` and `Net Payable Amount`.
+  - **Verification**:
+    - Verified all 6 files with `oxlint` (0 errors).
+    - Preserved instant Vite HMR without executing full build.
+
+- **Booking Commission Snapshot Immutability, Detail Display & Cancellation Ledger Reversals [COMPLETED]**:
+  - **Requirement**:
+    1. Lock and snapshot the exact commission percentages (both Downpayment % and EMI %) for Business Associate, Business Partner, and Branch Partner at the exact moment a booking is created.
+    2. If scheme matrix rates change 3-4 months later, or a customer makes deposits after 2 years, all future collections for that contract must strictly use the original locked snapshot rates from booking time.
+    3. Save these rates in the booking document and display them on the Booking Details page (`/dashboard/plots/booking/:id`).
+    4. When a collection receipt/bill is cancelled, rejected, or deleted, the exact amount credited to the sponsor and branch ledgers must be reversed.
+  - **Implementation**:
+    - In `server/models/PlotBooking.js` & `server/models/PlotProductBooking.js`:
+      - Added locked fields: `downpaymentPromoterCommissionPercent`, `emiPromoterCommissionPercent`, `downpaymentBpCommissionPercent`, `emiBpCommissionPercent`, `downpaymentBranchCommissionPercent`, `emiBranchCommissionPercent`.
+    - In `server/services/plots/plotBooking.service.js`:
+      - Stamped all 6 locked hierarchy commission rates onto the `PlotBooking` document at booking creation.
+    - In `server/services/plots/plotDeveloper.service.js`:
+      - Updated `syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions` to ALWAYS prioritize `booking.downpaymentPromoterCommissionPercent` / `booking.emiPromoterCommissionPercent`, etc., before falling back to any current global scheme matrix, ensuring permanent contract rate immutability.
+    - In `server/services/plots/plotCollection.service.js`:
+      - In `deleteReceipt` and `rejectReceipt`, ensured all ledger entries matching `{ source: { $in: ['commission_fixed', 'commission_branch', 'receipt'] }, referenceId: receipt._id }` and corresponding `PlotSponsorCommission` documents are deleted/reversed from sponsor, branch, and treasury ledgers.
+    - In `client/src/pages/plots/booking/PlotBookingDetails.jsx`:
+      - Added "Sponsor & Commission Snapshot" card displaying the locked Downpayment % and EMI % for BA, BP, and Branch Partner with a permanent lock indicator badge.
+  - **Verification**:
+    - Node syntax check (`node -c`): 0 errors across all touched backend files.
+    - AST / linter (`oxlint -D no-undef`): 0 errors on all frontend files.
+    - Preserved instant Vite HMR without executing full build.
+
+
+  - **Requirement**:
+    1. Independent commission rates for Downpayment deposits vs regular monthly EMI installments for Business Associate (BA), Business Partner (BP), and Branch Partner.
+       - Downpayment deposits credit `fdPromoterCommissionPercent` (BA), `bpFdCommissionPercent` (BP), and `branchFdCommissionPercent` (Branch Partner).
+       - Regular EMI deposits credit `rdPromoterCommissionPercent` (BA), `bpRdCommissionPercent` (BP), and `branchRdCommissionPercent` (Branch Partner).
+       - Full Payment / One-Time bookings treat 100% of collections as Downpayment and credit the downpayment rates.
+    2. Strict collection guardrails:
+       - Downpayment collections must only accept up to the remaining downpayment balance and must **never spill into EMI installments**.
+       - Monthly EMI collections are blocked until the downpayment has been 100% completed.
+       - Rebuilding installments isolates `DOWNPAYMENT` receipts to installment #0 and `INSTALLMENT` receipts to installments #1+.
+    3. Scheme matrix UI updated from `EMI | One-Time` to `EMI | Downpayment` across BA, BP, and Branch Partner, with all purple styling converted to deep teal and emerald theme standards.
+  - **Implementation**:
+    - In `server/services/plots/plotDeveloper.service.js`:
+      - Updated `syncBookingSponsorCommissions` and `syncProductBookingSponsorCommissions` to evaluate each collection receipt dynamically: Downpayment receipts apply `fdPromoterCommissionPercent`, `bpFdCommissionPercent`, and `branchFdCommissionPercent`; regular EMI receipts apply `rdPromoterCommissionPercent`, `bpRdCommissionPercent`, and `branchRdCommissionPercent`.
+      - Updated remarks and slab labels to clearly reflect `(Downpayment)` vs `(EMI)`.
+    - In `server/services/plots/plotCollection.service.js`:
+      - In `collectInstallment`: isolated `targetInstIds` to installment #0 for downpayment collections. Added hard validation capping collection at the unpaid downpayment principal + net fine. Added loop guard terminating before installment #1.
+      - Blocked EMI collections when downpayment is unpaid.
+      - In `rebuildBookingInstallmentsState`: enforced strict receipt partitioning (`DOWNPAYMENT` applies only to installment #0, `INSTALLMENT` applies only to installments #1+).
+    - In `client/src/pages/plots/products/components/ProductSchemeRulesTab.jsx`:
+      - Replaced `EMI | One-Time` with `EMI | Downpayment` across BA, BP, and Branch Partner.
+      - Removed purple styling; replaced with teal/emerald theme classes.
+  - **Verification**:
+    - Backend syntax check: `node -c` (exit code 0).
+    - Client AST/lint: `oxlint -D no-undef` (0 warnings, 0 errors).
+    - Preserved instant Vite HMR without executing full build.
+
+- **Commission Structure Theme Alignment (No Purple Colors) [COMPLETED]**:
+  - **Requirement**:
+    - Do not use purple colors on the commission structure page (`/dashboard/my-commission-rates`).
+    - Standardize all buttons, role badges, and table indicators to the project's deep teal and emerald theme standards.
+  - **Implementation**:
+    - In `client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx`:
+      - Replaced `bg-purple-700` button with `bg-teal-700` for Business Partner.
+      - Replaced `bg-purple-50 text-purple-800` role badges with `bg-teal-50 text-teal-900 border-teal-300`.
+      - Replaced `bg-indigo-50` with `bg-emerald-50 text-emerald-800 border-emerald-200` for Branch Partner.
+  - **Verification**:
+    - Validated with `oxlint`: 0 warnings, 0 errors.
+    - Preserved instant Vite HMR without executing a full build.
+
+
+- **Khata and Plot / Khesra Number Display Format Refinement [COMPLETED]**:
+  - **Requirement**:
+    - Remove the `#` prefix and prefix text (`Khata #`, `Plot / Khesra #`) when selecting and viewing Khata number and Plot/Khesra number.
+    - Show just the clean raw number (e.g. `78`, `268`) in the dropdown list, in the selected input field, and in the detail summary tags.
+  - **Implementation**:
+    - In `client/src/pages/plots/booking/components/LandAcquisitionSourcingSection.jsx`:
+      - Updated `overallKhataOptions`: set `label: k === 'General' ? 'General' : k` (so it renders as just `78`).
+      - Updated `khesraOptions`: set `label: p === 'General Plot' ? 'General' : p` (so it renders as just `268`).
+      - Search placeholders updated to `Search Khata...`, `Search Khesra...`, and `Search Agreement...`.
+      - Detail tags updated from `Khata: #78` to `Khata: 78` and from `Plot/Khesra: #268` to `Plot / Khesra: 268`.
+  - **Verification**:
+    - Validated with `oxlint`: 0 warnings, 0 errors.
+    - Preserved instant Vite HMR without executing a full build.
+
+
+- **Plot Booking Step 3 & Summary Sidebar Professional Clean-Up [COMPLETED]**:
+  - **Requirement**:
+    - Remove AI slop (sparkles, star-type icons, decorative badges, and heavy multi-color gradients).
+    - Make Step 3 look clean, minimal, and professional. Use color only where necessary for semantic meaning (e.g. matching badges, alerts, active selections).
+  - **Implementation**:
+    1. `StepTermsAndPayment.jsx`:
+       - Removed `Sparkles`, `Award`, `Calculator`, and `Edit3` decorative icons from titles, section headers, and input labels.
+       - Replaced heavy colored background cards (`bg-teal-50/70`, `bg-gradient-to-r`) with clean standard white cards (`bg-white border border-slate-200 rounded-xl`).
+       - Simplified Payment Plan selector (One-Time vs EMI) with subtle active borders and clear text.
+       - Cleaned up Plot Premium Features card by eliminating the orange/amber gradient and sparkle badge, switching to clean slate layout.
+       - Replaced multi-colored EMI duration/schedule badges with crisp font-mono text and neutral slate tags.
+    2. `LandAcquisitionSourcingSection.jsx`:
+       - Replaced outer teal container with clean `bg-white border border-slate-200 rounded-xl`.
+       - Removed `Building2` icon from the header.
+       - Styled land source rows in clean `bg-slate-50/70 border border-slate-200 rounded-xl` with neat tags for Khata, Khesra, and Agreement.
+    3. `BookingSummarySidebar.jsx`:
+       - Removed `Sparkles` icon from Contract Financial Summary header.
+       - Replaced the rainbow gradient installment card with a clean, readable slate card (`bg-slate-50 border-t border-slate-200`).
+  - **Verification**:
+    - Validated with `oxlint`: 0 warnings, 0 errors.
+    - Preserved instant Vite HMR without executing a full build.
+
+
+- **Cascading Land Acquisition Sourcing (Khata No. -> Plot / Khesra No. -> Agreement No.) [COMPLETED]**:
+  - **Requirement**:
+    - In Plot Booking Step 3 (`StepTermsAndPayment.jsx`) and Investment Booking (`ProductBookingPage.jsx`), replace the flat 2-dropdown layout with a 3-step cascading searchable workflow:
+      1. First selectable & searchable dropdown for **Khata No.**
+      2. Second selectable & searchable dropdown for **Plot / Khesra No.** (filtered strictly by selected Khata No.).
+      3. Third selectable & searchable dropdown for **Agreement No.** (filtered by chosen Khata and Plot/Khesra No., showing available agreement numbers and available Sq.Ft. & Dismil stock).
+      4. Auto-fill remaining area or custom allocated area (Sq.Ft.) and instant area balance validation.
+  - **Implementation**:
+    - **Created Reusable Component**: `client/src/pages/plots/booking/components/LandAcquisitionSourcingSection.jsx`
+      - Flattens available land sources (`landSources`) and their parcels into uniform units indexed by Khata, Khesra, and Agreement.
+      - Utilizes `SearchableSelect` (`client/src/components/ui/SearchableSelect.jsx`) for portal-rendered search and selection.
+      - Automatically clears downstream selections (Khesra / Agreement) if an upstream selection (Khata) is changed.
+      - Automatically auto-selects if only one Khesra exists under a Khata, or only one Agreement exists under a Khesra.
+      - Retains auto-fill remaining area button, delete row button, info badges (Mauja, Thana, Available Sq.Ft. & Dismil), and perfect match / over / under-allocation status bar.
+    - **Integrated into Step 3 Plot Booking**:
+      - `client/src/pages/plots/booking/components/StepTermsAndPayment.jsx`: Replaced old agreement/parcel dropdowns with `<LandAcquisitionSourcingSection />`.
+    - **Integrated into Investment Booking**:
+      - `client/src/pages/plots/products/ProductBookingPage.jsx`: Replaced old agreement/parcel dropdowns with `<LandAcquisitionSourcingSection />` powered by `availableAgreementsForProject`.
+  - **Verification**:
+    - Executed `oxlint`: 0 warnings, 0 errors in `LandAcquisitionSourcingSection.jsx`.
+    - Preserved instant Vite HMR without executing a full build.
+
+
+- **Business Partner vs Business Associate Commission Structure Rates Fix [COMPLETED]**:
+  - **Issue Identified**:
+    - On `/dashboard/my-commission-rates` (`CommissionStructurePage.jsx`), when a Business Partner (such as `GoodFeel Sd Realtech Pvt Ltd`) logged in, they were being shown the Business Associate rates (e.g. Down Payment Fix Commission 3% - 8% and EMI 2% - 7%) instead of the configured Business Partner rates (Down Payment 1% - 2% and EMI 0.75% - 1.75%).
+    - In addition, both Business Associate and Business Partner were seeing identical Associate incentive and reward slabs.
+  - **Root Cause**:
+    1. In `CommissionStructurePage.jsx`, the component called `useSelector((state) => state.auth)` to read `user`. However, in this application, `state.auth` only contains `{ islogin, head, loader, isadmin }`, while the actual user profile is stored in Redux `state.user.profile`.
+    2. Because `user` was `undefined`:
+       - `isAdminOrStaff` evaluated to `false`.
+       - `isDirectPartner` evaluated to `false`.
+       - `activeRoleMode` was hardcoded to fall back to `'associate'`, forcing all users (including Business Partners and Admins) to always render the Business Associate rates.
+    3. Even if `user` had been defined, `isDirectPartner` only checked `userRole === 'BUSINESS_PARTNER'`. In Good Nature EMS, all partners and developers hold `role: 'sponsor'` and are distinguished by `isDeveloperSponsor === true`, `sponsorCode.startsWith('BP-')`, or `!sponsorId`.
+    4. Table 1 (Commission Slab %) was reading `activeRoleMode` rather than `effectiveRole`, which meant that even if a partner toggled the view, Table 1 did not dynamically update.
+  - **Comprehensive Fix**:
+    1. In `client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx`:
+       - Integrated `userProfile` from `state.user?.profile` and fallback JWT decode via `getJwtPayload(localStorage.getItem('emstoken'))`.
+       - Added robust role detection for `isBranchPartnerUser`, `isDirectPartnerUser`, and `isAdminOrStaff`.
+       - Set default initial role to `'partner'` for Business Partners, `'branch_partner'` for Branch Partners, and `'associate'` for Business Associates.
+       - Defined `effectiveRole`:
+         - When logged in as Business Partner: defaults to Business Partner rates (`bpFdCommissionPercent` and `bpRdCommissionPercent`, plus `BUSINESS_PARTNER` incentive and reward slabs).
+         - Allows Business Partners to switch between `Business Partner (Self)` and `Business Associate (Downline Team)` to inspect their team's rates.
+         - When logged in as Admin / Superadmin: provides a 3-way toggle between `Business Associate`, `Business Partner`, and `Branch Partner`.
+       - Added dynamic role pill badges (`Business Associate`, `Business Partner`, `Branch Partner`) to all three table banners (Commission Slab %, Incentive Slab %, Reward Slab %) so the active tier is immediately visible.
+  - **Verification**:
+    - Lint check via `oxlint`: 0 warnings, 0 errors.
+    - Preserved instant Vite HMR without executing a full build.
+
+- **Ledger Submenu Pages Universal Pagination Implementation & Type Column Removal [COMPLETED]**:
+  - **Requirement**:
+    1. Check whether all submenu pages under the "Ledger" menu (`/dashboard/ledger/sellers`, `/dashboard/ledger/employees`, `/dashboard/ledger/business-associates`, `/dashboard/ledger/business-partners`, `/dashboard/ledger/branch-partners`, `/dashboard/ledger/banks`, `/dashboard/ledger/cash-accounts`, `/dashboard/ledger/transfers`) have pagination applied to their tables. If not, implement pagination carefully.
+    2. Remove the redundant "Type" column from `/dashboard/ledger/employees` and `/dashboard/ledger/sellers`.
+    3. Removed the redundant top count indicator (`Showing X of Y ledgers`) entirely across ledger pages, as accurate pagination range indicators (`1-7 of 7`, `1-10 of 49`) are already cleanly handled by `<TablePagination />` at the bottom.
+    4. On `/dashboard/ledger/sellers` (Seller / Kisan ledger), display "PAN: <PAN_NUMBER>" instead of "ID: <empId>" below the seller name in both Table View and Card View, and support searching by seller PAN.
+  - **Findings**:
+    - `DataTable.jsx` is used by `BusinessDeveloperLedgerPage.jsx` and `ledgerdetailpage.jsx` which already had built-in pagination.
+    - `ledgerpagelist.jsx` (which powers 5 submenus: Sellers, Employees, Business Associates, Business Partners, Branch Partners), `BankLedgersPage.jsx` (Bank Accounts), `CashLedgersPage.jsx` (Cash Accounts), and `FundTransfersPage.jsx` (Fund Transfers) were rendering all items in a single flat list without pagination controls.
+    - On the dedicated `/dashboard/ledger/employees` and `/dashboard/ledger/sellers` pages, all listed entities share the exact same entity type, making the dedicated "Type" column redundant visual clutter.
+    - In `ledgerpagelist.jsx`, the header filter indicator referenced `{ledgers.length}` (the raw count of all 49 ledgers returned from the backend) instead of scoping to the current category's total count.
+  - **Implementation**:
+    1. **Reusable Component `TablePagination.jsx`**:
+       - Created `client/src/components/common/TablePagination.jsx` adhering to Good Nature EMS styling standards.
+       - Features rows-per-page selector (10, 20, 50, 100), item range display ("1-10 of 45"), first/prev/next/last navigation buttons, and responsive layout for mobile and desktop screens.
+    2. **`ledgerpagelist.jsx`** (5 Submenu Routes):
+       - Added `currentPage` and `rowsPerPage` state, `paginatedLedgers` slice memoization.
+       - Added auto-reset `setCurrentPage(1)` on filter/search/sort change.
+       - Integrated `<TablePagination />` in both Card View and Table View.
+       - Added conditional `showTypeColumn = category !== 'employee' && category !== 'seller' && category !== 'kisan'`, cleanly omitting the `<th>Type</th>` and `<td>` cells on Employee and Seller ledger tables.
+       - Added `baseCategoryLedgers` memoization to filter base items by category, updating the count indicator to `Showing {filteredLedgers.length} of {baseCategoryLedgers.length} ledgers` (e.g. `Showing 7 of 7 ledgers` instead of `7 of 49`).
+    3. **`BankLedgersPage.jsx`** (Bank Accounts):
+       - Added `currentPage`, `rowsPerPage`, `paginatedLedgers`.
+       - Integrated `<TablePagination />` in both Card View and Table View.
+       - Cleaned up unused Lucide icons (`Building`, `CreditCard`, `CheckCircle2`, `ShieldCheck`).
+    4. **`CashLedgersPage.jsx`** (Cash Accounts):
+       - Added `currentPage`, `rowsPerPage`, `paginatedLedgers`.
+       - Integrated `<TablePagination />` in both Card View and Table View.
+       - Cleaned up unused imports (`Button`, `User`, `ShieldAlert`, `Plus`).
+    5. **`FundTransfersPage.jsx`** (Fund Transfers):
+       - Added `currentPage`, `rowsPerPage`, `paginatedTransfers`.
+       - Reset `setCurrentPage(1)` on tab filter change (`statusTab`).
+       - Integrated `<TablePagination />` below the transfers table.
+       - Cleaned up unused imports (`UploadCloud`, `FileText`, `AlertTriangle`, `Receipt`).
+  - **Verification**:
+    - Linted via `client/node_modules/.bin/oxlint.cmd -D no-undef` across all touched files: 0 warnings, 0 errors.
+    - Instant HMR with no full build step ("don npm build").
+
+
+- **Table Skeleton Sizing & Header Overlap Fix [COMPLETED]**:
+  - **Issue Identified**:
+    - On `/dashboard/attandence` (and other tables using `TableRowSkeleton` with `DataTable`), the loading skeleton was rendered via an absolute overlay (`absolute inset-0 z-10`) that covered the dark teal table header row, creating an awkward visual overlay effect.
+    - The skeleton rows were too small in height, and `TableRowSkeleton` rendered an unnecessary redundant internal table header.
+  - **Comprehensive Fix**:
+    - In `client/src/components/common/DataTable.jsx`:
+      - Moved `progressPending` rendering inside the table `<tbody>` (`<tr><td colSpan={...}>...</td></tr>`).
+      - This keeps the real dark teal `<thead>` permanently visible at the top, completely eliminating header overlap.
+      - Increased container minimum height to `min-h-[240px]` to give proper loading presence.
+    - In `client/src/components/skeletons/TableRowSkeleton.jsx`:
+      - Removed the duplicate internal header skeleton.
+      - Increased row height and padding to `py-4`, with realistic multi-line placeholders, badge pills, and circular action icons matching the Attendance table structure.
+  - **Verification**:
+    - `oxlint -D no-undef`: 0 warnings, 0 errors.
+    - No full build run to keep Vite dev server HMR instant.
+
 - **Resilient API Error Handling & Gateway Sanitization [COMPLETED]**:
   - **Issue Identified**:
     - When the backend server was offline, unreachable, or port misconfigured, Nginx/proxy/hosting returned HTML error pages (502/503/504/404).

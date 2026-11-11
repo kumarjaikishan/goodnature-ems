@@ -5,7 +5,6 @@ import {
   Save,
   TrendingUp,
   Coins,
-  Percent,
   RotateCcw,
   Info,
 } from 'lucide-react';
@@ -348,21 +347,21 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   <th className="p-3 bg-blue-50/70 border-l border-blue-200">
                     <div className="text-blue-900">
                       <span className="font-extrabold block">BA (Associate) Fixed %</span>
-                      <span className="text-[9px] font-semibold text-blue-700 block mt-0.5">EMI | One-Time</span>
+                      <span className="text-[9px] font-semibold text-blue-700 block mt-0.5">EMI | Downpayment</span>
                     </div>
                   </th>
                   {/* Business Partner Fixed */}
                   <th className="p-3 bg-amber-50/70 border-l border-amber-200">
                     <div className="text-amber-900">
                       <span className="font-extrabold block">BP (Partner) Fixed %</span>
-                      <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">EMI | One-Time</span>
+                      <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">EMI | Downpayment</span>
                     </div>
                   </th>
                   {/* Branch Partner Fixed */}
-                  <th className="p-3 bg-purple-50/70 border-l border-purple-200">
-                    <div className="text-purple-900">
+                  <th className="p-3 bg-teal-50/70 border-l border-teal-200">
+                    <div className="text-teal-900">
                       <span className="font-extrabold block">Branch Partner Fixed %</span>
-                      <span className="text-[9px] font-semibold text-purple-700 block mt-0.5">EMI | One-Time</span>
+                      <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">EMI | Downpayment</span>
                     </div>
                   </th>
                   <th className="p-3 text-center border-l border-slate-200">Action</th>
@@ -540,13 +539,13 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                             <span className="font-bold text-blue-700 text-xs">%</span>
                           </div>
                           <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="BA One-Time FD Fixed %">
+                          <div className="flex items-center gap-1" title="BA Downpayment Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
                               className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold font-mono text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none"
                               value={s.fdPromoterCommissionPercent ?? ''}
-                              placeholder="FD %"
+                              placeholder="DP %"
                               onKeyDown={(e) => {
                                 if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
                                 if (!/^[0-9]$/.test(e.key)) e.preventDefault();
@@ -583,13 +582,13 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                             <span className="font-bold text-amber-800 text-xs">%</span>
                           </div>
                           <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="BP One-Time FD Fixed %">
+                          <div className="flex items-center gap-1" title="BP Downpayment Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
                               className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold font-mono text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none"
                               value={s.bpFdCommissionPercent ?? ''}
-                              placeholder="FD %"
+                              placeholder="DP %"
                               onKeyDown={(e) => {
                                 if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
                                 if (!/^[0-9]$/.test(e.key)) e.preventDefault();
@@ -604,14 +603,14 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                         </div>
                       </td>
 
-                      {/* Branch Partner Fixed (EMI & One-Time) */}
-                      <td className="p-3 bg-purple-50/30 border-l border-purple-100">
+                      {/* Branch Partner Fixed (EMI & Downpayment) */}
+                      <td className="p-3 bg-teal-50/30 border-l border-teal-100">
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1" title="Branch Partner Monthly EMI Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
-                              className="w-16 h-8 bg-white border border-purple-300 rounded-lg px-2 text-xs font-bold font-mono text-purple-900 focus:ring-2 focus:ring-purple-500 outline-none"
+                              className="w-16 h-8 bg-white border border-teal-300 rounded-lg px-2 text-xs font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-500 outline-none"
                               value={s.branchRdCommissionPercent ?? ''}
                               placeholder="EMI %"
                               onKeyDown={(e) => {
@@ -623,16 +622,16 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                                 handleSlabChange(idx, 'branchRdCommissionPercent', cleanVal);
                               }}
                             />
-                            <span className="font-bold text-purple-800 text-xs">%</span>
+                            <span className="font-bold text-teal-800 text-xs">%</span>
                           </div>
                           <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="Branch Partner One-Time FD Fixed %">
+                          <div className="flex items-center gap-1" title="Branch Partner Downpayment Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
-                              className="w-16 h-8 bg-white border border-purple-300 rounded-lg px-2 text-xs font-bold font-mono text-purple-900 focus:ring-2 focus:ring-purple-500 outline-none"
+                              className="w-16 h-8 bg-white border border-teal-300 rounded-lg px-2 text-xs font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-500 outline-none"
                               value={s.branchFdCommissionPercent ?? ''}
-                              placeholder="FD %"
+                              placeholder="DP %"
                               onKeyDown={(e) => {
                                 if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
                                 if (!/^[0-9]$/.test(e.key)) e.preventDefault();
@@ -642,7 +641,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                                 handleSlabChange(idx, 'branchFdCommissionPercent', cleanVal);
                               }}
                             />
-                            <span className="font-bold text-purple-800 text-xs">%</span>
+                            <span className="font-bold text-teal-800 text-xs">%</span>
                           </div>
                         </div>
                       </td>

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import TablePagination from "../../../components/common/TablePagination";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
@@ -19,12 +20,20 @@ import PayLedgerModal from "./PayLedgerModal";
 const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const [ledgers, setLedgers] = useState([]);
     const [filteredLedgers, setFilteredLedgers] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    const paginatedLedgers = useMemo(() => {
+        const start = (currentPage - 1) * rowsPerPage;
+        return filteredLedgers.slice(start, start + rowsPerPage);
+    }, [filteredLedgers, currentPage, rowsPerPage]);
     const [searchQuery, setSearchQuery] = useState("");
     const [typeFilter, setTypeFilter] = useState("all");
     const [balanceFilter, setBalanceFilter] = useState("all");
     const [sortBy, setSortBy] = useState("name_asc");
+    const showTypeColumn = category !== 'employee' && category !== 'seller' && category !== 'kisan';
     const navigate = useNavigate();
-    const { ledger } = useSelector(e => e.user);
+    
     const profile = useSelector((state) => state.user?.profile);
     const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(profile?.role?.toLowerCase());
     const canCreateLedger = isSuperAdmin || hasPermission(profile, 'ledger', 2);
@@ -74,62 +83,65 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         fetchLedgers();
     }, [category]);
 
-    useEffect(() => {
-        if (!ledgers) return;
-        let result = [...ledgers];
-
-        const getSponsorTier = (l) => {
-            if (l.ledgerType === 'branch' || Boolean(l.branchId)) {
-                return 'branch_partner';
-            }
-            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-            if (!isSponsor) return null;
-            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-            const hasParentSponsor = Boolean(l.sponsorId?.sponsorId);
-            const isCodeBA = code.startsWith('BA-') || code.startsWith('A/');
-            const isCodeBRP = code.startsWith('BRP-') || code.startsWith('BR-');
-
-            // 1. Branch Partner: explicitly assigned to a Branch or code BRP- / BR-
-            if (l.isBranchPartner || l.sponsorId?.isBranchPartner || isCodeBRP) {
-                return 'branch_partner';
-            }
-            // 2. Business Associate: has parent sponsor or code BA-
-            if (hasParentSponsor || isCodeBA) {
-                return 'associate';
-            }
-            // 3. Business Partner: direct sponsor (code BP- or no parent)
-            return 'partner';
-        };
-
-        // 1. First enforce page category if specific page
-        if (category && category !== "all") {
-            result = result.filter((l) => {
-                const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
-                const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
-                const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
-                const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
-                const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                const tier = getSponsorTier(l);
-
-                if (category === 'employee') return isEmployee && !isSponsor && !isKisan;
-                if (category === 'seller' || category === 'kisan') return isKisan;
-                if (category === 'associate') return tier === 'associate';
-                if (category === 'partner') return tier === 'partner';
-                if (category === 'branch_partner') return isBranch || tier === 'branch_partner';
-                return true;
-            });
+    const getSponsorTier = (l) => {
+        if (l.ledgerType === 'branch' || Boolean(l.branchId)) {
+            return 'branch_partner';
         }
+        const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+        if (!isSponsor) return null;
+        const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+        const hasParentSponsor = Boolean(l.sponsorId?.sponsorId);
+        const isCodeBA = code.startsWith('BA-') || code.startsWith('A/');
+        const isCodeBRP = code.startsWith('BRP-') || code.startsWith('BR-');
 
-        // 2. Search query filter (name or empId)
+        // 1. Branch Partner: explicitly assigned to a Branch or code BRP- / BR-
+        if (l.isBranchPartner || l.sponsorId?.isBranchPartner || isCodeBRP) {
+            return 'branch_partner';
+        }
+        // 2. Business Associate: has parent sponsor or code BA-
+        if (hasParentSponsor || isCodeBA) {
+            return 'associate';
+        }
+        // 3. Business Partner: direct sponsor (code BP- or no parent)
+        return 'partner';
+    };
+
+    // Base ledgers matching the specific submenu/page category
+    const baseCategoryLedgers = useMemo(() => {
+        if (!ledgers || ledgers.length === 0) return [];
+        if (!category || category === "all") return ledgers;
+        return ledgers.filter((l) => {
+            const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+            const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
+            const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
+            const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
+            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
+            const tier = getSponsorTier(l);
+
+            if (category === 'employee') return isEmployee && !isSponsor && !isKisan;
+            if (category === 'seller' || category === 'kisan') return isKisan;
+            if (category === 'associate') return tier === 'associate';
+            if (category === 'partner') return tier === 'partner';
+            if (category === 'branch_partner') return isBranch || tier === 'branch_partner';
+            return true;
+        });
+    }, [ledgers, category]);
+
+    useEffect(() => {
+        if (!baseCategoryLedgers) return;
+        let result = [...baseCategoryLedgers];
+
+        // 1. Search query filter (name or empId or seller PAN)
         if (searchQuery.trim() !== "") {
             const lower = searchQuery.toLowerCase().trim();
             result = result.filter((l) => 
                 (l.name && l.name.toLowerCase().includes(lower)) ||
-                (l.empId && String(l.empId).toLowerCase().includes(lower))
+                (l.empId && String(l.empId).toLowerCase().includes(lower)) ||
+                (l.kisanSellerId?.panNumber && String(l.kisanSellerId.panNumber).toLowerCase().includes(lower))
             );
         }
 
-        // 3. Ledger Type Filter (when category is all)
+        // 2. Ledger Type Filter (when category is all)
         if (category === "all" && typeFilter !== "all") {
             result = result.filter((l) => {
                 const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
@@ -150,7 +162,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             });
         }
 
-        // 4. Balance Status Filter
+        // 3. Balance Status Filter
         if (balanceFilter === "payable") {
             result = result.filter((l) => (l.netBalance || 0) > 0);
         } else if (balanceFilter === "receivable") {
@@ -159,7 +171,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             result = result.filter((l) => (l.netBalance || 0) === 0);
         }
 
-        // 5. Sorting
+        // 4. Sorting
         result.sort((a, b) => {
             if (sortBy === "name_asc") {
                 return (a.name || "").localeCompare(b.name || "");
@@ -174,7 +186,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         });
 
         setFilteredLedgers(result);
-    }, [searchQuery, typeFilter, balanceFilter, sortBy, ledgers, category]);
+        setCurrentPage(1);
+    }, [searchQuery, typeFilter, balanceFilter, sortBy, baseCategoryLedgers, category]);
 
     const fetchLedgers = async () => {
         setLoading(true);
@@ -542,19 +555,15 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                             </button>
                         )}
                     </div>
-
-                    {/* Filter count indicator */}
-                    <div className="text-[11px] font-semibold text-slate-500">
-                        Showing <span className="text-teal-700 font-bold">{filteredLedgers.length}</span> of {ledgers.length} ledgers
-                    </div>
                 </div>
             </div>
 
             {loading ? <Loader /> : (
                 <div className="w-full">
                     {viewType === 'card' ? (
+                        <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {filteredLedgers.map((l, ind) => {
+                            {paginatedLedgers.map((l, ind) => {
                                 const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
                                 const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
                                 const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
@@ -630,10 +639,18 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${tagClass}`}>
                                                         {tagLabel}
                                                     </span>
-                                                    {l.empId && (
-                                                        <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
-                                                            ID: {l.empId}
-                                                        </span>
+                                                    {isKisan ? (
+                                                        (l.kisanSellerId?.panNumber || l.empId) && (
+                                                            <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100 uppercase">
+                                                                PAN: {l.kisanSellerId?.panNumber || l.empId}
+                                                            </span>
+                                                        )
+                                                    ) : (
+                                                        l.empId && (
+                                                            <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
+                                                                ID: {l.empId}
+                                                            </span>
+                                                        )
                                                     )}
                                                 </div>
                                             </div>
@@ -728,6 +745,18 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 );
                             })}
                         </div>
+                        {filteredLedgers.length > 0 && (
+                            <div className="mt-4 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                                <TablePagination
+                                    currentPage={currentPage}
+                                    totalItems={filteredLedgers.length}
+                                    rowsPerPage={rowsPerPage}
+                                    onPageChange={setCurrentPage}
+                                    onRowsPerPageChange={setRowsPerPage}
+                                />
+                            </div>
+                        )}
+                        </>
                     ) : (
                         <div className="w-full overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
                             <table className="min-w-full divide-y divide-slate-100">
@@ -736,9 +765,11 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         <th scope="col" className="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
                                             Ledger
                                         </th>
-                                        <th scope="col" className="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                            Type
-                                        </th>
+                                        {showTypeColumn && (
+                                            <th scope="col" className="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Type
+                                            </th>
+                                        )}
                                         <th scope="col" className="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
                                             Balance Status
                                         </th>
@@ -751,7 +782,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-slate-100">
-                                    {filteredLedgers.map((l, ind) => {
+                                    {paginatedLedgers.map((l, ind) => {
                                         const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
                                         const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
                                         const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
@@ -820,19 +851,29 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                         <span className="text-xs font-bold text-slate-800 capitalize leading-tight">
                                                             {l.name}
                                                         </span>
-                                                        {l.empId && (
-                                                            <span className="text-[11px] text-slate-400 font-medium mt-0.5">
-                                                                ID: {l.empId}
-                                                            </span>
+                                                        {isKisan ? (
+                                                            (l.kisanSellerId?.panNumber || l.empId) && (
+                                                                <span className="text-[11px] text-slate-400 font-medium mt-0.5 uppercase">
+                                                                    PAN: {l.kisanSellerId?.panNumber || l.empId}
+                                                                </span>
+                                                            )
+                                                        ) : (
+                                                            l.empId && (
+                                                                <span className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                                                    ID: {l.empId}
+                                                                </span>
+                                                            )
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap">
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
-                                                    {tagLabel}
-                                                </span>
-                                            </td>
+                                            {showTypeColumn && (
+                                                <td className="px-6 py-3.5 whitespace-nowrap">
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
+                                                        {tagLabel}
+                                                    </span>
+                                                </td>
+                                            )}
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
                                                     l.netBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
@@ -893,6 +934,15 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 })}
                                 </tbody>
                             </table>
+                            {filteredLedgers.length > 0 && (
+                                <TablePagination
+                                    currentPage={currentPage}
+                                    totalItems={filteredLedgers.length}
+                                    rowsPerPage={rowsPerPage}
+                                    onPageChange={setCurrentPage}
+                                    onRowsPerPageChange={setRowsPerPage}
+                                />
+                            )}
                         </div>
                     )}
                     {filteredLedgers?.length < 1 && (

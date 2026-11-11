@@ -219,20 +219,7 @@ export const DataTable = ({
   return (
     <div className={`w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden ${className}`}>
       {/* ── Table Container ── */}
-      <div className="w-full overflow-x-auto min-h-[160px] relative">
-        {progressPending ? (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-3 z-10 p-8">
-            {progressComponent ? (
-              progressComponent
-            ) : (
-              <>
-                <Loader2 className="animate-spin text-teal-700" size={32} />
-                <span className="text-xs font-bold text-slate-500">Loading records...</span>
-              </>
-            )}
-          </div>
-        ) : null}
-
+      <div className="w-full overflow-x-auto min-h-[240px] relative">
         <table className="w-full border-collapse text-left text-xs font-sans">
           <thead>
             <tr
@@ -298,7 +285,23 @@ export const DataTable = ({
           </thead>
 
           <tbody className="divide-y divide-slate-100 text-slate-800">
-            {displayData.length === 0 && !progressPending ? (
+            {progressPending ? (
+              <tr>
+                <td
+                  colSpan={columns.length + (selectableRows ? 1 : 0)}
+                  className="p-0 text-slate-400"
+                >
+                  {progressComponent ? (
+                    progressComponent
+                  ) : (
+                    <div className="py-16 flex flex-col items-center justify-center gap-3">
+                      <Loader2 className="animate-spin text-teal-700" size={32} />
+                      <span className="text-xs font-bold text-slate-500">Loading records...</span>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ) : displayData.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length + (selectableRows ? 1 : 0)}

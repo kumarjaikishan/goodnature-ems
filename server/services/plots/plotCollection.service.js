@@ -228,6 +228,11 @@ class PlotCollectionService {
           continue;
         }
 
+        // INSTALLMENT receipts must only apply to regular EMIs (inst # > 0) and never to downpayment (inst #0)
+        if (receipt.receiptType === 'INSTALLMENT' && inst.installmentNumber === 0) {
+          continue;
+        }
+
         // Calculate late fine accrued for this period
         let newlyAccruedFine = 0;
         if (inst.dueDate) {
@@ -474,15 +479,6 @@ class PlotCollectionService {
       let remainingPaid = Number(amountPaid);
       let remainingRebate = Number(lateFineRebate);
 
-      let targetInstIds = installmentIds;
-      if (!Array.isArray(targetInstIds) || targetInstIds.length === 0) {
-        const unpaid = await PlotInstallment.find({
-          bookingId: booking._id,
-          status: { $ne: 'PAID' }
-        }).sort({ installmentNumber: 1 }).session(session);
-        targetInstIds = unpaid.map(i => i._id);
-      }
-
       // Resolve series and rate configuration for grace period and daily fine rate
       let dpGracePeriod = 15;
       let emiGracePeriod = 15;
@@ -533,6 +529,86 @@ class PlotCollectionService {
 
       const dailyRateMultiplier = (Number(lateFineDailyPercent) || (24 / 365)) / 100;
 
+      // ── STRICT DOWNPAYMENT VS EMI ISOLATION (NON-SPILL ENFORCEMENT) ──
+      const dpInst = await PlotInstallment.findOne({
+        bookingId: booking._id,
+        installmentNumber: 0,
+      }).session(session);
+      const isDpUnpaid = dpInst && dpInst.status !== 'PAID' && (dpInst.dueAmount - (dpInst.paidAmount || 0)) > 0;
+
+      let isDownpaymentCollection = false;
+      let targetInstIds = [];
+
+      if (Array.isArray(installmentIds) && installmentIds.length > 0) {
+        const targetedDocs = await PlotInstallment.find({
+          _id: { $in: installmentIds },
+          bookingId: booking._id,
+        }).session(session);
+
+        const hasDp = targetedDocs.some((i) => i.installmentNumber === 0);
+        const hasEmi = targetedDocs.some((i) => i.installmentNumber > 0);
+
+        if (hasDp && hasEmi) {
+          throw ApiError.badRequest('Downpayment and EMI installments cannot be collected together in the same transaction. Downpayment must be paid separately.');
+        }
+
+        if (hasDp) {
+          isDownpaymentCollection = true;
+          targetInstIds = [dpInst._id];
+        } else {
+          if (isDpUnpaid) {
+            throw ApiError.badRequest('Downpayment is not completed yet. Please clear the downpayment collection before receiving monthly EMIs.');
+          }
+          targetInstIds = targetedDocs.filter((i) => i.installmentNumber > 0).map((i) => i._id);
+        }
+      } else {
+        if (booking.scheme === 'FULL_PAYMENT') {
+          isDownpaymentCollection = true;
+          const unpaid = await PlotInstallment.find({
+            bookingId: booking._id,
+            status: { $ne: 'PAID' },
+          }).sort({ installmentNumber: 1 }).session(session);
+          targetInstIds = unpaid.map((i) => i._id);
+        } else if (isDpUnpaid) {
+          isDownpaymentCollection = true;
+          targetInstIds = [dpInst._id];
+        } else {
+          const unpaidEmis = await PlotInstallment.find({
+            bookingId: booking._id,
+            installmentNumber: { $gt: 0 },
+            status: { $ne: 'PAID' },
+          }).sort({ installmentNumber: 1 }).session(session);
+          targetInstIds = unpaidEmis.map((i) => i._id);
+        }
+      }
+
+      // Strict Downpayment limit check: Downpayment collections must never exceed remaining downpayment due
+      if (isDownpaymentCollection && dpInst && booking.scheme !== 'FULL_PAYMENT') {
+        const unpaidDpPrincipal = Math.max(0, dpInst.dueAmount - (dpInst.paidAmount || 0));
+
+        let calculatedDpFine = 0;
+        if (dpInst.dueDate) {
+          const due = new Date(dpInst.dueDate);
+          const d1 = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+          const d2 = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
+          const diffTime = d2 - d1;
+          const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+          if (diffDays > dpGracePeriod) {
+            calculatedDpFine = Math.round(unpaidDpPrincipal * dailyRateMultiplier * diffDays);
+          }
+        }
+        const effectiveDpFine = Math.max(dpInst.lateFine || 0, calculatedDpFine);
+        const unpaidDpFine = Math.max(0, effectiveDpFine - (dpInst.lateFinePaid || 0) - (dpInst.lateFineRebate || 0));
+        const netDpFine = Math.max(0, unpaidDpFine - Number(lateFineRebate || 0));
+        const maxDpAllowed = unpaidDpPrincipal + netDpFine;
+
+        if (Number(amountPaid) > maxDpAllowed && maxDpAllowed > 0) {
+          throw ApiError.badRequest(
+            `Cannot collect ₹${Number(amountPaid).toLocaleString('en-IN')}. The maximum remaining downpayment due is ₹${maxDpAllowed.toLocaleString('en-IN')}. Downpayment collections cannot exceed downpayment balance or spill into EMI installments.`
+          );
+        }
+      }
+
       const updatedInstallments = [];
       let totalPrincipalPaid = 0;
       let totalLateFinePaid = 0;
@@ -541,6 +617,15 @@ class PlotCollectionService {
         if (remainingPaid <= 0 && remainingRebate <= 0) break;
         const installment = await PlotInstallment.findById(instId).session(session);
         if (!installment) continue;
+
+        // Strict non-spill guard: Downpayment collections must never touch EMI installments (> 0)
+        if (isDownpaymentCollection && installment.installmentNumber > 0 && booking.scheme !== 'FULL_PAYMENT') {
+          break;
+        }
+        // Strict non-spill guard: EMI collections must never touch downpayment installment (0)
+        if (!isDownpaymentCollection && installment.installmentNumber === 0) {
+          continue;
+        }
 
         // Calculate late fine (applicable to both downpayment and EMIs when past due + grace period)
         let calculatedFine = 0;
@@ -596,12 +681,7 @@ class PlotCollectionService {
       let resolvedReceiptType = 'INSTALLMENT';
       if (booking.scheme === 'FULL_PAYMENT') {
         resolvedReceiptType = 'FULL_PAYMENT';
-      } else if (targetInstIds && targetInstIds.length > 0) {
-        const targetInstDocs = await PlotInstallment.find({ _id: { $in: targetInstIds } }).session(session);
-        if (targetInstDocs.length > 0 && targetInstDocs.every(i => i.installmentNumber === 0)) {
-          resolvedReceiptType = 'DOWNPAYMENT';
-        }
-      } else if (updatedInstallments.length > 0 && updatedInstallments.every(i => i.installmentNumber === 0)) {
+      } else if (isDownpaymentCollection) {
         resolvedReceiptType = 'DOWNPAYMENT';
       }
 
@@ -900,9 +980,9 @@ class PlotCollectionService {
         transactionReference: receipt.transactionReference,
       }).session(session);
 
-      // 2. Clean up any ledger entries for this deleted receipt
+      // 2. Clean up any ledger entries for this deleted receipt (treasury, sponsor commission, branch override)
       const existingEntries = await Entry.find({
-        source: { $in: ['commission_fixed', 'receipt'] },
+        source: { $in: ['commission_fixed', 'commission_branch', 'receipt'] },
         referenceId: receipt._id,
       }).session(session);
       for (const e of existingEntries) {
@@ -1074,16 +1154,17 @@ class PlotCollectionService {
       receipt.approvedAt = new Date();
       await receipt.save({ session });
 
-      // Clean up any receipt credit entry that was created if this was previously approved
-      const existingBankEntries = await Entry.find({
-        source: 'receipt',
-        referenceId: receipt._id
+      // Clean up any ledger entries (treasury, sponsor commission, branch override) and commissions created for this receipt
+      const existingEntries = await Entry.find({
+        source: { $in: ['receipt', 'commission_fixed', 'commission_branch'] },
+        referenceId: receipt._id,
       }).session(session);
-      for (const e of existingBankEntries) {
+      for (const e of existingEntries) {
         await accountingService.deleteLedgerEntry(e._id, session);
       }
+      await PlotSponsorCommission.deleteMany({ receiptId: receipt._id }).session(session);
 
-      // If it was previously approved, rebuild ledger to revert effects
+      // Rebuild ledger and re-sync commissions to completely revert effects
       await this.rebuildBookingInstallmentsState(receipt.bookingId, session);
 
 

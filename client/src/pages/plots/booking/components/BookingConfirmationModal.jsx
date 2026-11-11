@@ -4,13 +4,8 @@ import {
   User,
   Banknote,
   CheckCircle2,
-  Clock,
-  MapPin,
   FileText,
-  AlertCircle,
   ShieldCheck,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import Button from '../../../../components/ui/Button';
@@ -25,6 +20,7 @@ export const BookingConfirmationModal = ({
   seriesList = [],
   customSqFtRate,
   effectiveSqFtRate,
+  baseCalculatedPlotValue,
   calculatedPlotValue,
   calculatedDiscount,
   discountType,
@@ -174,7 +170,7 @@ export const BookingConfirmationModal = ({
           <div className="divide-y divide-slate-100">
             <div className="flex justify-between items-center px-4 py-2.5 bg-white">
               <span className="text-slate-600 font-medium">Gross Plot Value ({plotArea} sqft @ ₹{effectiveSqFtRate}/sqft)</span>
-              <span className="font-bold font-mono text-slate-900">₹{calculatedPlotValue.toLocaleString('en-IN')}</span>
+              <span className="font-bold font-mono text-slate-900">₹{(baseCalculatedPlotValue || Math.round(plotArea * (effectiveSqFtRate || 0)) || calculatedPlotValue).toLocaleString('en-IN')}</span>
             </div>
 
             {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
@@ -184,7 +180,7 @@ export const BookingConfirmationModal = ({
                     {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}{emiTenureAdjustment.percent}%
                   </span>
                   <span className="font-semibold">
-                    {emiTenureAdjustment.action === 'ADD' ? 'Long EMI Markup' : 'Tenure Discount'} ({isOneTime ? '0M' : `${totalTenureMonths}M`})
+                    {emiTenureAdjustment.action === 'ADD' ? 'Long EMI Markup' : 'Periodic / Tenure Discount'} ({isOneTime ? '0M' : `${totalTenureMonths}M`})
                   </span>
                 </div>
                 <span className="font-bold font-mono text-sm">
@@ -197,6 +193,15 @@ export const BookingConfirmationModal = ({
               <div className="flex justify-between items-center px-4 py-2.5 bg-rose-50/40">
                 <span className="text-rose-700 font-medium">Manual Discount Given</span>
                 <span className="font-bold font-mono text-rose-700">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
+              </div>
+            )}
+
+            {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && emiTenureAdjustment.action === 'DEDUCT' && calculatedDiscount > 0 && (
+              <div className="flex justify-between items-center px-4 py-2 bg-slate-50 text-xs">
+                <span className="text-slate-600 font-bold uppercase text-[10px]">Total Discount (Periodic + Manual)</span>
+                <span className="font-extrabold font-mono text-emerald-800">
+                  - ₹{(emiTenureAdjustment.amount + calculatedDiscount).toLocaleString('en-IN')}
+                </span>
               </div>
             )}
 

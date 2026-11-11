@@ -189,6 +189,37 @@ const plotBookingSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Locked Hierarchy Commission Snapshot at Booking Creation (Permanent Immutability)
+    downpaymentPromoterCommissionPercent: {
+      type: Number,
+      min: 0,
+      default: 5.0,
+    },
+    emiPromoterCommissionPercent: {
+      type: Number,
+      min: 0,
+      default: 4.0,
+    },
+    downpaymentBpCommissionPercent: {
+      type: Number,
+      min: 0,
+      default: 1.0,
+    },
+    emiBpCommissionPercent: {
+      type: Number,
+      min: 0,
+      default: 1.0,
+    },
+    downpaymentBranchCommissionPercent: {
+      type: Number,
+      min: 0,
+      default: 0.5,
+    },
+    emiBranchCommissionPercent: {
+      type: Number,
+      min: 0,
+      default: 0.5,
+    },
     rdMaturityPercent: {
       type: Number,
       default: 0,

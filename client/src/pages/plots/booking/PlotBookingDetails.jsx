@@ -177,6 +177,12 @@ const PlotBookingDetails = () => {
     ? Math.round((Number(booking.plotValue) / plotAreaSize) * 100) / 100
     : (booking.basePlotRate || plot.effectiveRate || plot.baseRate || 0);
 
+  const manualDiscount = Number(booking.discount || 0);
+  const tenureDiscount = booking.emiTenureAdjustmentAction === 'DEDUCT' ? Number(booking.emiTenureAdjustmentAmount || 0) : 0;
+  const tenureMarkup = booking.emiTenureAdjustmentAction === 'ADD' ? Number(booking.emiTenureAdjustmentAmount || 0) : 0;
+  const totalCombinedDiscount = manualDiscount + tenureDiscount;
+  const baseGrossValue = Number(booking.plotValue || 0) + tenureDiscount - tenureMarkup;
+
   const netPlotValue = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
   const paidAmount = Math.max(0, netPlotValue - (booking.remainingAmount || 0));
 
@@ -392,14 +398,18 @@ const PlotBookingDetails = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
           <p className="text-[0.68rem] font-semibold text-slate-500 uppercase tracking-wider">Total Plot Value (Gross)</p>
-          <p className="text-xl font-bold text-slate-900 mt-1">₹{(booking.plotValue || 0).toLocaleString('en-IN')}</p>
+          <p className="text-xl font-bold text-slate-900 mt-1">₹{(baseGrossValue > 0 ? baseGrossValue : (booking.plotValue || 0)).toLocaleString('en-IN')}</p>
           <p className="text-[10px] text-slate-500 mt-1 font-medium">{plotAreaSize} Sq Ft @ ₹{bookingEffectiveRate.toLocaleString('en-IN')}/Sq Ft</p>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
-          <p className="text-[0.68rem] font-semibold text-slate-500 uppercase tracking-wider">Discount Granted</p>
-          <p className="text-xl font-bold text-slate-900 mt-1">₹{(booking.discount || 0).toLocaleString('en-IN')}</p>
-          <p className="text-[10px] text-slate-500 mt-1 font-medium">Net Payable: ₹{netPlotValue.toLocaleString('en-IN')}</p>
+          <p className="text-[0.68rem] font-semibold text-slate-500 uppercase tracking-wider">Discount Granted (Total)</p>
+          <p className="text-xl font-bold text-emerald-800 mt-1">₹{totalCombinedDiscount.toLocaleString('en-IN')}</p>
+          <p className="text-[10px] text-slate-500 mt-1 font-medium">
+            {tenureDiscount > 0
+              ? `Tenure: ₹${tenureDiscount.toLocaleString('en-IN')} | Manual: ₹${manualDiscount.toLocaleString('en-IN')}`
+              : `Net Payable: ₹${netPlotValue.toLocaleString('en-IN')}`}
+          </p>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
@@ -532,10 +542,28 @@ const PlotBookingDetails = () => {
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Downpayment Paid</span>
               <span className="font-medium text-slate-700">₹{(booking.bookingAmount || 0).toLocaleString('en-IN')}</span>
             </div>
+            {tenureDiscount > 0 && (
+              <div>
+                <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Periodic / Tenure Discount</span>
+                <span className="font-bold text-amber-800">
+                  -₹{tenureDiscount.toLocaleString('en-IN')}{booking.emiTenureAdjustmentPercent ? ` (-${booking.emiTenureAdjustmentPercent}%)` : ''}
+                </span>
+              </div>
+            )}
             <div>
-              <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Discount Amount</span>
-              <span className="font-medium text-slate-700">₹{(booking.discount || 0).toLocaleString('en-IN')}</span>
+              <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Manual Discount</span>
+              <span className="font-medium text-slate-700">
+                {manualDiscount > 0 ? `-₹${manualDiscount.toLocaleString('en-IN')}` : '₹0'}
+              </span>
             </div>
+            {tenureDiscount > 0 && manualDiscount > 0 && (
+              <div>
+                <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Total Combined Discount</span>
+                <span className="font-extrabold text-emerald-800">
+                  -₹{totalCombinedDiscount.toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
             <div>
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Net Plot Value</span>
               <span className="font-bold text-slate-900">₹{netPlotValue.toLocaleString('en-IN')}</span>
@@ -682,11 +710,16 @@ const PlotBookingDetails = () => {
           </div>
         </div>
 
-        {/* Card 5: Sponsor / Referral Details */}
+        {/* Card 5: Sponsor & Locked Hierarchy Commission Snapshot */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Users size={16} className="text-slate-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Sponsor / Referral Details</h3>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <Users size={16} className="text-teal-700" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Sponsor &amp; Commission Snapshot</h3>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200">
+              Locked Contract Rates
+            </span>
           </div>
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div>
@@ -704,6 +737,59 @@ const PlotBookingDetails = () => {
                 )}
               </span>
             </div>
+          </div>
+
+          {/* Locked Hierarchy Commission Rates */}
+          <div className="mt-1 pt-3 border-t border-slate-100 space-y-2">
+            <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+              Contract Fixed Commission Snapshot
+            </span>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              {/* Business Associate */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-600 block uppercase">BA (Associate)</span>
+                <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-xs">
+                  <span className="text-emerald-700 font-bold" title="Downpayment Rate">
+                    DP: {booking.downpaymentPromoterCommissionPercent !== undefined ? `${booking.downpaymentPromoterCommissionPercent}%` : `${booking.promoterCommissionPercent || 5}%`}
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-teal-700 font-bold" title="EMI Rate">
+                    EMI: {booking.emiPromoterCommissionPercent !== undefined ? `${booking.emiPromoterCommissionPercent}%` : `${booking.promoterCommissionPercent || 4}%`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Business Partner */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-600 block uppercase">BP (Partner)</span>
+                <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-xs">
+                  <span className="text-emerald-700 font-bold" title="Downpayment Rate">
+                    DP: {booking.downpaymentBpCommissionPercent !== undefined ? `${booking.downpaymentBpCommissionPercent}%` : `${booking.bpCommissionPercent || booking.developerCommissionPercent || 1}%`}
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-teal-700 font-bold" title="EMI Rate">
+                    EMI: {booking.emiBpCommissionPercent !== undefined ? `${booking.emiBpCommissionPercent}%` : `${booking.bpCommissionPercent || booking.developerCommissionPercent || 1}%`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Branch Partner */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-600 block uppercase">Branch Partner</span>
+                <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-xs">
+                  <span className="text-emerald-700 font-bold" title="Downpayment Rate">
+                    DP: {booking.downpaymentBranchCommissionPercent !== undefined ? `${booking.downpaymentBranchCommissionPercent}%` : `${booking.branchCommissionPercent || 0.5}%`}
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-teal-700 font-bold" title="EMI Rate">
+                    EMI: {booking.emiBranchCommissionPercent !== undefined ? `${booking.emiBranchCommissionPercent}%` : `${booking.branchCommissionPercent || 0.5}%`}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium">
+              * Commission rates are permanently locked at booking creation. All future deposits for this contract will strictly credit these percentages.
+            </p>
           </div>
         </div>
 
@@ -812,7 +898,6 @@ const PlotBookingDetails = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {installments.map(inst => {
-                  const isPaid = inst.status === 'PAID';
                   const lateFine = inst.lateFine || 0;
                   const totalDue = inst.dueAmount + lateFine;
 

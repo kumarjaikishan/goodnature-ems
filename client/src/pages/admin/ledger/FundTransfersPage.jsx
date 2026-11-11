@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import TablePagination from "../../../components/common/TablePagination";
 import { useSelector } from "react-redux";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
@@ -17,13 +18,9 @@ import {
   XCircle,
   Clock,
   Ban,
-  UploadCloud,
-  FileText,
   Landmark,
   Wallet,
   ArrowRight,
-  AlertTriangle,
-  Receipt,
   Eye
 } from "lucide-react";
 
@@ -50,6 +47,13 @@ export default function FundTransfersPage() {
 
   const [statusTab, setStatusTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const paginatedTransfers = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return transfers.slice(start, start + rowsPerPage);
+  }, [transfers, currentPage, rowsPerPage]);
   const [treasuryLedgers, setTreasuryLedgers] = useState({ bankLedgers: [], cashLedgers: [] });
   const [myCashAccount, setMyCashAccount] = useState(null);
 
@@ -79,6 +83,7 @@ export default function FundTransfersPage() {
     fetchTransfers();
     fetchStats();
     fetchTreasury();
+    setCurrentPage(1);
   }, [statusTab]);
 
   const fetchTransfers = async () => {
@@ -100,7 +105,7 @@ export default function FundTransfersPage() {
     try {
       const res = await apiClient({ url: "ledger/transfers/stats" });
       setStats(res);
-    } catch (err) {}
+    } catch {}
   };
 
   const fetchTreasury = async () => {
@@ -120,7 +125,7 @@ export default function FundTransfersPage() {
       if (myCash && myCash._id) {
         setMyCashAccount(myCash);
       }
-    } catch (err) {}
+    } catch {}
   };
 
   const activeMyCash =
@@ -496,7 +501,7 @@ export default function FundTransfersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {transfers.map((t) => {
+              {paginatedTransfers.map((t) => {
                 const isPending = t.status === "PENDING";
                 const isApproved = t.status === "APPROVED";
                 const isRejected = t.status === "REJECTED";
@@ -706,6 +711,15 @@ export default function FundTransfersPage() {
               })}
             </tbody>
           </table>
+          {transfers.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalItems={transfers.length}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
+          )}
         </div>
       )}
 

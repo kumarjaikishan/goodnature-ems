@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import TablePagination from "../../../components/common/TablePagination";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../../utils/apiClient";
 import { toast } from "../../../utils/toast";
@@ -15,12 +16,8 @@ import {
   ArrowRightLeft,
   Eye,
   Edit2,
-  Building,
-  CreditCard,
-  CheckCircle2,
   LayoutGrid,
   Table as TableIcon,
-  ShieldCheck,
   Coins
 } from "lucide-react";
 import { usePermission } from "../../../utils/CheckPermission";
@@ -34,6 +31,13 @@ export default function BankLedgersPage() {
   const [filteredLedgers, setFilteredLedgers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState("table");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const paginatedLedgers = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredLedgers.slice(start, start + rowsPerPage);
+  }, [filteredLedgers, currentPage, rowsPerPage]);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -84,6 +88,7 @@ export default function BankLedgersPage() {
       );
     }
     setFilteredLedgers(result);
+    setCurrentPage(1);
   }, [searchQuery, bankLedgers]);
 
   const handleOpenModal = (bank = null) => {
@@ -298,8 +303,9 @@ export default function BankLedgersPage() {
 
       {/* Cards View */}
       {viewType === "card" ? (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredLedgers.map((bank) => {
+          {paginatedLedgers.map((bank) => {
             const netBal = Number(bank.netBalance) || 0;
             return (
               <div
@@ -394,6 +400,18 @@ export default function BankLedgersPage() {
             );
           })}
         </div>
+        {filteredLedgers.length > 0 && (
+          <div className="mt-4 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+            <TablePagination
+              currentPage={currentPage}
+              totalItems={filteredLedgers.length}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
+          </div>
+        )}
+        </>
       ) : (
         /* Table View */
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-x-auto">
@@ -410,7 +428,7 @@ export default function BankLedgersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredLedgers.map((bank) => (
+              {paginatedLedgers.map((bank) => (
                 <tr key={bank._id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-5 py-3.5 font-bold text-slate-800">
                     <div className="flex items-center gap-2.5">
@@ -472,6 +490,15 @@ export default function BankLedgersPage() {
               ))}
             </tbody>
           </table>
+          {filteredLedgers.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalItems={filteredLedgers.length}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
+          )}
         </div>
       )}
 

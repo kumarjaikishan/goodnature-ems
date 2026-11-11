@@ -9,6 +9,7 @@ import {
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
 import { useSelector } from 'react-redux';
+import { getJwtPayload } from '../../../utils/auth';
 
 /**
  * CommissionStructurePage
@@ -20,21 +21,66 @@ import { useSelector } from 'react-redux';
  * Refined with professional colors, subtle elegant 1px borders, and responsive 3-column layout.
  */
 const CommissionStructurePage = () => {
-  const { user } = useSelector((state) => state.auth);
+  const userProfile = useSelector((state) => state.user?.profile);
+  const tokenPayload = getJwtPayload(localStorage.getItem('emstoken')) || {};
+  const activeUser = userProfile || tokenPayload || {};
 
   const [loading, setLoading] = useState(true);
   const [schemeConfig, setSchemeConfig] = useState(null);
   const [policyData, setPolicyData] = useState(null);
 
-  const userRole = user?.role?.name || user?.role || '';
-  const isAdminOrStaff = ['admin', 'superadmin', 'accountant', 'manager'].includes(userRole.toLowerCase());
-  const isDirectPartner = userRole === 'BUSINESS_PARTNER' || user?.designation === 'Business Partner';
+  const userRole = String(activeUser.role?.name || activeUser.role || '').toLowerCase();
+  const isAdminOrStaff = ['admin', 'superadmin', 'accountant', 'manager', 'developer', 'grant'].includes(userRole);
 
-  const [adminViewRole, setAdminViewRole] = useState(isDirectPartner ? 'partner' : 'associate');
-  const activeRoleMode = isAdminOrStaff ? adminViewRole : (isDirectPartner ? 'partner' : 'associate');
+  const isBranchPartnerUser = Boolean(
+    activeUser.isBranchPartner === true ||
+    String(activeUser.sponsorCode || '').startsWith('BRP-') ||
+    String(activeUser.sponsorCode || '').startsWith('BR-')
+  );
 
-  // For Business Partner viewing incentive tab: can view BP or BA policies
-  const [partnerIncentiveViewRole, setPartnerIncentiveViewRole] = useState('BUSINESS_PARTNER');
+  const isDirectPartnerUser = !isBranchPartnerUser && Boolean(
+    activeUser.isDeveloperSponsor === true ||
+    activeUser.role === 'BUSINESS_PARTNER' ||
+    activeUser.designation === 'Business Partner' ||
+    String(activeUser.sponsorCode || '').startsWith('BP-') ||
+    String(activeUser.sponsorCode || '').startsWith('P/') ||
+    (!activeUser.sponsorId && !activeUser.parentSponsor && !String(activeUser.sponsorCode || '').startsWith('BA-') && !String(activeUser.sponsorCode || '').startsWith('A/'))
+  );
+
+  const initialRole = isBranchPartnerUser
+    ? 'branch_partner'
+    : isDirectPartnerUser
+    ? 'partner'
+    : 'associate';
+
+  const [adminViewRole, setAdminViewRole] = useState(initialRole);
+  const [partnerIncentiveViewRole, setPartnerIncentiveViewRole] = useState(
+    isBranchPartnerUser ? 'BRANCH_PARTNER' : isDirectPartnerUser ? 'BUSINESS_PARTNER' : 'BUSINESS_ASSOCIATE'
+  );
+
+  // Synchronize role view when userProfile is loaded / updated
+  useEffect(() => {
+    if (isBranchPartnerUser) {
+      setAdminViewRole('branch_partner');
+      setPartnerIncentiveViewRole('BRANCH_PARTNER');
+    } else if (isDirectPartnerUser) {
+      setAdminViewRole('partner');
+      setPartnerIncentiveViewRole('BUSINESS_PARTNER');
+    } else if (!isAdminOrStaff) {
+      setAdminViewRole('associate');
+      setPartnerIncentiveViewRole('BUSINESS_ASSOCIATE');
+    }
+  }, [userProfile?.role, userProfile?.isDeveloperSponsor, userProfile?.sponsorCode, isBranchPartnerUser, isDirectPartnerUser, isAdminOrStaff]);
+
+  const effectiveRole = isAdminOrStaff
+    ? adminViewRole
+    : (isDirectPartnerUser || isBranchPartnerUser
+        ? (partnerIncentiveViewRole === 'BUSINESS_ASSOCIATE'
+            ? 'associate'
+            : isBranchPartnerUser
+            ? 'branch_partner'
+            : 'partner')
+        : 'associate');
 
   useEffect(() => {
     fetchConfigs();
@@ -72,12 +118,13 @@ const CommissionStructurePage = () => {
   const slabs = schemeConfig?.slabs || [];
   const policyRoles = policyData?.roles || [];
 
-  const selectedPolicyRole = policyRoles.find((r) => {
-    if (activeRoleMode === 'associate') {
-      return r.roleName === 'BUSINESS_ASSOCIATE';
-    }
-    return r.roleName === partnerIncentiveViewRole;
-  }) || policyRoles[0];
+  const effectivePolicyRoleName = effectiveRole === 'branch_partner'
+    ? 'BRANCH_PARTNER'
+    : effectiveRole === 'partner'
+    ? 'BUSINESS_PARTNER'
+    : 'BUSINESS_ASSOCIATE';
+
+  const selectedPolicyRole = policyRoles.find((r) => r.roleName === effectivePolicyRoleName) || policyRoles[0];
 
   const targetSlabs = selectedPolicyRole?.targetSlabs || [];
   const extraSlabs = selectedPolicyRole?.extraSlabs || [];
@@ -97,14 +144,31 @@ const CommissionStructurePage = () => {
     return `₹${Number(slab.minAmount).toLocaleString('en-IN')} & Above`;
   };
 
+  const roleBadgeLabel = effectiveRole === 'associate'
+    ? 'Business Associate'
+    : effectiveRole === 'branch_partner'
+    ? 'Branch Partner'
+    : 'Business Partner';
+
+  const roleBadgeClass = effectiveRole === 'associate'
+    ? 'bg-teal-50 text-teal-800 border-teal-200'
+    : effectiveRole === 'branch_partner'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    : 'bg-teal-50 text-teal-900 border-teal-300';
+
   return (
     <div className="p-4 md:p-6 bg-slate-50/70 min-h-screen space-y-5 max-w-[1600px] mx-auto pb-24 font-sans text-slate-800">
       {/* ── Top Bar: Role badge & Admin perspective toggle if needed ── */}
       {isAdminOrStaff && (
-        <div className="flex items-center justify-between pb-1">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Viewing As:
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Viewing Policy As:
+            </span>
+            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${roleBadgeClass}`}>
+              {roleBadgeLabel}
+            </span>
+          </div>
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
             <button
               type="button"
@@ -122,33 +186,44 @@ const CommissionStructurePage = () => {
               onClick={() => setAdminViewRole('partner')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                 adminViewRole === 'partner'
-                  ? 'bg-white text-purple-800 shadow-xs'
+                  ? 'bg-white text-teal-900 shadow-xs ring-1 ring-teal-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Business Partner
             </button>
+            <button
+              type="button"
+              onClick={() => setAdminViewRole('branch_partner')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                adminViewRole === 'branch_partner'
+                  ? 'bg-white text-emerald-800 shadow-xs ring-1 ring-emerald-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Branch Partner
+            </button>
           </div>
         </div>
       )}
 
-      {/* Partner Role Selector */}
-      {activeRoleMode === 'partner' && (
-        <div className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+      {/* Partner Perspective Selector */}
+      {!isAdminOrStaff && (isDirectPartnerUser || isBranchPartnerUser) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-slate-500 uppercase">View Policy For:</span>
             <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg border border-slate-200">
               <button
                 type="button"
-                onClick={() => setPartnerIncentiveViewRole('BUSINESS_PARTNER')}
+                onClick={() => setPartnerIncentiveViewRole(isBranchPartnerUser ? 'BRANCH_PARTNER' : 'BUSINESS_PARTNER')}
                 className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                  partnerIncentiveViewRole === 'BUSINESS_PARTNER'
-                    ? 'bg-purple-700 text-white shadow-2xs'
+                  partnerIncentiveViewRole !== 'BUSINESS_ASSOCIATE'
+                    ? 'bg-teal-700 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span className="flex items-center gap-1.5">
-                  <Building2 size={13} /> Business Partner (Self)
+                  <Building2 size={13} /> {isBranchPartnerUser ? 'Branch Partner (Self)' : 'Business Partner (Self)'}
                 </span>
               </button>
               <button
@@ -166,6 +241,9 @@ const CommissionStructurePage = () => {
               </button>
             </div>
           </div>
+          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${roleBadgeClass}`}>
+            Active: {roleBadgeLabel}
+          </span>
         </div>
       )}
 
@@ -174,13 +252,16 @@ const CommissionStructurePage = () => {
         {/* ═══════════ TABLE 1: COMMISSION SLAB % ═══════════ */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
           {/* Main Table Banner */}
-          <div className="h-14 px-4 bg-emerald-50/90 flex items-center justify-center border-b border-slate-200">
-            <div className="inline-flex items-center justify-center gap-2">
+          <div className="h-14 px-4 bg-emerald-50/90 flex items-center justify-between border-b border-slate-200">
+            <div className="inline-flex items-center gap-2">
               <Coins size={16} className="text-emerald-700" />
               <h2 className="text-sm sm:text-base font-bold uppercase tracking-wider text-emerald-950">
                 Commission Slab %
               </h2>
             </div>
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${roleBadgeClass}`}>
+              {roleBadgeLabel}
+            </span>
           </div>
 
           <div className="overflow-x-auto flex-1 flex flex-col">
@@ -210,12 +291,16 @@ const CommissionStructurePage = () => {
                     const isEven = idx % 2 === 0;
                     const rowBg = isEven ? 'bg-white' : 'bg-slate-50/70 hover:bg-slate-100/60';
 
-                    const dpComm = activeRoleMode === 'associate'
+                    const dpComm = effectiveRole === 'associate'
                       ? slab.fdPromoterCommissionPercent
+                      : effectiveRole === 'branch_partner'
+                      ? (slab.branchFdCommissionPercent !== undefined && slab.branchFdCommissionPercent !== null ? slab.branchFdCommissionPercent : slab.bpFdCommissionPercent)
                       : slab.bpFdCommissionPercent;
 
-                    const emiComm = activeRoleMode === 'associate'
+                    const emiComm = effectiveRole === 'associate'
                       ? slab.rdPromoterCommissionPercent
+                      : effectiveRole === 'branch_partner'
+                      ? (slab.branchRdCommissionPercent !== undefined && slab.branchRdCommissionPercent !== null ? slab.branchRdCommissionPercent : slab.bpRdCommissionPercent)
                       : slab.bpRdCommissionPercent;
 
                     return (
@@ -241,13 +326,16 @@ const CommissionStructurePage = () => {
         {/* ═══════════ TABLE 2: INCENTIVE SLAB % ═══════════ */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
           {/* Main Table Banner */}
-          <div className="h-14 px-4 bg-sky-50/90 flex items-center justify-center border-b border-slate-200">
-            <div className="inline-flex items-center justify-center gap-2">
+          <div className="h-14 px-4 bg-sky-50/90 flex items-center justify-between border-b border-slate-200">
+            <div className="inline-flex items-center gap-2">
               <TrendingUp size={16} className="text-sky-700" />
               <h2 className="text-sm sm:text-base font-bold uppercase tracking-wider text-sky-950">
                 Incentive Slab %
               </h2>
             </div>
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${roleBadgeClass}`}>
+              {roleBadgeLabel}
+            </span>
           </div>
 
           <div className="overflow-x-auto flex-1 flex flex-col">
@@ -295,13 +383,16 @@ const CommissionStructurePage = () => {
         {/* ═══════════ TABLE 3: REWARD SLAB % ═══════════ */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
           {/* Main Table Banner */}
-          <div className="h-14 px-4 bg-teal-50/90 flex items-center justify-center border-b border-slate-200">
-            <div className="inline-flex items-center justify-center gap-2">
+          <div className="h-14 px-4 bg-teal-50/90 flex items-center justify-between border-b border-slate-200">
+            <div className="inline-flex items-center gap-2">
               <Percent size={16} className="text-teal-700" />
               <h2 className="text-sm sm:text-base font-bold uppercase tracking-wider text-teal-950">
                 Reward Slab %
               </h2>
             </div>
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${roleBadgeClass}`}>
+              {roleBadgeLabel}
+            </span>
           </div>
 
           <div className="overflow-x-auto flex-1 flex flex-col">

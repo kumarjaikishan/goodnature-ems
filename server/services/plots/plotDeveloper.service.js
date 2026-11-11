@@ -327,7 +327,6 @@ class PlotDeveloperService {
       }
 
       const bookingTenure = Number(booking.tenureMonths) || 0;
-      const isFdOrOneTime = booking.scheme === 'FULL_PAYMENT' || booking.paymentType === 'FULL_PAYMENT' || booking.paymentType === 'ONE_TIME';
       let matchedSlab = null;
       if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
         if (booking.planName) {
@@ -342,31 +341,53 @@ class PlotDeveloperService {
         }
       }
 
-      // Default fallbacks from matched slab or booking
-      let slabBaPct = isFdOrOneTime ? 5.0 : 4.0;
-      let slabBpPct = isFdOrOneTime ? 1.0 : 1.0;
-      let slabBranchPct = 0;
+      // Check whether this deposit is Downpayment or regular monthly EMI
+      const isReceiptDownpayment =
+        receipt.receiptType === 'DOWNPAYMENT' ||
+        receipt.receiptType === 'BOOKING' ||
+        receipt.receiptType === 'FULL_PAYMENT' ||
+        booking.scheme === 'FULL_PAYMENT' ||
+        booking.paymentType === 'FULL_PAYMENT' ||
+        booking.paymentType === 'ONE_TIME';
 
-      if (matchedSlab) {
-        if (isFdOrOneTime) {
-          slabBaPct = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
-          slabBpPct = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? 1.0);
-          slabBranchPct = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0);
-        } else {
-          slabBaPct = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
-          slabBpPct = Number(matchedSlab.bpRdCommissionPercent ?? 1.0);
-          slabBranchPct = Number(matchedSlab.branchRdCommissionPercent ?? 0);
-        }
+      // ── PERMANENT RATE LOCK: ALWAYS PRIORITIZE THE BOOKING'S LOCKED RATES ──
+      // This guarantees that even if scheme matrix rates change 3-4 months later, 
+      // or a customer deposits 2 years later, the booking uses its original locked rates!
+      let slabBaPct;
+      let slabBpPct;
+      let slabBranchPct;
+
+      if (isReceiptDownpayment) {
+        slabBaPct = booking.downpaymentPromoterCommissionPercent !== undefined && booking.downpaymentPromoterCommissionPercent !== null
+          ? Number(booking.downpaymentPromoterCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0) : Number(booking.promoterCommissionPercent ?? 5.0));
+
+        slabBpPct = booking.downpaymentBpCommissionPercent !== undefined && booking.downpaymentBpCommissionPercent !== null
+          ? Number(booking.downpaymentBpCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
+
+        slabBranchPct = booking.downpaymentBranchCommissionPercent !== undefined && booking.downpaymentBranchCommissionPercent !== null
+          ? Number(booking.downpaymentBranchCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
+      } else {
+        slabBaPct = booking.emiPromoterCommissionPercent !== undefined && booking.emiPromoterCommissionPercent !== null
+          ? Number(booking.emiPromoterCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0) : Number(booking.promoterCommissionPercent ?? 4.0));
+
+        slabBpPct = booking.emiBpCommissionPercent !== undefined && booking.emiBpCommissionPercent !== null
+          ? Number(booking.emiBpCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.bpRdCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
+
+        slabBranchPct = booking.emiBranchCommissionPercent !== undefined && booking.emiBranchCommissionPercent !== null
+          ? Number(booking.emiBranchCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
       }
 
-      const baFixedPct = matchedSlab && slabBaPct > 0 ? slabBaPct : Number(booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null ? booking.promoterCommissionPercent : 5.0);
-      const bpFixedPct = matchedSlab && slabBpPct > 0 ? slabBpPct : Number(booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null ? booking.bpCommissionPercent : (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null ? booking.developerCommissionPercent : 2.0));
-      const branchFixedPct = Number(
-        booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null
-          ? booking.branchCommissionPercent
-          : (matchedSlab ? slabBranchPct : 0)
-      );
+      const baFixedPct = slabBaPct;
+      const bpFixedPct = slabBpPct;
+      const branchFixedPct = slabBranchPct;
       const combinedFixedPct = +(baFixedPct + bpFixedPct).toFixed(3);
+      const paymentCategory = isReceiptDownpayment ? 'Downpayment' : 'EMI';
 
       const alreadyHasBa = existingReceiptComms.some(c => c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER');
       const alreadyHasBp = existingReceiptComms.some(c => c.commissionRole === 'DEVELOPER_OVERRIDE');
@@ -386,7 +407,7 @@ class PlotDeveloperService {
 
         // Idempotent instant ledger posting
         let ledgerEntryId = null;
-        const directRemarks = `F.Comm (${combinedFixedPct}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+        const directRemarks = `F.Comm (${combinedFixedPct}%) on ₹${colAmtFormatted} | ${paymentCategory} (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
         if (fixedAmt > 0 && receipt.status !== 'PENDING') {
           const sponsorLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = sponsorLedger ? await Entry.findOne({
@@ -440,8 +461,8 @@ class PlotDeveloperService {
             slabLabel: closedInfo
               ? closedInfo.slabLabel
               : booking.planName
-              ? `${booking.planName} (${combinedFixedPct}% Direct Partner)`
-              : `Plot Sale Fixed ${combinedFixedPct}% (Direct Partner)`,
+              ? `${booking.planName} (${combinedFixedPct}% Direct Partner ${paymentCategory})`
+              : `Plot Sale Fixed ${combinedFixedPct}% (Direct Partner ${paymentCategory})`,
             tierTenureMonths: Number(booking.tenureMonths) || 0,
             status: 'active',
             closingId: closedInfo ? closedInfo.closingId : null,
@@ -469,7 +490,7 @@ class PlotDeveloperService {
         const baTotalAmt = Math.round((baFixedAmt + baIncentiveAmt) * 100) / 100;
 
         let baLedgerEntryId = null;
-        const baRemarks = `F.Comm (${baFixedPct}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+        const baRemarks = `F.Comm (${baFixedPct}%) on ₹${colAmtFormatted} | ${paymentCategory} (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
         if (baFixedAmt > 0 && receipt.status !== 'PENDING') {
           const baLedger = await Ledger.findOne({ sponsorId: sponsorDoc._id }).session(session);
           let existingEntry = baLedger ? await Entry.findOne({
@@ -522,8 +543,8 @@ class PlotDeveloperService {
           slabLabel: baClosedInfo
             ? baClosedInfo.slabLabel
             : booking.planName
-            ? `${booking.planName} (${baFixedPct}% Business Associate)`
-            : `Plot Sale Fixed ${baFixedPct}% (Business Associate)`,
+            ? `${booking.planName} (${baFixedPct}% Business Associate ${paymentCategory})`
+            : `Plot Sale Fixed ${baFixedPct}% (Business Associate ${paymentCategory})`,
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: baClosedInfo ? baClosedInfo.closingId : null,
@@ -551,7 +572,7 @@ class PlotDeveloperService {
           const bpTotalAmt = Math.round((bpFixedAmt + bpIncentiveAmt) * 100) / 100;
 
           let bpLedgerEntryId = null;
-          const bpRemarks = `F.Comm (${bpFixedPct}%) on ₹${colAmtFormatted} | ${receiptTypeFormatted} | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''} | BA: ${sponsorDoc.name}`;
+          const bpRemarks = `F.Comm (${bpFixedPct}%) on ₹${colAmtFormatted} | ${paymentCategory} (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''} | BA: ${sponsorDoc.name}`;
           if (bpFixedAmt > 0 && receipt.status !== 'PENDING') {
             const bpLedger = await Ledger.findOne({ sponsorId: parentDevId }).session(session);
             let existingEntry = bpLedger ? await Entry.findOne({
@@ -604,8 +625,8 @@ class PlotDeveloperService {
             slabLabel: bpClosedInfo
               ? bpClosedInfo.slabLabel
               : booking.planName
-              ? `${booking.planName} (${bpFixedPct}% Business Partner)`
-              : `Plot Sale Fixed ${bpFixedPct}% (Business Partner)`,
+              ? `${booking.planName} (${bpFixedPct}% Business Partner ${paymentCategory})`
+              : `Plot Sale Fixed ${bpFixedPct}% (Business Partner ${paymentCategory})`,
             tierTenureMonths: Number(booking.tenureMonths) || 0,
             status: 'active',
             closingId: bpClosedInfo ? bpClosedInfo.closingId : null,
@@ -645,7 +666,7 @@ class PlotDeveloperService {
       if (targetBranchId || targetBranchPartnerId) {
         const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
         let branchLedgerEntryId = null;
-        const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
+        const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override - ${paymentCategory} (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
 
         if (branchFixedAmt > 0 && receipt.status !== 'PENDING') {
           const branchLedger = targetBranchId
@@ -701,7 +722,7 @@ class PlotDeveloperService {
           incentiveAmount: 0,
           businessType: 'PLOT_SALE',
           periodVolume: 0,
-          slabLabel: `Plot Sale Branch Override Fixed ${branchFixedPct}%`,
+          slabLabel: `Plot Sale Branch Override Fixed ${branchFixedPct}% (${paymentCategory})`,
           tierTenureMonths: Number(booking.tenureMonths) || 0,
           status: 'active',
           closingId: null,
@@ -1004,35 +1025,43 @@ class PlotDeveloperService {
         }
       }
 
-      const isFdOrOneTime = booking.paymentType === 'FULL_PAYMENT' || booking.paymentType === 'ONE_TIME' || booking.schemeType === 'FD' || booking.productType === 'FD';
-      
-      // Resolve fixed percentages based on tenure slab for BA, BP, and Branch Partner
-      let defaultBaFixed = isFdOrOneTime ? 5.0 : 4.0;
-      let defaultBpFixed = isFdOrOneTime ? 1.0 : 1.0;
-      let defaultBranchFixed = 0.5;
+      // Check whether this product collection is Downpayment or regular monthly EMI
+      const isColDownpayment =
+        col.receiptType === 'DOWNPAYMENT' ||
+        col.receiptType === 'FULL_PAYMENT' ||
+        (Array.isArray(col.installmentNumbers) && col.installmentNumbers.includes(0)) ||
+        booking.paymentType === 'FULL_PAYMENT' ||
+        booking.paymentType === 'ONE_TIME';
 
-      if (matchedSlab) {
-        if (isFdOrOneTime) {
-          defaultBaFixed = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
-          defaultBpFixed = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-          defaultBranchFixed = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
-        } else {
-          defaultBaFixed = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
-          defaultBpFixed = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-          defaultBranchFixed = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
-        }
-      }
+      // ── PERMANENT RATE LOCK: ALWAYS PRIORITIZE THE PRODUCT BOOKING'S LOCKED RATES ──
+      let defaultBaFixed;
+      let defaultBpFixed;
+      let defaultBranchFixed;
 
-      if (booking.promoterCommissionPercent !== undefined && booking.promoterCommissionPercent !== null) {
-        defaultBaFixed = Number(booking.promoterCommissionPercent);
-      }
-      if (booking.bpCommissionPercent !== undefined && booking.bpCommissionPercent !== null) {
-        defaultBpFixed = Number(booking.bpCommissionPercent);
-      } else if (booking.developerCommissionPercent !== undefined && booking.developerCommissionPercent !== null) {
-        defaultBpFixed = Number(booking.developerCommissionPercent);
-      }
-      if (booking.branchCommissionPercent !== undefined && booking.branchCommissionPercent !== null) {
-        defaultBranchFixed = Number(booking.branchCommissionPercent);
+      if (isColDownpayment) {
+        defaultBaFixed = booking.downpaymentPromoterCommissionPercent !== undefined && booking.downpaymentPromoterCommissionPercent !== null
+          ? Number(booking.downpaymentPromoterCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0) : Number(booking.promoterCommissionPercent ?? 5.0));
+
+        defaultBpFixed = booking.downpaymentBpCommissionPercent !== undefined && booking.downpaymentBpCommissionPercent !== null
+          ? Number(booking.downpaymentBpCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
+
+        defaultBranchFixed = booking.downpaymentBranchCommissionPercent !== undefined && booking.downpaymentBranchCommissionPercent !== null
+          ? Number(booking.downpaymentBranchCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
+      } else {
+        defaultBaFixed = booking.emiPromoterCommissionPercent !== undefined && booking.emiPromoterCommissionPercent !== null
+          ? Number(booking.emiPromoterCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0) : Number(booking.promoterCommissionPercent ?? 4.0));
+
+        defaultBpFixed = booking.emiBpCommissionPercent !== undefined && booking.emiBpCommissionPercent !== null
+          ? Number(booking.emiBpCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
+
+        defaultBranchFixed = booking.emiBranchCommissionPercent !== undefined && booking.emiBranchCommissionPercent !== null
+          ? Number(booking.emiBranchCommissionPercent)
+          : (matchedSlab ? Number(matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
       }
 
       const baFixedPct = defaultBaFixed;
