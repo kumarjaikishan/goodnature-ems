@@ -254,6 +254,19 @@ const Employe = () => {
   const adddepartcall = async (e) => {
     e.preventDefault();
 
+    if (!inp.branchId) {
+      toast.error("Please select a Branch");
+      return;
+    }
+    if (!inp.department) {
+      toast.error("Please select a Department");
+      return;
+    }
+    if (!inp.employeeName || !String(inp.employeeName).trim()) {
+      toast.error("Please enter Employee Full Name");
+      return;
+    }
+
     if (isupdate) {
       const formData = new FormData();
       Object.keys(inp).forEach(key => {
@@ -332,7 +345,7 @@ const Employe = () => {
 
       setInp({
         employeeId: emp._id,
-        branchId: safeValue(emp?.branchId),
+        branchId: safeValue(emp?.branchId?._id || emp?.branchId),
         department: safeValue(emp?.department?._id || emp?.department),
         employeeName: safeValue(emp?.userid?.name || emp?.rawname),
         email: safeValue(emp?.userid?.email || emp?.email),

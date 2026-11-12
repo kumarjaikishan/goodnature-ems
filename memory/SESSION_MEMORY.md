@@ -1,5 +1,20 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Employee Update 400 Bad Request & Missing Error Toast Notification [COMPLETED]**:
+  - **Issue**:
+    - On `/dashboard/employe`, when clicking "Update Employee" with missing required fields (such as empty Department), the API returned `400 Bad Request: Required fields (employeeId, department, branchId) are missing.`.
+    - However, no toast notification was shown to the user on the screen.
+    - Root causes:
+      1. In `client/src/pages/admin/employee/employeehelper.jsx`, `employeeupdate`, `addemployee`, and `employeedelette` had empty catch blocks that only called `console.error` and completely omitted `toast.error(error.message)`.
+      2. The custom `Select` component doesn't trigger native HTML5 form validation (`<select required>`), so empty required fields were submitted directly to the server without client validation.
+      3. In `Employe.jsx`, `edite` assigned `emp?.branchId` directly rather than checking `emp?.branchId?._id || emp?.branchId`, and `EmployeeFormModal.jsx` compared department branch with strict equality `===` instead of `String(...) === String(...)`.
+  - **Fixes Applied**:
+    1. **Added Toast Error Handling**: In `employeehelper.jsx`, added `toast.error(error.message || 'Error updating employee')` to the `catch` blocks in `employeeupdate`, `addemployee`, and `employeedelette`.
+    2. **Client-Side Form Validation**: In `Employe.jsx`, added pre-submit validation in `adddepartcall` checking `inp.branchId`, `inp.department`, and `inp.employeeName`, giving instant clear toast alerts if any required field is empty.
+    3. **Branch & Department ID Matching**: In `Employe.jsx` and `EmployeeFormModal.jsx`, normalized branchId handling (`emp?.branchId?._id || emp?.branchId`) and used `String(...) === String(...)` for department filtering.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors). Instant Vite HMR active.
+
 - **Business Partner / Associate Profile Photo Not Displaying in Header Upon Login [COMPLETED]**:
   - **Issue**:
     - Business partners and associates uploaded photos via the Business Developer module (`PlotBusinessDevelopers.jsx`), which stored their image URL under the `photo` field in `User`.

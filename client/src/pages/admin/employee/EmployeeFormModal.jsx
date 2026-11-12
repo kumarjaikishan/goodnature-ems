@@ -1,5 +1,5 @@
 import React from 'react';
-import { Send, Edit2, ChevronUp, ChevronDown, Trash2, User } from 'lucide-react';
+import { Edit2, ChevronUp, ChevronDown, Trash2, User } from 'lucide-react';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import Input from '../../../components/ui/Input';
 import DateInput from '../../../components/ui/DateInput';
@@ -89,7 +89,7 @@ const EmployeeFormModal = ({
               onChange={(e) => handleChange(e, 'department')}
             >
               <option value="">Select Department</option>
-              {department?.filter(e => (e.branchId?._id || e.branchId) === inp.branchId).map((list) => (
+              {department?.filter(e => String(e.branchId?._id || e.branchId || '') === String(inp.branchId || '')).map((list) => (
                 <option key={list._id} value={list._id}>
                   {list.department}
                 </option>

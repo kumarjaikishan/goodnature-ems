@@ -1,5 +1,5 @@
 import { apiClient } from "../../../utils/apiClient";
-import { FirstFetch, setEmployees } from "../../../../store/userSlice";
+import { setEmployees } from "../../../../store/userSlice";
 import { toast } from "../../../utils/toast";
 import { cloudinaryUrl } from "../../../utils/imageurlsetter";
 import { Eye, FileSpreadsheet, Clock, Edit2, KeyRound, Trash2 } from "lucide-react";
@@ -217,6 +217,7 @@ export const addemployee = async ({ formData, dispatch, setisload, setInp, setop
         if (Array.isArray(updatedList)) dispatch(setEmployees(updatedList));
     } catch (error) {
         console.error('Error adding employee:', error);
+        toast.error(error.message || 'Error adding employee');
     } finally {
         setisload(false);
     }
@@ -241,6 +242,7 @@ export const employeeupdate = async ({ formData, dispatch, setEmployeePhoto, set
         if (Array.isArray(updatedList)) dispatch(setEmployees(updatedList));
     } catch (error) {
         console.error('Error updating employee:', error);
+        toast.error(error.message || 'Error updating employee');
     } finally {
         setisload(false);
     }
@@ -248,7 +250,7 @@ export const employeeupdate = async ({ formData, dispatch, setEmployeePhoto, set
 
 export const employeedelette = async ({ employeeId, setisload, dispatch }) => {
     if (!employeeId) {
-        alert('All fileds are Required');
+        toast.error('All fields are required');
         return;
     }
 
@@ -266,6 +268,7 @@ export const employeedelette = async ({ employeeId, setisload, dispatch }) => {
         if (Array.isArray(updatedList)) dispatch(setEmployees(updatedList));
     } catch (error) {
         console.error('Error deleting employee:', error);
+        toast.error(error.message || 'Error deleting employee');
     } finally {
         setisload(false);
     }
