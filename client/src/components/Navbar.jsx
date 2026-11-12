@@ -4,7 +4,7 @@ import { Menu, User, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NotificationIcon } from './popover';
 import { useLocation } from 'react-router-dom';
-import { toogleextendedonMobile, tooglesidebar } from '../../store/userSlice';
+import { tooglesidebar } from '../../store/userSlice';
 import dayjs from 'dayjs';
 
 const Navbar = () => {
@@ -293,8 +293,8 @@ const Navbar = () => {
             </div>
           )
         ) : (
-          user?.profile?.profileImage ? (
-            <img src={user.profile.profileImage} alt={user.profile.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+          (user?.profile?.profileImage || user?.profile?.photo) ? (
+            <img src={user.profile.profileImage || user.profile.photo} alt={user.profile.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
           ) : (
             <div className="w-8 h-8 rounded-full bg-teal-800 text-white flex items-center justify-center font-bold text-xs">
               {user?.profile?.name?.charAt(0) || <User size={14} />}

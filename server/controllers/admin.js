@@ -832,13 +832,17 @@ const firstfetch = async (req, res, next) => {
         const userId = req.user?.id || req.userid;
         const [user, companye, allowedBranchIds] = await Promise.all([
             usermodal.findById(userId)
-                .select('name email profileImage role permissions branchIds bankPermissions cashPermissions plotTransactionScope sponsorCode customerCode isDeveloperSponsor sponsorId mobile')
+                .select('name email profileImage photo role permissions branchIds bankPermissions cashPermissions plotTransactionScope sponsorCode customerCode isDeveloperSponsor sponsorId mobile')
                 .populate('bankPermissions.allowedBankIds', 'name bankName accountNumber ifscCode branchName accountType')
                 .populate('cashPermissions.allowedCashLedgerIds', 'name ledgerType assignedUserId')
                 .lean(),
             company.findOne().lean(),
             getUserAllowedBranchIds(req)
         ]);
+
+        if (user && !user.profileImage && user.photo) {
+            user.profileImage = user.photo;
+        }
 
         const hasBranchFilter = allowedBranchIds !== null;
         const branchQuery = hasBranchFilter ? { _id: { $in: allowedBranchIds } } : {};

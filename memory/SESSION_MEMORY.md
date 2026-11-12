@@ -1,5 +1,21 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Business Partner / Associate Profile Photo Not Displaying in Header Upon Login [COMPLETED]**:
+  - **Issue**:
+    - Business partners and associates uploaded photos via the Business Developer module (`PlotBusinessDevelopers.jsx`), which stored their image URL under the `photo` field in `User`.
+    - However, the top navigation bar (`Navbar.jsx`), the login JWT token (`userLogin`), and the user initial fetch (`firstfetch`) exclusively looked for `user.profile.profileImage`.
+    - Since `profileImage` was empty while `photo` contained the Cloudinary URL, the header displayed the fallback circle initial `M` instead of their profile picture.
+  - **Fixes Applied**:
+    1. **Backend Synchronization (`plotDeveloper.service.js`)**:
+       - In `createSponsor` and `updateSponsor`, both `photo` and `profileImage` fields are now set simultaneously whenever a photo is uploaded or updated.
+    2. **User Login & Session Fetch (`user.js` & `admin.js`)**:
+       - In `userLogin`, `profileImage: isUser.profileImage || isUser.photo || ''` is now embedded in both the JWT payload and the response object.
+       - In `firstfetch` (`/api/firstfetch`), selected `photo` along with `profileImage` and added fallback assignment: `if (user && !user.profileImage && user.photo) user.profileImage = user.photo;`.
+    3. **Frontend Header Fallback (`Navbar.jsx`)**:
+       - In `Navbar.jsx`, avatar image tag now checks `(user?.profile?.profileImage || user?.profile?.photo)` so existing logged-in sessions display their image immediately.
+  - **Verification**:
+    - Validated with `node -c` (0 syntax errors) and `oxlint` (0 errors).
+
 - **Plot Product / Investment Booking One-Time Full Payment Validation Fix [COMPLETED]**:
   - **Issue**:
     - When creating or editing an Investment Booking (`/dashboard/plots/investment-booking/new`) with **One-Time Full Payment** (`paymentType === 'FULL_PAYMENT'`), the booking failed with:

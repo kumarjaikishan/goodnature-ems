@@ -2464,7 +2464,8 @@ class PlotDeveloperService {
       aadhaarCard: aadhaarCard || '',
       relationType: relationType || data.guardianRelation || 'S/o',
       fatherOrHusbandName: fatherOrHusbandName || data.guardianName || '',
-      photo: data.photo || '',
+      photo: data.photo || data.profileImage || '',
+      profileImage: data.profileImage || data.photo || '',
       signature: data.signature || '',
       commissionRate: Number(commissionRate) || 0,
     };
@@ -2509,6 +2510,12 @@ class PlotDeveloperService {
       updateData.password = await bcrypt.hash(updateData.password.trim(), salt);
     } else {
       delete updateData.password;
+    }
+
+    if (updateData.photo !== undefined) {
+      updateData.profileImage = updateData.photo || '';
+    } else if (updateData.profileImage !== undefined) {
+      updateData.photo = updateData.profileImage || '';
     }
 
     const sponsor = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true })
