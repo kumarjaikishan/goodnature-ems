@@ -1,5 +1,46 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Plot Product / Investment Booking One-Time Full Payment Validation Fix [COMPLETED]**:
+  - **Issue**:
+    - When creating or editing an Investment Booking (`/dashboard/plots/investment-booking/new`) with **One-Time Full Payment** (`paymentType === 'FULL_PAYMENT'`), the booking failed with:
+      `PlotProductBooking validation failed: installmentCount: Path 'installmentCount' (0) is less than minimum allowed value (1).`
+    - Both the frontend form and backend `plotProductService` correctly assign `installmentCount: 0` because there are no future installments when 100% is paid upfront.
+    - However, `server/models/PlotProductBooking.js` had `min: 1` on `installmentCount` (and `min: 1` on `tenureMonths`), whereas `PlotBooking.js` already correctly used `min: 0`.
+  - **Fix**:
+    - In `server/models/PlotProductBooking.js`, updated `installmentCount` from `min: 1, default: 24` to `min: 0, default: 0` and `tenureMonths` to `min: 0`.
+  - **Verification**:
+    - Verified with `node -c server/models/PlotProductBooking.js` (0 errors).
+
+- **Plot Buyer's Agreement Footer Full-Width Divider Line Removal [COMPLETED]**:
+  - **Requirement**:
+    - On the Buyer's Agreement viewer (`/dashboard/plots/agreements/:id`), there was a solid horizontal line stretching across the full width of every page immediately above the "Applicant Signature" and "Authorized Signature" spaces.
+    - Remove this full-width divider line so the page body flows cleanly directly to the individual signature areas.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`:
+      - In `PageFooter`, removed `border-t border-slate-300` and updated padding from `pt-1.5` to `pt-2`.
+      - Preserved the clean individual dashed signature lines directly above "Applicant Signature" and "Authorized Signature" and the centered "Page X of 9" indicator.
+  - **Verification**:
+    - Verified `oxlint -D no-undef` passes with 0 warnings and 0 errors. Instant Vite HMR active.
+
+- **Plot Buyer's Agreement Footer Cut-off Elimination & Content Flow Rebalance [COMPLETED]**:
+  - **Issue**:
+    - In the generated print/PDF output, on intermediate pages (especially Pages 2, 3, 4, 5, 6, 7), the footer (`Applicant Signature`, `Authorized Signature`, and `Page X of 9`) was either cut in half or pushed completely outside the 297mm A4 page boundary.
+    - Page 5 was severely overloaded with 68 lines of text (all of Clause 7.B Earnest Money + Clause 8.A + all 5 sub-clauses of 8.B), pushing its footer 200px+ off the bottom edge. In contrast, Page 8 had only 25 lines (65% empty white space).
+  - **Fixes Applied**:
+    1. **Even Content Distribution Across Pages 5 to 8**:
+       - Page 5 now contains: Clause 7.B (Earnest Money) + Clause 8.A + Clause 8.B (Conveyance Deed I, II, III).
+       - Page 6 now contains: Clause 8.B (IV, V) + Clause 8.C (Obligation to take possession I, II) + Clause 9 (Force Majeure A, B, C).
+       - Page 7 now contains: Clause 10 (Assignment/Transfer A, B) + Clause 11 (Indemnification) + Clause 12 (Ownership transfer) + Clause 13 (Abide by Law) + Clause 14 (Notice A, B).
+       - Page 8 now contains: Clause 15 (Entire Agreement) + Clause 16 (Amend Annexures) + Clause 17 (Dispute Resolution) + Clause 18 (Governing Law & Jurisdiction) flowing naturally into `IN WITNESS WHEREOF` and the Signatures & Witnesses block.
+       - Every page now has ~45-50 lines of text (height ~550px-650px out of ~1050px available), leaving a generous 300px-450px safety buffer before the footer on every page.
+    2. **Print Styles & Padding Optimization**:
+       - In `PlotAgreementViewer.jsx`, adjusted `@media print` `.agreement-page` padding from `10mm 14mm 10mm 14mm` to `8mm 14mm 8mm 14mm`, reclaiming 4mm (15px) of vertical space.
+       - In `PlotAgreementEnglish.jsx`, adjusted typography to `text-[0.71rem] leading-[1.42]` with `space-y-1` and headings `text-[0.76rem] pt-1.5/pt-2 pb-0.5`.
+       - In `PageFooter`, refined dashed line height to `h-3` and added `pb-0.5` bottom padding with `text-[8.5px]`, ensuring signature lines and page number never touch or clip at the page edge.
+  - **Verification**:
+    - Verified `oxlint -D no-undef` passes with 0 warnings and 0 errors across agreement viewers.
+    - Instant Vite HMR active. All 9 pages now render completely inside printable margins without clipping.
+
 - **Ledger Controller Performance & Query Optimization (`GET /api/ledger?view=ledger`) [COMPLETED]**:
   - **Context**:
     - Evaluated and optimized `GET /api/ledger?view=ledger` (`ledger` and `getTreasuryLedgers` in `server/controllers/ledger.js`).

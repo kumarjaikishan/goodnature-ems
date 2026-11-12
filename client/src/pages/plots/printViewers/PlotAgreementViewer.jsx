@@ -232,7 +232,7 @@ const PlotAgreementViewer = () => {
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid #e2e8f0;
             background: white;
-            padding: 12mm 14mm 12mm 14mm;
+            padding: 10mm 14mm 10mm 14mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -282,7 +282,7 @@ const PlotAgreementViewer = () => {
             width: 210mm !important;
             height: 297mm !important;
             max-height: 297mm !important;
-            padding: 10mm 14mm 10mm 14mm !important;
+            padding: 8mm 14mm 8mm 14mm !important;
             box-sizing: border-box !important;
             page-break-after: always !important;
             break-after: page !important;

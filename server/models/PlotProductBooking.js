@@ -275,7 +275,7 @@ const plotProductBookingSchema = new mongoose.Schema(
     tenureMonths: {
       type: Number,
       required: true,
-      min: 1,
+      min: 0,
       default: 24,
     },
     promoterCommissionPercent: {
@@ -358,8 +358,8 @@ const plotProductBookingSchema = new mongoose.Schema(
     },
     installmentCount: {
       type: Number,
-      default: 24,
-      min: 1,
+      default: 0,
+      min: 0,
     },
     dpType: {
       type: String,
