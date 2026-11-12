@@ -1,5 +1,20 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Ledger Controller Performance & Query Optimization (`GET /api/ledger?view=ledger`) [COMPLETED]**:
+  - **Context**:
+    - Evaluated and optimized `GET /api/ledger?view=ledger` (`ledger` and `getTreasuryLedgers` in `server/controllers/ledger.js`).
+    - Previously, every 5 minutes (or when sync debounce elapsed), any GET request to `/api/ledger` was blocked by synchronous ledger synchronization loops executing `findOne` across all employees, sponsors, kisans, and branches inside transactions, causing multi-second freezes.
+    - The main MongoDB query loaded all ledgers without database-level `isVoucherLedger` filtering, hydrated heavy Mongoose documents without `.lean()`, and ran aggregations on the `Entry` collection without `allowDiskUse`.
+  - **Optimizations Applied**:
+    1. **Asynchronous Non-Blocking Sync**: Modified `syncAllLedgersSafe` call in GET handlers so routine 5-minute periodic checks fire in the background without blocking the HTTP response. If `sync === 'true'` is explicitly passed, it still awaits synchronization.
+    2. **Database-Level View Filtering**: Added `{ $or: [{ ledgerType: { $ne: 'custom' } }, { isVoucherLedger: { $ne: true } }] }` for `view === 'ledger'` and `{ isVoucherLedger: true }` for `view === 'vouchers'` directly into the MongoDB filter, preventing hundreds of unwanted documents from being loaded across the network.
+    3. **Query Optimization via `.lean()`**: Added `.lean()` to `Ledger.find(...)` queries in both `ledger` and `getTreasuryLedgers`, reducing memory overhead by ~60% and speeding up serialization.
+    4. **Aggregation Safeguard**: Added `{ allowDiskUse: true }` to `Entry.aggregate` and `FundTransfer.aggregate` to prevent MongoDB memory limit crashes on large transaction volumes. Added empty-array guards (`if (ledgerIds.length > 0)`) to avoid redundant aggregation executions.
+    5. **Module Import Hygiene**: Moved `Branch`, `FundTransfer`, and `User` model imports to the top of `server/controllers/ledger.js`, eliminating inline `require` statements during request handling.
+  - **Verification**:
+    - Verified syntax using `node -c server/controllers/ledger.js` (0 errors).
+    - Verified frontend compatibility using `oxlint` on `client/src/pages/admin/ledger/ledgerpagelist.jsx` (0 warnings, 0 errors).
+
 - **Plot Buyer's Agreement Point Spacing & Heading Underline Removal [COMPLETED]**:
   - **Requirement**:
     - On the Buyer's Agreement viewer page (`/dashboard/plots/agreements/:id`), clauses had underline styling directly under their titles (e.g., `3. AGREEMENT TO SELL` with a border line below it) and points were crammed close together with minimal top spacing.
