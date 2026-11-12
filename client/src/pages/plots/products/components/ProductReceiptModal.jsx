@@ -1,7 +1,7 @@
 import React from 'react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { useSelector } from 'react-redux';
-import { Printer, X, Receipt, CheckCircle, Clock } from 'lucide-react';
+import { Printer, X, Receipt } from 'lucide-react';
 import { cloudinaryUrl } from '../../../../utils/imageurlsetter';
 import numberToWords from '../../../../utils/numToWord';
 
@@ -86,7 +86,8 @@ const ProductReceiptModal = ({ open, onClose, collection }) => {
 
           {/* Company Brand Header */}
           <div className="flex justify-between items-start border-b-2 border-teal-800 pb-4 mb-4">
-            <div className="flex items-center gap-3.5">
+            {/* Header Logo & Address (Hidden per requirement: pre-printed stationary / clean header) */}
+            <div className="hidden" style={{ display: 'none' }}>
               {company?.logo ? (
                 <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden border border-slate-100 flex items-center justify-center bg-slate-50">
                   <img
@@ -116,7 +117,7 @@ const ProductReceiptModal = ({ open, onClose, collection }) => {
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="ml-auto text-right">
               <span className="inline-block px-3 py-1 bg-teal-50 text-teal-800 font-black text-xs uppercase tracking-wider rounded-md border border-teal-200">
                 Official Receipt
               </span>

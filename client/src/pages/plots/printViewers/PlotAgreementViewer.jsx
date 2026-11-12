@@ -106,11 +106,19 @@ const PlotAgreementViewer = () => {
   const series = plot.seriesId || {};
 
   const bookingDate = new Date(booking.bookingDate || booking.createdAt);
-  const formattedDate = bookingDate.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  });
+  const dayNum = bookingDate.getDate();
+  const getOrdinal = (n) => {
+    if (n > 3 && n < 21) return `${n}th`;
+    switch (n % 10) {
+      case 1: return `${n}st`;
+      case 2: return `${n}nd`;
+      case 3: return `${n}rd`;
+      default: return `${n}th`;
+    }
+  };
+  const monthName = bookingDate.toLocaleDateString('en-IN', { month: 'long' });
+  const yearNum = bookingDate.getFullYear();
+  const formattedDate = `${getOrdinal(dayNum)} Day of ${monthName} ${yearNum}`;
 
   const netPlotValue = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
   const paidAmount = Math.max(0, netPlotValue - (booking.remainingAmount || 0));
@@ -170,7 +178,6 @@ const PlotAgreementViewer = () => {
   }
 
   const customerName = customer.name || booking.customerName || 'Allottee';
-  const companyName = booking.companyName || 'M/s Good Nature Projects Pvt. Ltd.';
 
   const downpaymentAmount = booking.bookingAmount || downpaymentInst?.dueAmount || Math.max(0, netPlotValue - (booking.remainingAmount || 0));
   const remainingBalanceAmount = Math.max(0, netPlotValue - downpaymentAmount);
@@ -208,12 +215,35 @@ const PlotAgreementViewer = () => {
   return (
     <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print:min-h-0 print:h-auto print:block">
 
-      {/* Dynamic A4 Print Styles using W3C table header/footer repeating engine with page counter increment */}
+      {/* Dynamic A4 Print Styles & Paginated Screen View */}
       <style>{`
+        @media screen {
+          .agreement-print-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .agreement-page {
+            width: 210mm;
+            min-height: 297mm;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            background: white;
+            padding: 12mm 14mm 12mm 14mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+        }
+
         @media print {
           @page {
             size: A4 portrait;
-            margin: 10mm 12mm 12mm 12mm;
+            margin: 0 !important;
           }
 
           html, body, #root {
@@ -230,7 +260,6 @@ const PlotAgreementViewer = () => {
             margin: 0 !important;
             padding: 0 !important;
             position: static !important;
-            counter-reset: page 1;
           }
 
           div {
@@ -241,40 +270,37 @@ const PlotAgreementViewer = () => {
             display: none !important;
           }
 
-          thead {
-            display: table-header-group !important;
+          .agreement-print-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
           }
 
-          tfoot {
-            display: table-footer-group !important;
-          }
-
-          .page-break {
+          .agreement-page {
+            width: 210mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            padding: 10mm 14mm 10mm 14mm !important;
+            box-sizing: border-box !important;
             page-break-after: always !important;
             break-after: page !important;
-          }
-
-          thead {
-            display: table-header-group !important;
-          }
-
-          tfoot {
-            display: table-footer-group !important;
-          }
-
-          tr {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            overflow: hidden !important;
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
           }
 
-          .agreement-table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-          }
-
-          .avoid-break {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+          .agreement-page:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
         }
       `}</style>
@@ -297,7 +323,7 @@ const PlotAgreementViewer = () => {
       </div>
 
       {/* Agreement Printable Container */}
-      <div className="w-full max-w-[210mm] bg-white text-slate-900 shadow-2xl rounded-none print:shadow-none print:w-full text-xs leading-relaxed font-sans p-6 sm:p-10 print:p-0">
+      <div className="agreement-print-container w-full">
         <PlotAgreementEnglish {...sharedProps} />
       </div>
 

@@ -16,7 +16,7 @@ import {
   ClipboardCheck,
   Printer,
   Calendar,
-  Sparkles,
+  Calculator,
   RotateCcw,
   History,
   Building2,
@@ -167,7 +167,11 @@ const PlotBookingDetails = () => {
   }
 
   const customer = booking.customerId || {};
-  const sponsor = booking.sponsorId || {};
+  const sponsor = (booking.sponsorId && typeof booking.sponsorId === 'object' && booking.sponsorId._id)
+    ? booking.sponsorId
+    : (customer.sponsorId && typeof customer.sponsorId === 'object' && customer.sponsorId._id)
+      ? customer.sponsorId
+      : (booking.sponsorId || customer.sponsorId || {});
   const plot = booking.plotId || {};
   const series = plot.seriesId || {};
 
@@ -216,19 +220,18 @@ const PlotBookingDetails = () => {
                   {booking.bookingNumber}
                 </h2>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                    booking.status === 'ACTIVE'
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${booking.status === 'ACTIVE'
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       : booking.status === 'PENDING'
-                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                      : booking.status === 'REJECTED'
-                      ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                      : booking.status === 'CANCELLED'
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : booking.status === 'COMPLETED'
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'bg-slate-100 text-slate-700 border border-slate-200'
-                  }`}
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : booking.status === 'REJECTED'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : booking.status === 'CANCELLED'
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : booking.status === 'COMPLETED'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
                 >
                   {booking.status}
                 </span>
@@ -308,11 +311,10 @@ const PlotBookingDetails = () => {
                   ? `Agreement locked: Downpayment pending (Paid: ₹${paidAmount.toLocaleString('en-IN')} / Required: ₹${downpaymentRequired.toLocaleString('en-IN')})`
                   : 'Open Customer Plot Agreement'
               }
-              className={`flex items-center gap-1.5 px-3.5 py-2 border font-medium text-xs rounded-xl transition shadow-2xs ${
-                isDownpaymentCompleted
+              className={`flex items-center gap-1.5 px-3.5 py-2 border font-medium text-xs rounded-xl transition shadow-2xs ${isDownpaymentCompleted
                   ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 cursor-pointer'
                   : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'
-              }`}
+                }`}
             >
               <ClipboardCheck size={16} className={isDownpaymentCompleted ? 'text-amber-600' : 'text-slate-400'} />
               Agreement {!isDownpaymentCompleted && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded ml-1">Pending DP</span>}
@@ -323,7 +325,7 @@ const PlotBookingDetails = () => {
               onClick={() => navigate(`/dashboard/plots/interest-calculator?bookingId=${booking._id}&bookingNumber=${booking.bookingNumber}`)}
               className="flex items-center gap-1.5 px-3.5 py-2 border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium text-xs rounded-xl transition cursor-pointer shadow-2xs"
             >
-              <Sparkles size={16} className="text-teal-700" /> Growth & Interest
+              <Calculator size={16} className="text-teal-700" /> Growth & Interest
             </button>
           )}
           {!isSponsor && booking.status !== 'CANCELLED' && (
@@ -406,8 +408,8 @@ const PlotBookingDetails = () => {
           <p className="text-[0.68rem] font-semibold text-slate-500 uppercase tracking-wider">Discount Granted (Total)</p>
           <p className="text-xl font-bold text-emerald-800 mt-1">₹{totalCombinedDiscount.toLocaleString('en-IN')}</p>
           <p className="text-[10px] text-slate-500 mt-1 font-medium">
-            {tenureDiscount > 0
-              ? `Tenure: ₹${tenureDiscount.toLocaleString('en-IN')} | Manual: ₹${manualDiscount.toLocaleString('en-IN')}`
+            {tenureDiscount > 0 && manualDiscount > 0
+              ? `₹${tenureDiscount.toLocaleString('en-IN')} + ₹${manualDiscount.toLocaleString('en-IN')}`
               : `Net Payable: ₹${netPlotValue.toLocaleString('en-IN')}`}
           </p>
         </div>
@@ -488,8 +490,8 @@ const PlotBookingDetails = () => {
             </div>
             <div className="min-w-0">
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Email Address</span>
-              <span 
-                className="font-medium text-slate-700 block truncate" 
+              <span
+                className="font-medium text-slate-700 block truncate"
                 title={customer.email || booking.customerEmail || '-'}
               >
                 {customer.email || booking.customerEmail || '-'}
@@ -710,12 +712,12 @@ const PlotBookingDetails = () => {
           </div>
         </div>
 
-        {/* Card 5: Sponsor & Locked Hierarchy Commission Snapshot */}
+        {/* Card 5: Sponsor & Locked Hierarchy Commission */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <Users size={16} className="text-teal-700" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Sponsor &amp; Commission Snapshot</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Sponsor &amp; Commission</h3>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200">
               Locked Contract Rates
@@ -731,10 +733,16 @@ const PlotBookingDetails = () => {
             <div>
               <span className="text-slate-400 font-medium block text-[0.68rem] uppercase">Sponsor ID</span>
               <span className="font-semibold text-slate-800">
-                {(!sponsor._id || sponsor._id === customer._id) ? 'N/A' : (
-                  typeof sponsor?.sponsorCode === 'string' ? sponsor.sponsorCode :
-                    typeof sponsor?.customerId === 'string' ? sponsor.customerId : 'N/A'
-                )}
+                {(!sponsor._id || sponsor._id === customer._id)
+                  ? 'N/A'
+                  : (
+                    sponsor.sponsorCode ||
+                    sponsor.customerCode ||
+                    sponsor.customerId ||
+                    sponsor.code ||
+                    (customer.sponsorId && typeof customer.sponsorId === 'object' ? (customer.sponsorId.sponsorCode || customer.sponsorId.customerCode || customer.sponsorId.customerId) : null) ||
+                    'N/A'
+                  )}
               </span>
             </div>
           </div>
@@ -742,7 +750,7 @@ const PlotBookingDetails = () => {
           {/* Locked Hierarchy Commission Rates */}
           <div className="mt-1 pt-3 border-t border-slate-100 space-y-2">
             <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-              Contract Fixed Commission Snapshot
+              Contract Fixed Commission
             </span>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               {/* Business Associate */}
@@ -795,7 +803,7 @@ const PlotBookingDetails = () => {
 
         {/* Card 6: Land Acquisition Sourcing / किसान एग्रीमेंट & रजिस्ट्री डीड (Admin Only) */}
         {!isSponsor && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4 lg:col-span-2">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Building2 size={16} className="text-teal-700" />
@@ -820,7 +828,7 @@ const PlotBookingDetails = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-3">
                 {booking.landSourcing.map((src, idx) => (
                   <div key={idx} className="p-3.5 bg-teal-50/40 border border-teal-200 rounded-xl flex flex-col gap-2">
                     <div className="flex items-center justify-between">
@@ -1008,13 +1016,12 @@ const PlotBookingDetails = () => {
                       {new Date(rec.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                     <td className="p-2.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[0.68rem] font-semibold uppercase tracking-wider ${
-                        rec.receiptType === 'DOWNPAYMENT'
+                      <span className={`px-2 py-0.5 rounded-full text-[0.68rem] font-semibold uppercase tracking-wider ${rec.receiptType === 'DOWNPAYMENT'
                           ? 'bg-amber-50 text-amber-700 border border-amber-200'
                           : rec.receiptType === 'FULL_PAYMENT'
-                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200'
-                      }`}>
+                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}>
                         {rec.receiptType === 'DOWNPAYMENT' ? 'Down Payment' : rec.receiptType === 'FULL_PAYMENT' ? 'Full Payment' : 'Installment'}
                       </span>
                     </td>

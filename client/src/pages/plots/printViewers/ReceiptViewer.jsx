@@ -86,8 +86,6 @@ const ReceiptViewer = () => {
   const company = adminCompany || empCompany || {};
   const companyName = company?.name || 'Good Nature Projects Pvt. Ltd.';
   const companyAddress = company?.address || 'Good Nature Complex, Main Road, Bihar - 803118';
-  const companyMobile = company?.mobile || company?.phone || '7766954518';
-  const companyGstin = company?.gstin || '10AAJCR9358L1ZX';
 
   useEffect(() => {
     if (!id) return;
@@ -222,8 +220,8 @@ const ReceiptViewer = () => {
           </div>
         ) : null}
 
-        {/* Company Header */}
-        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-4">
+        {/* Company Header (Hidden per requirement: pre-printed stationary / clean header) */}
+        <div className="hidden" style={{ display: 'none' }}>
           <div className="flex flex-col gap-2">
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-3">

@@ -1,5 +1,104 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Plot Buyer's Agreement Point Spacing & Heading Underline Removal [COMPLETED]**:
+  - **Requirement**:
+    - On the Buyer's Agreement viewer page (`/dashboard/plots/agreements/:id`), clauses had underline styling directly under their titles (e.g., `3. AGREEMENT TO SELL` with a border line below it) and points were crammed close together with minimal top spacing.
+    - Remove all underlines below point headers and add breathing room/spacing between points and sub-clauses across all pages.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`:
+      - Removed `border-b border-slate-300 pb-0.5` across all 18 numbered clause headings (Clause 1 through 18) and sub-clause headings (e.g., Clause 8.C).
+      - Replaced with clean top spacing `pt-2.5 pb-0.5` on all point headers (`h4`) so each point clearly stands out with dedicated vertical separation from the preceding clause.
+      - Added `pt-1` / `pt-1.5` padding before sub-clauses (e.g. 1.1, 4.e, 4.f, 5.B, 5.C, 7.A, 8.A, 8.B, 9.A, 9.B, 9.C, 10.A, 10.B).
+      - Removed the `border-t border-b border-slate-300` horizontal lines from the `NOW THEREFORE...` divider line.
+  - **Verification**:
+    - Verified `oxlint -D no-undef` passes with 0 warnings and 0 errors. Instant Vite HMR active.
+
+- **Plot Buyer's Agreement Template Alignment with User MS Word Document & Per-Page Header/Footer Signatures [COMPLETED]**:
+  - **Requirement**:
+    - Analyzed the Buyer's Agreement viewer page (`/dashboard/plots/agreements/:id`, referencing booking `6af353b0949cbeaca66f2555`).
+    - Aligned legal clauses, registered office address, recitals, default consequences, and dispute resolution with the user-provided MS Word Buyer's Agreement document (`Agreenent.docx`).
+    - Every page displays the top header (`GOOD NATURE` + Customer Name, Agreement No, Plot No) and bottom signatures (`Applicant Signature` & `Authorized Signature`) and page numbers, both on screen and when printing with Ctrl + P.
+    - On Page 1, the top 120mm is reserved for the physical bond paper / stamp paper ticket, with content situated in the lower portion above the footer signatures.
+    - The user requested that for the intermediate pages (between Page 1 and the last 2 pages), the large empty whitespace at the bottom of each page be properly filled and the text flow continuously to the next page, while keeping the Signatures/Witnesses block and Annexure 1 on their dedicated final pages.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`:
+      - **Page 1**: Reserved 120mm top space for stamp/bond paper printing, content at lower half, bottom signatures & `Page 1 of 9`.
+      - **Pages 2 through 7**: Consolidated the 18 clauses into 6 fully-utilized, beautifully typeset pages (~85-90% vertical fill) without excessive bottom whitespace:
+        - **Page 2**: Recitals A through I + NOW THEREFORE + Clause 1.1 (Definitions: Plot, Common Areas & Facilities A, B, C).
+        - **Page 3**: Clause 1.2 (Interpretation A-F) + Clause 2 (Acceptance) + Clause 3 (Agreement to Sell) + Clause 4 (Total Price a, b, c, d, e, f).
+        - **Page 4**: Clause 5 (Entitlement A, B, C) + Clause 6 (Alterations) + Clause 7.A (Events of Default i-v).
+        - **Page 5**: Clause 7.B (Earnest Money & Forfeiture i-iv) + Clause 8.A (Possession Timeline) + Clause 8.B (Conveyance Deed Execution I-V).
+        - **Page 6**: Clause 8.C (Obligation to take possession I, II) + Clause 9 (Force Majeure A, B, C) + Clause 10 (Assignment/Transfer A, B) + Clause 11 (Indemnification).
+        - **Page 7**: Clause 12 (Ownership transfer) + Clause 13 (Applicable law) + Clause 14 (Notice A, B) + Clause 15 (Entire Agreement) + Clause 16 (Amend Annexures) + Clause 17 (Arbitration) + Clause 18 (Jurisdiction).
+      - **Page 8 (Signatures & Witnesses)**: Full execution block with Signed & Delivered (For Company, For Allottee) and Witnesses (1 & 2) with lines for Name and Address.
+      - **Page 9 (Annexure 1)**: Dedicated Annexure 1 table with comprehensive project specs, dimensions, and financial terms.
+      - All pages now feature `Page X of 9` centered in the footer.
+  - **Verification**:
+    - Ran `oxlint -D no-undef client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx client/src/pages/plots/printViewers/PlotAgreementViewer.jsx` (0 warnings, 0 errors).
+    - Preserved instant Vite HMR.
+
+
+- **Agreement Printing Suppression of Browser Headers (Date/Time) and Footers (File URL) [COMPLETED]**:
+  - In `client/src/pages/plots/printViewers/PlotAgreementViewer.jsx` and `ProductAgreementViewer.jsx`:
+    - Updated `@media print` rule to set `@page { size: A4 portrait; margin: 0 !important; }`.
+    - In Chromium / Chrome, a zero `@page` margin automatically eliminates the browser's header (timestamp and document title) and footer (page file URL and default page counter).
+    - Preserved exact printable margins via `.agreement-print-container` (`padding: 0 14mm !important;`), Page 1 (`print:pt-[10mm] print:pb-[12mm]`), and repeating `thead` / `tfoot` (`print:pt-[10mm]` and `print:pb-[12mm]`), giving clean, professional margins with internal agreement signatures on every page.
+  - Verified with `oxlint` (0 errors).
+
+- **Hidden Header Logo and Address on All Receipts [COMPLETED]**:
+  - In `client/src/pages/plots/printViewers/ReceiptViewer.jsx` (Plot Payment Receipts) and `client/src/pages/plots/products/components/ProductReceiptModal.jsx` (Product / Investment Official Receipts):
+    - Set the company header branding block (logo, brand name/tagline, address, and contact) to `display: none` (`hidden` + `style={{ display: 'none' }}`).
+    - Cleanly aligned receipt metadata (`Official Receipt`, `Receipt No`, `Date`) on `ProductReceiptModal.jsx`.
+    - Suitable for printing directly on company pre-printed stationary / letterhead.
+  - Verified with `oxlint` (0 warnings, 0 errors).
+
+- **Replaced Sparkle Icon with Professional Financial Calculator Icon [COMPLETED]**:
+  - In `client/src/pages/plots/booking/PlotBookingDetails.jsx`, replaced the decorative `Sparkles` icon on the `Growth & Interest` action button with a professional `Calculator` icon.
+  - Verified with `oxlint` (0 errors).
+
+- **Plot Booking Details Side-by-Side Layout for Sponsor & Land Sourcing [COMPLETED]**:
+  - In `client/src/pages/plots/booking/PlotBookingDetails.jsx`, removed `lg:col-span-2` from the Land Acquisition & Sourcing card.
+  - Now renders side-by-side: `Sponsor & Commission` in the left column and `Land Acquisition & Sourcing` in the right column, completing a clean 2-column balanced grid before the installments schedule.
+  - Verified with `oxlint` (0 errors).
+
+- **Plot Booking Details Side-by-Side Layout for Sponsor & Land Sourcing [COMPLETED]**:
+  - In `client/src/pages/plots/booking/PlotBookingDetails.jsx`, removed `lg:col-span-2` from the Land Acquisition & Sourcing card.
+  - Now renders side-by-side: `Sponsor & Commission` in the left column and `Land Acquisition & Sourcing` in the right column, completing a clean 2-column balanced grid before the installments schedule.
+  - Verified with `oxlint` (0 errors).
+
+- **Plot Booking Details Sponsor Code Population & Header Label Cleanup [COMPLETED]**:
+  - **Issue**:
+    1. On the Booking Details page (`/dashboard/plots/booking/:id`), the card header displayed `SPONSOR & COMMISSION SNAPSHOT` and `CONTRACT FIXED COMMISSION SNAPSHOT`. The user wanted the word "SNAPSHOT" removed.
+    2. SPONSOR ID was showing `N/A` even though the sponsor's name (e.g. `Mahendra Prasad Malakar`) was present.
+  - **Root Cause & Fix**:
+    - In `server/services/plots/plotBooking.service.js`: `getBookingById` populated `sponsorId` with `'name customerId mobile address'`. In Mongoose, `User` models store the sponsor's code in `sponsorCode` (or `customerCode`), so the code was stripped out by query field projection. Updated projection to `'name sponsorCode customerCode customerId mobile address email'`.
+    - In `client/src/pages/plots/booking/PlotBookingDetails.jsx`:
+      - Removed the word "Snapshot" from card titles: now `Sponsor & Commission` and `Contract Fixed Commission`.
+      - Updated `sponsorIdDisplay` resolution to check `sponsor.sponsorCode || sponsor.customerCode || sponsor.customerId || sponsor.code || customer.sponsorId?.sponsorCode`.
+  - **Verification**:
+    - Backend: `node -c server/services/plots/plotBooking.service.js` (0 errors).
+    - Frontend: `oxlint -D no-undef client/src/pages/plots/booking/PlotBookingDetails.jsx` (0 warnings, 0 errors).
+    - Preserved instant Vite HMR.
+
+- **Land Sourcing Allocation Bug Fix (False Over-allocated on Unselected Rows) [COMPLETED]**:
+  - **Issue**:
+    - When adding or viewing a land sourcing row without selecting an agreement (Khata, Khesra, Agreement still unchosen), the row was pre-filled with the plot area (e.g. 1600 SqFt), and the summary bar fell into a broken ternary fallback displaying: `Over-allocated: 1600 of 1600 SqFt (0 SqFt excess)`.
+  - **Fix**:
+    - In `client/src/pages/plots/booking/components/LandAcquisitionSourcingSection.jsx`:
+      - New rows initialize with `allocatedSqFt: 0` so no unallocated area is claimed before an agreement is chosen.
+      - Changing Khata or Khesra to a new selection resets `allocatedSqFt: 0` until an agreement is selected (or auto-selected).
+      - When an Agreement is selected, `allocatedSqFt` automatically sets to the needed remaining area (`remainingNeeded`).
+      - Summary bar now calculates `validAllocatedSqFt` strictly from rows with a valid `agreementId`.
+      - If any row has `!s.agreementId`, the summary bar clearly prompts: `Please choose Khata, Khesra, and Agreement to allocate [reqSqFt] Sq.Ft.` and never displays false `Over-allocated (0 SqFt excess)`.
+      - Only displays `Over-allocated` strictly when `validAllocatedSqFt > reqSqFt`.
+    - In `client/src/pages/plots/booking/components/StepTermsAndPayment.jsx`:
+      - `totalAllocatedArea` filters by `Boolean(s.agreementId)`.
+    - In `client/src/pages/plots/booking/PlotBooking.jsx`:
+      - Added submission validation to ensure every land sourcing row has an agreement chosen.
+  - **Verification**:
+    - AST / linter (`oxlint -D no-undef`): 0 warnings, 0 errors.
+    - Preserved instant Vite HMR without executing full build.
+
 - **Periodic (Tenure) vs Manual Discount Separation Across Booking, Review Modal, Details Page, and Certificate [COMPLETED]**:
   - **Requirement**:
     1. During plot booking (`/dashboard/plots/booking/new`), two discounts can exist: Periodic / Tenure Discount (e.g., `-14% Tenure Adjustment (6M)`: `-₹8,81,412`) and Manual Discount (e.g., `Manual Discount Given`: `-₹12,500`).
@@ -19,7 +118,8 @@
       - Updated top KPI cards: `Total Plot Value (Gross)` and `Discount Granted (Total)` with granular breakdown.
       - Updated "Booking Contract & Financial Terms" card: displays `Gross Plot Value (Base)`, `Periodic / Tenure Discount`, `Manual Discount Given`, `Total Combined Discount`, and `Net Plot Contract Value`.
     - `client/src/pages/plots/printViewers/BookingCertificateViewer.jsx`:
-      - Row 7 & 8: Displays `Gross Plot Value` and `Total Discount` (combined sum), with secondary breakdown note `(Periodic: ₹... + Manual: ₹...)` and `Net Payable Amount`.
+      - Row 7: Total Discount displays `₹{totalCombinedDisc}` with secondary subtitle displaying both separated amounts `(₹{tenureDisc} + ₹{manualDisc})` without the words "Periodic" or "Manual".
+      - Row 10: Renamed `Remaining Balance` to `EMI Payment`.
   - **Verification**:
     - Verified all 6 files with `oxlint` (0 errors).
     - Preserved instant Vite HMR without executing full build.

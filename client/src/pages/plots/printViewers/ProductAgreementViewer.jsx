@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
-import { Printer, ArrowLeft, FileText, CheckCircle2, ShieldCheck, User, Building2 } from 'lucide-react';
+import { Printer, ArrowLeft, FileText } from 'lucide-react';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 
 const numberToWords = (num) => {
@@ -168,7 +168,7 @@ const ProductAgreementViewer = () => {
           @media print {
             @page {
               size: portrait;
-              margin: 12mm 15mm 12mm 15mm !important;
+              margin: 0 !important;
             }
             body {
               margin: 0;
@@ -187,8 +187,9 @@ const ProductAgreementViewer = () => {
               max-width: 100% !important;
               border: none !important;
               box-shadow: none !important;
-              padding: 0 !important;
+              padding: 12mm 15mm !important;
               margin: 0 !important;
+              box-sizing: border-box !important;
             }
           }
         `}</style>

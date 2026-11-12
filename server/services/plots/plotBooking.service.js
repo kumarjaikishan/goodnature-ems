@@ -1491,8 +1491,8 @@ class PlotBookingService {
     const plotCollectionService = require('./plotCollection.service');
     await plotCollectionService.rebuildBookingInstallmentsState(id);
     const booking = await PlotBooking.findById(id)
-      .populate('customerId', 'name mobile email customerId address fatherOrHusbandName relationType gender age nominee accountHolderName bankName bankBranch accountNumber ifscCode')
-      .populate('sponsorId', 'name customerId mobile address')
+      .populate('customerId', 'name mobile email customerId customerCode address fatherOrHusbandName relationType gender age nominee accountHolderName bankName bankBranch accountNumber ifscCode sponsorId')
+      .populate('sponsorId', 'name sponsorCode customerCode customerId mobile address email')
       .populate({
         path: 'plotId',
         populate: { path: 'seriesId' }

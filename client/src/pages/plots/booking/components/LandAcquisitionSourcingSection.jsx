@@ -86,8 +86,6 @@ export const LandAcquisitionSourcingSection = ({
 
   // Add new land source row
   const handleAddRow = () => {
-    const currentTotal = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
-    const remaining = Math.max(0, reqSqFt - currentTotal);
     setLandSourcing([
       ...landSourcing,
       {
@@ -99,7 +97,7 @@ export const LandAcquisitionSourcingSection = ({
         mauja: '',
         thanaNumber: '',
         khataNumber: '',
-        allocatedSqFt: remaining,
+        allocatedSqFt: 0,
       },
     ]);
   };
@@ -124,6 +122,7 @@ export const LandAcquisitionSourcingSection = ({
       parcelId: null,
       mauja: '',
       thanaNumber: '',
+      allocatedSqFt: 0,
     };
 
     // Auto-select Khesra if only 1 unique Khesra exists under this Khata
@@ -141,12 +140,18 @@ export const LandAcquisitionSourcingSection = ({
       );
       if (matchingAgrs.length === 1) {
         const u = matchingAgrs[0];
+        const otherRowsTotal = landSourcing
+          .filter((_, i) => i !== idx)
+          .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+        const remainingNeeded = Math.max(0, reqSqFt - otherRowsTotal);
+
         updated[idx].agreementId = u.agreementId;
         updated[idx].agreementNumber = u.agreementNumber;
         updated[idx].parcelId = u.parcelId;
         updated[idx].mauja = u.mauja;
         updated[idx].thanaNumber = u.thanaNumber;
         updated[idx].sourceType = u.sourceType || 'AGREEMENT';
+        updated[idx].allocatedSqFt = remainingNeeded > 0 ? remainingNeeded : reqSqFt;
       }
     }
 
@@ -166,6 +171,7 @@ export const LandAcquisitionSourcingSection = ({
       parcelId: null,
       mauja: '',
       thanaNumber: '',
+      allocatedSqFt: 0,
     };
 
     // Auto-select Agreement if only 1 agreement exists for this Khata + Khesra
@@ -186,7 +192,6 @@ export const LandAcquisitionSourcingSection = ({
         .filter((_, i) => i !== idx)
         .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
       const remainingNeeded = Math.max(0, reqSqFt - otherRowsTotal);
-      const currentAlloc = Number(updated[idx].allocatedSqFt) || 0;
 
       updated[idx].agreementId = u.agreementId;
       updated[idx].agreementNumber = u.agreementNumber;
@@ -194,9 +199,7 @@ export const LandAcquisitionSourcingSection = ({
       updated[idx].mauja = u.mauja;
       updated[idx].thanaNumber = u.thanaNumber;
       updated[idx].sourceType = u.sourceType || 'AGREEMENT';
-      if (currentAlloc <= 0 && remainingNeeded > 0) {
-        updated[idx].allocatedSqFt = remainingNeeded;
-      }
+      updated[idx].allocatedSqFt = remainingNeeded > 0 ? remainingNeeded : reqSqFt;
     }
 
     setLandSourcing(updated);
@@ -211,6 +214,7 @@ export const LandAcquisitionSourcingSection = ({
         agreementId: '',
         agreementNumber: '',
         parcelId: null,
+        allocatedSqFt: 0,
       };
       setLandSourcing(updated);
       return;
@@ -264,10 +268,13 @@ export const LandAcquisitionSourcingSection = ({
   };
 
   // Calculations for summary bar
-  const totalAllocatedSqFt = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+  const validAllocatedSqFt = landSourcing
+    .filter((s) => Boolean(s.agreementId))
+    .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+  const hasUnselectedRows = landSourcing.some((s) => !s.agreementId);
   const isAreaMatched = landSourcing.length > 0 &&
-    landSourcing.every((s) => s.agreementId && (s.khesraNumber || s.parcelId || s.khataNumber)) &&
-    Math.abs(totalAllocatedSqFt - reqSqFt) < 0.01;
+    !hasUnselectedRows &&
+    Math.abs(validAllocatedSqFt - reqSqFt) < 0.01;
 
   return (
     <div className="flex flex-col gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-2xs">
@@ -532,22 +539,26 @@ export const LandAcquisitionSourcingSection = ({
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-200 text-xs font-semibold">
         <div className="flex items-center gap-2">
           {isAreaMatched ? (
-            <span className="text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 text-xs">
-              <CheckCircle2 size={14} /> Total Area Fully Allocated ({totalAllocatedSqFt} / {reqSqFt} SqFt)
+            <span className="text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 text-xs">
+              <CheckCircle2 size={14} /> Total Area Fully Allocated ({validAllocatedSqFt} / {reqSqFt} SqFt)
             </span>
           ) : (
-            <span className="text-amber-800 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs">
+            <span className="text-amber-800 flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 text-xs">
               <AlertCircle size={14} />
-              {totalAllocatedSqFt === 0
-                ? `Please choose Khata, Khesra and Agreement to allocate ${reqSqFt} Sq.Ft.`
-                : totalAllocatedSqFt < reqSqFt
-                ? `Under-allocated: ${totalAllocatedSqFt} of ${reqSqFt} SqFt (${reqSqFt - totalAllocatedSqFt} SqFt remaining)`
-                : `Over-allocated: ${totalAllocatedSqFt} of ${reqSqFt} SqFt (${totalAllocatedSqFt - reqSqFt} SqFt excess)`}
+              {hasUnselectedRows
+                ? (validAllocatedSqFt === 0
+                    ? `Please choose Khata, Khesra, and Agreement to allocate ${reqSqFt} Sq.Ft.`
+                    : `Please choose Agreement for all rows (Allocated: ${validAllocatedSqFt} of ${reqSqFt} SqFt)`)
+                : validAllocatedSqFt < reqSqFt
+                ? `Under-allocated: ${validAllocatedSqFt} of ${reqSqFt} SqFt (${reqSqFt - validAllocatedSqFt} SqFt remaining)`
+                : validAllocatedSqFt > reqSqFt
+                ? `Over-allocated: ${validAllocatedSqFt} of ${reqSqFt} SqFt (${validAllocatedSqFt - reqSqFt} SqFt excess)`
+                : `Total Area Fully Allocated (${validAllocatedSqFt} / {reqSqFt} SqFt)`}
             </span>
           )}
         </div>
         <div className="text-[11px] text-slate-500 font-mono">
-          {totalAllocatedSqFt} / {reqSqFt} Sq. Ft.
+          {validAllocatedSqFt} / {reqSqFt} Sq. Ft.
         </div>
       </div>
     </div>

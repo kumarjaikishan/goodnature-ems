@@ -158,7 +158,9 @@ export const StepTermsAndPayment = ({
 
   // Compute land stock allocation validity (memoized for performance)
   const totalAllocatedArea = useMemo(() => {
-    return landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
+    return landSourcing
+      .filter((s) => Boolean(s.agreementId))
+      .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
   }, [landSourcing]);
 
   const isLandStockValid = useMemo(() => {

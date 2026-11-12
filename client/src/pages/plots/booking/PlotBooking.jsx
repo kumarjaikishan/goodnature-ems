@@ -424,6 +424,10 @@ export default function PlotBooking() {
     }
 
     // Validate Land Sourcing Allocation
+    if (landSourcing.length === 0 || landSourcing.some((s) => !s.agreementId)) {
+      toast.error('Please choose Khata, Khesra, and Agreement for all land stock allocation rows.');
+      return;
+    }
     const totalAllocatedArea = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
     if (Math.abs(totalAllocatedArea - plotArea) > 0.5) {
       toast.error(

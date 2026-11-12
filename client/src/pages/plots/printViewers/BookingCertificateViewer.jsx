@@ -492,7 +492,7 @@ const BookingCertificateViewer = () => {
                     </td>
                     <td className="p-2 text-slate-500 font-medium">
                       <div className="flex justify-between items-center">
-                        <span>Remaining Balance</span>
+                        <span>EMI Payment</span>
                         <span>:</span>
                       </div>
                     </td>
@@ -849,15 +849,7 @@ const BookingCertificateViewer = () => {
                         <span>₹{totalCombinedDisc.toLocaleString('en-IN')}</span>
                         {tenureDisc > 0 && manualDisc > 0 ? (
                           <span className="text-[9px] text-slate-500 font-normal block mt-0.5">
-                            (Periodic: ₹{tenureDisc.toLocaleString('en-IN')} + Manual: ₹{manualDisc.toLocaleString('en-IN')})
-                          </span>
-                        ) : tenureDisc > 0 ? (
-                          <span className="text-[9px] text-slate-500 font-normal block mt-0.5">
-                            (Periodic Tenure Discount: {booking.emiTenureAdjustmentPercent ? `${booking.emiTenureAdjustmentPercent}%` : ''})
-                          </span>
-                        ) : manualDisc > 0 ? (
-                          <span className="text-[9px] text-slate-500 font-normal block mt-0.5">
-                            (Manual Discount)
+                            (₹{tenureDisc.toLocaleString('en-IN')} + ₹{manualDisc.toLocaleString('en-IN')})
                           </span>
                         ) : null}
                       </div>
@@ -932,11 +924,11 @@ const BookingCertificateViewer = () => {
               );
             })()}
 
-            {/* Row 10: Remaining Balance & EMI / Duration Details */}
+            {/* Row 10: EMI Payment & EMI / Duration Details */}
             <tr className="border-b border-slate-100">
               <td className="p-2 text-slate-500 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Remaining Balance</span>
+                  <span>EMI Payment</span>
                   <span>:</span>
                 </div>
               </td>
