@@ -188,8 +188,8 @@ const ManagementRoutes = () => (
       <Route path="plots/products/book" element={<Navigate to="/dashboard/plots/investment-booking/new" replace />} />
       <Route path="plots/products/edit/:id" element={<RoutePermissionGuard resource="investment_booking" action={3}><ProductBookingPage /></RoutePermissionGuard>} />
       <Route path="plots/reports" element={<RoutePermissionGuard resource="plot_reports" action={1}><PlotReports /></RoutePermissionGuard>} />
-      <Route path="plots/agreements/:id" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotAgreementViewer /></RoutePermissionGuard>} />
-      <Route path="plots/product-agreements/:id" element={<RoutePermissionGuard resource={["investment_booking", "plot_inventory"]} action={1}><ProductAgreementViewer /></RoutePermissionGuard>} />
+      <Route path="plots/agreements/:id" element={<RoutePermissionGuard resource={["plot_booking", "plot_purchase", "plot_inventory"]} action={1}><PlotAgreementViewer /></RoutePermissionGuard>} />
+      <Route path="plots/product-agreements/:id" element={<RoutePermissionGuard resource={["investment_booking", "plot_booking", "plot_inventory"]} action={1}><ProductAgreementViewer /></RoutePermissionGuard>} />
       <Route path="plots/certificates/:id" element={<RoutePermissionGuard resource="plot_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
       <Route path="plots/product-certificates/:id" element={<RoutePermissionGuard resource="investment_booking" action={1}><BookingCertificateViewer /></RoutePermissionGuard>} />
       <Route path="plots/receipts/:id" element={<RoutePermissionGuard resource="plot_collection" action={1}><ReceiptViewer /></RoutePermissionGuard>} />

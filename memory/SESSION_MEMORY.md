@@ -1,5 +1,15 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Plot Agreement Route Permission Guard Fix (`plot_booking`) [COMPLETED]**:
+  - **Issue**: Users (like Ghanshyam Kumar) assigned `Plot Bookings & Agreements (Add / Create Agreements)` (`plot_booking`) permission received an "Access Restricted" screen when navigating to `/dashboard/plots/agreements/:id`.
+  - **Root Cause**:
+    - In `client/src/routes/ManagementRoutes.jsx`, the route guard for `plots/agreements/:id` was mistakenly configured requiring `resource={["plot_purchase", "plot_inventory"]}` (which is for Kisan / land purchases and inventory series), even though the underlying backend API endpoint `GET /plots/bookings/:id` requires `plot_booking` (action 1).
+  - **Fix**:
+    - Updated `ManagementRoutes.jsx` so that `plots/agreements/:id` includes `"plot_booking"` in its guard: `resource={["plot_booking", "plot_purchase", "plot_inventory"]}`.
+    - Also added `"plot_booking"` to `plots/product-agreements/:id`: `resource={["investment_booking", "plot_booking", "plot_inventory"]}`.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors, 0 warnings). Instant Vite HMR active.
+
 - **Synchronized Development Branch with Main [COMPLETED]**:
   - **Requirement**: Copy everything in the `main` branch to the `development` branch exactly ("same to same").
   - **Implementation**:
