@@ -101,7 +101,12 @@ const ReceiptViewer = () => {
   }, [id]);
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = '';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   if (loading) {
@@ -184,27 +189,50 @@ const ReceiptViewer = () => {
           @media print {
             @page {
               size: portrait;
-              margin: 10mm 15mm 10mm 15mm !important;
+              margin: 0 !important;
             }
-            body {
-              margin: 0;
+            html, body, #root {
+              height: 100% !important;
+              max-height: 100% !important;
+              overflow: hidden !important;
+              margin: 0 !important;
+              padding: 0 !important;
               background: white !important;
               color: black !important;
             }
             .print-container {
               min-height: 0 !important;
+              height: 100% !important;
+              max-height: 100% !important;
               background-color: white !important;
               padding: 0 !important;
               margin: 0 !important;
               display: block !important;
+              overflow: hidden !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
             }
             .print-half-a4 {
-              width: 100% !important;
+              box-sizing: border-box !important;
+              width: calc(100% - 10mm) !important;
               max-width: 100% !important;
+              max-height: 95mm !important;
+              height: 95mm !important;
               border: none !important;
               box-shadow: none !important;
               padding: 0 !important;
-              margin: 0 !important;
+              margin-top: 35mm !important;
+              margin-left: 5mm !important;
+              margin-right: 5mm !important;
+              margin-bottom: 0 !important;
+              overflow: hidden !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
             }
           }
         `}</style>
@@ -257,73 +285,77 @@ const ReceiptViewer = () => {
         </div>
 
         {/* Payment Receipt Title */}
-        <div className="text-center mb-3 select-none relative z-10">
-          <span className="px-4 py-1 text-[1rem] font-black uppercase tracking-wider rounded-sm text-slate-900">
+        <div className="text-center mb-2.5 select-none relative z-10">
+          <span className="px-3 py-0.5 text-slate-900 text-[13px] md:text-[14px] font-black uppercase tracking-wider rounded-sm">
             Payment Receipt
           </span>
         </div>
 
         {/* Details Table: Name: Value Format */}
-        <table className="w-full border border-slate-200 text-[11px] font-semibold mb-3 select-none border-collapse">
+        <table className="w-full border border-slate-200 text-[9.5px] font-semibold mb-2 select-none border-collapse relative z-10 leading-tight">
           <tbody>
-            {/* Receipt ID and Date */}
+            {/* Row 1: Receipt No. | Date & Time */}
             <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium w-[18%]">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Receipt No.</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-black text-slate-900 w-[32%] font-mono">
+              <td className="py-1 px-2 font-black text-slate-900 w-[32%] font-mono">
                 {(receipt.receiptNumber || '').replace(/^RO-/, '')}
               </td>
-              <td className="p-2 text-slate-500 font-medium w-[18%]">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Date & Time</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900 w-[32%] font-mono">
+              <td className="py-1 px-2 font-bold text-slate-900 w-[32%] font-mono">
                 {formatReceiptDateTime(receipt.createdAt, receipt.updatedAt)}
               </td>
             </tr>
 
-            {/* Row 1 */}
+            {/* Row 2: Booking ID | Customer ID */}
             <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
-                <div className="flex justify-between items-center">
-                  <span>Customer Name</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="p-2 font-black text-slate-900">{customer.name || bookingId.customerName}</td>
-              <td className="p-2 text-slate-500 font-medium">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Booking ID</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">{bookingId.bookingNumber}</td>
-            </tr>
-
-            {/* Row 2 */}
-            <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
+              <td className="py-1 px-2 font-bold text-slate-900 w-[32%] font-mono">
+                {bookingId.bookingNumber || '-'}
+              </td>
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Customer ID</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900 font-mono">
+              <td className="py-1 px-2 font-bold text-slate-900 w-[32%] font-mono">
                 {customer.customerId || customer.customerCode || bookingId.customerId?.customerId || '-'}
               </td>
-              <td className="p-2 text-slate-500 font-medium">
+            </tr>
+
+            {/* Row 3: Customer Name | Guardian / S/o */}
+            <tr className="border-b border-slate-100">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Customer Name</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2 font-black text-slate-900 w-[32%] uppercase">
+                {customer.name || bookingId.customerName || '-'}
+              </td>
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Guardian / S/o</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">
+              <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
                 {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName ? (
                   <span>
                     {customer.relationType ? `${customer.relationType} ` : ''}
@@ -335,22 +367,42 @@ const ReceiptViewer = () => {
               </td>
             </tr>
 
-            {/* Row 3 */}
+            {/* Row 4: Address (Full Row Width) */}
             <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Address</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">{customer.address || '-'}</td>
-              <td className="p-2 text-slate-500 font-medium">
+              <td colSpan={3} className="py-1 px-2 font-bold text-slate-900">
+                {customer.address || bookingId.customerAddress || '-'}
+              </td>
+            </tr>
+
+            {/* Row 5: Amount Paid | Plot Number */}
+            <tr className="border-b border-slate-100">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Amount Paid</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2 text-slate-900 w-[32%]">
+                <div className="text-[11px] font-black text-emerald-800">
+                  ₹{principalAmountPaid.toLocaleString('en-IN')}
+                </div>
+                <div className="text-[8.5px] font-medium text-slate-500 mt-0.5 normal-case font-sans">
+                  ({numberToWords(principalAmountPaid)})
+                </div>
+              </td>
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>{isProductReceipt ? 'Product / Unit' : 'Plot Number'}</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-slate-900">
+              <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
                 {isProductReceipt ? (
                   <div className="space-y-0.5">
                     <div>
@@ -359,7 +411,7 @@ const ReceiptViewer = () => {
                       {productDimensionLabel ? ` • ${productDimensionLabel}` : ''}
                     </div>
                     {productTotalArea ? (
-                      <div className="text-[11px] text-teal-800 font-bold font-mono">
+                      <div className="text-[9px] text-teal-800 font-bold font-mono">
                         Total Area: {productTotalArea.toLocaleString('en-IN')} Sq.Ft
                       </div>
                     ) : null}
@@ -376,149 +428,83 @@ const ReceiptViewer = () => {
               </td>
             </tr>
 
-            {/* Row 4 */}
+            {/* Row 6: Payment Mode | Late Fine Paid */}
             <tr className="border-b border-slate-100">
-              <td className="p-2 text-slate-500 font-medium">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
-                  <span>Amount Paid</span>
+                  <span>Payment Mode</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 text-slate-900 font-bold">
-                <div className="text-xs font-bold text-emerald-800">
-                  ₹{principalAmountPaid.toLocaleString('en-IN')}
-                </div>
-                <div className="text-[10px] font-medium text-slate-500 mt-0.5 normal-case font-sans">
-                  ({numberToWords(principalAmountPaid)})
-                </div>
+              <td className="py-1 px-2 font-bold text-slate-900 uppercase w-[32%]">
+                {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
               </td>
-              <td className="p-2 text-slate-500 font-medium">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Late Fine Paid</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="p-2 font-bold text-rose-700">₹{lateFinePaid.toLocaleString('en-IN')}</td>
+              <td className="py-1 px-2 font-bold text-rose-700 w-[32%]">
+                ₹{lateFinePaid.toLocaleString('en-IN')}
+              </td>
             </tr>
 
-            {/* Row 5 & 5b: Payment Mode & Outstanding datacells */}
-            {isDownpaymentReceipt ? (
-              <>
-                <tr className="border-b border-slate-100">
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Payment Mode</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-900 uppercase">
-                    {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
-                  </td>
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Outstanding D.P.</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-800">
-                    ₹{(outstandingDownpayment || 0).toLocaleString('en-IN')}
-                  </td>
-                </tr>
-
-                <tr className="border-b border-slate-100">
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>{receipt.lateFineRebate > 0 ? 'Late Fine Rebate' : 'Receipt Category'}</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-900">
-                    {receipt.lateFineRebate > 0 ? (
-                      <span className="text-emerald-700 font-bold">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</span>
-                    ) : (
-                      <span className="text-slate-900 font-bold uppercase tracking-wider">
-                        Down Payment
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Outstanding Total</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-800">
-                    ₹{(outstandingBalance || 0).toLocaleString('en-IN')}
-                  </td>
-                </tr>
-              </>
-            ) : (
-              <>
-                <tr className="border-b border-slate-100">
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Payment Mode</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-900 uppercase">
-                    {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
-                  </td>
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Outstanding Balance</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-800">₹{(outstandingBalance || 0).toLocaleString('en-IN')}</td>
-                </tr>
-
-                {receipt.lateFineRebate > 0 && (
-                  <tr className="border-b border-slate-100">
-                    <td className="p-2 text-slate-500 font-medium">
-                      <div className="flex justify-between items-center">
-                        <span>Late Fine Rebate</span>
-                        <span>:</span>
-                      </div>
-                    </td>
-                    <td colSpan={3} className="p-2 font-bold text-emerald-700">₹{receipt.lateFineRebate.toLocaleString('en-IN')}</td>
-                  </tr>
+            {/* Row 7: Narration | Outstanding Balance */}
+            <tr className="border-b border-slate-100">
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Narration</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2 text-slate-800 font-medium italic w-[32%]">
+                {receipt.remarks || (isDownpaymentReceipt ? 'Down Payment' : 'Plot Payment Collection')}
+              </td>
+              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>{isDownpaymentReceipt ? 'Outstanding D.P.' : 'Outstanding Balance'}</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
+                ₹{(isDownpaymentReceipt ? (outstandingDownpayment || 0) : (outstandingBalance || 0)).toLocaleString('en-IN')}
+                {isDownpaymentReceipt && outstandingBalance > 0 && (
+                  <span className="text-[8.5px] text-slate-500 font-normal ml-1">
+                    (Total: ₹{outstandingBalance.toLocaleString('en-IN')})
+                  </span>
                 )}
-              </>
-            )}
+              </td>
+            </tr>
 
-
-
-
-
-            {/* Row 8 (Narration / Description) */}
-            {receipt.remarks && (
-              <tr>
-                <td className="p-2 text-slate-500 font-medium">
+            {/* Row 8: Optional Late Fine Rebate row if applied */}
+            {receipt.lateFineRebate > 0 && (
+              <tr className="border-b border-slate-100">
+                <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Narration</span>
+                    <span>Late Fine Rebate</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td colSpan={3} className="p-2 text-slate-800 font-bold italic">{receipt.remarks}</td>
+                <td colSpan={3} className="py-1 px-2 font-bold text-emerald-700">
+                  ₹{receipt.lateFineRebate.toLocaleString('en-IN')}
+                </td>
               </tr>
             )}
           </tbody>
         </table>
 
-
-
         {/* Bottom Signatory area */}
-        <div className="flex justify-end items-end pt-8  select-none">
-          <div className="text-center w-48 pt-1 border-t border-slate-100">
-            <strong className="text-slate-900 block text-xs">Authorized Signatory</strong>
+        <div className="flex justify-end items-end pt-4 select-none">
+          <div className="text-center w-40 pt-1 border-t border-slate-400">
+            <strong className="text-slate-900 block text-[10px]">Authorized Signatory</strong>
           </div>
         </div>
 
         {/* Notice line & Bill Status */}
-        <div className="mb-2 text-[9.5px] text-slate-500 font-semibold italic select-none border-t border-slate-100 pt-2 flex flex-col gap-1">
+        <div className="mt-3 mb-1 text-[8.5px] text-slate-500 font-semibold italic select-none border-t border-slate-100 pt-1.5 flex flex-col gap-0.5">
           {isOnlinePayment && (
-            <p className="text-[10px] text-amber-700 font-bold not-italic">
+            <p className="text-[9px] text-amber-700 font-bold not-italic">
               * Bill Status: {receipt.status === 'APPROVED' ? 'Approved' : 'Approval Pending'}
             </p>
           )}

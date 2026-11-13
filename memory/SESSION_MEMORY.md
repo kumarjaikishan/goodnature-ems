@@ -1,5 +1,139 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Single-Page Print Constraint for Receipts [COMPLETED]**:
+  - **Issue**: Print preview was showing 2 pages because the parent wrapper elements (`html`, `body`, `#root`, and `.print-container`) retained full/default viewport heights or overflow, triggering a blank 2nd page in Chrome's print engine.
+  - **Fix**:
+    - In `ReceiptViewer.jsx` and `BookingCertificateViewer.jsx`:
+      - Locked `html, body, #root` to `height: 100% !important; max-height: 100% !important; overflow: hidden !important;`.
+      - Locked `.print-container` to `height: 100% !important; max-height: 100% !important; overflow: hidden !important; page-break-after: avoid !important; break-after: avoid !important;`.
+      - Added `page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important;` to `.print-half-a4`.
+      - This forces Chrome to render strictly **1 single page** with zero overflow.
+
+- **Chrome Zero-Margin Fix to Suppress Browser Headers and Footers [COMPLETED]**:
+  - **Issue**: Chrome inserts default page header ("GoodFeel SD"), date/time, and URL in the browser-managed margin when `@page { margin }` is non-zero and headers/footers are enabled in the browser.
+  - **Fix**:
+    - In `ReceiptViewer.jsx` and `BookingCertificateViewer.jsx`:
+      - Set CSS `@page { margin: 0 !important; }` which completely strips the browser header/footer area from the printed sheet.
+      - Applied exact physical offsets directly on `.print-half-a4`: `margin-top: 35mm !important; margin-left: 5mm !important; margin-right: 5mm !important; width: calc(100% - 10mm) !important; height: 95mm !important; max-height: 95mm !important;`.
+      - Temporarily blanks `document.title = ''` upon clicking Print to prevent the document title from appearing.
+
+- **Browser Print Headers / Footers & Receipt Dimensions [COMPLETED]**:
+  - **Issue**: The browser print dialog preview showed "GoodFeel SD", date/time, and URL in the margins because Chrome's "Headers and footers" checkbox was enabled under print settings, and `ReceiptViewer.jsx` was missing the exact `35mm` top offset.
+  - **Fix**:
+    - In `client/src/pages/plots/printViewers/ReceiptViewer.jsx`: updated `@page` margin to `35mm 5mm 0mm 5mm !important;` and set `.print-half-a4` to `max-height: 95mm; height: 95mm; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;` matching the exact `3.5cm` top space and `9.5cm` height of pre-printed stationery.
+    - Instructed user to uncheck **"Headers and footers"** under **More settings** in the Chrome print dialog to eliminate the browser's title ("GoodFeel SD"), date/time, and URL.
+
+- **Plot Booking Receipt Dimension & Margins for Pre-printed Stationery [COMPLETED]**:
+  - **Requirement**:
+    - Precisely align the printable area on `/dashboard/plots/certificates/:id` with the pre-printed stationery shown in the user's reference photo.
+    - Dimensions: Top offset starts at `3.5cm` (`35mm`), total vertical height is `9.5cm` (`95mm`), left and right margins are `0.5cm` (`5mm`).
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/BookingCertificateViewer.jsx`:
+      - Set print `@page { margin: 35mm 5mm 0mm 5mm !important; }`.
+      - Set `.print-half-a4 { height: 95mm !important; max-height: 95mm !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }`.
+      - Reduced cell padding to `py-0.5 px-1.5`, font sizes to `7.5px-8px`, compact headers and signatory area (`pt-1`, `w-36`).
+  - **Verification**:
+    - Validated with `oxlint` (0 errors, 0 warnings). Instant Vite HMR active.
+
+- **Plot Agreement Page Header Refinement [COMPLETED]**:
+  - **Requirement**:
+    - Remove the centered header text `GOOD NATURE` printed at the top of each page in the agreement viewer.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`:
+      - Removed `<div className="text-center font-black text-[12px] tracking-widest text-slate-900 uppercase mb-0.5">GOOD NATURE</div>` from `PageHeader`.
+      - Preserved the clean `NAME`, `AGREEMENT NO`, and `PLOT NO` metadata header line and divider.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors, 0 warnings). Instant Vite HMR active.
+
+- **Plot Agreement Matter Alignment with Official Word Document [COMPLETED]**:
+  - **Requirement**:
+    - Match the Buyer's Agreement matter on `http://localhost:5173/dashboard/plots/agreements/:id` with the uploaded official Word document (`media_1794551239633_72202f40.docx`).
+  - **Investigation & Findings**:
+    - Inspected `PlotAgreementViewer.jsx` and `PlotAgreementEnglish.jsx` against all 108 paragraphs of the uploaded Word document.
+    - Verified all 18 standard clauses and Recitals A through I:
+      - Recital C updated to specify `vide Booking No.` and `tentatively admeasuring depth/ front ... SQFT`.
+      - Recital G updated to refer to `Khata No.- ... / Khasra No.- ...` (matching legal revenue terminology).
+      - Clause 3 updated to state `approx depth/ front (...) SQFT earmarked and to be allotted`.
+      - Clause 4.c supports both Advance Full Payment (as in the document: 1 year from last validity date) and installment plans.
+      - Clause 7.B.ii forfeiture provisions and 36-month refund clause intact.
+      - Signatory blocks, witnesses, and Page 9 Annexure-1 structured in alignment.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors, 0 warnings). Instant Vite HMR active.
+
+- **Payment Receipt (Downpayment, EMI & Investment Collections) Redesign [COMPLETED]**:
+  - **Requirement**:
+    - Update the payment collection receipt viewer (`client/src/pages/plots/printViewers/ReceiptViewer.jsx`) which handles downpayment, EMI, and investment collection receipts.
+    - Follow the exact format from the provided reference image:
+      - Title: `Payment Receipt`
+      - Row 1: `Receipt No. :` | `Date & Time :`
+      - Row 2: `Booking ID :` | `Customer ID :`
+      - Row 3: `Customer Name :` | `Guardian / S/o :`
+      - Row 4: `Address :` (spanning full width)
+      - Row 5: `Amount Paid :` | `Plot Number :`
+      - Row 6: `Payment Mode :` | `Late Fine Paid :`
+      - Row 7: `Narration :` | `Outstanding Balance :`
+    - Apply the same compact styling (cell padding `py-1 px-2`, font `text-[9.5px]` with `leading-tight`, subtle `border-b border-slate-100`, key `w-[18%]` with right-aligned colon `:` and value `w-[32%]`) so it fits cleanly on pre-printed receipt stationary.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/ReceiptViewer.jsx`:
+      - Reorganized the table rows strictly matching the 7-row layout.
+      - Applied compact cell padding and typography.
+      - Normalized full-width address row with `colSpan={3}`.
+      - Preserved late fine rebate row if present.
+      - Reduced bottom signatory padding (`pt-4`, `w-40`) and notice font size.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors, 0 warnings). Instant Vite HMR active.
+
+- **Plot Booking Certificate / Receipt Compact Spacing & Font Optimization [COMPLETED]**:
+  - **Requirement**:
+    - Compact the Booking Receipt so that the key-value content and table perfectly fit onto pre-printed receipt stationery without overflowing.
+    - Slightly reduce font size and vertical padding.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/BookingCertificateViewer.jsx`:
+      - Reduced table cell padding from `p-2` to `py-1 px-2` (`py-1` reduces row height by ~50%).
+      - Reduced base font size from `text-[11px]` to `text-[9.5px]` with `leading-tight`.
+      - Reduced title spacing (`mb-4` -> `mb-2.5`, font `text-[13px] md:text-[14px]`).
+      - Reduced bottom signatory padding (`pt-8` -> `pt-4`, width `w-40`).
+      - Reduced paper margin in print CSS to `8mm 12mm 8mm 12mm`.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors). Instant Vite HMR active.
+
+- **Plot Booking Certificate / Receipt Clean Table Styling Restored [COMPLETED]**:
+  - **Requirement**:
+    - Preserve the original clean aesthetic of the certificate table: keys having specified width (`w-[18%]`) with right-aligned colon separators (`flex justify-between items-center`), values having `w-[32%]`, and subtle thin row dividers (`border-b border-slate-100` and table `border border-slate-200`) without harsh/bold border lines.
+    - Keep upper company logo, address, and "PLOT BOOKING CERTIFICATE" title removed, and header set to "BOOKING RECEIPT".
+    - Align all key-value rows to the 11 rows in the requested sequence.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/BookingCertificateViewer.jsx`:
+      - Used the clean 4-column layout (`w-[18%]` key, `w-[32%]` value) with right-aligned colons and subtle `border-b border-slate-100`.
+      - Kept "BOOKING RECEIPT" banner centered at the top without upper company headers.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors). Instant Vite HMR active.
+
+- **Plot Booking Certificate Redesign to Booking Receipt Grid [COMPLETED]**:
+  - **Requirement**:
+    - On `/dashboard/plots/certificates/:id` (Regular Plot Booking Certificate Viewer), remove the top header section (company logo, company address, and divider line) as well as the old "PLOT BOOKING CERTIFICATE" title.
+    - Replace with "Booking Receipt" header and reorganize the key-value pairs into the exact two-column bordered table layout specified by the user:
+      - Header Row: `Booking Receipt` (spanning both columns)
+      - Row 1: `Booking ID :` | `Booking Date/Time :`
+      - Row 2: `Customer ID :` | `Plot Number :`
+      - Row 3: `Customer Name :` | `Guardian / Father :`
+      - Row 4: `Address :` | `Mobile No :`
+      - Row 5: `Plot Area :` | `Mauja / थाना :`
+      - Row 6: `Khata:` | `Khesra No :`
+      - Row 7: `Dimensions / पैमाइश :` (spanning both columns)
+      - Row 8: `Booked Rate :` | `Gross Plot Value :`
+      - Row 9: `Total Discount :` | `Net Payable Amount :`
+      - Row 10: `Down Payment (D.P):` | `EMI Payment :`
+      - Row 11: `D.P End Due Date/Duration:` | `EMI End Due DateDuration :`
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/BookingCertificateViewer.jsx`:
+      - Hoisted date, financial, land sourcing, dimensions, and due date/duration calculations cleanly.
+      - Removed the company logo and address header section and the "PLOT BOOKING CERTIFICATE" banner.
+      - Replaced with the new structured, bordered table matching the layout in the reference image.
+      - Updated print button label to "Print Receipt".
+  - **Verification**:
+    - Validated with `oxlint` (0 warnings, 0 errors). Instant Vite HMR active.
+
 - **Employee Update 400 Bad Request & Missing Error Toast Notification [COMPLETED]**:
   - **Issue**:
     - On `/dashboard/employe`, when clicking "Update Employee" with missing required fields (such as empty Department), the API returned `400 Bad Request: Required fields (employeeId, department, branchId) are missing.`.

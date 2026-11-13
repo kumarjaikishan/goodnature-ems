@@ -4,9 +4,6 @@ const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en
 
 const PageHeader = ({ customerName, agreementNo, plotNo }) => (
   <div className="border-b border-slate-300 pb-1 mb-2 shrink-0">
-    <div className="text-center font-black text-[12px] tracking-widest text-slate-900 uppercase mb-0.5">
-      GOOD NATURE
-    </div>
     <div className="flex justify-between items-center text-[9px] font-bold text-slate-800">
       <div>NAME: <span className="uppercase font-extrabold">{customerName}</span></div>
       <div>AGREEMENT NO: <span className="uppercase font-mono font-extrabold">{agreementNo}</span></div>
@@ -166,7 +163,7 @@ const PlotAgreementEnglish = ({
           </p>
 
           <p className="m-0">
-            <span className="font-bold">C. AND WHEREAS</span>, the Allottee applied to the Company vide Application No. <span className="font-bold">{applicationNo}</span>, dated <span className="font-bold">{formattedDate}</span> (hereinafter referred to as the "Application") agreeing to the terms and conditions set out therein for purchase of plot, tentatively admeasuring <span className="font-bold">{plotDimension}</span> (hereinafter referred to as the "Plot") in the Project being developed on the Project Land.
+            <span className="font-bold">C. AND WHEREAS</span>, the Allottee applied to the Company vide Booking No. <span className="font-bold">{applicationNo}</span>, dated <span className="font-bold">{formattedDate}</span> (hereinafter referred to as the "Application") agreeing to the terms and conditions set out therein for purchase of plot, tentatively admeasuring depth/ front <span className="font-bold">{plotDimension}</span> (hereinafter referred to as the "Plot") in the Project being developed on the Project Land.
           </p>
 
           <p className="m-0">
@@ -182,7 +179,7 @@ const PlotAgreementEnglish = ({
           </p>
 
           <p className="m-0">
-            <span className="font-bold">G. AND WHEREAS</span>, the Company has allotted the Plot in the Project Land, bearing Serial No. - <span className="font-bold">{plotNo}</span>, and Khata No.- <span className="font-bold">{khataNo}</span> / Plot No.- <span className="font-bold">{khasraNo}</span> of the said Project, on terms and conditions as stipulated hereinafter.
+            <span className="font-bold">G. AND WHEREAS</span>, the Company has allotted the Plot in the Project Land, bearing Serial No. - <span className="font-bold">{plotNo}</span>, and Khata No.- <span className="font-bold">{khataNo}</span> / Khasra No.- <span className="font-bold">{khasraNo}</span> of the said Project, on terms and conditions as stipulated hereinafter.
           </p>
 
           <p className="m-0">
@@ -244,7 +241,7 @@ const PlotAgreementEnglish = ({
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">3. AGREEMENT TO SELL</h4>
           <p className="m-0 leading-relaxed">
-            In accordance with and subject to the terms and conditions set out in this Agreement, the Company hereby agrees to sell and the Allottee hereby agrees to purchase, upon payment of the Total Price and all other charges, payments and levies as are required to be paid under the terms of this Agreement or under the terms and conditions set forth in the application, the plot (having specifications set out in Annexure 1) admeasuring in aggregate area of approx. (<span className="font-bold">{plotDimension}</span>) earmarked and to be allotted.
+            In accordance with and subject to the terms and conditions set out in this Agreement, the Company hereby agrees to sell and the Allottee hereby agrees to purchase, upon payment of the Total Price and all other charges, payments and levies as are required to be paid under the terms of this Agreement or under the terms and conditions set forth in the application, the plot (having specifications set out in Annexure 1) admeasuring in aggregate area of approx depth/ front (<span className="font-bold">{plotDimension}</span>) earmarked and to be allotted.
           </p>
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">4. TOTAL PRICE AND OTHER CHARGES PAYABLE BY THE ALLOTTEE</h4>
