@@ -413,6 +413,15 @@ const plotProductBookingSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    agreementNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    agreementDate: {
+      type: Date,
+      default: null,
+    },
     refundStatus: {
       type: String,
       enum: ['NONE', 'REQUESTED', 'PROCESSED'],

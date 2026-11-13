@@ -595,6 +595,16 @@ const updateBooking = async (req, res, next) => {
   }
 };
 
+const generateBookingAgreement = async (req, res, next) => {
+  try {
+    const { agreementDate } = req.body;
+    const booking = await plotsService.generateBookingAgreement(req.params.id, agreementDate, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, booking, 'Agreement generated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const deleteBooking = async (req, res, next) => {
   try {
     await plotsService.deleteBooking(req.params.id, req.user?._id || req.user?.id || null);
@@ -1220,6 +1230,16 @@ const updateProductBooking = async (req, res, next) => {
   }
 };
 
+const generateProductAgreementDate = async (req, res, next) => {
+  try {
+    const { agreementDate } = req.body;
+    const booking = await plotProductService.generateProductBookingAgreement(req.params.id, agreementDate, req.user?._id || req.user?.id || null);
+    ApiResponse.success(res, booking, 'Product agreement generated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const deleteProductBooking = async (req, res, next) => {
   try {
     const result = await plotProductService.deleteProductBooking(req.params.id);
@@ -1425,6 +1445,7 @@ module.exports = {
   getDashboardStats,
   getReportsData,
   updateBooking,
+  generateBookingAgreement,
   deleteBooking,
   initializePlotPayout,
   collectPlotPayoutPayment,
@@ -1493,6 +1514,7 @@ module.exports = {
   getProductBookingById,
   createProductBooking,
   updateProductBooking,
+  generateProductAgreementDate,
   deleteProductBooking,
   collectProductInstallment,
   getProductCollections,

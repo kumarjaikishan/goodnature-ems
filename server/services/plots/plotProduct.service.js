@@ -469,8 +469,83 @@ class PlotProductService {
       throw ApiError.notFound('Product booking not found');
     }
 
+    if (booking.agreementDate && (!booking.agreementNumber || booking.agreementNumber.trim() === '')) {
+      const aDate = new Date(booking.agreementDate);
+      const bDay = String(aDate.getDate()).padStart(2, '0');
+      const bMonthNum = String(aDate.getMonth() + 1).padStart(2, '0');
+      const bMonth = aDate.getMonth();
+      const bFullYear = aDate.getFullYear();
+      const startYearVal = bMonth >= 3 ? bFullYear : bFullYear - 1;
+      const endYearVal = startYearVal + 1;
+      const fyStr = `${String(startYearVal).slice(-2)}${String(endYearVal).slice(-2)}`;
+      let seqStr = '001';
+      if (booking.bookingNumber) {
+        const numPart = booking.bookingNumber.replace(/\D/g, '');
+        if (numPart.length >= 3) seqStr = numPart.slice(-3);
+        else if (numPart.length > 0) seqStr = numPart.padStart(3, '0');
+      }
+      booking.agreementNumber = `AG-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
+      await PlotProductBooking.findByIdAndUpdate(booking._id, { agreementNumber: booking.agreementNumber });
+    }
+
     const rateConfig = await this.getRateConfig();
     return this.enrichBookingWithDues(booking, rateConfig, new Date());
+  }
+
+  async generateProductBookingAgreement(id, agreementDate, userId) {
+    if (!agreementDate) {
+      throw ApiError.badRequest('Agreement execution date is required');
+    }
+    const aDate = new Date(agreementDate);
+    if (isNaN(aDate.getTime())) {
+      throw ApiError.badRequest('Invalid agreement date provided');
+    }
+
+    const booking = await PlotProductBooking.findById(id).populate('productId');
+    if (!booking) throw ApiError.notFound('Product booking not found');
+
+    const bDate = new Date(booking.bookingDate || booking.createdAt);
+    const bDateDay = new Date(bDate.getFullYear(), bDate.getMonth(), bDate.getDate());
+    const aDateDay = new Date(aDate.getFullYear(), aDate.getMonth(), aDate.getDate());
+    if (aDateDay < bDateDay) {
+      const bFormatted = `${String(bDate.getDate()).padStart(2, '0')}/${String(bDate.getMonth() + 1).padStart(2, '0')}/${bDate.getFullYear()}`;
+      throw ApiError.badRequest(`Agreement date cannot be earlier than booking date (${bFormatted})`);
+    }
+
+    // Check downpayment requirement
+    const totalVal = Number(booking.totalAmount || booking.plotValue || 0) - Number(booking.discount || 0);
+    const isFull = booking.paymentType === 'FULL_PAYMENT' || booking.scheme === 'FULL_PAYMENT';
+    const dpReq = isFull ? totalVal : Number(booking.downPayment || booking.downpaymentAmount || Math.round(totalVal * 0.4));
+    const paid = Number(booking.totalPaid !== undefined ? booking.totalPaid : Math.max(0, totalVal - (booking.remainingAmount || 0)));
+
+    if (paid < (dpReq - 1)) {
+      throw ApiError.badRequest(`Downpayment is not completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`);
+    }
+
+    booking.agreementDate = aDate;
+
+    // Generate / update agreementNumber based on agreementDate
+    const bDay = String(aDate.getDate()).padStart(2, '0');
+    const bMonthNum = String(aDate.getMonth() + 1).padStart(2, '0');
+    const bMonth = aDate.getMonth();
+    const bFullYear = aDate.getFullYear();
+    const startYearVal = bMonth >= 3 ? bFullYear : bFullYear - 1;
+    const endYearVal = startYearVal + 1;
+    const fyStr = `${String(startYearVal).slice(-2)}${String(endYearVal).slice(-2)}`;
+
+    let seqStr = '001';
+    if (booking.bookingNumber) {
+      const numPart = booking.bookingNumber.replace(/\D/g, '');
+      if (numPart.length >= 3) {
+        seqStr = numPart.slice(-3);
+      } else if (numPart.length > 0) {
+        seqStr = numPart.padStart(3, '0');
+      }
+    }
+    booking.agreementNumber = `AG-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
+    await booking.save();
+
+    return booking;
   }
 
   async createProductBooking(data, userId) {
@@ -1225,6 +1300,9 @@ class PlotProductService {
         booking.installments = installments;
       }
     }
+
+    if (data.agreementNumber !== undefined) booking.agreementNumber = data.agreementNumber;
+    if (data.agreementDate !== undefined) booking.agreementDate = data.agreementDate ? new Date(data.agreementDate) : null;
 
     await booking.save();
 

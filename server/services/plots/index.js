@@ -245,6 +245,10 @@ class PlotsService {
     return plotBookingService.updateBooking(id, data, userId);
   }
 
+  generateBookingAgreement(id, agreementDate, userId) {
+    return plotBookingService.generateBookingAgreement(id, agreementDate, userId);
+  }
+
   approveBooking(bookingId, userId) {
     return plotBookingService.approveBooking(bookingId, userId);
   }

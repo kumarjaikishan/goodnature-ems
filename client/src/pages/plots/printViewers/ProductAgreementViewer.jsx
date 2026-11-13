@@ -176,30 +176,34 @@ const ProductAgreementViewer = () => {
 
   const isDownpaymentCompleted = paidAmount >= (downpaymentRequired - 1);
 
-  // Determine the effective date when downpayment was completed
-  const approvedCollections = (booking.collections || collections || [])
-    .filter((r) => (r.status || 'APPROVED').toUpperCase() !== 'REJECTED')
-    .sort((a, b) => new Date(a.paymentDate || a.createdAt) - new Date(b.paymentDate || b.createdAt));
-
+  // Determine the effective date: use explicit agreementDate if set, or when downpayment was completed
   let completionDate = null;
-  let cumPaid = 0;
-  for (const rc of approvedCollections) {
-    cumPaid += Number(rc.collectedAmount || rc.amount || 0);
-    if (cumPaid >= (downpaymentRequired - 1)) {
-      completionDate = new Date(rc.paymentDate || rc.createdAt);
-      break;
-    }
-  }
+  if (booking.agreementDate) {
+    completionDate = new Date(booking.agreementDate);
+  } else {
+    const approvedCollections = (booking.collections || collections || [])
+      .filter((r) => (r.status || 'APPROVED').toUpperCase() !== 'REJECTED')
+      .sort((a, b) => new Date(a.paymentDate || a.createdAt) - new Date(b.paymentDate || b.createdAt));
 
-  // Fallback to downpayment installment paidDate, or last collection, or booking creation date
-  if (!completionDate) {
-    if (downpaymentInst && downpaymentInst.paidDate) {
-      completionDate = new Date(downpaymentInst.paidDate);
-    } else if (approvedCollections.length > 0) {
-      const lastRc = approvedCollections[approvedCollections.length - 1];
-      completionDate = new Date(lastRc.paymentDate || lastRc.createdAt);
-    } else {
-      completionDate = new Date(booking.bookingDate || booking.createdAt);
+    let cumPaid = 0;
+    for (const rc of approvedCollections) {
+      cumPaid += Number(rc.collectedAmount || rc.amount || 0);
+      if (cumPaid >= (downpaymentRequired - 1)) {
+        completionDate = new Date(rc.paymentDate || rc.createdAt);
+        break;
+      }
+    }
+
+    // Fallback to downpayment installment paidDate, or last collection, or booking creation date
+    if (!completionDate) {
+      if (downpaymentInst && downpaymentInst.paidDate) {
+        completionDate = new Date(downpaymentInst.paidDate);
+      } else if (approvedCollections.length > 0) {
+        const lastRc = approvedCollections[approvedCollections.length - 1];
+        completionDate = new Date(lastRc.paymentDate || lastRc.createdAt);
+      } else {
+        completionDate = new Date(booking.bookingDate || booking.createdAt);
+      }
     }
   }
 

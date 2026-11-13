@@ -8,6 +8,7 @@ export const getBookingColumns = ({
   openRevisionsModal,
   openDeleteBookingModal: _openDeleteBookingModal,
   openBookingLedgerModal: _openBookingLedgerModal,
+  onOpenGenerateAgreementModal,
   deletingId: _deletingId,
   canUpdate = true,
   canDelete: _canDelete = true,
@@ -265,7 +266,7 @@ export const getBookingColumns = ({
 
             return (
               <button
-                onClick={async () => {
+                onClick={() => {
                   if (!isDpComplete) {
                     toast.warning(
                       `Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`
@@ -273,12 +274,20 @@ export const getBookingColumns = ({
                     return;
                   }
 
-                  navigate(`/dashboard/plots/agreements/${b._id}`);
+                  if (b.agreementDate) {
+                    navigate(`/dashboard/plots/agreements/${b._id}`);
+                  } else if (onOpenGenerateAgreementModal) {
+                    onOpenGenerateAgreementModal(b);
+                  } else {
+                    navigate(`/dashboard/plots/agreements/${b._id}`);
+                  }
                 }}
                 title={
                   !isDpComplete
                     ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
-                    : 'Print Legal Plot Agreement'
+                    : b.agreementDate
+                    ? 'Print Legal Plot Agreement'
+                    : 'Generate Legal Plot Agreement (Set Date)'
                 }
                 className={`w-7 h-7 flex items-center justify-center rounded-lg transition shadow-2xs border ${
                   isDpComplete

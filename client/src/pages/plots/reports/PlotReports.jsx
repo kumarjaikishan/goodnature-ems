@@ -14,6 +14,7 @@ import { getDueColumns, getHoldColumns } from './components/DueAndHoldColumns';
 import DeleteBookingModal from './components/DeleteBookingModal';
 import SponsorLedgerModal from './components/SponsorLedgerModal';
 import RevisionsAuditModal from './components/RevisionsAuditModal';
+import GenerateAgreementModal from './components/GenerateAgreementModal';
 import ReportFilterBar from './components/ReportFilterBar';
 
 const PlotReports = () => {
@@ -137,6 +138,7 @@ const PlotReports = () => {
 
   // Delete Booking Modal State
   const [bookingToDelete, setBookingToDelete] = useState(null);
+  const [agreementModalBooking, setAgreementModalBooking] = useState(null);
 
   const openDeleteBookingModal = (booking) => {
     setBookingToDelete(booking);
@@ -276,6 +278,7 @@ const PlotReports = () => {
         handleEditClick,
         openRevisionsModal,
         openDeleteBookingModal,
+        onOpenGenerateAgreementModal: (b) => setAgreementModalBooking(b),
         deletingId,
         canUpdate,
         canDelete,
@@ -468,6 +471,21 @@ const PlotReports = () => {
         setEditingNarrationText={setEditingNarrationText}
         handleSaveNarration={handleSaveNarration}
         savingNarration={savingNarration}
+      />
+
+      {/* Generate Agreement Execution Date Modal */}
+      <GenerateAgreementModal
+        open={Boolean(agreementModalBooking)}
+        onClose={() => setAgreementModalBooking(null)}
+        booking={agreementModalBooking}
+        bookingType="PLOT"
+        onSuccess={(updatedBooking) => {
+          setData((prev) =>
+            Array.isArray(prev)
+              ? prev.map((b) => (b._id === updatedBooking._id ? { ...b, ...updatedBooking } : b))
+              : prev
+          );
+        }}
       />
     </div>
   );

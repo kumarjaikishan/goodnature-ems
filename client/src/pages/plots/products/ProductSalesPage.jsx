@@ -6,6 +6,7 @@ import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
 import ProductSalesTab from './components/ProductSalesTab';
 import ProductCustomerLedgerModal from './components/ProductCustomerLedgerModal';
+import GenerateAgreementModal from '../reports/components/GenerateAgreementModal';
 
 const ProductSalesPage = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const ProductSalesPage = () => {
 
   // Modals state
   const [selectedLedgerBooking, setSelectedLedgerBooking] = useState(null);
+  const [agreementModalBooking, setAgreementModalBooking] = useState(null);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -99,6 +101,23 @@ const ProductSalesPage = () => {
         onOpenCertificate={(b) => navigate(`/dashboard/plots/certificates/${b._id}`)}
         onOpenLedger={(b) => setSelectedLedgerBooking(b)}
         onOpenCollect={(b) => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
+        onOpenAgreementModal={(b) => setAgreementModalBooking(b)}
+      />
+
+      {/* Generate Agreement Execution Date Modal */}
+      <GenerateAgreementModal
+        open={Boolean(agreementModalBooking)}
+        onClose={() => setAgreementModalBooking(null)}
+        booking={agreementModalBooking}
+        bookingType="PRODUCT"
+        onSuccess={(updatedBooking) => {
+          setBookings((prev) =>
+            Array.isArray(prev)
+              ? prev.map((b) => (b._id === updatedBooking._id ? { ...b, ...updatedBooking } : b))
+              : prev
+          );
+          handleRefresh();
+        }}
       />
 
       {/* Customer Ledger Modal */}

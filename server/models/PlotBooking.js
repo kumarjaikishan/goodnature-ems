@@ -133,6 +133,10 @@ const plotBookingSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    agreementDate: {
+      type: Date,
+      default: null,
+    },
     // Tiered Rate & Commission Snapshots locked at booking time
     planName: {
       type: String,

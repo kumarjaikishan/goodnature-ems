@@ -138,6 +138,17 @@ router.get('/bookings/:id/ledger', (req, res, next) => {
   return checkPermission('plot_booking', 1)(req, res, next);
 }, ctrl.getBookingLedger);
 router.put('/bookings/:id', checkPermission('plot_booking', 3), ctrl.updateBooking);
+router.post('/bookings/:id/generate-agreement', (req, res, next) => {
+  if (['superadmin', 'grant', 'developer'].includes(req.user?.role)) return next();
+  const perms = req.user?.permissions instanceof Map
+    ? Object.fromEntries(req.user.permissions)
+    : (req.user?.permissions || {});
+  const plotPerms = perms.plot_booking || perms.plot_booking_report || [];
+  if (Array.isArray(plotPerms) && (plotPerms.includes(1) || plotPerms.includes(2) || plotPerms.includes(3))) {
+    return next();
+  }
+  return checkPermission('plot_booking', 3)(req, res, next);
+}, ctrl.generateBookingAgreement);
 router.put('/bookings/:id/approve', checkPermission('plot_booking', 3), ctrl.approveBooking);
 router.put('/bookings/:id/reject', checkPermission('plot_booking', 3), ctrl.rejectBooking);
 router.delete('/bookings/:id', checkPermission('plot_booking', 4), ctrl.deleteBooking);
@@ -254,6 +265,17 @@ router.get('/product-bookings', checkPermission('investment_booking', 1), ctrl.g
 router.post('/product-bookings', checkPermission('investment_booking', 2), ctrl.createProductBooking);
 router.get('/product-bookings/:id', checkPermission('investment_booking', 1), ctrl.getProductBookingById);
 router.put('/product-bookings/:id', checkPermission('investment_booking', 3), ctrl.updateProductBooking);
+router.post('/product-bookings/:id/generate-agreement', (req, res, next) => {
+  if (['superadmin', 'grant', 'developer'].includes(req.user?.role)) return next();
+  const perms = req.user?.permissions instanceof Map
+    ? Object.fromEntries(req.user.permissions)
+    : (req.user?.permissions || {});
+  const invPerms = perms.investment_booking || [];
+  if (Array.isArray(invPerms) && (invPerms.includes(1) || invPerms.includes(2) || invPerms.includes(3))) {
+    return next();
+  }
+  return checkPermission('investment_booking', 3)(req, res, next);
+}, ctrl.generateProductAgreementDate);
 router.delete('/product-bookings/:id', checkPermission('investment_booking', 4), ctrl.deleteProductBooking);
 router.post('/product-bookings/:id/collections', checkPermission(['investment_booking', 'plot_collection'], 2), ctrl.collectProductInstallment);
 router.get('/product-bookings/:id/ledger', checkPermission('investment_booking', 1), ctrl.getProductCustomerLedger);

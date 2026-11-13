@@ -652,6 +652,7 @@ class PlotBookingService {
         promoterCommissionPercent: booking.promoterCommissionPercent,
         developerCommissionPercent: booking.developerCommissionPercent,
         agreementNumber: booking.agreementNumber || '',
+        agreementDate: booking.agreementDate || null,
         bookingDate: booking.bookingDate,
         bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
         status: booking.status,
@@ -938,6 +939,7 @@ class PlotBookingService {
         promoterCommissionPercent: slab.promoterCommissionPercent,
         developerCommissionPercent: slab.developerCommissionPercent,
         agreementNumber: booking.agreementNumber || '',
+        agreementDate: booking.agreementDate || null,
         bookingDate: booking.bookingDate,
         bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
         status: booking.status,
@@ -1502,7 +1504,7 @@ class PlotBookingService {
 
     // If agreementNumber is missing, auto-generate in standard AG-DD/MM/YY(YY+1)/XXX format
     if (!booking.agreementNumber || booking.agreementNumber.trim() === '' || booking.agreementNumber.includes('/2627001') || booking.agreementNumber.includes('/2627002')) {
-      const bDate = booking.bookingDate || booking.createdAt || new Date();
+      const bDate = booking.agreementDate || booking.bookingDate || booking.createdAt || new Date();
       const bDay = String(bDate.getDate()).padStart(2, '0');
       const bMonthNum = String(bDate.getMonth() + 1).padStart(2, '0');
       const bMonth = bDate.getMonth();
@@ -1524,6 +1526,64 @@ class PlotBookingService {
       booking.agreementNumber = `AG-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
       await booking.save();
     }
+
+    return booking;
+  }
+
+  async generateBookingAgreement(id, agreementDate, userId) {
+    if (!agreementDate) {
+      throw ApiError.badRequest('Agreement execution date is required');
+    }
+    const aDate = new Date(agreementDate);
+    if (isNaN(aDate.getTime())) {
+      throw ApiError.badRequest('Invalid agreement date provided');
+    }
+
+    const booking = await PlotBooking.findById(id).populate('plotId');
+    if (!booking) throw ApiError.notFound('Booking not found');
+
+    const bDate = new Date(booking.bookingDate || booking.createdAt);
+    const bDateDay = new Date(bDate.getFullYear(), bDate.getMonth(), bDate.getDate());
+    const aDateDay = new Date(aDate.getFullYear(), aDate.getMonth(), aDate.getDate());
+    if (aDateDay < bDateDay) {
+      const bFormatted = `${String(bDate.getDate()).padStart(2, '0')}/${String(bDate.getMonth() + 1).padStart(2, '0')}/${bDate.getFullYear()}`;
+      throw ApiError.badRequest(`Agreement date cannot be earlier than booking date (${bFormatted})`);
+    }
+
+    // Check downpayment requirement
+    const netVal = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
+    const paid = Math.max(0, netVal - (booking.remainingAmount || 0));
+    const plotArea = Number(booking.plotId?.plotSize || booking.plotId?.area || 0);
+    const dpReq = booking.scheme === 'FULL_PAYMENT'
+      ? netVal
+      : (booking.downpaymentAmount || booking.bookingAmount || (booking.downpaymentRate && plotArea > 0 ? booking.downpaymentRate * plotArea : Math.round(netVal * 0.4)));
+
+    if (paid < (dpReq - 1)) {
+      throw ApiError.badRequest(`Downpayment is not completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`);
+    }
+
+    booking.agreementDate = aDate;
+
+    // Generate / update agreementNumber based on agreementDate
+    const bDay = String(aDate.getDate()).padStart(2, '0');
+    const bMonthNum = String(aDate.getMonth() + 1).padStart(2, '0');
+    const bMonth = aDate.getMonth();
+    const bFullYear = aDate.getFullYear();
+    const startYearVal = bMonth >= 3 ? bFullYear : bFullYear - 1;
+    const endYearVal = startYearVal + 1;
+    const fyStr = `${String(startYearVal).slice(-2)}${String(endYearVal).slice(-2)}`;
+
+    let seqStr = '001';
+    if (booking.bookingNumber) {
+      const numPart = booking.bookingNumber.replace(/\D/g, '');
+      if (numPart.length >= 3) {
+        seqStr = numPart.slice(-3);
+      } else if (numPart.length > 0) {
+        seqStr = numPart.padStart(3, '0');
+      }
+    }
+    booking.agreementNumber = `AG-${bDay}/${bMonthNum}/${fyStr}/${seqStr}`;
+    await booking.save();
 
     return booking;
   }
@@ -1803,6 +1863,7 @@ class PlotBookingService {
         promoterCommissionPercent: booking.promoterCommissionPercent || 0,
         developerCommissionPercent: booking.developerCommissionPercent || 0,
         agreementNumber: booking.agreementNumber || '',
+        agreementDate: booking.agreementDate || null,
         bookingDate: booking.bookingDate,
         bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
         status: booking.status,
@@ -1816,7 +1877,7 @@ class PlotBookingService {
       const {
         notes, discount, bookingAmount, bookingDate, sponsorId, status, scheme,
         tenureMonths, govtRate,
-        installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, downpaymentDays, agreementNumber,
+        installmentCount, installmentAmount, oneTimeMonths, downpaymentMonths, downpaymentDays, agreementNumber, agreementDate,
         bookingType, holdExpiryDays, customerId, plotId, paymentMode, transactionReference,
         landSourcing,
         customSqFtRate, basePlotRate, customDownpaymentRate, downpaymentRate, emiRate,
@@ -1825,6 +1886,7 @@ class PlotBookingService {
 
       if (notes !== undefined) booking.notes = notes;
       if (agreementNumber !== undefined) booking.agreementNumber = agreementNumber;
+      if (agreementDate !== undefined) booking.agreementDate = agreementDate ? new Date(agreementDate) : null;
       if (paymentMode !== undefined) booking.paymentMode = paymentMode;
       if (transactionReference !== undefined) booking.transactionReference = transactionReference;
       if (govtRate !== undefined) booking.govtRate = Number(govtRate) || 100;
@@ -2279,6 +2341,7 @@ class PlotBookingService {
         promoterCommissionPercent: booking.promoterCommissionPercent || 0,
         developerCommissionPercent: booking.developerCommissionPercent || 0,
         agreementNumber: booking.agreementNumber || '',
+        agreementDate: booking.agreementDate || null,
         bookingDate: booking.bookingDate,
         bookingType: booking.bookingType || (booking.status === 'HOLD' ? 'HOLD' : 'BOOKING'),
         status: booking.status,

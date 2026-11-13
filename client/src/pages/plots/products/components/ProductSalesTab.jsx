@@ -10,21 +10,14 @@ import {
   FileText,
   Eye,
   Layers,
-  MapPin,
-  Building2,
   Minus,
   Check,
   Loader2,
-  Calendar,
   User,
   ShieldCheck,
   Ruler,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Edit2,
-  Trash2,
-  XCircle,
   Calculator,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
@@ -44,6 +37,7 @@ const ProductSalesTab = ({
   onOpenCertificate,
   onOpenLedger,
   onOpenCollect,
+  onOpenAgreementModal,
 }) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -346,14 +340,49 @@ const ProductSalesTab = ({
                           </button>
 
                           {/* 3. Print Product Agreement */}
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/dashboard/plots/product-agreements/${b._id}`)}
-                            className="p-1.5 text-purple-700 hover:bg-purple-50 rounded-lg transition border border-purple-200/60 cursor-pointer"
-                            title="Print Product Agreement"
-                          >
-                            <FileText size={14} />
-                          </button>
+                          {(() => {
+                            const totalVal = Math.max(0, Number(b.totalAmount || b.plotValue || 0) - Number(b.discount || 0));
+                            const isFull = b.paymentType === 'FULL_PAYMENT' || b.scheme === 'FULL_PAYMENT';
+                            const dpReq = isFull ? totalVal : Number(b.downPayment || b.downpaymentAmount || Math.round(totalVal * 0.4));
+                            const paid = Number(b.totalPaid !== undefined ? b.totalPaid : Math.max(0, totalVal - Number(b.remainingAmount || 0)));
+                            const isDpComplete = paid >= (dpReq - 1);
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isDpComplete) {
+                                    toast.warning(
+                                      `Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`
+                                    );
+                                    return;
+                                  }
+
+                                  if (b.agreementDate) {
+                                    navigate(`/dashboard/plots/product-agreements/${b._id}`);
+                                  } else if (onOpenAgreementModal) {
+                                    onOpenAgreementModal(b);
+                                  } else {
+                                    navigate(`/dashboard/plots/product-agreements/${b._id}`);
+                                  }
+                                }}
+                                title={
+                                  !isDpComplete
+                                    ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
+                                    : b.agreementDate
+                                    ? 'Print Product Agreement'
+                                    : 'Generate Product Agreement (Set Date)'
+                                }
+                                className={`p-1.5 rounded-lg transition border shadow-2xs ${
+                                  isDpComplete
+                                    ? 'text-purple-700 hover:bg-purple-50 border-purple-200/80 cursor-pointer bg-white'
+                                    : 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed opacity-60'
+                                }`}
+                              >
+                                <FileText size={14} />
+                              </button>
+                            );
+                          })()}
 
                           {/* 4. View Customer Ledger */}
                           <button

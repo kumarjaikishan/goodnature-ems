@@ -1,5 +1,37 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Downpayment-Gated Agreement Generation with Execution Date Modal [COMPLETED]**:
+  - **Requirement**:
+    - On both `http://localhost:5173/dashboard/plots/booking` (Plot Bookings) and `http://localhost:5173/dashboard/plots/investment-booking` (Investment / Product Bookings):
+      1. Enable agreement button strictly when the downpayment is 100% completed. If downpayment is pending, keep the button disabled / locked with a descriptive warning tooltip.
+      2. When clicked for the first time (when agreement date / agreement number is not yet generated), open a modal asking for the agreement execution date (prefilled with current date, editable, with `min` set to booking date so it cannot precede booking creation).
+      3. On confirming date in modal, save `agreementDate` and generated `agreementNumber` to the booking, then automatically navigate to the generated agreement viewer with the specified date rendered.
+      4. On subsequent clicks, navigate directly to the agreement viewer without re-prompting.
+  - **Implementation**:
+    - **Backend Models & Schemas**:
+      - In `server/models/PlotBooking.js`: Added `agreementDate: { type: Date, default: null }`.
+      - In `server/models/PlotProductBooking.js`: Added `agreementNumber: { type: String, trim: true, default: '' }` and `agreementDate: { type: Date, default: null }`.
+    - **Backend Services & Routes**:
+      - In `server/services/plots/plotBooking.service.js`:
+        - Updated `getBookingById` to prioritize `agreementDate` when auto-formatting `agreementNumber`.
+        - Added `generateBookingAgreement(id, agreementDate, userId)` validating downpayment completion and `agreementDate >= bookingDate`.
+        - Updated `updateBooking` to allow updating `agreementDate`.
+      - In `server/services/plots/plotProduct.service.js`:
+        - Updated `getProductBookingById` and `updateProductBooking` to handle `agreementDate` and `agreementNumber`.
+        - Added `generateProductBookingAgreement(id, agreementDate, userId)` validating downpayment completion and `agreementDate >= bookingDate`.
+      - In `server/controllers/plots.controller.js` and `server/router/plots.routes.js`:
+        - Added `POST /api/plots/bookings/:id/generate-agreement`
+        - Added `POST /api/plots/product-bookings/:id/generate-agreement`
+    - **Frontend Components**:
+      - Created `client/src/pages/plots/reports/components/GenerateAgreementModal.jsx`: Reusable modal displaying booking summary, prefilled today date input, `min` constraint validation, and API submission.
+      - In `client/src/pages/plots/reports/components/BookingColumns.jsx` and `client/src/pages/plots/reports/PlotReports.jsx`: Gated agreement action button on downpayment completion, prompting `GenerateAgreementModal` on first click, and navigating directly on subsequent clicks.
+      - In `client/src/pages/plots/products/ProductSalesPage.jsx` and `client/src/pages/plots/products/components/ProductSalesTab.jsx`: Gated agreement action button on downpayment completion, prompting `GenerateAgreementModal` on first click, and navigating directly on subsequent clicks.
+      - In `client/src/pages/plots/printViewers/PlotAgreementViewer.jsx` and `ProductAgreementViewer.jsx`: Prioritized `booking.agreementDate` as the execution date of the agreement.
+  - **Verification**:
+    - Backend syntax check passed with code 0 (`node -c`).
+    - Frontend build succeeded with code 0 (`npm run build`).
+    - Oxlint passed with 0 errors across all touched files.
+
 - **Agreement Date Bound to Downpayment Completion Date [COMPLETED]**:
   - **Requirement**: In the Plot Buyer's Agreement (`/dashboard/plots/agreements/:id`), the execution date of the agreement must be the date when the downpayment was finally completed rather than the booking creation date.
   - **Implementation**:

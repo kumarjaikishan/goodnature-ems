@@ -173,30 +173,34 @@ const PlotAgreementViewer = () => {
     : (booking.downPayment || booking.downpaymentAmount || booking.bookingAmount || downpaymentInst?.dueAmount || (booking.downpaymentRate && plotAreaSize > 0 ? booking.downpaymentRate * plotAreaSize : Math.round(netPlotValue * 0.40)));
   const isDownpaymentCompleted = paidAmount >= (downpaymentRequired - 1);
 
-  // Determine the effective date when downpayment was completed
-  const approvedReceipts = (receipts || [])
-    .filter(r => (r.status || 'APPROVED').toUpperCase() !== 'REJECTED')
-    .sort((a, b) => new Date(a.paymentDate || a.createdAt) - new Date(b.paymentDate || b.createdAt));
-
+  // Determine the effective date: use explicit agreementDate if set, or when downpayment was completed
   let completionDate = null;
-  let cumPaid = 0;
-  for (const rc of approvedReceipts) {
-    cumPaid += Number(rc.amount || 0);
-    if (cumPaid >= (downpaymentRequired - 1)) {
-      completionDate = new Date(rc.paymentDate || rc.createdAt);
-      break;
-    }
-  }
+  if (booking.agreementDate) {
+    completionDate = new Date(booking.agreementDate);
+  } else {
+    const approvedReceipts = (receipts || [])
+      .filter(r => (r.status || 'APPROVED').toUpperCase() !== 'REJECTED')
+      .sort((a, b) => new Date(a.paymentDate || a.createdAt) - new Date(b.paymentDate || b.createdAt));
 
-  // Fallback to downpayment installment paidDate, or last approved receipt, or booking date
-  if (!completionDate) {
-    if (downpaymentInst && downpaymentInst.paidDate) {
-      completionDate = new Date(downpaymentInst.paidDate);
-    } else if (approvedReceipts.length > 0) {
-      const lastRc = approvedReceipts[approvedReceipts.length - 1];
-      completionDate = new Date(lastRc.paymentDate || lastRc.createdAt);
-    } else {
-      completionDate = new Date(booking.bookingDate || booking.createdAt);
+    let cumPaid = 0;
+    for (const rc of approvedReceipts) {
+      cumPaid += Number(rc.amount || 0);
+      if (cumPaid >= (downpaymentRequired - 1)) {
+        completionDate = new Date(rc.paymentDate || rc.createdAt);
+        break;
+      }
+    }
+
+    // Fallback to downpayment installment paidDate, or last approved receipt, or booking date
+    if (!completionDate) {
+      if (downpaymentInst && downpaymentInst.paidDate) {
+        completionDate = new Date(downpaymentInst.paidDate);
+      } else if (approvedReceipts.length > 0) {
+        const lastRc = approvedReceipts[approvedReceipts.length - 1];
+        completionDate = new Date(lastRc.paymentDate || lastRc.createdAt);
+      } else {
+        completionDate = new Date(booking.bookingDate || booking.createdAt);
+      }
     }
   }
 
