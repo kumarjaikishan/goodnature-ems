@@ -1,17 +1,16 @@
 import React from 'react';
-import { Eye, BookOpen, Receipt, Printer, ScrollText, Edit3, History, Trash2, Calculator } from 'lucide-react';
+import { Eye, BookOpen, Receipt, Printer, ScrollText, Edit3, History, Calculator } from 'lucide-react';
 import { toast } from '@/utils/toast';
-import api from '@/api/axios';
 
 export const getBookingColumns = ({
   navigate,
   handleEditClick,
   openRevisionsModal,
-  openDeleteBookingModal,
-  openBookingLedgerModal,
-  deletingId,
+  openDeleteBookingModal: _openDeleteBookingModal,
+  openBookingLedgerModal: _openBookingLedgerModal,
+  deletingId: _deletingId,
   canUpdate = true,
-  canDelete = true,
+  canDelete: _canDelete = true,
 }) => [
   {
     name: 'Booking Date',
@@ -291,6 +290,23 @@ export const getBookingColumns = ({
               </button>
             );
           })()}
+
+          {/* 6. Edit Booking Contract */}
+          {canUpdate && b.status !== 'CANCELLED' && (
+            <button
+              onClick={() => {
+                if (handleEditClick) {
+                  handleEditClick(b);
+                } else if (navigate) {
+                  navigate(`/dashboard/plots/booking/edit/${b._id}`);
+                }
+              }}
+              title="Edit Booking Contract"
+              className="w-7 h-7 flex items-center justify-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs hover:border-indigo-400"
+            >
+              <Edit3 size={14} />
+            </button>
+          )}
 
           {/* 7. View Revision & Restructuring History */}
           {canUpdate && b.status !== 'CANCELLED' && (

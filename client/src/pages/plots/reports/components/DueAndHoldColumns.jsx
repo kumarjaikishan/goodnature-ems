@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Receipt, Edit3, Trash2 } from 'lucide-react';
+import { Eye, Receipt, Edit3 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export const getDueColumns = ({ navigate }) => [
@@ -215,11 +215,11 @@ export const getDueColumns = ({ navigate }) => [
 export const getHoldColumns = ({
   navigate,
   handleEditClick,
-  handleDeleteBooking,
-  deletingId,
+  handleDeleteBooking: _handleDeleteBooking,
+  deletingId: _deletingId,
   getHoldHoursLeft,
   canUpdate = true,
-  canDelete = true,
+  canDelete: _canDelete = true,
 }) => [
   {
     name: 'Plot #',
@@ -318,6 +318,21 @@ export const getHoldColumns = ({
             className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition cursor-pointer border border-sky-200 shadow-2xs"
           >
             <Receipt size={15} />
+          </button>
+        )}
+        {canUpdate && (
+          <button
+            onClick={() => {
+              if (handleEditClick) {
+                handleEditClick(h);
+              } else if (navigate) {
+                navigate(`/dashboard/plots/booking/edit/${h._id}`);
+              }
+            }}
+            title="Edit Plot Hold / Booking"
+            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition cursor-pointer border border-indigo-200 shadow-2xs"
+          >
+            <Edit3 size={15} />
           </button>
         )}
 

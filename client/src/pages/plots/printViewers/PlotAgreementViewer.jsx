@@ -47,23 +47,37 @@ const PlotAgreementViewer = () => {
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
+  const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     Promise.all([
       api.get(`/plots/bookings/${id}`),
-      api.get(`/plots/bookings/${id}/installments`).catch(() => ({ data: { data: [] } }))
+      api.get(`/plots/bookings/${id}/installments`).catch(() => ({ data: { data: [] } })),
+      api.get(`/plots/receipts/list?bookingId=${id}`).catch(() => ({ data: { data: [] } }))
     ])
-      .then(([bookingRes, instRes]) => {
+      .then(([bookingRes, instRes, receiptsRes]) => {
         setBooking(bookingRes.data.data);
         setInstallments(instRes.data.data || []);
+        setReceipts(receiptsRes.data?.data || []);
         setLoading(false);
       })
-      .catch((err) => {
-        console.error('Failed to load agreement booking details:', err);
-        toast.error('Failed to load agreement details');
-        setLoading(false);
+      .catch(() => {
+        // Fallback for investment product booking
+        api.get(`/plots/product-bookings/${id}`)
+          .then((pRes) => {
+            const pBooking = pRes.data?.data;
+            setBooking(pBooking);
+            setInstallments(pBooking?.installments || []);
+            setReceipts(pBooking?.collections || []);
+            setLoading(false);
+          })
+          .catch((err) => {
+            console.error('Failed to load agreement booking details:', err);
+            toast.error('Failed to load agreement details');
+            setLoading(false);
+          });
       });
   }, [id]);
 
@@ -102,11 +116,41 @@ const PlotAgreementViewer = () => {
   }
 
   const customer = booking.customerId || {};
-  const plot = booking.plotId || {};
-  const series = plot.seriesId || {};
+  const dims = booking.dimensionsSnapshot || booking.productId?.dimensions || {};
+  const plotAreaSize = Number(booking.plotId?.plotSize || booking.plotId?.area || booking.totalAreaSqFt || dims.totalAreaSqFt || booking.productId?.areaSqFt || 0);
 
-  const bookingDate = new Date(booking.bookingDate || booking.createdAt);
-  const dayNum = bookingDate.getDate();
+  const firstLand = (booking.landSourcing && booking.landSourcing.length > 0) ? booking.landSourcing[0] : {};
+  const allKhata = booking.landSourcing && booking.landSourcing.length > 0
+    ? Array.from(new Set(booking.landSourcing.map((l) => l.khataNumber || l.agreementId?.khataNumber).filter(Boolean))).join(', ')
+    : '';
+  const allKhasra = booking.landSourcing && booking.landSourcing.length > 0
+    ? Array.from(new Set(booking.landSourcing.map((l) => l.khesraNumber || l.agreementId?.khesraNumber).filter(Boolean))).join(', ')
+    : '';
+  const mauzaName = firstLand.mauja || firstLand.agreementId?.mauja || booking.mauza || 'Samsera';
+
+  const plot = booking.plotId || {
+    plotNumber: dims.dimensionLabel || booking.productId?.productCode || booking.productId?.productName || booking.planName || booking.bookingNumber || 'N/A',
+    plotSize: plotAreaSize,
+    area: plotAreaSize,
+    areaSqFt: plotAreaSize,
+    dimensions: dims,
+    khataNo: allKhata || firstLand.khataNumber || firstLand.agreementId?.khataNumber || '56',
+    khesraNo: allKhasra || firstLand.khesraNumber || firstLand.agreementId?.khesraNumber || '358',
+    mauza: mauzaName,
+    city: booking.projectId?.location?.city || 'Rajgir',
+    district: booking.projectId?.location?.district || 'Nalanda',
+    state: booking.projectId?.location?.state || 'Bihar',
+  };
+
+  const series = booking.plotId?.seriesId || {
+    seriesName: booking.projectName || booking.projectId?.name || 'Nalanda New City',
+    projectArea: '19.5 Acres Approx.',
+    city: booking.projectId?.location?.city || 'Rajgir',
+    district: booking.projectId?.location?.district || 'Nalanda',
+    state: booking.projectId?.location?.state || 'Bihar',
+    khataNo: plot.khataNo,
+  };
+
   const getOrdinal = (n) => {
     if (n > 3 && n < 21) return `${n}th`;
     switch (n % 10) {
@@ -116,18 +160,50 @@ const PlotAgreementViewer = () => {
       default: return `${n}th`;
     }
   };
-  const monthName = bookingDate.toLocaleDateString('en-IN', { month: 'long' });
-  const yearNum = bookingDate.getFullYear();
-  const formattedDate = `${getOrdinal(dayNum)} Day of ${monthName} ${yearNum}`;
 
-  const netPlotValue = Math.max(0, (booking.plotValue || 0) - (booking.discount || 0));
-  const paidAmount = Math.max(0, netPlotValue - (booking.remainingAmount || 0));
+  const netPlotValue = Math.max(0, Number(booking.plotValue || booking.totalAmount || 0) - Number(booking.discount || 0));
+  const isFullPayment = booking.scheme === 'FULL_PAYMENT' || booking.paymentType === 'FULL_PAYMENT';
+  const paidAmount = booking.totalPaid !== undefined
+    ? Number(booking.totalPaid || 0)
+    : Math.max(0, netPlotValue - Number(booking.remainingAmount || 0));
   const downpaymentInst = (installments || []).find(i => i.installmentNumber === 0);
-  const plotAreaSize = Number(plot.plotSize || plot.area || 0);
-  const downpaymentRequired = booking.scheme === 'FULL_PAYMENT'
+
+  const downpaymentRequired = isFullPayment
     ? netPlotValue
-    : (booking.downpaymentAmount || booking.bookingAmount || downpaymentInst?.dueAmount || (booking.downpaymentRate && plotAreaSize > 0 ? booking.downpaymentRate * plotAreaSize : Math.round(netPlotValue * 0.40)));
+    : (booking.downPayment || booking.downpaymentAmount || booking.bookingAmount || downpaymentInst?.dueAmount || (booking.downpaymentRate && plotAreaSize > 0 ? booking.downpaymentRate * plotAreaSize : Math.round(netPlotValue * 0.40)));
   const isDownpaymentCompleted = paidAmount >= (downpaymentRequired - 1);
+
+  // Determine the effective date when downpayment was completed
+  const approvedReceipts = (receipts || [])
+    .filter(r => (r.status || 'APPROVED').toUpperCase() !== 'REJECTED')
+    .sort((a, b) => new Date(a.paymentDate || a.createdAt) - new Date(b.paymentDate || b.createdAt));
+
+  let completionDate = null;
+  let cumPaid = 0;
+  for (const rc of approvedReceipts) {
+    cumPaid += Number(rc.amount || 0);
+    if (cumPaid >= (downpaymentRequired - 1)) {
+      completionDate = new Date(rc.paymentDate || rc.createdAt);
+      break;
+    }
+  }
+
+  // Fallback to downpayment installment paidDate, or last approved receipt, or booking date
+  if (!completionDate) {
+    if (downpaymentInst && downpaymentInst.paidDate) {
+      completionDate = new Date(downpaymentInst.paidDate);
+    } else if (approvedReceipts.length > 0) {
+      const lastRc = approvedReceipts[approvedReceipts.length - 1];
+      completionDate = new Date(lastRc.paymentDate || lastRc.createdAt);
+    } else {
+      completionDate = new Date(booking.bookingDate || booking.createdAt);
+    }
+  }
+
+  const dayNum = completionDate.getDate();
+  const monthName = completionDate.toLocaleDateString('en-IN', { month: 'long' });
+  const yearNum = completionDate.getFullYear();
+  const formattedDate = `${getOrdinal(dayNum)} Day of ${monthName} ${yearNum}`;
 
   if (!isDownpaymentCompleted) {
     return (
@@ -143,7 +219,7 @@ const PlotAgreementViewer = () => {
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2 text-left">
             <div className="flex justify-between">
               <span className="text-slate-500">Scheme:</span>
-              <span className="font-bold text-slate-800">{booking.scheme === 'FULL_PAYMENT' ? 'One Time (Full Payment)' : 'EMI (Monthly Installment)'}</span>
+              <span className="font-bold text-slate-800">{isFullPayment ? 'One Time (Full Payment)' : 'EMI (Monthly Installment)'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Downpayment Required:</span>
@@ -161,13 +237,13 @@ const PlotAgreementViewer = () => {
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={() => navigate(-1)}
-              className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition"
+              className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition cursor-pointer"
             >
               Back
             </button>
             <button
-              onClick={() => navigate(`/dashboard/plots/collections/downpayment/add?bookingId=${booking._id}`)}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-sm transition"
+              onClick={() => navigate(booking.paymentType ? `/dashboard/plots/collections/products/add?bookingId=${booking._id}` : `/dashboard/plots/collections/downpayment/add?bookingId=${booking._id}`)}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
             >
               Collect Downpayment
             </button>
@@ -179,22 +255,32 @@ const PlotAgreementViewer = () => {
 
   const customerName = customer.name || booking.customerName || 'Allottee';
 
-  const downpaymentAmount = booking.bookingAmount || downpaymentInst?.dueAmount || Math.max(0, netPlotValue - (booking.remainingAmount || 0));
+  const downpaymentAmount = downpaymentRequired;
   const remainingBalanceAmount = Math.max(0, netPlotValue - downpaymentAmount);
 
   const regularInsts = (installments || []).filter(i => i.installmentNumber > 0);
-  const installmentCount = regularInsts.length || booking.installmentCount || 100;
-  const standardEmiAmt = booking.installmentAmount || booking.emiAmount || regularInsts[0]?.dueAmount || (installmentCount > 0 ? Math.round(remainingBalanceAmount / installmentCount) : 0);
+  const installmentCount = regularInsts.length || booking.installmentCount || booking.tenureMonths || (isFullPayment ? 1 : 0);
+  const standardEmiAmt = booking.monthlyEmi || booking.installmentAmount || booking.emiAmount || regularInsts[0]?.dueAmount || (installmentCount > 0 ? Math.round(remainingBalanceAmount / installmentCount) : 0);
   const lastEmiInst = regularInsts.length > 0 ? regularInsts[regularInsts.length - 1] : null;
-  const lastEmiAmt = lastEmiInst ? lastEmiInst.dueAmount : standardEmiAmt;
+  const lastEmiAmt = lastEmiInst ? (lastEmiInst.dueAmount || lastEmiInst.principalDue) : standardEmiAmt;
   const isEmiUniform = standardEmiAmt === lastEmiAmt;
-  const regularEmiCount = regularInsts.length > 1 ? regularInsts.filter(i => i.dueAmount === standardEmiAmt).length : (installmentCount - (isEmiUniform ? 0 : 1));
+  const regularEmiCount = regularInsts.length > 1 ? regularInsts.filter(i => (i.dueAmount || i.principalDue) === standardEmiAmt).length : (installmentCount - (isEmiUniform ? 0 : 1));
 
   const dailyLateFineRate = 0.0005; // 0.05% per day
   const dailyLateFineAmt = standardEmiAmt * dailyLateFineRate;
 
+  const adaptedBooking = {
+    ...booking,
+    scheme: isFullPayment ? 'FULL_PAYMENT' : 'INSTALLMENT',
+    paymentMode: booking.collections?.[0]?.paymentMode || booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD',
+    agreementNumber: booking.agreementNumber || booking.bookingNumber,
+    plotNumber: plot.plotNumber,
+    plotAreaSqFt: plot.plotSize,
+    landSourcing: booking.landSourcing || [],
+  };
+
   const sharedProps = {
-    booking,
+    booking: adaptedBooking,
     customer,
     plot,
     series,
@@ -202,6 +288,8 @@ const PlotAgreementViewer = () => {
     netPlotValue,
     customerName,
     downpaymentAmount,
+    downpaymentRequired,
+    paidAmount,
     remainingBalanceAmount,
     installmentCount,
     standardEmiAmt,

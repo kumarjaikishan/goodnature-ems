@@ -2,16 +2,6 @@ import React from 'react';
 
 const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}.00/-`;
 
-const PageHeader = ({ customerName, agreementNo, plotNo }) => (
-  <div className="border-b border-slate-300 pb-1 mb-2 shrink-0">
-    <div className="flex justify-between items-center text-[9px] font-bold text-slate-800">
-      <div>NAME: <span className="uppercase font-extrabold">{customerName}</span></div>
-      <div>AGREEMENT NO: <span className="uppercase font-mono font-extrabold">{agreementNo}</span></div>
-      <div>PLOT NO: <span className="uppercase font-extrabold">{plotNo}</span></div>
-    </div>
-  </div>
-);
-
 const PageFooter = ({ pageNumber, totalPages = 9 }) => (
   <div className="pt-2 shrink-0 mt-auto pb-0.5">
     <div className="flex justify-between items-end text-[8.5px] font-bold text-slate-900 pb-0.5">
@@ -39,6 +29,8 @@ const PlotAgreementEnglish = ({
   netPlotValue,
   customerName,
   downpaymentAmount,
+  downpaymentRequired,
+  paidAmount,
   remainingBalanceAmount,
   installmentCount,
   standardEmiAmt,
@@ -81,10 +73,9 @@ const PlotAgreementEnglish = ({
 
   const plotDimension = getFormattedDimension(booking.plotDimension || plot.dimension || plot.dimensions);
   const applicationNo = booking.applicationNo || booking.bookingNumber || 'N/A';
-  const planCode = series.seriesCode || series.planCode || booking.planCode || 'NNNC/ROW/B2';
 
   const agreementNo = booking.agreementNumber || booking.bookingNumber || 'N/A';
-  const plotNo = plot.plotNumber || booking.plotNumber || 'N/A';
+  const plotNo = plot.plotNumber || booking.plotNumber || plot.plotName || booking.plotName || 'N/A';
   const totalPages = 9;
 
   return (
@@ -139,7 +130,7 @@ const PlotAgreementEnglish = ({
             </p>
 
             <p className="text-[0.72rem] text-slate-800 m-0 pt-0.5 leading-relaxed">
-              (Hereinafter, the "Company" and the "Allottee" are collectively referred to as the <span className="font-bold">"Parties"</span> and individually as a <span className="font-bold">"Party"</span>, as the context demands).
+              (Hereinafter, the <span className='font-bold'>"Company"</span> and the <span className='font-bold'>"Allottee"</span> are collectively referred to as the <span className="font-bold">"Parties"</span> and individually as a <span className="font-bold">"Party"</span>, as the context demands).
             </p>
           </div>
         </div>
@@ -151,11 +142,10 @@ const PlotAgreementEnglish = ({
           PAGE 2: RECITALS (A to I) & CLAUSE 1.1 (DEFINITIONS)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
 
         <div className="flex-1 space-y-1">
           <p className="m-0">
-            <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land admeasuring area {projectArea}, located in the revenue estate of Mauza-{mauzaName}, City-{cityRajgir}, District {districtNalanda} {stateBihar}, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
+            <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land <span className='font-bold'>admeasuring area {projectArea}</span> ,  located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
           </p>
 
           <p className="m-0">
@@ -220,7 +210,6 @@ const PlotAgreementEnglish = ({
           PAGE 3: CLAUSE 1.2 (INTERPRETATION), CLAUSE 2, 3 & 4 (TOTAL PRICE)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
 
         <div className="flex-1 space-y-1">
           <h5 className="font-bold text-slate-900 text-[0.72rem] m-0">1.2 Interpretation</h5>
@@ -254,7 +243,7 @@ const PlotAgreementEnglish = ({
           <p className="m-0 leading-relaxed">
             <span className="font-bold">c.</span> {booking.scheme === 'FULL_PAYMENT' ? (
               <>
-                That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of booking of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date of this agreement.
+                That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of Aggrement of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date of this agreement.
               </>
             ) : (
               <>
@@ -282,8 +271,6 @@ const PlotAgreementEnglish = ({
           PAGE 4: CLAUSE 5 (ENTITLEMENT), CLAUSE 6 & CLAUSE 7.A (DEFAULT)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
-
         <div className="flex-1 space-y-1">
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-0.5 pb-0.5">5. ENTITLEMENT OF THE ALLOTTEE IN RELATION TO THE PROPERTY</h4>
           <p className="m-0 leading-relaxed">
@@ -335,8 +322,6 @@ const PlotAgreementEnglish = ({
           PAGE 5: CLAUSE 7.B (EARNEST MONEY) & CLAUSE 8.A-B (POSSESSION & DEED I-III)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
-
         <div className="flex-1 space-y-1">
           <p className="m-0 leading-relaxed"><span className="font-bold">B. EARNEST MONEY AND ITS FORFEITURE & CANCELLATION</span></p>
           <div className="pl-3 space-y-0.5">
@@ -361,8 +346,6 @@ const PlotAgreementEnglish = ({
           PAGE 6: CLAUSE 8.B (IV-V), CLAUSE 8.C (POSSESSION) & 9 (FORCE MAJEURE)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
-
         <div className="flex-1 space-y-1">
           <div className="pl-3 space-y-0.5">
             <p className="m-0 leading-relaxed"><span className="font-bold">IV.</span> The Allottee undertakes to execute the sale/conveyance deed within 30 (thirty) days from the date of the Company issuing the notice offering possession of the said Land to the Allottee.</p>
@@ -392,7 +375,7 @@ const PlotAgreementEnglish = ({
 
           <p className="m-0 leading-relaxed pt-1"><span className="font-bold">C. ABANDONMENT OF THE PROJECT</span></p>
           <p className="m-0 leading-relaxed">
-            The Allottee agrees that, if as a result of any legislation, order or rule or regulation made or issued by the Government or any other authority or if any competent authority refuses, delays, withholds, denies the grant of necessary approvals for the said Project or if any matters, issues relating to such approvals, permissions, notices, notifications by any competent authority becomes subject matter of any suit/writ before a competent court or if due to force majeure conditions, the Company, after provisional and/or final allotment is unable to deliver the said Land to the Allottee for his/her/its occupation and/or use, the Company shall be entitled, in its sole discretion, to abandon the whole or part of the said project (i.e., the development of the said Project) and upon such abandonment where the possession of the said Land is not handed over to the Allottee, then the Company shall be liable to (and its liability shall be limited to) refund to the Allottee the entire amount paid by the Allottee to the Company as on the date of such refund with simple interest @10.40% PA, provided that it is agreed to by the Allottee that upon such refund the Allottee shall have no further claims against the Company and/or against any of its respective directors, employees or agents nor shall the Allottee have any right, title, claim or interest in or in relation to the said Project Land and/or the said Project or any part thereof.
+            The Allottee agrees that, if as a result of any legislation, order or rule or regulation made or issued by the Government or any other authority or if any competent authority refuses, delays, withholds, denies the grant of necessary approvals for the said Project or if any matters, issues relating to such approvals, permissions, notices, notifications by any competent authority becomes subject matter of any suit/writ before a competent court or if due to force majeure conditions, the Company, after provisional and/or final allotment is unable to deliver the said Land to the Allottee for his/her/its occupation and/or use, the Company shall be entitled, in its sole discretion, to abandon the whole or part of the said project (i.e., the development of the said Project) and upon such abandonment where the possession of the said Land is not handed over to the Allottee, then the Company shall be liable to (and its liability shall be limited to) refund to the Allottee the entire amount paid by the Allottee to the Company as on the date of such refund with simple <span className="font-bold">interest @10.40% PA</span>, provided that it is agreed to by the Allottee that upon such refund the Allottee shall have no further claims against the Company and/or against any of its respective directors, employees or agents nor shall the Allottee have any right, title, claim or interest in or in relation to the said Project Land and/or the said Project or any part thereof.
           </p>
         </div>
 
@@ -403,8 +386,6 @@ const PlotAgreementEnglish = ({
           PAGE 7: CLAUSES 10, 11, 12, 13 & 14 (TRANSFER & NOTICE)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
-
         <div className="flex-1 space-y-1">
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-0.5 pb-0.5">10. TRANSFER / ASSIGNMENT OF ALLOTMENT</h4>
           <p className="m-0 leading-relaxed pt-0.5"><span className="font-bold">A. TERMS AND CONDITIONS BINDING ON TRANSFEREE/ASSIGNEE</span></p>
@@ -449,8 +430,6 @@ const PlotAgreementEnglish = ({
           PAGE 8: CLAUSES 15-18 & IN WITNESS WHEREOF (SIGNATURES & WITNESSES)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
-
         <div className="flex-1 space-y-1.5 pt-1">
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-0.5 pb-0.5">15. ENTIRE AGREEMENT</h4>
           <p className="m-0 leading-relaxed">
@@ -497,17 +476,19 @@ const PlotAgreementEnglish = ({
             </div>
 
             <div className="border-t border-slate-300 pt-2.5">
-              <p className="font-bold uppercase text-[0.74rem] text-slate-900 m-0 mb-1.5">WITNESSES:</p>
-              <div className="grid grid-cols-2 gap-4 text-[0.72rem]">
-                <div className="space-y-1">
-                  <p className="m-0">1. ___________________________</p>
-                  <p className="m-0">Name: ________________________</p>
-                  <p className="m-0 text-[0.68rem] text-slate-500">Address: _____________________________________</p>
+              <p className="font-bold uppercase text-[0.74rem] text-slate-900 m-0 mb-2">WITNESSES:</p>
+              <div className="space-y-2 text-[0.72rem] max-w-md">
+                <div className="flex items-center">
+                  <span className="font-bold text-slate-800 w-28 shrink-0">Developer ID:</span>
+                  <span className="flex-1 border-b border-slate-500 h-3"></span>
                 </div>
-                <div className="space-y-1">
-                  <p className="m-0">2. ___________________________</p>
-                  <p className="m-0">Name: ________________________</p>
-                  <p className="m-0 text-[0.68rem] text-slate-500">Address: _____________________________________</p>
+                <div className="flex items-center">
+                  <span className="font-bold text-slate-800 w-28 shrink-0">Name:</span>
+                  <span className="flex-1 border-b border-slate-500 h-3"></span>
+                </div>
+                <div className="flex items-center">
+                  <span className="font-bold text-slate-800 w-28 shrink-0">Signature:</span>
+                  <span className="flex-1 border-b border-slate-500 h-3"></span>
                 </div>
               </div>
             </div>
@@ -521,10 +502,8 @@ const PlotAgreementEnglish = ({
           PAGE 9: ANNEXURE - 1 (PROPERTY & FINANCIAL DETAILS)
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
-        <PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />
-
         <div className="flex-1 space-y-4 pt-2">
-          <h3 className="font-black text-center text-sm uppercase tracking-wider text-slate-900 border-t-2 border-b-2 border-slate-900 py-1.5 m-0">
+          <h3 className="font-black text-center mb-1 text-sm uppercase tracking-wider text-slate-900 border-t-2 border-b-2 border-slate-900 py-1.5 m-0">
             ANNEXURE - 1
           </h3>
 
@@ -534,8 +513,8 @@ const PlotAgreementEnglish = ({
                 <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PROJECT LOCALITY:</td>
                   <td className="p-3 w-1/4 border-r border-slate-300 uppercase font-bold">{cityRajgir}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PLAN:</td>
-                  <td className="p-3 w-1/4 font-mono font-bold uppercase">{planCode}</td>
+                  <td className="p-3 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PLOT NO:</td>
+                  <td className="p-3 w-1/4 font-mono font-bold uppercase">{plotNo}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT SIZE (SQFT):</td>
@@ -544,41 +523,37 @@ const PlotAgreementEnglish = ({
                   <td className="p-3 font-bold text-slate-900">{formatCurrency(netPlotValue)}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
+                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">DOWNPAYMENT AMOUNT:</td>
+                  <td className="p-3 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(downpaymentRequired || downpaymentAmount)}</td>
+                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">TOTAL PAYMENT RECEIVED:</td>
+                  <td className="p-3 font-bold text-emerald-700">{formatCurrency(paidAmount ?? downpaymentAmount)}</td>
+                </tr>
+                <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT PAYMENT PLAN:</td>
                   <td className="p-3 border-r border-slate-300 font-bold uppercase">{booking.scheme || 'INSTALLMENT'}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">TOTAL PAYMENT RECEIVED:</td>
-                  <td className="p-3 font-bold text-emerald-700">{formatCurrency(downpaymentAmount)}</td>
-                </tr>
-                <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">REST AMOUNT:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">EMI DURATION:</td>
-                  <td className="p-3 font-bold">{installmentCount} installments</td>
+                  <td className="p-3 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
+                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">EMI DURATION:</td>
+                  <td className="p-3 border-r border-slate-300 font-bold">{installmentCount} installments</td>
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">EMI AMOUNT:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold">{formatCurrency(standardEmiAmt)}</td>
+                  <td className="p-3 font-bold">{formatCurrency(standardEmiAmt)}</td>
+                </tr>
+                <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PAYMENT MODE / DETAILS:</td>
-                  <td className="p-3 font-bold uppercase">{booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD'}</td>
+                  <td className="p-3 font-bold uppercase" colSpan={3}>{booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD'}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT DIMENSIONS / पैमाइश:</td>
                   <td className="p-3 border-r border-slate-300 text-xs" colSpan={3}>
-                    <strong>North (पूरब-पश्चिम जानिब उत्तर):</strong> {plot.dimensions?.north || '-'} ft &nbsp;|&nbsp; 
-                    <strong>South (पूरब-पश्चिम जानिब दक्षिण):</strong> {plot.dimensions?.south || '-'} ft &nbsp;|&nbsp; 
-                    <strong>East (उत्तर-दक्षिण जानिब पूरब):</strong> {plot.dimensions?.east || '-'} ft &nbsp;|&nbsp; 
+                    <strong>North (पूरब-पश्चिम जानिब उत्तर):</strong> {plot.dimensions?.north || '-'} ft &nbsp;|&nbsp;
+                    <strong>South (पूरब-पश्चिम जानिब दक्षिण):</strong> {plot.dimensions?.south || '-'} ft &nbsp;|&nbsp;
+                    <strong>East (उत्तर-दक्षिण जानिब पूरब):</strong> {plot.dimensions?.east || '-'} ft &nbsp;|&nbsp;
                     <strong>West (उत्तर-दक्षिण जानिब पश्चिम):</strong> {plot.dimensions?.west || '-'}
                   </td>
                 </tr>
-                <tr>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">CHAUDHI / चौहद्दी:</td>
-                  <td className="p-3 font-medium" colSpan={3}>
-                    <strong>North:</strong> {plot.boundaries?.north || '-'} &nbsp;|&nbsp; 
-                    <strong>South:</strong> {plot.boundaries?.south || '-'} &nbsp;|&nbsp; 
-                    <strong>East:</strong> {plot.boundaries?.east || '-'} &nbsp;|&nbsp; 
-                    <strong>West:</strong> {plot.boundaries?.west || '-'}
-                  </td>
-                </tr>
+
               </tbody>
             </table>
           </div>

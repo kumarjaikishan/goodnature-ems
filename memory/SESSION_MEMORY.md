@@ -1,5 +1,24 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Agreement Date Bound to Downpayment Completion Date [COMPLETED]**:
+  - **Requirement**: In the Plot Buyer's Agreement (`/dashboard/plots/agreements/:id`), the execution date of the agreement must be the date when the downpayment was finally completed rather than the booking creation date.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementViewer.jsx`:
+      - Fetched receipt records via `api.get('/plots/receipts/list?bookingId=${id}')`.
+      - Sorted approved receipts by transaction date (`paymentDate || createdAt`) and accumulated payments until `cumPaid >= downpaymentRequired`.
+      - Extracted the exact date when the downpayment milestone was achieved (`completionDate`).
+      - Fallback chain: Downpayment installment `paidDate` -> latest approved receipt -> booking date.
+      - Formatted this date into `formattedDate` (`"{ordinal} Day of {Month} {Year}"`) for rendering in the agreement execution preamble and recitals.
+  - **Verification**:
+    - Validated with `oxlint` (0 errors, 0 warnings). Instant Vite HMR active.
+
+- **Merged Commit `fdgfd` from Development to Main [COMPLETED]**:
+  - **Requirement**: Bring changes from commit `fdgfd` (`f939099a`) on `development` branch into `main`.
+  - **Implementation**:
+    - Switched to `main` branch.
+    - Performed fast-forward merge from `development` up to commit `f939099a`.
+    - Verified `git diff main..development` returns 0 differences. Both `main` and `development` are at commit `f939099a`.
+
 - **Plot Agreement Route Permission Guard Fix (`plot_booking`) [COMPLETED]**:
   - **Issue**: Users (like Ghanshyam Kumar) assigned `Plot Bookings & Agreements (Add / Create Agreements)` (`plot_booking`) permission received an "Access Restricted" screen when navigating to `/dashboard/plots/agreements/:id`.
   - **Root Cause**:
@@ -2086,17 +2105,26 @@ This file records session notes, caveats, and discoveries across active sessions
       - Computed `canApprove`: Strictly requires `isRecipient` for cash drawer destinations, and bank permission for bank destinations.
       - Replaced generic action state with contextual indicator badge (`Awaiting Recipient` or `Awaiting Bank Checker`) for pending non-actionable transfers.
 
-- **Complete Removal of Weekly Return / Money-Back Payout System [COMPLETED]**:
-  - **User Clarification**: The project does not use or need weekly return / money-back payouts for plot bookings.
-  - **Frontend**:
-    - `client/src/pages/plots/reports/components/BookingColumns.jsx`: Removed weekly payout setup button (`CalendarPlus`) and payout ledger button (`Coins`).
-    - `client/src/pages/plots/reports/PlotReports.jsx`: Removed `SetupPayoutModal` import, state hooks, and modal rendering.
-    - `client/src/pages/plots/reports/components/SetupPayoutModal.jsx`: Replaced with clean no-op component.
-    - `client/src/pages/plots/booking/PlotBookingDetails.jsx`: Removed "Payout Ledger" button and unused `Banknote` icon import.
-    - `client/src/App.jsx`: Removed `plots/payout-ledger` and `plots/vouchers/:id` (payout voucher print) routes and imports.
-    - `client/src/components/Navbar.jsx`: Removed `payout-ledger` breadcrumb title mapping.
-  - **Backend**:
-    - `server/index.js`: Removed `initPlotPayoutScheduler` import and initialization.
-    - `server/cron/plotPayoutScheduler.js`: Converted into a safe no-op.
-    - `server/router/plots.routes.js`: Removed `/bookings/:id/payout/initialize`, `/bookings/:id/payout/pay`, `/bookings/:id/payout/ledger`, and `/payout-vouchers/:id` routes.
+- **Plot Buyer's Agreement Agreement Date Calculation & Running Header Cleanup [COMPLETED]**:
+  - **Downpayment Completion Date on Agreements**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementViewer.jsx`, updated the Agreement Date calculation logic so that the date displayed in "executed at Bihar Sharif on this [Date]" is derived from the exact payment date of the receipt that completed the downpayment requirement, rather than the initial booking creation date.
+    - If receipts have not yet completed the full downpayment milestone, it safely falls back to the latest payment date or booking creation date.
+  - **Running Page Header Removal from Pages 2 through 9**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`, removed `<PageHeader customerName={customerName} agreementNo={agreementNo} plotNo={plotNo} />` from Pages 2, 3, 4, 5, 6, 7, 8, and 9.
+    - Page 1 retains its clean metadata bar (`NAME: ... AGREEMENT NO: ... PLOT NO: ...`) positioned under the stamp paper space as requested.
+    - Removed the unused `PageHeader` component definition, leaving 0 linting warnings and 0 errors in `oxlint`.
+    - Page vertical flex flow relaxes naturally into the extra space without affecting clause numbering or page-break boundaries.
+  - **Witness Section (Developer) Vertical Stack Alignment**:
+    - On Page 8 of [PlotAgreementEnglish.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx), formatted the witness section in vertical lines (`space-y-2`) with equal-width labels (`w-28`) for `Developer ID:`, `Name:`, and `Signature:`, followed by aligned continuous write lines (`flex-1 border-b border-slate-500`).
+  - **Annexure - 1 Dynamic Plot Number (Replacing Static Plan Code)**:
+    - On Page 9 of [PlotAgreementEnglish.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx), updated the table header cell from static `PLAN: NNNC/ROW/B2` to dynamic `PLOT NO: {plotNo}` (`plot.plotNumber || booking.plotNumber || plot.plotName || 'N/A'`), displaying the exact booked plot name/number (e.g. `D029`) dynamically.
+  - **Annexure - 1 Explicit Downpayment Amount Field**:
+    - Added dedicated row for `DOWNPAYMENT AMOUNT:` (`downpaymentRequired || downpaymentAmount`) alongside `TOTAL PAYMENT RECEIVED:` (`paidAmount`), providing clear visibility of the agreed downpayment commitment versus the actual payments collected.
+  - **Plot Booking Table Edit Button Unhidden [COMPLETED]**:
+    - In [BookingColumns.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/reports/components/BookingColumns.jsx) (`/dashboard/plots/booking`), unhid the "Edit Booking Contract" button (`Edit3` icon) in the Actions column.
+    - Clicking it triggers `handleEditClick(booking)` navigating directly to the full contract editor `/dashboard/plots/booking/edit/:id`.
+    - Also enabled the Edit button in [DueAndHoldColumns.jsx](file:///c:/Users/jai%20kishan/Desktop/Coding/Ems-goodnature/client/src/pages/plots/reports/components/DueAndHoldColumns.jsx) for Plot Holds.
+    - Cleaned up unused imports (`Trash2`, `api`) with 0 oxlint warnings and 0 errors.
+
+
 
