@@ -1,5 +1,13 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Removed "admeasuring area {projectArea}" from Agreements [COMPLETED]**:
+  - **Requirement**: Remove the circled "admeasuring area 19.5 Acres Approx. ," phrase from Recital A in the Plot Buyer's Agreement and Investment Booking Agreement.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx` (which powers both Plot Agreement Viewer and Product Agreement Viewer):
+      - Removed `<span className='font-bold'>admeasuring area {projectArea}</span> , ` from Recital A on Page 2.
+      - Removed unused `const projectArea` variable.
+    - Verified with `oxlint` (0 errors, 0 warnings) and tested Vite build (`npm run build`).
+
 - **Synchronized Development Branch with Main (Local & GitHub) [COMPLETED]**:
   - **Requirement**: Make the `development` branch identical to the `main` branch locally and on GitHub.
   - **Implementation**:

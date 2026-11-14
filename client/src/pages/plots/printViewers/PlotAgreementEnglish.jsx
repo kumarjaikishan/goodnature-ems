@@ -55,7 +55,6 @@ const PlotAgreementEnglish = ({
   const districtNalanda = booking.district || plot.district || series.district || 'Nalanda';
   const stateBihar = booking.state || plot.state || series.state || 'Bihar';
   const projectName = series.seriesName || series.projectName || plot.projectName || 'Nalanda New City';
-  const projectArea = series.projectArea || '19.5 Acres Approx.';
 
   const plotArea = plot.plotSize || plot.area || plot.areaSqFt || booking.plotAreaSqFt || 1200;
 
@@ -145,7 +144,7 @@ const PlotAgreementEnglish = ({
 
         <div className="flex-1 space-y-1">
           <p className="m-0">
-            <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land <span className='font-bold'>admeasuring area {projectArea}</span> ,  located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
+            <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
           </p>
 
           <p className="m-0">
