@@ -48,11 +48,20 @@ const ProductAgreementViewer = () => {
   const [booking, setBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [collections, setCollections] = useState([]);
+  const [refundRatePercent, setRefundRatePercent] = useState(10.88);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+
+    api.get('/plots/rate-config')
+      .then((rcRes) => {
+        if (rcRes.data?.data?.interestRatePercent !== undefined) {
+          setRefundRatePercent(Number(rcRes.data.data.interestRatePercent));
+        }
+      })
+      .catch(() => {});
 
     api.get(`/plots/product-bookings/${id}`)
       .then((res) => {
@@ -291,6 +300,8 @@ const ProductAgreementViewer = () => {
     plot,
     series,
     formattedDate,
+    completionDate,
+    installments,
     netPlotValue,
     customerName,
     downpaymentAmount,
@@ -303,6 +314,7 @@ const ProductAgreementViewer = () => {
     isEmiUniform,
     regularEmiCount,
     dailyLateFineAmt,
+    refundRatePercent,
     numberToWords,
   };
 

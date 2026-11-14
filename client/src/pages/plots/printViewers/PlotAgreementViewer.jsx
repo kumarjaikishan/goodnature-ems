@@ -48,6 +48,7 @@ const PlotAgreementViewer = () => {
   const [booking, setBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [receipts, setReceipts] = useState([]);
+  const [refundRatePercent, setRefundRatePercent] = useState(10.88);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,12 +56,16 @@ const PlotAgreementViewer = () => {
     Promise.all([
       api.get(`/plots/bookings/${id}`),
       api.get(`/plots/bookings/${id}/installments`).catch(() => ({ data: { data: [] } })),
-      api.get(`/plots/receipts/list?bookingId=${id}`).catch(() => ({ data: { data: [] } }))
+      api.get(`/plots/receipts/list?bookingId=${id}`).catch(() => ({ data: { data: [] } })),
+      api.get('/plots/rate-config').catch(() => ({ data: { data: null } }))
     ])
-      .then(([bookingRes, instRes, receiptsRes]) => {
+      .then(([bookingRes, instRes, receiptsRes, rateConfigRes]) => {
         setBooking(bookingRes.data.data);
         setInstallments(instRes.data.data || []);
         setReceipts(receiptsRes.data?.data || []);
+        if (rateConfigRes.data?.data?.interestRatePercent !== undefined) {
+          setRefundRatePercent(Number(rateConfigRes.data.data.interestRatePercent));
+        }
         setLoading(false);
       })
       .catch(() => {
@@ -71,7 +76,14 @@ const PlotAgreementViewer = () => {
             setBooking(pBooking);
             setInstallments(pBooking?.installments || []);
             setReceipts(pBooking?.collections || []);
-            setLoading(false);
+            api.get('/plots/rate-config')
+              .then((rcRes) => {
+                if (rcRes.data?.data?.interestRatePercent !== undefined) {
+                  setRefundRatePercent(Number(rcRes.data.data.interestRatePercent));
+                }
+              })
+              .catch(() => {})
+              .finally(() => setLoading(false));
           })
           .catch((err) => {
             console.error('Failed to load agreement booking details:', err);
@@ -289,6 +301,8 @@ const PlotAgreementViewer = () => {
     plot,
     series,
     formattedDate,
+    completionDate,
+    installments,
     netPlotValue,
     customerName,
     downpaymentAmount,
@@ -301,6 +315,7 @@ const PlotAgreementViewer = () => {
     isEmiUniform,
     regularEmiCount,
     dailyLateFineAmt,
+    refundRatePercent,
     numberToWords
   };
 

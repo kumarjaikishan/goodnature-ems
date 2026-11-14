@@ -1,5 +1,20 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Agreement End Date in Point 4-c and Annexure-1 (Page 9) [COMPLETED]**:
+  - **Requirement**:
+    - In Point 4-c of the Buyer's Agreement, explicitly state the Agreement End Date (which is the date when the last regular EMI is due).
+    - In Annexure-1 (Page 9) table, show the Agreement End Date with label `AGREEMENT END DATE:`.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`:
+      - Extracted the last regular EMI installment's `dueDate` from `installments` (with fallback to `booking.agreementEndDate` or `completionDate + installmentCount`).
+      - Formatted dynamically into ordinal date format (e.g., `10th Day of October 2028`).
+      - Updated Clause 4-c for both Installment Plan and Full Payment scheme to state:
+        - For Installments: `The Agreement End Date is {agreementEndDateStr}, being the date on which the last installment is due.`
+        - For Full Payment: `1 years (One Years) from the last validity date / Agreement End Date of this agreement i.e. {agreementEndDateStr}.`
+      - Added `AGREEMENT END DATE:` field into the Annexure-1 property & financial table.
+    - In `PlotAgreementViewer.jsx` and `ProductAgreementViewer.jsx`: forwarded `installments` and `completionDate` to `sharedProps`.
+    - Verified with `oxlint` (0 errors, 0 warnings) and tested Vite build (`npm run build`).
+
 - **Added Proper Visual Spacing Between Points (A, B, C...) in Agreement [COMPLETED]**:
   - **Requirement**: Add clear, clean spacing between distinct points like A, B, C... in the Buyer's Agreement instead of cramped single-spaced paragraphs.
   - **Implementation**:
