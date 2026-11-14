@@ -275,8 +275,8 @@ const PlotAgreementViewer = () => {
   const remainingBalanceAmount = Math.max(0, netPlotValue - downpaymentAmount);
 
   const regularInsts = (installments || []).filter(i => i.installmentNumber > 0);
-  const installmentCount = regularInsts.length || booking.installmentCount || booking.tenureMonths || (isFullPayment ? 1 : 0);
-  const standardEmiAmt = booking.monthlyEmi || booking.installmentAmount || booking.emiAmount || regularInsts[0]?.dueAmount || (installmentCount > 0 ? Math.round(remainingBalanceAmount / installmentCount) : 0);
+  const installmentCount = isFullPayment ? 0 : (regularInsts.length || booking.installmentCount || booking.tenureMonths || 0);
+  const standardEmiAmt = isFullPayment ? 0 : (booking.monthlyEmi || booking.installmentAmount || booking.emiAmount || regularInsts[0]?.dueAmount || (installmentCount > 0 ? Math.round(remainingBalanceAmount / installmentCount) : 0));
   const lastEmiInst = regularInsts.length > 0 ? regularInsts[regularInsts.length - 1] : null;
   const lastEmiAmt = lastEmiInst ? (lastEmiInst.dueAmount || lastEmiInst.principalDue) : standardEmiAmt;
   const isEmiUniform = standardEmiAmt === lastEmiAmt;

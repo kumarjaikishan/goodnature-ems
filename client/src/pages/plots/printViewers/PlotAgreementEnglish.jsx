@@ -80,21 +80,25 @@ const PlotAgreementEnglish = ({
   const plotNo = plot.plotNumber || booking.plotNumber || plot.plotName || booking.plotName || 'N/A';
   const totalPages = 9;
 
-  // Calculate Agreement End Date (the date when the last regular EMI is due)
+  // Calculate Agreement End Date (or Investment Maturity / Lock-in End Date)
   const isFullPayment = booking.scheme === 'FULL_PAYMENT';
   const regularInsts = (installments || []).filter(i => i.installmentNumber > 0);
   const lastEmiInst = regularInsts.length > 0 ? regularInsts[regularInsts.length - 1] : null;
 
   let calculatedEndDate = null;
-  if (lastEmiInst?.dueDate) {
+  if (!isFullPayment && lastEmiInst?.dueDate) {
     calculatedEndDate = new Date(lastEmiInst.dueDate);
   } else if (booking.agreementEndDate) {
     calculatedEndDate = new Date(booking.agreementEndDate);
   } else {
-    // Fallback: derive from base start date + installment tenure (or 1 month for full payment)
+    // For Full Payment, the agreement/lock-in tenure is the contract period (e.g. tenureMonths like 72M, or oneTimeMonths, or 12M default)
     const baseDate = completionDate ? new Date(completionDate) : new Date(booking.bookingDate || booking.createdAt || Date.now());
-    const monthsToAdd = isFullPayment ? (Number(booking.oneTimeMonths) || 1) : (Number(installmentCount) || regularInsts.length || 1);
-    calculatedEndDate = new Date(baseDate.setMonth(baseDate.getMonth() + monthsToAdd));
+    const monthsToAdd = isFullPayment
+      ? (Number(booking.tenureMonths) || Number(booking.oneTimeMonths) || 12)
+      : (Number(installmentCount) || regularInsts.length || 1);
+    const targetDate = new Date(baseDate);
+    targetDate.setMonth(targetDate.getMonth() + monthsToAdd);
+    calculatedEndDate = targetDate;
   }
 
   const formatFullDate = (d) => {
@@ -122,6 +126,13 @@ const PlotAgreementEnglish = ({
     : (booking.tenureMonths || installmentCount
       ? `PLAN-${booking.tenureMonths || installmentCount}M`
       : (isFullPayment ? 'FULL PAYMENT' : 'STANDARD'));
+
+  // Rate resolution: Use the booking's selected plan interest rate (e.g. 11.721% for GROW/72-M One-Time, 13.378% for EMI), fallback to refundRatePercent / 10.88
+  const bookingAnnualRate = booking.annualInterestRate !== undefined && booking.annualInterestRate !== null && Number(booking.annualInterestRate) > 0
+    ? Number(booking.annualInterestRate)
+    : (booking.refundInterestRate !== undefined && Number(booking.refundInterestRate) > 0
+      ? Number(booking.refundInterestRate)
+      : Number(refundRatePercent || 10.88));
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -292,11 +303,11 @@ const PlotAgreementEnglish = ({
             <p className="m-0 leading-relaxed">
               <span className="font-bold">c.</span> {booking.scheme === 'FULL_PAYMENT' ? (
                 <>
-                  That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of Aggrement of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date / Agreement End Date of this agreement i.e. <span className="font-bold">{agreementEndDateStr}</span>.
+                  That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of Agreement of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date / Agreement End Date of this agreement i.e. <span className="font-bold">{agreementEndDateStr}</span>.
                 </>
               ) : (
                 <>
-                  That the Allottee has paid to the Company a sum of <span className="font-bold">{formatCurrency(downpaymentAmount)}</span> ({numberToWords(downpaymentAmount)}) at the time of Application and balance amount of <span className="font-bold">{formatCurrency(remainingBalanceAmount)}</span> ({numberToWords(remainingBalanceAmount)}) is agreed to be paid as per the payment plan, described in the Annexure-I of this Agreement and as per the other applicable provisions of this Agreement. That the Allottee has chosen {installmentCount} installment plan for payment of balance agreed sale consideration and agrees to pay installment of <span className="font-bold">{formatCurrency(standardEmiAmt)}</span> for a period of total {installmentCount} installments. The Agreement End Date is <span className="font-bold">{agreementEndDateStr}</span>, being the date on which the last installment is due.
+                  That the Allottee has paid to the Company a sum of <span className="font-bold">{formatCurrency(downpaymentAmount)}</span> ({numberToWords(downpaymentAmount)}) at the time of Agreement and balance amount of <span className="font-bold">{formatCurrency(remainingBalanceAmount)}</span> ({numberToWords(remainingBalanceAmount)}) is agreed to be paid as per the payment plan, described in the Annexure-I of this Agreement and as per the other applicable provisions of this Agreement. That the Allottee has chosen {installmentCount} installment plan for payment of balance agreed sale consideration and agrees to pay installment of <span className="font-bold">{formatCurrency(standardEmiAmt)}</span> for a period of total {installmentCount} installments. The Agreement End Date is <span className="font-bold">{agreementEndDateStr}</span>, being the date on which the last installment is due.
                 </>
               )}
             </p>
@@ -425,7 +436,7 @@ const PlotAgreementEnglish = ({
 
           <p className="m-0 leading-relaxed pt-1"><span className="font-bold">C. ABANDONMENT OF THE PROJECT</span></p>
           <p className="m-0 leading-relaxed">
-            The Allottee agrees that, if as a result of any legislation, order or rule or regulation made or issued by the Government or any other authority or if any competent authority refuses, delays, withholds, denies the grant of necessary approvals for the said Project or if any matters, issues relating to such approvals, permissions, notices, notifications by any competent authority becomes subject matter of any suit/writ before a competent court or if due to force majeure conditions, the Company, after provisional and/or final allotment is unable to deliver the said Land to the Allottee for his/her/its occupation and/or use, the Company shall be entitled, in its sole discretion, to abandon the whole or part of the said project (i.e., the development of the said Project) and upon such abandonment where the possession of the said Land is not handed over to the Allottee, then the Company shall be liable to (and its liability shall be limited to) refund to the Allottee the entire amount paid by the Allottee to the Company as on the date of such refund with simple <span className="font-bold">interest @{Number(refundRatePercent || 10.88).toFixed(2)}% PA</span>, provided that it is agreed to by the Allottee that upon such refund the Allottee shall have no further claims against the Company and/or against any of its respective directors, employees or agents nor shall the Allottee have any right, title, claim or interest in or in relation to the said Project Land and/or the said Project or any part thereof.
+            The Allottee agrees that, if as a result of any legislation, order or rule or regulation made or issued by the Government or any other authority or if any competent authority refuses, delays, withholds, denies the grant of necessary approvals for the said Project or if any matters, issues relating to such approvals, permissions, notices, notifications by any competent authority becomes subject matter of any suit/writ before a competent court or if due to force majeure conditions, the Company, after provisional and/or final allotment is unable to deliver the said Land to the Allottee for his/her/its occupation and/or use, the Company shall be entitled, in its sole discretion, to abandon the whole or part of the said project (i.e., the development of the said Project) and upon such abandonment where the possession of the said Land is not handed over to the Allottee, then the Company shall be liable to (and its liability shall be limited to) refund to the Allottee the entire amount paid by the Allottee to the Company as on the date of such refund with simple <span className="font-bold">interest @{Number(bookingAnnualRate).toFixed(3).replace(/\.?0+$/, '')}% PA</span>, provided that it is agreed to by the Allottee that upon such refund the Allottee shall have no further claims against the Company and/or against any of its respective directors, employees or agents nor shall the Allottee have any right, title, claim or interest in or in relation to the said Project Land and/or the said Project or any part thereof.
           </p>
         </div>
 
@@ -587,12 +598,12 @@ const PlotAgreementEnglish = ({
                 <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">REST AMOUNT:</td>
                   <td className="p-3 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">EMI DURATION:</td>
-                  <td className="p-3 font-bold text-slate-900">{installmentCount} installments</td>
+                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">{isFullPayment ? 'LOCK-IN PERIOD:' : 'INSTALLMENT:'}</td>
+                  <td className="p-3 font-bold text-slate-900">{isFullPayment ? `${booking.tenureMonths || 12} Months (${+((booking.tenureMonths || 12) / 12).toFixed(1)} Yrs)` : `${installmentCount} installments`}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">EMI AMOUNT:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold">{formatCurrency(standardEmiAmt)}</td>
+                  <td className="p-3 border-r border-slate-300 font-bold">{isFullPayment ? formatCurrency(0) : formatCurrency(standardEmiAmt)}</td>
                   <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">AGREEMENT END DATE:</td>
                   <td className="p-3 font-bold text-slate-900">{agreementEndDateStr}</td>
                 </tr>
