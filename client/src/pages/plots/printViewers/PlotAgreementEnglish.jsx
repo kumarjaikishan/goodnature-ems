@@ -142,42 +142,45 @@ const PlotAgreementEnglish = ({
          ══════════════════════════════════════════════════════════ */}
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
 
-        <div className="flex-1 space-y-1">
-          <p className="m-0">
-            <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
-          </p>
+        <div className="flex-1 space-y-2">
+          {/* Recitals A through I with spacing between points */}
+          <div className="space-y-2">
+            <p className="m-0">
+              <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">B. AND WHEREAS</span>, the Company is developing the said Project and further plotting of Project Land where depth of 40 feet, 50 feet and 60 feet is fixed and front would be decided as per the customer choice.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">B. AND WHEREAS</span>, the Company is developing the said Project and further plotting of Project Land where depth of 40 feet, 50 feet and 60 feet is fixed and front would be decided as per the customer choice.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">C. AND WHEREAS</span>, the Allottee applied to the Company vide Booking No. <span className="font-bold">{applicationNo}</span>, dated <span className="font-bold">{formattedDate}</span> (hereinafter referred to as the "Application") agreeing to the terms and conditions set out therein for purchase of plot, tentatively admeasuring depth/ front <span className="font-bold">{plotDimension}</span> (hereinafter referred to as the "Plot") in the Project being developed on the Project Land.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">C. AND WHEREAS</span>, the Allottee applied to the Company vide Booking No. <span className="font-bold">{applicationNo}</span>, dated <span className="font-bold">{formattedDate}</span> (hereinafter referred to as the "Application") agreeing to the terms and conditions set out therein for purchase of plot, tentatively admeasuring depth/ front <span className="font-bold">{plotDimension}</span> (hereinafter referred to as the "Plot") in the Project being developed on the Project Land.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">D. AND WHEREAS</span>, subject to fulfillment of the terms and conditions mentioned in the application and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable, the Company has approved the desired plot to the Buyer in Project, which the Buyer has agreed to purchase.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">D. AND WHEREAS</span>, subject to fulfillment of the terms and conditions mentioned in the application and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable, the Company has approved the desired plot to the Buyer in Project, which the Buyer has agreed to purchase.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">E. AND WHEREAS</span>, the Allottee has thoroughly inspected all the relevant deeds, documents, approvals, licenses and authorizations in relation to the Company, the Project Land, the Project, including specifically the ownership records and documents relating to the title of the aforesaid Project Land, the Project plans, the permits / licenses / consents and having satisfied itself / himself / herself with the facts as stated herein or otherwise as may be relevant in relation to the said Project or for the purposes of this Agreement, has decided to execute this Agreement and all other related or incidental deeds and documents. The Allottee confirms that the Allottee does not require any further investigations in this regard and that the Allottee is fully satisfied in all respects.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">E. AND WHEREAS</span>, the Allottee has thoroughly inspected all the relevant deeds, documents, approvals, licenses and authorizations in relation to the Company, the Project Land, the Project, including specifically the ownership records and documents relating to the title of the aforesaid Project Land, the Project plans, the permits / licenses / consents and having satisfied itself / himself / herself with the facts as stated herein or otherwise as may be relevant in relation to the said Project or for the purposes of this Agreement, has decided to execute this Agreement and all other related or incidental deeds and documents. The Allottee confirms that the Allottee does not require any further investigations in this regard and that the Allottee is fully satisfied in all respects.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">F. AND WHEREAS</span>, the Allottee has full knowledge of the fact that the allotment of the Plot is subject to various eligibility criteria and restrictive covenants, which the Allottee represents and warrants that he/she fully meets all the eligibility criteria and undertakes to abide by all the terms and conditions pursuant thereto and undertakes to abide by the applicable provisions and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">F. AND WHEREAS</span>, the Allottee has full knowledge of the fact that the allotment of the Plot is subject to various eligibility criteria and restrictive covenants, which the Allottee represents and warrants that he/she fully meets all the eligibility criteria and undertakes to abide by all the terms and conditions pursuant thereto and undertakes to abide by the applicable provisions and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">G. AND WHEREAS</span>, the Company has allotted the Plot in the Project Land, bearing Serial No. - <span className="font-bold">{plotNo}</span>, and Khata No.- <span className="font-bold">{khataNo}</span> / Khasra No.- <span className="font-bold">{khasraNo}</span> of the said Project, on terms and conditions as stipulated hereinafter.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">G. AND WHEREAS</span>, the Company has allotted the Plot in the Project Land, bearing Serial No. - <span className="font-bold">{plotNo}</span>, and Khata No.- <span className="font-bold">{khataNo}</span> / Khasra No.- <span className="font-bold">{khasraNo}</span> of the said Project, on terms and conditions as stipulated hereinafter.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">H. AND WHEREAS</span>, the Allottee has confirmed to the Company that he/she/it is entering into this Agreement with full knowledge of all the laws, rules, regulations, notifications, etc. applicable to the said development and the terms and conditions contained in this Agreement and that he/she/it has clearly understood his/her/its rights, duties, responsibilities, obligations under each and all the clauses of this Agreement.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">H. AND WHEREAS</span>, the Allottee has confirmed to the Company that he/she/it is entering into this Agreement with full knowledge of all the laws, rules, regulations, notifications, etc. applicable to the said development and the terms and conditions contained in this Agreement and that he/she/it has clearly understood his/her/its rights, duties, responsibilities, obligations under each and all the clauses of this Agreement.
+            </p>
 
-          <p className="m-0">
-            <span className="font-bold">I. AND WHEREAS</span>, the Company, relying on the confirmations, representations and assurances of the Allottee to faithfully abide by all the terms, conditions and stipulations contained in this Agreement has accepted in good faith his/her/its Application to allot the said Plot and is now willing to enter into this Agreement on the terms and conditions appearing hereinafter.
-          </p>
+            <p className="m-0">
+              <span className="font-bold">I. AND WHEREAS</span>, the Company, relying on the confirmations, representations and assurances of the Allottee to faithfully abide by all the terms, conditions and stipulations contained in this Agreement has accepted in good faith his/her/its Application to allot the said Plot and is now willing to enter into this Agreement on the terms and conditions appearing hereinafter.
+            </p>
+          </div>
 
           <p className="font-black text-[0.72rem] tracking-wider text-slate-900 uppercase text-center m-0 py-1">
             NOW THEREFORE IT IS HEREBY AGREED AND DECLARED BY AND BETWEEN THE PARTIES HERETO AS FOLLOWS:
@@ -195,7 +198,7 @@ const PlotAgreementEnglish = ({
           <p className="m-0 leading-relaxed">
             <span className="font-bold">"Common Areas & Facilities"</span> shall mean and include:
           </p>
-          <div className="pl-3 space-y-0.5">
+          <div className="pl-3 space-y-1.5">
             <p className="m-0"><span className="font-bold">A.</span> the pathway ( Raasta) having width approx. 20ft developed or to be developed by the Company and which is absolutely defined, located and identified in the Project Land and all easements, rights and appurtenances belonging to the road in Project;</p>
             <p className="m-0"><span className="font-bold">B.</span> the common draining system (Drain of width approx. 2Ft), developed or to be developed by the Company and which is absolutely defined, located and identified in the Project Land and all easements, rights and appurtenances belonging to the road in Project;</p>
             <p className="m-0"><span className="font-bold">C.</span> Community Hall, Park and all other facilities which is necessary or convenient to its existence, maintenance and safety or normally in common use.</p>
@@ -213,7 +216,7 @@ const PlotAgreementEnglish = ({
         <div className="flex-1 space-y-1">
           <h5 className="font-bold text-slate-900 text-[0.72rem] m-0">1.2 Interpretation</h5>
           <p className="m-0 leading-relaxed">Interpretation Unless the context otherwise requires in this Agreement:</p>
-          <div className="pl-3 space-y-0.5">
+          <div className="pl-3 space-y-1">
             <p className="m-0"><span className="font-bold">A.</span> the use of words importing the singular shall include plural and masculine shall include feminine gender and vice versa;</p>
             <p className="m-0"><span className="font-bold">B.</span> reference to any law shall include such law as from time to time be enacted, amended, supplemented or re-enacted;</p>
             <p className="m-0"><span className="font-bold">C.</span> reference to the words "include" or "including" shall be construed without limitation;</p>
@@ -233,34 +236,36 @@ const PlotAgreementEnglish = ({
           </p>
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">4. TOTAL PRICE AND OTHER CHARGES PAYABLE BY THE ALLOTTEE</h4>
-          <p className="m-0 leading-relaxed">
-            <span className="font-bold">a.</span> The Allottee shall pay to the Company a total consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> ({numberToWords(netPlotValue)}), (hereinafter referred to as the "Total Price") towards the purchase of the Plot and the provision for certain other common services/facilities within the said Project.
-          </p>
-          <p className="m-0 leading-relaxed">
-            <span className="font-bold">b.</span> Notwithstanding anything to the contrary contained in this Agreement, the Total Price is exclusive of any applicable taxes, cesses, levies or assessment and the Allottee agrees and undertakes to pay on demand all such taxes, cess, levies or assessment including VAT, service tax etc., whether already levied, or leviable now or in future in relation to the Project Land and/or construction and development of the Project or otherwise in relation to the Project as applicable to the said Plot on the date of taking over the possession of the said Plot by the Allottee.
-          </p>
-          <p className="m-0 leading-relaxed">
-            <span className="font-bold">c.</span> {booking.scheme === 'FULL_PAYMENT' ? (
-              <>
-                That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of Aggrement of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date of this agreement.
-              </>
-            ) : (
-              <>
-                That the Allottee has paid to the Company a sum of <span className="font-bold">{formatCurrency(downpaymentAmount)}</span> ({numberToWords(downpaymentAmount)}) at the time of Application and balance amount of <span className="font-bold">{formatCurrency(remainingBalanceAmount)}</span> ({numberToWords(remainingBalanceAmount)}) is agreed to be paid as per the payment plan, described in the Annexure-I of this Agreement and as per the other applicable provisions of this Agreement. That the Allottee has chosen {installmentCount} installment plan for payment of balance agreed sale consideration and agrees to pay installment of <span className="font-bold">{formatCurrency(standardEmiAmt)}</span> for a period of total {installmentCount} installments.
-              </>
-            )}
-          </p>
-          <p className="m-0 leading-relaxed">
-            <span className="font-bold">d.</span> Any and all payments required to be made by the Allottee hereunder shall be made through wire transfer/cheque/demand draft drawn in favour of <span className="font-bold">"{companyName}"</span>, payable at Bihar Shariff, Bihar.
-          </p>
-          <p className="m-0 leading-relaxed pt-1">
-            <span className="font-bold">e. PAYMENT OF TAXES ON LAND, WEALTH-TAX, CESSES BY ALLOTTEE</span><br />
-            The Allottee agrees and undertakes to pay all Government rates, tax on land, municipal tax, property taxes, wealth tax, taxes, buildings or other worker construction fund fees or levies of all and any kind by whatever name called, whether levied or leviable now or in future by the Government, municipal authority or any other governmental authority on the said Project and/or the Project Land as the case may be, as in case assessable or applicable from the date of the Allottee's Application and the same shall be paid on pro rata basis and the determination of proportionate share by the Company and demand thereof shall be final and binding on the Allottee. However, if the said Plot is assessed separately, the Allottee shall pay directly to the competent authority.
-          </p>
-          <p className="m-0 leading-relaxed pt-1">
-            <span className="font-bold">f. ADJUSTMENT / APPROPRIATION OF PAYMENTS</span><br />
-            The Allottee authorizes the Company to adjust/appropriate all payments that shall be made by the Allottee under any head(s) of dues against outstanding heads in Allottee's name and the Allottee shall not have a right to object/demand/direct the Company to adjust the payments in any manner otherwise than as decided by the Company.
-          </p>
+          <div className="space-y-1.5">
+            <p className="m-0 leading-relaxed">
+              <span className="font-bold">a.</span> The Allottee shall pay to the Company a total consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> ({numberToWords(netPlotValue)}), (hereinafter referred to as the "Total Price") towards the purchase of the Plot and the provision for certain other common services/facilities within the said Project.
+            </p>
+            <p className="m-0 leading-relaxed">
+              <span className="font-bold">b.</span> Notwithstanding anything to the contrary contained in this Agreement, the Total Price is exclusive of any applicable taxes, cesses, levies or assessment and the Allottee agrees and undertakes to pay on demand all such taxes, cess, levies or assessment including VAT, service tax etc., whether already levied, or leviable now or in future in relation to the Project Land and/or construction and development of the Project or otherwise in relation to the Project as applicable to the said Plot on the date of taking over the possession of the said Plot by the Allottee.
+            </p>
+            <p className="m-0 leading-relaxed">
+              <span className="font-bold">c.</span> {booking.scheme === 'FULL_PAYMENT' ? (
+                <>
+                  That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of Aggrement of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date of this agreement.
+                </>
+              ) : (
+                <>
+                  That the Allottee has paid to the Company a sum of <span className="font-bold">{formatCurrency(downpaymentAmount)}</span> ({numberToWords(downpaymentAmount)}) at the time of Application and balance amount of <span className="font-bold">{formatCurrency(remainingBalanceAmount)}</span> ({numberToWords(remainingBalanceAmount)}) is agreed to be paid as per the payment plan, described in the Annexure-I of this Agreement and as per the other applicable provisions of this Agreement. That the Allottee has chosen {installmentCount} installment plan for payment of balance agreed sale consideration and agrees to pay installment of <span className="font-bold">{formatCurrency(standardEmiAmt)}</span> for a period of total {installmentCount} installments.
+                </>
+              )}
+            </p>
+            <p className="m-0 leading-relaxed">
+              <span className="font-bold">d.</span> Any and all payments required to be made by the Allottee hereunder shall be made through wire transfer/cheque/demand draft drawn in favour of <span className="font-bold">"{companyName}"</span>, payable at Bihar Shariff, Bihar.
+            </p>
+            <p className="m-0 leading-relaxed pt-0.5">
+              <span className="font-bold">e. PAYMENT OF TAXES ON LAND, WEALTH-TAX, CESSES BY ALLOTTEE</span><br />
+              The Allottee agrees and undertakes to pay all Government rates, tax on land, municipal tax, property taxes, wealth tax, taxes, buildings or other worker construction fund fees or levies of all and any kind by whatever name called, whether levied or leviable now or in future by the Government, municipal authority or any other governmental authority on the said Project and/or the Project Land as the case may be, as in case assessable or applicable from the date of the Allottee's Application and the same shall be paid on pro rata basis and the determination of proportionate share by the Company and demand thereof shall be final and binding on the Allottee. However, if the said Plot is assessed separately, the Allottee shall pay directly to the competent authority.
+            </p>
+            <p className="m-0 leading-relaxed pt-0.5">
+              <span className="font-bold">f. ADJUSTMENT / APPROPRIATION OF PAYMENTS</span><br />
+              The Allottee authorizes the Company to adjust/appropriate all payments that shall be made by the Allottee under any head(s) of dues against outstanding heads in Allottee's name and the Allottee shall not have a right to object/demand/direct the Company to adjust the payments in any manner otherwise than as decided by the Company.
+            </p>
+          </div>
         </div>
 
         <PageFooter pageNumber={3} totalPages={totalPages} />

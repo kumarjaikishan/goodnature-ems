@@ -1,5 +1,14 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Added Proper Visual Spacing Between Points (A, B, C...) in Agreement [COMPLETED]**:
+  - **Requirement**: Add clear, clean spacing between distinct points like A, B, C... in the Buyer's Agreement instead of cramped single-spaced paragraphs.
+  - **Implementation**:
+    - In `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`:
+      - Wrapped Recitals A through I on Page 2 in `space-y-2` (8px gap between each recital point).
+      - Increased spacing in sub-points A, B, C under Common Areas & Facilities to `space-y-1.5`.
+      - Increased spacing in Interpretation sub-points A to F and Total Price points `a.` through `f.` on Page 3.
+    - Verified with `oxlint` (0 warnings, 0 errors) and Vite build (`npm run build`).
+
 - **Removed "admeasuring area {projectArea}" from Agreements [COMPLETED]**:
   - **Requirement**: Remove the circled "admeasuring area 19.5 Acres Approx. ," phrase from Recital A in the Plot Buyer's Agreement and Investment Booking Agreement.
   - **Implementation**:
