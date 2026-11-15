@@ -134,6 +134,47 @@ const PlotAgreementEnglish = ({
       ? Number(booking.refundInterestRate)
       : Number(refundRatePercent || 10.88));
 
+  // Developer / Associate resolution for Witnesses
+  const sponsor = (booking.sponsorId && typeof booking.sponsorId === 'object' && booking.sponsorId._id)
+    ? booking.sponsorId
+    : (customer.sponsorId && typeof customer.sponsorId === 'object' && customer.sponsorId._id)
+      ? customer.sponsorId
+      : (booking.developerId && typeof booking.developerId === 'object' && booking.developerId._id)
+        ? booking.developerId
+        : (booking.sponsorId || customer.sponsorId || booking.developerId || {});
+
+  const developerCode = sponsor.sponsorCode ||
+    sponsor.customerCode ||
+    sponsor.developerId ||
+    sponsor.code ||
+    sponsor.customerId ||
+    booking.developerCode ||
+    booking.sponsorCode ||
+    '';
+
+  const developerName = sponsor.name ||
+    sponsor.fullName ||
+    booking.developerName ||
+    booking.sponsorName ||
+    '';
+
+  // Customer Bank Account resolution
+  const custBankName = customer.bankName || booking.bankName || customer.bank || '-';
+  const custBankBranch = customer.bankBranch || booking.bankBranch || customer.branch || '-';
+  const custAccountNo = customer.accountNumber || booking.accountNumber || customer.accountNo || '-';
+  const custIfscCode = customer.ifscCode || booking.ifscCode || customer.ifsc || '-';
+  const custAccountHolder = customer.accountHolderName || customer.name || customerName || '-';
+
+  // EMI Frequency resolution (Monthly, Quarterly, Half-Yearly, Yearly)
+  const rawEmiFreq = (booking.emiFrequency || 'MONTHLY').toUpperCase();
+  const emiFreqLabel = rawEmiFreq === 'QUARTERLY'
+    ? 'QUARTERLY (EVERY 3 MONTHS)'
+    : rawEmiFreq === 'HALF_YEARLY'
+      ? 'HALF-YEARLY (EVERY 6 MONTHS)'
+      : rawEmiFreq === 'YEARLY'
+        ? 'YEARLY (EVERY 12 MONTHS)'
+        : 'MONTHLY';
+
   return (
     <div className="w-full flex flex-col items-center">
 
@@ -185,7 +226,7 @@ const PlotAgreementEnglish = ({
               {customer.gender === 'Female' ? 'Smt.' : 'Shri/Smt.'} <span className="font-bold uppercase">{customerName}</span> {customer.relationType ? `${customer.relationType}` : 'Son/Daughter/Wife of'} <span className="font-bold uppercase">{customer.fatherOrHusbandName || 'N/A'}</span> Resident of <span className="font-bold">{[customer.address, customer.city, customer.state, customer.pincode].filter(Boolean).join(', ') || 'N/A'}</span>, (Hereinafter singly referred to as the <span className="font-bold">"Allottee"</span>, which expression shall, unless it be repugnant to the context or meaning thereof, be deemed to include his/her/their heirs, administrators, executors, successors and permitted assigns) of the <span className="font-bold uppercase">SECOND PART</span>.
             </p>
 
-            <p className="text-[0.72rem] text-slate-800 m-0 pt-0.5 leading-relaxed">
+            <p className="text-[0.72rem] text-slate-800 m-0 pt-3 leading-relaxed">
               (Hereinafter, the <span className='font-bold'>"Company"</span> and the <span className='font-bold'>"Allottee"</span> are collectively referred to as the <span className="font-bold">"Parties"</span> and individually as a <span className="font-bold">"Party"</span>, as the context demands).
             </p>
           </div>
@@ -203,39 +244,39 @@ const PlotAgreementEnglish = ({
           {/* Recitals A through I with spacing between points */}
           <div className="space-y-2">
             <p className="m-0">
-              <span className="font-bold">A. WHEREAS</span>, {companyName} is in the process of developing of land located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
+              <span className="font-bold mr-1.5">A. WHEREAS,</span>{companyName} is in the process of developing of land located in the revenue estate of Mauza- <span className="font-bold">{mauzaName}</span>, City-<span className="font-bold">{cityRajgir}</span>, District <span className="font-bold">{districtNalanda} {stateBihar}</span>, under the name and style of <span className="font-bold">"{projectName}"</span>, hereunder (hereinafter referred to as the "Project").
             </p>
 
             <p className="m-0">
-              <span className="font-bold">B. AND WHEREAS</span>, the Company is developing the said Project and further plotting of Project Land where depth of 40 feet, 50 feet and 60 feet is fixed and front would be decided as per the customer choice.
+              <span className="font-bold mr-1.5">B. AND WHEREAS,</span>the Company is developing the said Project and further plotting of Project Land where depth of 40 feet, 50 feet and 60 feet is fixed and front would be decided as per the customer choice.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">C. AND WHEREAS</span>, the Allottee applied to the Company vide Booking No. <span className="font-bold">{applicationNo}</span>, dated <span className="font-bold">{formattedDate}</span> (hereinafter referred to as the "Application") agreeing to the terms and conditions set out therein for purchase of plot, tentatively admeasuring depth/ front <span className="font-bold">{plotDimension}</span> (hereinafter referred to as the "Plot") in the Project being developed on the Project Land.
+              <span className="font-bold mr-1.5">C. AND WHEREAS,</span>the Allottee applied to the Company vide Booking No. <span className="font-bold">{applicationNo}</span>, dated <span className="font-bold">{formattedDate}</span> (hereinafter referred to as the "Application") agreeing to the terms and conditions set out therein for purchase of plot, tentatively admeasuring depth/ front <span className="font-bold">{plotDimension}</span> (hereinafter referred to as the "Plot") in the Project being developed on the Project Land.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">D. AND WHEREAS</span>, subject to fulfillment of the terms and conditions mentioned in the application and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable, the Company has approved the desired plot to the Buyer in Project, which the Buyer has agreed to purchase.
+              <span className="font-bold mr-1.5">D. AND WHEREAS,</span>subject to fulfillment of the terms and conditions mentioned in the application and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable, the Company has approved the desired plot to the Buyer in Project, which the Buyer has agreed to purchase.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">E. AND WHEREAS</span>, the Allottee has thoroughly inspected all the relevant deeds, documents, approvals, licenses and authorizations in relation to the Company, the Project Land, the Project, including specifically the ownership records and documents relating to the title of the aforesaid Project Land, the Project plans, the permits / licenses / consents and having satisfied itself / himself / herself with the facts as stated herein or otherwise as may be relevant in relation to the said Project or for the purposes of this Agreement, has decided to execute this Agreement and all other related or incidental deeds and documents. The Allottee confirms that the Allottee does not require any further investigations in this regard and that the Allottee is fully satisfied in all respects.
+              <span className="font-bold mr-1.5">E. AND WHEREAS,</span>the Allottee has thoroughly inspected all the relevant deeds, documents, approvals, licenses and authorizations in relation to the Company, the Project Land, the Project, including specifically the ownership records and documents relating to the title of the aforesaid Project Land, the Project plans, the permits / licenses / consents and having satisfied itself / himself / herself with the facts as stated herein or otherwise as may be relevant in relation to the said Project or for the purposes of this Agreement, has decided to execute this Agreement and all other related or incidental deeds and documents. The Allottee confirms that the Allottee does not require any further investigations in this regard and that the Allottee is fully satisfied in all respects.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">F. AND WHEREAS</span>, the Allottee has full knowledge of the fact that the allotment of the Plot is subject to various eligibility criteria and restrictive covenants, which the Allottee represents and warrants that he/she fully meets all the eligibility criteria and undertakes to abide by all the terms and conditions pursuant thereto and undertakes to abide by the applicable provisions and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable.
+              <span className="font-bold mr-1.5">F. AND WHEREAS,</span>the Allottee has full knowledge of the fact that the allotment of the Plot is subject to various eligibility criteria and restrictive covenants, which the Allottee represents and warrants that he/she fully meets all the eligibility criteria and undertakes to abide by all the terms and conditions pursuant thereto and undertakes to abide by the applicable provisions and any applicable laws, rules, regulations, bye-laws or orders made pursuant thereto or otherwise applicable.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">G. AND WHEREAS</span>, the Company has allotted the Plot in the Project Land, bearing Serial No. - <span className="font-bold">{plotNo}</span>, and Khata No.- <span className="font-bold">{khataNo}</span> / Khasra No.- <span className="font-bold">{khasraNo}</span> of the said Project, on terms and conditions as stipulated hereinafter.
+              <span className="font-bold mr-1.5">G. AND WHEREAS,</span>the Company has allotted the Plot in the Project Land, bearing Serial No. - <span className="font-bold">{plotNo}</span>, and Khata No.- <span className="font-bold">{khataNo}</span> / Khasra No.- <span className="font-bold">{khasraNo}</span> of the said Project, on terms and conditions as stipulated hereinafter.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">H. AND WHEREAS</span>, the Allottee has confirmed to the Company that he/she/it is entering into this Agreement with full knowledge of all the laws, rules, regulations, notifications, etc. applicable to the said development and the terms and conditions contained in this Agreement and that he/she/it has clearly understood his/her/its rights, duties, responsibilities, obligations under each and all the clauses of this Agreement.
+              <span className="font-bold mr-1.5">H. AND WHEREAS,</span>the Allottee has confirmed to the Company that he/she/it is entering into this Agreement with full knowledge of all the laws, rules, regulations, notifications, etc. applicable to the said development and the terms and conditions contained in this Agreement and that he/she/it has clearly understood his/her/its rights, duties, responsibilities, obligations under each and all the clauses of this Agreement.
             </p>
 
             <p className="m-0">
-              <span className="font-bold">I. AND WHEREAS</span>, the Company, relying on the confirmations, representations and assurances of the Allottee to faithfully abide by all the terms, conditions and stipulations contained in this Agreement has accepted in good faith his/her/its Application to allot the said Plot and is now willing to enter into this Agreement on the terms and conditions appearing hereinafter.
+              <span className="font-bold mr-1.5">I. AND WHEREAS,</span>the Company, relying on the confirmations, representations and assurances of the Allottee to faithfully abide by all the terms, conditions and stipulations contained in this Agreement has accepted in good faith his/her/its Application to allot the said Plot and is now willing to enter into this Agreement on the terms and conditions appearing hereinafter.
             </p>
           </div>
 
@@ -256,9 +297,9 @@ const PlotAgreementEnglish = ({
             <span className="font-bold">"Common Areas & Facilities"</span> shall mean and include:
           </p>
           <div className="pl-3 space-y-1.5">
-            <p className="m-0"><span className="font-bold">A.</span> the pathway ( Raasta) having width approx. 20ft developed or to be developed by the Company and which is absolutely defined, located and identified in the Project Land and all easements, rights and appurtenances belonging to the road in Project;</p>
-            <p className="m-0"><span className="font-bold">B.</span> the common draining system (Drain of width approx. 2Ft), developed or to be developed by the Company and which is absolutely defined, located and identified in the Project Land and all easements, rights and appurtenances belonging to the road in Project;</p>
-            <p className="m-0"><span className="font-bold">C.</span> Community Hall, Park and all other facilities which is necessary or convenient to its existence, maintenance and safety or normally in common use.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">A.</span>the pathway ( Raasta) having width approx. 20ft developed or to be developed by the Company and which is absolutely defined, located and identified in the Project Land and all easements, rights and appurtenances belonging to the road in Project;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">B.</span>the common draining system (Drain of width approx. 2Ft), developed or to be developed by the Company and which is absolutely defined, located and identified in the Project Land and all easements, rights and appurtenances belonging to the road in Project;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">C.</span>Community Hall, Park and all other facilities which is necessary or convenient to its existence, maintenance and safety or normally in common use.</p>
           </div>
         </div>
 
@@ -274,12 +315,12 @@ const PlotAgreementEnglish = ({
           <h5 className="font-bold text-slate-900 text-[0.72rem] m-0">1.2 Interpretation</h5>
           <p className="m-0 leading-relaxed">Interpretation Unless the context otherwise requires in this Agreement:</p>
           <div className="pl-3 space-y-1">
-            <p className="m-0"><span className="font-bold">A.</span> the use of words importing the singular shall include plural and masculine shall include feminine gender and vice versa;</p>
-            <p className="m-0"><span className="font-bold">B.</span> reference to any law shall include such law as from time to time be enacted, amended, supplemented or re-enacted;</p>
-            <p className="m-0"><span className="font-bold">C.</span> reference to the words "include" or "including" shall be construed without limitation;</p>
-            <p className="m-0"><span className="font-bold">D.</span> reference to this Agreement, or any other agreement, deed or other instrument or document shall be construed as reference to this Agreement or such agreement, deed or other instrument or document as the same may from time to time be amended, varied, supplemented or novated;</p>
-            <p className="m-0"><span className="font-bold">E.</span> words and abbreviations, used but not defined, which have well known technical or trade / commercial meanings are used in this Agreement in accordance with such meanings;</p>
-            <p className="m-0"><span className="font-bold">F.</span> all schedules, appendices, annexures, attachments, supplements to this Agreement shall constitute an integral part of this Agreement.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">A.</span>the use of words importing the singular shall include plural and masculine shall include feminine gender and vice versa;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">B.</span>reference to any law shall include such law as from time to time be enacted, amended, supplemented or re-enacted;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">C.</span>reference to the words "include" or "including" shall be construed without limitation;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">D.</span>reference to this Agreement, or any other agreement, deed or other instrument or document shall be construed as reference to this Agreement or such agreement, deed or other instrument or document as the same may from time to time be amended, varied, supplemented or novated;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">E.</span>words and abbreviations, used but not defined, which have well known technical or trade / commercial meanings are used in this Agreement in accordance with such meanings;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">F.</span>all schedules, appendices, annexures, attachments, supplements to this Agreement shall constitute an integral part of this Agreement.</p>
           </div>
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">2. ACCEPTANCE AND ACKNOWLEDGMENT BY THE ALLOTTEE</h4>
@@ -295,13 +336,13 @@ const PlotAgreementEnglish = ({
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">4. TOTAL PRICE AND OTHER CHARGES PAYABLE BY THE ALLOTTEE</h4>
           <div className="space-y-1.5">
             <p className="m-0 leading-relaxed">
-              <span className="font-bold">a.</span> The Allottee shall pay to the Company a total consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> ({numberToWords(netPlotValue)}), (hereinafter referred to as the "Total Price") towards the purchase of the Plot and the provision for certain other common services/facilities within the said Project.
+              <span className="font-bold mr-1.5">a.</span>The Allottee shall pay to the Company a total consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> ({numberToWords(netPlotValue)}), (hereinafter referred to as the "Total Price") towards the purchase of the Plot and the provision for certain other common services/facilities within the said Project.
             </p>
             <p className="m-0 leading-relaxed">
-              <span className="font-bold">b.</span> Notwithstanding anything to the contrary contained in this Agreement, the Total Price is exclusive of any applicable taxes, cesses, levies or assessment and the Allottee agrees and undertakes to pay on demand all such taxes, cess, levies or assessment including VAT, service tax etc., whether already levied, or leviable now or in future in relation to the Project Land and/or construction and development of the Project or otherwise in relation to the Project as applicable to the said Plot on the date of taking over the possession of the said Plot by the Allottee.
+              <span className="font-bold mr-1.5">b.</span>Notwithstanding anything to the contrary contained in this Agreement, the Total Price is exclusive of any applicable taxes, cesses, levies or assessment and the Allottee agrees and undertakes to pay on demand all such taxes, cess, levies or assessment including VAT, service tax etc., whether already levied, or leviable now or in future in relation to the Project Land and/or construction and development of the Project or otherwise in relation to the Project as applicable to the said Plot on the date of taking over the possession of the said Plot by the Allottee.
             </p>
             <p className="m-0 leading-relaxed">
-              <span className="font-bold">c.</span> {booking.scheme === 'FULL_PAYMENT' ? (
+              <span className="font-bold mr-1.5">c.</span>{booking.scheme === 'FULL_PAYMENT' ? (
                 <>
                   That the Allottee has paid to the Company entire sale consideration of <span className="font-bold">{formatCurrency(netPlotValue)}</span> in advance at the time of Agreement of Plot through {booking.paymentMode || 'cheque / wire transfer / demand draft'}, however upon payment of entire sale consideration in advance, seller shall not be liable to hand over the possession of plot immediately and it shall continue to be governed as specified under clause 8.1 of this agreement i.e 1 years (One Years) from the last validity date / Agreement End Date of this agreement i.e. <span className="font-bold">{agreementEndDateStr}</span>.
                 </>
@@ -312,14 +353,14 @@ const PlotAgreementEnglish = ({
               )}
             </p>
             <p className="m-0 leading-relaxed">
-              <span className="font-bold">d.</span> Any and all payments required to be made by the Allottee hereunder shall be made through wire transfer/cheque/demand draft drawn in favour of <span className="font-bold">"{companyName}"</span>, payable at Bihar Shariff, Bihar.
+              <span className="font-bold mr-1.5">d.</span>Any and all payments required to be made by the Allottee hereunder shall be made through wire transfer/cheque/demand draft drawn in favour of <span className="font-bold">"{companyName}"</span>, payable at Bihar Shariff, Bihar.
             </p>
             <p className="m-0 leading-relaxed pt-0.5">
-              <span className="font-bold">e. PAYMENT OF TAXES ON LAND, WEALTH-TAX, CESSES BY ALLOTTEE</span><br />
+              <span className="font-bold mr-1.5">e.</span><span className="font-bold">PAYMENT OF TAXES ON LAND, WEALTH-TAX, CESSES BY ALLOTTEE</span><br />
               The Allottee agrees and undertakes to pay all Government rates, tax on land, municipal tax, property taxes, wealth tax, taxes, buildings or other worker construction fund fees or levies of all and any kind by whatever name called, whether levied or leviable now or in future by the Government, municipal authority or any other governmental authority on the said Project and/or the Project Land as the case may be, as in case assessable or applicable from the date of the Allottee's Application and the same shall be paid on pro rata basis and the determination of proportionate share by the Company and demand thereof shall be final and binding on the Allottee. However, if the said Plot is assessed separately, the Allottee shall pay directly to the competent authority.
             </p>
             <p className="m-0 leading-relaxed pt-0.5">
-              <span className="font-bold">f. ADJUSTMENT / APPROPRIATION OF PAYMENTS</span><br />
+              <span className="font-bold mr-1.5">f.</span><span className="font-bold">ADJUSTMENT / APPROPRIATION OF PAYMENTS</span><br />
               The Allottee authorizes the Company to adjust/appropriate all payments that shall be made by the Allottee under any head(s) of dues against outstanding heads in Allottee's name and the Allottee shall not have a right to object/demand/direct the Company to adjust the payments in any manner otherwise than as decided by the Company.
             </p>
           </div>
@@ -338,9 +379,9 @@ const PlotAgreementEnglish = ({
             <span className="font-bold">A.</span> Subject to the terms and conditions of this Agreement and upon execution of conveyance deed, the Allottee shall have the following rights with regard to the said Plot and other rights and facilities attached thereto:
           </p>
           <div className="pl-3 space-y-0.5">
-            <p className="m-0"><span className="font-bold">I.</span> Ownership of the said Plot area;</p>
-            <p className="m-0"><span className="font-bold">II.</span> Undivided proportionate interest in and the right to use the Common Areas and Facilities within the said Project only. Since the interest of Allottee in the Common Areas and Facilities is undivided and cannot be separated, subject to timely payment of any applicable charges, the Allottee shall use the Common Areas and Facilities harmoniously along with other Plot owners, maintenance staff etc., without causing any inconvenience or hindrance/annoyance to them; and</p>
-            <p className="m-0"><span className="font-bold">III.</span> Only the right to use the general Common Areas and Facilities within the said Project, which is earmarked by the Company as commonly usable areas by all allottees of all the Plots in the Project Land. The identification by the Company of such areas shall be final and binding on the Allottee. However, such general commonly usable areas and facilities earmarked for common use of all the allottees shall not include the exclusive reserved parking spaces. The Allottee acknowledges that these general Common Areas and Facilities have not been included in the computation of total area of the said Plot.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">I.</span>Ownership of the said Plot area;</p>
+            <p className="m-0"><span className="font-bold mr-1.5">II.</span>Undivided proportionate interest in and the right to use the Common Areas and Facilities within the said Project only. Since the interest of Allottee in the Common Areas and Facilities is undivided and cannot be separated, subject to timely payment of any applicable charges, the Allottee shall use the Common Areas and Facilities harmoniously along with other Plot owners, maintenance staff etc., without causing any inconvenience or hindrance/annoyance to them; and</p>
+            <p className="m-0"><span className="font-bold mr-1.5">III.</span>Only the right to use the general Common Areas and Facilities within the said Project, which is earmarked by the Company as commonly usable areas by all allottees of all the Plots in the Project Land. The identification by the Company of such areas shall be final and binding on the Allottee. However, such general commonly usable areas and facilities earmarked for common use of all the allottees shall not include the exclusive reserved parking spaces. The Allottee acknowledges that these general Common Areas and Facilities have not been included in the computation of total area of the said Plot.</p>
           </div>
 
           <p className="m-0 leading-relaxed pt-1"><span className="font-bold">B. MANNER OF USE OF THE SAID LAND</span></p>
@@ -348,8 +389,8 @@ const PlotAgreementEnglish = ({
             That from the date of handing over of the possession of the said Land, the Allottee shall serve and perform the following covenants and conditions:
           </p>
           <div className="pl-3 space-y-0.5">
-            <p className="m-0"><span className="font-bold">I.</span> The Company or the maintenance agency so appointed by the Company and their agents shall be permitted at all reasonable hours, to enter the said Land for the purpose of inspection/maintenance; and</p>
-            <p className="m-0"><span className="font-bold">II.</span> Allottee shall use the said Land for legal purposes only and shall not carry on or permit to be carried on in the said Land or in any part thereof any activities which shall be or are likely to be unlawful, obnoxious or of nuisance, annoyance or disturbance to other occupants of the said Project or any part thereof or in any manner interfere in the use of the Common Areas and Facilities.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">I.</span>The Company or the maintenance agency so appointed by the Company and their agents shall be permitted at all reasonable hours, to enter the said Land for the purpose of inspection/maintenance; and</p>
+            <p className="m-0"><span className="font-bold mr-1.5">II.</span>Allottee shall use the said Land for legal purposes only and shall not carry on or permit to be carried on in the said Land or in any part thereof any activities which shall be or are likely to be unlawful, obnoxious or of nuisance, annoyance or disturbance to other occupants of the said Project or any part thereof or in any manner interfere in the use of the Common Areas and Facilities.</p>
           </div>
 
           <p className="m-0 leading-relaxed pt-1"><span className="font-bold">C. ALTERATIONS OF UNSOLD UNITS</span></p>
@@ -368,11 +409,11 @@ const PlotAgreementEnglish = ({
             The Allottee agrees that all defaults, breaches and/or non-compliance of any of the terms and conditions of the Agreement shall be deemed to be events of defaults liable for consequences stipulated herein. Some of indicative events of defaults are mentioned below which are merely illustrative and are not exhaustive.
           </p>
           <div className="pl-3 space-y-0.5">
-            <p className="m-0"><span className="font-bold">i.</span> Failure to make payments within the time as stipulated in the schedule of payments as given in Annexure II of this Agreement and failure to pay the stamp duty, legal, registration, any incidental charges, any increases as demanded by the Company, any other charges, deposits, taxes etc. as may be notified by the Company to the Allottee under the terms of this Agreement, and all other defaults of similar nature.</p>
-            <p className="m-0"><span className="font-bold">ii.</span> Failure to perform and observe any or all of the Allottee's obligations including those contained in this Agreement or if the Allottee fails to execute any other deed/document/undertakings/indemnities etc., or to perform any other obligation set forth in any other agreement with the Company in relation to the said Land.</p>
-            <p className="m-0"><span className="font-bold">iii.</span> Failure to execute the conveyance deed within the time stipulated by the Company in its notice.</p>
-            <p className="m-0"><span className="font-bold">iv.</span> Dishonor of any cheque(s) given by Allottee for any reason whatsoever.</p>
-            <p className="m-0"><span className="font-bold">v.</span> Any other acts, deeds or things which the Allottee may commit, omit or fail to perform in terms of this Agreement, any other undertaking, affidavit/agreement/indemnity etc., or as demanded by the Company, which in the opinion of the Company amounts to an event of default and the Allottee agrees and confirms that the decision of the Company in this regard shall be final and binding on the Allottee.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">i.</span>Failure to make payments within the time as stipulated in the schedule of payments as given in Annexure II of this Agreement and failure to pay the stamp duty, legal, registration, any incidental charges, any increases as demanded by the Company, any other charges, deposits, taxes etc. as may be notified by the Company to the Allottee under the terms of this Agreement, and all other defaults of similar nature.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">ii.</span>Failure to perform and observe any or all of the Allottee's obligations including those contained in this Agreement or if the Allottee fails to execute any other deed/document/undertakings/indemnities etc., or to perform any other obligation set forth in any other agreement with the Company in relation to the said Land.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">iii.</span>Failure to execute the conveyance deed within the time stipulated by the Company in its notice.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">iv.</span>Dishonor of any cheque(s) given by Allottee for any reason whatsoever.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">v.</span>Any other acts, deeds or things which the Allottee may commit, omit or fail to perform in terms of this Agreement, any other undertaking, affidavit/agreement/indemnity etc., or as demanded by the Company, which in the opinion of the Company amounts to an event of default and the Allottee agrees and confirms that the decision of the Company in this regard shall be final and binding on the Allottee.</p>
           </div>
         </div>
 
@@ -386,10 +427,10 @@ const PlotAgreementEnglish = ({
         <div className="flex-1 space-y-1">
           <p className="m-0 leading-relaxed"><span className="font-bold">B. EARNEST MONEY AND ITS FORFEITURE & CANCELLATION</span></p>
           <div className="pl-3 space-y-0.5">
-            <p className="m-0"><span className="font-bold">i.</span> The Parties hereby agree that the earnest money for the purpose of this Agreement shall be sum equivalent to <span className="font-bold">40% (Forty Percent)</span> of the amount received by the Company till the date of occurrence of event (hereinafter referred to as the "Earnest Money").</p>
-            <p className="m-0"><span className="font-bold">ii.</span> The Allottee hereby authorizes the Company to cancel the allotment and forfeit the Earnest Money along with the interest <span className="font-bold">@ 18% per annum</span> on delayed payments, interest on installments, brokerage and the amount of any other fine or penalty paid by the Allottee hereunder, in the event of non-fulfilment or breach by the Allottee of any of the terms and conditions herein contained including specifically (but without limitation) upon the occurrence of an event of default as mentioned in Clause 7.1 above, as also in the event of failure by the Allottee to sign and return to the Company this Agreement within 30 days from the date of its dispatch by the Company. Further, the Allottee shall be left with no lien, right, title, interest or any claim of whatsoever nature in the said Land and/or any part of the said Project or against the Company or any of its directors, shareholders, employees or agents. However, the Company shall refund the amount paid by the Allottee upon cancellation of agreement without any deduction of whatsoever name called, provided the Allottee agrees to receive the amount due on cancellation after a period of <span className="font-bold">36 (Thirty-Six) months</span> from the date of cancellation.</p>
-            <p className="m-0"><span className="font-bold">iii.</span> Subject to Clause 7.2.2 above, the amount(s), if any, paid by the Allottee over and above the Earnest Money, processing fee, interest on delayed payments, interest on installments, brokerage, amount of any fine or penalty etc., that stand forfeited, would be refunded to the Allottee by the Company without any interest or compensation whatsoever. The Company shall have the first lien and charge on the said Land(s) for all its dues payable by the Allottee to the Company. The Company shall thereafter be free to resell and/or deal with the said Land in any manner whatsoever at its sole discretion.</p>
-            <p className="m-0"><span className="font-bold">iv.</span> Without prejudice to the Company's aforesaid rights, the Company may at its sole discretion waive the breach by the Allottee in not making timely payments as per the payment plan but on the condition that the Allottee shall pay to the Company interest on the delayed payments which shall be charged for the period and at the rate of interest <span className="font-bold">@ 18% per annum</span>, or at any other rate of interest as the Company may deem fit.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">i.</span>The Parties hereby agree that the earnest money for the purpose of this Agreement shall be sum equivalent to <span className="font-bold">40% (Forty Percent)</span> of the amount received by the Company till the date of occurrence of event (hereinafter referred to as the "Earnest Money").</p>
+            <p className="m-0"><span className="font-bold mr-1.5">ii.</span>The Allottee hereby authorizes the Company to cancel the allotment and forfeit the Earnest Money along with the interest <span className="font-bold">@ 20% per annum</span> on delayed payments, interest on installments, brokerage and the amount of any other fine or penalty paid by the Allottee hereunder, in the event of non-fulfilment or breach by the Allottee of any of the terms and conditions herein contained including specifically (but without limitation) upon the occurrence of an event of default as mentioned in Clause 7.1 above, as also in the event of failure by the Allottee to sign and return to the Company this Agreement within 30 days from the date of its dispatch by the Company. Further, the Allottee shall be left with no lien, right, title, interest or any claim of whatsoever nature in the said Land and/or any part of the said Project or against the Company or any of its directors, shareholders, employees or agents. However, the Company shall refund the amount paid by the Allottee upon cancellation of agreement without any deduction of whatsoever name called, provided the Allottee agrees to receive the amount due on cancellation after a period of <span className="font-bold">36 (Thirty-Six) months</span> from the date of cancellation.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">iii.</span>Subject to Clause 7.2.2 above, the amount(s), if any, paid by the Allottee over and above the Earnest Money, processing fee, interest on delayed payments, interest on installments, brokerage, amount of any fine or penalty etc., that stand forfeited, would be refunded to the Allottee by the Company without any interest or compensation whatsoever. The Company shall have the first lien and charge on the said Land(s) for all its dues payable by the Allottee to the Company. The Company shall thereafter be free to resell and/or deal with the said Land in any manner whatsoever at its sole discretion.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">iv.</span>Without prejudice to the Company's aforesaid rights, the Company may at its sole discretion waive the breach by the Allottee in not making timely payments as per the payment plan but on the condition that the Allottee shall pay to the Company interest on the delayed payments which shall be charged for the period and at the rate of interest <span className="font-bold">@ 20% per annum</span>, or at any other rate of interest as the Company may deem fit.</p>
           </div>
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">8. HANDING OVER THE POSSESSION OF THE LAND AND PARTIES' OBLIGATIONS IN RELATION THERETO</h4>
@@ -409,17 +450,17 @@ const PlotAgreementEnglish = ({
       <div className="agreement-page font-sans text-slate-900 text-[0.71rem] leading-[1.42] text-justify">
         <div className="flex-1 space-y-1">
           <div className="pl-3 space-y-0.5">
-            <p className="m-0 leading-relaxed"><span className="font-bold">IV.</span> The Allottee undertakes to execute the sale/conveyance deed within 30 (thirty) days from the date of the Company issuing the notice offering possession of the said Land to the Allottee.</p>
-            <p className="m-0 leading-relaxed"><span className="font-bold">V.</span> If, however, the Allottee fails to execute the sale/conveyance deed within time stipulated above in Clause 8.2.4, the Company shall be entitled to terminate the allotment of the said Land to the Allottee and in such event this Agreement shall stand cancelled. Upon such termination, the Allottee shall forfeit to the Company the entire amount of the Earnest Money as well as any processing fee, brokerage, interest on delayed payment and the amount of any other fine or penalty paid by the Allottee, and the Allottee shall be left with no lien, right, title, interest or any claim of whatsoever nature in the said Land along with parking space(s) and/or any part of the said Project or against the Company or any of their directors, employees or agents. Company shall thereafter be free to resell the Land and/or deal with the said Land in any manner whatsoever at its sole discretion. The amount(s) (if any, paid over and above the Earnest Money, processing fee, interest on delayed payments, interest on installments, brokerage, amount of any fine or penalty etc. that stand forfeited) would be refunded to the Allottee by the Company only after realizing such amounts to be refunded on resale of the said Land but without any interest or compensation whatsoever.</p>
+            <p className="m-0 leading-relaxed"><span className="font-bold mr-1.5">IV.</span>The Allottee undertakes to execute the sale/conveyance deed within 30 (thirty) days from the date of the Company issuing the notice offering possession of the said Land to the Allottee.</p>
+            <p className="m-0 leading-relaxed"><span className="font-bold mr-1.5">V.</span>If, however, the Allottee fails to execute the sale/conveyance deed within time stipulated above in Clause 8.2.4, the Company shall be entitled to terminate the allotment of the said Land to the Allottee and in such event this Agreement shall stand cancelled. Upon such termination, the Allottee shall forfeit to the Company the entire amount of the Earnest Money as well as any processing fee, brokerage, interest on delayed payment and the amount of any other fine or penalty paid by the Allottee, and the Allottee shall be left with no lien, right, title, interest or any claim of whatsoever nature in the said Land along with parking space(s) and/or any part of the said Project or against the Company or any of their directors, employees or agents. Company shall thereafter be free to resell the Land and/or deal with the said Land in any manner whatsoever at its sole discretion. The amount(s) (if any, paid over and above the Earnest Money, processing fee, interest on delayed payments, interest on installments, brokerage, amount of any fine or penalty etc. that stand forfeited) would be refunded to the Allottee by the Company only after realizing such amounts to be refunded on resale of the said Land but without any interest or compensation whatsoever.</p>
           </div>
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-1 pb-0.5">C. ALLOTTEE'S OBLIGATION TO TAKE POSSESSION AND CONSEQUENCES OF FAILURE TO TAKE POSSESSION</h4>
           <div className="pl-3 space-y-0.5">
             <p className="m-0 leading-relaxed">
-              <span className="font-bold">I.</span> Upon receiving a written intimation from the Company offering possession of the said Land, the Allottee shall within 30 (thirty) days, take possession of the said Land from the Company by executing necessary indemnities, undertakings and such other documentation as the Company may prescribe in this regard and by making all other charges/dues as specified in this Agreement or as otherwise agreed and the Company shall after satisfactory execution of such documents and payment of all such amounts give possession of the said Land to the Allottee, provided the Allottee is not in breach of any other term of this Agreement.
+              <span className="font-bold mr-1.5">I.</span>Upon receiving a written intimation from the Company offering possession of the said Land, the Allottee shall within 30 (thirty) days, take possession of the said Land from the Company by executing necessary indemnities, undertakings and such other documentation as the Company may prescribe in this regard and by making all other charges/dues as specified in this Agreement or as otherwise agreed and the Company shall after satisfactory execution of such documents and payment of all such amounts give possession of the said Land to the Allottee, provided the Allottee is not in breach of any other term of this Agreement.
             </p>
             <p className="m-0 leading-relaxed">
-              <span className="font-bold">II.</span> Further the Allottee agrees that in the event of the Allottee's failure to take possession of the said Land within the time stipulated by the Company as per this Clause 8.4, the Allottee shall have no right or claim in respect of any item of work in the said Land which the Allottee may allege not to have been carried out or completed or in respect of any design specifications, or on account of any other reason whatsoever and the Allottee shall be deemed to have been fully satisfied in all respects concerning layout plan and all other work relating to the said Land/said Project.
+              <span className="font-bold mr-1.5">II.</span>Further the Allottee agrees that in the event of the Allottee's failure to take possession of the said Land within the time stipulated by the Company as per this Clause 8.4, the Allottee shall have no right or claim in respect of any item of work in the said Land which the Allottee may allege not to have been carried out or completed or in respect of any design specifications, or on account of any other reason whatsoever and the Allottee shall be deemed to have been fully satisfied in all respects concerning layout plan and all other work relating to the said Land/said Project.
             </p>
           </div>
 
@@ -476,10 +517,10 @@ const PlotAgreementEnglish = ({
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">14. NOTICE</h4>
           <p className="m-0 leading-relaxed">
-            <span className="font-bold">A.</span> That any notice, letter or communication to be made, served or communicated unto the Company under these presents must be in writing and shall be deemed to be duly made, served or communicated only, if the notice or letter or communication is addressed to the Company at the address mentioned hereinabove or any changed address as may be intimated by the Company in this behalf and sent by registered post. Similarly, any notice, letter or communication to the Allottee shall be deemed to be made, served or communicated only, if the same are addressed to the address of the Allottee as mentioned above, and thereafter, when the residence of the Allottee is shifted to the said Land at the said address.
+            <span className="font-bold mr-1.5">A.</span>That any notice, letter or communication to be made, served or communicated unto the Company under these presents must be in writing and shall be deemed to be duly made, served or communicated only, if the notice or letter or communication is addressed to the Company at the address mentioned hereinabove or any changed address as may be intimated by the Company in this behalf and sent by registered post. Similarly, any notice, letter or communication to the Allottee shall be deemed to be made, served or communicated only, if the same are addressed to the address of the Allottee as mentioned above, and thereafter, when the residence of the Allottee is shifted to the said Land at the said address.
           </p>
           <p className="m-0 leading-relaxed">
-            <span className="font-bold">B.</span> That the Allottee shall inform the Company in writing of any change in the mailing address mentioned in this Agreement failing which all demands, notices, etc., by the Company shall be mailed to the address given in this Agreement and deemed to have been received by the Allottee. In case of joint Allottees, all communication shall be sent to the first named Allottee in this Agreement and that shall constitute sufficient notice to all the co-allottees. All communication/notice to the Company shall be in writing and shall be sent to the Company at the following address of its registered office:<br />
+            <span className="font-bold mr-1.5">B.</span>That the Allottee shall inform the Company in writing of any change in the mailing address mentioned in this Agreement failing which all demands, notices, etc., by the Company shall be mailed to the address given in this Agreement and deemed to have been received by the Allottee. In case of joint Allottees, all communication shall be sent to the first named Allottee in this Agreement and that shall constitute sufficient notice to all the co-allottees. All communication/notice to the Company shall be in writing and shall be sent to the Company at the following address of its registered office:<br />
             <span className="font-bold">{companyAddress}</span>
           </p>
         </div>
@@ -541,11 +582,11 @@ const PlotAgreementEnglish = ({
               <div className="space-y-2 text-[0.72rem] max-w-md">
                 <div className="flex items-center">
                   <span className="font-bold text-slate-800 w-28 shrink-0">Developer ID:</span>
-                  <span className="flex-1 border-b border-slate-500 h-3"></span>
+                  <span className="flex-1 border-b border-slate-500 font-bold uppercase text-slate-900 px-1 min-h-[1.1rem] flex items-center">{developerCode}</span>
                 </div>
                 <div className="flex items-center">
                   <span className="font-bold text-slate-800 w-28 shrink-0">Name:</span>
-                  <span className="flex-1 border-b border-slate-500 h-3"></span>
+                  <span className="flex-1 border-b border-slate-500 font-bold uppercase text-slate-900 px-1 min-h-[1.1rem] flex items-center">{developerName}</span>
                 </div>
                 <div className="flex items-center">
                   <span className="font-bold text-slate-800 w-28 shrink-0">Signature:</span>
@@ -569,51 +610,68 @@ const PlotAgreementEnglish = ({
           </h3>
 
           <div className="border border-slate-400 rounded overflow-hidden">
-            <table className="w-full text-left text-[0.76rem] border-collapse">
+            <table className="w-full text-left text-[0.74rem] border-collapse">
               <tbody>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PROJECT LOCALITY:</td>
-                  <td className="p-3 w-1/4 border-r border-slate-300 uppercase font-bold">{cityRajgir}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PLOT NO:</td>
-                  <td className="p-3 w-1/4 font-mono font-bold uppercase">{plotNo}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PROJECT LOCALITY:</td>
+                  <td className="p-2.5 w-1/4 border-r border-slate-300 uppercase font-bold">{cityRajgir}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 w-1/4 border-r border-slate-300">PLOT NO:</td>
+                  <td className="p-2.5 w-1/4 font-mono font-bold uppercase">{plotNo}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT SIZE (SQFT):</td>
-                  <td className="p-3 border-r border-slate-300 font-bold">{plotArea}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT VALUE:</td>
-                  <td className="p-3 font-bold text-slate-900">{formatCurrency(netPlotValue)}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PLOT SIZE (SQFT):</td>
+                  <td className="p-2.5 border-r border-slate-300 font-bold">{plotArea}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PLOT VALUE:</td>
+                  <td className="p-2.5 font-bold text-slate-900">{formatCurrency(netPlotValue)}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">DOWNPAYMENT AMOUNT:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(downpaymentRequired || downpaymentAmount)}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">TOTAL PAYMENT RECEIVED:</td>
-                  <td className="p-3 font-bold text-emerald-700">{formatCurrency(paidAmount ?? downpaymentAmount)}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">DOWNPAYMENT AMOUNT:</td>
+                  <td className="p-2.5 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(downpaymentRequired || downpaymentAmount)}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">TOTAL PAYMENT RECEIVED:</td>
+                  <td className="p-2.5 font-bold text-emerald-700">{formatCurrency(paidAmount ?? downpaymentAmount)}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT PAYMENT PLAN:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold uppercase">{booking.scheme || 'INSTALLMENT'}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLAN:</td>
-                  <td className="p-3 font-bold text-slate-900 uppercase">{schemePlanName}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PLOT PAYMENT PLAN:</td>
+                  <td className="p-2.5 border-r border-slate-300 font-bold uppercase">{booking.scheme || 'INSTALLMENT'}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PLAN:</td>
+                  <td className="p-2.5 font-bold text-slate-900 uppercase">{schemePlanName}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">REST AMOUNT:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">{isFullPayment ? 'LOCK-IN PERIOD:' : 'INSTALLMENT:'}</td>
-                  <td className="p-3 font-bold text-slate-900">{isFullPayment ? `${booking.tenureMonths || 12} Months (${+((booking.tenureMonths || 12) / 12).toFixed(1)} Yrs)` : `${installmentCount} installments`}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">REST AMOUNT:</td>
+                  <td className="p-2.5 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">{isFullPayment ? 'LOCK-IN PERIOD:' : 'INSTALLMENT:'}</td>
+                  <td className="p-2.5 font-bold text-slate-900">{isFullPayment ? `${booking.tenureMonths || 12} Months (${+((booking.tenureMonths || 12) / 12).toFixed(1)} Yrs)` : `${installmentCount} installments`}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">EMI AMOUNT:</td>
-                  <td className="p-3 border-r border-slate-300 font-bold">{isFullPayment ? formatCurrency(0) : formatCurrency(standardEmiAmt)}</td>
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">AGREEMENT END DATE:</td>
-                  <td className="p-3 font-bold text-slate-900">{agreementEndDateStr}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">INSTALLMENT AMOUNT:</td>
+                  <td className="p-2.5 border-r border-slate-300 font-bold">{isFullPayment ? formatCurrency(0) : formatCurrency(standardEmiAmt)}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">AGREEMENT END DATE:</td>
+                  <td className="p-2.5 font-bold text-slate-900">{agreementEndDateStr}</td>
+                </tr>
+                {!isFullPayment && (
+                  <tr className="border-b border-slate-300">
+                    <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">INSTALLMENT FREQUENCY:</td>
+                    <td className="p-2.5 font-bold text-slate-900 uppercase" colSpan={3}>{emiFreqLabel}</td>
+                  </tr>
+                )}
+                <tr className="border-b border-slate-300">
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">CUSTOMER BANK DETAILS:</td>
+                  <td className="p-2.5 text-[0.72rem] leading-relaxed" colSpan={3}>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div><strong className="text-slate-700">Bank Name:</strong> <span className="font-semibold uppercase text-slate-900">{custBankName}</span></div>
+                      <div><strong className="text-slate-700">Branch:</strong> <span className="font-semibold uppercase text-slate-900">{custBankBranch}</span></div>
+                      <div><strong className="text-slate-700">A/C Number:</strong> <span className="font-mono font-bold text-slate-900">{custAccountNo}</span></div>
+                      <div><strong className="text-slate-700">IFSC Code:</strong> <span className="font-mono font-bold uppercase text-slate-900">{custIfscCode}</span></div>
+                    </div>
+                  </td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PAYMENT MODE / DETAILS:</td>
-                  <td className="p-3 font-bold uppercase" colSpan={3}>{booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD'}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PAYMENT MODE / DETAILS:</td>
+                  <td className="p-2.5 font-bold uppercase" colSpan={3}>{booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD'}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
-                  <td className="p-3 font-bold bg-slate-100/70 border-r border-slate-300">PLOT DIMENSIONS / पैमाइश:</td>
-                  <td className="p-3 border-r border-slate-300 text-xs" colSpan={3}>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PLOT DIMENSIONS / पैमाइश:</td>
+                  <td className="p-2.5 border-r border-slate-300 text-xs" colSpan={3}>
                     <strong>North (पूरब-पश्चिम जानिब उत्तर):</strong> {plot.dimensions?.north || '-'} ft &nbsp;|&nbsp;
                     <strong>South (पूरब-पश्चिम जानिब दक्षिण):</strong> {plot.dimensions?.south || '-'} ft &nbsp;|&nbsp;
                     <strong>East (उत्तर-दक्षिण जानिब पूरब):</strong> {plot.dimensions?.east || '-'} ft &nbsp;|&nbsp;
