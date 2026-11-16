@@ -1,5 +1,37 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Investment Booking Lifecycle & Scheme-Aligned Commission Collections [COMPLETED]**:
+  - **Decoupled Booking Creation from Receipt Generation**:
+    - Previously, creating an Investment Booking (`/dashboard/plots/investment-booking`) auto-created an upfront payment receipt/collection, credited treasury, marked the booking as paid/completed, and prematurely distributed commissions.
+    - Fixed to mirror standard plot booking workflow:
+      - Booking creation now strictly registers the booking contract, Kisan land sourcing, installment schedule, and locks scheme commission snapshots.
+      - Financial state initializes at `totalPaid: 0`, `remainingAmount: totalAmount`, `status: 'ACTIVE'`, and `collections: []`.
+      - Does not auto-create fake receipts or trigger premature ledger credits / commissions at booking time.
+    - Directs users to `/dashboard/plots/collections/products` (or via the new inline "Collect Payment" action button on the booking row) to generate receipts when payment is actually received.
+  - **Dynamic Scheme-Aligned Commission Calculation (`tab=schemes`)**:
+    - Product bookings lock both Downpayment (FD) % and EMI (RD) % commissions from `InvestmentSchemeConfig` for Business Associates (Promoter), Business Partners (Developer Override), and Branches.
+    - When collections are recorded/approved in `collectProductInstallment` and `rebuildProductBookingInstallmentsState`:
+      - Principal received towards Downpayment (Installment 0 / Full Payment) is tracked in `downpaymentPrincipalPaid` and earns the locked **Downpayment commission %**.
+      - Principal received towards EMIs (Installments 1..N) is tracked in `emiPrincipalPaid` and earns the locked **EMI commission %**.
+      - If a collection pays part downpayment and part EMI, both commission rates are applied proportionally.
+    - Purged fake receipt synthesis (`PRD-DP-...`) from `syncProductBookingSponsorCommissions`. Commissions are strictly realized upon collection approval into the respective sponsor and branch accounts.
+
+
+- **Plot Booking Certificate Alignment & Agreement Annexure Transaction Details [COMPLETED]**:
+  - **Product Booking Certificate (`BookingCertificateViewer.jsx`)**:
+    - Replaced full-page decorative certificate design for product bookings with the compact 95mm pre-printed receipt format matching regular plot booking receipts (`.../6afb11bb675263cc60f692d9`).
+    - Removed company header logos and branding blocks, matching pre-printed stationery requirements.
+    - Set `@media print` with exact receipt printable area dimensions: `@page { margin: 0 }`, `.print-half-a4 { height: 95mm; max-height: 95mm; margin-top: 35mm; margin-left: 5mm; margin-right: 5mm; }`.
+    - Added `print:hidden` to the watermark logo container to prevent printing any logo onto pre-printed letterhead/stationery.
+    - Aligned all 11 rows of data: Booking ID, Date/Time, Customer ID, Plot/Unit Number, Name, Guardian, Address, Mobile, Area, Mauja/Thana, Khata/Khesra, Dimensions, Booked Rate, Gross Value, Discount, Net Payable, Down Payment, EMI Payment, DP Due Date, and EMI Duration/Lock-in.
+  - **Agreement Annexure-1 & Clauses Updates (`PlotAgreementEnglish.jsx`, `PlotAgreementViewer.jsx`, `ProductAgreementViewer.jsx`)**:
+    - Clause 7.B: Earnest Money set to `20% (Twenty Percent)` and delayed interest set to `@ 18% per annum`.
+    - Annexure-1: Formatted installment tenure as e.g. `3 Installments (Monthly)` and removed redundant separate installment frequency row.
+    - Annexure-1: Replaced customer bank details with `TRANSACTION DETAILS:` at the table bottom, displaying numbered advance/downpayment non-cash transactions (`1.`, `2.`, etc.) showing Date, Mode, and Ref/UTR/Cheque without displaying amounts.
+  - **Git Sync**:
+    - Pushed commit `bf3179b9` to both `development` and `main`.
+
+
 - **Agreement End Date in Point 4-c and Annexure-1 (Page 9) [COMPLETED]**:
   - **Requirement**:
     - In Point 4-c of the Buyer's Agreement, explicitly state the Agreement End Date (which is the date when the last regular EMI is due).

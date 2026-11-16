@@ -72,6 +72,20 @@ const collectionTransactionSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    downpaymentPrincipalPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    emiPrincipalPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    receiptType: {
+      type: String,
+      default: '',
+    },
     lateFinePaid: {
       type: Number,
       default: 0,

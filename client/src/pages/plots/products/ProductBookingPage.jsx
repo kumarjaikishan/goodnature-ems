@@ -646,6 +646,12 @@ const ProductBookingPage = () => {
         developerCommissionPercent: form.developerCommissionPercent,
         bpCommissionPercent: form.bpCommissionPercent,
         branchCommissionPercent: form.branchCommissionPercent,
+        downpaymentPromoterCommissionPercent: form.downpaymentPromoterCommissionPercent ?? (currentPlan ? Number(currentPlan.fdPromoterCommissionPercent ?? 5.0) : 5.0),
+        emiPromoterCommissionPercent: form.emiPromoterCommissionPercent ?? (currentPlan ? Number(currentPlan.rdPromoterCommissionPercent ?? 4.0) : 4.0),
+        downpaymentBpCommissionPercent: form.downpaymentBpCommissionPercent ?? (currentPlan ? Number(currentPlan.bpFdCommissionPercent ?? 1.0) : 1.0),
+        emiBpCommissionPercent: form.emiBpCommissionPercent ?? (currentPlan ? Number(currentPlan.bpRdCommissionPercent ?? 1.0) : 1.0),
+        downpaymentBranchCommissionPercent: form.downpaymentBranchCommissionPercent ?? (currentPlan ? Number(currentPlan.branchFdCommissionPercent ?? 0.5) : 0.5),
+        emiBranchCommissionPercent: form.emiBranchCommissionPercent ?? (currentPlan ? Number(currentPlan.branchRdCommissionPercent ?? 0.5) : 0.5),
         rdMaturityPercent: form.rdMaturityPercent,
         fdMaturityPercent: form.fdMaturityPercent,
         annualInterestRate: form.annualInterestRate,
@@ -683,8 +689,6 @@ const ProductBookingPage = () => {
         dpVal: Number(form.dpVal) || 0,
         tenureMonths: totalTenureMonths,
         paymentType: form.paymentType,
-        paymentMode: isFullPayment ? (form.paymentMode || 'cash') : 'cash',
-        transactionReference: isFullPayment ? (form.transactionReference || '') : '',
         landSourcing: validLandSourcing,
         status: form.status || 'ACTIVE',
       };
@@ -695,14 +699,8 @@ const ProductBookingPage = () => {
         navigate('/dashboard/plots/investment-booking');
       } else {
         const res = await api.post('/plots/product-bookings', payload);
-        const created = res.data?.data;
         toast.success(res.data?.message || 'Plot Product Booking created successfully!');
-
-        if (created) {
-          navigate(`/dashboard/plots/certificates/${created._id}`);
-        } else {
-          navigate('/dashboard/plots/investment-booking');
-        }
+        navigate('/dashboard/plots/investment-booking');
       }
     } catch (err) {
       console.error('Error saving product booking:', err);
@@ -1524,7 +1522,7 @@ const ProductBookingPage = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
                     <div>
                       <label className="block font-bold text-slate-700 mb-1">
-                        Upfront Payment Amount (₹) <span className="text-emerald-700 font-bold">(100% Full Paid)</span>
+                        Upfront Valuation Amount (₹) <span className="text-emerald-700 font-bold">(One-Time Full Value)</span>
                       </label>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
@@ -1539,7 +1537,7 @@ const ProductBookingPage = () => {
 
                     <div>
                       <DateInput
-                        label="Booking & Payment Date"
+                        label="Booking Date"
                         value={form.bookingDate}
                         onChange={(e) => setForm({ ...form, bookingDate: e.target.value })}
                         required
@@ -1547,33 +1545,9 @@ const ProductBookingPage = () => {
                     </div>
                   </div>
 
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1 text-[11px]">Payment Mode</label>
-                      <select
-                        value={form.paymentMode || 'cash'}
-                        onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-teal-600 outline-none"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="bank_transfer">Bank Transfer / NEFT / IMPS</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="upi">UPI / QR Code</option>
-                      </select>
-                    </div>
-
-                    {form.paymentMode !== 'cash' && (
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1 text-[11px]">Transaction Ref / Cheque # (Optional)</label>
-                        <input
-                          type="text"
-                          value={form.transactionReference || ''}
-                          onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                          placeholder="e.g. UTR / Cheque / Ref #"
-                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-teal-600"
-                        />
-                      </div>
-                    )}
+                  <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-xl text-xs text-teal-900 font-medium flex items-center gap-2">
+                    <span className="font-bold">Note:</span>
+                    <span>Booking will be registered first. Payment receipt can be collected subsequently in Investment Collections.</span>
                   </div>
                 </div>
               )}

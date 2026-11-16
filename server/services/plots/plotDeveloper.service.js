@@ -793,59 +793,19 @@ class PlotDeveloperService {
     if (Array.isArray(booking.collections) && booking.collections.length > 0) {
       for (const col of booking.collections) {
         if (!col.receiptNumber || seenReceipts.has(col.receiptNumber)) continue;
+        const isApproved = col.status ? col.status === 'APPROVED' : String(col.paymentMode).toLowerCase() === 'cash';
+        if (!isApproved) continue;
         seenReceipts.add(col.receiptNumber);
         collectionsList.push({
           receiptNumber: col.receiptNumber,
           amountPaid: Number(col.amountPaid || 0),
           principalPaid: Number(col.principalPaid || col.amountPaid || 0),
+          downpaymentPrincipalPaid: Number(col.downpaymentPrincipalPaid || 0),
+          emiPrincipalPaid: Number(col.emiPrincipalPaid || 0),
           lateFinePaid: Number(col.lateFinePaid || 0),
           paymentDate: col.paymentDate || col.createdAt || booking.createdAt,
-          receiptType: 'Product EMI',
-        });
-      }
-    }
-
-    if (Array.isArray(booking.installments)) {
-      for (const inst of booking.installments) {
-        if (inst.receiptNumber && !seenReceipts.has(inst.receiptNumber)) {
-          seenReceipts.add(inst.receiptNumber);
-          collectionsList.push({
-            receiptNumber: inst.receiptNumber,
-            amountPaid: Number(inst.paidAmount || 0),
-            principalPaid: Number(inst.paidAmount || 0),
-            lateFinePaid: Number(inst.lateFinePaid || 0),
-            paymentDate: inst.paidDate || booking.createdAt,
-            receiptType: 'Product EMI',
-          });
-        }
-      }
-    }
-
-    const hasDpInCollections =
-      seenReceipts.has(`PRD-DP-${booking.bookingNumber}`) ||
-      seenReceipts.has(`DP-${booking.bookingNumber}`) ||
-      (Array.isArray(booking.collections) &&
-        booking.collections.some(
-          (c) =>
-            c.receiptNumber === `PRD-DP-${booking.bookingNumber}` ||
-            c.receiptNumber === `DP-${booking.bookingNumber}` ||
-            c.receiptNumber?.startsWith('PRD-DP-') ||
-            c.receiptNumber?.startsWith('DP-') ||
-            (Array.isArray(c.installmentNumbers) && c.installmentNumbers.includes(0)) ||
-            (booking.paymentType === 'FULL_PAYMENT' && Number(c.amountPaid) >= Number(booking.totalAmount || 0))
-        ));
-
-    if (booking.downPayment > 0 && !hasDpInCollections) {
-      const dpReceipt = `PRD-DP-${booking.bookingNumber}`;
-      if (!seenReceipts.has(dpReceipt) && !seenReceipts.has(`DP-${booking.bookingNumber}`)) {
-        seenReceipts.add(dpReceipt);
-        collectionsList.push({
-          receiptNumber: dpReceipt,
-          amountPaid: Number(booking.downPayment),
-          principalPaid: Number(booking.downPayment),
-          lateFinePaid: 0,
-          paymentDate: booking.bookingDate || booking.createdAt,
-          receiptType: 'Product Downpayment',
+          receiptType: col.receiptType || (col.installmentNumbers?.includes(0) ? 'DOWNPAYMENT' : 'INSTALLMENT'),
+          installmentNumbers: col.installmentNumbers || [],
         });
       }
     }
@@ -1025,49 +985,67 @@ class PlotDeveloperService {
         }
       }
 
-      // Check whether this product collection is Downpayment or regular monthly EMI
-      const isColDownpayment =
-        col.receiptType === 'DOWNPAYMENT' ||
-        col.receiptType === 'FULL_PAYMENT' ||
-        (Array.isArray(col.installmentNumbers) && col.installmentNumbers.includes(0)) ||
-        booking.paymentType === 'FULL_PAYMENT' ||
-        booking.paymentType === 'ONE_TIME';
+      // Calculate exact Downpayment principal vs EMI principal for this collection
+      let dpPrincipal = 0;
+      let emiPrincipal = 0;
 
-      // ── PERMANENT RATE LOCK: ALWAYS PRIORITIZE THE PRODUCT BOOKING'S LOCKED RATES ──
-      let defaultBaFixed;
-      let defaultBpFixed;
-      let defaultBranchFixed;
-
-      if (isColDownpayment) {
-        defaultBaFixed = booking.downpaymentPromoterCommissionPercent !== undefined && booking.downpaymentPromoterCommissionPercent !== null
-          ? Number(booking.downpaymentPromoterCommissionPercent)
-          : (matchedSlab ? Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0) : Number(booking.promoterCommissionPercent ?? 5.0));
-
-        defaultBpFixed = booking.downpaymentBpCommissionPercent !== undefined && booking.downpaymentBpCommissionPercent !== null
-          ? Number(booking.downpaymentBpCommissionPercent)
-          : (matchedSlab ? Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
-
-        defaultBranchFixed = booking.downpaymentBranchCommissionPercent !== undefined && booking.downpaymentBranchCommissionPercent !== null
-          ? Number(booking.downpaymentBranchCommissionPercent)
-          : (matchedSlab ? Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
+      if (booking.paymentType === 'FULL_PAYMENT') {
+        dpPrincipal = collectionPrincipal;
+        emiPrincipal = 0;
+      } else if (col.downpaymentPrincipalPaid > 0 || col.emiPrincipalPaid > 0) {
+        dpPrincipal = Number(col.downpaymentPrincipalPaid || 0);
+        emiPrincipal = Number(col.emiPrincipalPaid || 0);
+        if (dpPrincipal + emiPrincipal < collectionPrincipal) {
+          if (col.installmentNumbers?.includes(0)) dpPrincipal = collectionPrincipal - emiPrincipal;
+          else emiPrincipal = collectionPrincipal - dpPrincipal;
+        }
+      } else if (col.receiptType === 'DOWNPAYMENT' || col.installmentNumbers?.includes(0)) {
+        dpPrincipal = collectionPrincipal;
+        emiPrincipal = 0;
       } else {
-        defaultBaFixed = booking.emiPromoterCommissionPercent !== undefined && booking.emiPromoterCommissionPercent !== null
-          ? Number(booking.emiPromoterCommissionPercent)
-          : (matchedSlab ? Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0) : Number(booking.promoterCommissionPercent ?? 4.0));
-
-        defaultBpFixed = booking.emiBpCommissionPercent !== undefined && booking.emiBpCommissionPercent !== null
-          ? Number(booking.emiBpCommissionPercent)
-          : (matchedSlab ? Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
-
-        defaultBranchFixed = booking.emiBranchCommissionPercent !== undefined && booking.emiBranchCommissionPercent !== null
-          ? Number(booking.emiBranchCommissionPercent)
-          : (matchedSlab ? Number(matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
+        dpPrincipal = 0;
+        emiPrincipal = collectionPrincipal;
       }
 
-      const baFixedPct = defaultBaFixed;
-      const bpFixedPct = defaultBpFixed;
-      const branchFixedPct = defaultBranchFixed;
-      const combinedFixedPct = baFixedPct;
+      // ── PERMANENT RATE LOCK: ALWAYS PRIORITIZE THE PRODUCT BOOKING'S LOCKED RATES ──
+      const baDpPct = booking.downpaymentPromoterCommissionPercent !== undefined && booking.downpaymentPromoterCommissionPercent !== null
+        ? Number(booking.downpaymentPromoterCommissionPercent)
+        : (matchedSlab ? Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0) : Number(booking.promoterCommissionPercent ?? 5.0));
+
+      const baEmiPct = booking.emiPromoterCommissionPercent !== undefined && booking.emiPromoterCommissionPercent !== null
+        ? Number(booking.emiPromoterCommissionPercent)
+        : (matchedSlab ? Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0) : Number(booking.promoterCommissionPercent ?? 4.0));
+
+      const bpDpPct = booking.downpaymentBpCommissionPercent !== undefined && booking.downpaymentBpCommissionPercent !== null
+        ? Number(booking.downpaymentBpCommissionPercent)
+        : (matchedSlab ? Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
+
+      const bpEmiPct = booking.emiBpCommissionPercent !== undefined && booking.emiBpCommissionPercent !== null
+        ? Number(booking.emiBpCommissionPercent)
+        : (matchedSlab ? Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0) : Number(booking.bpCommissionPercent ?? (booking.developerCommissionPercent ?? 1.0)));
+
+      const branchDpPct = booking.downpaymentBranchCommissionPercent !== undefined && booking.downpaymentBranchCommissionPercent !== null
+        ? Number(booking.downpaymentBranchCommissionPercent)
+        : (matchedSlab ? Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
+
+      const branchEmiPct = booking.emiBranchCommissionPercent !== undefined && booking.emiBranchCommissionPercent !== null
+        ? Number(booking.emiBranchCommissionPercent)
+        : (matchedSlab ? Number(matchedSlab.branchRdCommissionPercent ?? 0.5) : Number(booking.branchCommissionPercent ?? 0.5));
+
+      const baFixedAmt = Math.round((dpPrincipal * (baDpPct / 100) + emiPrincipal * (baEmiPct / 100)) * 100) / 100;
+      const bpFixedAmt = Math.round((dpPrincipal * (bpDpPct / 100) + emiPrincipal * (bpEmiPct / 100)) * 100) / 100;
+      const branchFixedAmt = Math.round((dpPrincipal * (branchDpPct / 100) + emiPrincipal * (branchEmiPct / 100)) * 100) / 100;
+
+      const combinedFixedPct = collectionPrincipal > 0 ? +(baFixedAmt / collectionPrincipal * 100).toFixed(3) : baDpPct;
+      const bpFixedPct = collectionPrincipal > 0 ? +(bpFixedAmt / collectionPrincipal * 100).toFixed(3) : bpDpPct;
+      const branchFixedPct = collectionPrincipal > 0 ? +(branchFixedAmt / collectionPrincipal * 100).toFixed(3) : branchDpPct;
+      const baFixedPct = combinedFixedPct;
+
+      let receiptTypeFormatted = 'Collection';
+      if (booking.paymentType === 'FULL_PAYMENT') receiptTypeFormatted = 'Full Payment';
+      else if (dpPrincipal > 0 && emiPrincipal === 0) receiptTypeFormatted = 'Downpayment';
+      else if (emiPrincipal > 0 && dpPrincipal === 0) receiptTypeFormatted = 'EMI';
+      else if (dpPrincipal > 0 && emiPrincipal > 0) receiptTypeFormatted = 'Downpayment + EMI';
 
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ──

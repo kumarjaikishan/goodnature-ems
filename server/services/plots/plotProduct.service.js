@@ -700,7 +700,20 @@ class PlotProductService {
 
     // Generate installments schedule
     const installments = [];
-    if (!isFullPayment) {
+    if (isFullPayment) {
+      const dpDueDate = new Date(bDate.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
+      installments.push({
+        installmentNumber: 1,
+        dueDate: dpDueDate,
+        amount: totalAmount,
+        paidAmount: 0,
+        status: 'PENDING',
+        lateFine: 0,
+        lateFinePaid: 0,
+        lateFineRebate: 0,
+        lateDays: 0,
+      });
+    } else {
       if (dp > 0) {
         const dpDueDate = new Date(bDate.getTime() + resolvedDpDays * 24 * 60 * 60 * 1000);
         installments.push({
@@ -743,39 +756,8 @@ class PlotProductService {
       }
     }
 
-    const bookingStatus = isFullPayment ? 'COMPLETED' : 'ACTIVE';
-
+    const bookingStatus = 'ACTIVE';
     const collections = [];
-    let resolvedDpLedgerId = null;
-    if (isFullPayment && dp > 0) {
-      const isCash = String(data.paymentMode || 'cash').toLowerCase() === 'cash';
-      if (isCash) {
-        // Cash receipts ALWAYS enter the physical custody of the collecting cashier
-        const userCashLedger = await Ledger.findOne({ assignedUserId: userId, ledgerType: 'user_cash' });
-        resolvedDpLedgerId = userCashLedger?._id || data.ledgerId || null;
-      } else {
-        resolvedDpLedgerId = data.ledgerId || null;
-        if (!resolvedDpLedgerId) {
-          const defaultBank = await Ledger.findOne({ ledgerType: 'bank', status: 'active' });
-          if (defaultBank) resolvedDpLedgerId = defaultBank._id;
-        }
-      }
-
-      collections.push({
-        receiptNumber: `DP-${bookingNumber}`,
-        amountPaid: dp,
-        principalPaid: dp,
-        lateFinePaid: 0,
-        lateFineRebate: 0,
-        paymentMode: data.paymentMode || 'cash',
-        transactionReference: data.transactionReference || '',
-        paymentDate: bDate,
-        installmentNumbers: [],
-        remarks: 'Full Payment recorded at time of booking',
-        collectedById: userId || null,
-        ledgerId: resolvedDpLedgerId,
-      });
-    }
 
     const resolvedProjectId = data.projectId || product.projectId || null;
     let resolvedProjectName = data.projectName || product.projectName || '';
@@ -801,59 +783,61 @@ class PlotProductService {
       if (bDoc?.branchPartnerId) resolvedBranchPartnerId = bDoc.branchPartnerId;
     }
 
-    // Resolve scheme-configured commissions if not explicitly provided
-    let resolvedPromoterCommissionPercent = data.promoterCommissionPercent !== undefined && data.promoterCommissionPercent !== null ? Number(data.promoterCommissionPercent) : undefined;
-    let resolvedBpCommissionPercent = data.bpCommissionPercent !== undefined && data.bpCommissionPercent !== null ? Number(data.bpCommissionPercent) : undefined;
-    let resolvedDeveloperCommissionPercent = data.developerCommissionPercent !== undefined && data.developerCommissionPercent !== null ? Number(data.developerCommissionPercent) : resolvedBpCommissionPercent;
-    let resolvedBranchCommissionPercent = data.branchCommissionPercent !== undefined && data.branchCommissionPercent !== null ? Number(data.branchCommissionPercent) : undefined;
-
-    if (resolvedPromoterCommissionPercent === undefined || resolvedBpCommissionPercent === undefined || resolvedBranchCommissionPercent === undefined) {
-      try {
-        const schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' }) || await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
-        if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
-          let matchedSlab = null;
-          if (data.planName) {
-            matchedSlab = schemeConfig.slabs.find((s) => s.planName === data.planName);
-          }
-          if (!matchedSlab) {
-            matchedSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === Number(resolvedTenure));
-          }
-          if (!matchedSlab) {
-            const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
-            matchedSlab = sortedSlabs.find((s) => Number(s.tenureMonths) >= Number(resolvedTenure)) || sortedSlabs[sortedSlabs.length - 1];
-          }
-
-          if (matchedSlab) {
-            if (isFullPayment) {
-              if (resolvedPromoterCommissionPercent === undefined) {
-                resolvedPromoterCommissionPercent = Number(matchedSlab.fdPromoterCommissionPercent ?? matchedSlab.rdPromoterCommissionPercent ?? 5.0);
-              }
-              if (resolvedBpCommissionPercent === undefined) {
-                resolvedBpCommissionPercent = Number(matchedSlab.bpFdCommissionPercent ?? matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-              }
-              if (resolvedBranchCommissionPercent === undefined) {
-                resolvedBranchCommissionPercent = Number(matchedSlab.branchFdCommissionPercent ?? matchedSlab.branchRdCommissionPercent ?? 0.5);
-              }
-            } else {
-              if (resolvedPromoterCommissionPercent === undefined) {
-                resolvedPromoterCommissionPercent = Number(matchedSlab.rdPromoterCommissionPercent ?? 4.0);
-              }
-              if (resolvedBpCommissionPercent === undefined) {
-                resolvedBpCommissionPercent = Number(matchedSlab.bpRdCommissionPercent ?? matchedSlab.developerCommissionPercent ?? 1.0);
-              }
-              if (resolvedBranchCommissionPercent === undefined) {
-                resolvedBranchCommissionPercent = Number(matchedSlab.branchRdCommissionPercent ?? 0.5);
-              }
-            }
-            if (resolvedDeveloperCommissionPercent === undefined) {
-              resolvedDeveloperCommissionPercent = resolvedBpCommissionPercent;
-            }
-          }
+    // Resolve scheme-configured commissions from InvestmentSchemeConfig
+    let matchedSlab = null;
+    try {
+      const schemeConfig = await InvestmentSchemeConfig.findOne({ status: 'active' }) || await InvestmentSchemeConfig.findOne().sort({ createdAt: -1 });
+      if (schemeConfig && Array.isArray(schemeConfig.slabs) && schemeConfig.slabs.length > 0) {
+        if (data.planName) {
+          matchedSlab = schemeConfig.slabs.find((s) => s.planName === data.planName);
         }
-      } catch (err) {
-        console.error('Error looking up scheme config for booking commission defaults:', err);
+        if (!matchedSlab) {
+          matchedSlab = schemeConfig.slabs.find((s) => Number(s.tenureMonths) === Number(resolvedTenure));
+        }
+        if (!matchedSlab) {
+          const sortedSlabs = [...schemeConfig.slabs].sort((a, b) => Number(a.tenureMonths) - Number(b.tenureMonths));
+          matchedSlab = sortedSlabs.find((s) => Number(s.tenureMonths) >= Number(resolvedTenure)) || sortedSlabs[sortedSlabs.length - 1];
+        }
       }
+    } catch (err) {
+      console.error('Error looking up scheme config for booking commission defaults:', err);
     }
+
+    const lockedDpBaPct = Number(
+      data.downpaymentPromoterCommissionPercent ??
+      matchedSlab?.fdPromoterCommissionPercent ??
+      matchedSlab?.rdPromoterCommissionPercent ??
+      5.0
+    );
+    const lockedEmiBaPct = Number(
+      data.emiPromoterCommissionPercent ??
+      matchedSlab?.rdPromoterCommissionPercent ??
+      4.0
+    );
+    const lockedDpBpPct = Number(
+      data.downpaymentBpCommissionPercent ??
+      matchedSlab?.bpFdCommissionPercent ??
+      matchedSlab?.bpRdCommissionPercent ??
+      matchedSlab?.developerCommissionPercent ??
+      1.0
+    );
+    const lockedEmiBpPct = Number(
+      data.emiBpCommissionPercent ??
+      matchedSlab?.bpRdCommissionPercent ??
+      matchedSlab?.developerCommissionPercent ??
+      1.0
+    );
+    const lockedDpBranchPct = Number(
+      data.downpaymentBranchCommissionPercent ??
+      matchedSlab?.branchFdCommissionPercent ??
+      matchedSlab?.branchRdCommissionPercent ??
+      0.5
+    );
+    const lockedEmiBranchPct = Number(
+      data.emiBranchCommissionPercent ??
+      matchedSlab?.branchRdCommissionPercent ??
+      0.5
+    );
 
     const bookingDoc = new PlotProductBooking({
       bookingNumber,
@@ -885,15 +869,21 @@ class PlotProductService {
             : (product.dimensionLabel || `${product.dimensions?.north || 1} ft x ${product.dimensions?.east || 2} ft`)
         ),
       },
-      planName: data.planName || '',
+      planName: data.planName || (matchedSlab?.planName || ''),
       tenureMonths: resolvedTenure,
-      promoterCommissionPercent: resolvedPromoterCommissionPercent,
-      developerCommissionPercent: resolvedDeveloperCommissionPercent,
-      bpCommissionPercent: resolvedBpCommissionPercent,
-      branchCommissionPercent: resolvedBranchCommissionPercent,
-      rdMaturityPercent: data.rdMaturityPercent !== undefined ? Number(data.rdMaturityPercent) : 0,
-      fdMaturityPercent: data.fdMaturityPercent !== undefined ? Number(data.fdMaturityPercent) : 0,
-      annualInterestRate: data.annualInterestRate !== undefined ? Number(data.annualInterestRate) : 0,
+      promoterCommissionPercent: isFullPayment ? lockedDpBaPct : lockedEmiBaPct,
+      developerCommissionPercent: isFullPayment ? lockedDpBpPct : lockedEmiBpPct,
+      bpCommissionPercent: isFullPayment ? lockedDpBpPct : lockedEmiBpPct,
+      branchCommissionPercent: isFullPayment ? lockedDpBranchPct : lockedEmiBranchPct,
+      downpaymentPromoterCommissionPercent: lockedDpBaPct,
+      emiPromoterCommissionPercent: lockedEmiBaPct,
+      downpaymentBpCommissionPercent: lockedDpBpPct,
+      emiBpCommissionPercent: lockedEmiBpPct,
+      downpaymentBranchCommissionPercent: lockedDpBranchPct,
+      emiBranchCommissionPercent: lockedEmiBranchPct,
+      rdMaturityPercent: data.rdMaturityPercent !== undefined ? Number(data.rdMaturityPercent) : Number(matchedSlab?.rdMaturityPercent || 0),
+      fdMaturityPercent: data.fdMaturityPercent !== undefined ? Number(data.fdMaturityPercent) : Number(matchedSlab?.fdMaturityPercent || 0),
+      annualInterestRate: data.annualInterestRate !== undefined ? Number(data.annualInterestRate) : Number(matchedSlab?.annualInterestRate || 0),
       paymentType,
       downPayment: dp,
       downpaymentDays: resolvedDpDays,
@@ -903,11 +893,11 @@ class PlotProductService {
       dpType,
       dpVal: Number(dpVal) || 0,
       emiPrincipalAmount: remainingAmount,
-      remainingAmount: isFullPayment ? 0 : totalAmount,
+      remainingAmount: totalAmount,
       monthlyEmi: isFullPayment ? 0 : monthlyEmi,
-      totalPaid: isFullPayment ? dp : 0,
+      totalPaid: 0,
       installments,
-      collections,
+      collections: [],
       landSourcing: processedSourcing,
       status: bookingStatus,
       remarks: remarks.trim(),
@@ -915,32 +905,6 @@ class PlotProductService {
     });
 
     await bookingDoc.save();
-
-    // Auto-record double-entry credit in treasury ledger for downpayment (if full payment)
-    if (isFullPayment && resolvedDpLedgerId && dp > 0) {
-      try {
-        await accountingService.recordLedgerEntry({
-          ledgerId: resolvedDpLedgerId,
-          date: bDate,
-          type: 'CREDIT',
-          amount: dp,
-          source: 'receipt',
-          referenceId: bookingDoc._id,
-          remarks: `Product Booking Full Payment: PRD-DP-${bookingNumber} - Customer: ${customer.name || 'Customer'}`
-        });
-      } catch (e) {
-        console.error('Error recording ledger entry for product booking DP:', e);
-      }
-    }
-
-    // Auto-sync sponsor fixed commission if sponsor is linked and downPayment / full payment > 0
-    if (bookingDoc.sponsorId) {
-      try {
-        await plotDeveloperService.syncProductBookingSponsorCommissions(bookingDoc._id);
-      } catch (e) {
-        console.error('Error syncing product booking sponsor commission on create:', e);
-      }
-    }
 
     // Update Product units sold
     product.unitsSold = (product.unitsSold || 0) + qty;
@@ -1631,16 +1595,11 @@ class PlotProductService {
       }
     }
 
-    let totalPrincipal = Number(booking.paymentType === 'FULL_PAYMENT' ? (booking.totalAmount || 0) : 0);
+    let totalPrincipal = 0;
     let totalFinePaid = 0;
     let totalFineRebate = 0;
 
     for (const col of approvedCollections) {
-      if (booking.paymentType === 'FULL_PAYMENT' && (col.receiptNumber?.startsWith('DP-') || col.receiptNumber?.startsWith('PRD-DP-'))) {
-        col.principalPaid = booking.totalAmount || col.amountPaid;
-        continue;
-      }
-
       let remainingPaid = Number(col.amountPaid) || 0;
       let remainingRebate = Number(col.lateFineRebate) || 0;
       const pDate = new Date(col.paymentDate || col.createdAt || Date.now());
@@ -1657,6 +1616,8 @@ class PlotProductService {
       let colPrincipal = 0;
       let colFine = 0;
       let colRebate = 0;
+      let colDpPrincipal = 0;
+      let colEmiPrincipal = 0;
 
       for (const inst of targetInsts) {
         if (remainingPaid <= 0 && remainingRebate <= 0) break;
@@ -1688,6 +1649,12 @@ class PlotProductService {
         remainingPaid -= principalPaidThisTime;
         colPrincipal += principalPaidThisTime;
 
+        if (inst.installmentNumber === 0) {
+          colDpPrincipal += principalPaidThisTime;
+        } else {
+          colEmiPrincipal += principalPaidThisTime;
+        }
+
         inst.paidDate = pDate;
         inst.receiptNumber = col.receiptNumber;
 
@@ -1698,6 +1665,12 @@ class PlotProductService {
       }
 
       col.principalPaid = colPrincipal;
+      col.downpaymentPrincipalPaid = booking.paymentType === 'FULL_PAYMENT' ? colPrincipal : colDpPrincipal;
+      col.emiPrincipalPaid = booking.paymentType === 'FULL_PAYMENT' ? 0 : colEmiPrincipal;
+      col.receiptType = booking.paymentType === 'FULL_PAYMENT'
+        ? 'FULL_PAYMENT'
+        : (colDpPrincipal > 0 && colEmiPrincipal > 0 ? 'PARTIAL_DP_EMI' : (colDpPrincipal > 0 ? 'DOWNPAYMENT' : 'INSTALLMENT'));
+
       col.lateFinePaid = colFine;
       col.lateFineRebate = colRebate;
 
@@ -1706,17 +1679,15 @@ class PlotProductService {
       totalFineRebate += colRebate;
     }
 
-    if (booking.paymentType !== 'FULL_PAYMENT') {
-      booking.totalPaid = totalPrincipal;
-      booking.totalLateFinePaid = totalFinePaid;
-      booking.totalLateFineRebate = totalFineRebate;
-      booking.remainingAmount = Math.max(0, (booking.totalAmount || 0) - booking.totalPaid);
+    booking.totalPaid = totalPrincipal;
+    booking.totalLateFinePaid = totalFinePaid;
+    booking.totalLateFineRebate = totalFineRebate;
+    booking.remainingAmount = Math.max(0, (booking.totalAmount || 0) - booking.totalPaid);
 
-      if (booking.remainingAmount <= 0 && (booking.totalAmount || 0) > 0) {
-        booking.status = 'COMPLETED';
-      } else if (booking.status === 'COMPLETED' && booking.remainingAmount > 0) {
-        booking.status = 'ACTIVE';
-      }
+    if (booking.remainingAmount <= 0 && (booking.totalAmount || 0) > 0) {
+      booking.status = 'COMPLETED';
+    } else if (booking.status === 'COMPLETED' && booking.remainingAmount > 0) {
+      booking.status = 'ACTIVE';
     }
 
     if (session) {

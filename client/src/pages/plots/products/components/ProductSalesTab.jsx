@@ -19,6 +19,7 @@ import {
   Clock,
   Edit2,
   Calculator,
+  CreditCard,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { DateInput } from '../../../../components/ui/DateInput';
@@ -135,10 +136,6 @@ const ProductSalesTab = ({
       toast.success(res.data?.message || 'Product sale recorded and booking generated successfully!');
       setShowSaleModal(false);
       onRefresh();
-
-      if (res.data?.data && onOpenCertificate) {
-        onOpenCertificate(res.data.data);
-      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to record product booking');
     } finally {
@@ -319,6 +316,18 @@ const ProductSalesTab = ({
 
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5 py-1">
+                          {/* 0. Collect Payment */}
+                          {b.status !== 'CANCELLED' && remaining > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
+                              className="p-1.5 text-emerald-700 hover:bg-emerald-100/70 rounded-lg transition border border-emerald-300 bg-emerald-50 cursor-pointer shadow-2xs"
+                              title="Collect Payment / Receipt in Investment Collections"
+                            >
+                              <CreditCard size={14} />
+                            </button>
+                          )}
+
                           {/* 1. View Details */}
                           <button
                             type="button"
