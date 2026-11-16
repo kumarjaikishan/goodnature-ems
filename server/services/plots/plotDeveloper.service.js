@@ -869,7 +869,7 @@ class PlotDeveloperService {
 
       const receiptDate = col.paymentDate ? new Date(col.paymentDate) : new Date();
       const colAmtFormatted = collectionPrincipal.toLocaleString('en-IN');
-      const receiptTypeFormatted = col.receiptType || 'Product Collection';
+      let receiptTypeFormatted = col.receiptType || 'Product Collection';
 
       const existingColComms = commsByReceiptNumber.get(col.receiptNumber) || [];
 
@@ -1041,11 +1041,11 @@ class PlotDeveloperService {
       const branchFixedPct = collectionPrincipal > 0 ? +(branchFixedAmt / collectionPrincipal * 100).toFixed(3) : branchDpPct;
       const baFixedPct = combinedFixedPct;
 
-      let receiptTypeFormatted = 'Collection';
       if (booking.paymentType === 'FULL_PAYMENT') receiptTypeFormatted = 'Full Payment';
       else if (dpPrincipal > 0 && emiPrincipal === 0) receiptTypeFormatted = 'Downpayment';
       else if (emiPrincipal > 0 && dpPrincipal === 0) receiptTypeFormatted = 'EMI';
       else if (dpPrincipal > 0 && emiPrincipal > 0) receiptTypeFormatted = 'Downpayment + EMI';
+      else receiptTypeFormatted = 'Collection';
 
       if (!sponsorDoc.sponsorId) {
         // ── BUSINESS PARTNER DIRECT SALE ──
