@@ -90,11 +90,19 @@ console.log("Timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
 // console.log("UTC Hours:", new Date().getUTCHours());
 
 // ----------------------
-// Optional: log incoming requests
+// Log incoming requests
 // ----------------------
 app.use((req, res, next) => {
-  // console.log(`📡 Incoming: ${req.method} ${req.url}`);
-  // if (req.bodyRaw) console.log('📡 Incoming essl request: ', req.bodyRaw);
+  const start = Date.now();
+  const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false });
+  console.log(`[${timeStr}] 📡 ${req.method} ${req.originalUrl || req.url}`);
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const statusIcon = res.statusCode >= 500 ? '❌' : res.statusCode >= 400 ? '⚠️' : '✅';
+    console.log(`[${timeStr}] ${statusIcon} ${req.method} ${req.originalUrl || req.url} -> ${res.statusCode} (${duration}ms)`);
+  });
+
   next();
 });
 
