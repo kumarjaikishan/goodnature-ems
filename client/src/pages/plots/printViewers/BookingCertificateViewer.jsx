@@ -142,11 +142,16 @@ const BookingCertificateViewer = () => {
     const remainingBalance = Math.max(0, totalValuation - downPayment);
     const tenureMonths = booking.tenureMonths || 24;
     const monthlyEmi = Number(booking.monthlyEmi || (isFullPayment ? 0 : Math.round(remainingBalance / tenureMonths)));
-    const bookingDateFormatted = new Date(booking.bookingDate || booking.createdAt).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    const rawBDate = booking.bookingDate || booking.createdAt;
+    let bookingDateTimeStr = '-';
+    let bookingDateFormatted = '-';
+    if (rawBDate) {
+      const bDateObj = new Date(rawBDate);
+      bookingDateFormatted = bDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeSource = booking.createdAt ? new Date(booking.createdAt) : bDateObj;
+      const timePart = timeSource.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      bookingDateTimeStr = `${bookingDateFormatted}, ${timePart}`;
+    }
 
     const lengthFt = Number(dims.northSouth || dims.north || dims.south || 1);
     const widthFt = Number(dims.eastWest || dims.east || dims.west || 1);
@@ -184,352 +189,309 @@ const BookingCertificateViewer = () => {
             onClick={handlePrint}
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition shadow-xs cursor-pointer"
           >
-            <Printer size={14} /> Print Certificate
+            <Printer size={14} /> Print Receipt
           </button>
         </div>
 
-        {/* Printable Certificate Paper */}
-        <div className="w-full max-w-4xl bg-white text-slate-900 p-6 sm:p-7 border border-slate-200 rounded-sm shadow-xl relative overflow-hidden print:shadow-none print:border-none print:p-0 print-half-a4">
+        {/* Printable Certificate Container */}
+        <div className="w-full max-w-4xl bg-white text-slate-900 p-4 sm:p-5 border border-slate-200 rounded-sm shadow-xl relative overflow-hidden print:shadow-none print:border-none print:p-0 print-half-a4">
           <style>{`
             @media print {
               @page {
                 size: portrait;
-                margin: 10mm 15mm 10mm 15mm !important;
+                margin: 0 !important;
               }
-              body {
-                margin: 0;
+              html, body, #root {
+                height: 100% !important;
+                max-height: 100% !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
                 background: white !important;
                 color: black !important;
               }
               .print-container {
                 min-height: 0 !important;
+                height: 100% !important;
+                max-height: 100% !important;
                 background-color: white !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 display: block !important;
+                overflow: hidden !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
               }
               .print-half-a4 {
-                width: 100% !important;
+                box-sizing: border-box !important;
+                width: calc(100% - 10mm) !important;
                 max-width: 100% !important;
+                max-height: 95mm !important;
+                height: 95mm !important;
                 border: none !important;
                 box-shadow: none !important;
                 padding: 0 !important;
-                margin: 0 !important;
+                margin-top: 35mm !important;
+                margin-left: 5mm !important;
+                margin-right: 5mm !important;
+                margin-bottom: 0 !important;
+                overflow: hidden !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
               }
             }
           `}</style>
 
-          {/* Background Logo Watermark */}
+          {/* Background Logo Watermark (Black & White / Grayscale) */}
           {company?.logo ? (
-            <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0">
+            <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
               <img
-                src={cloudinaryUrl(company.logo, { format: 'webp', width: 400, height: 400 })}
+                src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
                 alt="Watermark Logo"
                 className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
               />
             </div>
           ) : null}
 
-          {/* Company Header */}
-          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-4 relative z-10">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                {company?.logo ? (
-                  <div className="w-12 h-12 flex items-center justify-center shrink-0 overflow-hidden rounded-md">
-                    <img
-                      src={cloudinaryUrl(company.logo, { format: 'webp', width: 120, height: 120 })}
-                      alt="Company Logo"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                ) : null}
-                <div>
-                  <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase leading-tight">
-                    {companyName}
-                  </h1>
-                </div>
-              </div>
-
-              <div className="text-[10px] text-slate-600 space-y-0.5 font-medium">
-                <p>{companyAddress}</p>
-              </div>
-            </div>
-
-
-          </div>
-
-          {/* Certificate Title */}
-          <div className="text-center mb-3 select-none relative z-10">
-            <span className="px-4 py-1 text-slate-900 text-[1rem] font-black uppercase tracking-wider rounded-sm inline-block border-b-2 border-slate-900">
-              {isFullPayment ? 'PLOT ALLOTMENT CERTIFICATE' : 'CERTIFICATE OF PLOT ALLOTMENT'}
+          {/* Booking Receipt Title */}
+          <div className="text-center mb-1 select-none relative z-10 print:mb-0.5">
+            <span className="px-2 py-0.2 text-slate-900 text-[11px] md:text-[12px] font-black uppercase tracking-wider rounded-sm print:text-[10px]">
+              BOOKING RECEIPT
             </span>
           </div>
 
-          {/* Details Table: Name: Value Format */}
-          <table className="w-full border border-slate-200 text-[11px] font-semibold mb-3 select-none border-collapse relative z-10">
+          {/* Details Table: Name: Value Format with Specified Widths & Subtle Lines */}
+          <table className="w-full border border-slate-200 text-[8px] font-semibold mb-1 select-none border-collapse relative z-10 leading-tight print:text-[7.5px] print:mb-0.5">
             <tbody>
-              {/* Row 1: Booking ID and Booking Date */}
+              {/* Row 1: Booking ID | Booking Date/Time */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium w-[18%]">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
                     <span>Booking ID</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-black text-slate-900 w-[32%] font-mono">{booking.bookingNumber}</td>
-                <td className="p-2 text-slate-500 font-medium w-[18%]">
+                <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%] font-mono">{booking.bookingNumber}</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Booking Date</span>
+                    <span>Booking Date/Time</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900 w-[32%]">{bookingDateFormatted}</td>
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{bookingDateTimeStr}</td>
               </tr>
 
-              {/* Row 2: Customer Name and ID */}
+              {/* Row 2: Customer ID | Plot / Unit Number */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Customer Name</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-black text-slate-900">{customer.name || '-'}</td>
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
                     <span>Customer ID</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900 font-mono">
-                  {customer.customerCode || customer.customerId || '-'}
-                </td>
-              </tr>
-
-              {/* Row 3: Mobile & Guardian */}
-              <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{customer.customerCode || customer.customerId || '-'}</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Mobile No</span>
+                    <span>Plot Number</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900">{customer.mobile || '-'}</td>
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{plot.plotNumber || booking.plotNumber || (booking.quantity ? `${booking.quantity} Unit(s)` : '-')}</td>
+              </tr>
+
+              {/* Row 3: Customer Name | Guardian / Father */}
+              <tr className="border-b border-slate-100">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Customer Name</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
                     <span>Guardian / Father</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {customer.fatherOrHusbandName ? `${customer.relationType || 'S/o'} ${customer.fatherOrHusbandName}` : '-'}
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
+                  {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
                 </td>
               </tr>
 
-              {/* Row 4: Address */}
+              {/* Row 4: Address | Mobile No */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
                     <span>Address</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td colSpan={3} className="p-2 font-bold text-slate-900">
-                  {customer.currentAddress || customer.address || '-'}
-                </td>
-              </tr>
-
-              {/* Row 5: Booking Status */}
-              <tr className="border-b border-slate-100 bg-slate-50/20">
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] truncate max-w-[200px]">{customer.currentAddress || customer.address || booking.customerAddress || '-'}</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Booking Status</span>
+                    <span>Mobile No</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td colSpan={3} className="p-2 font-bold text-slate-900 uppercase">
-                  OK
-                </td>
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{customer.mobile || booking.customerMobile || '-'}</td>
               </tr>
 
-              {/* Row 6: Mauja & Thana */}
+              {/* Row 5: Plot Area | Mauja / थाना */}
+              <tr className="border-b border-slate-100 bg-slate-50/30">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Plot Area</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{totalArea.toLocaleString('en-IN')} Sq Ft</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Mauja / थाना</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] uppercase truncate max-w-[200px]">{maujaList}{thanaList && thanaList !== '-' ? ` (THANA: ${thanaList})` : ''}</td>
+              </tr>
+
+              {/* Row 6: Khata | Khesra No */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Mauja / मौजा</span>
+                    <span>Khata</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900 uppercase">
-                  {maujaList}
-                </td>
-                <td className="p-2 text-slate-500 font-medium">
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{khataList}</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Thana No. / थाना</span>
+                    <span>Khesra No</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {thanaList}
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{khesraList}</td>
+              </tr>
+
+              {/* Row 7: Dimensions / पैमाइश */}
+              <tr className="border-b border-slate-100 bg-slate-50/40">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Dimensions / पैमाइश</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td colSpan={3} className="py-0.5 px-1.5 font-bold text-slate-900 font-mono text-[7.5px] print:text-[7px]">
+                  {lengthFt > 0 && widthFt > 0
+                    ? `उत्तर: ${dims.north ?? lengthFt} ft | दक्षिण: ${dims.south ?? lengthFt} ft | पूरब: ${dims.east ?? widthFt} ft | पश्चिम: ${dims.west ?? widthFt} ft`
+                    : product.dimensionLabel || '-'}
                 </td>
               </tr>
 
-              {/* Row 7: Khata & Khesra */}
-              <tr className="border-b border-slate-100 bg-slate-50/20">
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Khata No. / खाता</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900 font-mono">
-                  {khataList}
-                </td>
-                <td className="p-2 text-slate-500 font-medium">
-                  <div className="flex justify-between items-center">
-                    <span>Khesra No. / खेसरा</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="p-2 font-bold text-slate-900 font-mono">
-                  {khesraList}
-                </td>
-              </tr>
-
-              {/* Row 8: Total Area & Dimensions */}
+              {/* Row 8: Booked Rate | Gross Plot Value */}
               <tr className="border-b border-slate-100">
-                <td className="p-2 text-slate-500 font-medium w-[18%]">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Total Area / कुल रकबा</span>
+                    <span>Booked Rate</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td colSpan={3} className="p-2 font-bold text-slate-900">
-                  <div className="flex flex-wrap items-baseline gap-1.5">
-                    <span className="font-black text-teal-900 text-xs font-mono">
-                      {totalArea.toLocaleString('en-IN')} Sq.Ft
-                    </span>
-                    {(lengthFt > 0 && widthFt > 0) ? (
-                      <span className="font-bold text-slate-700 font-mono text-xs">
-                        ({lengthFt}ft x {widthFt} ft)
-                      </span>
-                    ) : product.dimensionLabel ? (
-                      <span className="font-bold text-slate-700 font-mono text-xs">
-                        ({product.dimensionLabel})
-                      </span>
-                    ) : null}
-                  </div>
-                  {(dims.north || dims.northSouth) && (
-                    <span className="text-[10px] text-slate-500 block font-sans font-normal mt-0.5">
-                      North: {dims.north ?? dims.northSouth} ft | South: {dims.south ?? dims.northSouth} ft | East: {dims.east ?? dims.eastWest} ft | West: {dims.west ?? dims.eastWest} ft
-                    </span>
-                  )}
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
+                  {totalArea > 0 ? `₹${Math.round(totalValuation / totalArea).toLocaleString('en-IN')} / Sq Ft` : `₹${unitPrice.toLocaleString('en-IN')} / unit`}
                 </td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Gross Plot Value</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%]">₹{totalValuation.toLocaleString('en-IN')}</td>
               </tr>
 
-              {/* Row 9: Total Valuation & Payment Scheme */}
-              <tr className="border-b border-slate-100 bg-slate-50/20">
-                <td className="p-2 text-slate-500 font-medium">
+              {/* Row 9: Total Discount | Net Payable Amount */}
+              <tr className="border-b border-slate-100">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Total Valuation</span>
+                    <span>Total Discount</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2">
-                  <span className="font-black text-slate-900 text-xs">
+                <td className="py-0.5 px-1.5 font-bold text-emerald-700 w-[32%]">₹0</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>Net Payable Amount</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 w-[32%]">
+                  <span className="font-black text-slate-900 text-[8.5px] print:text-[8px]">
                     ₹{totalValuation.toLocaleString('en-IN')}
                   </span>
-                  <span className="text-[10px] text-slate-500 font-sans font-normal block mt-0.5 capitalize">
+                  <span className="text-[7px] text-slate-500 font-sans font-normal block capitalize truncate max-w-[200px]">
                     ({numberToWords(totalValuation)})
                   </span>
                 </td>
-                <td className="p-2 text-slate-500 font-medium">
+              </tr>
+
+              {/* Row 10: Down Payment (D.P) | EMI Payment */}
+              <tr className="border-b border-slate-100">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
                   <div className="flex justify-between items-center">
-                    <span>Payment Scheme</span>
+                    <span>{isFullPayment ? 'Upfront Paid' : 'Down Payment (D.P)'}</span>
                     <span>:</span>
                   </div>
                 </td>
-                <td className="p-2 font-bold text-slate-900">
-                  {isFullPayment ? 'One Time Payment' : 'Monthly Installment (EMI)'}
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
+                  ₹{downPayment.toLocaleString('en-IN')}
+                </td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>EMI Payment</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
+                  ₹{remainingBalance.toLocaleString('en-IN')}
                 </td>
               </tr>
 
-              {/* Row 10: Payment Details / Settlement */}
-              {isFullPayment ? (
-                <tr className="border-b border-slate-100">
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Upfront Paid</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-slate-900">
-                    ₹{totalValuation.toLocaleString('en-IN')}
-                  </td>
-                  <td className="p-2 text-slate-500 font-medium">
-                    <div className="flex justify-between items-center">
-                      <span>Payment Status</span>
-                      <span>:</span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-bold text-emerald-700">
-                    FULLY PAID
-                  </td>
-                </tr>
-              ) : (
-                <>
-                  <tr className="border-b border-slate-100">
-                    <td className="p-2 text-slate-500 font-medium">
-                      <div className="flex justify-between items-center">
-                        <span>Downpayment Paid</span>
-                        <span>:</span>
-                      </div>
-                    </td>
-                    <td className="p-2 font-bold text-slate-900">
-                      ₹{downPayment.toLocaleString('en-IN')}
-                    </td>
-                    <td className="p-2 text-slate-500 font-medium">
-                      <div className="flex justify-between items-center">
-                        <span>EMI Payment</span>
-                        <span>:</span>
-                      </div>
-                    </td>
-                    <td className="p-2 font-bold text-slate-900">
-                      ₹{remainingBalance.toLocaleString('en-IN')}
-                    </td>
-                  </tr>
-                  <tr className="border-b border-slate-100 bg-slate-50/20">
-                    <td className="p-2 text-slate-500 font-medium">
-                      <div className="flex justify-between items-center">
-                        <span>EMI Tenure & Monthly</span>
-                        <span>:</span>
-                      </div>
-                    </td>
-                    <td colSpan={3} className="p-2 font-bold text-slate-900">
-                      ₹{monthlyEmi.toLocaleString('en-IN')} / month for {tenureMonths} months
-                    </td>
-                  </tr>
-                </>
-              )}
-
-
+              {/* Row 11: D.P End Due Date/Duration | EMI End Due DateDuration */}
+              <tr className="border-b border-slate-100">
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>D.P End Due Date/Duration</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-bold text-amber-800 w-[32%]">{isFullPayment ? 'One-Time Full Paid' : bookingDateFormatted}</td>
+                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
+                  <div className="flex justify-between items-center">
+                    <span>EMI End Due DateDuration</span>
+                    <span>:</span>
+                  </div>
+                </td>
+                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
+                  {isFullPayment ? `${tenureMonths} Months Lock-in` : (monthlyEmi > 0 ? `₹${monthlyEmi.toLocaleString('en-IN')} / mo (${tenureMonths} Mos)` : '-')}
+                </td>
+              </tr>
             </tbody>
           </table>
 
           {/* Bottom Signatory area */}
-          <div className="flex justify-between items-end pt-8 select-none relative z-10">
-            <div className="text-center w-44 pt-1 border-t border-slate-300">
-              <strong className="text-slate-900 block text-xs">Customer Signature</strong>
-            </div>
-            <div className="text-center w-48 pt-1 border-t border-slate-300">
-              <strong className="text-slate-900 block text-xs">Authorized Signatory</strong>
-              <span className="text-[10px] text-slate-500 font-normal">{companyName}</span>
+          <div className="flex justify-end items-end pt-1.5 select-none print:pt-1">
+            <div className="text-center w-36 pt-0.5 border-t border-slate-400">
+              <strong className="text-slate-900 block text-[9px] print:text-[8px]">Authorized Signatory</strong>
             </div>
           </div>
 
           {/* Notice line */}
-          <div className="mt-4 text-[9px] text-slate-500 font-bold italic select-none relative z-10">
-            * This certificate is an official confirmation of fractional unit allotment and is subject to the terms and timely scheduled collections.
+          <div className="mt-1 text-[7px] text-slate-500 font-bold italic select-none print:text-[6.5px]">
+            * This receipt is an official confirmation of booking slot allotment and is subject to the terms and conditions.
           </div>
         </div>
       </div>
@@ -694,7 +656,7 @@ const BookingCertificateViewer = () => {
 
         {/* Background Logo Watermark (Black & White / Grayscale) */}
         {company?.logo ? (
-          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0">
+          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
             <img
               src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
               alt="Watermark Logo"

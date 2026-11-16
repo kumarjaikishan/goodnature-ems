@@ -165,15 +165,28 @@ const PlotAgreementEnglish = ({
   const custIfscCode = customer.ifscCode || booking.ifscCode || customer.ifsc || '-';
   const custAccountHolder = customer.accountHolderName || customer.name || customerName || '-';
 
-  // EMI Frequency resolution (Monthly, Quarterly, Half-Yearly, Yearly)
+  // Installment Frequency resolution (Monthly, Quarterly, Half-Yearly, Yearly)
   const rawEmiFreq = (booking.emiFrequency || 'MONTHLY').toUpperCase();
-  const emiFreqLabel = rawEmiFreq === 'QUARTERLY'
-    ? 'QUARTERLY (EVERY 3 MONTHS)'
+  const emiFreqWord = rawEmiFreq === 'QUARTERLY'
+    ? 'Quarterly'
     : rawEmiFreq === 'HALF_YEARLY'
-      ? 'HALF-YEARLY (EVERY 6 MONTHS)'
+      ? 'Half-Yearly'
       : rawEmiFreq === 'YEARLY'
-        ? 'YEARLY (EVERY 12 MONTHS)'
-        : 'MONTHLY';
+        ? 'Yearly'
+        : 'Monthly';
+
+  // Downpayment / Pre-agreement Non-Cash Payment Transactions resolution
+  const allReceipts = booking.receipts || [];
+  const nonCashDownpayments = allReceipts
+    .filter((r) => {
+      const mode = (r.paymentMode || '').toLowerCase();
+      const status = (r.status || 'APPROVED').toUpperCase();
+      const isNonCash = mode !== 'cash';
+      const isApproved = status !== 'REJECTED';
+      const isDownOrBooking = !r.receiptType || ['BOOKING', 'DOWNPAYMENT', 'FULL_PAYMENT'].includes(r.receiptType.toUpperCase()) || r.installmentNumber === 0;
+      return isNonCash && isApproved && isDownOrBooking;
+    })
+    .sort((a, b) => new Date(a.paymentDate || a.createdAt) - new Date(b.paymentDate || b.createdAt));
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -427,10 +440,10 @@ const PlotAgreementEnglish = ({
         <div className="flex-1 space-y-1">
           <p className="m-0 leading-relaxed"><span className="font-bold">B. EARNEST MONEY AND ITS FORFEITURE & CANCELLATION</span></p>
           <div className="pl-3 space-y-0.5">
-            <p className="m-0"><span className="font-bold mr-1.5">i.</span>The Parties hereby agree that the earnest money for the purpose of this Agreement shall be sum equivalent to <span className="font-bold">40% (Forty Percent)</span> of the amount received by the Company till the date of occurrence of event (hereinafter referred to as the "Earnest Money").</p>
-            <p className="m-0"><span className="font-bold mr-1.5">ii.</span>The Allottee hereby authorizes the Company to cancel the allotment and forfeit the Earnest Money along with the interest <span className="font-bold">@ 20% per annum</span> on delayed payments, interest on installments, brokerage and the amount of any other fine or penalty paid by the Allottee hereunder, in the event of non-fulfilment or breach by the Allottee of any of the terms and conditions herein contained including specifically (but without limitation) upon the occurrence of an event of default as mentioned in Clause 7.1 above, as also in the event of failure by the Allottee to sign and return to the Company this Agreement within 30 days from the date of its dispatch by the Company. Further, the Allottee shall be left with no lien, right, title, interest or any claim of whatsoever nature in the said Land and/or any part of the said Project or against the Company or any of its directors, shareholders, employees or agents. However, the Company shall refund the amount paid by the Allottee upon cancellation of agreement without any deduction of whatsoever name called, provided the Allottee agrees to receive the amount due on cancellation after a period of <span className="font-bold">36 (Thirty-Six) months</span> from the date of cancellation.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">i.</span>The Parties hereby agree that the earnest money for the purpose of this Agreement shall be sum equivalent to <span className="font-bold">20% (Twenty Percent)</span> of the amount received by the Company till the date of occurrence of event (hereinafter referred to as the "Earnest Money").</p>
+            <p className="m-0"><span className="font-bold mr-1.5">ii.</span>The Allottee hereby authorizes the Company to cancel the allotment and forfeit the Earnest Money along with the interest <span className="font-bold">@ 18% per annum</span> on delayed payments, interest on installments, brokerage and the amount of any other fine or penalty paid by the Allottee hereunder, in the event of non-fulfilment or breach by the Allottee of any of the terms and conditions herein contained including specifically (but without limitation) upon the occurrence of an event of default as mentioned in Clause 7.1 above, as also in the event of failure by the Allottee to sign and return to the Company this Agreement within 30 days from the date of its dispatch by the Company. Further, the Allottee shall be left with no lien, right, title, interest or any claim of whatsoever nature in the said Land and/or any part of the said Project or against the Company or any of its directors, shareholders, employees or agents. However, the Company shall refund the amount paid by the Allottee upon cancellation of agreement without any deduction of whatsoever name called, provided the Allottee agrees to receive the amount due on cancellation after a period of <span className="font-bold">36 (Thirty-Six) months</span> from the date of cancellation.</p>
             <p className="m-0"><span className="font-bold mr-1.5">iii.</span>Subject to Clause 7.2.2 above, the amount(s), if any, paid by the Allottee over and above the Earnest Money, processing fee, interest on delayed payments, interest on installments, brokerage, amount of any fine or penalty etc., that stand forfeited, would be refunded to the Allottee by the Company without any interest or compensation whatsoever. The Company shall have the first lien and charge on the said Land(s) for all its dues payable by the Allottee to the Company. The Company shall thereafter be free to resell and/or deal with the said Land in any manner whatsoever at its sole discretion.</p>
-            <p className="m-0"><span className="font-bold mr-1.5">iv.</span>Without prejudice to the Company's aforesaid rights, the Company may at its sole discretion waive the breach by the Allottee in not making timely payments as per the payment plan but on the condition that the Allottee shall pay to the Company interest on the delayed payments which shall be charged for the period and at the rate of interest <span className="font-bold">@ 20% per annum</span>, or at any other rate of interest as the Company may deem fit.</p>
+            <p className="m-0"><span className="font-bold mr-1.5">iv.</span>Without prejudice to the Company's aforesaid rights, the Company may at its sole discretion waive the breach by the Allottee in not making timely payments as per the payment plan but on the condition that the Allottee shall pay to the Company interest on the delayed payments which shall be charged for the period and at the rate of interest <span className="font-bold">@ 18% per annum</span>, or at any other rate of interest as the Company may deem fit.</p>
           </div>
 
           <h4 className="font-black text-slate-900 text-[0.76rem] uppercase m-0 pt-2 pb-0.5">8. HANDING OVER THE POSSESSION OF THE LAND AND PARTIES' OBLIGATIONS IN RELATION THERETO</h4>
@@ -640,30 +653,13 @@ const PlotAgreementEnglish = ({
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">REST AMOUNT:</td>
                   <td className="p-2.5 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">{isFullPayment ? 'LOCK-IN PERIOD:' : 'INSTALLMENT:'}</td>
-                  <td className="p-2.5 font-bold text-slate-900">{isFullPayment ? `${booking.tenureMonths || 12} Months (${+((booking.tenureMonths || 12) / 12).toFixed(1)} Yrs)` : `${installmentCount} installments`}</td>
+                  <td className="p-2.5 font-bold text-slate-900">{isFullPayment ? `${booking.tenureMonths || 12} Months (${+((booking.tenureMonths || 12) / 12).toFixed(1)} Yrs)` : `${installmentCount} Installments (${emiFreqWord})`}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">INSTALLMENT AMOUNT:</td>
                   <td className="p-2.5 border-r border-slate-300 font-bold">{isFullPayment ? formatCurrency(0) : formatCurrency(standardEmiAmt)}</td>
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">AGREEMENT END DATE:</td>
                   <td className="p-2.5 font-bold text-slate-900">{agreementEndDateStr}</td>
-                </tr>
-                {!isFullPayment && (
-                  <tr className="border-b border-slate-300">
-                    <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">INSTALLMENT FREQUENCY:</td>
-                    <td className="p-2.5 font-bold text-slate-900 uppercase" colSpan={3}>{emiFreqLabel}</td>
-                  </tr>
-                )}
-                <tr className="border-b border-slate-300">
-                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">CUSTOMER BANK DETAILS:</td>
-                  <td className="p-2.5 text-[0.72rem] leading-relaxed" colSpan={3}>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div><strong className="text-slate-700">Bank Name:</strong> <span className="font-semibold uppercase text-slate-900">{custBankName}</span></div>
-                      <div><strong className="text-slate-700">Branch:</strong> <span className="font-semibold uppercase text-slate-900">{custBankBranch}</span></div>
-                      <div><strong className="text-slate-700">A/C Number:</strong> <span className="font-mono font-bold text-slate-900">{custAccountNo}</span></div>
-                      <div><strong className="text-slate-700">IFSC Code:</strong> <span className="font-mono font-bold uppercase text-slate-900">{custIfscCode}</span></div>
-                    </div>
-                  </td>
                 </tr>
                 <tr className="border-b border-slate-300">
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">PAYMENT MODE / DETAILS:</td>
@@ -676,6 +672,37 @@ const PlotAgreementEnglish = ({
                     <strong>South (पूरब-पश्चिम जानिब दक्षिण):</strong> {plot.dimensions?.south || '-'} ft &nbsp;|&nbsp;
                     <strong>East (उत्तर-दक्षिण जानिब पूरब):</strong> {plot.dimensions?.east || '-'} ft &nbsp;|&nbsp;
                     <strong>West (उत्तर-दक्षिण जानिब पश्चिम):</strong> {plot.dimensions?.west || '-'}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300 align-top">TRANSACTION DETAILS:</td>
+                  <td className="p-2.5 text-[0.72rem] leading-relaxed" colSpan={3}>
+                    {nonCashDownpayments.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {nonCashDownpayments.map((rc, idx) => {
+                          const pDate = rc.paymentDate || rc.createdAt;
+                          const formattedTxDate = pDate
+                            ? new Date(pDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '-';
+                          const txRef = rc.transactionReference || rc.utrNumber || rc.chequeNumber || rc.receiptNumber || 'N/A';
+                          const mode = (rc.paymentMode || 'ONLINE').toUpperCase();
+                          const bank = rc.bankName ? ` (${rc.bankName})` : '';
+
+                          return (
+                            <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-slate-200 pb-1 last:border-b-0 last:pb-0">
+                              <span className="font-bold text-slate-800">{idx + 1}.</span>
+                              <div><strong className="text-slate-600">Date:</strong> <span className="font-semibold text-slate-900">{formattedTxDate}</span></div>
+                              <div><strong className="text-slate-600">Mode:</strong> <span className="font-semibold text-slate-800 uppercase">{mode}{bank}</span></div>
+                              <div><strong className="text-slate-600">Ref / UTR / Cheque:</strong> <span className="font-mono font-bold text-slate-900">{txRef}</span></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-slate-600 italic">
+                        {booking.paymentMode ? `${booking.paymentMode.toUpperCase()} - (Advance / Downpayment Deposited)` : 'Direct Wire Transfer / Bank Transfer'}
+                      </div>
+                    )}
                   </td>
                 </tr>
 

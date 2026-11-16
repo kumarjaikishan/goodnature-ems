@@ -293,6 +293,7 @@ const PlotAgreementViewer = () => {
     plotNumber: plot.plotNumber,
     plotAreaSqFt: plot.plotSize,
     landSourcing: booking.landSourcing || [],
+    receipts: receipts || [],
   };
 
   const sharedProps = {
