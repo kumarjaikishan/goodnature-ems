@@ -97,6 +97,7 @@ export const delette = async ({ departmentId, setisload, dispatch }) => {
         toast.success(data.message, { autoClose: 1200 });
     } catch (error) {
         console.error('Error deleting department:', error);
+        toast.error(error.message || 'Failed to delete department');
     } finally {
         setisload(false);
     }

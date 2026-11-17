@@ -1,5 +1,15 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Agreement Standardization: Uniform Typography, Line Spacing, and Consistent Point/Sub-point Hierarchy Across All 9 Pages [COMPLETED]**:
+  - **Location**: `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`, `PlotAgreementViewer.jsx`, `ProductAgreementViewer.jsx`.
+  - **Context**: The user requested that Page 1's clean font size, open line spacing, and comfortable rhythm be taken as the baseline standard across the entire 9-page agreement for both plot and product/investment agreements (`/dashboard/plots/product-agreements/:id` & `/dashboard/plots/agreements/:id`).
+  - **Standardized Typography System**:
+    - **Base Body Text**: Uniformly calibrated across all 9 pages to `text-[0.760rem]`–`text-[0.780rem]` with comfortable, legible line-height `leading-[1.35]`–`leading-[1.42]`, completely eliminating the cramped `leading-[1.26]` and tiny `0.715rem` sizes while ensuring all content fits within the exact 297mm A4 boundary.
+    - **Main Clause Headers (Clauses 1 to 18)**: Standardized to `font-black text-slate-900 text-[0.82rem] uppercase tracking-wide m-0 pt-1.5 pb-0.5`.
+    - **Sub-clause Headings (1.1, 1.2, A, B, C...)**: Standardized to `font-bold text-slate-900 text-[0.78rem] uppercase m-0 pt-1 pb-0.5`.
+    - **Sub-points (`a, b, c`, `i, ii, iii`, `I, II, III`, `A, B, C`)**: Uniform indentation `pl-3.5 space-y-1` with consistent bold marker `<span className="font-bold mr-1.5">`.
+    - **PageFooter Protection**: Calibrated footer with `pt-1 shrink-0 mt-auto pb-0` and set print page padding in viewers to `7mm 14mm 6mm 14mm` so that page number, Applicant Signature, and Authorized Signature lines are cleanly visible on every page without clipping.
+
 - **Attendance Register Report: Total Monthly Work Minutes & Darker Box Borders [COMPLETED]**:
   - **Location**: `client/src/pages/report/registerView.jsx` (`/dashboard/attendence_Report`).
   - **Total Monthly Work Column Fix**:

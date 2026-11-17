@@ -405,6 +405,7 @@ const PlotCustomerFormPage = () => {
                     <option value="Son of">S/O</option>
                     <option value="Daughter of">D/O</option>
                     <option value="Wife of">W/O</option>
+                    <option value="Care of">C/O</option>
                   </select>
                   <input
                     type="text"

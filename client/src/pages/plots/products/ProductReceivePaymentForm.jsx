@@ -255,7 +255,13 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
 
   const [emiCount, setEmiCount] = useState(1);
 
-  const installments = selectedBooking?.installments || [];
+  const rawInstallments = selectedBooking?.installments || [];
+  const installments = useMemo(() => {
+    if (isDpMode) {
+      return rawInstallments.filter((ins) => ins.installmentNumber === 0);
+    }
+    return rawInstallments.filter((ins) => ins.installmentNumber > 0);
+  }, [rawInstallments, isDpMode]);
 
   // All pending/unpaid installments in chronological order
   const pendingInstallments = useMemo(() => {
@@ -322,6 +328,8 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
     return (selectedBooking?.installments || []).find((ins) => ins.installmentNumber === 0);
   }, [selectedBooking]);
 
+  const dpTotal = Number(selectedBooking?.downPayment || dpInst?.amount || 0);
+
   const unpaidDp = useMemo(() => {
     if (!selectedBooking) return 0;
     if (dpInst) {
@@ -330,13 +338,22 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
     return Math.max(0, Number(selectedBooking.downPayment || 0) - Number(selectedBooking.totalPaid || 0));
   }, [selectedBooking, dpInst]);
 
+  const dpPaid = dpInst ? Number(dpInst.paidAmount || 0) : Math.max(0, dpTotal - unpaidDp);
+  const dpPrincipalDue = unpaidDp;
+  const dpDueDate = dpInst?.dueDate || (selectedBooking?.bookingDate ? new Date(new Date(selectedBooking.bookingDate).getTime() + (selectedBooking.downPaymentDays || 30) * 86400000).toISOString() : null);
+  const dpFine = dpInst ? getInstLateFine(dpInst, form.paymentDate) : 0;
+  const dpLateDays = dpInst ? getInstLateDays(dpInst, form.paymentDate) : 0;
+  const isDpOverdue = dpDueDate ? new Date(dpDueDate) < new Date(form.paymentDate || new Date()) : false;
+  const dpTotalPayable = dpPrincipalDue + dpFine;
+
   // Auto-accumulate due EMI amount when booking or paymentDate changes
   useEffect(() => {
     if (selectedBooking) {
       if (isDpMode) {
+        const netTotal = dpPrincipalDue + Math.max(0, dpFine - (Number(form.lateFineRebate) || 0));
         setForm((prev) => ({
           ...prev,
-          amountPaid: unpaidDp > 0 ? String(unpaidDp) : '',
+          amountPaid: netTotal > 0 ? String(netTotal) : (unpaidDp > 0 ? String(unpaidDp) : ''),
         }));
       } else {
         const defaultCount = dueStats.dueCount > 0 ? dueStats.dueCount : 1;
@@ -348,7 +365,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
         }));
       }
     }
-  }, [selectedBookingId, form.paymentDate, dueStats.dueCount, isDpMode, unpaidDp]);
+  }, [selectedBookingId, form.paymentDate, dueStats.dueCount, isDpMode, unpaidDp, dpPrincipalDue, dpFine]);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
@@ -359,7 +376,8 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
       const bIsDpComplete = bDpInst ? (bDpInst.status === 'PAID' || bUnpaidDp <= 0) : bUnpaidDp <= 0;
 
       if (isDpMode) {
-        return bUnpaidDp > 0;
+        // Show all active investment bookings so user can pick any booking
+        return true;
       } else {
         return bIsDpComplete && Number(b.remainingAmount || 0) > 0;
       }
@@ -372,14 +390,17 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
       const bUnpaidDp = bDpInst
         ? Math.max(0, Number(bDpInst.amount || 0) - Number(bDpInst.paidAmount || 0))
         : Math.max(0, Number(b.downPayment || 0) - Number(b.totalPaid || 0));
+      const bIsDpComplete = bDpInst ? (bDpInst.status === 'PAID' || bUnpaidDp <= 0) : bUnpaidDp <= 0;
 
       const sub = isDpMode
-        ? `Pending DP: ₹${bUnpaidDp.toLocaleString('en-IN')} • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`
+        ? (bIsDpComplete
+            ? `✓ Downpayment Completed (₹${Number(b.downPayment || bDpInst?.amount || 0).toLocaleString('en-IN')}) • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`
+            : `Pending DP: ₹${bUnpaidDp.toLocaleString('en-IN')} • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`)
         : `Product: ${b.productId?.productName || 'Unit'} • Bal: ₹${Number(b.remainingAmount || 0).toLocaleString('en-IN')}`;
 
       return {
         value: b._id,
-        label: `${b.bookingNumber} - ${b.customerId?.name || 'Customer'}`,
+        label: `${b.bookingNumber} - ${b.customerId?.name || 'Customer'}${isDpMode && bIsDpComplete ? ' (DP Completed)' : ''}`,
         subtitle: sub,
       };
     });
@@ -399,12 +420,13 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
     }
 
     if (isDpMode) {
-      if (unpaidDp <= 0) {
+      if (dpPrincipalDue <= 0 && dpFine <= 0) {
         toast.error('Down payment for this booking is already fully paid.');
         return;
       }
-      if (payAmount > unpaidDp) {
-        toast.error(`Collection amount (₹${payAmount.toLocaleString('en-IN')}) cannot exceed remaining down payment of ₹${unpaidDp.toLocaleString('en-IN')}. Only remaining down payment can be collected.`);
+      const maxDpAllowed = dpPrincipalDue + Math.max(0, dpFine - (Number(form.lateFineRebate) || 0));
+      if (payAmount > maxDpAllowed) {
+        toast.error(`Collection amount (₹${payAmount.toLocaleString('en-IN')}) cannot exceed maximum payable down payment of ₹${maxDpAllowed.toLocaleString('en-IN')}.`);
         return;
       }
     } else {
@@ -498,7 +520,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
-                {isDpMode ? 'Receive Investment Down Payment' : 'Receive Investment EMI Collection'}
+                {isDpMode ? 'Record Down Payment' : 'Receive Investment EMI Collection'}
               </h1>
               <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                 {isDpMode ? 'Down Payment' : 'EMI Collection'}
@@ -524,7 +546,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
       {/* Contract Selector */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-          {isDpMode ? 'Select Booking with Pending Down Payment *' : 'Select Active Product Contract (Completed DP) *'}
+          {isDpMode ? 'Select Booking Number *' : 'Select Active Product Contract (Completed DP) *'}
         </label>
         {bookingsLoading ? (
           <div className="p-4 text-center">
@@ -535,7 +557,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold flex items-center gap-2">
             <AlertCircle size={16} />
             {isDpMode
-              ? 'No investment bookings currently have pending down payment.'
+              ? 'No investment bookings found.'
               : 'No active investment bookings with completed down payment available for EMI collection.'}
           </div>
         ) : (
@@ -543,7 +565,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
             options={bookingOptions}
             value={selectedBookingId}
             onChange={handleBookingChange}
-            placeholder={isDpMode ? "Search booking # or customer with pending DP..." : "Search booking #, customer name, mobile or product..."}
+            placeholder={isDpMode ? "Search booking # or customer name..." : "Search booking #, customer name, mobile or product..."}
             className="w-full text-sm"
           />
         )}
@@ -556,373 +578,727 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
         </div>
       ) : selectedBooking ? (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Customer & Product Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Customer Card */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-              <div className="flex items-center gap-2 text-slate-500 border-b border-slate-100 pb-2">
-                <User size={16} className="text-teal-700" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Customer Details</span>
-              </div>
-              <div className="text-xs space-y-1.5">
-                <div className="font-bold text-slate-900 text-sm">{customer.name || '-'}</div>
-                <div className="text-slate-600">
-                  <span className="text-slate-400">ID:</span> <span className="font-mono">{customer.customerCode || customer.customerId || '-'}</span>
-                </div>
-                <div className="text-slate-600">
-                  <span className="text-slate-400">Mobile:</span> {customer.mobile || '-'}
-                </div>
-                <div className="text-slate-600">
-                  <span className="text-slate-400">Associate:</span> {sponsor.name ? `${sponsor.name} (${sponsor.sponsorCode || ''})` : 'Direct'}
-                </div>
-              </div>
-            </div>
-
-            {/* Product Card */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-              <div className="flex items-center gap-2 text-slate-500 border-b border-slate-100 pb-2">
-                <Package size={16} className="text-teal-700" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Product Specifications</span>
-              </div>
-              <div className="text-xs space-y-1.5">
-                <div className="font-bold text-slate-900 text-sm">{product.productName || 'Micro Plot Unit'}</div>
-                <div className="text-slate-600">
-                  <span className="text-slate-400">Dimensions:</span> <span className="font-semibold">{product.dimensionLabel || '-'}</span>
-                </div>
-                <div className="text-slate-600">
-                  <span className="text-slate-400">Purchased Qty:</span> <span className="font-bold text-teal-800">{selectedBooking.quantity || 1} units</span>
-                </div>
-                <div className="text-slate-600">
-                  <span className="text-slate-400">Plan:</span> <span className="font-medium">{selectedBooking.tenureMonths || 24} Months EMI</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Ledger Card */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-              <div className="flex items-center gap-2 text-slate-500 border-b border-slate-100 pb-2">
-                <DollarSign size={16} className="text-teal-700" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Financial Standing</span>
-              </div>
-              <div className="text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Total Valuation:</span>
-                  <span className="font-bold text-slate-900">₹{Number(selectedBooking.totalAmount || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Total Principal Paid:</span>
-                  <span className="font-bold text-emerald-700">₹{Number(selectedBooking.totalPaid || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Remaining Balance:</span>
-                  <span className="font-bold text-rose-600">₹{Number(selectedBooking.remainingAmount || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-slate-100">
-                  <span className="text-slate-500">Monthly EMI:</span>
-                  <span className="font-bold text-teal-800">₹{Number(selectedBooking.monthlyEmi || 0).toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Dues & Payment Assessment - Simple Light Theme */}
-          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Live Payment Assessment
+          {isDpMode ? (
+            /* =========================================================================
+               DEDICATED DOWN PAYMENT VIEW (Matches Plot Downpayment Form & Screenshots)
+               ========================================================================= */
+            <>
+              {/* Top Summary Banner */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs select-none">
+                <div>
+                  <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Customer Name</span>
+                  <span className="font-bold text-slate-800 text-sm">
+                    {customer.name || selectedBooking.customerId?.name || '-'}
                   </span>
-                  {dueStats.dueCount > 0 ? (
-                    <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[10px] font-black">
-                      {dueStats.dueCount} EMI{dueStats.dueCount > 1 ? 's' : ''} Overdue
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold">
-                      Account On Track
-                    </span>
-                  )}
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Late fine calculated at 24% p.a. daily accrual after {emiGracePeriod} days grace period.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-                <div className="bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-center">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Due Principal</div>
-                  <div className="text-sm font-black font-mono text-slate-900">₹{dueStats.duePrincipal.toLocaleString('en-IN')}</div>
+                <div>
+                  <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Booking No</span>
+                  <span className="font-bold text-slate-800 font-mono text-sm">{selectedBooking.bookingNumber}</span>
                 </div>
-
-                <div className="bg-amber-50/70 px-3.5 py-2 rounded-xl border border-amber-200 text-center">
-                  <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">24% Late Fine</div>
-                  <div className="text-sm font-black font-mono text-amber-800">₹{dueStats.totalFine.toLocaleString('en-IN')}</div>
+                <div>
+                  <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Total Valuation</span>
+                  <span className="font-bold text-slate-800 text-sm">
+                    ₹{Number(selectedBooking.totalAmount || 0).toLocaleString('en-IN')}
+                  </span>
                 </div>
-
-                <div className="bg-teal-50 px-4 py-2 rounded-xl border border-teal-200 text-center">
-                  <div className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Total Due (INR)</div>
-                  <div className="text-base font-black font-mono text-teal-950">₹{dueStats.totalPayable.toLocaleString('en-IN')}</div>
+                <div>
+                  <span className="text-slate-400 uppercase font-semibold block text-[0.68rem]">Outstanding Balance</span>
+                  <span className="font-bold text-teal-800 text-sm">
+                    ₹{Number(selectedBooking.remainingAmount || 0).toLocaleString('en-IN')}
+                  </span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Clean Installment Schedule Breakdown (Read-Only without checkboxes) */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                <Layers size={15} className="text-teal-700" />
-                <span>Product Installment Schedule &amp; Delay Status</span>
-              </h3>
-              <span className="text-[11px] text-slate-500 font-medium">
-                {installments.length} Total Tenures
-              </span>
-            </div>
-
-            <div className="overflow-x-auto max-h-[320px]">
-              <table className="w-full text-xs text-left border-collapse">
-                <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] sticky top-0 z-10 border-b border-slate-200">
-                  <tr>
-                    <th className="p-3 pl-5">EMI #</th>
-                    <th className="p-3">Due Date</th>
-                    <th className="p-3 text-right">Scheduled Amount</th>
-                    <th className="p-3 text-right">Principal Paid</th>
-                    <th className="p-3 text-center">Delay Days</th>
-                    <th className="p-3 text-right">24% Late Fine</th>
-                    <th className="p-3 text-right">Balance Due</th>
-                    <th className="p-3 text-center pr-5">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {installments.map((ins) => {
-                    const fine = getInstLateFine(ins, form.paymentDate);
-                    const lateDays = getInstLateDays(ins, form.paymentDate);
-                    const unpaidPrincipal = Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
-                    const isFullyPaid = ins.status === 'PAID';
-                    const targetList = dueStats.selectedEmis || dueStats.dueEmis || [];
-                    const isTarget = targetList.some((t) => String(t._id || t.installmentNumber) === String(ins._id || ins.installmentNumber));
-
-                    return (
-                      <tr
-                        key={ins._id}
-                        className={`transition-colors ${isFullyPaid
-                          ? 'bg-emerald-50/30'
-                          : isTarget
-                            ? 'bg-teal-50/50 font-semibold'
-                            : 'hover:bg-slate-50/60'
-                          }`}
-                      >
-                        <td className="p-3 pl-5 font-mono font-bold text-slate-900">
-                          {ins.installmentNumber === 0 ? 'Downpayment' : `EMI #${ins.installmentNumber}`}
-                        </td>
-                        <td className="p-3 text-slate-600">
-                          {ins.dueDate ? new Date(ins.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
-                        </td>
-                        <td className="p-3 text-right font-semibold text-slate-900">
-                          ₹{Number(ins.amount || 0).toLocaleString('en-IN')}
-                        </td>
-                        <td className="p-3 text-right text-emerald-700 font-semibold">
-                          ₹{Number(ins.paidAmount || 0).toLocaleString('en-IN')}
-                        </td>
-                        <td className="p-3 text-center">
-                          {lateDays > 0 ? (
-                            <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-[10px] font-bold">
-                              {lateDays} Days
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-[11px]">-</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right">
-                          {fine > 0 ? (
-                            <span className="font-bold text-amber-700">₹{fine.toLocaleString('en-IN')}</span>
-                          ) : (
-                            <span className="text-slate-400">₹0</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right font-bold text-rose-600">
-                          ₹{(unpaidPrincipal + fine).toLocaleString('en-IN')}
-                        </td>
-                        <td className="p-3 text-center pr-5">
-                          {isFullyPaid ? (
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
-                              <CheckCircle2 size={10} /> Paid
-                            </span>
-                          ) : lateDays > 0 ? (
-                            <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[10px] font-black">
-                              Overdue
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-full text-[10px] font-bold">
-                              Pending
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Live Multi-EMI Auto-Spillover Info */}
-          {!isDpMode && (
-            <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 rounded-2xl border border-teal-200/80 text-xs text-teal-900 flex items-start gap-3 shadow-2xs">
-              <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
-                <Layers size={16} />
-              </div>
-              <div>
-                <span className="font-bold">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
-              </div>
-            </div>
-          )}
-
-          {/* Payment Collection Inputs Form */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <CreditCard size={17} className="text-teal-700" />
-              <span>Payment Details &amp; Settlement</span>
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Payment Date */}
-              <div className="space-y-1.5">
-                <DateInput
-                  label="Collection / Payment Date"
-                  value={form.paymentDate}
-                  onChange={(e) => setForm({ ...form, paymentDate: e.target.value })}
-                  required
-                />
-                <p className="text-[11px] text-slate-400">
-                  Changing collection date dynamically adjusts overdue days &amp; 24% late fine.
-                </p>
-              </div>
-
-              {/* Number of EMIs to Collect vs Down Payment Status */}
-              {isDpMode ? (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-700">
-                      Down Payment Status
-                    </label>
-                    <span className="text-[11px] font-bold text-teal-800">
-                      Target DP: ₹{Number(selectedBooking.downPayment || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-xl flex items-center justify-between">
+              {/* Downpayment Terms & Status Card */}
+              {dpPrincipalDue === 0 && dpFine === 0 ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-950 font-medium shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                     <div>
-                      <div className="text-[10px] uppercase font-bold text-slate-500">Already Paid</div>
-                      <div className="text-sm font-bold text-emerald-700">
-                        ₹{Math.max(0, Number(selectedBooking.downPayment || 0) - unpaidDp).toLocaleString('en-IN')}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase font-black text-teal-800">Remaining DP to Collect</div>
-                      <div className="text-base font-black font-mono text-teal-950">
-                        ₹{unpaidDp.toLocaleString('en-IN')}
-                      </div>
+                      <span className="font-bold block uppercase tracking-wide text-xs text-emerald-900">
+                        Downpayment is Completed (100% Paid)
+                      </span>
+                      <span className="text-xs text-emerald-800">
+                        Total Downpayment of ₹{dpTotal.toLocaleString('en-IN')} has been fully paid and cleared for this booking.
+                      </span>
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Only down payment is collectable in this form (capped strictly at remaining DP).
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/plots/collections/products/emi/add?bookingId=${selectedBooking._id}`)}
+                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-xl text-xs transition shrink-0 self-start sm:self-auto shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    Collect Monthly EMI Instead →
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-700">
-                      Number of EMIs to Collect
-                    </label>
-                    <span className="text-[11px] font-semibold text-teal-800">
-                      {dueStats.dueCount > 0 ? `${dueStats.dueCount} Overdue/Due` : `${pendingInstallments.length} Pending`}
+                <div className="bg-white border border-teal-200/80 rounded-xl p-4 shadow-xs flex flex-col gap-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
+                      Downpayment Terms & Status
                     </span>
+                    {isDpOverdue && dpLateDays > 0 ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
+                        Overdue ({dpLateDays} Days Delay)
+                      </span>
+                    ) : isDpOverdue ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200">
+                        Due (Within Grace Period)
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-teal-100 text-teal-800 border border-teal-200">
+                        Pending Clearance
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={emiCount}
-                      onChange={(e) => {
-                        const count = Number(e.target.value) || 1;
-                        setEmiCount(count);
-                        // Calculate total for this number of EMIs
-                        const chosen = pendingInstallments.slice(0, count);
-                        let pr = 0;
-                        let fn = 0;
-                        chosen.forEach((ins) => {
-                          pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
-                          fn += getInstLateFine(ins, form.paymentDate);
-                        });
-                        const tot = pr + fn;
-                        setForm((prev) => ({ ...prev, amountPaid: String(tot) }));
-                      }}
-                      className="w-full px-3.5 py-2.5 bg-teal-50/70 border border-teal-200 rounded-xl text-xs sm:text-sm font-bold text-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
-                    >
-                      {pendingInstallments.map((ins, idx) => {
-                        const n = idx + 1;
-                        const isDue = ins.dueDate && new Date(ins.dueDate) <= new Date(form.paymentDate + 'T23:59:59');
-                        return (
-                          <option key={ins.installmentNumber || idx} value={n}>
-                            {n} {n === 1 ? 'EMI' : 'EMIs'} {isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #{ins.installmentNumber || n}
-                          </option>
-                        );
-                      })}
-                    </select>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                      <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Booking Date</span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">
+                        {selectedBooking.bookingDate
+                          ? new Date(selectedBooking.bookingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '-'}
+                      </span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-lg border ${isDpOverdue ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <span className={`font-semibold block text-[0.65rem] uppercase ${isDpOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
+                        DP Last Due Date
+                      </span>
+                      <span className={`font-bold mt-0.5 block ${isDpOverdue ? 'text-rose-700' : 'text-slate-800'}`}>
+                        {dpDueDate
+                          ? new Date(dpDueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '-'}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                      <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Total Downpayment</span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">
+                        ₹{dpTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                      <span className="text-slate-400 font-semibold block text-[0.65rem] uppercase">Paid So Far</span>
+                      <span className="font-bold text-emerald-700 mt-0.5 block">
+                        ₹{dpPaid.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    <div className="bg-teal-50/80 p-2.5 rounded-lg border border-teal-200">
+                      <span className="text-teal-700 font-semibold block text-[0.65rem] uppercase">Principal Due</span>
+                      <span className="font-bold text-teal-900 mt-0.5 block text-sm">
+                        ₹{dpPrincipalDue.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-lg border ${dpFine > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200/70'}`}>
+                      <span className={`font-semibold block text-[0.65rem] uppercase ${dpFine > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                        Late Fine ({rateConfig.lateFineRate || 24}% P.A.)
+                      </span>
+                      <span className={`font-bold mt-0.5 block ${dpFine > 0 ? 'text-rose-700 text-sm' : 'text-slate-800'}`}>
+                        ₹{dpFine.toLocaleString('en-IN')}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Selecting EMI count calculates exact principal + accrued late fine.
-                  </p>
                 </div>
               )}
 
-              {/* Amount to Collect */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Amount to Collect (INR) <span className="text-rose-500">*</span>
-                  </label>
-                  {!isDpMode && dueStats.selectedPrincipal > 0 && (
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      Principal: <b className="text-slate-800">₹{dueStats.selectedPrincipal.toLocaleString('en-IN')}</b>
-                      {dueStats.selectedFine > 0 && (
-                        <span> + Fine: <b className="text-amber-700 font-bold">₹{dueStats.selectedFine.toLocaleString('en-IN')}</b></span>
-                      )}
-                    </span>
-                  )}
-                  {isDpMode && (
-                    <span className="text-[11px] text-teal-800 font-bold">
-                      Max Allowed: ₹{unpaidDp.toLocaleString('en-IN')}
-                    </span>
-                  )}
-                </div>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  max={isDpMode ? unpaidDp : undefined}
-                  placeholder="Enter amount (e.g. 5000)"
-                  value={form.amountPaid}
-                  onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
-                  required
-                  className={`w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 transition ${isDpMode && Number(form.amountPaid) > unpaidDp ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/30' : 'border-slate-300 focus:ring-teal-600'}`}
-                />
-                {isDpMode && Number(form.amountPaid) > unpaidDp && (
-                  <p className="text-[11px] text-rose-600 font-bold pt-0.5">
-                    ⚠️ Amount cannot exceed remaining down payment of ₹{unpaidDp.toLocaleString('en-IN')}. Only remaining down payment is allowed.
-                  </p>
-                )}
+              {/* Downpayment Collection Form Inputs */}
+              {!(dpPrincipalDue === 0 && dpFine === 0) && (
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Collection Amount */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-slate-700">Collection Amount (₹) <span className="text-rose-500">*</span></label>
+                        <span className="text-[0.65rem] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                          Max DP Payable: ₹{Math.max(0, dpTotalPayable - (Number(form.lateFineRebate) || 0)).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <input
+                        className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9.]*"
+                        value={form.amountPaid}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                          setForm({ ...form, amountPaid: val });
+                        }}
+                        placeholder="Enter collected amount"
+                        required
+                      />
+                      {form.amountPaid && Number(form.amountPaid) > 0 ? (
+                        <p className="text-[0.7rem] font-bold text-teal-800 mt-1 capitalize bg-teal-50/70 border border-teal-100 rounded-lg px-2.5 py-1">
+                          {numberToWords(Math.floor(Number(form.amountPaid)))} Rupees Only
+                        </p>
+                      ) : null}
+                    </div>
 
-                {/* Quick Fill Preset Buttons */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {isDpMode ? (
+                    {/* Late Fine Rebate */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-slate-700">Late Fine Rebate (₹)</label>
+                        <span className="text-[0.65rem] text-slate-400 font-medium">
+                          Max: ₹{dpFine.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <input
+                        className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9.]*"
+                        value={form.lateFineRebate}
+                        onChange={(e) => {
+                          const rawVal = e.target.value.replace(/[^0-9.]/g, '');
+                          const numRebate = Math.min(Number(rawVal) || 0, dpFine);
+                          const cleanRebateStr = rawVal === '' ? '' : String(numRebate);
+                          const netFine = Math.max(0, dpFine - numRebate);
+                          const newTotal = dpPrincipalDue + netFine;
+                          setForm((prev) => ({
+                            ...prev,
+                            lateFineRebate: cleanRebateStr,
+                            amountPaid: newTotal > 0 ? String(newTotal) : '',
+                          }));
+                        }}
+                        placeholder="Enter rebate amount if any"
+                      />
+                    </div>
+
+                    {/* Payment Mode */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-slate-700">Payment Mode <span className="text-rose-500">*</span></label>
+                      <select
+                        className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
+                        value={form.paymentMode}
+                        disabled={!isBankReceiptAllowed}
+                        onChange={(e) => {
+                          const newMode = e.target.value;
+                          const isCash = String(newMode).toLowerCase() === 'cash';
+                          const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
+                          const cust = selectedBooking?.customerId;
+                          setForm((prev) => ({
+                            ...prev,
+                            paymentMode: newMode,
+                            ledgerId: defaultId,
+                            bankName: prev.bankName || cust?.bankName || '',
+                            bankBranch: prev.bankBranch || cust?.bankBranch || '',
+                            accountNumber: prev.accountNumber || cust?.accountNumber || '',
+                            accountHolderName: prev.accountHolderName || cust?.accountHolderName || cust?.name || '',
+                            ifscCode: prev.ifscCode || cust?.ifscCode || '',
+                          }));
+                        }}
+                      >
+                        <option value="cash">Cash</option>
+                        {isBankReceiptAllowed && (
+                          <>
+                            <option value="online">UPI / Online</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                          </>
+                        )}
+                      </select>
+                      {!isBankReceiptAllowed && (
+                        <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
+                          Bank receipts restricted (Cash collections only)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Receiving Cash / Bank Account */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody) *' : 'Receiving Bank Account *'}
+                      </label>
+                      <select
+                        value={form.ledgerId || ''}
+                        disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
+                        onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
+                        className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
+                      >
+                        {String(form.paymentMode).toLowerCase() === 'cash' ? (
+                          <option value={myCashLedger?._id || ''}>
+                            {myCashLedger?.name || 'Ghanshyam kumar (Cash Ledger)'}
+                          </option>
+                        ) : (
+                          <>
+                            {bankAccounts.map((b) => (
+                              <option key={b._id} value={b._id}>
+                                {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
+                              </option>
+                            ))}
+                            {bankAccounts.length === 0 && (
+                              <option value="" disabled>No authorized bank account available</option>
+                            )}
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    {/* Collection Date */}
+                    <div className="flex flex-col gap-1">
+                      <DateInput
+                        label="Collection Date *"
+                        value={form.paymentDate}
+                        onChange={(e) => setForm({ ...form, paymentDate: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    {/* Transaction Reference (if non-cash) */}
+                    {form.paymentMode !== 'cash' && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-700">Transaction Reference / Cheque # *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. UPI-1234567890 or Cheque No."
+                          value={form.transactionReference}
+                          onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                          required
+                          className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Customer Bank Details for non-cash */}
+                  {form.paymentMode !== 'cash' && (
+                    <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
+                      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Building2 size={16} className="text-teal-700" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                            Customer Bank Details
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          (Used for Online/Bank/Cheque Verification & Record)
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Bank Name</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. State Bank of India, HDFC Bank"
+                            value={form.bankName || ''}
+                            onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Account Number</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. 123456789012"
+                            value={form.accountNumber || ''}
+                            onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Account Holder Name</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. Customer Name / Company Name"
+                            value={form.accountHolderName || ''}
+                            onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">IFSC Code</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition uppercase"
+                            maxLength={11}
+                            placeholder="e.g. SBIN0001234"
+                            value={form.ifscCode || ''}
+                            onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Branch Name</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. Main Branch"
+                            value={form.bankBranch || ''}
+                            onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Narration / Remarks */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-slate-700">Narration / Remarks</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Enter narration notes for this payment..."
+                      value={form.remarks}
+                      onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition resize-none"
+                    />
+                  </div>
+
+                  {/* Form Action Buttons */}
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, amountPaid: String(unpaidDp) }))}
-                      className="px-2.5 py-1 text-[11px] font-bold bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg border border-teal-200 transition cursor-pointer"
+                      onClick={onBack || (() => navigate(basePath))}
+                      className="px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
                     >
-                      Pay Full Remaining DP (₹{unpaidDp.toLocaleString('en-IN')})
+                      Cancel
                     </button>
-                  ) : (
-                    <>
+                    <button
+                      type="submit"
+                      disabled={submitting || Number(form.amountPaid) > (dpPrincipalDue + Math.max(0, dpFine - (Number(form.lateFineRebate) || 0)))}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span>Recording Down Payment...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} className="stroke-[3]" />
+                          <span>Record Down Payment Receipt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* =========================================================================
+               EXISTING EMI COLLECTION VIEW (Installment Schedule, Multi-EMI auto-spill)
+               ========================================================================= */
+            <>
+              {/* Customer & Product Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Customer Card */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                  <div className="flex items-center gap-2 text-slate-500 border-b border-slate-100 pb-2">
+                    <User size={16} className="text-teal-700" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Customer Details</span>
+                  </div>
+                  <div className="text-xs space-y-1.5">
+                    <div className="font-bold text-slate-900 text-sm">{customer.name || '-'}</div>
+                    <div className="text-slate-600">
+                      <span className="text-slate-400">ID:</span> <span className="font-mono">{customer.customerCode || customer.customerId || '-'}</span>
+                    </div>
+                    <div className="text-slate-600">
+                      <span className="text-slate-400">Mobile:</span> {customer.mobile || '-'}
+                    </div>
+                    <div className="text-slate-600">
+                      <span className="text-slate-400">Associate:</span> {sponsor.name ? `${sponsor.name} (${sponsor.sponsorCode || ''})` : 'Direct'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Card */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                  <div className="flex items-center gap-2 text-slate-500 border-b border-slate-100 pb-2">
+                    <Package size={16} className="text-teal-700" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Product Specifications</span>
+                  </div>
+                  <div className="text-xs space-y-1.5">
+                    <div className="font-bold text-slate-900 text-sm">{product.productName || 'Micro Plot Unit'}</div>
+                    <div className="text-slate-600">
+                      <span className="text-slate-400">Dimensions:</span> <span className="font-semibold">{product.dimensionLabel || '-'}</span>
+                    </div>
+                    <div className="text-slate-600">
+                      <span className="text-slate-400">Purchased Qty:</span> <span className="font-bold text-teal-800">{selectedBooking.quantity || 1} units</span>
+                    </div>
+                    <div className="text-slate-600">
+                      <span className="text-slate-400">Plan:</span> <span className="font-medium">{selectedBooking.tenureMonths || 24} Months EMI</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Ledger Card */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                  <div className="flex items-center gap-2 text-slate-500 border-b border-slate-100 pb-2">
+                    <DollarSign size={16} className="text-teal-700" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Financial Standing</span>
+                  </div>
+                  <div className="text-xs space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Total Valuation:</span>
+                      <span className="font-bold text-slate-900">₹{Number(selectedBooking.totalAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Total Principal Paid:</span>
+                      <span className="font-bold text-emerald-700">₹{Number(selectedBooking.totalPaid || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Remaining Balance:</span>
+                      <span className="font-bold text-rose-600">₹{Number(selectedBooking.remainingAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-slate-100">
+                      <span className="text-slate-500">Monthly EMI:</span>
+                      <span className="font-bold text-teal-800">₹{Number(selectedBooking.monthlyEmi || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dues & Payment Assessment - Simple Light Theme */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                        Live Payment Assessment
+                      </span>
+                      {dueStats.dueCount > 0 ? (
+                        <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[10px] font-black">
+                          {dueStats.dueCount} EMI{dueStats.dueCount > 1 ? 's' : ''} Overdue
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold">
+                          Account On Track
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Late fine calculated at 24% p.a. daily accrual after {emiGracePeriod} days grace period.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-center">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Due Principal</div>
+                      <div className="text-sm font-black font-mono text-slate-900">₹{dueStats.duePrincipal.toLocaleString('en-IN')}</div>
+                    </div>
+
+                    <div className="bg-amber-50/70 px-3.5 py-2 rounded-xl border border-amber-200 text-center">
+                      <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">24% Late Fine</div>
+                      <div className="text-sm font-black font-mono text-amber-800">₹{dueStats.totalFine.toLocaleString('en-IN')}</div>
+                    </div>
+
+                    <div className="bg-teal-50 px-4 py-2 rounded-xl border border-teal-200 text-center">
+                      <div className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Total Due (INR)</div>
+                      <div className="text-base font-black font-mono text-teal-950">₹{dueStats.totalPayable.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clean Installment Schedule Breakdown */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+                <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Layers size={15} className="text-teal-700" />
+                    <span>Product Installment Schedule &amp; Delay Status</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {installments.length} Total Tenures
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto max-h-[320px]">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                      <tr>
+                        <th className="p-3 pl-5">EMI #</th>
+                        <th className="p-3">Due Date</th>
+                        <th className="p-3 text-right">Scheduled Amount</th>
+                        <th className="p-3 text-right">Principal Paid</th>
+                        <th className="p-3 text-center">Delay Days</th>
+                        <th className="p-3 text-right">24% Late Fine</th>
+                        <th className="p-3 text-right">Balance Due</th>
+                        <th className="p-3 text-center pr-5">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {installments.map((ins) => {
+                        const fine = getInstLateFine(ins, form.paymentDate);
+                        const lateDays = getInstLateDays(ins, form.paymentDate);
+                        const unpaidPrincipal = Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+                        const isFullyPaid = ins.status === 'PAID';
+                        const targetList = dueStats.selectedEmis || dueStats.dueEmis || [];
+                        const isTarget = targetList.some((t) => String(t._id || t.installmentNumber) === String(ins._id || ins.installmentNumber));
+
+                        return (
+                          <tr
+                            key={ins._id}
+                            className={`transition-colors ${isFullyPaid
+                              ? 'bg-emerald-50/30'
+                              : isTarget
+                                ? 'bg-teal-50/50 font-semibold'
+                                : 'hover:bg-slate-50/60'
+                              }`}
+                          >
+                            <td className="p-3 pl-5 font-mono font-bold text-slate-900">
+                              {ins.installmentNumber === 0 ? 'Downpayment' : `EMI #${ins.installmentNumber}`}
+                            </td>
+                            <td className="p-3 text-slate-600">
+                              {ins.dueDate ? new Date(ins.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                            </td>
+                            <td className="p-3 text-right font-semibold text-slate-900">
+                              ₹{Number(ins.amount || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="p-3 text-right text-emerald-700 font-semibold">
+                              ₹{Number(ins.paidAmount || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="p-3 text-center">
+                              {lateDays > 0 ? (
+                                <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-[10px] font-bold">
+                                  {lateDays} Days
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">-</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right">
+                              {fine > 0 ? (
+                                <span className="font-bold text-amber-700">₹{fine.toLocaleString('en-IN')}</span>
+                              ) : (
+                                <span className="text-slate-400">₹0</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-bold text-rose-600">
+                              ₹{(unpaidPrincipal + fine).toLocaleString('en-IN')}
+                            </td>
+                            <td className="p-3 text-center pr-5">
+                              {isFullyPaid ? (
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
+                                  <CheckCircle2 size={10} /> Paid
+                                </span>
+                              ) : lateDays > 0 ? (
+                                <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[10px] font-black">
+                                  Overdue
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-full text-[10px] font-bold">
+                                  Pending
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Live Multi-EMI Auto-Spillover Info */}
+              <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 rounded-2xl border border-teal-200/80 text-xs text-teal-900 flex items-start gap-3 shadow-2xs">
+                <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
+                  <Layers size={16} />
+                </div>
+                <div>
+                  <span className="font-bold">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
+                </div>
+              </div>
+
+              {/* Payment Collection Inputs Form */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
+                  <CreditCard size={17} className="text-teal-700" />
+                  <span>Payment Details &amp; Settlement</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Payment Date */}
+                  <div className="space-y-1.5">
+                    <DateInput
+                      label="Collection / Payment Date"
+                      value={form.paymentDate}
+                      onChange={(e) => setForm({ ...form, paymentDate: e.target.value })}
+                      required
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      Changing collection date dynamically adjusts overdue days &amp; 24% late fine.
+                    </p>
+                  </div>
+
+                  {/* Number of EMIs to Collect */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Number of EMIs to Collect
+                      </label>
+                      <span className="text-[11px] font-semibold text-teal-800">
+                        {dueStats.dueCount > 0 ? `${dueStats.dueCount} Overdue/Due` : `${pendingInstallments.length} Pending`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={emiCount}
+                        onChange={(e) => {
+                          const count = Number(e.target.value) || 1;
+                          setEmiCount(count);
+                          const chosen = pendingInstallments.slice(0, count);
+                          let pr = 0;
+                          let fn = 0;
+                          chosen.forEach((ins) => {
+                            pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+                            fn += getInstLateFine(ins, form.paymentDate);
+                          });
+                          const tot = pr + fn;
+                          setForm((prev) => ({ ...prev, amountPaid: String(tot) }));
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-teal-50/70 border border-teal-200 rounded-xl text-xs sm:text-sm font-bold text-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
+                      >
+                        {pendingInstallments.map((ins, idx) => {
+                          const n = idx + 1;
+                          const isDue = ins.dueDate && new Date(ins.dueDate) <= new Date(form.paymentDate + 'T23:59:59');
+                          return (
+                            <option key={ins.installmentNumber || idx} value={n}>
+                              {n} {n === 1 ? 'EMI' : 'EMIs'} {isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #{ins.installmentNumber || n}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Selecting EMI count calculates exact principal + accrued late fine.
+                    </p>
+                  </div>
+
+                  {/* Amount to Collect */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Amount to Collect (INR) <span className="text-rose-500">*</span>
+                      </label>
+                      {dueStats.selectedPrincipal > 0 && (
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Principal: <b className="text-slate-800">₹{dueStats.selectedPrincipal.toLocaleString('en-IN')}</b>
+                          {dueStats.selectedFine > 0 && (
+                            <span> + Fine: <b className="text-amber-700 font-bold">₹{dueStats.selectedFine.toLocaleString('en-IN')}</b></span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      step="any"
+                      placeholder="Enter amount (e.g. 5000)"
+                      value={form.amountPaid}
+                      onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                    />
+
+                    {/* Quick Fill Preset Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -966,266 +1342,264 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                           Clear All Balance (₹{(selectedBooking.remainingAmount + dueStats.totalFine).toLocaleString('en-IN')})
                         </button>
                       )}
-                    </>
-                  )}
-                </div>
+                    </div>
 
-                {/* Amount In Words Display */}
-                {form.amountPaid && Number(form.amountPaid) > 0 && (
-                  <p className="text-[11px] text-teal-800 font-semibold italic capitalize pt-1">
-                    {numberToWords(Number(form.amountPaid))} Rupees Only
-                  </p>
-                )}
-              </div>
-
-              {/* Late Fine Rebate & Calculated Fine Banner */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Late Fine Rebate / Discount (Optional)
-                  </label>
-                  {/* Total Late Fine Banner above Late Fine input */}
-                  <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md text-[11px] font-bold text-amber-800 flex items-center gap-1">
-                    <span>Total Late Fine ({emiCount} {emiCount === 1 ? 'EMI' : 'EMIs'}):</span>
-                    <span className="font-mono font-black text-amber-900">₹{dueStats.selectedFine.toLocaleString('en-IN')}</span>
+                    {form.amountPaid && Number(form.amountPaid) > 0 && (
+                      <p className="text-[11px] text-teal-800 font-semibold italic capitalize pt-1">
+                        {numberToWords(Number(form.amountPaid))} Rupees Only
+                      </p>
+                    )}
                   </div>
-                </div>
 
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    max={dueStats.selectedFine || undefined}
-                    placeholder="0"
-                    value={form.lateFineRebate}
-                    onChange={(e) => setForm({ ...form, lateFineRebate: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                  />
-                  {dueStats.selectedFine > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, lateFineRebate: String(dueStats.selectedFine) }))}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 hover:bg-teal-100 transition"
-                    >
-                      100% Fine Waiver
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Waived fine is adjusted directly against the ₹{dueStats.selectedFine.toLocaleString('en-IN')} late fine on selected EMIs.
-                </p>
-              </div>
+                  {/* Late Fine Rebate & Calculated Fine Banner */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Late Fine Rebate / Discount (Optional)
+                      </label>
+                      <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md text-[11px] font-bold text-amber-800 flex items-center gap-1">
+                        <span>Total Late Fine ({emiCount} {emiCount === 1 ? 'EMI' : 'EMIs'}):</span>
+                        <span className="font-mono font-black text-amber-900">₹{dueStats.selectedFine.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
 
-              {/* Payment Mode */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Payment Mode <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={form.paymentMode}
-                  disabled={!isBankReceiptAllowed}
-                  onChange={(e) => {
-                    const newMode = e.target.value;
-                    const isCash = String(newMode).toLowerCase() === 'cash';
-                    const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
-                    const cust = selectedBooking?.customerId;
-                    setForm((prev) => ({
-                      ...prev,
-                      paymentMode: newMode,
-                      ledgerId: defaultId,
-                      bankName: prev.bankName || cust?.bankName || '',
-                      bankBranch: prev.bankBranch || cust?.bankBranch || '',
-                      accountNumber: prev.accountNumber || cust?.accountNumber || '',
-                      accountHolderName: prev.accountHolderName || cust?.accountHolderName || cust?.name || '',
-                      ifscCode: prev.ifscCode || cust?.ifscCode || '',
-                    }));
-                  }}
-                  required
-                  className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
-                >
-                  <option value="cash">Cash Payment</option>
-                  {isBankReceiptAllowed && (
-                    <>
-                      <option value="online">Online / UPI</option>
-                      <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
-                      <option value="cheque">Cheque</option>
-                    </>
-                  )}
-                </select>
-                {!isBankReceiptAllowed && (
-                  <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
-                    Corporate bank receipts restricted for this account (Cash collections only)
-                  </span>
-                )}
-              </div>
-
-              {/* Receiving Account */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'} <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={form.ledgerId || ''}
-                  disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
-                  onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
-                  className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
-                >
-                  {String(form.paymentMode).toLowerCase() === 'cash' ? (
-                    <option value={myCashLedger?._id || ''}>
-                      {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
-                    </option>
-                  ) : (
-                    <>
-                      {bankAccounts.map((b) => (
-                        <option key={b._id} value={b._id}>
-                          {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
-                        </option>
-                      ))}
-                      {bankAccounts.length === 0 && (
-                        <option value="" disabled>No authorized bank account available</option>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        max={dueStats.selectedFine || undefined}
+                        placeholder="0"
+                        value={form.lateFineRebate}
+                        onChange={(e) => setForm({ ...form, lateFineRebate: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                      />
+                      {dueStats.selectedFine > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, lateFineRebate: String(dueStats.selectedFine) }))}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 hover:bg-teal-100 transition"
+                        >
+                          100% Fine Waiver
+                        </button>
                       )}
-                    </>
-                  )}
-                </select>
-              </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Waived fine is adjusted directly against the ₹{dueStats.selectedFine.toLocaleString('en-IN')} late fine on selected EMIs.
+                    </p>
+                  </div>
 
-              {/* Transaction Reference (Non-Cash only) */}
-              {form.paymentMode !== 'cash' && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Transaction Reference / Cheque <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. UPI-1234567890 or Cheque No."
-                    value={form.transactionReference}
-                    onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                    required
-                    className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                  />
-                </div>
-              )}
-
-              {/* Customer Bank Details for all non-cash (UPI/Online, Bank Transfer, Cheque) */}
-              {form.paymentMode !== 'cash' && (
-                <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3">
-                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                    <div className="flex items-center gap-2">
-                      <Building2 size={16} className="text-teal-700" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                        Customer Bank Details
+                  {/* Payment Mode */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Payment Mode <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={form.paymentMode}
+                      disabled={!isBankReceiptAllowed}
+                      onChange={(e) => {
+                        const newMode = e.target.value;
+                        const isCash = String(newMode).toLowerCase() === 'cash';
+                        const defaultId = isCash ? (myCashLedger?._id || cashAccounts[0]?._id || '') : (bankAccounts[0]?._id || '');
+                        const cust = selectedBooking?.customerId;
+                        setForm((prev) => ({
+                          ...prev,
+                          paymentMode: newMode,
+                          ledgerId: defaultId,
+                          bankName: prev.bankName || cust?.bankName || '',
+                          bankBranch: prev.bankBranch || cust?.bankBranch || '',
+                          accountNumber: prev.accountNumber || cust?.accountNumber || '',
+                          accountHolderName: prev.accountHolderName || cust?.accountHolderName || cust?.name || '',
+                          ifscCode: prev.ifscCode || cust?.ifscCode || '',
+                        }));
+                      }}
+                      required
+                      className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
+                    >
+                      <option value="cash">Cash Payment</option>
+                      {isBankReceiptAllowed && (
+                        <>
+                          <option value="online">Online / UPI</option>
+                          <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
+                          <option value="cheque">Cheque</option>
+                        </>
+                      )}
+                    </select>
+                    {!isBankReceiptAllowed && (
+                      <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
+                        Corporate bank receipts restricted for this account (Cash collections only)
                       </span>
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      (Used for Online/Bank/Cheque Verification & Record)
-                    </span>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-700 mb-1">Bank Name</label>
-                      <input
-                        type="text"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                        placeholder="e.g. State Bank of India, HDFC Bank"
-                        value={form.bankName || ''}
-                        onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-                      />
-                    </div>
+                  {/* Receiving Account */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'} <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={form.ledgerId || ''}
+                      disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
+                      onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
+                    >
+                      {String(form.paymentMode).toLowerCase() === 'cash' ? (
+                        <option value={myCashLedger?._id || ''}>
+                          {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
+                        </option>
+                      ) : (
+                        <>
+                          {bankAccounts.map((b) => (
+                            <option key={b._id} value={b._id}>
+                              {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
+                            </option>
+                          ))}
+                          {bankAccounts.length === 0 && (
+                            <option value="" disabled>No authorized bank account available</option>
+                          )}
+                        </>
+                      )}
+                    </select>
+                  </div>
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-700 mb-1">Account Number</label>
+                  {/* Transaction Reference (Non-Cash only) */}
+                  {form.paymentMode !== 'cash' && (
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Transaction Reference / Cheque <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="text"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                        placeholder="e.g. 123456789012"
-                        value={form.accountNumber || ''}
-                        onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                        placeholder="e.g. UPI-1234567890 or Cheque No."
+                        value={form.transactionReference}
+                        onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                        required
+                        className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
                       />
                     </div>
+                  )}
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-700 mb-1">Account Holder Name</label>
-                      <input
-                        type="text"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                        placeholder="e.g. Customer Name / Company Name"
-                        value={form.accountHolderName || ''}
-                        onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
-                      />
-                    </div>
+                  {/* Customer Bank Details for all non-cash */}
+                  {form.paymentMode !== 'cash' && (
+                    <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col gap-3 md:col-span-2">
+                      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Building2 size={16} className="text-teal-700" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                            Customer Bank Details
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          (Used for Online/Bank/Cheque Verification & Record)
+                        </span>
+                      </div>
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-700 mb-1">IFSC Code</label>
-                      <input
-                        type="text"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition uppercase"
-                        maxLength={11}
-                        placeholder="e.g. SBIN0001234"
-                        value={form.ifscCode || ''}
-                        onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
-                      />
-                    </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Bank Name</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. State Bank of India, HDFC Bank"
+                            value={form.bankName || ''}
+                            onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                          />
+                        </div>
 
-                    <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="text-xs font-semibold text-slate-700 mb-1">Branch Name</label>
-                      <input
-                        type="text"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                        placeholder="e.g. Main Branch"
-                        value={form.bankBranch || ''}
-                        onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
-                      />
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Account Number</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. 123456789012"
+                            value={form.accountNumber || ''}
+                            onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Account Holder Name</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. Customer Name / Company Name"
+                            value={form.accountHolderName || ''}
+                            onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">IFSC Code</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition uppercase"
+                            maxLength={11}
+                            placeholder="e.g. SBIN0001234"
+                            value={form.ifscCode || ''}
+                            onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                          <label className="text-xs font-semibold text-slate-700 mb-1">Branch Name</label>
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                            placeholder="e.g. Main Branch"
+                            value={form.bankBranch || ''}
+                            onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
+                          />
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* Remarks */}
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Remarks / Collection Notes
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Advance EMI for next month"
+                      value={form.remarks}
+                      onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* Remarks */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Remarks / Collection Notes
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Advance EMI for next month"
-                  value={form.remarks}
-                  onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                />
+                {/* Form Footer Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={onBack || (() => navigate(basePath))}
+                    className="px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Processing Collection...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={16} className="stroke-[3]" />
+                        <span>Submit EMI Collection Receipt</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            {/* Form Footer Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={onBack || (() => navigate(basePath))}
-                className="px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                disabled={submitting || (isDpMode && Number(form.amountPaid) > unpaidDp)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>{isDpMode ? 'Recording Down Payment...' : 'Processing Collection...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Check size={16} className="stroke-[3]" />
-                    <span>{isDpMode ? 'Submit Down Payment Receipt' : 'Submit EMI Collection Receipt'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+            </>
+          )}
         </form>
       ) : null}
     </div>

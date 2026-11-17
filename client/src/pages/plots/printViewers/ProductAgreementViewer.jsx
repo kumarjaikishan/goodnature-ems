@@ -334,12 +334,14 @@ const ProductAgreementViewer = () => {
 
           .agreement-page {
             width: 210mm;
-            min-height: 297mm;
+            height: 297mm;
+            max-height: 297mm;
+            overflow: hidden;
             margin-bottom: 24px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid #e2e8f0;
             background: white;
-            padding: 8mm 14mm 8mm 14mm;
+            padding: 7mm 14mm 6mm 14mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -389,7 +391,7 @@ const ProductAgreementViewer = () => {
             width: 210mm !important;
             height: 297mm !important;
             max-height: 297mm !important;
-            padding: 8mm 14mm 8mm 14mm !important;
+            padding: 7mm 14mm 6mm 14mm !important;
             box-sizing: border-box !important;
             page-break-after: always !important;
             break-after: page !important;

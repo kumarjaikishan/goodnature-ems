@@ -178,6 +178,17 @@ const BookingCertificateViewer = () => {
       plot.plotNumber ||
       '-';
 
+    const rawRelation = customer.relationType || booking.relationType || '';
+    const relLower = rawRelation.trim().toLowerCase();
+    let relationLabel = 'S/o';
+    if (relLower.includes('wife') || relLower === 'w/o' || relLower === 'wo') relationLabel = 'W/o';
+    else if (relLower.includes('daughter') || relLower === 'd/o' || relLower === 'do') relationLabel = 'D/o';
+    else if (relLower.includes('husband') || relLower === 'h/o' || relLower === 'ho') relationLabel = 'H/o';
+    else if (relLower.includes('care') || relLower === 'c/o' || relLower === 'co') relationLabel = 'C/o';
+    else if (relLower.includes('son') || relLower === 's/o' || relLower === 'so') relationLabel = 'S/o';
+    else if (rawRelation.trim()) relationLabel = rawRelation.trim();
+    const relativeName = customer.fatherOrHusbandName || customer.guardianName || booking.guardianName || booking.fatherOrHusbandName || '';
+
     return (
       <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
         {/* Booking Receipt Title */}
@@ -233,7 +244,7 @@ const BookingCertificateViewer = () => {
               </td>
             </tr>
 
-            {/* Row 3: Customer Name | Guardian / Father */}
+            {/* Row 3: Customer Name | Relative / Relation */}
             <tr>
               <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 text-slate-600 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
@@ -244,12 +255,12 @@ const BookingCertificateViewer = () => {
               <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
               <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 text-slate-600 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
-                  <span>Guardian / Father</span>
+                  <span>{relationLabel}</span>
                   <span>:</span>
                 </div>
               </td>
               <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 font-bold text-slate-900 w-[32%]">
-                {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
+                {relativeName || '-'}
               </td>
             </tr>
 
@@ -412,14 +423,14 @@ const BookingCertificateViewer = () => {
         </table>
 
         {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
-        <div className="flex justify-between items-end pt-3 select-none print:pt-2.5">
+        <div className="flex justify-between items-end pt-6 select-none print:pt-5">
           {/* Left: Notice line */}
           <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic max-w-[65%] leading-tight">
             * This receipt is an official confirmation of booking slot allotment and is subject to the terms and conditions.
           </div>
 
           {/* Right: Authorized Signatory */}
-          <div className="text-center w-36 pt-1 border-t border-slate-700 shrink-0 signatory-line">
+          <div className="text-center w-40 pt-1.5 border-t border-dotted border-slate-700 shrink-0 signatory-line">
             <strong className="text-slate-900 block text-[10.5px] print:text-[9.5px]">Authorized Signatory</strong>
           </div>
         </div>
@@ -511,6 +522,17 @@ const BookingCertificateViewer = () => {
     }
   }
 
+  const rawRelation = customer.relationType || booking.relationType || '';
+  const relLower = rawRelation.trim().toLowerCase();
+  let relationLabel = 'S/o';
+  if (relLower.includes('wife') || relLower === 'w/o' || relLower === 'wo') relationLabel = 'W/o';
+  else if (relLower.includes('daughter') || relLower === 'd/o' || relLower === 'do') relationLabel = 'D/o';
+  else if (relLower.includes('husband') || relLower === 'h/o' || relLower === 'ho') relationLabel = 'H/o';
+  else if (relLower.includes('care') || relLower === 'c/o' || relLower === 'co') relationLabel = 'C/o';
+  else if (relLower.includes('son') || relLower === 's/o' || relLower === 'so') relationLabel = 'S/o';
+  else if (rawRelation.trim()) relationLabel = rawRelation.trim();
+  const relativeName = customer.fatherOrHusbandName || customer.guardianName || booking.guardianName || booking.fatherOrHusbandName || '';
+
   return (
     <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
       {/* Booking Receipt Title */}
@@ -559,7 +581,7 @@ const BookingCertificateViewer = () => {
             <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{plot.plotNumber || booking.plotNumber || '-'}</td>
           </tr>
 
-          {/* Row 3: Customer Name | Guardian / Father */}
+          {/* Row 3: Customer Name | Relative / Relation */}
           <tr>
             <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
@@ -570,12 +592,12 @@ const BookingCertificateViewer = () => {
             <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
             <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
-                <span>Guardian / Father</span>
+                <span>{relationLabel}</span>
                 <span>:</span>
               </div>
             </td>
             <td className="py-1.5 px-2.5 print:py-[3.2px] print:px-2 font-bold text-slate-900 w-[32%]">
-              {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
+              {relativeName || '-'}
             </td>
           </tr>
 
@@ -744,14 +766,14 @@ const BookingCertificateViewer = () => {
       </table>
 
       {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
-      <div className="flex justify-between items-end pt-3 select-none print:pt-2.5">
+      <div className="flex justify-between items-end pt-6 select-none print:pt-5">
         {/* Left: Notice line */}
         <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic max-w-[65%] leading-tight">
           * This receipt is an official confirmation of booking slot allotment and is subject to the terms and conditions.
         </div>
 
         {/* Right: Authorized Signatory */}
-        <div className="text-center w-36 pt-1 border-t border-slate-700 shrink-0 signatory-line">
+        <div className="text-center w-40 pt-1.5 border-t border-dotted border-slate-700 shrink-0 signatory-line">
           <strong className="text-slate-900 block text-[10.5px] print:text-[9.5px]">Authorized Signatory</strong>
         </div>
       </div>

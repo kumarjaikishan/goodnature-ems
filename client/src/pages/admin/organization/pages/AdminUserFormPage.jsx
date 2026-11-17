@@ -1478,7 +1478,7 @@ const AdminUserFormPage = () => {
 
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-700 tracking-wide block">
-                                Transaction Visibility Scope in Plot Bookings, Investments & Collections (Down Payment & EMI)
+                                Transaction Visibility Scope in Plot Bookings, Investments & Collections (Down Payment, EMI, Investment DP & Investment EMI)
                             </label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 {/* Option 1: Both */}

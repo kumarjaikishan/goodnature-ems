@@ -200,7 +200,7 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
     const empAttendanceMonth =
       (activeAttendance || []).filter(
         (a) =>
-          (a.employeeId?._id || a.employeeId) === empId &&
+          String(a.employeeId?._id || a.employeeId) === String(empId) &&
           dayjs(a.date).isSame(monthStart, "month")
       ) || [];
 

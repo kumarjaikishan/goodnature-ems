@@ -99,11 +99,23 @@ const deletedepartment = async (req, res, next) => {
             return next({ status: 400, message: "departmentId is required" });
         }
 
-        const query = await departmentModal.findByIdAndDelete(departmentId);
-
-        if (!query) {
+        const dept = await departmentModal.findById(departmentId);
+        if (!dept) {
             return next({ status: 404, message: "Department not found" });
         }
+
+        // Check if any employees are attached to this department
+        const linkedEmployeesCount = await employeeModal.countDocuments({
+            department: departmentId
+        });
+
+        if (linkedEmployeesCount > 0) {
+            return res.status(400).json({
+                message: `Cannot delete department "${dept.department}". There ${linkedEmployeesCount === 1 ? 'is 1 employee' : `are ${linkedEmployeesCount} employees`} attached to this department. Please reassign or remove the employee(s) first.`
+            });
+        }
+
+        await departmentModal.findByIdAndDelete(departmentId);
 
         res.status(200).json({
             message: 'Department Deleted Successfully'

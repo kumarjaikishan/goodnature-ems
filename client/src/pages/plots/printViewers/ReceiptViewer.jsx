@@ -169,6 +169,19 @@ const ReceiptViewer = () => {
   // Principal paid = total receipt amount minus late fine paid (if any)
   const principalAmountPaid = Math.max(0, totalPaidAmount - lateFinePaid);
 
+  // Normalize relationship label (e.g., 'S/o', 'D/o', 'W/o', 'H/o', 'C/o')
+  const rawRelation = customer.relationType || bookingId.relationType || '';
+  const relLower = rawRelation.trim().toLowerCase();
+  let relationLabel = 'S/o';
+  if (relLower.includes('wife') || relLower === 'w/o' || relLower === 'wo') relationLabel = 'W/o';
+  else if (relLower.includes('daughter') || relLower === 'd/o' || relLower === 'do') relationLabel = 'D/o';
+  else if (relLower.includes('husband') || relLower === 'h/o' || relLower === 'ho') relationLabel = 'H/o';
+  else if (relLower.includes('care') || relLower === 'c/o' || relLower === 'co') relationLabel = 'C/o';
+  else if (relLower.includes('son') || relLower === 's/o' || relLower === 'so') relationLabel = 'S/o';
+  else if (rawRelation.trim()) relationLabel = rawRelation.trim();
+
+  const relativeName = customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName || '';
+
   return (
     <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
       {/* Payment Receipt Title */}
@@ -225,7 +238,7 @@ const ReceiptViewer = () => {
             </td>
           </tr>
 
-          {/* Row 3: Customer Name | Guardian / S/o */}
+          {/* Row 3: Customer Name | Relative / Relation */}
           <tr>
             <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
@@ -238,19 +251,12 @@ const ReceiptViewer = () => {
             </td>
             <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
-                <span>Guardian / S/o</span>
+                <span>{relationLabel}</span>
                 <span>:</span>
               </div>
             </td>
             <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%]">
-              {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName ? (
-                <span>
-                  {customer.relationType ? `${customer.relationType} ` : ''}
-                  {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName}
-                </span>
-              ) : (
-                '-'
-              )}
+              {relativeName || '-'}
             </td>
           </tr>
 
@@ -371,7 +377,7 @@ const ReceiptViewer = () => {
       </table>
 
       {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
-      <div className="flex justify-between items-end pt-3.5 select-none print:pt-3">
+      <div className="flex justify-between items-end pt-7 select-none print:pt-6">
         {/* Left: Notice & Status */}
         <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic flex flex-col gap-0.5 max-w-[65%]">
           {isOnlinePayment && (
@@ -395,7 +401,7 @@ const ReceiptViewer = () => {
         </div>
 
         {/* Right: Authorized Signatory */}
-        <div className="text-center w-36 pt-1 border-t border-slate-700 shrink-0 signatory-line">
+        <div className="text-center w-40 pt-1.5 border-t border-dotted border-slate-700 shrink-0 signatory-line">
           <strong className="text-slate-900 block text-[10.5px] print:text-[9.5px]">Authorized Signatory</strong>
         </div>
       </div>

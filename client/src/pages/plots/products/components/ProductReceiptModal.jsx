@@ -255,13 +255,13 @@ const ProductReceiptModal = ({ open, onClose, collection }) => {
           </div>
 
           {/* Signatures Footer */}
-          <div className="grid grid-cols-2 pt-8 text-xs select-none">
+          <div className="grid grid-cols-2 pt-12 text-xs select-none">
             <div className="text-center">
-              <div className="w-44 border-b border-slate-400 mx-auto mb-1.5"></div>
+              <div className="w-44 border-b border-dotted border-slate-500 mx-auto mb-1.5"></div>
               <p className="font-semibold text-slate-600">Customer Signature</p>
             </div>
             <div className="text-center">
-              <div className="w-44 border-b border-slate-400 mx-auto mb-1.5"></div>
+              <div className="w-44 border-b border-dotted border-slate-500 mx-auto mb-1.5"></div>
               <p className="font-semibold text-slate-800">Authorized Signatory</p>
               <p className="text-[10px] text-slate-400">{companyName}</p>
             </div>

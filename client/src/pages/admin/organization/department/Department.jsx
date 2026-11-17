@@ -44,7 +44,7 @@ const Department = () => {
     }
   };
 
-  const { branch, department } = useSelector((e) => e.user);
+  const { branch, department, employee } = useSelector((e) => e.user);
   const [filtere, setfiltere] = useState({
     branch: 'all',
     search: '',
@@ -97,9 +97,27 @@ const Department = () => {
   };
 
   const deletee = (dep) => {
+    // Check if any employees are attached to this department
+    const linkedEmployees = Array.isArray(employee)
+      ? employee.filter((emp) => {
+          const empDeptId = emp.department?._id || emp.department;
+          return String(empDeptId) === String(dep._id);
+        })
+      : [];
+
+    if (linkedEmployees.length > 0) {
+      swal({
+        title: 'Action Blocked',
+        text: `Cannot delete department "${dep.department}". There ${linkedEmployees.length === 1 ? 'is 1 employee' : `are ${linkedEmployees.length} employees`} attached to this department. Please reassign or remove them first.`,
+        icon: 'error',
+        button: 'OK',
+      });
+      return;
+    }
+
     swal({
       title: `Delete department "${dep.department}"?`,
-      text: 'Warning: Deleting this department may affect linked employees.',
+      text: 'Are you sure you want to delete this department?',
       icon: 'warning',
       buttons: true,
       dangerMode: true,
