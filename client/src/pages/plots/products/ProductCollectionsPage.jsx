@@ -12,6 +12,7 @@ import {
   Search,
   RefreshCw,
   Printer,
+  Eye,
   Calendar,
   X,
   Percent,
@@ -512,7 +513,6 @@ const ProductCollectionsPage = ({ initialView, type }) => {
                   <th className="p-3.5 pl-5">Receipt # &amp; Date</th>
                   <th className="p-3.5">Booking #</th>
                   <th className="p-3.5">Customer &amp; Associate</th>
-                  <th className="p-3.5">Product &amp; Specs</th>
                   <th className="p-3.5 text-right">Amount</th>
                   <th className="p-3.5">Mode &amp; Ref</th>
                   <th className="p-3.5 text-center">Status</th>
@@ -529,7 +529,16 @@ const ProductCollectionsPage = ({ initialView, type }) => {
                     <tr key={col._id} className="hover:bg-teal-50/30 transition-colors">
                       {/* Receipt # & Date */}
                       <td className="p-3.5 pl-5">
-                        <div className="font-mono font-bold text-teal-900 text-xs">{col.receiptNumber}</div>
+                        <div
+                          onClick={() => {
+                            const recId = col._id || col.receiptNumber;
+                            navigate(`/dashboard/plots/receipts/${recId}`);
+                          }}
+                          className="font-mono font-bold text-teal-900 hover:text-teal-950 hover:underline text-xs cursor-pointer"
+                          title="Click to View / Print Receipt"
+                        >
+                          {col.receiptNumber}
+                        </div>
                         <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1 mt-0.5">
                           <Calendar className="w-3 h-3 text-slate-400" />
                           <span>{formatDate(col.paymentDate)}</span>
@@ -546,21 +555,13 @@ const ProductCollectionsPage = ({ initialView, type }) => {
                       {/* Customer & Associate */}
                       <td className="p-3.5">
                         <div className="font-bold text-slate-900">{col.customer?.name || 'Customer'}</div>
-                        <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1 mt-0.5">
-                          <span className="font-mono text-slate-600">{col.customer?.customerCode || col.customer?.customerId}</span>
+                        <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
+                          <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 text-[10px]">{col.customer?.customerCode || col.customer?.customerId}</span>
                           {col.sponsor?.name && (
-                            <span className="text-teal-700 font-medium truncate max-w-[120px]">
+                            <span className="text-teal-700 font-medium">
                               • BA: {col.sponsor.name}
                             </span>
                           )}
-                        </div>
-                      </td>
-
-                      {/* Product & Specs */}
-                      <td className="p-3.5">
-                        <div className="font-semibold text-slate-800">{col.product?.productName || 'Micro Plot'}</div>
-                        <div className="text-[11px] text-slate-500 font-normal">
-                          {col.product?.dimensionLabel || ''} • <b className="text-teal-700">{col.quantity || 1} units</b>
                         </div>
                       </td>
 
@@ -660,9 +661,9 @@ const ProductCollectionsPage = ({ initialView, type }) => {
                               navigate(`/dashboard/plots/receipts/${recId}`);
                             }}
                             className="p-1.5 text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 transition-colors cursor-pointer"
-                            title="Print Receipt Bill"
+                            title="View & Print Receipt Bill"
                           >
-                            <Printer className="w-3.5 h-3.5" />
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
 
                           {canDelete && (
