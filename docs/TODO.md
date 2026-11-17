@@ -6,6 +6,15 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
+- [x] **Buyer & Product Agreement 1-Point Font Increase & Layout Calibration**:
+  - Increased typography overall across all 9 pages of `PlotAgreementEnglish.jsx` by 1 typographic point (~1.33px / +0.07rem - 0.08rem).
+  - Footer font increased from `text-[8.5px]` to `text-[9.8px]`.
+  - Page 1 base font increased to `text-[0.81rem]`, title to `text-[1.125rem]`, headings to `text-[0.88rem]`.
+  - Pages 2–8 body font increased to `text-[0.78rem]` with line-height `leading-[1.38]`, clause headings to `text-[0.84rem]`, subheadings to `text-[0.80rem]`.
+  - Page 8 signatures & witness sections increased to `text-[0.84rem]`, `text-[0.80rem]`, `text-[0.78rem]`.
+  - Page 9 Annexure-1 table cells increased to `text-[0.82rem]`, dimensions to `text-[0.80rem]`, transaction details to `text-[0.79rem]`.
+  - Calibrated spacing and matched screen padding to `8mm 14mm 8mm 14mm` across `ProductAgreementViewer.jsx` and `PlotAgreementViewer.jsx`, ensuring zero vertical overflow or unwanted page breaks on any of the 9 pages.
+
 - [x] **Separated Investment Downpayment & EMI Collections with Multi-EMI Auto-Spillover**:
   - Separated Investment collections into two independent workflows and routes:
     - `Investment DP` (`/dashboard/plots/collections/products/downpayment` and `.../add`)

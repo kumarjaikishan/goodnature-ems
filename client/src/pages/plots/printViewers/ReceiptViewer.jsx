@@ -3,10 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
-import { Printer, ArrowLeft } from 'lucide-react';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
-
 import PageLoader from '../../../components/common/PageLoader';
+import ReceiptPrintWrapper from './components/ReceiptPrintWrapper';
 
 const numberToWords = (num) => {
   if (num === 0) return 'Zero Rupees Only';
@@ -171,353 +170,247 @@ const ReceiptViewer = () => {
   const principalAmountPaid = Math.max(0, totalPaidAmount - lateFinePaid);
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
-      {/* Action Buttons (Hidden on Print) */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-6 print:hidden">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs text-slate-600 hover:bg-slate-50 transition cursor-pointer shadow-xs"
-        >
-          <ArrowLeft size={14} /> Back
-        </button>
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition shadow-sm cursor-pointer"
-        >
-          <Printer size={14} /> Print Receipt
-        </button>
+    <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
+      {/* Background Logo Watermark (Visible in Screen Preview, Hidden on Print as paper has pre-printed watermark) */}
+      {company?.logo ? (
+        <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
+          <img
+            src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+            alt="Watermark Logo"
+            className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
+          />
+        </div>
+      ) : null}
+
+      {/* Payment Receipt Title */}
+      <div className="text-center mb-1.5 select-none relative z-10 print:mb-1">
+        <span className="px-3 py-0.5 text-slate-900 text-[13px] md:text-[14px] font-black uppercase tracking-wider rounded-sm print:text-[12px]">
+          Payment Receipt
+        </span>
       </div>
 
-      {/* Printable Receipt Container */}
-      <div className="w-full max-w-4xl bg-white text-slate-900 p-6 border border-slate-200 rounded-sm shadow-xl relative overflow-hidden print:shadow-none print:border-none print:p-0 print-half-a4">
-        <style>{`
-          @media print {
-            @page {
-              size: portrait;
-              margin: 0 !important;
-            }
-            html, body, #root {
-              height: 100% !important;
-              max-height: 100% !important;
-              overflow: hidden !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-              color: black !important;
-            }
-            .print-container {
-              min-height: 0 !important;
-              height: 100% !important;
-              max-height: 100% !important;
-              background-color: white !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              display: block !important;
-              overflow: hidden !important;
-              page-break-after: avoid !important;
-              break-after: avoid !important;
-            }
-            .print-half-a4 {
-              box-sizing: border-box !important;
-              width: calc(100% - 10mm) !important;
-              max-width: 100% !important;
-              max-height: 95mm !important;
-              height: 95mm !important;
-              border: none !important;
-              box-shadow: none !important;
-              padding: 0 !important;
-              margin-top: 35mm !important;
-              margin-left: 5mm !important;
-              margin-right: 5mm !important;
-              margin-bottom: 0 !important;
-              overflow: hidden !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              page-break-after: avoid !important;
-              break-after: avoid !important;
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-            }
-          }
-        `}</style>
-
-        {/* Background Logo Watermark (Black & White / Grayscale) */}
-        {company?.logo ? (
-          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0">
-            <img
-              src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
-              alt="Watermark Logo"
-              className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
-            />
-          </div>
-        ) : null}
-
-        {/* Company Header (Hidden per requirement: pre-printed stationary / clean header) */}
-        <div className="hidden" style={{ display: 'none' }}>
-          <div className="flex flex-col gap-2">
-            {/* Brand Logo & Name */}
-            <div className="flex items-center gap-3">
-              {company?.logo ? (
-                <div className="w-12 h-12 flex items-center justify-center shrink-0 overflow-hidden rounded-md">
-                  <img src={cloudinaryUrl(company.logo, { format: "webp", width: 120, height: 120 })} alt="Company Logo" className="w-full h-full object-contain" />
-                </div>
-              ) : null}
-              <div className="flex flex-col">
-                <img
-                  src="/name_and_tagline.webp"
-                  alt={companyName}
-                  className="h-10 object-contain object-left"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    if (e.currentTarget.nextSibling) {
-                      e.currentTarget.nextSibling.style.display = 'block';
-                    }
-                  }}
-                />
-                <div className="hidden">
-                  <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">{companyName}</h1>
-                  <p className="text-[10px] text-gray-500">Plot Management & Development</p>
-                </div>
+      {/* Details Table: Name: Value Format */}
+      <table className="w-full border border-slate-200 print:border-none text-[11px] print:text-[10px] font-semibold mb-1.5 select-none border-collapse relative z-10 leading-tight print:mb-1">
+        <tbody>
+          {/* Row 1: Receipt No. | Date & Time */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Receipt No.</span>
+                <span>:</span>
               </div>
-            </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-black text-slate-900 w-[32%] font-mono">
+              {(receipt.receiptNumber || '').replace(/^RO-/, '')}
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Date & Time</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
+              {formatReceiptDateTime(receipt.createdAt, receipt.updatedAt)}
+            </td>
+          </tr>
 
-            {/* Address & Details */}
-            <div className="text-[10px] text-slate-600 space-y-0.5 font-medium">
-              <p>{companyAddress}</p>
-            </div>
-          </div>
-        </div>
+          {/* Row 2: Booking ID | Customer ID */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Booking ID</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
+              {bookingId.bookingNumber || '-'}
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Customer ID</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
+              {customer.customerId || customer.customerCode || bookingId.customerId?.customerId || '-'}
+            </td>
+          </tr>
 
-        {/* Payment Receipt Title */}
-        <div className="text-center mb-2.5 select-none relative z-10">
-          <span className="px-3 py-0.5 text-slate-900 text-[13px] md:text-[14px] font-black uppercase tracking-wider rounded-sm">
-            Payment Receipt
-          </span>
-        </div>
+          {/* Row 3: Customer Name | Guardian / S/o */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Customer Name</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-black text-slate-900 w-[32%] uppercase">
+              {customer.name || bookingId.customerName || '-'}
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Guardian / S/o</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%]">
+              {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName ? (
+                <span>
+                  {customer.relationType ? `${customer.relationType} ` : ''}
+                  {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName}
+                </span>
+              ) : (
+                '-'
+              )}
+            </td>
+          </tr>
 
-        {/* Details Table: Name: Value Format */}
-        <table className="w-full border border-slate-200 text-[9.5px] font-semibold mb-2 select-none border-collapse relative z-10 leading-tight">
-          <tbody>
-            {/* Row 1: Receipt No. | Date & Time */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
+          {/* Row 4: Address (Full Row Width) */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Address</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td colSpan={3} className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900">
+              {customer.address || bookingId.customerAddress || '-'}
+            </td>
+          </tr>
+
+          {/* Row 5: Amount Paid | Plan / Plot Number */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Amount Paid</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-900 w-[32%]">
+              <div className="text-[12px] print:text-[11px] font-black text-emerald-800">
+                ₹{principalAmountPaid.toLocaleString('en-IN')}
+              </div>
+              <div className="text-[9.5px] print:text-[8.5px] font-medium text-slate-600 mt-0.5 normal-case font-sans">
+                ({numberToWords(principalAmountPaid)})
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>{isProductReceipt ? 'Plan' : 'Plot Number'}</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%]">
+              {isProductReceipt ? (
+                <span className="font-bold text-slate-900 uppercase">{resolvedPlanName}</span>
+              ) : (
+                (() => {
+                  const cleanPlotNo = (plot.plotNumber || bookingId.plotNumber || '').replace(/^#/, '');
+                  const size = plot.plotSize || bookingId.plotSize || bookingId.areaSqFt;
+                  if (!cleanPlotNo && !size) return '-';
+                  if (cleanPlotNo && size) return `${cleanPlotNo} | ${size} sqft`;
+                  return cleanPlotNo || `${size} sqft`;
+                })()
+              )}
+            </td>
+          </tr>
+
+          {/* Row 6: Payment Transaction | Late Fine Paid */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Payment Transaction</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 uppercase w-[32%]">
+              {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Late Fine Paid</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-rose-700 w-[32%]">
+              ₹{lateFinePaid.toLocaleString('en-IN')}
+            </td>
+          </tr>
+
+          {/* Row 7: Narration | Outstanding Balance */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Narration</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-800 font-medium italic w-[32%]">
+              {receipt.remarks || (isDownpaymentReceipt ? 'Down Payment' : 'Plot Payment Collection')}
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>{isDownpaymentReceipt ? 'Outstanding D.P.' : 'Outstanding Balance'}</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%]">
+              ₹{(isDownpaymentReceipt ? (outstandingDownpayment || 0) : (outstandingBalance || 0)).toLocaleString('en-IN')}
+              {isDownpaymentReceipt && outstandingBalance > 0 && (
+                <span className="text-[9.5px] print:text-[8.5px] text-slate-500 font-normal ml-1">
+                  (Total: ₹{outstandingBalance.toLocaleString('en-IN')})
+                </span>
+              )}
+            </td>
+          </tr>
+
+          {/* Row 8: Optional Late Fine Rebate row if applied */}
+          {receipt.lateFineRebate > 0 && (
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
-                  <span>Receipt No.</span>
+                  <span>Late Fine Rebate</span>
                   <span>:</span>
                 </div>
               </td>
-              <td className="py-1 px-2 font-black text-slate-900 w-[32%] font-mono">
-                {(receipt.receiptNumber || '').replace(/^RO-/, '')}
-              </td>
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Date & Time</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 w-[32%] font-mono">
-                {formatReceiptDateTime(receipt.createdAt, receipt.updatedAt)}
+              <td colSpan={3} className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-emerald-700">
+                ₹{receipt.lateFineRebate.toLocaleString('en-IN')}
               </td>
             </tr>
+          )}
+        </tbody>
+      </table>
 
-            {/* Row 2: Booking ID | Customer ID */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Booking ID</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 w-[32%] font-mono">
-                {bookingId.bookingNumber || '-'}
-              </td>
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Customer ID</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 w-[32%] font-mono">
-                {customer.customerId || customer.customerCode || bookingId.customerId?.customerId || '-'}
-              </td>
-            </tr>
-
-            {/* Row 3: Customer Name | Guardian / S/o */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Customer Name</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-black text-slate-900 w-[32%] uppercase">
-                {customer.name || bookingId.customerName || '-'}
-              </td>
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Guardian / S/o</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
-                {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName ? (
-                  <span>
-                    {customer.relationType ? `${customer.relationType} ` : ''}
-                    {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName}
-                  </span>
-                ) : (
-                  '-'
-                )}
-              </td>
-            </tr>
-
-            {/* Row 4: Address (Full Row Width) */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Address</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td colSpan={3} className="py-1 px-2 font-bold text-slate-900">
-                {customer.address || bookingId.customerAddress || '-'}
-              </td>
-            </tr>
-
-            {/* Row 5: Amount Paid | Plot Number */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Amount Paid</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 text-slate-900 w-[32%]">
-                <div className="text-[11px] font-black text-emerald-800">
-                  ₹{principalAmountPaid.toLocaleString('en-IN')}
-                </div>
-                <div className="text-[8.5px] font-medium text-slate-500 mt-0.5 normal-case font-sans">
-                  ({numberToWords(principalAmountPaid)})
-                </div>
-              </td>
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>{isProductReceipt ? 'Plan' : 'Plot Number'}</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
-                {isProductReceipt ? (
-                  <span className="font-bold text-slate-900 uppercase">{resolvedPlanName}</span>
-                ) : (
-                  (() => {
-                    const cleanPlotNo = (plot.plotNumber || bookingId.plotNumber || '').replace(/^#/, '');
-                    const size = plot.plotSize || bookingId.plotSize || bookingId.areaSqFt;
-                    if (!cleanPlotNo && !size) return '-';
-                    if (cleanPlotNo && size) return `${cleanPlotNo} | ${size} sqft`;
-                    return cleanPlotNo || `${size} sqft`;
-                  })()
-                )}
-              </td>
-            </tr>
-
-            {/* Row 6: Payment Transaction | Late Fine Paid */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Payment Transaction</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 uppercase w-[32%]">
-                {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
-              </td>
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Late Fine Paid</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-rose-700 w-[32%]">
-                ₹{lateFinePaid.toLocaleString('en-IN')}
-              </td>
-            </tr>
-
-            {/* Row 7: Narration | Outstanding Balance */}
-            <tr className="border-b border-slate-100">
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Narration</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 text-slate-800 font-medium italic w-[32%]">
-                {receipt.remarks || (isDownpaymentReceipt ? 'Down Payment' : 'Plot Payment Collection')}
-              </td>
-              <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>{isDownpaymentReceipt ? 'Outstanding D.P.' : 'Outstanding Balance'}</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
-                ₹{(isDownpaymentReceipt ? (outstandingDownpayment || 0) : (outstandingBalance || 0)).toLocaleString('en-IN')}
-                {isDownpaymentReceipt && outstandingBalance > 0 && (
-                  <span className="text-[8.5px] text-slate-500 font-normal ml-1">
-                    (Total: ₹{outstandingBalance.toLocaleString('en-IN')})
-                  </span>
-                )}
-              </td>
-            </tr>
-
-            {/* Row 8: Optional Late Fine Rebate row if applied */}
-            {receipt.lateFineRebate > 0 && (
-              <tr className="border-b border-slate-100">
-                <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Late Fine Rebate</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td colSpan={3} className="py-1 px-2 font-bold text-emerald-700">
-                  ₹{receipt.lateFineRebate.toLocaleString('en-IN')}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* Bottom Signatory area */}
-        <div className="flex justify-end items-end pt-4 select-none">
-          <div className="text-center w-40 pt-1 border-t border-slate-400">
-            <strong className="text-slate-900 block text-[10px]">Authorized Signatory</strong>
-          </div>
-        </div>
-
-        {/* Notice line & Bill Status */}
-        <div className="mt-3 mb-1 text-[8.5px] text-slate-500 font-semibold italic select-none border-t border-slate-100 pt-1.5 flex flex-col gap-0.5">
+      {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
+      <div className="flex justify-between items-end pt-2 select-none print:pt-1">
+        {/* Left: Notice & Status */}
+        <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic flex flex-col gap-0.5 max-w-[65%]">
           {isOnlinePayment && (
-            <p className="text-[9px] text-amber-700 font-bold not-italic">
+            <p className="text-[9.5px] print:text-[8.5px] text-amber-700 font-bold not-italic m-0">
               * Bill Status: {receipt.status === 'APPROVED' ? 'Approved' : 'Approval Pending'}
             </p>
           )}
-          <p>
-            * Note: This receipt is issued subject to realization of payment (applicable for Cheque, DD, UPI, RTGS, NEFT, etc.).
-          </p>
           {!isOnlinePayment && receipt.status === 'PENDING' && (
-            <p className="text-amber-700 font-bold not-italic">
+            <p className="text-amber-700 font-bold not-italic m-0">
               * Bill Status: Approval Pending.
             </p>
           )}
           {receipt.status === 'REJECTED' && (
-            <p className="text-rose-700 font-bold not-italic">
+            <p className="text-rose-700 font-bold not-italic m-0">
               * Payment Status: Rejected ({receipt.rejectionReason || 'Declined'}).
             </p>
           )}
+          <p className="m-0 leading-tight">
+            * Note: This receipt is issued subject to realization of payment (applicable for Cheque, DD, UPI, RTGS, NEFT, etc.).
+          </p>
+        </div>
+
+        {/* Right: Authorized Signatory */}
+        <div className="text-center w-36 pt-1 border-t border-slate-700 shrink-0 signatory-line">
+          <strong className="text-slate-900 block text-[10.5px] print:text-[9.5px]">Authorized Signatory</strong>
         </div>
       </div>
-    </div>
+    </ReceiptPrintWrapper>
   );
 };
 

@@ -340,7 +340,7 @@ const PlotAgreementViewer = () => {
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid #e2e8f0;
             background: white;
-            padding: 10mm 14mm 10mm 14mm;
+            padding: 8mm 14mm 8mm 14mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;

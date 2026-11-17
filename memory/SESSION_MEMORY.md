@@ -1,5 +1,44 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Unified Receipt Print Area Wrapper & Typography Calibration [COMPLETED]**:
+  - **Overview**: Standardized the printable area layout and typography across all 6 receipt & booking certificate formats:
+    1. Plot Downpayment Receipt (`ReceiptViewer.jsx`)
+    2. Plot EMI Receipt (`ReceiptViewer.jsx`)
+    3. Investment Downpayment Receipt (`ReceiptViewer.jsx`)
+    4. Investment EMI Receipt (`ReceiptViewer.jsx`)
+    5. Regular Plot Booking Receipt (`BookingCertificateViewer.jsx`)
+    6. Investment Product Booking Receipt (`BookingCertificateViewer.jsx`)
+  - **Pre-Printed Stationery Alignment**:
+    - Physical pre-printed letterhead has top header band (35mm), left & right blue decorative borders (~7mm each), and a bottom decorative border.
+    - Created reusable `ReceiptPrintWrapper.jsx` (`client/src/pages/plots/printViewers/components/ReceiptPrintWrapper.jsx`).
+    - `@media print` coordinates calibrated:
+      - `margin-top: 35mm !important;` (starts right below the top header).
+      - `margin-left: 7mm !important; margin-right: 7mm !important;` (aligns inside the decorative side borders).
+      - `width: calc(100% - 14mm) !important;`
+      - `max-height: 102mm !important;` (fits perfectly inside the 140mm half-sheet boundary without spilling over onto page 2).
+      - Strict page-break suppression: `page-break-after: avoid !important; break-after: avoid !important;`.
+  - **Typography & Layout Calibration**:
+    - **No Row Lines in Print**: Removed `border-b` lines from every table row and outer borders in print mode (`print:border-none` and print wrapper rule `.receipt-printable-card table, tr, td { border: none !important; }`), ensuring clean borderless alignment with pre-printed stationery. Preserved only the signature line on `.signatory-line`.
+    - Upgraded font sizes from unreadable tiny text (`text-[8px]` / `text-[9.5px]`) to crisp, legible sizes:
+      - Table contents: `text-[10.5px] print:text-[9.5px]` (ReceiptViewer) / `text-[10.5px] print:text-[9.5px]` (BookingCertificateViewer).
+      - Table cell padding: `py-1 px-2.5 print:py-[2px] print:px-2`.
+      - Values & Key amounts: `text-[11px] print:text-[10px]` with bold emphasis.
+      - Number-in-words: `text-[8.5px] print:text-[7.5px]` clean truncate.
+    - Replaced vertical stacked notice and signature block with a side-by-side flex row (`flex justify-between items-end pt-2 select-none print:pt-1`), saving ~20mm of vertical height and ensuring 100% single-page fit.
+    - Watermark set to `print:hidden` to prevent dark ghosting on stationery with pre-printed watermark.
+
+- **Buyer & Product Agreement 1-Point Font Increase & Layout Calibration [COMPLETED]**:
+  - **Overview**: Increased typography across all 9 pages of `PlotAgreementEnglish.jsx` by 1 typographic point (~1.33px / +0.07rem - 0.08rem) while preserving page-perfect A4 printing and screen layouts.
+  - **Font Changes Applied**:
+    - **PageFooter**: `text-[8.5px]` $\rightarrow$ `text-[9.8px]`.
+    - **Page 1**: Base font `text-[0.74rem]` $\rightarrow$ `text-[0.81rem]`, metadata `text-[9.5px]` $\rightarrow$ `text-[10.5px]`, title `text-base` (16px) $\rightarrow$ `text-[1.125rem]` (18px), section labels `text-[0.80rem]` $\rightarrow$ `text-[0.88rem]`, closing note `text-[0.72rem]` $\rightarrow$ `text-[0.79rem]`.
+    - **Pages 2–8**: Base font `text-[0.71rem]` $\rightarrow$ `text-[0.78rem]`, headings (Clauses 1–18) `text-[0.76rem]` $\rightarrow$ `text-[0.84rem]`, subheadings (1.1, 1.2, 7.A, etc.) `text-[0.72rem]` $\rightarrow$ `text-[0.80rem]`.
+    - **Page 8 (Signatures & Witnesses)**: "IN WITNESS WHEREOF" & "SIGNED & DELIVERED" `text-[0.76rem]` $\rightarrow$ `text-[0.84rem]`, labels `text-[0.72rem]` $\rightarrow$ `text-[0.80rem]`, applicant name `text-[0.70rem]` $\rightarrow$ `text-[0.78rem]`, witness headers `text-[0.74rem]` $\rightarrow$ `text-[0.82rem]`, witness fields `text-[0.72rem]` $\rightarrow$ `text-[0.80rem]`.
+    - **Page 9 (Annexure - 1)**: Table header `text-sm` $\rightarrow$ `text-[0.95rem]`, table cells `text-[0.74rem]` $\rightarrow$ `text-[0.82rem]` (with `p-2`), dimensions `text-xs` $\rightarrow$ `text-[0.80rem]`, transaction details `text-[0.72rem]` $\rightarrow$ `text-[0.79rem]`.
+  - **Layout Calibration**:
+    - Calibrated vertical paddings and spacing (`space-y-1.5`, `space-y-1`, `pt-1.5 pb-0.5`).
+    - Aligned screen `.agreement-page` padding to `8mm 14mm 8mm 14mm` across both `ProductAgreementViewer.jsx` and `PlotAgreementViewer.jsx`, matching print mode identically and eliminating any vertical overflow across all 9 pages.
+
 - **Dynamic Lock-in Period & Plan Resolution in Investment Agreements [COMPLETED]**:
   - **Issue**: In Product Agreement Annexure-1 (`http://localhost:5173/dashboard/plots/product-agreements/6afbbd63ca226b953f608214`), the table was showing `PLAN: GROW/60-M` but `LOCK-IN PERIOD: 24 Months (2 Yrs)` because `tenureMonths` had evaluated to `installmentCount * freqMultiplier` (4 * 6 = 24 months for 4 half-yearly installments) instead of the selected investment scheme duration (60 Months / 5 Years).
   - **Clause 9.C Abandonment Simple Interest & Maturity Return Resolution**:

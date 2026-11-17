@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
-import { Printer, ArrowLeft } from 'lucide-react';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import ReceiptPrintWrapper from './components/ReceiptPrintWrapper';
 
 const numberToWords = (num) => {
   if (num === 0) return 'Zero Rupees Only';
@@ -176,325 +176,255 @@ const BookingCertificateViewer = () => {
       '-';
 
     return (
-      <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
-        {/* Action Buttons (Hidden on Print) */}
-        <div className="w-full max-w-4xl flex items-center justify-between mb-6 print:hidden">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 transition cursor-pointer shadow-xs"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition shadow-xs cursor-pointer"
-          >
-            <Printer size={14} /> Print Receipt
-          </button>
+      <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
+        {/* Background Logo Watermark (Black & White / Grayscale) */}
+        {company?.logo ? (
+          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
+            <img
+              src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+              alt="Watermark Logo"
+              className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
+            />
+          </div>
+        ) : null}
+
+        {/* Booking Receipt Title */}
+        <div className="text-center mb-1.5 select-none relative z-10 print:mb-1">
+          <span className="px-2 py-0.5 text-slate-900 text-xs md:text-sm font-black uppercase tracking-wider rounded-sm print:text-[11px]">
+            BOOKING RECEIPT
+          </span>
         </div>
 
-        {/* Printable Certificate Container */}
-        <div className="w-full max-w-4xl bg-white text-slate-900 p-4 sm:p-5 border border-slate-200 rounded-sm shadow-xl relative overflow-hidden print:shadow-none print:border-none print:p-0 print-half-a4">
-          <style>{`
-            @media print {
-              @page {
-                size: portrait;
-                margin: 0 !important;
-              }
-              html, body, #root {
-                height: 100% !important;
-                max-height: 100% !important;
-                overflow: hidden !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-                color: black !important;
-              }
-              .print-container {
-                min-height: 0 !important;
-                height: 100% !important;
-                max-height: 100% !important;
-                background-color: white !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                display: block !important;
-                overflow: hidden !important;
-                page-break-after: avoid !important;
-                break-after: avoid !important;
-              }
-              .print-half-a4 {
-                box-sizing: border-box !important;
-                width: calc(100% - 10mm) !important;
-                max-width: 100% !important;
-                max-height: 95mm !important;
-                height: 95mm !important;
-                border: none !important;
-                box-shadow: none !important;
-                padding: 0 !important;
-                margin-top: 35mm !important;
-                margin-left: 5mm !important;
-                margin-right: 5mm !important;
-                margin-bottom: 0 !important;
-                overflow: hidden !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: space-between !important;
-                page-break-after: avoid !important;
-                break-after: avoid !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-              }
-            }
-          `}</style>
+        {/* Details Table: Name: Value Format with Specified Widths & Subtle Lines */}
+        <table className="w-full border border-slate-200 print:border-none text-[10.5px] print:text-[9.5px] font-semibold mb-1.5 select-none border-collapse relative z-10 leading-tight print:mb-1">
+          <tbody>
+            {/* Row 1: Booking ID | Booking Date/Time */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Booking ID</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-black text-slate-900 w-[32%] font-mono">{booking.bookingNumber}</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Booking Date/Time</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{bookingDateTimeStr}</td>
+            </tr>
 
-          {/* Background Logo Watermark (Black & White / Grayscale) */}
-          {company?.logo ? (
-            <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
-              <img
-                src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
-                alt="Watermark Logo"
-                className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
-              />
-            </div>
-          ) : null}
+            {/* Row 2: Customer ID | Plot / Unit Number */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Customer ID</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{customer.customerCode || customer.customerId || '-'}</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Plot Number</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{plot.plotNumber || booking.plotNumber || (booking.quantity ? `${booking.quantity} Unit(s)` : '-')}</td>
+            </tr>
 
-          {/* Booking Receipt Title */}
-          <div className="text-center mb-1 select-none relative z-10 print:mb-0.5">
-            <span className="px-2 py-0.2 text-slate-900 text-[11px] md:text-[12px] font-black uppercase tracking-wider rounded-sm print:text-[10px]">
-              BOOKING RECEIPT
-            </span>
-          </div>
+            {/* Row 3: Customer Name | Guardian / Father */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Customer Name</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Guardian / Father</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+                {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
+              </td>
+            </tr>
 
-          {/* Details Table: Name: Value Format with Specified Widths & Subtle Lines */}
-          <table className="w-full border border-slate-200 text-[8px] font-semibold mb-1 select-none border-collapse relative z-10 leading-tight print:text-[7.5px] print:mb-0.5">
-            <tbody>
-              {/* Row 1: Booking ID | Booking Date/Time */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Booking ID</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%] font-mono">{booking.bookingNumber}</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Booking Date/Time</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{bookingDateTimeStr}</td>
-              </tr>
+            {/* Row 4: Address | Mobile No */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Address</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] truncate max-w-[200px]">{customer.currentAddress || customer.address || booking.customerAddress || '-'}</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Mobile No</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{customer.mobile || booking.customerMobile || '-'}</td>
+            </tr>
 
-              {/* Row 2: Customer ID | Plot / Unit Number */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Customer ID</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{customer.customerCode || customer.customerId || '-'}</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Plot Number</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{plot.plotNumber || booking.plotNumber || (booking.quantity ? `${booking.quantity} Unit(s)` : '-')}</td>
-              </tr>
+            {/* Row 5: Plot Area | Mauja / थाना */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Plot Area</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">{totalArea.toLocaleString('en-IN')} Sq Ft</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Mauja / थाना</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] uppercase truncate max-w-[200px]">{maujaList}{thanaList && thanaList !== '-' ? ` (THANA: ${thanaList})` : ''}</td>
+            </tr>
 
-              {/* Row 3: Customer Name | Guardian / Father */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Customer Name</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Guardian / Father</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                  {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
-                </td>
-              </tr>
+            {/* Row 6: Khata | Khesra No */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Khata</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{khataList}</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Khesra No</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{khesraList}</td>
+            </tr>
 
-              {/* Row 4: Address | Mobile No */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Address</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] truncate max-w-[200px]">{customer.currentAddress || customer.address || booking.customerAddress || '-'}</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Mobile No</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{customer.mobile || booking.customerMobile || '-'}</td>
-              </tr>
+            {/* Row 7: Dimensions / पैमाइश */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Dimensions / पैमाइश</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td colSpan={3} className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 font-mono text-[9.5px] print:text-[8.5px]">
+                {lengthFt > 0 && widthFt > 0
+                  ? `उत्तर: ${dims.north ?? lengthFt} ft | दक्षिण: ${dims.south ?? lengthFt} ft | पूरब: ${dims.east ?? widthFt} ft | पश्चिम: ${dims.west ?? widthFt} ft`
+                  : product.dimensionLabel || '-'}
+              </td>
+            </tr>
 
-              {/* Row 5: Plot Area | Mauja / थाना */}
-              <tr className="border-b border-slate-100 bg-slate-50/30">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Plot Area</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{totalArea.toLocaleString('en-IN')} Sq Ft</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Mauja / थाना</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] uppercase truncate max-w-[200px]">{maujaList}{thanaList && thanaList !== '-' ? ` (THANA: ${thanaList})` : ''}</td>
-              </tr>
+            {/* Row 8: Booked Rate | Gross Plot Value */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Booked Rate</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+                {totalArea > 0 ? `₹${Math.round(totalValuation / totalArea).toLocaleString('en-IN')} / Sq Ft` : `₹${unitPrice.toLocaleString('en-IN')} / unit`}
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Gross Plot Value</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-black text-slate-900 w-[32%]">₹{totalValuation.toLocaleString('en-IN')}</td>
+            </tr>
 
-              {/* Row 6: Khata | Khesra No */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Khata</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{khataList}</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Khesra No</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{khesraList}</td>
-              </tr>
+            {/* Row 9: Total Discount | Net Payable Amount */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Total Discount</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-emerald-700 w-[32%]">₹0</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>Net Payable Amount</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 w-[32%]">
+                <span className="font-black text-slate-900 text-[11px] print:text-[10px]">
+                  ₹{totalValuation.toLocaleString('en-IN')}
+                </span>
+                <span className="text-[8.5px] print:text-[7.5px] text-slate-500 font-sans font-normal block capitalize truncate max-w-[220px]">
+                  ({numberToWords(totalValuation)})
+                </span>
+              </td>
+            </tr>
 
-              {/* Row 7: Dimensions / पैमाइश */}
-              <tr className="border-b border-slate-100 bg-slate-50/40">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Dimensions / पैमाइश</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td colSpan={3} className="py-0.5 px-1.5 font-bold text-slate-900 font-mono text-[7.5px] print:text-[7px]">
-                  {lengthFt > 0 && widthFt > 0
-                    ? `उत्तर: ${dims.north ?? lengthFt} ft | दक्षिण: ${dims.south ?? lengthFt} ft | पूरब: ${dims.east ?? widthFt} ft | पश्चिम: ${dims.west ?? widthFt} ft`
-                    : product.dimensionLabel || '-'}
-                </td>
-              </tr>
+            {/* Row 10: Down Payment (D.P) | EMI Payment */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>{isFullPayment ? 'Upfront Paid' : 'Down Payment (D.P)'}</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+                ₹{downPayment.toLocaleString('en-IN')}
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>EMI Payment</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+                ₹{remainingBalance.toLocaleString('en-IN')}
+              </td>
+            </tr>
 
-              {/* Row 8: Booked Rate | Gross Plot Value */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Booked Rate</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                  {totalArea > 0 ? `₹${Math.round(totalValuation / totalArea).toLocaleString('en-IN')} / Sq Ft` : `₹${unitPrice.toLocaleString('en-IN')} / unit`}
-                </td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Gross Plot Value</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%]">₹{totalValuation.toLocaleString('en-IN')}</td>
-              </tr>
+            {/* Row 11: D.P End Due Date/Duration | EMI End Due DateDuration */}
+            <tr>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>D.P End Due Date/Duration</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-amber-800 w-[32%]">{isFullPayment ? 'One-Time Full Paid' : bookingDateFormatted}</td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+                <div className="flex justify-between items-center">
+                  <span>EMI End Due DateDuration</span>
+                  <span>:</span>
+                </div>
+              </td>
+              <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+                {isFullPayment ? `${tenureMonths} Months Lock-in` : (monthlyEmi > 0 ? `₹${monthlyEmi.toLocaleString('en-IN')} / mo (${tenureMonths} Mos)` : '-')}
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-              {/* Row 9: Total Discount | Net Payable Amount */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Total Discount</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-emerald-700 w-[32%]">₹0</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>Net Payable Amount</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 w-[32%]">
-                  <span className="font-black text-slate-900 text-[8.5px] print:text-[8px]">
-                    ₹{totalValuation.toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-[7px] text-slate-500 font-sans font-normal block capitalize truncate max-w-[200px]">
-                    ({numberToWords(totalValuation)})
-                  </span>
-                </td>
-              </tr>
-
-              {/* Row 10: Down Payment (D.P) | EMI Payment */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>{isFullPayment ? 'Upfront Paid' : 'Down Payment (D.P)'}</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                  ₹{downPayment.toLocaleString('en-IN')}
-                </td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>EMI Payment</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                  ₹{remainingBalance.toLocaleString('en-IN')}
-                </td>
-              </tr>
-
-              {/* Row 11: D.P End Due Date/Duration | EMI End Due DateDuration */}
-              <tr className="border-b border-slate-100">
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>D.P End Due Date/Duration</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-amber-800 w-[32%]">{isFullPayment ? 'One-Time Full Paid' : bookingDateFormatted}</td>
-                <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                  <div className="flex justify-between items-center">
-                    <span>EMI End Due DateDuration</span>
-                    <span>:</span>
-                  </div>
-                </td>
-                <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                  {isFullPayment ? `${tenureMonths} Months Lock-in` : (monthlyEmi > 0 ? `₹${monthlyEmi.toLocaleString('en-IN')} / mo (${tenureMonths} Mos)` : '-')}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Bottom Signatory area */}
-          <div className="flex justify-end items-end pt-1.5 select-none print:pt-1">
-            <div className="text-center w-36 pt-0.5 border-t border-slate-400">
-              <strong className="text-slate-900 block text-[9px] print:text-[8px]">Authorized Signatory</strong>
-            </div>
-          </div>
-
-          {/* Notice line */}
-          <div className="mt-1 text-[7px] text-slate-500 font-bold italic select-none print:text-[6.5px]">
+        {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
+        <div className="flex justify-between items-end pt-2 select-none print:pt-1">
+          {/* Left: Notice line */}
+          <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic max-w-[65%] leading-tight">
             * This receipt is an official confirmation of booking slot allotment and is subject to the terms and conditions.
           </div>
+
+          {/* Right: Authorized Signatory */}
+          <div className="text-center w-36 pt-1 border-t border-slate-700 shrink-0 signatory-line">
+            <strong className="text-slate-900 block text-[10.5px] print:text-[9.5px]">Authorized Signatory</strong>
+          </div>
         </div>
-      </div>
+      </ReceiptPrintWrapper>
     );
   }
 
@@ -583,331 +513,261 @@ const BookingCertificateViewer = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-8 flex flex-col items-center select-none print:p-0 print:bg-white print-container">
-      {/* Action Buttons (Hidden on Print) */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-6 print:hidden">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 transition cursor-pointer shadow-xs"
-        >
-          <ArrowLeft size={14} /> Back
-        </button>
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition shadow-xs cursor-pointer"
-        >
-          <Printer size={14} /> Print Receipt
-        </button>
+    <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
+      {/* Background Logo Watermark (Black & White / Grayscale) */}
+      {company?.logo ? (
+        <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
+          <img
+            src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
+            alt="Watermark Logo"
+            className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
+          />
+        </div>
+      ) : null}
+
+      {/* Booking Receipt Title */}
+      <div className="text-center mb-1.5 select-none relative z-10 print:mb-1">
+        <span className="px-2 py-0.5 text-slate-900 text-xs md:text-sm font-black uppercase tracking-wider rounded-sm print:text-[11px]">
+          BOOKING RECEIPT
+        </span>
       </div>
 
-      {/* Printable Certificate Container */}
-      <div className="w-full max-w-4xl bg-white text-slate-900 p-4 sm:p-5 border border-slate-200 rounded-sm shadow-xl relative overflow-hidden print:shadow-none print:border-none print:p-0 print-half-a4">
-        <style>{`
-          @media print {
-            @page {
-              size: portrait;
-              margin: 0 !important;
-            }
-            html, body, #root {
-              height: 100% !important;
-              max-height: 100% !important;
-              overflow: hidden !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-              color: black !important;
-            }
-            .print-container {
-              min-height: 0 !important;
-              height: 100% !important;
-              max-height: 100% !important;
-              background-color: white !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              display: block !important;
-              overflow: hidden !important;
-              page-break-after: avoid !important;
-              break-after: avoid !important;
-            }
-            .print-half-a4 {
-              box-sizing: border-box !important;
-              width: calc(100% - 10mm) !important;
-              max-width: 100% !important;
-              max-height: 95mm !important;
-              height: 95mm !important;
-              border: none !important;
-              box-shadow: none !important;
-              padding: 0 !important;
-              margin-top: 35mm !important;
-              margin-left: 5mm !important;
-              margin-right: 5mm !important;
-              margin-bottom: 0 !important;
-              overflow: hidden !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              page-break-after: avoid !important;
-              break-after: avoid !important;
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-            }
-          }
-        `}</style>
+      {/* Details Table: Name: Value Format with Specified Widths & Subtle Lines */}
+      <table className="w-full border border-slate-200 print:border-none text-[10.5px] print:text-[9.5px] font-semibold mb-1.5 select-none border-collapse relative z-10 leading-tight print:mb-1">
+        <tbody>
+          {/* Row 1: Booking ID | Booking Date/Time */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Booking ID</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-black text-slate-900 w-[32%] font-mono">{booking.bookingNumber}</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Booking Date/Time</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{bookingDateTimeStr}</td>
+          </tr>
 
-        {/* Background Logo Watermark (Black & White / Grayscale) */}
-        {company?.logo ? (
-          <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
-            <img
-              src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
-              alt="Watermark Logo"
-              className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
-            />
-          </div>
-        ) : null}
+          {/* Row 2: Customer ID | Plot Number */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Customer ID</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{customer.customerId || '-'}</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Plot Number</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{plot.plotNumber || booking.plotNumber || '-'}</td>
+          </tr>
 
-        {/* Booking Receipt Title */}
-        <div className="text-center mb-1 select-none relative z-10 print:mb-0.5">
-          <span className="px-2 py-0.2 text-slate-900 text-[11px] md:text-[12px] font-black uppercase tracking-wider rounded-sm print:text-[10px]">
-            BOOKING RECEIPT
-          </span>
-        </div>
+          {/* Row 3: Customer Name | Guardian / Father */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Customer Name</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Guardian / Father</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+              {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
+            </td>
+          </tr>
 
-        {/* Details Table: Name: Value Format with Specified Widths & Subtle Lines */}
-        <table className="w-full border border-slate-200 text-[8px] font-semibold mb-1 select-none border-collapse relative z-10 leading-tight print:text-[7.5px] print:mb-0.5">
-          <tbody>
-            {/* Row 1: Booking ID | Booking Date/Time */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Booking ID</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%] font-mono">{booking.bookingNumber}</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Booking Date/Time</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{bookingDateTimeStr}</td>
-            </tr>
+          {/* Row 4: Address | Mobile No */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Address</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] truncate max-w-[200px]">{customer.address || booking.customerAddress || '-'}</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Mobile No</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{customer.mobile || booking.customerMobile || '-'}</td>
+          </tr>
 
-            {/* Row 2: Customer ID | Plot Number */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Customer ID</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{customer.customerId || '-'}</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Plot Number</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{plot.plotNumber || booking.plotNumber || '-'}</td>
-            </tr>
+          {/* Row 5: Plot Area | Mauja / थाना */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Plot Area</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">{plot.plotSize || booking.plotArea || 0} Sq Ft</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Mauja / थाना</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] uppercase truncate max-w-[200px]">{maujaThanaDisplay}</td>
+          </tr>
 
-            {/* Row 3: Customer Name | Guardian / Father */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Customer Name</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%] uppercase">{customer.name || booking.customerName || '-'}</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Guardian / Father</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                {customer.fatherOrHusbandName ? `${customer.relationType || 'Son of'} ${customer.fatherOrHusbandName}` : (customer.guardianName || '-')}
-              </td>
-            </tr>
+          {/* Row 6: Khata | Khesra No */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Khata</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{khataList}</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Khesra No</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">{khesraList}</td>
+          </tr>
 
-            {/* Row 4: Address | Mobile No */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Address</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] truncate max-w-[200px]">{customer.address || booking.customerAddress || '-'}</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Mobile No</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{customer.mobile || booking.customerMobile || '-'}</td>
-            </tr>
+          {/* Row 7: Dimensions / पैमाइश */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Dimensions / पैमाइश</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td colSpan={3} className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 font-mono text-[9.5px] print:text-[8.5px]">
+              {dimensionsDisplay}
+            </td>
+          </tr>
 
-            {/* Row 5: Plot Area | Mauja / थाना */}
-            <tr className="border-b border-slate-100 bg-slate-50/30">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Plot Area</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{plot.plotSize || booking.plotArea || 0} Sq Ft</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Mauja / थाना</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] uppercase truncate max-w-[200px]">{maujaThanaDisplay}</td>
-            </tr>
+          {/* Row 8: Booked Rate | Gross Plot Value */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Booked Rate</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">₹{bookedRateVal.toLocaleString('en-IN')} / Sq Ft</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Gross Plot Value</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-black text-slate-900 w-[32%]">₹{grossPlotValDisplay.toLocaleString('en-IN')}</td>
+          </tr>
 
-            {/* Row 6: Khata | Khesra No */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Khata</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{khataList}</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Khesra No</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%] font-mono">{khesraList}</td>
-            </tr>
-
-            {/* Row 7: Dimensions / पैमाइश */}
-            <tr className="border-b border-slate-100 bg-slate-50/40">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Dimensions / पैमाइश</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td colSpan={3} className="py-0.5 px-1.5 font-bold text-slate-900 font-mono text-[7.5px] print:text-[7px]">
-                {dimensionsDisplay}
-              </td>
-            </tr>
-
-            {/* Row 8: Booked Rate | Gross Plot Value */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Booked Rate</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">₹{bookedRateVal.toLocaleString('en-IN')} / Sq Ft</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Gross Plot Value</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-black text-slate-900 w-[32%]">₹{grossPlotValDisplay.toLocaleString('en-IN')}</td>
-            </tr>
-
-            {/* Row 9: Total Discount | Net Payable Amount */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Total Discount</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-emerald-700 w-[32%]">
-                <div>
-                  <span>₹{totalCombinedDisc.toLocaleString('en-IN')}</span>
-                  {tenureDisc > 0 && manualDisc > 0 ? (
-                    <span className="text-[7px] text-slate-500 font-normal ml-1">
-                      (₹{tenureDisc.toLocaleString('en-IN')} + ₹{manualDisc.toLocaleString('en-IN')})
-                    </span>
-                  ) : null}
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Net Payable Amount</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 w-[32%]">
-                <span className="font-black text-slate-900 text-[8.5px] print:text-[8px]">
-                  ₹{netPayable.toLocaleString('en-IN')}
-                </span>
-                <span className="text-[7px] text-slate-500 font-sans font-normal block capitalize truncate max-w-[200px]">
-                  ({numberToWords(netPayable)})
-                </span>
-              </td>
-            </tr>
-
-            {/* Row 10: Down Payment (D.P) | EMI Payment */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>Down Payment (D.P)</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                ₹{dpAmount.toLocaleString('en-IN')}
-                {booking.downpaymentDays ? (
-                  <span className="text-[7px] text-slate-500 font-normal ml-1">({booking.downpaymentDays} Days)</span>
+          {/* Row 9: Total Discount | Net Payable Amount */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Total Discount</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-emerald-700 w-[32%]">
+              <div>
+                <span>₹{totalCombinedDisc.toLocaleString('en-IN')}</span>
+                {tenureDisc > 0 && manualDisc > 0 ? (
+                  <span className="text-[7.5px] text-slate-500 font-normal ml-1">
+                    (₹{tenureDisc.toLocaleString('en-IN')} + ₹{manualDisc.toLocaleString('en-IN')})
+                  </span>
                 ) : null}
-              </td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>EMI Payment</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">
-                ₹{remEmiAmount.toLocaleString('en-IN')}
-              </td>
-            </tr>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Net Payable Amount</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 w-[32%]">
+              <span className="font-black text-slate-900 text-[11px] print:text-[10px]">
+                ₹{netPayable.toLocaleString('en-IN')}
+              </span>
+              <span className="text-[8.5px] print:text-[7.5px] text-slate-500 font-sans font-normal block capitalize truncate max-w-[220px]">
+                ({numberToWords(netPayable)})
+              </span>
+            </td>
+          </tr>
 
-            {/* Row 11: D.P End Due Date/Duration | EMI End Due DateDuration */}
-            <tr className="border-b border-slate-100">
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>D.P End Due Date/Duration</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-amber-800 w-[32%]">{dpEndDueDisplay}</td>
-              <td className="py-0.5 px-1.5 text-slate-500 font-medium w-[18%]">
-                <div className="flex justify-between items-center">
-                  <span>EMI End Due DateDuration</span>
-                  <span>:</span>
-                </div>
-              </td>
-              <td className="py-0.5 px-1.5 font-bold text-slate-900 w-[32%]">{emiEndDueDisplay}</td>
-            </tr>
-          </tbody>
-        </table>
+          {/* Row 10: Down Payment (D.P) | EMI Payment */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>Down Payment (D.P)</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+              ₹{dpAmount.toLocaleString('en-IN')}
+              {booking.downpaymentDays ? (
+                <span className="text-[8px] text-slate-500 font-normal ml-1">({booking.downpaymentDays} Days)</span>
+              ) : null}
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>EMI Payment</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">
+              ₹{remEmiAmount.toLocaleString('en-IN')}
+            </td>
+          </tr>
 
-        {/* Bottom Signatory area */}
-        <div className="flex justify-end items-end pt-1.5 select-none print:pt-1">
-          <div className="text-center w-36 pt-0.5 border-t border-slate-400">
-            <strong className="text-slate-900 block text-[9px] print:text-[8px]">Authorized Signatory</strong>
-          </div>
-        </div>
+          {/* Row 11: D.P End Due Date/Duration | EMI End Due DateDuration */}
+          <tr>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>D.P End Due Date/Duration</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-amber-800 w-[32%]">{dpEndDueDisplay}</td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <div className="flex justify-between items-center">
+                <span>EMI End Due DateDuration</span>
+                <span>:</span>
+              </div>
+            </td>
+            <td className="py-1 px-2.5 print:py-[2px] print:px-2 font-bold text-slate-900 w-[32%]">{emiEndDueDisplay}</td>
+          </tr>
+        </tbody>
+      </table>
 
-        {/* Notice line */}
-        <div className="mt-1 text-[7px] text-slate-500 font-bold italic select-none print:text-[6.5px]">
+      {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
+      <div className="flex justify-between items-end pt-2 select-none print:pt-1">
+        {/* Left: Notice line */}
+        <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic max-w-[65%] leading-tight">
           * This receipt is an official confirmation of booking slot allotment and is subject to the terms and conditions.
         </div>
+
+        {/* Right: Authorized Signatory */}
+        <div className="text-center w-36 pt-1 border-t border-slate-700 shrink-0 signatory-line">
+          <strong className="text-slate-900 block text-[10.5px] print:text-[9.5px]">Authorized Signatory</strong>
+        </div>
       </div>
-    </div>
+    </ReceiptPrintWrapper>
   );
 };
 
