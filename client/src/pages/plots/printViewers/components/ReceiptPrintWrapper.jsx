@@ -46,16 +46,16 @@ const ReceiptPrintWrapper = ({
           }
           .receipt-printable-card {
             box-sizing: border-box !important;
-            width: calc(100% - 14mm) !important;
+            width: calc(100% - 28mm) !important;
             max-width: 100% !important;
-            max-height: 102mm !important;
+            max-height: 105mm !important;
             height: auto !important;
             border: none !important;
             box-shadow: none !important;
             padding: 0 !important;
-            margin-top: 35mm !important;
-            margin-left: 7mm !important;
-            margin-right: 7mm !important;
+            margin-top: 36mm !important;
+            margin-left: 14mm !important;
+            margin-right: 14mm !important;
             margin-bottom: 0 !important;
             overflow: hidden !important;
             display: flex !important;

@@ -171,89 +171,78 @@ const ReceiptViewer = () => {
 
   return (
     <ReceiptPrintWrapper onPrint={handlePrint} onBack={() => navigate(-1)}>
-      {/* Background Logo Watermark (Visible in Screen Preview, Hidden on Print as paper has pre-printed watermark) */}
-      {company?.logo ? (
-        <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none z-0 print:hidden">
-          <img
-            src={cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400 })}
-            alt="Watermark Logo"
-            className="w-72 h-72 object-contain grayscale opacity-[0.06] filter contrast-200"
-          />
-        </div>
-      ) : null}
-
       {/* Payment Receipt Title */}
-      <div className="text-center mb-1.5 select-none relative z-10 print:mb-1">
+      <div className="text-center mb-2.5 select-none relative z-10 print:mb-2">
         <span className="px-3 py-0.5 text-slate-900 text-[13px] md:text-[14px] font-black uppercase tracking-wider rounded-sm print:text-[12px]">
           Payment Receipt
         </span>
       </div>
 
       {/* Details Table: Name: Value Format */}
-      <table className="w-full border border-slate-200 print:border-none text-[11px] print:text-[10px] font-semibold mb-1.5 select-none border-collapse relative z-10 leading-tight print:mb-1">
+      <table className="w-full border border-slate-200 print:border-none text-[11px] print:text-[10px] font-semibold mb-2.5 select-none border-collapse relative z-10 leading-tight print:mb-2">
         <tbody>
           {/* Row 1: Receipt No. | Date & Time */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Receipt No.</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-black text-slate-900 w-[32%] font-mono">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-black text-slate-900 w-[32%] font-mono">
               {(receipt.receiptNumber || '').replace(/^RO-/, '')}
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Date & Time</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
               {formatReceiptDateTime(receipt.createdAt, receipt.updatedAt)}
             </td>
           </tr>
 
           {/* Row 2: Booking ID | Customer ID */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Booking ID</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
               {bookingId.bookingNumber || '-'}
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Customer ID</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%] font-mono">
               {customer.customerId || customer.customerCode || bookingId.customerId?.customerId || '-'}
             </td>
           </tr>
 
           {/* Row 3: Customer Name | Guardian / S/o */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Customer Name</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-black text-slate-900 w-[32%] uppercase">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-black text-slate-900 w-[32%] uppercase">
               {customer.name || bookingId.customerName || '-'}
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Guardian / S/o</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%]">
               {customer.fatherOrHusbandName || customer.guardianName || bookingId.guardianName || bookingId.fatherOrHusbandName ? (
                 <span>
                   {customer.relationType ? `${customer.relationType} ` : ''}
@@ -267,26 +256,26 @@ const ReceiptViewer = () => {
 
           {/* Row 4: Address (Full Row Width) */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Address</span>
                 <span>:</span>
               </div>
             </td>
-            <td colSpan={3} className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900">
+            <td colSpan={3} className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900">
               {customer.address || bookingId.customerAddress || '-'}
             </td>
           </tr>
 
           {/* Row 5: Amount Paid | Plan / Plot Number */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Amount Paid</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-900 w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-900 w-[32%]">
               <div className="text-[12px] print:text-[11px] font-black text-emerald-800">
                 ₹{principalAmountPaid.toLocaleString('en-IN')}
               </div>
@@ -294,13 +283,13 @@ const ReceiptViewer = () => {
                 ({numberToWords(principalAmountPaid)})
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>{isProductReceipt ? 'Plan' : 'Plot Number'}</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%]">
               {isProductReceipt ? (
                 <span className="font-bold text-slate-900 uppercase">{resolvedPlanName}</span>
               ) : (
@@ -317,44 +306,44 @@ const ReceiptViewer = () => {
 
           {/* Row 6: Payment Transaction | Late Fine Paid */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Payment Transaction</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 uppercase w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 uppercase w-[32%]">
               {formattedMode} {receipt.transactionReference ? `(${receipt.transactionReference})` : ''}
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Late Fine Paid</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-rose-700 w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-rose-700 w-[32%]">
               ₹{lateFinePaid.toLocaleString('en-IN')}
             </td>
           </tr>
 
           {/* Row 7: Narration | Outstanding Balance */}
           <tr>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>Narration</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-800 font-medium italic w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-800 font-medium italic w-[32%]">
               {receipt.remarks || (isDownpaymentReceipt ? 'Down Payment' : 'Plot Payment Collection')}
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
               <div className="flex justify-between items-center">
                 <span>{isDownpaymentReceipt ? 'Outstanding D.P.' : 'Outstanding Balance'}</span>
                 <span>:</span>
               </div>
             </td>
-            <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-slate-900 w-[32%]">
+            <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-slate-900 w-[32%]">
               ₹{(isDownpaymentReceipt ? (outstandingDownpayment || 0) : (outstandingBalance || 0)).toLocaleString('en-IN')}
               {isDownpaymentReceipt && outstandingBalance > 0 && (
                 <span className="text-[9.5px] print:text-[8.5px] text-slate-500 font-normal ml-1">
@@ -367,13 +356,13 @@ const ReceiptViewer = () => {
           {/* Row 8: Optional Late Fine Rebate row if applied */}
           {receipt.lateFineRebate > 0 && (
             <tr>
-              <td className="py-1 px-2.5 print:py-[2.5px] print:px-2 text-slate-600 font-medium w-[18%]">
+              <td className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 text-slate-600 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
                   <span>Late Fine Rebate</span>
                   <span>:</span>
                 </div>
               </td>
-              <td colSpan={3} className="py-1 px-2.5 print:py-[2.5px] print:px-2 font-bold text-emerald-700">
+              <td colSpan={3} className="py-1.5 px-2.5 print:py-[4.5px] print:px-2 font-bold text-emerald-700">
                 ₹{receipt.lateFineRebate.toLocaleString('en-IN')}
               </td>
             </tr>
@@ -382,7 +371,7 @@ const ReceiptViewer = () => {
       </table>
 
       {/* Bottom Signatory area & Notice notes in Side-by-Side Flex Layout */}
-      <div className="flex justify-between items-end pt-2 select-none print:pt-1">
+      <div className="flex justify-between items-end pt-3.5 select-none print:pt-3">
         {/* Left: Notice & Status */}
         <div className="text-[9px] print:text-[8px] text-slate-500 font-semibold italic flex flex-col gap-0.5 max-w-[65%]">
           {isOnlinePayment && (

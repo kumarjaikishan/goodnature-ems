@@ -1,5 +1,33 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Agreement Clause 9.C Rate Separator Dash Added**:
+  - In `PlotAgreementEnglish.jsx` Clause 9.C (Abandonment of the Project), added a dash separator between the annual rate and the maturity return percentage: `@13.417% PA - (140%)` instead of `@13.417% PA (140%)`.
+
+- **Agreement Pages 3, 6 & 7 Print Footer Cutoff Calibration [COMPLETED]**:
+  - **Issue**: In `PlotAgreementEnglish.jsx` (used by both `PlotAgreementViewer.jsx` and `ProductAgreementViewer.jsx`), on **Page 3**, **Page 6**, and **Page 7**, the bottom footer containing "Page X of 9", "Applicant Signature", and "Authorized Signature" was being cut off and pushed outside the printable A4 page (`overflow: hidden; height: 297mm`) during `Ctrl + P` (actual print/print preview).
+  - **Root Cause**:
+    - Pages 3, 6, and 7 contain extensive legal text and address details (~55–60 lines).
+    - Paragraph tags had `leading-relaxed` (Tailwind `line-height: 1.625`), making line-height over 20px per line, which together with headings ballooned the total height past the ~1040px available printable height.
+  - **Fix Applied in `PlotAgreementEnglish.jsx`**:
+    - **Page 3**:
+      - Base typography set to `text-[0.725rem] leading-[1.28]`.
+      - Removed `leading-relaxed` overrides from paragraph tags so they inherit crisp `leading-[1.28]`.
+      - Reduced heading paddings to `pt-1 pb-0.5` with `text-[0.80rem]`.
+      - Tightened clause and container spacing to `space-y-0.5` / `space-y-0`.
+    - **Page 4 & 5**:
+      - Calibrated to `leading-[1.28]` / `leading-[1.30]` with compact spacing to prevent any possible cutoff.
+    - **Page 6**:
+      - Base typography set to `text-[0.715rem] leading-[1.26]`.
+      - Removed `leading-relaxed` overrides from all paragraphs.
+      - Reduced heading paddings to `pt-0.5 pb-0` with `text-[0.78rem]`.
+      - Tightened spacing between sub-clauses.
+    - **Page 7**:
+      - Base typography set to `text-[0.725rem] leading-[1.28]`.
+      - Removed `leading-relaxed` overrides from all paragraphs.
+      - Headings set to `text-[0.80rem] pt-1 pb-0.5` and container spacing to `space-y-0.5`.
+    - **Result**: Reclaimed ~180px of vertical space across all pages. Footers (signatures and page numbers) now render completely visible and comfortably inside the A4 sheet boundaries with proper margins on both screen and physical print.
+
+
 - **Unified Receipt Print Area Wrapper & Typography Calibration [COMPLETED]**:
   - **Overview**: Standardized the printable area layout and typography across all 6 receipt & booking certificate formats:
     1. Plot Downpayment Receipt (`ReceiptViewer.jsx`)
@@ -19,6 +47,11 @@
       - Strict page-break suppression: `page-break-after: avoid !important; break-after: avoid !important;`.
   - **Typography & Layout Calibration**:
     - **No Row Lines in Print**: Removed `border-b` lines from every table row and outer borders in print mode (`print:border-none` and print wrapper rule `.receipt-printable-card table, tr, td { border: none !important; }`), ensuring clean borderless alignment with pre-printed stationery. Preserved only the signature line on `.signatory-line`.
+    - **Pre-Printed Stationery Alignment & Spacing Calibration**:
+    - **Side Margins**: Adjusted `margin-left: 14mm !important; margin-right: 14mm !important; width: calc(100% - 28mm) !important;` in `ReceiptPrintWrapper.jsx` to center the printed receipt area comfortably within the pre-printed white box, providing ~8mm of clean breathing room from the blue border on both sides.
+    - **Vertical Breathing Space**: Increased row padding (`print:py-[3.2px]` for booking certificate 11 rows, `print:py-[4.5px]` for receipts 8 rows) and balanced titles and signatory margins, eliminating cramped row text and filling the vertical stationery area harmoniously.
+    - **Hidden Logo Watermark**: Removed the background logo watermark completely from all receipts (Downpayment, EMI, Plot Booking, and Investment Product Booking certificates) to ensure clean display on both screen preview and pre-printed stationery.
+    - **Investment Booking Receipt Plan Display**: In `BookingCertificateViewer.jsx` Branch 1 (`isProductBooking`), updated Row 2 from `Plot Number : {quantity} Unit(s)` to `Plan : {resolvedPlanName} ({quantity} Units)`. Displays the selected investment scheme plan (e.g. `GROW/60-M`) with quantity of units booked while leaving regular plot booking receipts unchanged.
     - Upgraded font sizes from unreadable tiny text (`text-[8px]` / `text-[9.5px]`) to crisp, legible sizes:
       - Table contents: `text-[10.5px] print:text-[9.5px]` (ReceiptViewer) / `text-[10.5px] print:text-[9.5px]` (BookingCertificateViewer).
       - Table cell padding: `py-1 px-2.5 print:py-[2px] print:px-2`.
