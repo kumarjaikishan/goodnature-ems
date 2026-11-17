@@ -1,5 +1,20 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Attendance Register Report: Total Monthly Work Minutes & Darker Box Borders [COMPLETED]**:
+  - **Location**: `client/src/pages/report/registerView.jsx` (`/dashboard/attendence_Report`).
+  - **Total Monthly Work Column Fix**:
+    - Fixed `totals.totalWorkMinutes` calculation in `getEmployeeTotals` so it correctly sums daily `workingMinutes` (and weekly off work minutes) across all attendance entries for the month.
+    - Updated display to fallback to `(totals.totalWorkMinutes || 0)m` with hover tooltip showing `${hours}h ${minutes}m`, eliminating the empty `" m"` rendering.
+    - Export CSV updated with `Total Work (Minutes)`.
+  - **Darker Box Borders**:
+    - Updated status badges (`P`, `A`, `L`, `W`, `H`) to use darker and more vivid border colors for strong contrast against the light fill:
+      - `P`: `border-green-700 text-green-950 font-bold`
+      - `A`: `border-red-700 text-red-950 font-bold`
+      - `L`: `border-red-600 text-red-950 font-bold`
+      - `W`: `border-yellow-700 text-yellow-950 font-bold`
+      - `H`: `border-blue-700 text-blue-950 border-dashed font-bold`
+    - Also updated matching badges in the legend bar.
+
 - **Agreement Clause 9.C Rate Separator Dash Added**:
   - In `PlotAgreementEnglish.jsx` Clause 9.C (Abandonment of the Project), added a dash separator between the annual rate and the maturity return percentage: `@13.417% PA - (140%)` instead of `@13.417% PA (140%)`.
 

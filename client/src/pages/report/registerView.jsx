@@ -138,28 +138,26 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
       tooltipTitle = `${header}\n• ${details.join("\n• ")}`;
     }
 
-    // Light dashed-border theme badges
+    // Dashed-border theme badges with strong, prominent border colors
     const badgeStyles = {
-      P: "bg-green-200 text-green-900 border border-green-500 border-dashed",
-      A: "bg-red-200 text-red-900 border border-red-500 border-dashed",
-      L: "bg-red-200 text-red-900 border border-red-400 border-dashed",
-      W: "bg-yellow-200 text-yellow-900 border border-yellow-500 border-dashed",
-      H: "bg-blue-200 text-blue-900 border border-blue-500 border-dashed",
+      P: "bg-green-200 text-green-950 border-[1.5px] border-emerald-700 border-dashed font-bold shadow-2xs",
+      A: "bg-red-200 text-red-950 border-[1.5px] border-rose-700 border-dashed font-bold shadow-2xs",
+      L: "bg-rose-200 text-rose-950 border-[1.5px] border-rose-600 border-dashed font-bold shadow-2xs",
+      W: "bg-amber-200 text-amber-950 border-[1.5px] border-amber-700 border-dashed font-bold shadow-2xs",
+      H: "bg-sky-200 text-sky-950 border-[1.5px] border-blue-700 border-dashed font-bold shadow-2xs",
       "-": "text-slate-300 font-normal",
     };
 
     return (
       <td
         key={day}
-        className={`w-9 min-w-[34px] p-1 text-center border-r border-slate-200 transition-colors ${
-          isWeekend ? "bg-amber-50/20" : ""
-        }`}
+        className={`w-9 min-w-[34px] p-1 text-center border-r border-slate-200 transition-colors ${isWeekend ? "bg-amber-50/20" : ""
+          }`}
       >
         <div
           title={tooltipTitle}
-          className={`w-7 h-7 flex items-center justify-center mx-auto text-xs font-semibold rounded cursor-pointer transition-transform hover:scale-110 ${
-            badgeStyles[status] || "text-slate-400"
-          }`}
+          className={`w-7 h-7 flex items-center justify-center mx-auto text-xs font-semibold rounded cursor-pointer transition-transform hover:scale-110 ${badgeStyles[status] || "text-slate-400"
+            }`}
         >
           {status}
         </div>
@@ -169,7 +167,7 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
 
   // Helper for counting totals per employee
   const getEmployeeTotals = (empId) => {
-    const totals = { P: 0, A: 0, L: 0, W: 0, H: 0, LA: 0, NW: 0, OT: 0, ST: 0, WOW: 0 };
+    const totals = { P: 0, A: 0, L: 0, W: 0, H: 0, LA: 0, NW: 0, OT: 0, ST: 0, WOW: 0, totalWorkMinutes: 0 };
 
     days.forEach((d) => {
       const entry = attendanceByEmp[empId]?.[d.date()];
@@ -198,7 +196,7 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
     totals.LA += totalAdjustedLeaves;
     totals.NW = totals.P + totals.W + totals.H + totals.LA;
 
-    // Calculate total overtime, shorttime, and weekly off work minutes for this month
+    // Calculate total overtime, shorttime, weekly off work, and total monthly work minutes for this month
     const empAttendanceMonth =
       (activeAttendance || []).filter(
         (a) =>
@@ -208,6 +206,9 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
 
     empAttendanceMonth.forEach((entry) => {
       if (entry.status !== "present" && entry.status !== "half day" && entry.status !== "weekly off") return;
+
+      const dayWorkMins = Number(entry.workingMinutes || entry.weeklyOffMinutes || 0);
+      totals.totalWorkMinutes += dayWorkMins;
 
       if (entry.dayType === "weekoff" || (entry.weeklyOffMinutes && entry.weeklyOffMinutes > 0)) {
         totals.WOW += entry.weeklyOffMinutes || entry.workingMinutes || 0;
@@ -246,6 +247,7 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
       "Holiday",
       "Leave Adjusted",
       "Net Payable Days",
+      "Total Work (Minutes)",
       "Overtime (Minutes)",
       "Shorttime (Minutes)",
       "Net OT/ST (Minutes)",
@@ -278,6 +280,7 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
         totals.H,
         totals.LA,
         totals.NW,
+        totals.totalWorkMinutes,
         totals.OT,
         totals.ST,
         totals.OT - totals.ST,
@@ -330,9 +333,8 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
                   return (
                     <th
                       key={d.date()}
-                      className={`w-9 min-w-[34px] py-1.5 text-center border-r border-slate-200 ${
-                        isSunday ? "bg-amber-50/70 text-amber-900 font-bold" : "text-slate-600"
-                      }`}
+                      className={`w-9 min-w-[34px] py-1.5 text-center border-r border-slate-200 ${isSunday ? "bg-amber-50/70 text-amber-900 font-bold" : "text-slate-600"
+                        }`}
                     >
                       <div className="text-[11px] font-bold leading-tight">{d.format("DD")}</div>
                       <div className="text-[9px] font-medium opacity-75">{d.format("ddd")}</div>
@@ -361,6 +363,9 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
                 </th>
                 <th title="Net Payable Days" className="px-2 py-2 border-r border-slate-200 text-teal-800 bg-teal-50/60 text-center font-bold">
                   NP
+                </th>
+                <th title="Total Work (Minutes)" className="px-2 py-2 border-r border-slate-200 text-teal-900 bg-teal-50/40 text-center font-bold whitespace-nowrap text-[11px]">
+                  Total Work
                 </th>
                 <th title="Net Overtime / Shorttime (Minutes)" className="px-2 py-2 border-r border-slate-200 text-slate-700 bg-slate-50 text-center font-semibold whitespace-nowrap text-[11px]">
                   Net OT/ST
@@ -404,9 +409,8 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
                         ) : null}
 
                         <div
-                          className={`w-7 h-7 rounded-full bg-slate-100 border border-slate-200 text-slate-500 items-center justify-center shrink-0 shadow-2xs ${
-                            emp?.profileimage ? "hidden" : "flex"
-                          }`}
+                          className={`w-7 h-7 rounded-full bg-slate-100 border border-slate-200 text-slate-500 items-center justify-center shrink-0 shadow-2xs ${emp?.profileimage ? "hidden" : "flex"
+                            }`}
                         >
                           <User size={14} className="text-slate-500" />
                         </div>
@@ -448,9 +452,14 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
                       {totals.NW}
                     </td>
                     <td
-                      className={`text-center font-bold border-r border-slate-100 px-1.5 py-1 text-[11px] ${
-                        totals.OT - totals.ST >= 0 ? "text-emerald-700" : "text-rose-600"
-                      }`}
+                      title={`${Math.floor((totals.totalWorkMinutes || 0) / 60)}h ${(totals.totalWorkMinutes || 0) % 60}m`}
+                      className="text-center font-bold text-teal-900 bg-teal-50/20 border-r border-slate-100 px-1.5 py-1 text-[11px] whitespace-nowrap cursor-help"
+                    >
+                      {(totals.totalWorkMinutes || 0)}m
+                    </td>
+                    <td
+                      className={`text-center font-bold border-r border-slate-100 px-1.5 py-1 text-[11px] ${totals.OT - totals.ST >= 0 ? "text-emerald-700" : "text-rose-600"
+                        }`}
                     >
                       {totals.OT - totals.ST}m
                     </td>
@@ -483,35 +492,35 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
       <div className="bg-slate-50/80 rounded-xl border border-slate-200/80 p-3.5">
         <div className="flex flex-wrap items-center justify-start gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
           <div className="flex items-center gap-1.5">
-            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-green-200 text-green-900 border border-green-500 border-dashed">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-green-100 text-green-950 border-[1.5px] border-emerald-700 border-dashed">
               P
             </span>
             <span className="text-slate-700 font-medium">Present</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-red-200 text-red-900 border border-red-500 border-dashed">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-red-100 text-red-950 border-[1.5px] border-rose-700 border-dashed">
               A
             </span>
             <span className="text-slate-700 font-medium">Absent</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-red-200 text-red-900 border border-red-400 border-dashed">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-rose-100 text-rose-950 border-[1.5px] border-rose-600 border-dashed">
               L
             </span>
             <span className="text-slate-700 font-medium">Leave</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-yellow-200 text-yellow-900 border border-yellow-500 border-dashed">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-amber-100 text-amber-950 border-[1.5px] border-amber-700 border-dashed">
               W
             </span>
             <span className="text-slate-700 font-medium">Weekly Off</span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-blue-200 text-blue-900 border border-blue-500 border-dashed">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded bg-sky-100 text-sky-950 border-[1.5px] border-blue-700 border-dashed">
               H
             </span>
             <span className="text-slate-700 font-medium">Holiday</span>
@@ -525,6 +534,10 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
 
           <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px]">
             <span className="font-bold text-teal-800">NP:</span> Net Payable Days
+          </div>
+
+          <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px]">
+            <span className="font-bold text-teal-900">Total Work:</span> Total Monthly Work (Minutes)
           </div>
 
           <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px]">
