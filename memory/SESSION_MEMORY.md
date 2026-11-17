@@ -1,5 +1,51 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Dynamic Lock-in Period & Plan Resolution in Investment Agreements [COMPLETED]**:
+  - **Issue**: In Product Agreement Annexure-1 (`http://localhost:5173/dashboard/plots/product-agreements/6afbbd63ca226b953f608214`), the table was showing `PLAN: GROW/60-M` but `LOCK-IN PERIOD: 24 Months (2 Yrs)` because `tenureMonths` had evaluated to `installmentCount * freqMultiplier` (4 * 6 = 24 months for 4 half-yearly installments) instead of the selected investment scheme duration (60 Months / 5 Years).
+  - **Clause 9.C Abandonment Simple Interest & Maturity Return Resolution**:
+    - Under Section 9.C (Abandonment of the Project), dynamic resolution was implemented for the interest rate and scheme maturity return percentage.
+    - Resolves rate (e.g. `13.417% PA`) and corresponding Scheme Maturity Return % (e.g. `140% Maturity Return` for `GROW/60-M` EMI or `175%` for One-Time) directly from booking or scheme matrix slabs (`GROW/24-M` $\rightarrow$ 112%, `GROW/36-M` $\rightarrow$ 120%, `GROW/48-M` $\rightarrow$ 130%, `GROW/60-M` $\rightarrow$ 140%, `GROW/72-M` $\rightarrow$ 150%).
+    - Renders as: `simple interest @13.417% PA (140% Maturity Return)`.
+  - **Fixes Applied**:
+    - In `PlotAgreementEnglish.jsx`, added dynamic tenure resolution that extracts the tenure directly from `booking.planName` (e.g. `GROW/60-M` -> 60, `GROW/24-M` -> 24), falling back to `booking.planTenureMonths` or `booking.tenureMonths`.
+    - Formatted years cleanly: `{lockInTenureMonths} Months ({lockInYearsStr} Yrs)` so whole years render as `5 Yrs` rather than `5.0 Yrs`.
+    - Updated booking record `#PRD-BK-2627-009` in the database so `tenureMonths: 60`, fully matching the chosen `GROW/60-M` plan.
+
+
+- **Separated Investment Downpayment & EMI Collections with Multi-EMI Auto-Spillover [COMPLETED]**:
+  - **Separation of Workflows**:
+    - Modeled Investment collections after regular plot collections into two distinct modules:
+      - **Investment DP** (`/dashboard/plots/collections/products/downpayment` and `.../add`)
+      - **Investment EMI** (`/dashboard/plots/collections/products/emi` and `.../add`)
+      - `/dashboard/plots/collections/products` seamlessly redirects to `.../products/emi`.
+    - Added both sidebar items under **Account** in `sidebarMenuConfig.jsx` with approval badge mapping in `sidebar.jsx`.
+  - **Investment Downpayment Collection (`mode="DOWNPAYMENT"`)**:
+    - Filters dropdown to show only investment bookings with pending down payment (`unpaidDp > 0`).
+    - Strictly caps amount at remaining down payment (`unpaidDp`). Frontend and backend reject any amount exceeding `unpaidDp`.
+    - Rejects collections once the downpayment installment (0) is fully paid.
+  - **Investment EMI Collection (`mode="EMI"`)**:
+    - Accessible only once Down Payment is 100% completed (`unpaidDp === 0`).
+    - **Multi-EMI Auto-Spillover**: In `rebuildProductBookingInstallmentsState`, when an amount exceeds one installment amount, the excess automatically rolls over into subsequent installments (`nextPending`) in advance. No customer payment is stranded!
+  - **Dual-Tier Scheme Commission Synchronization (`syncProductBookingSponsorCommissions`)**:
+    - Proportional commission calculation preserved:
+      - Downpayment portion receives locked Downpayment commission % (`downpaymentPromoterCommissionPercent`, etc.).
+      - EMI portion receives locked EMI commission % (`emiPromoterCommissionPercent`, etc.).
+    - When collections are updated or rebuilt, commissions and ledger entries are synchronized with the exact proportional rates.
+  - **Rebuilt Existing Booking `#PRD-BK-2627-009`**:
+    - Booking `#PRD-BK-2627-009` where ₹1,00,000 was previously stranded was rebuilt:
+      - Total Paid corrected from ₹6,60,000 to full ₹7,60,000.
+      - Remaining balance updated to ₹4,40,000.
+      - Down Payment (₹4,80,000) and EMI 1 (₹1,80,000) marked PAID; EMI 2 marked PARTIAL (₹1,00,000 paid, ₹80,000 remaining).
+      - All sponsor commissions and corporate treasury ledger credits updated accurately for all ₹7,60,000 collected.
+  - **Receipt & Agreement Enhancements**:
+    - Removed `Payment Mode` from Annexure-1 Transaction Details in `PlotAgreementEnglish.jsx`.
+    - Changed `Payment Mode` label to `Payment Transaction` in `ReceiptViewer.jsx`.
+    - Show selected Scheme Plan (e.g. `GROW/60-M`) under `Plan` in `ReceiptViewer.jsx`.
+    - Preserved `LOCK-IN PERIOD` for product agreements while maintaining installment count for plot agreements.
+    - Added `Booking #` column to Investment Collections table.
+
+
+
 - **Investment Booking Lifecycle & Scheme-Aligned Commission Collections [COMPLETED]**:
   - **Decoupled Booking Creation from Receipt Generation**:
     - Previously, creating an Investment Booking (`/dashboard/plots/investment-booking`) auto-created an upfront payment receipt/collection, credited treasury, marked the booking as paid/completed, and prematurely distributed commissions.

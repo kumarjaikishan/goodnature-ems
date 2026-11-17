@@ -1401,17 +1401,57 @@ class PlotProductService {
     const seq = await Counter.getNextSequence(`PLOT_PRD_RECEIPT_${fyStr}`, null, 3);
     const receiptNumber = `PRD-RCP-${fyStr}-${seq}`;
 
-    // Target installments: if specific IDs given, match those. Otherwise, find all pending installments.
-    let targetInsts = [];
-    if (Array.isArray(installmentIds) && installmentIds.length > 0) {
-      targetInsts = booking.installments.filter((ins) => installmentIds.map(String).includes(String(ins._id)));
-    } else if (installmentNumber !== undefined && installmentNumber !== null && installmentNumber !== '') {
-      const single = booking.installments.find((ins) => ins.installmentNumber === Number(installmentNumber));
-      if (single) targetInsts = [single];
-    }
+    // Differentiate Downpayment vs EMI collection mode
+    const collectionType = String(data.collectionType || data.type || (installmentNumber === 0 || (Array.isArray(installmentIds) && booking.installments.some(i => installmentIds.map(String).includes(String(i._id)) && i.installmentNumber === 0)) ? 'DOWNPAYMENT' : 'EMI')).toUpperCase();
 
-    if (targetInsts.length === 0) {
-      targetInsts = booking.installments.filter((ins) => ins.status !== 'PAID');
+    const dpInst = (booking.installments || []).find((ins) => ins.installmentNumber === 0);
+    const unpaidDp = dpInst ? Math.max(0, (dpInst.amount || 0) - (dpInst.paidAmount || 0)) : 0;
+
+    let targetInsts = [];
+    let resolvedReceiptType = 'INSTALLMENT';
+
+    if (collectionType === 'DOWNPAYMENT') {
+      if (!dpInst || dpInst.status === 'PAID' || unpaidDp <= 0) {
+        throw ApiError.badRequest('Down payment for this booking is already fully paid.');
+      }
+      if (colAmount > unpaidDp) {
+        throw ApiError.badRequest(
+          `Collection amount (₹${colAmount.toLocaleString('en-IN')}) exceeds the remaining down payment of ₹${unpaidDp.toLocaleString('en-IN')}. Only remaining down payment can be collected in Down Payment collection.`
+        );
+      }
+      targetInsts = [dpInst];
+      resolvedReceiptType = 'DOWNPAYMENT';
+    } else {
+      // EMI collection mode
+      if (dpInst && unpaidDp > 0) {
+        throw ApiError.badRequest(
+          `Down payment is not fully paid (₹${unpaidDp.toLocaleString('en-IN')} remaining). Please collect the down payment before collecting EMIs.`
+        );
+      }
+      if ((booking.remainingAmount || 0) <= 0) {
+        throw ApiError.badRequest('This booking is already fully paid.');
+      }
+      if (colAmount > booking.remainingAmount) {
+        throw ApiError.badRequest(
+          `Collection amount (₹${colAmount.toLocaleString('en-IN')}) exceeds the total remaining booking balance of ₹${booking.remainingAmount.toLocaleString('en-IN')}.`
+        );
+      }
+
+      if (Array.isArray(installmentIds) && installmentIds.length > 0) {
+        targetInsts = booking.installments.filter((ins) => installmentIds.map(String).includes(String(ins._id)) && ins.installmentNumber > 0);
+      } else if (installmentNumber !== undefined && installmentNumber !== null && installmentNumber !== '' && Number(installmentNumber) > 0) {
+        const single = booking.installments.find((ins) => ins.installmentNumber === Number(installmentNumber));
+        if (single) targetInsts = [single];
+      }
+
+      if (targetInsts.length === 0) {
+        targetInsts = (booking.installments || []).filter((ins) => ins.installmentNumber > 0 && ins.status !== 'PAID');
+      }
+
+      if (targetInsts.length === 0) {
+        throw ApiError.badRequest('No pending EMI installments found for this booking.');
+      }
+      resolvedReceiptType = 'INSTALLMENT';
     }
 
     targetInsts.sort((a, b) => a.installmentNumber - b.installmentNumber);
@@ -1481,8 +1521,11 @@ class PlotProductService {
     const initialStatus = isCash ? 'APPROVED' : 'PENDING';
     const newCollection = {
       receiptNumber,
+      receiptType: resolvedReceiptType,
       amountPaid: colAmount,
       principalPaid: 0,
+      downpaymentPrincipalPaid: 0,
+      emiPrincipalPaid: 0,
       lateFinePaid: 0,
       lateFineRebate: rebateAmount,
       paymentMode,
@@ -1519,7 +1562,7 @@ class PlotProductService {
             amount: colAmount,
             source: 'receipt',
             referenceId: booking._id,
-            remarks: `Product EMI Receipt: ${receiptNumber} (${booking.bookingNumber || ''}) - Customer: ${booking.customerId?.name || 'Customer'}`
+            remarks: `Product ${resolvedReceiptType === 'DOWNPAYMENT' ? 'Down Payment' : 'EMI'} Receipt: ${receiptNumber} (${booking.bookingNumber || ''}) - Customer: ${booking.customerId?.name || 'Customer'}`
           });
         } catch (err) {
           console.error('Error recording ledger entry for product installment collection:', err);
@@ -1619,7 +1662,8 @@ class PlotProductService {
       let colDpPrincipal = 0;
       let colEmiPrincipal = 0;
 
-      for (const inst of targetInsts) {
+      for (let idx = 0; idx < targetInsts.length; idx++) {
+        const inst = targetInsts[idx];
         if (remainingPaid <= 0 && remainingRebate <= 0) break;
         if (inst.status === 'PAID') continue;
 
@@ -1662,6 +1706,16 @@ class PlotProductService {
           inst.paidAmount >= inst.amount &&
           (inst.lateFinePaid + (inst.lateFineRebate || 0)) >= inst.lateFine;
         inst.status = isFullyPaid ? 'PAID' : 'PARTIAL';
+
+        // Auto-spillover to subsequent installments if remainingPaid > 0
+        if (idx === targetInsts.length - 1 && remainingPaid > 0) {
+          const nextPending = (booking.installments || [])
+            .filter((ins) => ins.status !== 'PAID' && !targetInsts.some((t) => t.installmentNumber === ins.installmentNumber))
+            .sort((a, b) => a.installmentNumber - b.installmentNumber);
+          if (nextPending.length > 0) {
+            targetInsts.push(nextPending[0]);
+          }
+        }
       }
 
       col.principalPaid = colPrincipal;
@@ -1670,6 +1724,7 @@ class PlotProductService {
       col.receiptType = booking.paymentType === 'FULL_PAYMENT'
         ? 'FULL_PAYMENT'
         : (colDpPrincipal > 0 && colEmiPrincipal > 0 ? 'PARTIAL_DP_EMI' : (colDpPrincipal > 0 ? 'DOWNPAYMENT' : 'INSTALLMENT'));
+      col.installmentNumbers = targetInsts.map(i => i.installmentNumber);
 
       col.lateFinePaid = colFine;
       col.lateFineRebate = colRebate;
@@ -2186,6 +2241,9 @@ class PlotProductService {
             monthlyEmi: b.monthlyEmi || 0,
             amountPaid: col.amountPaid || 0,
             principalPaid: col.principalPaid || 0,
+            downpaymentPrincipalPaid: col.downpaymentPrincipalPaid || 0,
+            emiPrincipalPaid: col.emiPrincipalPaid || 0,
+            receiptType: col.receiptType || (col.installmentNumbers?.includes(0) ? 'DOWNPAYMENT' : 'INSTALLMENT'),
             lateFinePaid: col.lateFinePaid || 0,
             lateFineRebate: col.lateFineRebate || 0,
             paymentMode: col.paymentMode || 'cash',
@@ -2246,6 +2304,9 @@ class PlotProductService {
             monthlyEmi: b.monthlyEmi || 0,
             amountPaid: rg.principalPaid + rg.lateFinePaid,
             principalPaid: rg.principalPaid,
+            downpaymentPrincipalPaid: rg.installmentNumbers.includes(0) ? rg.principalPaid : 0,
+            emiPrincipalPaid: !rg.installmentNumbers.includes(0) ? rg.principalPaid : 0,
+            receiptType: rg.installmentNumbers.includes(0) ? 'DOWNPAYMENT' : 'INSTALLMENT',
             lateFinePaid: rg.lateFinePaid,
             lateFineRebate: rg.lateFineRebate,
             paymentMode: 'cash',
@@ -2279,7 +2340,10 @@ class PlotProductService {
               (b.paymentType === 'FULL_PAYMENT' && Number(c.amountPaid) >= Number(b.totalAmount || 0))
           ));
 
-      if (b.downPayment > 0 && !hasDpCaptured) {
+      const dpInst = (b.installments || []).find((i) => i.installmentNumber === 0);
+      const isDpPaidInInst = dpInst && Number(dpInst.paidAmount || 0) > 0;
+
+      if (b.downPayment > 0 && isDpPaidInInst && !hasDpCaptured) {
         const dpReceiptNum = `PRD-DP-${b.bookingNumber}`;
         if (!seenReceipts.has(dpReceiptNum) && !seenReceipts.has(`DP-${b.bookingNumber}`)) {
           seenReceipts.add(dpReceiptNum);
@@ -2297,8 +2361,11 @@ class PlotProductService {
             totalAmount: b.totalAmount || 0,
             tenureMonths: b.tenureMonths || 24,
             monthlyEmi: b.monthlyEmi || 0,
-            amountPaid: b.downPayment,
-            principalPaid: b.downPayment,
+            amountPaid: Number(dpInst.paidAmount || b.downPayment),
+            principalPaid: Number(dpInst.paidAmount || b.downPayment),
+            downpaymentPrincipalPaid: Number(dpInst.paidAmount || b.downPayment),
+            emiPrincipalPaid: 0,
+            receiptType: 'DOWNPAYMENT',
             lateFinePaid: 0,
             lateFineRebate: 0,
             paymentMode: 'cash',
@@ -2317,8 +2384,34 @@ class PlotProductService {
       }
     }
 
-    // Filter by search text (Receipt #, Customer Name, Customer Code, Mobile, Booking #, Product Name)
+    // Filter by collection type (DOWNPAYMENT vs EMI)
     let filtered = allCollections;
+    if (query.type) {
+      const qType = String(query.type).toUpperCase();
+      if (qType === 'DOWNPAYMENT') {
+        filtered = filtered.filter((c) => {
+          return (
+            c.receiptType === 'DOWNPAYMENT' ||
+            c.receiptNumber?.startsWith('DP-') ||
+            c.receiptNumber?.startsWith('PRD-DP-') ||
+            (Array.isArray(c.installmentNumbers) && c.installmentNumbers.length === 1 && c.installmentNumbers[0] === 0)
+          );
+        });
+      } else if (qType === 'EMI' || qType === 'INSTALLMENT') {
+        filtered = filtered.filter((c) => {
+          const isExclusiveDp = (
+            c.receiptType === 'DOWNPAYMENT' &&
+            (!c.emiPrincipalPaid || c.emiPrincipalPaid === 0) &&
+            Array.isArray(c.installmentNumbers) &&
+            c.installmentNumbers.length === 1 &&
+            c.installmentNumbers[0] === 0
+          );
+          return !isExclusiveDp;
+        });
+      }
+    }
+
+    // Filter by search text (Receipt #, Customer Name, Customer Code, Mobile, Booking #, Product Name)
     if (query.search && query.search.trim()) {
       const q = query.search.trim().toLowerCase();
       filtered = filtered.filter((c) => {
@@ -2513,6 +2606,8 @@ class PlotProductService {
         plotValue: booking.totalAmount || 0,
         downpaymentAmount: booking.downPayment || 0,
         product: booking.productId,
+        planName: booking.planName || '',
+        tenureMonths: booking.tenureMonths || 24,
         dimensionsSnapshot: booking.dimensionsSnapshot || {},
         totalAreaSqFt: booking.totalAreaSqFt || (booking.quantity * (booking.productId?.areaSqFt || 1)),
       },
@@ -2581,108 +2676,10 @@ class PlotProductService {
       console.error('Error deleting product receipt ledger entry:', e);
     }
 
-    // If it was down payment receipt
-    if (isDpReceipt) {
-      booking.downPayment = 0;
-    }
-
-    // Rebuild installment ledger from remaining collections
-    const rateConfig = await this.getRateConfig();
-
-    // Reset all installments
-    if (Array.isArray(booking.installments)) {
-      for (const inst of booking.installments) {
-        inst.paidAmount = 0;
-        inst.paidDate = null;
-        inst.receiptNumber = '';
-        inst.status = 'PENDING';
-        inst.lateDays = 0;
-        inst.lateFine = 0;
-        inst.lateFinePaid = 0;
-        inst.lateFineRebate = 0;
-      }
-    }
-
-    let totalPrincipal = Number(booking.downPayment || 0);
-    let totalFinePaid = 0;
-    let totalFineRebate = 0;
-
-    // Sort remaining collections chronologically
-    const remainingCollections = (booking.collections || []).slice().sort(
-      (a, b) => new Date(a.paymentDate || a.createdAt || 0) - new Date(b.paymentDate || b.createdAt || 0)
-    );
-
-    for (const col of remainingCollections) {
-      if (col.status === 'PENDING' || col.status === 'REJECTED') continue;
-      let remainingPaid = Number(col.amountPaid) || 0;
-      let remainingRebate = Number(col.lateFineRebate) || 0;
-      const pDate = new Date(col.paymentDate || col.createdAt || Date.now());
-      const rNum = col.receiptNumber;
-
-      const targetInsts =
-        col.installmentNumbers && col.installmentNumbers.length > 0
-          ? booking.installments.filter((i) => col.installmentNumbers.includes(i.installmentNumber))
-          : booking.installments.filter((i) => i.status !== 'PAID');
-
-      let colPrincipal = 0;
-      let colFine = 0;
-      let colRebate = 0;
-
-      for (const inst of targetInsts) {
-        if (remainingPaid <= 0 && remainingRebate <= 0) break;
-        if (inst.status === 'PAID') continue;
-
-        const stats = this.computeInstallmentStats(inst, rateConfig, pDate);
-        const effectiveFine = stats.lateFine;
-        inst.lateFine = effectiveFine;
-        inst.lateDays = stats.lateDays;
-
-        // 1. Apply rebate first against unpaid late fine
-        const unpaidFineBeforeRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
-        const fineRebateThisTime = Math.min(unpaidFineBeforeRebate, remainingRebate);
-        inst.lateFineRebate = (inst.lateFineRebate || 0) + fineRebateThisTime;
-        remainingRebate -= fineRebateThisTime;
-        colRebate += fineRebateThisTime;
-
-        // 2. Distribute payment: FIRST to remaining late fine
-        const unpaidFineAfterRebate = Math.max(0, effectiveFine - (inst.lateFinePaid || 0) - (inst.lateFineRebate || 0));
-        const finePaidThisTime = Math.min(unpaidFineAfterRebate, remainingPaid);
-        inst.lateFinePaid = (inst.lateFinePaid || 0) + finePaidThisTime;
-        remainingPaid -= finePaidThisTime;
-        colFine += finePaidThisTime;
-
-        // 3. Distribute payment: SECOND to remaining principal
-        const unpaidPrincipal = Math.max(0, inst.amount - (inst.paidAmount || 0));
-        const principalPaidThisTime = Math.min(unpaidPrincipal, remainingPaid);
-        inst.paidAmount = (inst.paidAmount || 0) + principalPaidThisTime;
-        remainingPaid -= principalPaidThisTime;
-        colPrincipal += principalPaidThisTime;
-
-        inst.paidDate = pDate;
-        inst.receiptNumber = rNum;
-
-        const isFullyPaid =
-          inst.paidAmount >= inst.amount &&
-          inst.lateFinePaid + (inst.lateFineRebate || 0) >= inst.lateFine;
-        inst.status = isFullyPaid ? 'PAID' : 'PARTIAL';
-      }
-
-      col.principalPaid = colPrincipal;
-      col.lateFinePaid = colFine;
-      col.lateFineRebate = colRebate;
-
-      totalPrincipal += colPrincipal;
-      totalFinePaid += colFine;
-      totalFineRebate += colRebate;
-    }
-
-    booking.totalPaid = totalPrincipal;
-    booking.totalLateFinePaid = totalFinePaid;
-    booking.totalLateFineRebate = totalFineRebate;
-    booking.remainingAmount = Math.max(0, booking.totalAmount - booking.totalPaid);
-    booking.status = booking.remainingAmount <= 0 ? 'COMPLETED' : 'ACTIVE';
-
     await booking.save();
+
+    // Rebuild installment ledger and totals from remaining collections
+    await this.rebuildProductBookingInstallmentsState(booking._id);
 
     // Auto sync commissions for sponsor
     if (booking.sponsorId) {

@@ -6,6 +6,16 @@ This document tracks known tasks, technical debt, and pending improvements ident
 
 ## 1. Pending Tasks & Backlog
 
+- [x] **Separated Investment Downpayment & EMI Collections with Multi-EMI Auto-Spillover**:
+  - Separated Investment collections into two independent workflows and routes:
+    - `Investment DP` (`/dashboard/plots/collections/products/downpayment` and `.../add`)
+    - `Investment EMI` (`/dashboard/plots/collections/products/emi` and `.../add`)
+  - Configured sidebar navigation under `Account` with pending approval badge counters.
+  - In `Investment DP`: only bookings with unpaid down payment are listed, collection amount is strictly capped at remaining down payment (`unpaidDp`), and overpayment is prevented.
+  - In `Investment EMI`: available only after down payment is 100% completed; excess payments automatically spill over across subsequent installments (`nextPending`) in advance.
+  - Realized proportional commissions: Downpayment portion earns locked Downpayment commission %, and EMI portion earns locked EMI commission %.
+  - Rebuilt booking `#PRD-BK-2627-009`: restored full ₹7,60,000 paid principal and synchronized all commissions and treasury ledger entries.
+
 - [x] **Product Collections Maker-Checker Approval Workflow & Required Reference/UTR**:
   - Mirrored the exact Plot Booking collection approval workflow for Plot Products (`/dashboard/plots/collections/products/add`):
     - Non-cash transactions (`online`, `bank_transfer`, `cheque`) require a valid reference/UTR/cheque number (6-digit check for cheques).

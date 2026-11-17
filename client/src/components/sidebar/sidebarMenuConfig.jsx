@@ -115,7 +115,8 @@ export const getSidebarMenuConfig = ({ role, company, user }) => {
           children: [
             { menu: 'Down Payment', link: '/dashboard/plots/collections/downpayment', roles: OPERATIONAL_ROLES, resource: 'plot_collection' },
             { menu: 'EMI', link: '/dashboard/plots/collections/emi', roles: OPERATIONAL_ROLES, resource: 'plot_collection' },
-            { menu: 'Investment Collection', link: '/dashboard/plots/collections/products', roles: OPERATIONAL_ROLES, resource: 'plot_collection' },
+            { menu: 'Investment DP', link: '/dashboard/plots/collections/products/downpayment', roles: OPERATIONAL_ROLES, resource: 'plot_collection' },
+            { menu: 'Investment EMI', link: '/dashboard/plots/collections/products/emi', roles: OPERATIONAL_ROLES, resource: 'plot_collection' },
             { menu: 'Payroll', link: '/dashboard/payroll', roles: OPERATIONAL_ROLES, resource: 'salary' },
             { menu: 'Advance', link: '/dashboard/advance', roles: OPERATIONAL_ROLES, resource: 'advance' },
             { menu: 'Vouchers', link: '/dashboard/vouchers', roles: OPERATIONAL_ROLES, resource: 'voucher' },

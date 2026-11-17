@@ -177,8 +177,12 @@ const ManagementRoutes = () => (
       <Route path="plots/collections/downpayment/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><InstallmentCollection type="DOWNPAYMENT" initialView="add" /></RoutePermissionGuard>} />
       <Route path="plots/collections/emi" element={<RoutePermissionGuard resource="plot_collection" action={1}><InstallmentCollection type="EMI" /></RoutePermissionGuard>} />
       <Route path="plots/collections/emi/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><InstallmentCollection type="EMI" initialView="add" /></RoutePermissionGuard>} />
-      <Route path="plots/collections/products" element={<RoutePermissionGuard resource="plot_collection" action={1}><ProductCollectionsPage /></RoutePermissionGuard>} />
-      <Route path="plots/collections/products/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><ProductCollectionsPage initialView="add" /></RoutePermissionGuard>} />
+      <Route path="plots/collections/products/downpayment" element={<RoutePermissionGuard resource="plot_collection" action={1}><ProductCollectionsPage type="DOWNPAYMENT" /></RoutePermissionGuard>} />
+      <Route path="plots/collections/products/downpayment/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><ProductCollectionsPage type="DOWNPAYMENT" initialView="add" /></RoutePermissionGuard>} />
+      <Route path="plots/collections/products/emi" element={<RoutePermissionGuard resource="plot_collection" action={1}><ProductCollectionsPage type="EMI" /></RoutePermissionGuard>} />
+      <Route path="plots/collections/products/emi/add" element={<RoutePermissionGuard resource="plot_collection" action={2}><ProductCollectionsPage type="EMI" initialView="add" /></RoutePermissionGuard>} />
+      <Route path="plots/collections/products" element={<Navigate to="/dashboard/plots/collections/products/emi" replace />} />
+      <Route path="plots/collections/products/add" element={<Navigate to="/dashboard/plots/collections/products/emi/add" replace />} />
       <Route path="plots/series-master" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
       <Route path="plots/products" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotProductsPage /></RoutePermissionGuard>} />
       <Route path="plots/investment-booking" element={<RoutePermissionGuard resource="investment_booking" action={1}><ProductSalesPage /></RoutePermissionGuard>} />

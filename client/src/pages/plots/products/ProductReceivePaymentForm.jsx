@@ -44,9 +44,12 @@ import Button from '../../../components/ui/Button';
 import numberToWords from '../../../utils/numToWord';
 import PageLoader from '../../../components/common/PageLoader';
 
-const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) => {
+const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mode = 'EMI' }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isDpMode = mode === 'DOWNPAYMENT';
+  const basePath = isDpMode ? '/dashboard/plots/collections/products/downpayment' : '/dashboard/plots/collections/products/emi';
 
   const queryBookingId = preselectedBookingId ||
     new URLSearchParams(location.search).get('bookingId') ||
@@ -315,26 +318,72 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
     };
   }, [selectedBooking, form.paymentDate, pendingInstallments, emiCount]);
 
+  const dpInst = useMemo(() => {
+    return (selectedBooking?.installments || []).find((ins) => ins.installmentNumber === 0);
+  }, [selectedBooking]);
+
+  const unpaidDp = useMemo(() => {
+    if (!selectedBooking) return 0;
+    if (dpInst) {
+      return Math.max(0, Number(dpInst.amount || 0) - Number(dpInst.paidAmount || 0));
+    }
+    return Math.max(0, Number(selectedBooking.downPayment || 0) - Number(selectedBooking.totalPaid || 0));
+  }, [selectedBooking, dpInst]);
+
   // Auto-accumulate due EMI amount when booking or paymentDate changes
   useEffect(() => {
     if (selectedBooking) {
-      const defaultCount = dueStats.dueCount > 0 ? dueStats.dueCount : 1;
-      setEmiCount(defaultCount);
-      const defaultAmount = dueStats.dueCount > 0 ? dueStats.totalPayable : (Number(selectedBooking.monthlyEmi) || dueStats.selectedTotal || 0);
-      setForm((prev) => ({
-        ...prev,
-        amountPaid: defaultAmount > 0 ? String(defaultAmount) : '',
-      }));
+      if (isDpMode) {
+        setForm((prev) => ({
+          ...prev,
+          amountPaid: unpaidDp > 0 ? String(unpaidDp) : '',
+        }));
+      } else {
+        const defaultCount = dueStats.dueCount > 0 ? dueStats.dueCount : 1;
+        setEmiCount(defaultCount);
+        const defaultAmount = dueStats.dueCount > 0 ? dueStats.totalPayable : (Number(selectedBooking.monthlyEmi) || dueStats.selectedTotal || 0);
+        setForm((prev) => ({
+          ...prev,
+          amountPaid: defaultAmount > 0 ? String(defaultAmount) : '',
+        }));
+      }
     }
-  }, [selectedBookingId, form.paymentDate, dueStats.dueCount]);
+  }, [selectedBookingId, form.paymentDate, dueStats.dueCount, isDpMode, unpaidDp]);
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      const bDpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
+      const bUnpaidDp = bDpInst
+        ? Math.max(0, Number(bDpInst.amount || 0) - Number(bDpInst.paidAmount || 0))
+        : Math.max(0, Number(b.downPayment || 0) - Number(b.totalPaid || 0));
+      const bIsDpComplete = bDpInst ? (bDpInst.status === 'PAID' || bUnpaidDp <= 0) : bUnpaidDp <= 0;
+
+      if (isDpMode) {
+        return bUnpaidDp > 0;
+      } else {
+        return bIsDpComplete && Number(b.remainingAmount || 0) > 0;
+      }
+    });
+  }, [bookings, isDpMode]);
 
   const bookingOptions = useMemo(() => {
-    return bookings.map((b) => ({
-      value: b._id,
-      label: `${b.bookingNumber} - ${b.customerId?.name || 'Customer'}`,
-      subtitle: `Product: ${b.productId?.productName || 'Unit'} • Qty: ${b.quantity} • Bal: ₹${Number(b.remainingAmount || 0).toLocaleString('en-IN')}`,
-    }));
-  }, [bookings]);
+    return filteredBookings.map((b) => {
+      const bDpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
+      const bUnpaidDp = bDpInst
+        ? Math.max(0, Number(bDpInst.amount || 0) - Number(bDpInst.paidAmount || 0))
+        : Math.max(0, Number(b.downPayment || 0) - Number(b.totalPaid || 0));
+
+      const sub = isDpMode
+        ? `Pending DP: ₹${bUnpaidDp.toLocaleString('en-IN')} • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`
+        : `Product: ${b.productId?.productName || 'Unit'} • Bal: ₹${Number(b.remainingAmount || 0).toLocaleString('en-IN')}`;
+
+      return {
+        value: b._id,
+        label: `${b.bookingNumber} - ${b.customerId?.name || 'Customer'}`,
+        subtitle: sub,
+      };
+    });
+  }, [filteredBookings, isDpMode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -347,6 +396,26 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
     if (!payAmount || payAmount <= 0) {
       toast.error('Please enter a valid collection amount greater than 0');
       return;
+    }
+
+    if (isDpMode) {
+      if (unpaidDp <= 0) {
+        toast.error('Down payment for this booking is already fully paid.');
+        return;
+      }
+      if (payAmount > unpaidDp) {
+        toast.error(`Collection amount (₹${payAmount.toLocaleString('en-IN')}) cannot exceed remaining down payment of ₹${unpaidDp.toLocaleString('en-IN')}. Only remaining down payment can be collected.`);
+        return;
+      }
+    } else {
+      if (unpaidDp > 0) {
+        toast.error(`Down payment is not fully paid (₹${unpaidDp.toLocaleString('en-IN')} remaining). Please collect the down payment first.`);
+        return;
+      }
+      if (payAmount > (selectedBooking.remainingAmount || 0)) {
+        toast.error(`Collection amount cannot exceed remaining balance of ₹${Number(selectedBooking.remainingAmount || 0).toLocaleString('en-IN')}.`);
+        return;
+      }
     }
 
     const isCash = String(form.paymentMode).toLowerCase() === 'cash';
@@ -364,8 +433,12 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
 
     setSubmitting(true);
     try {
-      const targetInstIds = (dueStats.selectedEmis?.length > 0 ? dueStats.selectedEmis : dueStats.dueEmis).map((i) => i._id);
+      const targetInstIds = isDpMode
+        ? (dpInst ? [dpInst._id] : [])
+        : (dueStats.selectedEmis?.length > 0 ? dueStats.selectedEmis : dueStats.dueEmis).map((i) => i._id);
+
       const payload = {
+        collectionType: isDpMode ? 'DOWNPAYMENT' : 'EMI',
         installmentIds: targetInstIds,
         amountPaid: payAmount,
         lateFineRebate: Number(form.lateFineRebate) || 0,
@@ -393,7 +466,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       if (onSuccess) {
         onSuccess(res.data?.data);
       } else {
-        navigate('/dashboard/plots/collections/products');
+        navigate(basePath);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to record product collection');
@@ -413,7 +486,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={onBack || (() => navigate('/dashboard/plots/collections/products'))}
+            onClick={onBack || (() => navigate(basePath))}
             className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition border border-slate-200 cursor-pointer"
             title="Back to Collections List"
           >
@@ -425,21 +498,23 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
-                Receive Product Collection / EMI
+                {isDpMode ? 'Receive Investment Down Payment' : 'Receive Investment EMI Collection'}
               </h1>
               <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Payment Form
+                {isDpMode ? 'Down Payment' : 'EMI Collection'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
-              Select product contract, review dynamic late fine breakdown, and record customer EMI payment.
+              {isDpMode
+                ? 'Select active investment contract and record down payment receipt (capped at remaining DP).'
+                : 'Select product contract, review schedule, and collect EMI with automatic multi-EMI rollover.'}
             </p>
           </div>
         </div>
 
         <button
           type="button"
-          onClick={onBack || (() => navigate('/dashboard/plots/collections/products'))}
+          onClick={onBack || (() => navigate(basePath))}
           className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
         >
           View Previous Bills
@@ -449,19 +524,26 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
       {/* Contract Selector */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-          Select Active Product Contract *
+          {isDpMode ? 'Select Booking with Pending Down Payment *' : 'Select Active Product Contract (Completed DP) *'}
         </label>
         {bookingsLoading ? (
           <div className="p-4 text-center">
             <PageLoader size="small" />
             <p className="text-xs text-slate-500 mt-2">Loading active product contracts...</p>
           </div>
+        ) : filteredBookings.length === 0 ? (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle size={16} />
+            {isDpMode
+              ? 'No investment bookings currently have pending down payment.'
+              : 'No active investment bookings with completed down payment available for EMI collection.'}
+          </div>
         ) : (
           <SearchableSelect
             options={bookingOptions}
             value={selectedBookingId}
             onChange={handleBookingChange}
-            placeholder="Search booking #, customer name, mobile or product..."
+            placeholder={isDpMode ? "Search booking # or customer with pending DP..." : "Search booking #, customer name, mobile or product..."}
             className="w-full text-sm"
           />
         )}
@@ -684,6 +766,18 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
             </div>
           </div>
 
+          {/* Live Multi-EMI Auto-Spillover Info */}
+          {!isDpMode && (
+            <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 rounded-2xl border border-teal-200/80 text-xs text-teal-900 flex items-start gap-3 shadow-2xs">
+              <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
+                <Layers size={16} />
+              </div>
+              <div>
+                <span className="font-bold">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
+              </div>
+            </div>
+          )}
+
           {/* Payment Collection Inputs Form */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
@@ -705,50 +799,80 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                 </p>
               </div>
 
-              {/* Number of EMIs to Collect */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Number of EMIs to Collect
-                  </label>
-                  <span className="text-[11px] font-semibold text-teal-800">
-                    {dueStats.dueCount > 0 ? `${dueStats.dueCount} Overdue/Due` : `${pendingInstallments.length} Pending`}
-                  </span>
+              {/* Number of EMIs to Collect vs Down Payment Status */}
+              {isDpMode ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Down Payment Status
+                    </label>
+                    <span className="text-[11px] font-bold text-teal-800">
+                      Target DP: ₹{Number(selectedBooking.downPayment || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-xl flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-500">Already Paid</div>
+                      <div className="text-sm font-bold text-emerald-700">
+                        ₹{Math.max(0, Number(selectedBooking.downPayment || 0) - unpaidDp).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase font-black text-teal-800">Remaining DP to Collect</div>
+                      <div className="text-base font-black font-mono text-teal-950">
+                        ₹{unpaidDp.toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Only down payment is collectable in this form (capped strictly at remaining DP).
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={emiCount}
-                    onChange={(e) => {
-                      const count = Number(e.target.value) || 1;
-                      setEmiCount(count);
-                      // Calculate total for this number of EMIs
-                      const chosen = pendingInstallments.slice(0, count);
-                      let pr = 0;
-                      let fn = 0;
-                      chosen.forEach((ins) => {
-                        pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
-                        fn += getInstLateFine(ins, form.paymentDate);
-                      });
-                      const tot = pr + fn;
-                      setForm((prev) => ({ ...prev, amountPaid: String(tot) }));
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-teal-50/70 border border-teal-200 rounded-xl text-xs sm:text-sm font-bold text-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
-                  >
-                    {pendingInstallments.map((ins, idx) => {
-                      const n = idx + 1;
-                      const isDue = ins.dueDate && new Date(ins.dueDate) <= new Date(form.paymentDate + 'T23:59:59');
-                      return (
-                        <option key={ins.installmentNumber || idx} value={n}>
-                          {n} {n === 1 ? 'EMI' : 'EMIs'} {isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #{ins.installmentNumber || n}
-                        </option>
-                      );
-                    })}
-                  </select>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Number of EMIs to Collect
+                    </label>
+                    <span className="text-[11px] font-semibold text-teal-800">
+                      {dueStats.dueCount > 0 ? `${dueStats.dueCount} Overdue/Due` : `${pendingInstallments.length} Pending`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={emiCount}
+                      onChange={(e) => {
+                        const count = Number(e.target.value) || 1;
+                        setEmiCount(count);
+                        // Calculate total for this number of EMIs
+                        const chosen = pendingInstallments.slice(0, count);
+                        let pr = 0;
+                        let fn = 0;
+                        chosen.forEach((ins) => {
+                          pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+                          fn += getInstLateFine(ins, form.paymentDate);
+                        });
+                        const tot = pr + fn;
+                        setForm((prev) => ({ ...prev, amountPaid: String(tot) }));
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-teal-50/70 border border-teal-200 rounded-xl text-xs sm:text-sm font-bold text-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
+                    >
+                      {pendingInstallments.map((ins, idx) => {
+                        const n = idx + 1;
+                        const isDue = ins.dueDate && new Date(ins.dueDate) <= new Date(form.paymentDate + 'T23:59:59');
+                        return (
+                          <option key={ins.installmentNumber || idx} value={n}>
+                            {n} {n === 1 ? 'EMI' : 'EMIs'} {isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #{ins.installmentNumber || n}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Selecting EMI count calculates exact principal + accrued late fine.
+                  </p>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Selecting EMI count calculates exact principal + accrued late fine.
-                </p>
-              </div>
+              )}
 
               {/* Amount to Collect */}
               <div className="space-y-1.5">
@@ -756,7 +880,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                   <label className="block text-xs font-bold text-slate-700">
                     Amount to Collect (INR) <span className="text-rose-500">*</span>
                   </label>
-                  {dueStats.selectedPrincipal > 0 && (
+                  {!isDpMode && dueStats.selectedPrincipal > 0 && (
                     <span className="text-[11px] text-slate-500 font-medium">
                       Principal: <b className="text-slate-800">₹{dueStats.selectedPrincipal.toLocaleString('en-IN')}</b>
                       {dueStats.selectedFine > 0 && (
@@ -764,62 +888,85 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
                       )}
                     </span>
                   )}
+                  {isDpMode && (
+                    <span className="text-[11px] text-teal-800 font-bold">
+                      Max Allowed: ₹{unpaidDp.toLocaleString('en-IN')}
+                    </span>
+                  )}
                 </div>
                 <input
                   type="number"
                   min="1"
                   step="any"
+                  max={isDpMode ? unpaidDp : undefined}
                   placeholder="Enter amount (e.g. 5000)"
                   value={form.amountPaid}
                   onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
                   required
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                  className={`w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 transition ${isDpMode && Number(form.amountPaid) > unpaidDp ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/30' : 'border-slate-300 focus:ring-teal-600'}`}
                 />
+                {isDpMode && Number(form.amountPaid) > unpaidDp && (
+                  <p className="text-[11px] text-rose-600 font-bold pt-0.5">
+                    ⚠️ Amount cannot exceed remaining down payment of ₹{unpaidDp.toLocaleString('en-IN')}. Only remaining down payment is allowed.
+                  </p>
+                )}
 
                 {/* Quick Fill Preset Buttons */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmiCount(1);
-                      const chosen = pendingInstallments.slice(0, 1);
-                      let pr = 0;
-                      let fn = 0;
-                      chosen.forEach((ins) => {
-                        pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
-                        fn += getInstLateFine(ins, form.paymentDate);
-                      });
-                      setForm((f) => ({ ...f, amountPaid: String(pr + fn) }));
-                    }}
-                    className="px-2.5 py-1 text-[11px] font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg border border-teal-200 transition cursor-pointer"
-                  >
-                    1 EMI (₹{(Number(selectedBooking.monthlyEmi || 0) + (pendingInstallments[0] ? getInstLateFine(pendingInstallments[0], form.paymentDate) : 0)).toLocaleString('en-IN')})
-                  </button>
-
-                  {dueStats.dueCount > 1 && (
+                  {isDpMode ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setEmiCount(dueStats.dueCount);
-                        setForm((f) => ({ ...f, amountPaid: String(dueStats.totalPayable) }));
-                      }}
-                      className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg border border-amber-200 transition cursor-pointer"
+                      onClick={() => setForm((f) => ({ ...f, amountPaid: String(unpaidDp) }))}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg border border-teal-200 transition cursor-pointer"
                     >
-                      All {dueStats.dueCount} Due EMIs (₹{dueStats.totalPayable.toLocaleString('en-IN')})
+                      Pay Full Remaining DP (₹{unpaidDp.toLocaleString('en-IN')})
                     </button>
-                  )}
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmiCount(1);
+                          const chosen = pendingInstallments.slice(0, 1);
+                          let pr = 0;
+                          let fn = 0;
+                          chosen.forEach((ins) => {
+                            pr += Math.max(0, Number(ins.amount || 0) - Number(ins.paidAmount || 0));
+                            fn += getInstLateFine(ins, form.paymentDate);
+                          });
+                          setForm((f) => ({ ...f, amountPaid: String(pr + fn) }));
+                        }}
+                        className="px-2.5 py-1 text-[11px] font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg border border-teal-200 transition cursor-pointer"
+                      >
+                        1 EMI (₹{(Number(selectedBooking.monthlyEmi || 0) + (pendingInstallments[0] ? getInstLateFine(pendingInstallments[0], form.paymentDate) : 0)).toLocaleString('en-IN')})
+                      </button>
 
-                  {selectedBooking.remainingAmount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmiCount(pendingInstallments.length);
-                        setForm((f) => ({ ...f, amountPaid: String(selectedBooking.remainingAmount + dueStats.totalFine) }));
-                      }}
-                      className="px-2.5 py-1 text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg border border-emerald-200 transition cursor-pointer"
-                    >
-                      Clear All Balance (₹{(selectedBooking.remainingAmount + dueStats.totalFine).toLocaleString('en-IN')})
-                    </button>
+                      {dueStats.dueCount > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmiCount(dueStats.dueCount);
+                            setForm((f) => ({ ...f, amountPaid: String(dueStats.totalPayable) }));
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg border border-amber-200 transition cursor-pointer"
+                        >
+                          All {dueStats.dueCount} Due EMIs (₹{dueStats.totalPayable.toLocaleString('en-IN')})
+                        </button>
+                      )}
+
+                      {selectedBooking.remainingAmount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmiCount(pendingInstallments.length);
+                            setForm((f) => ({ ...f, amountPaid: String(selectedBooking.remainingAmount + dueStats.totalFine) }));
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg border border-emerald-200 transition cursor-pointer"
+                        >
+                          Clear All Balance (₹{(selectedBooking.remainingAmount + dueStats.totalFine).toLocaleString('en-IN')})
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -1054,7 +1201,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
-                onClick={onBack || (() => navigate('/dashboard/plots/collections/products'))}
+                onClick={onBack || (() => navigate(basePath))}
                 className="px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
               >
                 Cancel
@@ -1062,18 +1209,18 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId }) 
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || (isDpMode && Number(form.amountPaid) > unpaidDp)}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50"
               >
                 {submitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Processing Collection...</span>
+                    <span>{isDpMode ? 'Recording Down Payment...' : 'Processing Collection...'}</span>
                   </>
                 ) : (
                   <>
                     <Check size={16} className="stroke-[3]" />
-                    <span>Submit Collection Receipt</span>
+                    <span>{isDpMode ? 'Submit Down Payment Receipt' : 'Submit EMI Collection Receipt'}</span>
                   </>
                 )}
               </button>

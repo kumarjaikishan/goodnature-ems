@@ -143,6 +143,11 @@ const ReceiptViewer = () => {
   const productTotalArea = productDetails.totalAreaSqFt || bookingId.totalAreaSqFt || (
     productDetails.quantity && productObj.areaSqFt ? productDetails.quantity * productObj.areaSqFt : null
   );
+  const resolvedPlanName = (receipt.planName || productDetails.planName || bookingId.planName || '').trim() || (
+    (productDetails.tenureMonths || bookingId.tenureMonths)
+      ? `GROW/${productDetails.tenureMonths || bookingId.tenureMonths}-M`
+      : 'GROW/24-M'
+  );
   const customer = bookingId.customerId || {};
   const plot = bookingId.plotId || {};
   const isDownpaymentReceipt = receipt.receiptType === 'DOWNPAYMENT' || receipt.receiptType === 'BOOKING';
@@ -398,24 +403,13 @@ const ReceiptViewer = () => {
               </td>
               <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
-                  <span>{isProductReceipt ? 'Product / Unit' : 'Plot Number'}</span>
+                  <span>{isProductReceipt ? 'Plan' : 'Plot Number'}</span>
                   <span>:</span>
                 </div>
               </td>
               <td className="py-1 px-2 font-bold text-slate-900 w-[32%]">
                 {isProductReceipt ? (
-                  <div className="space-y-0.5">
-                    <div>
-                      <span>{productObj.productName || 'Micro Plot Unit'}</span>
-                      {productDetails.quantity ? ` (${productDetails.quantity} Units)` : ''}
-                      {productDimensionLabel ? ` • ${productDimensionLabel}` : ''}
-                    </div>
-                    {productTotalArea ? (
-                      <div className="text-[9px] text-teal-800 font-bold font-mono">
-                        Total Area: {productTotalArea.toLocaleString('en-IN')} Sq.Ft
-                      </div>
-                    ) : null}
-                  </div>
+                  <span className="font-bold text-slate-900 uppercase">{resolvedPlanName}</span>
                 ) : (
                   (() => {
                     const cleanPlotNo = (plot.plotNumber || bookingId.plotNumber || '').replace(/^#/, '');
@@ -428,11 +422,11 @@ const ReceiptViewer = () => {
               </td>
             </tr>
 
-            {/* Row 6: Payment Mode | Late Fine Paid */}
+            {/* Row 6: Payment Transaction | Late Fine Paid */}
             <tr className="border-b border-slate-100">
               <td className="py-1 px-2 text-slate-500 font-medium w-[18%]">
                 <div className="flex justify-between items-center">
-                  <span>Payment Mode</span>
+                  <span>Payment Transaction</span>
                   <span>:</span>
                 </div>
               </td>

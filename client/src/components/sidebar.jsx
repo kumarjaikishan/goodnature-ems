@@ -76,6 +76,8 @@ const Sidebar = () => {
     if (childLink === "/dashboard/vouchers") return pendingApprovals.voucher || 0;
     if (childLink === "/dashboard/plots/collections/downpayment") return pendingApprovals.downpayment || 0;
     if (childLink === "/dashboard/plots/collections/emi") return pendingApprovals.emi || 0;
+    if (childLink === "/dashboard/plots/collections/products/downpayment") return pendingApprovals.productDownpayment || pendingApprovals.productCollection || 0;
+    if (childLink === "/dashboard/plots/collections/products/emi") return pendingApprovals.productEmi || pendingApprovals.productCollection || 0;
     if (childLink === "/dashboard/plots/collections/products") return pendingApprovals.productCollection || 0;
     if (childLink === "/dashboard/ledger/transfers") return pendingApprovals.fundTransfer || 0;
     return 0;

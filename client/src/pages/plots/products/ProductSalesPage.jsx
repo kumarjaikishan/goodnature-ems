@@ -100,7 +100,14 @@ const ProductSalesPage = () => {
         onRefresh={handleRefresh}
         onOpenCertificate={(b) => navigate(`/dashboard/plots/certificates/${b._id}`)}
         onOpenLedger={(b) => setSelectedLedgerBooking(b)}
-        onOpenCollect={(b) => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
+        onOpenCollect={(b) => {
+          const dpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
+          const hasPendingDp = dpInst ? dpInst.status !== 'PAID' && (Number(dpInst.amount || 0) - Number(dpInst.paidAmount || 0) > 0) : (Number(b.downPayment || 0) > Number(b.totalPaid || 0));
+          const targetUrl = hasPendingDp
+            ? `/dashboard/plots/collections/products/downpayment/add?bookingId=${b._id}`
+            : `/dashboard/plots/collections/products/emi/add?bookingId=${b._id}`;
+          navigate(targetUrl);
+        }}
         onOpenAgreementModal={(b) => setAgreementModalBooking(b)}
       />
 

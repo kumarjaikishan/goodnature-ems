@@ -320,7 +320,14 @@ const ProductSalesTab = ({
                           {b.status !== 'CANCELLED' && remaining > 0 && (
                             <button
                               type="button"
-                              onClick={() => navigate(`/dashboard/plots/collections/products/add?bookingId=${b._id}`)}
+                              onClick={() => {
+                                const dpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
+                                const hasPendingDp = dpInst ? dpInst.status !== 'PAID' && (Number(dpInst.amount || 0) - Number(dpInst.paidAmount || 0) > 0) : (Number(b.downPayment || 0) > Number(b.totalPaid || 0));
+                                const targetUrl = hasPendingDp
+                                  ? `/dashboard/plots/collections/products/downpayment/add?bookingId=${b._id}`
+                                  : `/dashboard/plots/collections/products/emi/add?bookingId=${b._id}`;
+                                navigate(targetUrl);
+                              }}
                               className="p-1.5 text-emerald-700 hover:bg-emerald-100/70 rounded-lg transition border border-emerald-300 bg-emerald-50 cursor-pointer shadow-2xs"
                               title="Collect Payment / Receipt in Investment Collections"
                             >

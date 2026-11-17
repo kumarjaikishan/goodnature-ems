@@ -286,6 +286,7 @@ const ProductAgreementViewer = () => {
 
   const adaptedBooking = {
     ...booking,
+    isProductAgreement: true,
     scheme: isFullPayment ? 'FULL_PAYMENT' : 'INSTALLMENT',
     paymentMode: booking.collections?.[0]?.paymentMode || booking.paymentMode || 'WIRE TRANSFER / CHEQUE / DD',
     agreementNumber: booking.agreementNumber || booking.bookingNumber,

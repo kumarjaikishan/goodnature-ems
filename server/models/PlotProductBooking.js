@@ -135,6 +135,21 @@ const collectionTransactionSchema = new mongoose.Schema(
       default: Date.now,
     },
     installmentNumbers: [Number],
+    receiptType: {
+      type: String,
+      enum: ['DOWNPAYMENT', 'INSTALLMENT', 'EMI', 'FULL_PAYMENT', 'PARTIAL_DP_EMI', 'OTHER'],
+      default: 'INSTALLMENT',
+    },
+    downpaymentPrincipalPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    emiPrincipalPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     remarks: {
       type: String,
       default: '',

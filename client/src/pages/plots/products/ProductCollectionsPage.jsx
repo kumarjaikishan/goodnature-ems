@@ -30,9 +30,13 @@ import Select from '../../../components/ui/Select';
 import Input from '../../../components/ui/Input';
 import Modalbox from '@/components/custommodal/Modalbox';
 
-const ProductCollectionsPage = ({ initialView }) => {
+const ProductCollectionsPage = ({ initialView, type }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isDpMode = type === 'DOWNPAYMENT' || location.pathname.includes('/products/downpayment');
+  const mode = isDpMode ? 'DOWNPAYMENT' : 'EMI';
+  const basePath = isDpMode ? '/dashboard/plots/collections/products/downpayment' : '/dashboard/plots/collections/products/emi';
 
   const isAddRoute = location.pathname.endsWith('/add');
   const [view, setView] = useState(initialView || (isAddRoute ? 'add' : 'list'));
@@ -79,7 +83,7 @@ const ProductCollectionsPage = ({ initialView }) => {
     else setLoading(true);
 
     try {
-      const res = await api.get('/plots/product-collections');
+      const res = await api.get('/plots/product-collections', { params: { type: mode } });
       const data = res.data?.data || {};
       setCollections(data.collections || []);
       setSummary(
@@ -97,7 +101,7 @@ const ProductCollectionsPage = ({ initialView }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (view === 'list') {
@@ -107,7 +111,7 @@ const ProductCollectionsPage = ({ initialView }) => {
 
   const handleOpenAddCollection = (bookingId = null) => {
     setTargetBookingId(bookingId);
-    navigate('/dashboard/plots/collections/products/add' + (bookingId ? `?bookingId=${bookingId}` : ''));
+    navigate(`${basePath}/add` + (bookingId ? `?bookingId=${bookingId}` : ''));
   };
 
   const handleApproveCollection = async () => {
@@ -180,7 +184,7 @@ const ProductCollectionsPage = ({ initialView }) => {
   };
 
   const handleCollectionSuccess = (result) => {
-    navigate('/dashboard/plots/collections/products');
+    navigate(basePath);
     fetchCollections(true);
     window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
 
@@ -264,7 +268,11 @@ const ProductCollectionsPage = ({ initialView }) => {
     return (
       <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
         <ProductReceivePaymentForm
-          onBack={() => navigate('/dashboard/plots/collections/products')}
+          mode={mode}
+          onBack={() => {
+            setView('list');
+            navigate(basePath);
+          }}
           onSuccess={handleCollectionSuccess}
           preselectedBookingId={targetBookingId}
         />
@@ -278,9 +286,13 @@ const ProductCollectionsPage = ({ initialView }) => {
       {/* Top Action Buttons */}
       <div className="flex items-center justify-between gap-3 pt-0 pb-0.5">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Investment Collection &amp; Receipts</h1>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+            {isDpMode ? 'Investment Down Payment Collections' : 'Investment EMI Collections'}
+          </h1>
           <p className="text-slate-500 text-xs mt-0.5">
-            Manage plot investment installment receipts, maker-checker approvals &amp; collections
+            {isDpMode
+              ? 'Manage investment booking downpayment receipts, maker-checker approvals & realization'
+              : 'Manage plot investment installment receipts, multi-EMI rollover & collections'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -302,7 +314,7 @@ const ProductCollectionsPage = ({ initialView }) => {
               onClick={() => handleOpenAddCollection()}
               startIcon={Plus}
             >
-              Add New Collection
+              {isDpMode ? 'Record Down Payment' : 'Record EMI Collection'}
             </Button>
           )}
         </div>
@@ -498,6 +510,7 @@ const ProductCollectionsPage = ({ initialView }) => {
               <thead className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="p-3.5 pl-5">Receipt # &amp; Date</th>
+                  <th className="p-3.5">Booking #</th>
                   <th className="p-3.5">Customer &amp; Associate</th>
                   <th className="p-3.5">Product &amp; Specs</th>
                   <th className="p-3.5 text-right">Amount</th>
@@ -521,6 +534,13 @@ const ProductCollectionsPage = ({ initialView }) => {
                           <Calendar className="w-3 h-3 text-slate-400" />
                           <span>{formatDate(col.paymentDate)}</span>
                         </div>
+                      </td>
+
+                      {/* Booking # */}
+                      <td className="p-3.5">
+                        <span className="font-mono font-bold text-slate-800 text-xs bg-slate-100 px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap">
+                          {col.bookingNumber || '-'}
+                        </span>
                       </td>
 
                       {/* Customer & Associate */}

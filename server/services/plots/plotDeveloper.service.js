@@ -880,14 +880,41 @@ class PlotDeveloperService {
             validEntryIds.add(c.ledgerEntryId.toString());
           }
 
-          if (Number(c.collectionAmount) !== collectionPrincipal) {
-            const lockedPct = Number(c.fixedPercent || 0);
-            const newFixedAmt = Math.round(collectionPrincipal * (lockedPct / 100) * 100) / 100;
+          const dpPart = Number(col.downpaymentPrincipalPaid || 0);
+          const emiPart = Number(col.emiPrincipalPaid || 0);
+
+          let dpPct = 0;
+          let emiPct = 0;
+          if (c.commissionRole === 'DIRECT_DEVELOPER' || c.commissionRole === 'PROMOTER') {
+            dpPct = Number(booking.downpaymentPromoterCommissionPercent ?? 5.0);
+            emiPct = Number(booking.emiPromoterCommissionPercent ?? 4.0);
+          } else if (c.commissionRole === 'DEVELOPER_OVERRIDE') {
+            dpPct = Number(booking.downpaymentBpCommissionPercent ?? 1.0);
+            emiPct = Number(booking.emiBpCommissionPercent ?? 1.0);
+          } else if (c.commissionRole === 'BRANCH_OVERRIDE') {
+            dpPct = Number(booking.downpaymentBranchCommissionPercent ?? 0.5);
+            emiPct = Number(booking.emiBranchCommissionPercent ?? 0.5);
+          } else {
+            dpPct = Number(c.fixedPercent || 0);
+            emiPct = Number(c.fixedPercent || 0);
+          }
+
+          let newFixedAmt = 0;
+          let effectivePct = Number(c.fixedPercent || 0);
+          if (dpPart > 0 || emiPart > 0) {
+            newFixedAmt = Math.round((dpPart * (dpPct / 100) + emiPart * (emiPct / 100)) * 100) / 100;
+            effectivePct = collectionPrincipal > 0 ? +(newFixedAmt / collectionPrincipal * 100).toFixed(3) : dpPct;
+          } else {
+            newFixedAmt = Math.round(collectionPrincipal * (effectivePct / 100) * 100) / 100;
+          }
+
+          if (Number(c.collectionAmount) !== collectionPrincipal || Number(c.fixedAmount) !== newFixedAmt) {
             const incAmt = Number(c.incentiveAmount || 0);
             const newTotalAmt = Math.round((newFixedAmt + incAmt) * 100) / 100;
 
             c.collectionAmount = collectionPrincipal;
             c.plotValue = collectionPrincipal;
+            c.fixedPercent = effectivePct;
             c.fixedAmount = newFixedAmt;
             c.amount = newTotalAmt;
             if (session) await c.save({ session });

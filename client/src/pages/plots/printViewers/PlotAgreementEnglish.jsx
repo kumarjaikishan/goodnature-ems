@@ -121,18 +121,57 @@ const PlotAgreementEnglish = ({
   const agreementEndDateStr = formatFullDate(calculatedEndDate);
 
   // Scheme Plan resolution (e.g. GROW/24-M, GROW/36-M, or from booking.planName / tenure)
+  const isProductAgreement = Boolean(
+    booking.isProductAgreement ||
+    booking.productId ||
+    plot.isProduct ||
+    (typeof booking.bookingNumber === 'string' && booking.bookingNumber.startsWith('PRD-')) ||
+    (typeof booking.applicationNo === 'string' && booking.applicationNo.startsWith('PRD-'))
+  );
+
+  // Dynamic lock-in period resolution:
+  // 1. Try extracting tenure from plan name (e.g. "GROW/60-M" -> 60, "GROW/24-M" -> 24)
+  const planTenureMatch = typeof booking.planName === 'string' ? booking.planName.match(/(\d+)\s*[-_]?\s*M/i) : null;
+  const planExtractedMonths = planTenureMatch ? Number(planTenureMatch[1]) : null;
+
+  const lockInTenureMonths =
+    planExtractedMonths ||
+    Number(booking.planTenureMonths) ||
+    Number(booking.tenureMonths) ||
+    Number(booking.oneTimeMonths) ||
+    12;
+
+  const lockInYearsVal = lockInTenureMonths / 12;
+  const lockInYearsStr = Number.isInteger(lockInYearsVal) ? String(lockInYearsVal) : +(lockInYearsVal.toFixed(1));
+
   const schemePlanName = booking.planName
     ? booking.planName
     : (booking.tenureMonths || installmentCount
       ? `PLAN-${booking.tenureMonths || installmentCount}M`
       : (isFullPayment ? 'FULL PAYMENT' : 'STANDARD'));
 
-  // Rate resolution: Use the booking's selected plan interest rate (e.g. 11.721% for GROW/72-M One-Time, 13.378% for EMI), fallback to refundRatePercent / 10.88
+  // Rate & Maturity Return resolution from booking or scheme slabs
   const bookingAnnualRate = booking.annualInterestRate !== undefined && booking.annualInterestRate !== null && Number(booking.annualInterestRate) > 0
     ? Number(booking.annualInterestRate)
     : (booking.refundInterestRate !== undefined && Number(booking.refundInterestRate) > 0
       ? Number(booking.refundInterestRate)
       : Number(refundRatePercent || 10.88));
+
+  // Maturity Return % resolution (e.g. 140% for GROW/60-M EMI, 175% for GROW/60-M One-Time)
+  const schemeMaturityMatrix = {
+    24: { rd: 112, fd: 121, rdRate: 11.286, fdRate: 9.644 },
+    36: { rd: 120, fd: 135, rdRate: 12.19, fdRate: 10.129 },
+    48: { rd: 130, fd: 150, rdRate: 13.147, fdRate: 10.267 },
+    60: { rd: 140, fd: 175, rdRate: 13.417, fdRate: 11.35 },
+    72: { rd: 150, fd: 200, rdRate: 13.378, fdRate: 11.721 },
+    3:  { rd: 101.37, fd: 102.13, rdRate: 8.5, fdRate: 8.5 },
+  };
+
+  const matchedMatrixSlab = schemeMaturityMatrix[lockInTenureMonths] || null;
+
+  const resolvedMaturityPercent = isFullPayment
+    ? (booking.fdMaturityPercent || matchedMatrixSlab?.fd || null)
+    : (booking.rdMaturityPercent || matchedMatrixSlab?.rd || null);
 
   // Developer / Associate resolution for Witnesses
   const sponsor = (booking.sponsorId && typeof booking.sponsorId === 'object' && booking.sponsorId._id)
@@ -490,7 +529,7 @@ const PlotAgreementEnglish = ({
 
           <p className="m-0 leading-relaxed pt-1"><span className="font-bold">C. ABANDONMENT OF THE PROJECT</span></p>
           <p className="m-0 leading-relaxed">
-            The Allottee agrees that, if as a result of any legislation, order or rule or regulation made or issued by the Government or any other authority or if any competent authority refuses, delays, withholds, denies the grant of necessary approvals for the said Project or if any matters, issues relating to such approvals, permissions, notices, notifications by any competent authority becomes subject matter of any suit/writ before a competent court or if due to force majeure conditions, the Company, after provisional and/or final allotment is unable to deliver the said Land to the Allottee for his/her/its occupation and/or use, the Company shall be entitled, in its sole discretion, to abandon the whole or part of the said project (i.e., the development of the said Project) and upon such abandonment where the possession of the said Land is not handed over to the Allottee, then the Company shall be liable to (and its liability shall be limited to) refund to the Allottee the entire amount paid by the Allottee to the Company as on the date of such refund with simple <span className="font-bold">interest @{Number(bookingAnnualRate).toFixed(3).replace(/\.?0+$/, '')}% PA</span>, provided that it is agreed to by the Allottee that upon such refund the Allottee shall have no further claims against the Company and/or against any of its respective directors, employees or agents nor shall the Allottee have any right, title, claim or interest in or in relation to the said Project Land and/or the said Project or any part thereof.
+            The Allottee agrees that, if as a result of any legislation, order or rule or regulation made or issued by the Government or any other authority or if any competent authority refuses, delays, withholds, denies the grant of necessary approvals for the said Project or if any matters, issues relating to such approvals, permissions, notices, notifications by any competent authority becomes subject matter of any suit/writ before a competent court or if due to force majeure conditions, the Company, after provisional and/or final allotment is unable to deliver the said Land to the Allottee for his/her/its occupation and/or use, the Company shall be entitled, in its sole discretion, to abandon the whole or part of the said project (i.e., the development of the said Project) and upon such abandonment where the possession of the said Land is not handed over to the Allottee, then the Company shall be liable to (and its liability shall be limited to) refund to the Allottee the entire amount paid by the Allottee to the Company as on the date of such refund with simple <span className="font-bold">interest @{Number(bookingAnnualRate).toFixed(3).replace(/\.?0+$/, '')}% PA{resolvedMaturityPercent ? ` (${resolvedMaturityPercent}% Maturity Return)` : ''}</span>, provided that it is agreed to by the Allottee that upon such refund the Allottee shall have no further claims against the Company and/or against any of its respective directors, employees or agents nor shall the Allottee have any right, title, claim or interest in or in relation to the said Project Land and/or the said Project or any part thereof.
           </p>
         </div>
 
@@ -652,8 +691,8 @@ const PlotAgreementEnglish = ({
                 <tr className="border-b border-slate-300">
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">REST AMOUNT:</td>
                   <td className="p-2.5 border-r border-slate-300 font-bold text-slate-900">{formatCurrency(remainingBalanceAmount)}</td>
-                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">{isFullPayment ? 'LOCK-IN PERIOD:' : 'INSTALLMENT:'}</td>
-                  <td className="p-2.5 font-bold text-slate-900">{isFullPayment ? `${booking.tenureMonths || 12} Months (${+((booking.tenureMonths || 12) / 12).toFixed(1)} Yrs)` : `${installmentCount} Installments (${emiFreqWord})`}</td>
+                  <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">{(isProductAgreement || isFullPayment) ? 'LOCK-IN PERIOD:' : 'INSTALLMENT:'}</td>
+                  <td className="p-2.5 font-bold text-slate-900">{(isProductAgreement || isFullPayment) ? `${lockInTenureMonths} Months (${lockInYearsStr} Yrs)` : `${installmentCount} Installments (${emiFreqWord})`}</td>
                 </tr>
                 <tr className="border-b border-slate-300">
                   <td className="p-2.5 font-bold bg-slate-100/70 border-r border-slate-300">INSTALLMENT AMOUNT:</td>
@@ -685,14 +724,11 @@ const PlotAgreementEnglish = ({
                             ? new Date(pDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                             : '-';
                           const txRef = rc.transactionReference || rc.utrNumber || rc.chequeNumber || rc.receiptNumber || 'N/A';
-                          const mode = (rc.paymentMode || 'ONLINE').toUpperCase();
-                          const bank = rc.bankName ? ` (${rc.bankName})` : '';
 
                           return (
                             <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-slate-200 pb-1 last:border-b-0 last:pb-0">
                               <span className="font-bold text-slate-800">{idx + 1}.</span>
                               <div><strong className="text-slate-600">Date:</strong> <span className="font-semibold text-slate-900">{formattedTxDate}</span></div>
-                              <div><strong className="text-slate-600">Mode:</strong> <span className="font-semibold text-slate-800 uppercase">{mode}{bank}</span></div>
                               <div><strong className="text-slate-600">Ref / UTR / Cheque:</strong> <span className="font-mono font-bold text-slate-900">{txRef}</span></div>
                             </div>
                           );
