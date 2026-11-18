@@ -535,19 +535,25 @@ const PlotBusinessDevelopers = () => {
             : (row.branchId?.name || 'Head Office');
 
         return (
-          <span className="text-xs font-medium text-slate-700">
+          <div className="text-xs font-medium text-slate-700">
             {row.sponsorId?.name ? (
-              <span className="font-semibold text-slate-900">
-                {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}{' '}
-                <span className="font-mono text-slate-500">({row.sponsorId.sponsorCode || ''})</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="font-semibold text-slate-900 leading-snug">
+                  {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}
+                </span>
+                {row.sponsorId.sponsorCode && (
+                  <span className="font-mono text-slate-500 text-[11px] leading-tight mt-0.5">
+                    ({row.sponsorId.sponsorCode})
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="inline-flex items-center gap-1 font-semibold text-teal-800">
                 <Building2 size={13} className="text-teal-700 shrink-0" />
                 {branchName}
               </span>
             )}
-          </span>
+          </div>
         );
       },
       sortable: true,

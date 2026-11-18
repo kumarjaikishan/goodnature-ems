@@ -33,7 +33,7 @@ const PlotCustomers = () => {
     try {
       const res = await apiClient({
         url: 'plots/customers',
-        params: { search },
+        params: { search, limit: 10000 },
       });
       setCustomers(res.data || res.customers || res || []);
     } catch (err) {
@@ -83,9 +83,9 @@ const PlotCustomers = () => {
     },
     {
       name: 'Customer ID',
-      selector: (row) => row.customerCode || 'N/A',
+      selector: (row) => row.customerId || row.customerCode || 'N/A',
       sortable: true,
-      width: '130px',
+      width: '150px',
     },
     {
       name: 'Customer Name',
@@ -123,6 +123,24 @@ const PlotCustomers = () => {
       name: 'Assigned Sponsor',
       selector: (row) => row.sponsorId?.name ? `${row.sponsorId.name}${row.sponsorId.sponsorCode ? ` (${row.sponsorId.sponsorCode})` : ''}` : 'Company (Direct)',
       sortable: true,
+      cell: (row) => (
+        <div className="py-1">
+          {row.sponsorId?.name ? (
+            <div className="flex flex-col">
+              <span className="font-semibold text-slate-900 leading-snug">
+                {row.sponsorId.name.replace(/\s*\([^)]*\)/g, '')}
+              </span>
+              {row.sponsorId.sponsorCode && (
+                <span className="font-mono text-slate-500 text-[11px] leading-tight mt-0.5">
+                  ({row.sponsorId.sponsorCode})
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-slate-500 italic text-xs">Company (Direct)</span>
+          )}
+        </div>
+      ),
     },
     {
       name: 'Actions',

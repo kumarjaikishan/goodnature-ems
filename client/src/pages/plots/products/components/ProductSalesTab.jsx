@@ -262,12 +262,14 @@ const ProductSalesTab = ({
 
                       <td className="p-3">
                         <div className="font-bold text-slate-800">{cust.name || 'N/A'}</div>
-                        <div className="text-[11px] text-slate-500 font-medium">
-                          {cust.customerCode || cust.customerId || ''}
-                          {spon.name && (
-                            <span className="text-teal-700 font-semibold"> • BA: {spon.name}</span>
-                          )}
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          {cust.customerId || cust.customerCode || ''}
                         </div>
+                        {spon.name && (
+                          <div className="text-[11px] text-teal-700 font-semibold mt-0.5">
+                            BA: {spon.name}
+                          </div>
+                        )}
                       </td>
 
                       <td className="p-3">
@@ -278,7 +280,10 @@ const ProductSalesTab = ({
                           </span>
                         </div>
                         <div className="text-[11px] text-slate-500 font-mono">
-                          {dims.dimensionLabel || `${dims.north ?? 1}x${dims.east ?? 2} ft`} ({b.totalAreaSqFt || (prd.areaSqFt ? prd.areaSqFt * (b.quantity || 1) : '-')} Sq.Ft)
+                          {dims.dimensionLabel || `${dims.north ?? 1}x${dims.east ?? 2} ft`}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          ({b.totalAreaSqFt || (prd.areaSqFt ? prd.areaSqFt * (b.quantity || 1) : '-')} Sq.Ft)
                         </div>
                       </td>
 
@@ -315,114 +320,120 @@ const ProductSalesTab = ({
                       </td>
 
                       <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5 py-1">
-                          {/* 0. Collect Payment */}
-                          {b.status !== 'CANCELLED' && remaining > 0 && (
+                        <div className="flex flex-col items-end gap-1.5 py-1">
+                          {/* Row 1: 3 action icons */}
+                          <div className="flex items-center gap-1.5">
+                            {/* 1. View Details */}
                             <button
                               type="button"
-                              onClick={() => {
-                                const dpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
-                                const hasPendingDp = dpInst ? dpInst.status !== 'PAID' && (Number(dpInst.amount || 0) - Number(dpInst.paidAmount || 0) > 0) : (Number(b.downPayment || 0) > Number(b.totalPaid || 0));
-                                const targetUrl = hasPendingDp
-                                  ? `/dashboard/plots/collections/products/downpayment/add?bookingId=${b._id}`
-                                  : `/dashboard/plots/collections/products/emi/add?bookingId=${b._id}`;
-                                navigate(targetUrl);
-                              }}
-                              className="p-1.5 text-emerald-700 hover:bg-emerald-100/70 rounded-lg transition border border-emerald-300 bg-emerald-50 cursor-pointer shadow-2xs"
-                              title="Collect Payment / Receipt in Investment Collections"
+                              onClick={() => setViewingBooking(b)}
+                              className="p-1.5 text-teal-800 hover:bg-teal-50 rounded-lg transition border border-teal-200/80 cursor-pointer shadow-2xs"
+                              title="View Booking Details"
                             >
-                              <CreditCard size={14} />
+                              <Eye size={14} />
                             </button>
-                          )}
 
-                          {/* 1. View Details */}
-                          <button
-                            type="button"
-                            onClick={() => setViewingBooking(b)}
-                            className="p-1.5 text-teal-800 hover:bg-teal-50 rounded-lg transition border border-teal-200/80 cursor-pointer shadow-2xs"
-                            title="View Booking Details"
-                          >
-                            <Eye size={14} />
-                          </button>
+                            {/* 2. Print Certificate / Receipt */}
+                            <button
+                              type="button"
+                              onClick={() => onOpenCertificate(b)}
+                              className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition border border-teal-200/60 cursor-pointer"
+                              title="Print Booking Certificate / Receipt"
+                            >
+                              <Printer size={14} />
+                            </button>
 
-                          {/* 2. Print Certificate / Receipt */}
-                          <button
-                            type="button"
-                            onClick={() => onOpenCertificate(b)}
-                            className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition border border-teal-200/60 cursor-pointer"
-                            title="Print Booking Certificate / Receipt"
-                          >
-                            <Printer size={14} />
-                          </button>
+                            {/* 3. View Customer Ledger */}
+                            <button
+                              type="button"
+                              onClick={() => onOpenLedger(b)}
+                              className="p-1.5 text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-indigo-200/60 cursor-pointer"
+                              title="View Customer Ledger & EMI Statement"
+                            >
+                              <BookOpen size={14} />
+                            </button>
+                          </div>
 
-                          {/* 3. Print Product Agreement */}
-                          {(() => {
-                            const totalVal = Math.max(0, Number(b.totalAmount || b.plotValue || 0) - Number(b.discount || 0));
-                            const isFull = b.paymentType === 'FULL_PAYMENT' || b.scheme === 'FULL_PAYMENT';
-                            const dpReq = isFull ? totalVal : Number(b.downPayment || b.downpaymentAmount || Math.round(totalVal * 0.4));
-                            const paid = Number(b.totalPaid !== undefined ? b.totalPaid : Math.max(0, totalVal - Number(b.remainingAmount || 0)));
-                            const isDpComplete = paid >= (dpReq - 1);
-
-                            return (
+                          {/* Row 2: Next 3 action icons */}
+                          <div className="flex items-center gap-1.5">
+                            {/* 4. Collect Payment */}
+                            {b.status !== 'CANCELLED' && remaining > 0 && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (!isDpComplete) {
-                                    toast.warning(
-                                      `Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`
-                                    );
-                                    return;
-                                  }
-
-                                  if (b.agreementDate) {
-                                    navigate(`/dashboard/plots/product-agreements/${b._id}`);
-                                  } else if (onOpenAgreementModal) {
-                                    onOpenAgreementModal(b);
-                                  } else {
-                                    navigate(`/dashboard/plots/product-agreements/${b._id}`);
-                                  }
+                                  const dpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
+                                  const hasPendingDp = dpInst ? dpInst.status !== 'PAID' && (Number(dpInst.amount || 0) - Number(dpInst.paidAmount || 0) > 0) : (Number(b.downPayment || 0) > Number(b.totalPaid || 0));
+                                  const targetUrl = hasPendingDp
+                                    ? `/dashboard/plots/collections/products/downpayment/add?bookingId=${b._id}`
+                                    : `/dashboard/plots/collections/products/emi/add?bookingId=${b._id}`;
+                                  navigate(targetUrl);
                                 }}
-                                title={
-                                  !isDpComplete
-                                    ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
-                                    : b.agreementDate
-                                    ? 'Print Product Agreement'
-                                    : 'Generate Product Agreement (Set Date)'
-                                }
-                                className={`p-1.5 rounded-lg transition border shadow-2xs ${
-                                  isDpComplete
-                                    ? 'text-purple-700 hover:bg-purple-50 border-purple-200/80 cursor-pointer bg-white'
-                                    : 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed opacity-60'
-                                }`}
+                                className="p-1.5 text-emerald-700 hover:bg-emerald-100/70 rounded-lg transition border border-emerald-300 bg-emerald-50 cursor-pointer shadow-2xs"
+                                title="Collect Payment / Receipt in Investment Collections"
                               >
-                                <FileText size={14} />
+                                <CreditCard size={14} />
                               </button>
-                            );
-                          })()}
+                            )}
 
-                          {/* 4. View Customer Ledger */}
-                          <button
-                            type="button"
-                            onClick={() => onOpenLedger(b)}
-                            className="p-1.5 text-indigo-700 hover:bg-indigo-50 rounded-lg transition border border-indigo-200/60 cursor-pointer"
-                            title="View Customer Ledger & EMI Statement"
-                          >
-                            <BookOpen size={14} />
-                          </button>
+                            {/* 5. Print Product Agreement */}
+                            {(() => {
+                              const totalVal = Math.max(0, Number(b.totalAmount || b.plotValue || 0) - Number(b.discount || 0));
+                              const isFull = b.paymentType === 'FULL_PAYMENT' || b.scheme === 'FULL_PAYMENT';
+                              const dpReq = isFull ? totalVal : Number(b.downPayment || b.downpaymentAmount || Math.round(totalVal * 0.4));
+                              const paid = Number(b.totalPaid !== undefined ? b.totalPaid : Math.max(0, totalVal - Number(b.remainingAmount || 0)));
+                              const isDpComplete = paid >= (dpReq - 1);
 
-                          {/* 5. Maturity or Settlement Calculator */}
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/dashboard/plots/interest-calculator?productBookingId=${b._id}&bookingNumber=${encodeURIComponent(b.bookingNumber)}`)}
-                            className={`p-1.5 rounded-lg transition border cursor-pointer ${
-                              b.status === 'CANCELLED'
-                                ? 'text-amber-700 hover:bg-amber-50 border-amber-300 bg-amber-50/50'
-                                : 'text-teal-700 hover:bg-teal-50 border-teal-200/80 bg-teal-50/30'
-                            }`}
-                            title="Maturity or settlement"
-                          >
-                            <Calculator size={14} />
-                          </button>
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!isDpComplete) {
+                                      toast.warning(
+                                        `Agreement available only after downpayment is completed. Required: ₹${dpReq.toLocaleString('en-IN')}, Paid: ₹${paid.toLocaleString('en-IN')}`
+                                      );
+                                      return;
+                                    }
+
+                                    if (b.agreementDate) {
+                                      navigate(`/dashboard/plots/product-agreements/${b._id}`);
+                                    } else if (onOpenAgreementModal) {
+                                      onOpenAgreementModal(b);
+                                    } else {
+                                      navigate(`/dashboard/plots/product-agreements/${b._id}`);
+                                    }
+                                  }}
+                                  title={
+                                    !isDpComplete
+                                      ? `Agreement Locked: Downpayment pending (Paid: ₹${paid.toLocaleString('en-IN')} / ₹${dpReq.toLocaleString('en-IN')})`
+                                      : b.agreementDate
+                                      ? 'Print Product Agreement'
+                                      : 'Generate Product Agreement (Set Date)'
+                                  }
+                                  className={`p-1.5 rounded-lg transition border shadow-2xs ${
+                                    isDpComplete
+                                      ? 'text-purple-700 hover:bg-purple-50 border-purple-200/80 cursor-pointer bg-white'
+                                      : 'text-slate-300 bg-slate-100 border-slate-200 cursor-not-allowed opacity-60'
+                                  }`}
+                                >
+                                  <FileText size={14} />
+                                </button>
+                              );
+                            })()}
+
+                            {/* 6. Maturity or Settlement Calculator */}
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/dashboard/plots/interest-calculator?productBookingId=${b._id}&bookingNumber=${encodeURIComponent(b.bookingNumber)}`)}
+                              className={`p-1.5 rounded-lg transition border cursor-pointer ${
+                                b.status === 'CANCELLED'
+                                  ? 'text-amber-700 hover:bg-amber-50 border-amber-300 bg-amber-50/50'
+                                  : 'text-teal-700 hover:bg-teal-50 border-teal-200/80 bg-teal-50/30'
+                              }`}
+                              title="Maturity or settlement"
+                            >
+                              <Calculator size={14} />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
