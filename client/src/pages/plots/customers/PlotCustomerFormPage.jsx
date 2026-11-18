@@ -10,6 +10,7 @@ import { Input } from '../../../components/ui/Input';
 import { NumberInput } from '../../../components/ui/NumberInput';
 import { Select } from '../../../components/ui/Select';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
+import { GuardianInput } from '../../../components/ui/GuardianInput';
 import { Button } from '../../../components/ui/Button';
 import PageLoader from '../../../components/common/PageLoader';
 
@@ -392,30 +393,14 @@ const PlotCustomerFormPage = () => {
                 onChange={(e) => setFormState({ ...formState, name: e.target.value })}
               />
 
-              <div className="flex flex-col gap-1 w-full">
-                <label className="text-xs font-semibold text-slate-700 tracking-wide">
-                  Relationship & Relative Name
-                </label>
-                <div className="flex rounded-lg border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-600 bg-white transition-all shadow-xs">
-                  <select
-                    value={formState.relationType}
-                    onChange={(e) => setFormState({ ...formState, relationType: e.target.value })}
-                    className="px-2.5 py-2 bg-slate-50 text-xs font-semibold text-slate-700 border-r border-slate-200 outline-none cursor-pointer"
-                  >
-                    <option value="Son of">S/O</option>
-                    <option value="Daughter of">D/O</option>
-                    <option value="Wife of">W/O</option>
-                    <option value="Care of">C/O</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={formState.fatherOrHusbandName}
-                    onChange={(e) => setFormState({ ...formState, fatherOrHusbandName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
-                    placeholder="Father / Husband full name"
-                  />
-                </div>
-              </div>
+              <GuardianInput
+                label="Relationship & Relative Name"
+                relation={formState.relationType}
+                onRelationChange={(rel) => setFormState({ ...formState, relationType: rel })}
+                value={formState.fatherOrHusbandName}
+                onChange={(e) => setFormState({ ...formState, fatherOrHusbandName: e.target.value })}
+                placeholder="Father / Husband full name"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">

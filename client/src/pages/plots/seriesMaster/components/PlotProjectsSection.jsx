@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Select from '../../../../components/ui/Select';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 import { confirmDialog } from '../../../../utils/confirmDialog';
@@ -243,15 +244,15 @@ const PlotProjectsSection = ({
             </div>
             <div>
               <label className={labelCls}>Status (स्थिति)</label>
-              <select
-                className={inputCls}
+              <Select
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
-              >
-                <option value="ACTIVE">Active (सक्रिय)</option>
-                <option value="INACTIVE">Inactive (निष्क्रिय)</option>
-                <option value="COMPLETED">Completed (पूर्ण)</option>
-              </select>
+                options={[
+                  { value: 'ACTIVE', label: 'Active (सक्रिय)' },
+                  { value: 'INACTIVE', label: 'Inactive (निष्क्रिय)' },
+                  { value: 'COMPLETED', label: 'Completed (पूर्ण)' },
+                ]}
+              />
             </div>
             {/* Modern Option Cards */}
             <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">

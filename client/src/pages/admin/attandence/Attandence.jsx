@@ -11,7 +11,7 @@ import MarkAttandence from "./MarkAttandence";
 import MarkAttandenceedit from "./MarkAttandenceedit";
 import CheckPermission from "../../../utils/CheckPermission";
 import { swal } from "../../../utils/confirmDialog";
-import { Search, Filter, FileSpreadsheet, FileText, X, Trash2, Edit2, Clock, User } from "lucide-react";
+import { Search, Filter, FileSpreadsheet, FileText, X, Trash2, Edit2, Clock, User, RotateCcw } from "lucide-react";
 import { TableRowSkeleton } from "../../../components/skeletons";
 import Input from "@/components/ui/Input";
 import DateInput from "@/components/ui/DateInput";
@@ -585,16 +585,6 @@ const AttendanceControls = React.memo(({
               </button>
             )}
           </div>
-
-          {isFiltered && !markattandence && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <X size={13} /> Reset Filters
-            </button>
-          )}
         </div>
 
         {/* Action Buttons: Multi-Delete & Exports */}
@@ -762,6 +752,21 @@ const AttendanceControls = React.memo(({
               ]}
             />
           </div>
+
+          {/* Reset Filters */}
+          {isFiltered && (
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="w-full sm:w-auto h-[32px] inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200 rounded-lg shadow-2xs transition-all cursor-pointer select-none"
+                title="Reset all search and filter fields"
+              >
+                <RotateCcw size={12} className="text-rose-600 shrink-0" />
+                <span>Reset Filters</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

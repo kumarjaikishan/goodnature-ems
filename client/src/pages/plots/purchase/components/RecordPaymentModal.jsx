@@ -2,6 +2,7 @@ import React from 'react';
 import { CreditCard } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { DateInput } from '../../../../components/ui/DateInput';
+import Select from '../../../../components/ui/Select';
 
 const RecordPaymentModal = ({
   open,
@@ -48,17 +49,18 @@ const RecordPaymentModal = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Mode</label>
-              <select
-                className="h-10 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none px-3.5 rounded-xl text-xs font-medium"
+              <Select
+                label="Payment Mode"
+                size="sm"
                 value={paymentForm.paymentMode}
                 onChange={(e) => setPaymentForm({ ...paymentForm, paymentMode: e.target.value })}
-              >
-                <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS)</option>
-                <option value="CHEQUE">Cheque</option>
-                <option value="CASH">Cash</option>
-                <option value="UPI">UPI</option>
-              </select>
+                options={[
+                  { value: 'BANK_TRANSFER', label: 'Bank Transfer (NEFT/RTGS)' },
+                  { value: 'CHEQUE', label: 'Cheque' },
+                  { value: 'CASH', label: 'Cash' },
+                  { value: 'UPI', label: 'UPI' },
+                ]}
+              />
             </div>
 
             <DateInput

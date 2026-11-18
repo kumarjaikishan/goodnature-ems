@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { DateInput } from '../../../../components/ui/DateInput';
+import Select from '../../../../components/ui/Select';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 import {
@@ -642,16 +643,16 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Payment Mode *</label>
-                <select
+                <Select
                   value={partPayMode}
                   onChange={(e) => handlePartPayModeChange(e.target.value)}
-                  className="w-full h-10 px-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none"
-                >
-                  <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS/IMPS)</option>
-                  <option value="CHEQUE">Cheque / Demand Draft</option>
-                  <option value="UPI">UPI / QR Transfer</option>
-                  <option value="CASH">Cash</option>
-                </select>
+                  options={[
+                    { value: 'BANK_TRANSFER', label: 'Bank Transfer (NEFT/RTGS/IMPS)' },
+                    { value: 'CHEQUE', label: 'Cheque / Demand Draft' },
+                    { value: 'UPI', label: 'UPI / QR Transfer' },
+                    { value: 'CASH', label: 'Cash' },
+                  ]}
+                />
               </div>
 
               <div>
@@ -677,22 +678,19 @@ const ProductCustomerLedgerModal = ({ open, onClose, booking: initialBooking, on
                   </span>
                 </div>
               ) : (
-                <select
+                <Select
                   value={partPayLedgerId}
                   onChange={(e) => setPartPayLedgerId(e.target.value)}
-                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"
-                >
-                  {treasuryLedgers.bankLedgers?.length === 0 ? (
-                    <option value="">No authorized company bank accounts found</option>
-                  ) : (
-                    treasuryLedgers.bankLedgers.map((bank) => (
-                      <option key={bank._id} value={bank._id}>
-                        {[bank.bankName, bank.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ')}
-                        {bank.accountNumber ? ` (A/C: ${bank.accountNumber})` : ''} - ₹{(bank.availableBalance ?? bank.netBalance ?? 0).toLocaleString('en-IN')}
-                      </option>
-                    ))
-                  )}
-                </select>
+                  options={
+                    treasuryLedgers.bankLedgers?.length === 0
+                      ? [{ value: '', label: 'No authorized company bank accounts found' }]
+                      : treasuryLedgers.bankLedgers.map((bank) => ({
+                          value: bank._id,
+                          label: `${[bank.bankName, bank.name].filter(Boolean).filter((v, idx, arr) => arr.indexOf(v) === idx).join(' - ')}${bank.accountNumber ? ` (A/C: ${bank.accountNumber})` : ''} - ₹${(bank.availableBalance ?? bank.netBalance ?? 0).toLocaleString('en-IN')}`,
+                        }))
+                  }
+                  placeholder="-- Select Corporate Bank Account --"
+                />
               )}
             </div>
 

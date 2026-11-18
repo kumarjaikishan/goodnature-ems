@@ -107,7 +107,10 @@ export const Select = forwardRef(({
       ? Math.max(10, rect.top - dropdownHeight - 6)
       : Math.min(window.innerHeight - 30, rect.bottom + 6);
 
-    const left = Math.max(10, Math.min(rect.left, window.innerWidth - rect.width - 10));
+    // Keep left aligned to trigger, but clamp so dropdown with max-content doesn't clip offscreen to the right
+    const dropdownWidth = dropdownRef.current ? dropdownRef.current.offsetWidth : rect.width;
+    const maxLeft = Math.max(10, window.innerWidth - dropdownWidth - 16);
+    const left = Math.max(10, Math.min(rect.left, maxLeft));
 
     setCoords({
       top,
@@ -230,8 +233,8 @@ export const Select = forwardRef(({
         `}
         {...props}
       >
-        <span className={`truncate flex-1 pr-2 ${!selectedOption || selectedOption.value === '' ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
-          {selectedOption && selectedOption.value !== '' ? selectedOption.label : placeholder}
+        <span className={`truncate flex-1 pr-2 ${!selectedOption ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
+          {selectedOption ? selectedOption.label : placeholder}
         </span>
 
         <ChevronDown
@@ -249,10 +252,12 @@ export const Select = forwardRef(({
               position: 'fixed',
               top: `${coords.top}px`,
               left: `${coords.left}px`,
-              width: `${coords.width}px`,
+              minWidth: `${coords.width}px`,
+              width: 'max-content',
+              maxWidth: 'calc(100vw - 24px)',
               zIndex: 99999,
             }}
-            className="min-w-[160px] bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 flex flex-col backdrop-blur-sm"
+            className="bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 flex flex-col backdrop-blur-sm"
           >
             {/* Optional inline search if more than 7 options */}
             {normalizedOptions.length > 7 && (
@@ -277,6 +282,7 @@ export const Select = forwardRef(({
               ) : (
                 filteredOptions.map((opt, index) => {
                   const isSelected = selectedOption && String(selectedOption.value) === String(opt.value);
+                  const optionText = opt.label || opt.value || '—';
 
                   return (
                     <button
@@ -284,6 +290,7 @@ export const Select = forwardRef(({
                       type="button"
                       disabled={opt.disabled}
                       onClick={() => handleSelect(opt)}
+                      title={optionText}
                       className={`
                         w-full px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between text-left transition-all duration-150 cursor-pointer group
                         ${opt.disabled ? 'opacity-40 cursor-not-allowed bg-transparent' : ''}
@@ -292,7 +299,7 @@ export const Select = forwardRef(({
                           : 'text-slate-700 hover:bg-teal-50/90 hover:text-teal-900'}
                       `}
                     >
-                      <span className="truncate pr-2">{opt.label || opt.value || '—'}</span>
+                      <span className="whitespace-normal break-words sm:whitespace-nowrap pr-2">{optionText}</span>
                       {isSelected && (
                         <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/20 ml-2 shrink-0">
                           <Check size={12} className="text-white stroke-[2.5]" />

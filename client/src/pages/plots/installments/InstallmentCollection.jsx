@@ -1,4 +1,4 @@
-const resolveSubmissionDateTime = (dateVal) => {
+﻿const resolveSubmissionDateTime = (dateVal) => {
   if (!dateVal) return new Date().toISOString();
   const now = new Date();
   if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
@@ -25,6 +25,7 @@ import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import PageLoader from '../../../components/common/PageLoader';
 import Button from '@/components/ui/Button';
+import Select from '../../../components/ui/Select';
 import { Plus, ArrowLeft, Search } from 'lucide-react';
 import usePermission from '../../../utils/CheckPermission';
 import { getTransactionPermissions, isCashTransaction, isBankTransaction } from '../../../utils/transactionPermission';
@@ -835,54 +836,56 @@ const InstallmentCollection = ({ type, initialView }) => {
           {/* Filter Bar */}
           <div className="bg-white p-3.5 rounded-2xl shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 border border-slate-200">
             <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5 w-full sm:w-48">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Status</label>
-                <select
+                <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-10 px-3 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition min-w-[150px]"
-                >
-                  <option value="ALL">All Statuses ({receipts.length})</option>
-                  <option value="PENDING">
-                    Pending Approval ({receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'PENDING').length})
-                  </option>
-                  <option value="APPROVED">
-                    Approved ({receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'APPROVED').length})
-                  </option>
-                  <option value="REJECTED">
-                    Rejected ({receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'REJECTED').length})
-                  </option>
-                </select>
+                  options={[
+                    { value: 'ALL', label: `All Statuses (${receipts.length})` },
+                    {
+                      value: 'PENDING',
+                      label: `Pending Approval (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'PENDING').length})`,
+                    },
+                    {
+                      value: 'APPROVED',
+                      label: `Approved (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'APPROVED').length})`,
+                    },
+                    {
+                      value: 'REJECTED',
+                      label: `Rejected (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'REJECTED').length})`,
+                    },
+                  ]}
+                />
               </div>
 
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5 w-full sm:w-48">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Payment Type</label>
-                <select
+                <Select
                   value={paymentTypeFilter}
                   onChange={(e) => setPaymentTypeFilter(e.target.value)}
-                  className="h-10 px-3 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition min-w-[160px]"
-                >
-                  <option value="ALL">All Payment Types</option>
-                  <option value="INSTALLMENT">Monthly Installments</option>
-                  <option value="DOWNPAYMENT">Down Payment</option>
-                  <option value="FULL_PAYMENT">Full Payment</option>
-                </select>
+                  options={[
+                    { value: 'ALL', label: 'All Payment Types' },
+                    { value: 'INSTALLMENT', label: 'Monthly Installments' },
+                    { value: 'DOWNPAYMENT', label: 'Down Payment' },
+                    { value: 'FULL_PAYMENT', label: 'Full Payment' },
+                  ]}
+                />
               </div>
 
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5 w-full sm:w-48">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Payment Mode</label>
-                <select
+                <Select
                   value={paymentModeFilter}
                   onChange={(e) => setPaymentModeFilter(e.target.value)}
-                  className="h-10 px-3 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl text-xs font-semibold text-slate-700 cursor-pointer transition min-w-[150px]"
-                >
-                  <option value="ALL">All Payment Modes</option>
-                  <option value="cash">Cash</option>
-                  <option value="upi">UPI / Online</option>
-                  <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
-                  <option value="cheque">Cheque</option>
-
-                </select>
+                  options={[
+                    { value: 'ALL', label: 'All Payment Modes' },
+                    { value: 'cash', label: 'Cash' },
+                    { value: 'upi', label: 'UPI / Online' },
+                    { value: 'bank_transfer', label: 'Bank Transfer / NEFT / RTGS' },
+                    { value: 'cheque', label: 'Cheque' },
+                  ]}
+                />
               </div>
             </div>
 

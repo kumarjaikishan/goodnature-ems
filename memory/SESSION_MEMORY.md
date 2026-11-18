@@ -1,5 +1,17 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+- **Attendance Historical Sync Script Created & Executed [COMPLETED]**:
+  - **Script Location**: `server/scripts/syncAttendanceEmployeeBranches.js`.
+  - **Purpose**: Syncs all past attendance records with their employee's current `branchId`, `empId`, and `companyId`.
+  - **Results**: Successfully updated 1,556 attendance documents across 7 shifted employees so their entire past attendance history matches their current branch (`BHR SHARIF`).
+  - **Safety Features**: Defaults to safe `--dry-run` inspection mode; only writes when `--commit` flag is passed.
+
+- **Manager Branch Scoping in Attendance List & Report [COMPLETED]**:
+  - **Location**: `server/controllers/attandence.js` (`getAttendanceList` and `getAttendanceReport`).
+  - **Issue**: When employees were shifted to another branch assigned to a manager, their previous attendance records were still stamped with their old `branchId`. Because manager scoping previously filtered only by `branchId: { $in: allowedBranches }`, the manager saw 0 records.
+  - **Fix**: Updated manager scoping in `getAttendanceList` and `getAttendanceReport` so that a manager can access attendance records where either `branchId` is in the manager's allowed branches OR `employeeId` currently belongs to an employee assigned to the manager's allowed branches. Now, shifting employees to a branch immediately grants the branch manager visibility over those employees' logs without requiring a historical DB migration.
+
+
 - **Agreement Standardization: Uniform Typography, Line Spacing, and Consistent Point/Sub-point Hierarchy Across All 9 Pages [COMPLETED]**:
   - **Location**: `client/src/pages/plots/printViewers/PlotAgreementEnglish.jsx`, `PlotAgreementViewer.jsx`, `ProductAgreementViewer.jsx`.
   - **Context**: The user requested that Page 1's clean font size, open line spacing, and comfortable rhythm be taken as the baseline standard across the entire 9-page agreement for both plot and product/investment agreements (`/dashboard/plots/product-agreements/:id` & `/dashboard/plots/agreements/:id`).

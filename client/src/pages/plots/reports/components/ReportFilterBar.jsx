@@ -1,5 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { Search } from 'lucide-react';
+import Select from '../../../../components/ui/Select';
 
 const ReportFilterBar = ({
   activeTab,
@@ -29,29 +30,33 @@ const ReportFilterBar = ({
               <Search size={16} />
             </div>
           </div>
-          <div className="flex gap-3">
-            <select
-              value={schemeFilter}
-              onChange={(e) => setSchemeFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition min-w-[140px]"
-            >
-              <option value="">All Schemes</option>
-              <option value="FULL_PAYMENT">One Time</option>
-              <option value="MONTHLY_INSTALLMENT">EMI</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition min-w-[130px]"
-            >
-              <option value="">All Statuses</option>
-              <option value="PENDING">PENDING</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="HOLD">HOLD</option>
-              <option value="COMPLETED">COMPLETED</option>
-              <option value="REJECTED">REJECTED</option>
-              <option value="CANCELLED">CANCELLED</option>
-            </select>
+          <div className="flex flex-wrap sm:flex-nowrap gap-3">
+            <div className="w-full sm:w-40">
+              <Select
+                value={schemeFilter}
+                onChange={(e) => setSchemeFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Schemes' },
+                  { value: 'FULL_PAYMENT', label: 'One Time' },
+                  { value: 'MONTHLY_INSTALLMENT', label: 'EMI' },
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-40">
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  { value: 'PENDING', label: 'PENDING' },
+                  { value: 'ACTIVE', label: 'ACTIVE' },
+                  { value: 'HOLD', label: 'HOLD' },
+                  { value: 'COMPLETED', label: 'COMPLETED' },
+                  { value: 'REJECTED', label: 'REJECTED' },
+                  { value: 'CANCELLED', label: 'CANCELLED' },
+                ]}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -71,25 +76,29 @@ const ReportFilterBar = ({
               <Search size={16} />
             </div>
           </div>
-          <div className="flex gap-3">
-            <select
-              value={schemeFilter}
-              onChange={(e) => setSchemeFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition min-w-[140px]"
-            >
-              <option value="">All Schemes</option>
-              <option value="FULL_PAYMENT">One Time</option>
-              <option value="MONTHLY_INSTALLMENT">EMI</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition min-w-[130px]"
-            >
-              <option value="">All Due Status</option>
-              <option value="DUE">DUE</option>
-              <option value="COMPLETED">COMPLETED</option>
-            </select>
+          <div className="flex flex-wrap sm:flex-nowrap gap-3">
+            <div className="w-full sm:w-40">
+              <Select
+                value={schemeFilter}
+                onChange={(e) => setSchemeFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Schemes' },
+                  { value: 'FULL_PAYMENT', label: 'One Time' },
+                  { value: 'MONTHLY_INSTALLMENT', label: 'EMI' },
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-40">
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Due Status' },
+                  { value: 'DUE', label: 'DUE' },
+                  { value: 'COMPLETED', label: 'COMPLETED' },
+                ]}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -109,16 +118,16 @@ const ReportFilterBar = ({
               <Search size={16} />
             </div>
           </div>
-          <div className="flex gap-3">
-            <select
+          <div className="w-full sm:w-48">
+            <Select
               value={balanceFilter}
               onChange={(e) => setBalanceFilter(e.target.value)}
-              className="h-10 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none px-3.5 rounded-xl font-medium text-xs text-slate-800 transition min-w-[160px]"
-            >
-              <option value="">All Wallet Balances</option>
-              <option value="with_balance">Available Balance &gt; ₹0</option>
-              <option value="zero_balance">Zero Balance (₹0)</option>
-            </select>
+              options={[
+                { value: '', label: 'All Wallet Balances' },
+                { value: 'with_balance', label: 'Available Balance > ₹0' },
+                { value: 'zero_balance', label: 'Zero Balance (₹0)' },
+              ]}
+            />
           </div>
         </div>
       )}

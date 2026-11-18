@@ -1,5 +1,6 @@
-import { Sparkles, Check } from 'lucide-react';
+﻿import { Sparkles, Check } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import Select from '../../../../components/ui/Select';
 
 const CreatePlotModal = ({
   open,
@@ -81,43 +82,44 @@ const CreatePlotModal = ({
       <form onSubmit={handleCreatePlot} className="space-y-4">
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Assign to Series (Optional)</label>
-            <select
-              className={inputCls}
+            <Select
               value={plotForm.seriesId}
               onChange={(e) => handleSeriesChangeInPlotForm(e.target.value)}
-            >
-              <option value="">-- Standalone (No Series) --</option>
-              {seriesList.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.projectName ? `[${s.projectName}] ` : ''}{s.name} ({s.prefix})
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '-- Standalone (No Series) --' },
+                ...seriesList.map((s) => ({
+                  value: s._id,
+                  label: `${s.projectName ? `[${s.projectName}] ` : ''}${s.name} (${s.prefix})`,
+                })),
+              ]}
+              placeholder="-- Standalone (No Series) --"
+            />
           </div>
 
           {/* If standalone, allow selecting project */}
           {!plotForm.seriesId && projects.length > 0 && (
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Project (प्रोजेक्ट)</label>
-              <select
-                className={inputCls}
+              <Select
                 value={plotForm.projectId || ''}
                 onChange={(e) => {
-                  const sel = projects.find((p) => p._id === e.target.value);
+                  const val = e.target.value;
+                  const sel = projects.find((p) => p._id === val);
                   setPlotForm({
                     ...plotForm,
-                    projectId: e.target.value,
+                    projectId: val,
                     projectName: sel ? sel.name : '',
                   });
                 }}
-              >
-                <option value="">-- No Project / General --</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name} {p.code ? `(${p.code})` : ''}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: '-- No Project / General --' },
+                  ...projects.map((p) => ({
+                    value: p._id,
+                    label: `${p.name}${p.code ? ` (${p.code})` : ''}`,
+                  })),
+                ]}
+                placeholder="-- No Project / General --"
+              />
             </div>
           )}
 

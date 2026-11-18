@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
+import Select from '../../../components/ui/Select';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiClient } from '../../../utils/apiClient';
@@ -672,18 +673,20 @@ const BusinessDeveloperNetworkPage = () => {
               <div className="flex items-center gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3">
                 <Filter size={15} className="text-teal-700 shrink-0" />
                 <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Filter Associate:</span>
-                <select
-                  value={selectedAssociateFilter}
-                  onChange={(e) => setSelectedAssociateFilter(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-64"
-                >
-                  <option value="all">All Business Associates ({associates.length})</option>
-                  {associates.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {a.name?.replace(/\s*\([^)]*\)/g, '')} ({a.sponsorCode || 'BA'})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full sm:w-64">
+                  <Select
+                    size="sm"
+                    value={selectedAssociateFilter}
+                    onChange={(e) => setSelectedAssociateFilter(e.target.value)}
+                    options={[
+                      { value: 'all', label: `All Business Associates (${associates.length})` },
+                      ...associates.map((a) => ({
+                        value: a._id,
+                        label: `${a.name?.replace(/\s*\([^)]*\)/g, '')} (${a.sponsorCode || 'BA'})`,
+                      })),
+                    ]}
+                  />
+                </div>
               </div>
             )}
           </div>

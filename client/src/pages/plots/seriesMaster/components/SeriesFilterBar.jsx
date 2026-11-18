@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import Select from '../../../../components/ui/Select';
 
 const SeriesFilterBar = ({
   filterProject = '',
@@ -30,64 +31,69 @@ const SeriesFilterBar = ({
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
         {/* Project Filter */}
         {projects.length > 0 && (
-          <select
-            value={filterProject}
-            onChange={(e) => {
-              if (setFilterProject) setFilterProject(e.target.value);
-              if (setInventoryPage) setInventoryPage(1);
-            }}
-            className={`${inputCls} w-full sm:w-44`}
-          >
-            <option value="">All Projects</option>
-            {projects.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name} {p.code ? `(${p.code})` : ''}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-48">
+            <Select
+              size="sm"
+              value={filterProject}
+              onChange={(e) => {
+                if (setFilterProject) setFilterProject(e.target.value);
+                if (setInventoryPage) setInventoryPage(1);
+              }}
+              options={[
+                { value: '', label: 'All Projects' },
+                ...projects.map((p) => ({
+                  value: p._id,
+                  label: `${p.name} ${p.code ? `(${p.code})` : ''}`.trim(),
+                })),
+              ]}
+            />
+          </div>
         )}
 
         {/* Series Filter */}
-        <select
-          value={filterSeries}
-          onChange={(e) => {
-            setFilterSeries(e.target.value);
-            if (setInventoryPage) setInventoryPage(1);
-          }}
-          className={`${inputCls} w-full sm:w-52`}
-        >
-          <option value="">All Series Blocks ({plots.length} plots)</option>
-          {seriesList.map((s) => {
-            const count = plots.filter((p) => (p.seriesId?._id || p.seriesId) === s._id).length;
-            return (
-              <option key={s._id} value={s._id}>
-                {s.name} ({s.prefix}) — {count} plots
-              </option>
-            );
-          })}
-          {plots.some((p) => !p.seriesId) && (
-            <option value="standalone">
-              Standalone Plots ({plots.filter((p) => !p.seriesId).length})
-            </option>
-          )}
-        </select>
+        <div className="w-full sm:w-56">
+          <Select
+            size="sm"
+            value={filterSeries}
+            onChange={(e) => {
+              setFilterSeries(e.target.value);
+              if (setInventoryPage) setInventoryPage(1);
+            }}
+            options={[
+              { value: '', label: `All Series Blocks (${plots.length} plots)` },
+              ...seriesList.map((s) => {
+                const count = plots.filter((p) => (p.seriesId?._id || p.seriesId) === s._id).length;
+                return {
+                  value: s._id,
+                  label: `${s.name} (${s.prefix}) — ${count} plots`,
+                };
+              }),
+              ...(plots.some((p) => !p.seriesId)
+                ? [{ value: 'standalone', label: `Standalone Plots (${plots.filter((p) => !p.seriesId).length})` }]
+                : []),
+            ]}
+          />
+        </div>
 
         {/* Status Filter */}
-        <select
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            if (setInventoryPage) setInventoryPage(1);
-          }}
-          className={`${inputCls} w-full sm:w-44`}
-        >
-          <option value="">All Statuses</option>
-          <option value="AVAILABLE">Available</option>
-          <option value="HOLD">Hold</option>
-          <option value="BOOKED">Booked</option>
-          <option value="REGISTERED">Registered</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
+        <div className="w-full sm:w-44">
+          <Select
+            size="sm"
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              if (setInventoryPage) setInventoryPage(1);
+            }}
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'AVAILABLE', label: 'Available' },
+              { value: 'HOLD', label: 'Hold' },
+              { value: 'BOOKED', label: 'Booked' },
+              { value: 'REGISTERED', label: 'Registered' },
+              { value: 'CANCELLED', label: 'Cancelled' },
+            ]}
+          />
+        </div>
 
         {hasActiveFilters && (
           <button

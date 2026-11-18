@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -22,6 +22,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import Select from '../../../../components/ui/Select';
 import { DateInput } from '../../../../components/ui/DateInput';
 import { toast } from '../../../../utils/toast';
 import { confirmDialog } from '../../../../utils/confirmDialog';
@@ -199,16 +200,19 @@ const ProductSalesTab = ({
             />
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none shrink-0"
-          >
-            <option value="">All Status</option>
-            <option value="ACTIVE">Active</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
+          <div className="w-36 shrink-0">
+            <Select
+              size="sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Status' },
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'CANCELLED', label: 'Cancelled' },
+              ]}
+            />
+          </div>
         </div>
 
         <button
@@ -460,19 +464,19 @@ const ProductSalesTab = ({
               <label className="block font-bold text-slate-700 mb-1">
                 Select Customer <span className="text-rose-500">*</span>
               </label>
-              <select
+              <Select
                 value={form.customerId}
                 onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                options={[
+                  { value: '', label: '-- Choose Verified Customer --' },
+                  ...customers.map((c) => ({
+                    value: c._id,
+                    label: `${c.name} (${c.customerCode || c.customerId || 'ID'})${c.sponsorId?.name ? ` • Sponsoring BA: ${c.sponsorId.name}` : ''}`,
+                  })),
+                ]}
+                placeholder="-- Choose Verified Customer --"
                 required
-              >
-                <option value="">-- Choose Verified Customer --</option>
-                {customers.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name} ({c.customerCode || c.customerId || 'ID'}) {c.sponsorId?.name ? `• Sponsoring BA: ${c.sponsorId.name}` : ''}
-                  </option>
-                ))}
-              </select>
+              />
 
               {selectedCustomer && (
                 <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-[11px] text-slate-700">
@@ -489,7 +493,7 @@ const ProductSalesTab = ({
               <label className="block font-bold text-slate-700 mb-1">
                 Select Plot Product <span className="text-rose-500">*</span>
               </label>
-              <select
+              <Select
                 value={form.productId}
                 onChange={(e) => {
                   const prdId = e.target.value;
@@ -500,16 +504,16 @@ const ProductSalesTab = ({
                     customUnitPrice: prd?.unitPrice || '',
                   });
                 }}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
+                options={[
+                  { value: '', label: '-- Choose Product --' },
+                  ...products.map((p) => ({
+                    value: p._id,
+                    label: `${p.productName} (${p.productCode}) — ${p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} • ₹${Number(p.unitPrice || 0).toLocaleString('en-IN')}${p.projectName ? ` [Project: ${p.projectName}]` : ''}`,
+                  })),
+                ]}
+                placeholder="-- Choose Product --"
                 required
-              >
-                <option value="">-- Choose Product --</option>
-                {products.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}{p.projectName ? ` [Project: ${p.projectName}]` : ''}
-                  </option>
-                ))}
-              </select>
+              />
 
               {selectedProduct && (
                 <div className="mt-2 p-2.5 bg-teal-50/50 rounded-xl border border-teal-200/60 flex items-center justify-between text-[11px] text-teal-900">
@@ -589,7 +593,7 @@ const ProductSalesTab = ({
                 <label className="block font-bold text-slate-700 mb-1">
                   Payment Plan <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   value={form.paymentType}
                   onChange={(e) => {
                     const newType = e.target.value;
@@ -598,11 +602,11 @@ const ProductSalesTab = ({
                       paymentType: newType,
                     });
                   }}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-semibold text-slate-800"
-                >
-                  <option value="MONTHLY_INSTALLMENT">Monthly EMI Installments</option>
-                  <option value="FULL_PAYMENT">One-Time Full Payment (100% Upfront)</option>
-                </select>
+                  options={[
+                    { value: 'MONTHLY_INSTALLMENT', label: 'Monthly EMI Installments' },
+                    { value: 'FULL_PAYMENT', label: 'One-Time Full Payment (100% Upfront)' },
+                  ]}
+                />
               </div>
 
               <div>
@@ -610,20 +614,17 @@ const ProductSalesTab = ({
                   {form.paymentType === 'FULL_PAYMENT' ? 'Deposit & Holding Period' : 'Selected Period (Tenure Months)'}{' '}
                   <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   value={form.tenureMonths}
                   onChange={(e) => setForm({ ...form, tenureMonths: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-teal-900"
-                >
-                  {tenures.map((t) => {
+                  options={tenures.map((t) => {
                     const years = t.tenureMonths >= 12 ? ` (${+(t.tenureMonths / 12).toFixed(1)} ${t.tenureMonths === 12 ? 'Year' : 'Years'})` : '';
-                    return (
-                      <option key={t.tenureMonths} value={t.tenureMonths}>
-                        {t.tenureMonths} Months{years}
-                      </option>
-                    );
+                    return {
+                      value: t.tenureMonths,
+                      label: `${t.tenureMonths} Months${years}`,
+                    };
                   })}
-                </select>
+                />
                 {form.paymentType === 'FULL_PAYMENT' && (
                   <p className="text-[10px] text-slate-500 mt-1">
                     Recorded deposit holding duration for product delivery or money-back refund on completion.
@@ -665,16 +666,17 @@ const ProductSalesTab = ({
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1 text-[11px]">Payment Mode</label>
-                    <select
+                    <Select
+                      size="sm"
                       value={form.paymentMode || 'cash'}
                       onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-teal-600 outline-none"
-                    >
-                      <option value="cash">Cash</option>
-                      <option value="bank_transfer">Bank Transfer / NEFT / IMPS</option>
-                      <option value="cheque">Cheque</option>
-                      <option value="upi">UPI / QR Code</option>
-                    </select>
+                      options={[
+                        { value: 'cash', label: 'Cash' },
+                        { value: 'bank_transfer', label: 'Bank Transfer / NEFT / IMPS' },
+                        { value: 'cheque', label: 'Cheque' },
+                        { value: 'upi', label: 'UPI / QR Code' },
+                      ]}
+                    />
                   </div>
 
                   {form.paymentMode !== 'cash' && (

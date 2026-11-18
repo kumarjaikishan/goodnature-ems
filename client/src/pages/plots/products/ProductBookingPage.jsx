@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import PageLoader from '../../../components/common/PageLoader';
 import { DateInput } from '../../../components/ui/DateInput';
+import Select from '../../../components/ui/Select';
 import { LandAcquisitionSourcingSection } from '../booking/components/LandAcquisitionSourcingSection';
 
 const ProductBookingPage = () => {
@@ -926,7 +927,7 @@ const ProductBookingPage = () => {
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Project Name <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   value={form.projectId || ''}
                   onChange={(e) => {
                     const selProjId = e.target.value;
@@ -950,16 +951,16 @@ const ProductBookingPage = () => {
                       updateQuantityAndSyncArea(form.quantity || 1, matchingPrd);
                     }
                   }}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 text-xs"
+                  options={[
+                    { value: '', label: '-- Choose Project * --' },
+                    ...projects.map((proj) => ({
+                      value: proj._id,
+                      label: `${proj.name} (${proj.code})${proj.location ? ` - ${proj.location}` : ''}`,
+                    })),
+                  ]}
+                  placeholder="-- Choose Project * --"
                   required
-                >
-                  <option value="">-- Choose Project * --</option>
-                  {projects.map((proj) => (
-                    <option key={proj._id} value={proj._id}>
-                      {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               {/* Product Selection */}
@@ -967,7 +968,7 @@ const ProductBookingPage = () => {
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Select Plot Product <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   value={form.productId}
                   onChange={(e) => {
                     const prdId = e.target.value;
@@ -994,27 +995,27 @@ const ProductBookingPage = () => {
                       }
                     }
                   }}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 text-xs"
+                  options={[
+                    {
+                      value: '',
+                      label: form.projectId
+                        ? '-- Choose Plot Product for this Project --'
+                        : '-- Please Select a Project First --',
+                    },
+                    ...products
+                      .filter((p) => {
+                        if (!form.projectId) return true;
+                        const pProjId = p.projectId?._id || p.projectId;
+                        return pProjId === form.projectId || p._id === form.productId;
+                      })
+                      .map((p) => ({
+                        value: p._id,
+                        label: `${p.productName} (${p.productCode}) — ${p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} (${p.areaSqFt} Sq.Ft) • ₹${Number(p.unitPrice || 0).toLocaleString('en-IN')}${p.projectName ? ` [Project: ${p.projectName}]` : ''}`,
+                      })),
+                  ]}
+                  placeholder={form.projectId ? '-- Choose Plot Product --' : '-- Select Project First --'}
                   required
-                >
-                  <option value="">
-                    {form.projectId
-                      ? '-- Choose Plot Product for this Project --'
-                      : '-- Please Select a Project First --'}
-                  </option>
-                  {products
-                    .filter((p) => {
-                      if (!form.projectId) return true;
-                      const pProjId = p.projectId?._id || p.projectId;
-                      return pProjId === form.projectId || p._id === form.productId;
-                    })
-                    .map((p) => (
-                      <option key={p._id} value={p._id}>
-                        {p.productName} ({p.productCode}) — {p.dimensionLabel || `${p.dimensions?.north}x${p.dimensions?.east} ft`} ({p.areaSqFt} Sq.Ft) • ₹{Number(p.unitPrice || 0).toLocaleString('en-IN')}
-                        {p.projectName ? ` [Project: ${p.projectName}]` : ''}
-                      </option>
-                    ))}
-                </select>
+                />
 
                 {selectedProduct && (
                   <div className="mt-2.5 p-3 bg-teal-50/60 rounded-xl border border-teal-200/70 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-teal-950">
@@ -1297,35 +1298,32 @@ const ProductBookingPage = () => {
                   )}
                 </div>
 
-                <select
+                <Select
                   value={form.selectedPlanKey || getPlanKey(currentPlan) || ''}
                   onChange={(e) => handleSelectPlan(e.target.value)}
-                  className="w-full h-11 px-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800 cursor-pointer shadow-2xs"
-                >
-                  <option value="">-- Select Plan (Custom / Manual) --</option>
-                  {tenures.length > 0 ? (
-                    tenures.map((t, idx) => {
-                      const isRegistry = Number(t.rdMaturityPercent) === 0 && Number(t.fdMaturityPercent) === 0;
-                      const planTag = t.planName ? `${t.planName} — ` : '';
-                      const retPct = isFullPayment ? (t.fdMaturityPercent || 0) : (t.rdMaturityPercent || 0);
-                      const suffix = isRegistry
-                        ? ` • Actual Plot Sale (0% Return / Registry)`
-                        : ` • Return: ${retPct}%`;
-                      const pKey = getPlanKey(t);
-                      return (
-                        <option key={pKey || idx} value={pKey}>
-                          {planTag}{t.tenureMonths} Months ({+(t.tenureMonths / 12).toFixed(1)} Yrs){suffix}
-                        </option>
-                      );
-                    })
-                  ) : (
-                    [12, 24, 36, 48, 60].map((m) => (
-                      <option key={m} value={String(m)}>
-                        {m} Months ({m / 12} Years)
-                      </option>
-                    ))
-                  )}
-                </select>
+                  options={[
+                    { value: '', label: '-- Select Plan (Custom / Manual) --' },
+                    ...(tenures.length > 0
+                      ? tenures.map((t, idx) => {
+                          const isRegistry = Number(t.rdMaturityPercent) === 0 && Number(t.fdMaturityPercent) === 0;
+                          const planTag = t.planName ? `${t.planName} — ` : '';
+                          const retPct = isFullPayment ? (t.fdMaturityPercent || 0) : (t.rdMaturityPercent || 0);
+                          const suffix = isRegistry
+                            ? ` • Actual Plot Sale (0% Return / Registry)`
+                            : ` • Return: ${retPct}%`;
+                          const pKey = getPlanKey(t);
+                          return {
+                            value: pKey,
+                            label: `${planTag}${t.tenureMonths} Months (${+(t.tenureMonths / 12).toFixed(1)} Yrs)${suffix}`,
+                          };
+                        })
+                      : [12, 24, 36, 48, 60].map((m) => ({
+                          value: String(m),
+                          label: `${m} Months (${m / 12} Years)`,
+                        }))),
+                  ]}
+                  placeholder="-- Select Plan (Custom / Manual) --"
+                />
 
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {isFullPayment
@@ -1442,16 +1440,16 @@ const ProductBookingPage = () => {
                             <label className="text-xs font-bold text-slate-700">EMI Frequency *</label>
                             <span className="text-[10px] text-slate-400 font-semibold">Periodicity</span>
                           </div>
-                          <select
+                          <Select
                             value={form.emiFrequency}
                             onChange={(e) => handleEmiFrequencyChange(e.target.value)}
-                            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 font-medium focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none shadow-2xs cursor-pointer"
-                          >
-                            <option value="MONTHLY">Monthly (Every 1 Month)</option>
-                            <option value="QUARTERLY">Quarterly (Every 3 Months)</option>
-                            <option value="HALF_YEARLY">Half-Yearly (Every 6 Months)</option>
-                            <option value="YEARLY">Yearly (Every 12 Months)</option>
-                          </select>
+                            options={[
+                              { value: 'MONTHLY', label: 'Monthly (Every 1 Month)' },
+                              { value: 'QUARTERLY', label: 'Quarterly (Every 3 Months)' },
+                              { value: 'HALF_YEARLY', label: 'Half-Yearly (Every 6 Months)' },
+                              { value: 'YEARLY', label: 'Yearly (Every 12 Months)' },
+                            ]}
+                          />
                           <span className="text-[11px] text-slate-500 font-medium truncate">
                             Installments due {form.emiFrequency === 'MONTHLY' ? 'every month' : form.emiFrequency === 'QUARTERLY' ? 'every 3 months' : form.emiFrequency === 'HALF_YEARLY' ? 'every 6 months' : 'every 12 months'}
                           </span>
@@ -1558,16 +1556,16 @@ const ProductBookingPage = () => {
                   <label className="block font-bold text-slate-700 mb-1 text-xs">
                     Booking Status <span className="text-rose-500">*</span>
                   </label>
-                  <select
+                  <Select
                     value={form.status || 'ACTIVE'}
                     onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-teal-900 focus:ring-2 focus:ring-teal-600 outline-none cursor-pointer"
+                    options={[
+                      { value: 'ACTIVE', label: 'ACTIVE (Ongoing Installments / Regular)' },
+                      { value: 'COMPLETED', label: 'COMPLETED (Fully Paid & Closed)' },
+                      { value: 'CANCELLED', label: 'CANCELLED (Void / Cancelled)' },
+                    ]}
                     required
-                  >
-                    <option value="ACTIVE">ACTIVE (Ongoing Installments / Regular)</option>
-                    <option value="COMPLETED">COMPLETED (Fully Paid &amp; Closed)</option>
-                    <option value="CANCELLED">CANCELLED (Void / Cancelled)</option>
-                  </select>
+                  />
                 </div>
               )}
 

@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import Select from '../../../../components/ui/Select';
 
 const CreateSeriesModal = ({
   open,
@@ -65,25 +66,26 @@ const CreateSeriesModal = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1 col-span-2">
               <label className={labelCls}>Project (प्रोजेक्ट)</label>
-              <select
-                className={inputCls}
+              <Select
                 value={form.projectId || ''}
                 onChange={(e) => {
-                  const sel = projects.find((p) => p._id === e.target.value);
+                  const val = e.target.value;
+                  const sel = projects.find((p) => p._id === val);
                   setForm({
                     ...form,
-                    projectId: e.target.value,
+                    projectId: val,
                     projectName: sel ? sel.name : '',
                   });
                 }}
-              >
-                <option value="">-- No Project / General --</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name} {p.code ? `(${p.code})` : ''}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: '-- No Project / General --' },
+                  ...projects.map((p) => ({
+                    value: p._id,
+                    label: `${p.name}${p.code ? ` (${p.code})` : ''}`,
+                  })),
+                ]}
+                placeholder="-- No Project / General --"
+              />
             </div>
 
             <div className="flex flex-col gap-1 col-span-2">
@@ -108,15 +110,15 @@ const CreateSeriesModal = ({
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Number Format</label>
-              <select
-                className={inputCls}
+              <Select
                 value={form.numberFormat}
                 onChange={(e) => setForm({ ...form, numberFormat: e.target.value })}
-              >
-                <option value="A0">A1, A2...</option>
-                <option value="A00">A01, A02...</option>
-                <option value="A000">A001, A002...</option>
-              </select>
+                options={[
+                  { value: 'A0', label: 'A1, A2...' },
+                  { value: 'A00', label: 'A01, A02...' },
+                  { value: 'A000', label: 'A001, A002...' },
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelCls}>Start Number</label>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiClient } from '../../../utils/apiClient';
@@ -9,6 +9,7 @@ import { Button } from '../../../components/ui/Button';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
 import { DateInput } from '../../../components/ui/DateInput';
 import { GuardianInput } from '../../../components/ui/GuardianInput';
+import Select from '../../../components/ui/Select';
 import {
   Pencil,
   Edit2,
@@ -739,48 +740,49 @@ const PlotBusinessDevelopers = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3">
           {/* Role / Hierarchy Filter */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 w-full sm:w-60">
             <Crown size={15} className="text-amber-600 shrink-0" />
-            <select
-              value={selectedRoleFilter}
-              onChange={(e) => setSelectedRoleFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-auto"
-            >
-              {canReadPartner && canReadAssociate && (
-                <>
-                  <option value="all">All Roles (Branch, BP & BA)</option>
-                  <option value="branch_partner">🏢 Branch Partners</option>
-                  <option value="partner">👑 Business Partners (P/)</option>
-                  <option value="associate">👥 Business Associates (A/)</option>
-                </>
-              )}
-              {canReadPartner && !canReadAssociate && (
-                <>
-                  <option value="partner">👑 Business Partners (P/)</option>
-                  <option value="branch_partner">🏢 Branch Partners</option>
-                </>
-              )}
-              {!canReadPartner && canReadAssociate && (
-                <option value="associate">👥 Business Associates (A/)</option>
-              )}
-            </select>
+            <div className="flex-1">
+              <Select
+                size="sm"
+                value={selectedRoleFilter}
+                onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                options={
+                  canReadPartner && canReadAssociate
+                    ? [
+                        { value: 'all', label: 'All Roles (Branch, BP & BA)' },
+                        { value: 'branch_partner', label: '🏢 Branch Partners' },
+                        { value: 'partner', label: '👑 Business Partners (P/)' },
+                        { value: 'associate', label: '👥 Business Associates (A/)' },
+                      ]
+                    : canReadPartner && !canReadAssociate
+                    ? [
+                        { value: 'partner', label: '👑 Business Partners (P/)' },
+                        { value: 'branch_partner', label: '🏢 Branch Partners' },
+                      ]
+                    : [{ value: 'associate', label: '👥 Business Associates (A/)' }]
+                }
+              />
+            </div>
           </div>
 
           {/* Branch Filter */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 w-full sm:w-56">
             <Building2 size={16} className="text-teal-700 shrink-0" />
-            <select
-              value={selectedBranchFilter}
-              onChange={(e) => setSelectedBranchFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-auto"
-            >
-              <option value="all">All Available Branches</option>
-              {availableBranches.map((b) => (
-                <option key={b._id} value={b._id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex-1">
+              <Select
+                size="sm"
+                value={selectedBranchFilter}
+                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: 'All Available Branches' },
+                  ...availableBranches.map((b) => ({
+                    value: b._id,
+                    label: b.name,
+                  })),
+                ]}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1032,15 +1034,15 @@ const PlotBusinessDevelopers = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Gender</label>
-                  <select
+                  <Select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none bg-white font-medium text-slate-800"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
+                    options={[
+                      { value: 'Male', label: 'Male' },
+                      { value: 'Female', label: 'Female' },
+                      { value: 'Other', label: 'Other' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Occupation</label>

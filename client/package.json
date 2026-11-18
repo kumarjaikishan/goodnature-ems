@@ -7,7 +7,7 @@
     "dev": "vite",
     "jai": "vite",
     "build": "vite build",
-    "lint": "oxlint",
+    "lint": "oxlint -D no-undef --ignore-path .gitignore src",
     "preview": "vite preview"
   },
   "dependencies": {

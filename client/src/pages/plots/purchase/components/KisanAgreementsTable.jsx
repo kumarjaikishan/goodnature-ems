@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import usePermission from '../../../../utils/CheckPermission';
+import Select from '../../../../components/ui/Select';
 import {
   Search,
   RefreshCw,
@@ -70,36 +71,41 @@ const KisanAgreementsTable = ({
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Project Filter */}
-          <select
-            value={projectFilter}
-            onChange={(e) => {
-              if (setProjectFilter) setProjectFilter(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none cursor-pointer max-w-[200px]"
-          >
-            <option value="ALL">All Projects</option>
-            {projects.map((proj) => (
-              <option key={proj._id} value={proj._id}>
-                {proj.name}
-              </option>
-            ))}
-          </select>
+          <div className="w-[180px]">
+            <Select
+              size="sm"
+              value={projectFilter}
+              onChange={(e) => {
+                if (setProjectFilter) setProjectFilter(e.target.value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'ALL', label: 'All Projects' },
+                ...projects.map((proj) => ({
+                  value: proj._id,
+                  label: proj.name,
+                })),
+              ]}
+            />
+          </div>
 
           {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none cursor-pointer"
-          >
-            <option value="ALL">All Status</option>
-            <option value="ACTIVE">Active / Pending Registry</option>
-            <option value="PARTIALLY_REGISTERED">Partially Registered</option>
-            <option value="FULLY_REGISTERED">Fully Registered</option>
-          </select>
+          <div className="w-[180px]">
+            <Select
+              size="sm"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              options={[
+                { value: 'ALL', label: 'All Status' },
+                { value: 'ACTIVE', label: 'Active / Pending Registry' },
+                { value: 'PARTIALLY_REGISTERED', label: 'Partially Registered' },
+                { value: 'FULLY_REGISTERED', label: 'Fully Registered' },
+              ]}
+            />
+          </div>
 
           <button
             onClick={() => {

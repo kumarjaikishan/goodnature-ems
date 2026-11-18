@@ -1,5 +1,6 @@
-import { Eye, EyeOff } from 'lucide-react';
+﻿import { Eye, EyeOff } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import Select from '../../../../components/ui/Select';
 
 const EditSeriesModal = ({
   open,
@@ -65,25 +66,26 @@ const EditSeriesModal = ({
       <form onSubmit={handleUpdateSeries} className="space-y-4">
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Project (प्रोजेक्ट)</label>
-            <select
-              className={inputCls}
+            <Select
               value={editForm.projectId || ''}
               onChange={(e) => {
-                const sel = projects.find((p) => p._id === e.target.value);
+                const val = e.target.value;
+                const sel = projects.find((p) => p._id === val);
                 setEditForm({
                   ...editForm,
-                  projectId: e.target.value,
+                  projectId: val,
                   projectName: sel ? sel.name : '',
                 });
               }}
-            >
-              <option value="">-- No Project / General --</option>
-              {projects.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name} {p.code ? `(${p.code})` : ''}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '-- No Project / General --' },
+                ...projects.map((p) => ({
+                  value: p._id,
+                  label: `${p.name}${p.code ? ` (${p.code})` : ''}`,
+                })),
+              ]}
+              placeholder="-- No Project / General --"
+            />
           </div>
 
           <div className="flex flex-col gap-1">

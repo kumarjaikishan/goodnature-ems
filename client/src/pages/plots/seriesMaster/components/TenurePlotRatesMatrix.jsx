@@ -1,4 +1,5 @@
 import { SlidersHorizontal, Sparkles, Clock, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import Select from '../../../../components/ui/Select';
 
 const TenurePlotRatesMatrix = ({
   rateConfig,
@@ -139,8 +140,7 @@ const TenurePlotRatesMatrix = ({
               <div className="grid grid-cols-2 gap-2">
                 <div className="min-w-0">
                   <label className={labelCls}>Basis / Period</label>
-                  <select
-                    className="h-10 w-full min-w-0 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none px-2 rounded-xl font-semibold text-xs text-slate-800 transition"
+                  <Select
                     value={rateConfig.lateFineFrequency || 'YEARLY'}
                     onChange={(e) => {
                       const freq = e.target.value;
@@ -154,11 +154,13 @@ const TenurePlotRatesMatrix = ({
                         lateFineDailyPercent: daily,
                       });
                     }}
-                  >
-                    <option value="YEARLY">Yearly (% P.A.)</option>
-                    <option value="MONTHLY">Monthly (%/Mo)</option>
-                    <option value="DAILY">Daily (%/Day)</option>
-                  </select>
+                    size="sm"
+                    options={[
+                      { value: 'YEARLY', label: 'Yearly (% P.A.)' },
+                      { value: 'MONTHLY', label: 'Monthly (%/Mo)' },
+                      { value: 'DAILY', label: 'Daily (%/Day)' },
+                    ]}
+                  />
                 </div>
                 <div className="min-w-0">
                   <label className={labelCls}>Rate %</label>

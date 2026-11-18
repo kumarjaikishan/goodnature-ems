@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { apiClient } from "../../utils/apiClient";
 import Loader from "../../utils/loader";
@@ -24,6 +24,7 @@ import { usePermission } from "../../utils/CheckPermission";
 
 const VoucherList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const themes = useCustomStyles();
 
   const profile = useSelector((state) => state.user?.profile);
@@ -40,8 +41,20 @@ const VoucherList = () => {
   const canUpdateLedger = usePermission('ledger', 3);  // edit custom ledger
   const canDeleteLedger = usePermission('ledger', 4);  // delete custom ledger
 
-  // Tab State: "vouchers" or "ledgers"
-  const [activeTab, setActiveTab] = useState("vouchers");
+  // Tab State: "vouchers" or "ledgers" synced with ?tab= query parameter
+  const tabFromUrl = searchParams.get('tab');
+  const activeTab = tabFromUrl === 'ledgers' ? 'ledgers' : 'vouchers';
+
+  const handleTabChange = (newTab) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (newTab === 'ledgers') {
+      nextParams.set('tab', 'ledgers');
+    } else {
+      nextParams.delete('tab');
+    }
+    setSearchParams(nextParams, { replace: true });
+    setSearchText('');
+  };
 
   // Voucher Status Filter Tab
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "PENDING" | "APPROVED" | "PARTIALLY_PAID" | "PAID" | "REJECTED"
@@ -998,10 +1011,7 @@ const VoucherList = () => {
                 ? "border-teal-700 text-teal-800"
                 : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
-              onClick={() => {
-                setActiveTab("vouchers");
-                setSearchText("");
-              }}
+              onClick={() => handleTabChange("vouchers")}
             >
               Vouchers List
             </button>
@@ -1010,10 +1020,7 @@ const VoucherList = () => {
                 ? "border-teal-700 text-teal-800"
                 : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
-              onClick={() => {
-                setActiveTab("ledgers");
-                setSearchText("");
-              }}
+              onClick={() => handleTabChange("ledgers")}
             >
               Manage Custom Ledgers
             </button>

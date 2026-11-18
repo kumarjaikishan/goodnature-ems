@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Search, Layers, Box, CheckCircle2, ShieldCheck, Ruler, DollarSign, Package } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
+import Select from '../../../../components/ui/Select';
 import { toast } from '../../../../utils/toast';
 import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
@@ -331,7 +332,7 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
               <label className="block font-bold text-slate-700 mb-1">
                 Project Name <span className="text-rose-500">*</span>
               </label>
-              <select
+              <Select
                 value={form.projectId}
                 onChange={(e) => {
                   const selProjId = e.target.value;
@@ -342,16 +343,16 @@ const ProductCatalogTab = ({ products, projects = [], loading, onRefresh }) => {
                     projectName: selProj?.name || '',
                   });
                 }}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none font-bold text-slate-800"
+                options={[
+                  { value: '', label: '-- Choose Project * --' },
+                  ...projects.map((proj) => ({
+                    value: proj._id,
+                    label: `${proj.name} (${proj.code})${proj.location ? ` - ${proj.location}` : ''}`,
+                  })),
+                ]}
+                placeholder="-- Choose Project * --"
                 required
-              >
-                <option value="">-- Choose Project * --</option>
-                {projects.map((proj) => (
-                  <option key={proj._id} value={proj._id}>
-                    {proj.name} ({proj.code}){proj.location ? ` - ${proj.location}` : ''}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

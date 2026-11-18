@@ -5,6 +5,7 @@ import api from '@/api/axios';
 import Button from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DateInput } from '@/components/ui/DateInput';
+import Select from '@/components/ui/Select';
 import numberToWords from '@/utils/numToWord';
 import { Banknote, CheckCircle, Clock, AlertTriangle, ArrowRight, Building2, Wallet } from 'lucide-react';
 
@@ -636,8 +637,7 @@ const ReceivePaymentForm = ({
 
                 <div className="flex flex-col gap-1">
                   <label className={labelCls}>Payment Mode</label>
-                  <select
-                    className={`${inputCls} ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : ''}`}
+                  <Select
                     value={form.paymentMode}
                     disabled={!isBankReceiptAllowed}
                     onChange={(e) => {
@@ -656,17 +656,17 @@ const ReceivePaymentForm = ({
                         ifscCode: prev.ifscCode || cust?.ifscCode || '',
                       }));
                     }}
-                  >
-                    <option value="cash">Cash</option>
-                    {isBankReceiptAllowed && (
-                      <>
-                        <option value="upi">UPI / Online</option>
-                        <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
-                        <option value="cheque">Cheque</option>
-
-                      </>
-                    )}
-                  </select>
+                    options={[
+                      { value: 'cash', label: 'Cash' },
+                      ...(isBankReceiptAllowed
+                        ? [
+                            { value: 'upi', label: 'UPI / Online' },
+                            { value: 'bank_transfer', label: 'Bank Transfer / NEFT / RTGS' },
+                            { value: 'cheque', label: 'Cheque' },
+                          ]
+                        : []),
+                    ]}
+                  />
                   {!isBankReceiptAllowed && (
                     <span className="text-[10px] text-amber-700 font-semibold mt-0.5">
                       Corporate bank receipts restricted for this account (Cash collections only)
@@ -679,29 +679,26 @@ const ReceivePaymentForm = ({
                     {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'}
                     <span className="text-red-500 font-bold">*</span>
                   </label>
-                  <select
-                    className={`${inputCls} ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'cursor-pointer'}`}
+                  <Select
                     value={form.ledgerId || ''}
                     disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
                     onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
-                  >
-                    {String(form.paymentMode).toLowerCase() === 'cash' ? (
-                      <option value={myCashLedger?._id || ''}>
-                        {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
-                      </option>
-                    ) : (
-                      <>
-                        {bankAccounts.map((b) => (
-                          <option key={b._id} value={b._id}>
-                            {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
-                          </option>
-                        ))}
-                        {bankAccounts.length === 0 && (
-                          <option value="" disabled>No authorized bank account available</option>
-                        )}
-                      </>
-                    )}
-                  </select>
+                    options={
+                      String(form.paymentMode).toLowerCase() === 'cash'
+                        ? [
+                            {
+                              value: myCashLedger?._id || '',
+                              label: myCashLedger?.name || 'My Cash Account (Personal Custody)',
+                            },
+                          ]
+                        : bankAccounts.length === 0
+                        ? [{ value: '', label: 'No authorized bank account available' }]
+                        : bankAccounts.map((b) => ({
+                            value: b._id,
+                            label: `${b.bankName || b.name} ${b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}`.trim(),
+                          }))
+                    }
+                  />
                 </div>
 
                 <DateInput

@@ -5,6 +5,7 @@ import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
 import DataTable from '@/components/common/DataTable';
 import PageLoader from '../../../components/common/PageLoader';
+import Select from '../../../components/ui/Select';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 import {
   Building2,
@@ -314,18 +315,20 @@ const BusinessDeveloperBookingsPage = () => {
             {associates.length > 0 && (
               <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Associate:</span>
-                <select
-                  value={selectedAssociate}
-                  onChange={(e) => setSelectedAssociate(e.target.value)}
-                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer w-full sm:w-52"
-                >
-                  <option value="all">All Business Associates ({associates.length})</option>
-                  {associates.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {a.name?.replace(/\s*\([^)]*\)/g, '')} ({a.sponsorCode || 'BA'})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full sm:w-56">
+                  <Select
+                    size="sm"
+                    value={selectedAssociate}
+                    onChange={(e) => setSelectedAssociate(e.target.value)}
+                    options={[
+                      { value: 'all', label: `All Business Associates (${associates.length})` },
+                      ...associates.map((a) => ({
+                        value: a._id,
+                        label: `${a.name?.replace(/\s*\([^)]*\)/g, '')} (${a.sponsorCode || 'BA'})`,
+                      })),
+                    ]}
+                  />
+                </div>
               </div>
             )}
             <span className="text-xs font-bold text-slate-500 whitespace-nowrap">

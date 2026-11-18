@@ -1,4 +1,4 @@
-const resolveSubmissionDateTime = (dateVal) => {
+﻿const resolveSubmissionDateTime = (dateVal) => {
   if (!dateVal) return new Date().toISOString();
   const now = new Date();
   if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { SearchableSelect } from '../../../components/ui/SearchableSelect';
 import { DateInput } from '../../../components/ui/DateInput';
+import Select from '../../../components/ui/Select';
 import Button from '../../../components/ui/Button';
 import numberToWords from '../../../utils/numToWord';
 import PageLoader from '../../../components/common/PageLoader';
@@ -771,8 +772,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                     {/* Payment Mode */}
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-slate-700">Payment Mode <span className="text-rose-500">*</span></label>
-                      <select
-                        className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
+                      <Select
                         value={form.paymentMode}
                         disabled={!isBankReceiptAllowed}
                         onChange={(e) => {
@@ -791,16 +791,17 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                             ifscCode: prev.ifscCode || cust?.ifscCode || '',
                           }));
                         }}
-                      >
-                        <option value="cash">Cash</option>
-                        {isBankReceiptAllowed && (
-                          <>
-                            <option value="online">UPI / Online</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="cheque">Cheque</option>
-                          </>
-                        )}
-                      </select>
+                        options={[
+                          { value: 'cash', label: 'Cash' },
+                          ...(isBankReceiptAllowed
+                            ? [
+                                { value: 'online', label: 'UPI / Online' },
+                                { value: 'bank_transfer', label: 'Bank Transfer' },
+                                { value: 'cheque', label: 'Cheque' },
+                              ]
+                            : []),
+                        ]}
+                      />
                       {!isBankReceiptAllowed && (
                         <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
                           Bank receipts restricted (Cash collections only)
@@ -813,29 +814,26 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                       <label className="text-xs font-bold text-slate-700">
                         {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody) *' : 'Receiving Bank Account *'}
                       </label>
-                      <select
+                      <Select
                         value={form.ledgerId || ''}
                         disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
                         onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
-                        className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
-                      >
-                        {String(form.paymentMode).toLowerCase() === 'cash' ? (
-                          <option value={myCashLedger?._id || ''}>
-                            {myCashLedger?.name || 'Ghanshyam kumar (Cash Ledger)'}
-                          </option>
-                        ) : (
-                          <>
-                            {bankAccounts.map((b) => (
-                              <option key={b._id} value={b._id}>
-                                {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
-                              </option>
-                            ))}
-                            {bankAccounts.length === 0 && (
-                              <option value="" disabled>No authorized bank account available</option>
-                            )}
-                          </>
-                        )}
-                      </select>
+                        options={
+                          String(form.paymentMode).toLowerCase() === 'cash'
+                            ? [
+                                {
+                                  value: myCashLedger?._id || '',
+                                  label: myCashLedger?.name || 'Ghanshyam kumar (Cash Ledger)',
+                                },
+                              ]
+                            : bankAccounts.length === 0
+                            ? [{ value: '', label: 'No authorized bank account available' }]
+                            : bankAccounts.map((b) => ({
+                                value: b._id,
+                                label: `${b.bankName || b.name} ${b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}`.trim(),
+                              }))
+                        }
+                      />
                     </div>
 
                     {/* Collection Date */}
@@ -1238,7 +1236,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <select
+                      <Select
                         value={emiCount}
                         onChange={(e) => {
                           const count = Number(e.target.value) || 1;
@@ -1253,18 +1251,15 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                           const tot = pr + fn;
                           setForm((prev) => ({ ...prev, amountPaid: String(tot) }));
                         }}
-                        className="w-full px-3.5 py-2.5 bg-teal-50/70 border border-teal-200 rounded-xl text-xs sm:text-sm font-bold text-teal-950 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer"
-                      >
-                        {pendingInstallments.map((ins, idx) => {
+                        options={pendingInstallments.map((ins, idx) => {
                           const n = idx + 1;
                           const isDue = ins.dueDate && new Date(ins.dueDate) <= new Date(form.paymentDate + 'T23:59:59');
-                          return (
-                            <option key={ins.installmentNumber || idx} value={n}>
-                              {n} {n === 1 ? 'EMI' : 'EMIs'} {isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #{ins.installmentNumber || n}
-                            </option>
-                          );
+                          return {
+                            value: n,
+                            label: `${n} ${n === 1 ? 'EMI' : 'EMIs'} ${isDue ? '(Overdue/Due)' : '(Advance/Pending)'} — EMI #${ins.installmentNumber || n}`,
+                          };
                         })}
-                      </select>
+                      />
                     </div>
                     <p className="text-[11px] text-slate-400">
                       Selecting EMI count calculates exact principal + accrued late fine.
@@ -1394,7 +1389,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                     <label className="block text-xs font-bold text-slate-700">
                       Payment Mode <span className="text-rose-500">*</span>
                     </label>
-                    <select
+                    <Select
                       value={form.paymentMode}
                       disabled={!isBankReceiptAllowed}
                       onChange={(e) => {
@@ -1413,18 +1408,18 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                           ifscCode: prev.ifscCode || cust?.ifscCode || '',
                         }));
                       }}
+                      options={[
+                        { value: 'cash', label: 'Cash Payment' },
+                        ...(isBankReceiptAllowed
+                          ? [
+                              { value: 'online', label: 'Online / UPI' },
+                              { value: 'bank_transfer', label: 'Bank Transfer / NEFT / RTGS' },
+                              { value: 'cheque', label: 'Cheque' },
+                            ]
+                          : []),
+                      ]}
                       required
-                      className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition cursor-pointer ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white'}`}
-                    >
-                      <option value="cash">Cash Payment</option>
-                      {isBankReceiptAllowed && (
-                        <>
-                          <option value="online">Online / UPI</option>
-                          <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
-                          <option value="cheque">Cheque</option>
-                        </>
-                      )}
-                    </select>
+                    />
                     {!isBankReceiptAllowed && (
                       <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
                         Corporate bank receipts restricted for this account (Cash collections only)
@@ -1437,29 +1432,26 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                     <label className="block text-xs font-bold text-slate-700">
                       {String(form.paymentMode).toLowerCase() === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'} <span className="text-rose-500">*</span>
                     </label>
-                    <select
+                    <Select
                       value={form.ledgerId || ''}
                       disabled={String(form.paymentMode).toLowerCase() === 'cash' || !isBankReceiptAllowed}
                       onChange={(e) => setForm({ ...form, ledgerId: e.target.value })}
-                      className={`w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 transition ${String(form.paymentMode).toLowerCase() === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-slate-50 focus:bg-white cursor-pointer'}`}
-                    >
-                      {String(form.paymentMode).toLowerCase() === 'cash' ? (
-                        <option value={myCashLedger?._id || ''}>
-                          {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
-                        </option>
-                      ) : (
-                        <>
-                          {bankAccounts.map((b) => (
-                            <option key={b._id} value={b._id}>
-                              {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
-                            </option>
-                          ))}
-                          {bankAccounts.length === 0 && (
-                            <option value="" disabled>No authorized bank account available</option>
-                          )}
-                        </>
-                      )}
-                    </select>
+                      options={
+                        String(form.paymentMode).toLowerCase() === 'cash'
+                          ? [
+                              {
+                                value: myCashLedger?._id || '',
+                                label: myCashLedger?.name || 'My Cash Account (Personal Custody)',
+                              },
+                            ]
+                          : bankAccounts.length === 0
+                          ? [{ value: '', label: 'No authorized bank account available' }]
+                          : bankAccounts.map((b) => ({
+                              value: b._id,
+                              label: `${b.bankName || b.name} ${b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}`.trim(),
+                            }))
+                      }
+                    />
                   </div>
 
                   {/* Transaction Reference (Non-Cash only) */}

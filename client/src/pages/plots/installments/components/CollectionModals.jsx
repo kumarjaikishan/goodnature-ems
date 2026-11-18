@@ -2,6 +2,7 @@ import React from 'react';
 import Modalbox from '@/components/custommodal/Modalbox';
 import Button from '@/components/ui/Button';
 import { DateInput } from '@/components/ui/DateInput';
+import Select from '@/components/ui/Select';
 import numberToWords from '@/utils/numToWord';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
@@ -70,17 +71,17 @@ export const EditReceiptModal = ({
 
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Payment Mode</label>
-            <select
-              className={inputCls}
+            <Select
               value={editForm.paymentMode}
               onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value })}
-            >
-              <option value="cash">Cash</option>
-              <option value="upi">UPI / Online</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cheque">Cheque</option>
-              <option value="neft_rtgs">NEFT / RTGS</option>
-            </select>
+              options={[
+                { value: 'cash', label: 'Cash' },
+                { value: 'upi', label: 'UPI / Online' },
+                { value: 'bank_transfer', label: 'Bank Transfer' },
+                { value: 'cheque', label: 'Cheque' },
+                { value: 'neft_rtgs', label: 'NEFT / RTGS' },
+              ]}
+            />
           </div>
 
           <DateInput

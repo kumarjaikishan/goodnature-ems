@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from '../../../../components/ui/Select';
 import {
   Sliders,
   Plus,
@@ -288,21 +289,16 @@ export default function ProductEmiTenureSlabsTab() {
 
                     {/* Action Select: DEDUCT / ADD */}
                     <td className="py-3 px-4">
-                      <div className="inline-flex items-center gap-1.5">
-                        <select
+                      <div className="w-56">
+                        <Select
+                          size="sm"
                           value={slab.action || 'DEDUCT'}
                           onChange={(e) => handleSlabChange(idx, 'action', e.target.value)}
-                          className={`px-3 py-1.5 rounded-lg border font-bold text-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-700 ${
-                            isZero
-                              ? 'bg-slate-50 text-slate-700 border-slate-300'
-                              : isAdd
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : 'bg-amber-50 text-amber-800 border-amber-300'
-                          }`}
-                        >
-                          <option value="DEDUCT">DEDUCT (- Rebate / Discount)</option>
-                          <option value="ADD">ADD (+ Increase Rate / Value)</option>
-                        </select>
+                          options={[
+                            { value: 'DEDUCT', label: 'DEDUCT (- Rebate / Discount)' },
+                            { value: 'ADD', label: 'ADD (+ Increase Rate / Value)' },
+                          ]}
+                        />
                       </div>
                     </td>
 

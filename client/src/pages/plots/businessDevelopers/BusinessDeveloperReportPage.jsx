@@ -5,6 +5,7 @@ import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
 import PageLoader from '../../../components/common/PageLoader';
 import DateInput from '../../../components/ui/DateInput';
+import Select from '../../../components/ui/Select';
 import {
   ArrowLeft,
   Printer,
@@ -413,17 +414,18 @@ const BusinessDeveloperReportPage = () => {
           />
 
           {/* Type Filter */}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-64">
             <label className="text-[11px] font-bold text-slate-600">Business Source</label>
-            <select
+            <Select
+              size="sm"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-9 px-3 bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 outline-none rounded-xl text-xs font-medium text-slate-800"
-            >
-              <option value="ALL">All Sources (Self + Subordinates)</option>
-              <option value="SELF">Direct Self Business Only</option>
-              <option value="SUBORDINATE">Subordinates Downline Only</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Sources (Self + Subordinates)' },
+                { value: 'SELF', label: 'Direct Self Business Only' },
+                { value: 'SUBORDINATE', label: 'Subordinates Downline Only' },
+              ]}
+            />
           </div>
 
           {/* Search Query */}

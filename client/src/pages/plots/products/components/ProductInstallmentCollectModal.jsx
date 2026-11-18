@@ -1,4 +1,4 @@
-const resolveSubmissionDateTime = (dateVal) => {
+﻿const resolveSubmissionDateTime = (dateVal) => {
   if (!dateVal) return new Date().toISOString();
   const now = new Date();
   if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
@@ -20,6 +20,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import Modalbox from '../../../../components/custommodal/Modalbox';
 import { DateInput } from '../../../../components/ui/DateInput';
+import Select from '../../../../components/ui/Select';
 import { toast } from '../../../../utils/toast';
 import api from '../../../../api/axios';
 import {
@@ -406,7 +407,7 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
 
           <div>
             <label className="block font-bold text-slate-700 mb-1">Payment Mode</label>
-            <select
+            <Select
               value={paymentMode}
               disabled={!isBankReceiptAllowed}
               onChange={(e) => {
@@ -418,17 +419,17 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
                   setSelectedLedgerId(bankAccounts[0]?._id || '');
                 }
               }}
-              className={`w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none text-xs font-semibold ${!isBankReceiptAllowed ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-white cursor-pointer'}`}
-            >
-              <option value="cash">Cash</option>
-              {isBankReceiptAllowed && (
-                <>
-                  <option value="upi">UPI / Online</option>
-                  <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
-                  <option value="cheque">Cheque</option>
-                </>
-              )}
-            </select>
+              options={[
+                { value: 'cash', label: 'Cash' },
+                ...(isBankReceiptAllowed
+                  ? [
+                      { value: 'upi', label: 'UPI / Online' },
+                      { value: 'bank_transfer', label: 'Bank Transfer / NEFT / RTGS' },
+                      { value: 'cheque', label: 'Cheque' },
+                    ]
+                  : []),
+              ]}
+            />
             {!isBankReceiptAllowed && (
               <span className="text-[10px] text-amber-700 font-semibold mt-0.5 block">
                 Bank receipts restricted for your account
@@ -440,29 +441,26 @@ const ProductInstallmentCollectModal = ({ open, onClose, booking, onSuccess }) =
             <label className="block font-bold text-slate-700 mb-1">
               {paymentMode === 'cash' ? 'Receiving Cash Account (My Custody)' : 'Receiving Bank Account'}
             </label>
-            <select
+            <Select
               value={selectedLedgerId}
               disabled={paymentMode === 'cash' || !isBankReceiptAllowed}
               onChange={(e) => setSelectedLedgerId(e.target.value)}
-              className={`w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-600 outline-none text-xs font-semibold font-mono ${paymentMode === 'cash' ? 'bg-slate-100 cursor-not-allowed opacity-90' : 'bg-white cursor-pointer'}`}
-            >
-              {paymentMode === 'cash' ? (
-                <option value={myCashLedger?._id || ''}>
-                  {myCashLedger?.name || 'My Cash Account (Personal Custody)'}
-                </option>
-              ) : (
-                <>
-                  {bankAccounts.map((b) => (
-                    <option key={b._id} value={b._id}>
-                      {b.bankName || b.name} {b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}
-                    </option>
-                  ))}
-                  {bankAccounts.length === 0 && (
-                    <option value="" disabled>No authorized bank account available</option>
-                  )}
-                </>
-              )}
-            </select>
+              options={
+                paymentMode === 'cash'
+                  ? [
+                      {
+                        value: myCashLedger?._id || '',
+                        label: myCashLedger?.name || 'My Cash Account (Personal Custody)',
+                      },
+                    ]
+                  : bankAccounts.length === 0
+                  ? [{ value: '', label: 'No authorized bank account available' }]
+                  : bankAccounts.map((b) => ({
+                      value: b._id,
+                      label: `${b.bankName || b.name} ${b.accountNumber ? `(A/C: ${b.accountNumber})` : ''}`.trim(),
+                    }))
+              }
+            />
           </div>
         </div>
 

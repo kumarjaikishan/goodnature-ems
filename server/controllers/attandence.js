@@ -1251,16 +1251,34 @@ const getAttendanceList = async (req, res, next) => {
       ? { $or: [{ companyId }, { companyId: { $exists: false } }] }
       : {};
 
-    // --- Branch scoping (Attendance stores branchId directly, no join needed) ---
+    // --- Branch scoping ---
+    // A manager manages either:
+    // (a) records specifically stamped with the branchId, OR
+    // (b) attendance of employees who currently belong to the manager's allowed branches
+    let managerEmployeeIds = null;
     if (req.user.role === 'manager') {
       const allowedBranches = (req.user.branchIds || []).map(String);
       if (branchId && branchId !== 'all') {
         if (!allowedBranches.includes(String(branchId))) {
           return res.status(403).json({ message: 'Forbidden: You do not manage this branch.' });
         }
-        attendanceFilter.branchId = branchId;
+        // Specific branch requested by manager
+        const empsInBranch = await employee.find({ branchId }).select('_id').lean();
+        const empIdsInBranch = empsInBranch.map((e) => e._id);
+        attendanceFilter.$or = [
+          { branchId: branchId },
+          { employeeId: { $in: empIdsInBranch } }
+        ];
+        managerEmployeeIds = empIdsInBranch;
       } else {
-        attendanceFilter.branchId = { $in: allowedBranches };
+        // All branches assigned to manager
+        const empsInBranches = await employee.find({ branchId: { $in: allowedBranches } }).select('_id').lean();
+        const empIdsInBranches = empsInBranches.map((e) => e._id);
+        attendanceFilter.$or = [
+          { branchId: { $in: allowedBranches } },
+          { employeeId: { $in: empIdsInBranches } }
+        ];
+        managerEmployeeIds = empIdsInBranches;
       }
     } else if (branchId && branchId !== 'all') {
       attendanceFilter.branchId = branchId;
@@ -1311,6 +1329,7 @@ const getAttendanceList = async (req, res, next) => {
       if (departmentId && departmentId !== 'all') employeeFilter.department = departmentId;
       if (employeeNameSearch) employeeFilter.employeeName = { $regex: employeeNameSearch.trim(), $options: 'i' };
       if (attendanceFilter.branchId) employeeFilter.branchId = attendanceFilter.branchId;
+      if (managerEmployeeIds) employeeFilter._id = { $in: managerEmployeeIds };
 
       const matchingEmployees = await employee.find(employeeFilter).select('_id').lean();
       const ids = matchingEmployees.map((e) => e._id);
@@ -1817,9 +1836,19 @@ const getAttendanceReport = async (req, res, next) => {
         if (!allowedBranches.includes(String(branchId))) {
           return res.status(403).json({ message: 'Forbidden: You do not manage this branch.' });
         }
-        attendanceFilter.branchId = branchId;
+        const empsInBranch = await employee.find({ branchId }).select('_id').lean();
+        const empIdsInBranch = empsInBranch.map((e) => e._id);
+        attendanceFilter.$or = [
+          { branchId: branchId },
+          { employeeId: { $in: empIdsInBranch } }
+        ];
       } else {
-        attendanceFilter.branchId = { $in: allowedBranches };
+        const empsInBranches = await employee.find({ branchId: { $in: allowedBranches } }).select('_id').lean();
+        const empIdsInBranches = empsInBranches.map((e) => e._id);
+        attendanceFilter.$or = [
+          { branchId: { $in: allowedBranches } },
+          { employeeId: { $in: empIdsInBranches } }
+        ];
       }
     } else if (branchId && branchId !== 'all') {
       attendanceFilter.branchId = branchId;

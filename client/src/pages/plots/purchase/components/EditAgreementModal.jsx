@@ -14,7 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import Modalbox from '../../../../components/custommodal/Modalbox';
-import { SearchableSelect, DateInput, Input, Button } from '../../../../components/ui';
+import { SearchableSelect, DateInput, Input, Button, Select } from '../../../../components/ui';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
@@ -966,20 +966,22 @@ const EditAgreementModal = ({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Document Category</label>
-                      <select
-                        className="h-8 w-full bg-white border border-slate-300 rounded-lg px-2 text-xs font-medium outline-none cursor-pointer"
+                      <Select
+                        label="Document Category"
+                        labelClassName="!text-[10px] !font-bold !text-slate-600 !mb-0.5"
+                        size="sm"
                         value={att.fileType || 'Agreement Scan'}
                         onChange={(e) => handleAttachmentChange(idx, 'fileType', e.target.value)}
-                      >
-                        <option value="Agreement Scan">Agreement Scan</option>
-                        <option value="Khatiyan (7/12)">Khatiyan (7/12)</option>
-                        <option value="LPC / Mutation">LPC / Mutation</option>
-                        <option value="Affidavit">Affidavit / शपथ पत्र</option>
-                        <option value="Revenue Receipt">Revenue Receipt (लगान रसीद)</option>
-                        <option value="Naksha / Map">Naksha / Land Map</option>
-                        <option value="Other">Other Document</option>
-                      </select>
+                        options={[
+                          { value: 'Agreement Scan', label: 'Agreement Scan' },
+                          { value: 'Khatiyan (7/12)', label: 'Khatiyan (7/12)' },
+                          { value: 'LPC / Mutation', label: 'LPC / Mutation' },
+                          { value: 'Affidavit', label: 'Affidavit / शपथ पत्र' },
+                          { value: 'Revenue Receipt', label: 'Revenue Receipt (लगान रसीद)' },
+                          { value: 'Naksha / Map', label: 'Naksha / Land Map' },
+                          { value: 'Other', label: 'Other Document' },
+                        ]}
+                      />
                     </div>
 
                     <div>
