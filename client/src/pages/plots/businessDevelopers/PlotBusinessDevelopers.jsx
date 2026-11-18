@@ -261,6 +261,17 @@ const PlotBusinessDevelopers = () => {
     }
   };
 
+  // Helper to format 12-digit Aadhaar into "1234 5678 9123"
+  const formatAadhaar = (val) => {
+    if (!val) return '';
+    const digits = String(val).replace(/\D/g, '').slice(0, 12);
+    const parts = [];
+    for (let i = 0; i < digits.length; i += 4) {
+      parts.push(digits.slice(i, i + 4));
+    }
+    return parts.join(' ');
+  };
+
   const handleOpenModal = (developer = null, mode = 'partner') => {
     const defaultBranch = availableBranches.length === 1 ? availableBranches[0]._id : (availableBranches[0]?._id || '');
 
@@ -284,8 +295,8 @@ const PlotBusinessDevelopers = () => {
         nomineeName: developer.nomineeName || '',
         nomineeRelation: developer.nomineeRelation || '',
         nomineeAge: developer.nomineeAge || '',
-        panCard: developer.panCard || '',
-        aadhaarCard: developer.aadhaarCard || '',
+        panCard: (developer.panCard || '').toUpperCase().slice(0, 10),
+        aadhaarCard: formatAadhaar(developer.aadhaarCard || ''),
         photo: developer.photo || developer.profileImage || '',
         signature: developer.signature || '',
         commissionRate: developer.commissionRate || 0,
@@ -913,13 +924,7 @@ const PlotBusinessDevelopers = () => {
                       placeholder="Select Business Partner first..."
                       value={
                         formData.sponsorId && formData.sponsorId !== 'direct'
-                          ? availableBranches.find((b) => b._id === formData.branchId)?.name
-                            ? `${availableBranches.find((b) => b._id === formData.branchId)?.name}${
-                                availableBranches.find((b) => b._id === formData.branchId)?.location
-                                  ? ` (${availableBranches.find((b) => b._id === formData.branchId)?.location})`
-                                  : ''
-                              }`
-                            : 'No Branch Mapped'
+                          ? availableBranches.find((b) => b._id === formData.branchId)?.name || 'No Branch Mapped'
                           : ''
                       }
                       className="h-10 w-full px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed select-none placeholder:text-slate-400 placeholder:font-normal"
@@ -987,26 +992,26 @@ const PlotBusinessDevelopers = () => {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">PAN Card</label>
                   <input
                     type="text"
+                    maxLength={10}
                     value={formData.panCard}
-                    onChange={(e) => setFormData({ ...formData, panCard: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none uppercase text-slate-800"
-                    placeholder="PAN Card number"
+                    onChange={(e) => setFormData({ ...formData, panCard: e.target.value.toUpperCase().slice(0, 10) })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none uppercase font-mono text-slate-800"
+                    placeholder="e.g. ABCDE1234F"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Aadhaar Card</label>
                   <input
-                    type="tel"
+                    type="text"
                     inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={12}
+                    maxLength={14}
                     value={formData.aadhaarCard}
                     onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 12);
-                      setFormData({ ...formData, aadhaarCard: val });
+                      const formatted = formatAadhaar(e.target.value);
+                      setFormData({ ...formData, aadhaarCard: formatted });
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none text-slate-800"
-                    placeholder="12-digit Aadhaar number"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none font-mono text-slate-800"
+                    placeholder="1234 5678 9123"
                   />
                 </div>
               </div>

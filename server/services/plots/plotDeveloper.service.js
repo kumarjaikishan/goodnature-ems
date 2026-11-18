@@ -2486,10 +2486,28 @@ class PlotDeveloperService {
 
   async updateSponsor(id, data) {
     const updateData = { ...data };
+    const unsetData = {};
+
     if (updateData.branchId) {
       updateData.branchIds = [updateData.branchId];
       delete updateData.branchId;
     }
+
+    // Clean up and validate email
+    if (updateData.email !== undefined) {
+      const trimmedEmail = typeof updateData.email === 'string' ? updateData.email.trim() : '';
+      if (!trimmedEmail) {
+        delete updateData.email;
+        unsetData.email = 1;
+      } else {
+        updateData.email = trimmedEmail;
+        const existing = await User.findOne({ email: trimmedEmail, _id: { $ne: id } });
+        if (existing) {
+          throw new Error('A user with this email address is already registered. Please choose another email.');
+        }
+      }
+    }
+
     if (updateData.sponsorId !== undefined) {
       if (updateData.sponsorId === 'company' || updateData.sponsorId === 'direct') {
         updateData.sponsorId = null;
@@ -2523,7 +2541,12 @@ class PlotDeveloperService {
       updateData.photo = updateData.profileImage || '';
     }
 
-    const sponsor = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true })
+    const updateOps = { $set: updateData };
+    if (Object.keys(unsetData).length > 0) {
+      updateOps.$unset = unsetData;
+    }
+
+    const sponsor = await User.findByIdAndUpdate(id, updateOps, { new: true })
       .populate('sponsorId', 'name sponsorCode mobile email branchIds')
       .populate('branchIds', 'name location');
     return sponsor;

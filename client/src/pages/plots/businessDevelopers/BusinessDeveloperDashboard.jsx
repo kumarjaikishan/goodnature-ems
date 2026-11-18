@@ -39,7 +39,7 @@ const BusinessDeveloperDashboard = () => {
     isDeveloperSponsor: liveSponsor ? liveSponsor.isDeveloperSponsor : (loggedInProfile.isDeveloperSponsor ?? tokenPayload.isDeveloperSponsor),
     role: loggedInProfile.role || tokenPayload.role,
     mobile: liveSponsor?.mobile || loggedInProfile.mobile,
-    profileImage: liveSponsor?.profileImage || loggedInProfile.profileImage || loggedInProfile.image,
+    profileImage: liveSponsor?.profileImage || liveSponsor?.photo || loggedInProfile.profileImage || loggedInProfile.photo || loggedInProfile.image,
     isBranchPartner: liveSponsor ? liveSponsor.isBranchPartner : (loggedInProfile.isBranchPartner ?? tokenPayload.isBranchPartner),
     branchName: liveSponsor?.branchName || loggedInProfile.branchName,
     parentSponsor: liveSponsor?.parentSponsor || loggedInProfile.parentSponsor || loggedInProfile.sponsorId,
@@ -55,16 +55,27 @@ const BusinessDeveloperDashboard = () => {
   return (
     <div className="w-full p-4 md:p-8 bg-slate-50 min-h-[calc(100vh-64px)] flex flex-col justify-center items-center">
       <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl p-6 sm:p-12 shadow-sm flex flex-col items-center text-center">
-        {/* Goodfeel Logo */}
-        <div className="w-28 h-28 sm:w-32 sm:h-32 mb-6 rounded-2xl p-3 bg-white border border-slate-100 shadow-xs flex items-center justify-center">
-          <img
-            src="/logo.webp"
-            alt="Goodfeel Logo"
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              e.currentTarget.src = '/favicon.png';
-            }}
-          />
+        {/* Profile Avatar / Photo (with Goodfeel logo fallback) */}
+        <div className="w-28 h-28 sm:w-32 sm:h-32 mb-6 rounded-full p-1 bg-white border-2 border-teal-600/30 shadow-md flex items-center justify-center overflow-hidden">
+          {developer.profileImage ? (
+            <img
+              src={developer.profileImage}
+              alt={developer.name}
+              className="w-full h-full object-cover rounded-full"
+              onError={(e) => {
+                e.currentTarget.src = '/logo.webp';
+              }}
+            />
+          ) : (
+            <img
+              src="/logo.webp"
+              alt="Goodfeel Logo"
+              className="w-full h-full object-contain p-2"
+              onError={(e) => {
+                e.currentTarget.src = '/favicon.png';
+              }}
+            />
+          )}
         </div>
 
         {/* Line 1: Welcome To (small) */}
