@@ -1,4 +1,4 @@
-﻿const resolveSubmissionDateTime = (dateVal) => {
+const resolveSubmissionDateTime = (dateVal) => {
   if (!dateVal) return new Date().toISOString();
   const now = new Date();
   if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
@@ -101,7 +101,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
       setBookingsLoading(true);
       try {
         const [bookingsRes, rateRes, treasuryRes, myCashRes] = await Promise.all([
-          api.get('/plots/product-bookings?status=ACTIVE'),
+          api.get('/plots/product-bookings'),
           api.get('/plots/rate-config'),
           api.get('/ledger/treasury', { params: { intent: 'receipt' } }).catch(() => ({ data: { data: {} } })),
           api.get('/ledger/my-cash-account').catch(() => null),
@@ -370,20 +370,11 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
-      const bDpInst = (b.installments || []).find((ins) => ins.installmentNumber === 0);
-      const bUnpaidDp = bDpInst
-        ? Math.max(0, Number(bDpInst.amount || 0) - Number(bDpInst.paidAmount || 0))
-        : Math.max(0, Number(b.downPayment || 0) - Number(b.totalPaid || 0));
-      const bIsDpComplete = bDpInst ? (bDpInst.status === 'PAID' || bUnpaidDp <= 0) : bUnpaidDp <= 0;
-
-      if (isDpMode) {
-        // Show all active investment bookings so user can pick any booking
-        return true;
-      } else {
-        return bIsDpComplete && Number(b.remainingAmount || 0) > 0;
-      }
+      // Don't show cancelled bookings
+      if (b.status === 'CANCELLED') return false;
+      return true;
     });
-  }, [bookings, isDpMode]);
+  }, [bookings]);
 
   const bookingOptions = useMemo(() => {
     return filteredBookings.map((b) => {
@@ -392,16 +383,35 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
         ? Math.max(0, Number(bDpInst.amount || 0) - Number(bDpInst.paidAmount || 0))
         : Math.max(0, Number(b.downPayment || 0) - Number(b.totalPaid || 0));
       const bIsDpComplete = bDpInst ? (bDpInst.status === 'PAID' || bUnpaidDp <= 0) : bUnpaidDp <= 0;
+      const bIsEmiComplete = Number(b.remainingAmount || 0) <= 0;
 
-      const sub = isDpMode
-        ? (bIsDpComplete
-            ? `✓ Downpayment Completed (₹${Number(b.downPayment || bDpInst?.amount || 0).toLocaleString('en-IN')}) • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`
-            : `Pending DP: ₹${bUnpaidDp.toLocaleString('en-IN')} • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`)
-        : `Product: ${b.productId?.productName || 'Unit'} • Bal: ₹${Number(b.remainingAmount || 0).toLocaleString('en-IN')}`;
+      let sub = '';
+      if (isDpMode) {
+        sub = bIsDpComplete
+          ? `✓ Downpayment Completed (₹${Number(b.downPayment || bDpInst?.amount || 0).toLocaleString('en-IN')}) • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`
+          : `Pending DP: ₹${bUnpaidDp.toLocaleString('en-IN')} • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`;
+      } else {
+        if (!bIsDpComplete) {
+          sub = `⚠ Down Payment Pending (₹${bUnpaidDp.toLocaleString('en-IN')}) • Collect DP First`;
+        } else if (bIsEmiComplete) {
+          sub = `✓ All EMIs Completed (100% Paid) • Total: ₹${Number(b.totalAmount || 0).toLocaleString('en-IN')}`;
+        } else {
+          sub = `Product: ${b.productId?.productName || 'Unit'} • Bal: ₹${Number(b.remainingAmount || 0).toLocaleString('en-IN')}`;
+        }
+      }
+
+      let statusBadge = '';
+      if (isDpMode && bIsDpComplete) {
+        statusBadge = ' (DP Completed)';
+      } else if (!isDpMode && !bIsDpComplete) {
+        statusBadge = ' (DP Pending)';
+      } else if (!isDpMode && bIsEmiComplete) {
+        statusBadge = ' (Completed)';
+      }
 
       return {
         value: b._id,
-        label: `${b.bookingNumber} - ${b.customerId?.name || 'Customer'}${isDpMode && bIsDpComplete ? ' (DP Completed)' : ''}`,
+        label: `${b.bookingNumber} - ${b.customerId?.name || 'Customer'}${statusBadge}`,
         subtitle: sub,
       };
     });
@@ -547,7 +557,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
       {/* Contract Selector */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-          {isDpMode ? 'Select Booking Number *' : 'Select Active Product Contract (Completed DP) *'}
+          {isDpMode ? 'Select Investment Booking Number *' : 'Select Investment Booking *'}
         </label>
         {bookingsLoading ? (
           <div className="p-4 text-center">
@@ -1194,17 +1204,53 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                 </div>
               </div>
 
-              {/* Live Multi-EMI Auto-Spillover Info */}
-              <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 rounded-2xl border border-teal-200/80 text-xs text-teal-900 flex items-start gap-3 shadow-2xs">
-                <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
-                  <Layers size={16} />
+              {/* Live Multi-EMI Auto-Spillover Info or Completion Banner */}
+              {Number(selectedBooking.remainingAmount || 0) <= 0 ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center gap-3 text-xs text-emerald-950 font-medium shadow-2xs">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                  <div>
+                    <span className="font-bold block uppercase tracking-wide text-xs text-emerald-900">
+                      All EMIs Completed (100% Fully Paid)
+                    </span>
+                    <span className="text-xs text-emerald-800">
+                      This investment contract is completely paid up (Remaining Balance: ₹0). No further installments are due.
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-bold">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
+              ) : unpaidDp > 0 ? (
+                <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 font-medium shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="font-bold block uppercase tracking-wide text-xs text-amber-900">
+                        Down Payment Not Completed (₹{unpaidDp.toLocaleString('en-IN')} Pending)
+                      </span>
+                      <span className="text-xs text-amber-800">
+                        Please collect the initial down payment before accepting regular monthly EMI installments.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/plots/collections/products/downpayment/add?bookingId=${selectedBooking._id}`)}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition shrink-0 self-start sm:self-auto shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    Collect Down Payment First →
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 rounded-2xl border border-teal-200/80 text-xs text-teal-900 flex items-start gap-3 shadow-2xs">
+                  <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
+                    <Layers size={16} />
+                  </div>
+                  <div>
+                    <span className="font-bold">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
+                  </div>
+                </div>
+              )}
 
-              {/* Payment Collection Inputs Form */}
+              {/* Payment Collection Inputs Form (Only show if there are pending EMIs and DP is cleared) */}
+              {Number(selectedBooking.remainingAmount || 0) > 0 && unpaidDp <= 0 && (
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
                   <CreditCard size={17} className="text-teal-700" />
@@ -1590,6 +1636,7 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                   </button>
                 </div>
               </div>
+              )}
             </>
           )}
         </form>

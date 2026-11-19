@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
@@ -8,7 +8,8 @@ import {
   CheckCircle2,
   Plus,
   Minus,
-  Sparkles,
+  Check,
+  FileEdit,
   FileCheck,
   Search,
   X,
@@ -760,7 +761,7 @@ const ProductBookingPage = () => {
             disabled={submitting || !form.customerId || !form.productId}
             className="px-5 py-2 bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
           >
-            <Sparkles size={14} />
+            <Check size={15} className="stroke-[2.5]" />
             {isEditMode
               ? (submitting ? 'Updating Booking...' : 'Save & Update Booking')
               : (submitting ? 'Generating Booking...' : 'Confirm & Generate Booking')}
@@ -772,7 +773,7 @@ const ProductBookingPage = () => {
         <div className="p-3.5 bg-teal-50/80 border border-teal-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-teal-950">
           <div className="flex items-center gap-2.5">
             <span className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
-              <Sparkles size={15} />
+              <FileEdit size={15} />
             </span>
             <div>
               <span className="font-bold">Editing Mode Active: </span>
@@ -1036,9 +1037,9 @@ const ProductBookingPage = () => {
               </div>
 
               {/* Custom Dimension & Pricing Master Card */}
-              <div className="sm:col-span-2 p-4 sm:p-5 bg-gradient-to-br from-slate-50/80 via-teal-50/20 to-emerald-50/25 border border-teal-200/80 rounded-2xl space-y-4">
+              <div className="sm:col-span-2 p-4 sm:p-5 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
                 {/* Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100/70 pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 rounded-lg bg-teal-100/70 text-teal-800">
                       <Ruler size={16} />
@@ -1209,7 +1210,7 @@ const ProductBookingPage = () => {
                   </div>
 
                   {/* Total Value */}
-                  <div className="p-3 bg-gradient-to-br from-teal-700 to-teal-900 text-white rounded-xl flex flex-col justify-between shadow-xs">
+                  <div className="p-3 bg-teal-800 text-white rounded-xl flex flex-col justify-between shadow-xs">
                     <span className="text-[10px] font-bold text-teal-200 uppercase tracking-wider block">
                       Total Valuation
                     </span>
@@ -1474,7 +1475,7 @@ const ProductBookingPage = () => {
                             required
                           />
 
-                          <div className="mt-1.5 flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl w-fit">
+                          <div className="mt-1.5 flex items-center gap-2 px-3 py-1.5 bg-teal-50 border border-teal-200 rounded-lg w-fit">
                             <span className="text-sm font-black text-teal-950 font-mono tracking-tight">
                               {totalTenureMonths} Months
                             </span>
@@ -1726,7 +1727,7 @@ const ProductBookingPage = () => {
                 disabled={submitting || !form.customerId || !form.productId || (landSourcing.length > 0 && !isAreaMatched)}
                 className="w-full py-3 bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Sparkles size={16} />
+                <Check size={16} className="stroke-[2.5]" />
                 {isEditMode
                   ? (submitting ? 'Updating Booking...' : 'Save & Update Booking')
                   : (submitting ? 'Generating Booking...' : 'Confirm & Generate Booking')}

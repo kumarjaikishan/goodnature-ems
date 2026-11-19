@@ -2400,12 +2400,11 @@ class PlotProductService {
       } else if (qType === 'EMI' || qType === 'INSTALLMENT') {
         filtered = filtered.filter((c) => {
           const isExclusiveDp = (
-            c.receiptType === 'DOWNPAYMENT' &&
-            (!c.emiPrincipalPaid || c.emiPrincipalPaid === 0) &&
-            Array.isArray(c.installmentNumbers) &&
-            c.installmentNumbers.length === 1 &&
-            c.installmentNumbers[0] === 0
-          );
+            c.receiptType === 'DOWNPAYMENT' ||
+            c.receiptNumber?.startsWith('DP-') ||
+            c.receiptNumber?.startsWith('PRD-DP-') ||
+            (Array.isArray(c.installmentNumbers) && c.installmentNumbers.length === 1 && c.installmentNumbers[0] === 0)
+          ) && (!c.emiPrincipalPaid || c.emiPrincipalPaid === 0);
           return !isExclusiveDp;
         });
       }
