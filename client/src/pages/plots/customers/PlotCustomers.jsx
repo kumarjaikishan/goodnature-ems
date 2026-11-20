@@ -5,7 +5,7 @@ import { useApi } from '../../../utils/useApi';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
-import { Plus, Eye, Edit2, Trash2, Search, User } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, Search, User, Download, FileText } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
@@ -73,6 +73,121 @@ const PlotCustomers = () => {
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to delete customer');
     }
+  };
+
+  // Find duplicates based on Aadhaar Card and download TXT report
+  const handleDownloadDuplicateAadhaarReport = () => {
+    if (!customers || customers.length === 0) {
+      return toast.warn('No customer records available to check');
+    }
+
+    // Sort by createdAt ascending (or fallback to _id timestamp) so the first registered is the ORIGINAL
+    const sorted = [...customers].sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      return timeA - timeB;
+    });
+
+    const normalizeAadhaar = (val) => (val ? String(val).replace(/\D/g, '').trim() : '');
+
+    const groups = new Map();
+    sorted.forEach((c) => {
+      const clean = normalizeAadhaar(c.aadhaarCard);
+      if (!clean) return;
+      if (!groups.has(clean)) {
+        groups.set(clean, []);
+      }
+      groups.get(clean).push(c);
+    });
+
+    const duplicateGroups = [];
+    groups.forEach((list, aadhaar) => {
+      if (list.length > 1) {
+        duplicateGroups.push({ aadhaar, list });
+      }
+    });
+
+    const now = new Date();
+    const reportLines = [
+      '================================================================================',
+      '                     GOOD NATURE EMS - DUPLICATE CUSTOMER REPORT                ',
+      '                         BASED ON SAME AADHAAR CARD NUMBER                      ',
+      '================================================================================',
+      `Generated On: ${now.toLocaleString('en-IN')}`,
+      `Total Customers Scanned : ${customers.length}`,
+      `Duplicate Aadhaar Groups : ${duplicateGroups.length}`,
+      '================================================================================\n'
+    ];
+
+    if (duplicateGroups.length === 0) {
+      reportLines.push('✓ No duplicate customers found with the same Aadhaar Card Number.');
+      toast.info('No duplicate customers found with the same Aadhaar Card Number.');
+    } else {
+      let totalDuplicates = 0;
+      duplicateGroups.forEach((group, idx) => {
+        const { aadhaar, list } = group;
+        const original = list[0];
+        const duplicates = list.slice(1);
+        totalDuplicates += duplicates.length;
+
+        reportLines.push('--------------------------------------------------------------------------------');
+        reportLines.push(`GROUP #${idx + 1} | AADHAAR CARD: "${aadhaar}" (Total Matching: ${list.length})`);
+        reportLines.push('--------------------------------------------------------------------------------');
+
+        const origCreated = original.createdAt ? new Date(original.createdAt).toLocaleString('en-IN') : 'N/A';
+        const origSponsor = original.sponsorId?.name
+          ? `${original.sponsorId.name}${original.sponsorId.sponsorCode ? ` (${original.sponsorId.sponsorCode})` : ''}`
+          : 'Company (Direct)';
+
+        reportLines.push('  [ORIGINAL ENTRY - 1st Registered]');
+        reportLines.push(`    Customer ID    : ${original.customerId || original.customerCode || 'N/A'} (MongoDB _id: ${original._id})`);
+        reportLines.push(`    Name           : ${original.name || 'N/A'}`);
+        reportLines.push(`    Mobile         : ${original.mobile || 'N/A'}`);
+        reportLines.push(`    Raw Aadhaar    : ${original.aadhaarCard || 'N/A'}`);
+        reportLines.push(`    PAN Card       : ${original.panCard || 'N/A'}`);
+        reportLines.push(`    Assigned BA/BP : ${origSponsor}`);
+        reportLines.push(`    Created At     : ${origCreated}`);
+        reportLines.push('');
+
+        duplicates.forEach((dup, dupIdx) => {
+          const dupCreated = dup.createdAt ? new Date(dup.createdAt).toLocaleString('en-IN') : 'N/A';
+          const dupSponsor = dup.sponsorId?.name
+            ? `${dup.sponsorId.name}${dup.sponsorId.sponsorCode ? ` (${dup.sponsorId.sponsorCode})` : ''}`
+            : 'Company (Direct)';
+
+          reportLines.push(`  [DUPLICATE #${dupIdx + 1} -> Duplicating Original: ${original.customerId || original._id}]`);
+          reportLines.push(`    Customer ID    : ${dup.customerId || dup.customerCode || 'N/A'} (MongoDB _id: ${dup._id})`);
+          reportLines.push(`    Name           : ${dup.name || 'N/A'}`);
+          reportLines.push(`    Mobile         : ${dup.mobile || 'N/A'}`);
+          reportLines.push(`    Raw Aadhaar    : ${dup.aadhaarCard || 'N/A'}`);
+          reportLines.push(`    PAN Card       : ${dup.panCard || 'N/A'}`);
+          reportLines.push(`    Assigned BA/BP : ${dupSponsor}`);
+          reportLines.push(`    Created At     : ${dupCreated}`);
+          reportLines.push('');
+        });
+        reportLines.push('');
+      });
+
+      reportLines.push('================================================================================');
+      reportLines.push('SUMMARY:');
+      reportLines.push(`  Unique Duplicate Aadhaar Groups  : ${duplicateGroups.length}`);
+      reportLines.push(`  Total Redundant/Duplicate Records: ${totalDuplicates}`);
+      reportLines.push('================================================================================\n');
+
+      toast.success(`Found ${duplicateGroups.length} duplicate Aadhaar groups (${totalDuplicates} duplicate records)`);
+    }
+
+    // Trigger download of the .txt file in browser
+    const blob = new Blob([reportLines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = now.toISOString().slice(0, 10);
+    link.download = `duplicate_customers_aadhaar_${dateStr}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const columns = [
@@ -185,16 +300,29 @@ const PlotCustomers = () => {
           <h1 className="text-2xl font-bold text-slate-800">Customers</h1>
           <p className="text-slate-500 text-sm">Manage customers registered under plot projects</p>
         </div>
-        {canCreate && (
-          <Button
-            variant="primary"
-            size="md"
-            startIcon={Plus}
-            onClick={() => navigate('/dashboard/plots/customers/new')}
-          >
-            Add New Customer
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {import.meta.env.DEV && (
+            <Button
+              variant="outline"
+              size="md"
+              startIcon={Download}
+              onClick={handleDownloadDuplicateAadhaarReport}
+              className="border-slate-300 text-slate-700 hover:bg-slate-100"
+            >
+              Find Duplicate Aadhaar (.txt)
+            </Button>
+          )}
+          {canCreate && (
+            <Button
+              variant="primary"
+              size="md"
+              startIcon={Plus}
+              onClick={() => navigate('/dashboard/plots/customers/new')}
+            >
+              Add New Customer
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search Bar */}

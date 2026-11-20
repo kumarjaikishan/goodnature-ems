@@ -3115,6 +3115,21 @@ class PlotDeveloperService {
       }
     }
 
+    // Check for duplicate Aadhaar Card number
+    const cleanAadhaar = aadhaarCard ? String(aadhaarCard).replace(/\D/g, '').trim() : '';
+    if (cleanAadhaar) {
+      // Build regex pattern that matches the digits with optional whitespace/hyphens
+      const aadhaarPattern = cleanAadhaar.split('').join('[\\s-]*');
+      const existingCustomer = await PlotCustomer.findOne({
+        aadhaarCard: { $regex: new RegExp(`^${aadhaarPattern}$`, 'i') }
+      }).lean();
+
+      if (existingCustomer) {
+        const existingId = existingCustomer.customerId || existingCustomer.customerCode || existingCustomer._id;
+        throw new Error(`A customer with Aadhaar Card number (${aadhaarCard.trim()}) already exists (Customer: ${existingCustomer.name} - ID: ${existingId}). Duplicate registrations are not allowed.`);
+      }
+    }
+
     // Customer ID: e.g. PC-23/09/2627/001
     const now = new Date();
     const cDay = String(now.getDate()).padStart(2, '0');
@@ -3179,6 +3194,21 @@ class PlotDeveloperService {
       }
       if (!sponsorDoc.sponsorId) {
         throw new Error('Customers can only be registered under a Business Associate (BA), not directly under a Business Partner (BP).');
+      }
+    }
+
+    // Check for duplicate Aadhaar Card number on update
+    const cleanAadhaar = data.aadhaarCard ? String(data.aadhaarCard).replace(/\D/g, '').trim() : '';
+    if (cleanAadhaar) {
+      const aadhaarPattern = cleanAadhaar.split('').join('[\\s-]*');
+      const existingCustomer = await PlotCustomer.findOne({
+        _id: { $ne: id },
+        aadhaarCard: { $regex: new RegExp(`^${aadhaarPattern}$`, 'i') }
+      }).lean();
+
+      if (existingCustomer) {
+        const existingId = existingCustomer.customerId || existingCustomer.customerCode || existingCustomer._id;
+        throw new Error(`A customer with Aadhaar Card number (${data.aadhaarCard.trim()}) already exists (Customer: ${existingCustomer.name} - ID: ${existingId}).`);
       }
     }
     const customer = await PlotCustomer.findByIdAndUpdate(id, data, { new: true }).populate('sponsorId', 'name sponsorCode mobile email photo signature');
