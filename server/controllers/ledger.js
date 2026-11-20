@@ -137,31 +137,6 @@ const createLedgerForSponsors = async () => {
     );
 
     for (const sp of sponsors) {
-      const codeUpper = String(sp.sponsorCode || '').trim().toUpperCase();
-      const isBRP = sp.isBranchPartner === true ||
-                    codeUpper.startsWith('BRP-') ||
-                    codeUpper.startsWith('BR-') ||
-                    branchPartnerIdSet.has(sp._id.toString());
-
-      // Branch Partners use their Branch's ledger exclusively, NOT a personal sponsor ledger
-      if (isBRP) {
-        let bpBranch = branches.find(b =>
-          (b.branchPartnerId && b.branchPartnerId.toString() === sp._id.toString()) ||
-          (Array.isArray(b.branchPartnerIds) && b.branchPartnerIds.some(id => id && id.toString() === sp._id.toString()))
-        );
-        if (!bpBranch && sp.branchIds && sp.branchIds.length > 0) {
-          bpBranch = branches.find(b => sp.branchIds.some(bid => bid && bid.toString() === b._id.toString()));
-        }
-        if (bpBranch) {
-          const brLedger = await Ledger.findOne({ branchId: bpBranch._id }, null, session ? { session } : {});
-          if (brLedger && (!sp.ledgerId || sp.ledgerId.toString() !== brLedger._id.toString())) {
-            sp.ledgerId = brLedger._id;
-            await sp.save(session ? { session } : {});
-          }
-        }
-        continue;
-      }
-
       // Query all ledgers with this sponsorId to handle and deduplicate if any duplicates exist
       const existingLedgers = await Ledger.find({ sponsorId: sp._id }, null, session ? { session } : {}).sort({ createdAt: 1 });
       let ledger = existingLedgers[0] || null;
@@ -184,7 +159,8 @@ const createLedgerForSponsors = async () => {
               empId: sp.sponsorCode || sp.customerId || "",
               profileImage: sp.profileImage || sp.photo || "",
               ledgerType: 'sponsor',
-              isVoucherLedger: true
+              isVoucherLedger: true,
+              advance: 0
             },
           ],
           session ? { session } : {}
@@ -218,39 +194,6 @@ const createLedgerForSponsors = async () => {
       if (!sp.ledgerId || sp.ledgerId.toString() !== ledger._id.toString()) {
         sp.ledgerId = ledger._id;
         await sp.save(session ? { session } : {});
-      }
-    }
-
-    // Clean up any phantom/empty sponsor ledgers created for Branch Partners or matching BRP- code
-    const phantomBrpLedgers = await Ledger.find({
-      ledgerType: 'sponsor',
-      $or: [
-        { empId: { $regex: '^(BRP-|BR-)', $options: 'i' } },
-        ...(branchPartnerIdSet.size > 0 ? [{ sponsorId: { $in: Array.from(branchPartnerIdSet) } }] : [])
-      ]
-    }, null, session ? { session } : {});
-
-    for (const pbl of phantomBrpLedgers) {
-      const entryCount = await Entry.countDocuments({ ledgerId: pbl._id });
-      if (entryCount === 0) {
-        await Ledger.findByIdAndDelete(pbl._id, session ? { session } : {});
-      } else {
-        // If any entries were recorded on this phantom ledger, migrate them to their branch's ledger
-        const spDoc = await User.findById(pbl.sponsorId).lean();
-        const branchMatch = await Branch.findOne({
-          $or: [
-            { branchPartnerId: pbl.sponsorId },
-            { branchPartnerIds: pbl.sponsorId },
-            ...(spDoc?.branchIds?.length > 0 ? [{ _id: { $in: spDoc.branchIds } }] : [])
-          ]
-        }).lean();
-        if (branchMatch) {
-          const mainBranchLedger = await Ledger.findOne({ branchId: branchMatch._id });
-          if (mainBranchLedger) {
-            await Entry.updateMany({ ledgerId: pbl._id }, { $set: { ledgerId: mainBranchLedger._id } }, session ? { session } : {});
-            await Ledger.findByIdAndDelete(pbl._id, session ? { session } : {});
-          }
-        }
       }
     }
   });
@@ -638,7 +581,7 @@ const ledger = async (req, res) => {
       })
       .populate({
         path: 'sponsorId',
-        select: 'name sponsorCode customerId email mobile role sponsorId branchIds photo profileImage',
+        select: 'name sponsorCode customerId email mobile role isBranchPartner sponsorId branchIds photo profileImage',
         populate: [
           { path: 'sponsorId', select: 'name sponsorCode role' },
           { path: 'branchIds', select: 'name location branchCode' }
@@ -673,9 +616,6 @@ const ledger = async (req, res) => {
         return l.employeeId && l.employeeId.status === true;
       }
       if (type === 'sponsor') {
-        const codeUpper = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-        const isBRP = l.sponsorId?.isBranchPartner || codeUpper.startsWith('BRP-') || codeUpper.startsWith('BR-');
-        if (isBRP) return false;
         return Boolean(l.sponsorId);
       }
       if (type === 'kisan') {
@@ -752,7 +692,13 @@ const ledger = async (req, res) => {
 
       const isBranch = ledger.ledgerType === 'branch' || Boolean(ledger.branchId);
       const sId = ledger.sponsorId?._id?.toString() || ledger.sponsorId?.toString();
-      const isBranchPartner = isBranch || (sId ? branchPartnerMap.has(sId) : false);
+      const codeUpper = String(ledger.sponsorId?.sponsorCode || ledger.empId || '').trim().toUpperCase();
+      const isBranchPartner = ledger.ledgerType === 'sponsor' && (
+        ledger.sponsorId?.isBranchPartner === true ||
+        codeUpper.startsWith('BRP-') ||
+        codeUpper.startsWith('BR-') ||
+        (sId ? branchPartnerMap.has(sId) : false)
+      );
       const branchPartnerBranch = isBranch ? ledger.branchId : (isBranchPartner ? branchPartnerMap.get(sId) : null);
 
       return {
@@ -1217,33 +1163,10 @@ const Entries = async (req, res) => {
     // Check if req.params.id is a Ledger _id
     let ledgerExists = await Ledger.findById(ledgerId).lean();
     if (!ledgerExists) {
-      // Check if id is a User who is a Branch Partner
-      const spUser = await User.findById(ledgerId).select('_id sponsorCode branchIds isBranchPartner').lean();
-      const isBRP = spUser && (spUser.isBranchPartner || spUser.sponsorCode?.startsWith('BRP-') || spUser.sponsorCode?.startsWith('BR-'));
-
-      if (isBRP) {
-        let branchIds = spUser.branchIds || [];
-        let bpBranches = await Branch.find({
-          $or: [
-            { branchPartnerId: spUser._id },
-            { branchPartnerIds: spUser._id }
-          ]
-        }).select('_id').lean();
-
-        if (bpBranches.length === 0 && branchIds.length > 0) {
-          bpBranches = await Branch.find({ _id: { $in: branchIds } }).select('_id').lean();
-        }
-        branchIds = bpBranches.map(b => b._id);
-
-        if (branchIds.length > 0) {
-          const branchLedgers = await Ledger.find({
-            branchId: { $in: branchIds },
-            ledgerType: 'branch'
-          }).select('_id').lean();
-          if (branchLedgers.length > 0) {
-            targetLedgerIds = branchLedgers.map(l => l._id);
-          }
-        }
+      // Check if id is a User who has a direct ledgerId assigned
+      const spUser = await User.findById(ledgerId).select('_id ledgerId').lean();
+      if (spUser?.ledgerId) {
+        targetLedgerIds.push(spUser.ledgerId);
       }
 
       // Also check fallback for sponsorId, employeeId, kisanSellerId, branchId

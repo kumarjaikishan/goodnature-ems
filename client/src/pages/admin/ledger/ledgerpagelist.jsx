@@ -85,24 +85,43 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
 
     const getSponsorTier = (l) => {
         if (l.ledgerType === 'branch' || Boolean(l.branchId)) {
-            return 'branch_partner';
+            return 'branch';
         }
         const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
         if (!isSponsor) return null;
         const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-        const hasParentSponsor = Boolean(l.sponsorId?.sponsorId);
+        const isCodeBP = code.startsWith('BP-') || code.startsWith('P/');
         const isCodeBA = code.startsWith('BA-') || code.startsWith('A/');
         const isCodeBRP = code.startsWith('BRP-') || code.startsWith('BR-');
 
-        // 1. Branch Partner: explicitly assigned to a Branch or code BRP- / BR-
+        // 1. Branch Partner: explicitly marked as branch partner or code BRP- / BR-
         if (l.isBranchPartner || l.sponsorId?.isBranchPartner || isCodeBRP) {
             return 'branch_partner';
         }
-        // 2. Business Associate: has parent sponsor or code BA-
-        if (hasParentSponsor || isCodeBA) {
+
+        // 2. Business Partner: code BP-
+        if (isCodeBP) {
+            return 'partner';
+        }
+
+        // 3. Business Associate: code BA-
+        if (isCodeBA) {
             return 'associate';
         }
-        // 3. Business Partner: direct sponsor (code BP- or no parent)
+
+        // 4. Fallback based on parent sponsor tier (if code prefix isn't standard):
+        // If parent is a Branch Partner (or no parent), this developer is a Business Partner.
+        // If parent is a Business Partner, this developer is a Business Associate.
+        const parentSponsor = l.sponsorId?.sponsorId;
+        if (parentSponsor) {
+            const parentCode = String(parentSponsor.sponsorCode || '').trim().toUpperCase();
+            const isParentBRP = Boolean(parentSponsor.isBranchPartner) || parentCode.startsWith('BRP-') || parentCode.startsWith('BR-');
+            if (isParentBRP) {
+                return 'partner';
+            }
+            return 'associate';
+        }
+
         return 'partner';
     };
 
@@ -122,7 +141,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             if (category === 'seller' || category === 'kisan') return isKisan;
             if (category === 'associate') return tier === 'associate';
             if (category === 'partner') return tier === 'partner';
-            if (category === 'branch_partner') return isBranch;
+            if (category === 'branch_partner') return tier === 'branch_partner';
+            if (category === 'branch') return isBranch;
             return true;
         });
     }, [ledgers, category]);
@@ -154,7 +174,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 if (typeFilter === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (typeFilter === 'seller' || typeFilter === 'kisan') return isKisan;
                 if (typeFilter === 'partner') return tier === 'partner';
-                if (typeFilter === 'branch_partner') return isBranch;
+                if (typeFilter === 'branch_partner') return tier === 'branch_partner';
+                if (typeFilter === 'branch') return isBranch;
                 if (typeFilter === 'associate') return tier === 'associate';
                 if (typeFilter === 'sponsor') return isSponsor;
                 if (typeFilter === 'custom') return !isEmployee && !isSponsor && !isKisan && !isBranch;
@@ -475,32 +496,13 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         Sellers ({ledgers.filter(l => (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
                                     </option>
                                     <option value="partner">
-                                        Business Partners ({ledgers.filter(l => {
-                                            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                            if (!isSponsor) return false;
-                                            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-                                            const isCodeBA = code.startsWith('BA-') || code.startsWith('A/');
-                                            const isCodeBRP = code.startsWith('BRP-') || code.startsWith('BR-');
-                                            const isBP = l.isBranchPartner || l.sponsorId?.isBranchPartner || isCodeBRP;
-                                            const isBA = Boolean(l.sponsorId?.sponsorId) || isCodeBA;
-                                            return !isBP && !isBA;
-                                        }).length})
+                                        Business Partners ({ledgers.filter(l => getSponsorTier(l) === 'partner').length})
                                     </option>
                                     <option value="branch_partner">
-                                        Branch Partners ({ledgers.filter(l => {
-                                            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                            if (!isSponsor) return false;
-                                            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-                                            return Boolean(l.isBranchPartner || l.sponsorId?.isBranchPartner || code.startsWith('BRP-') || code.startsWith('BR-'));
-                                        }).length})
+                                        Branch Partners ({ledgers.filter(l => getSponsorTier(l) === 'branch_partner').length})
                                     </option>
                                     <option value="associate">
-                                        Business Associates ({ledgers.filter(l => {
-                                            const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
-                                            if (!isSponsor) return false;
-                                            const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-                                            return Boolean(l.sponsorId?.sponsorId) || code.startsWith('BA-') || code.startsWith('A/');
-                                        }).length})
+                                        Business Associates ({ledgers.filter(l => getSponsorTier(l) === 'associate').length})
                                     </option>
                                     <option value="custom">
                                         Custom Ledgers ({ledgers.filter(l => !(l.ledgerType === 'employee' || Boolean(l.employeeId)) && !(l.ledgerType === 'sponsor' || Boolean(l.sponsorId)) && !(l.ledgerType === 'kisan' || Boolean(l.kisanSellerId))).length})
@@ -567,11 +569,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
                                 const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
                                 const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
-                                const isSpon = !isBranch && (l.ledgerType === 'sponsor' || Boolean(l.sponsorId));
-                                const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-                                const isBranchPartner = isBranch || (isSpon && Boolean(l.isBranchPartner || l.sponsorId?.isBranchPartner || code.startsWith('BRP-') || code.startsWith('BR-')));
-                                const isAssociate = isSpon && (Boolean(l.sponsorId?.sponsorId) || code.startsWith('BA-') || code.startsWith('A/'));
-                                const isPartner = isSpon && !isAssociate && !isBranchPartner;
+                                const sponsorTier = getSponsorTier(l);
+                                const isBranchPartner = isBranch || sponsorTier === 'branch_partner';
+                                const isAssociate = sponsorTier === 'associate';
+                                const isPartner = sponsorTier === 'partner';
 
                                 const tagLabel = isBranch
                                     ? 'Branch Partner'
@@ -786,11 +787,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
                                         const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
                                         const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
-                                        const isSpon = !isBranch && (l.ledgerType === 'sponsor' || Boolean(l.sponsorId));
-                                        const code = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
-                                        const isBranchPartner = isBranch || (isSpon && Boolean(l.isBranchPartner || l.sponsorId?.isBranchPartner || code.startsWith('BRP-') || code.startsWith('BR-')));
-                                        const isAssociate = isSpon && (Boolean(l.sponsorId?.sponsorId) || code.startsWith('BA-') || code.startsWith('A/'));
-                                        const isPartner = isSpon && !isAssociate && !isBranchPartner;
+                                        const sponsorTier = getSponsorTier(l);
+                                        const isBranchPartner = isBranch || sponsorTier === 'branch_partner';
+                                        const isAssociate = sponsorTier === 'associate';
+                                        const isPartner = sponsorTier === 'partner';
 
                                         const tagLabel = isBranch
                                             ? 'Branch Partner'

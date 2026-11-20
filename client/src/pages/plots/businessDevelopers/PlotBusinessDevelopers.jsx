@@ -41,6 +41,7 @@ import {
   Heart,
   Copy,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
@@ -73,6 +74,7 @@ const PlotBusinessDevelopers = () => {
 
   const [businessDevelopers, setBusinessDevelopers] = useState([]);
   const [allBusinessPartners, setAllBusinessPartners] = useState([]);
+  const [allBranchPartners, setAllBranchPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
@@ -222,12 +224,25 @@ const PlotBusinessDevelopers = () => {
     }
   };
 
+  const fetchBranchPartners = async () => {
+    try {
+      const res = await apiClient({
+        url: 'plots/sponsors',
+        params: { roleType: 'branch_partner', limit: 1000 },
+      });
+      setAllBranchPartners(res.data || res.sponsors || res || []);
+    } catch (err) {
+      console.error('Failed to fetch branch partners:', err);
+    }
+  };
+
   useEffect(() => {
     fetchBusinessDevelopers();
   }, [search, selectedBranchFilter, selectedRoleFilter]);
 
   useEffect(() => {
     fetchBusinessPartners();
+    fetchBranchPartners();
   }, []);
 
   const handlePhotoUpload = async (e) => {
@@ -311,7 +326,9 @@ const PlotBusinessDevelopers = () => {
     if (developer) {
       setEditingDeveloper(developer);
       const isDevBRP = developer.isBranchPartner || (developer.sponsorCode && developer.sponsorCode.startsWith('BRP-'));
-      setCreateMode(isDevBRP ? 'branch_partner' : (developer.sponsorId ? 'associate' : 'partner'));
+      const isDevBP = !isDevBRP && (developer.sponsorCode?.startsWith('BP-') || !developer.sponsorId || developer.sponsorId?.isBranchPartner || developer.sponsorId?.sponsorCode?.startsWith('BRP-'));
+      const devMode = isDevBRP ? 'branch_partner' : (isDevBP ? 'partner' : 'associate');
+      setCreateMode(devMode);
       const existingBranchId = developer.branchIds?.[0]?._id || developer.branchIds?.[0] || '';
       setFormData({
         name: developer.name || '',
@@ -336,7 +353,7 @@ const PlotBusinessDevelopers = () => {
         commissionRate: developer.commissionRate || 0,
         sponsorId: isDevBRP ? 'direct' : (developer.sponsorId?._id || developer.sponsorId || 'direct'),
         branchId: existingBranchId || defaultBranch,
-        roleType: isDevBRP ? 'branch_partner' : (developer.sponsorId ? 'associate' : 'partner'),
+        roleType: devMode,
         isBranchPartner: isDevBRP,
       });
     } else {
@@ -396,7 +413,7 @@ const PlotBusinessDevelopers = () => {
       toast.success(`Business Developer ${developer.isBlocked ? 'unblocked' : 'blocked'} successfully`);
       fetchBusinessDevelopers();
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to toggle business developer block state');
+      console.error('Failed to toggle business developer block state:', err);
     }
   };
 
@@ -418,7 +435,7 @@ const PlotBusinessDevelopers = () => {
       toast.success('Business Developer deleted successfully');
       fetchBusinessDevelopers();
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to delete business developer');
+      console.error('Failed to delete business developer:', err);
     }
   };
 
@@ -460,9 +477,9 @@ const PlotBusinessDevelopers = () => {
       setShowModal(false);
       fetchBusinessDevelopers();
       fetchBusinessPartners();
+      fetchBranchPartners();
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to save business developer');
+      console.error('Failed to save business developer:', err);
     }
   };
 
@@ -487,7 +504,7 @@ const PlotBusinessDevelopers = () => {
       toast.success(res.data?.message || `Password reset successfully to: ${finalPassword}`);
       setResetPasswordTarget(null);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to reset password');
+      console.error('Failed to reset password:', err);
     } finally {
       setResettingPassword(false);
     }
@@ -559,20 +576,29 @@ const PlotBusinessDevelopers = () => {
     },
     {
       name: 'Designation / Role',
-      selector: (row) => (row.isBranchPartner ? 'Branch Partner' : (!row.sponsorId ? 'Business Partner' : 'Business Associate')),
-      cell: (row) => (
-        <span
-          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-            row.isBranchPartner
-              ? 'bg-purple-50 text-purple-800 border border-purple-200'
-              : !row.sponsorId
-              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-              : 'bg-blue-50 text-blue-800 border border-blue-200'
-          }`}
-        >
-          {row.isBranchPartner ? '🏢 Branch Partner' : (!row.sponsorId ? '👑 Business Partner' : '👥 Business Associate')}
-        </span>
-      ),
+      selector: (row) => {
+        const isBRP = row.isBranchPartner || row.sponsorCode?.startsWith('BRP-') || row.sponsorCode?.startsWith('BR-');
+        const isBA = !isBRP && (row.sponsorCode?.startsWith('BA-') || (row.sponsorId && !row.sponsorCode?.startsWith('BP-') && !row.sponsorId?.isBranchPartner && !row.sponsorId?.sponsorCode?.startsWith('BRP-')));
+        return isBRP ? 'Branch Partner' : (isBA ? 'Business Associate' : 'Business Partner');
+      },
+      cell: (row) => {
+        const isBRP = row.isBranchPartner || row.sponsorCode?.startsWith('BRP-') || row.sponsorCode?.startsWith('BR-');
+        const isBA = !isBRP && (row.sponsorCode?.startsWith('BA-') || (row.sponsorId && !row.sponsorCode?.startsWith('BP-') && !row.sponsorId?.isBranchPartner && !row.sponsorId?.sponsorCode?.startsWith('BRP-')));
+        const isBP = !isBRP && !isBA;
+        return (
+          <span
+            className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              isBRP
+                ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                : isBP
+                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                : 'bg-blue-50 text-blue-800 border border-blue-200'
+            }`}
+          >
+            {isBRP ? '🏢 Branch Partner' : (isBP ? '👑 Business Partner' : '👥 Business Associate')}
+          </span>
+        );
+      },
       sortable: true,
       width: '160px',
     },
@@ -694,14 +720,17 @@ const PlotBusinessDevelopers = () => {
 
           {/* Row 2: Reset Password, Edit, Block/Unblock, Delete */}
           {(() => {
-            const isAssoc = Boolean(row.sponsorId);
             const isBRP = row.isBranchPartner || (row.sponsorCode && (row.sponsorCode.startsWith('BRP-') || row.sponsorCode.startsWith('BR-')));
+            const isBA = !isBRP && (row.sponsorCode?.startsWith('BA-') || (row.sponsorId && !row.sponsorCode?.startsWith('BP-') && !row.sponsorId?.isBranchPartner && !row.sponsorId?.sponsorCode?.startsWith('BRP-')));
+            const isBP = !isBRP && !isBA;
+            const isBPWithoutBranchPartner = isBP && (!row.sponsorId || row.sponsorId === 'direct');
+
             const canUpdateRow = isBRP
               ? canUpdateBranchPartner
-              : (isAssoc ? canUpdateAssociate : canUpdatePartner);
+              : (isBA ? canUpdateAssociate : canUpdatePartner);
             const canDeleteRow = isBRP
               ? canDeleteBranchPartner
-              : (isAssoc ? canDeleteAssociate : canDeletePartner);
+              : (isBA ? canDeleteAssociate : canDeletePartner);
             return (
               <div className="flex items-center gap-1.5">
                 {canUpdateRow && (
@@ -716,10 +745,19 @@ const PlotBusinessDevelopers = () => {
                 {canUpdateRow && (
                   <button
                     onClick={() => handleOpenModal(row)}
-                    className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
-                    title="Edit Developer Information"
+                    className="relative p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
+                    title={isBPWithoutBranchPartner ? "Branch Partner not selected/assigned yet. Click to edit and assign." : "Edit Developer Information"}
                   >
                     <Pencil size={15} />
+                    {isBPWithoutBranchPartner && (
+                      <span
+                        className="absolute -top-1 -right-1 flex h-2.5 w-2.5"
+                        title="Branch Partner not connected"
+                      >
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border border-white"></span>
+                      </span>
+                    )}
                   </button>
                 )}
                 {canUpdateRow && (
@@ -940,8 +978,8 @@ const PlotBusinessDevelopers = () => {
       >
         <form id="developer-form" onSubmit={handleSubmit} className="space-y-4">
 
-              {/* Branch Partner & Business Partner Mode: Branch Selection */}
-              {(createMode === 'branch_partner' || createMode === 'partner') && (
+              {/* Branch Partner Mode: Branch Selection */}
+              {createMode === 'branch_partner' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Select Branch *
@@ -949,7 +987,7 @@ const PlotBusinessDevelopers = () => {
                   <SearchableSelect
                     required
                     value={formData.branchId}
-                    onChange={(val) => setFormData({ ...formData, branchId: val, sponsorId: 'direct', roleType: createMode, isBranchPartner: createMode === 'branch_partner' })}
+                    onChange={(val) => setFormData({ ...formData, branchId: val, sponsorId: 'direct', roleType: 'branch_partner', isBranchPartner: true })}
                     options={availableBranches.map((b) => ({
                       value: b._id,
                       label: b.name,
@@ -958,11 +996,82 @@ const PlotBusinessDevelopers = () => {
                     placeholder="Select Branch..."
                     searchPlaceholder="Search branch by name or location..."
                   />
-                  {createMode === 'branch_partner' && (
-                    <p className="mt-1 text-[11px] text-purple-700 font-medium">
-                      🏢 Branch Partner will have branch-wide visibility over all bookings, partners, and associates under this branch.
+                  <p className="mt-1 text-[11px] text-purple-700 font-medium">
+                    🏢 Branch Partner will have branch-wide visibility over all bookings, partners, and associates under this branch.
+                  </p>
+                </div>
+              )}
+
+              {/* Business Partner Mode: Select Branch Partner (Mandatory for new, with auto-linked Branch) */}
+              {createMode === 'partner' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Select Branch Partner *
+                    </label>
+                    <SearchableSelect
+                      required={!editingDeveloper}
+                      value={formData.sponsorId === 'direct' ? '' : formData.sponsorId}
+                      onChange={(selBRPId) => {
+                        const brp = allBranchPartners.find((b) => b._id === selBRPId);
+                        const brpBranchId = brp?.branchIds?.[0]?._id || brp?.branchIds?.[0] || '';
+                        setFormData((prev) => ({
+                          ...prev,
+                          sponsorId: selBRPId || 'direct',
+                          roleType: 'partner',
+                          isBranchPartner: false,
+                          branchId: brpBranchId || prev.branchId || (availableBranches[0]?._id || ''),
+                        }));
+                      }}
+                      options={(() => {
+                        const opts = allBranchPartners.map((bp) => {
+                          const bName = bp.branchIds?.[0]?.name || (typeof bp.branchIds?.[0] === 'string' ? availableBranches.find(b => b._id === bp.branchIds[0])?.name : '');
+                          return {
+                            value: bp._id,
+                            label: `${bp.name} (${bp.sponsorCode || 'Branch Partner'})`,
+                            subtitle: bName ? `Branch: ${bName}` : 'Branch Partner',
+                          };
+                        });
+                        if (editingDeveloper) {
+                          opts.unshift({
+                            value: '',
+                            label: '🏢 Direct to Branch / Company (No Branch Partner)',
+                            subtitle: 'Legacy unassigned partner',
+                          });
+                        }
+                        return opts;
+                      })()}
+                      placeholder="Select Branch Partner..."
+                      searchPlaceholder="Search branch partner by name or code..."
+                    />
+                    <p className="mt-1 text-[11px] text-teal-800 font-medium">
+                      Select the Branch Partner this Business Partner will operate under.
                     </p>
-                  )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Assigned Branch (Auto-detected from Branch Partner) *
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      placeholder="Select Branch Partner first..."
+                      value={
+                        availableBranches.find((b) => b._id === formData.branchId)?.name ||
+                        allBranchPartners.find((bp) => bp._id === formData.sponsorId)?.branchIds?.[0]?.name ||
+                        (formData.branchId ? 'Mapped Branch' : '')
+                      }
+                      className="h-10 w-full px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed select-none placeholder:text-slate-400 placeholder:font-normal"
+                    />
+                    {editingDeveloper && (!formData.sponsorId || formData.sponsorId === 'direct') && (
+                      <p className="mt-1 text-[11px] text-rose-600 font-medium flex items-center gap-1">
+                        <AlertCircle size={12} className="shrink-0" />
+                        No Branch Partner mapped yet. Please select a Branch Partner to link.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -977,7 +1086,9 @@ const PlotBusinessDevelopers = () => {
                       required
                       value={formData.sponsorId === 'direct' ? '' : formData.sponsorId}
                       onChange={(selPartnerId) => {
-                        const partnerPool = allBusinessPartners.length > 0 ? allBusinessPartners : businessDevelopers.filter((s) => !s.sponsorId);
+                        const partnerPool = allBusinessPartners.length > 0
+                          ? allBusinessPartners
+                          : businessDevelopers.filter((s) => !s.isBranchPartner && !s.sponsorCode?.startsWith('BRP-') && (!s.sponsorId || s.sponsorCode?.startsWith('BP-') || s.sponsorId?.isBranchPartner || s.sponsorId?.sponsorCode?.startsWith('BRP-')));
                         const partner = partnerPool.find((s) => s._id === selPartnerId);
                         const partnerBranchId = partner?.branchIds?.[0]?._id || partner?.branchIds?.[0] || '';
                         setFormData((prev) => ({
@@ -987,7 +1098,9 @@ const PlotBusinessDevelopers = () => {
                         }));
                       }}
                       options={(() => {
-                        const partnerPool = allBusinessPartners.length > 0 ? allBusinessPartners : businessDevelopers.filter((s) => !s.sponsorId);
+                        const partnerPool = allBusinessPartners.length > 0
+                          ? allBusinessPartners
+                          : businessDevelopers.filter((s) => !s.isBranchPartner && !s.sponsorCode?.startsWith('BRP-') && (!s.sponsorId || s.sponsorCode?.startsWith('BP-') || s.sponsorId?.isBranchPartner || s.sponsorId?.sponsorCode?.startsWith('BRP-')));
                         const filtered = partnerPool.filter((s) => s._id !== editingDeveloper?._id);
                         // Ensure existing editing sponsor's partner is present in options even if not in pool
                         if (editingDeveloper?.sponsorId && typeof editingDeveloper.sponsorId === 'object' && editingDeveloper.sponsorId._id) {

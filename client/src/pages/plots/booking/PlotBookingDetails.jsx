@@ -50,6 +50,12 @@ const PlotBookingDetails = () => {
   const userRole = getRole();
   const isSponsor = userRole === 'sponsor';
 
+  const formatPercent = (val, fallback = 0) => {
+    const num = val !== undefined && val !== null ? Number(val) : fallback;
+    if (isNaN(num)) return `${fallback}%`;
+    return `${Number(num.toFixed(3))}%`;
+  };
+
   const [booking, setBooking] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [receipts, setReceipts] = useState([]);
@@ -758,11 +764,11 @@ const PlotBookingDetails = () => {
                 <span className="text-[10px] font-bold text-slate-600 block uppercase">BA (Associate)</span>
                 <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-xs">
                   <span className="text-emerald-700 font-bold" title="Downpayment Rate">
-                    DP: {booking.downpaymentPromoterCommissionPercent !== undefined ? `${booking.downpaymentPromoterCommissionPercent}%` : `${booking.promoterCommissionPercent || 5}%`}
+                    DP: {formatPercent(booking.downpaymentPromoterCommissionPercent ?? booking.promoterCommissionPercent, 5)}
                   </span>
                   <span className="text-slate-300">|</span>
                   <span className="text-teal-700 font-bold" title="EMI Rate">
-                    EMI: {booking.emiPromoterCommissionPercent !== undefined ? `${booking.emiPromoterCommissionPercent}%` : `${booking.promoterCommissionPercent || 4}%`}
+                    EMI: {formatPercent(booking.emiPromoterCommissionPercent ?? booking.promoterCommissionPercent, 4)}
                   </span>
                 </div>
               </div>
@@ -772,11 +778,11 @@ const PlotBookingDetails = () => {
                 <span className="text-[10px] font-bold text-slate-600 block uppercase">BP (Partner)</span>
                 <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-xs">
                   <span className="text-emerald-700 font-bold" title="Downpayment Rate">
-                    DP: {booking.downpaymentBpCommissionPercent !== undefined ? `${booking.downpaymentBpCommissionPercent}%` : `${booking.bpCommissionPercent || booking.developerCommissionPercent || 1}%`}
+                    DP: {formatPercent(booking.downpaymentBpCommissionPercent ?? booking.bpCommissionPercent ?? booking.developerCommissionPercent, 1)}
                   </span>
                   <span className="text-slate-300">|</span>
                   <span className="text-teal-700 font-bold" title="EMI Rate">
-                    EMI: {booking.emiBpCommissionPercent !== undefined ? `${booking.emiBpCommissionPercent}%` : `${booking.bpCommissionPercent || booking.developerCommissionPercent || 1}%`}
+                    EMI: {formatPercent(booking.emiBpCommissionPercent ?? booking.bpCommissionPercent ?? booking.developerCommissionPercent, 1)}
                   </span>
                 </div>
               </div>
@@ -786,11 +792,11 @@ const PlotBookingDetails = () => {
                 <span className="text-[10px] font-bold text-slate-600 block uppercase">Branch Partner</span>
                 <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-xs">
                   <span className="text-emerald-700 font-bold" title="Downpayment Rate">
-                    DP: {booking.downpaymentBranchCommissionPercent !== undefined ? `${booking.downpaymentBranchCommissionPercent}%` : `${booking.branchCommissionPercent || 0.5}%`}
+                    DP: {formatPercent(booking.downpaymentBranchCommissionPercent ?? booking.branchCommissionPercent, 0.5)}
                   </span>
                   <span className="text-slate-300">|</span>
                   <span className="text-teal-700 font-bold" title="EMI Rate">
-                    EMI: {booking.emiBranchCommissionPercent !== undefined ? `${booking.emiBranchCommissionPercent}%` : `${booking.branchCommissionPercent || 0.5}%`}
+                    EMI: {formatPercent(booking.emiBranchCommissionPercent ?? booking.branchCommissionPercent, 0.5)}
                   </span>
                 </div>
               </div>
@@ -1109,16 +1115,14 @@ const PlotBookingDetails = () => {
       )}
 
       {/* ── MODAL: CUSTOMER CANCELLATION & REFUND ── */}
-      <Modalbox open={refundOpen} onClose={() => setRefundOpen(false)} outside={true}>
-        <div className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-rose-900 flex items-center gap-2">
-              <RotateCcw size={18} className="text-rose-600" />
-              Cancel Booking & Process Refund
-            </h3>
-            <button onClick={() => setRefundOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
-          </div>
-
+      <Modalbox
+        open={refundOpen}
+        onClose={() => setRefundOpen(false)}
+        title="Cancel Booking & Process Refund"
+        icon={<RotateCcw size={18} className="text-rose-600" />}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
             <p className="font-bold flex items-center gap-1.5"><AlertTriangle size={14} /> Total Collections Paid: ₹{paidAmount.toLocaleString('en-IN')}</p>
             <p className="text-[11px] text-amber-700">Cancelling will release the plot to AVAILABLE status and restore allocated land stock to the Kisan agreement.</p>
@@ -1216,16 +1220,14 @@ const PlotBookingDetails = () => {
       </Modalbox>
 
       {/* ── MODAL: REJECT BOOKING ── */}
-      <Modalbox open={rejectModalOpen} onClose={() => setRejectModalOpen(false)} outside={!rejectLoading}>
-        <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-rose-900 flex items-center gap-2">
-              <RotateCcw size={18} className="text-rose-600" />
-              Reject Plot Booking
-            </h3>
-            <button onClick={() => setRejectModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
-          </div>
-
+      <Modalbox
+        open={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        title="Reject Plot Booking"
+        icon={<RotateCcw size={18} className="text-rose-600" />}
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
             <p className="font-bold flex items-center gap-1.5">
               <AlertTriangle size={14} /> Rejection Warning

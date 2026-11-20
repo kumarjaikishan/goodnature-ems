@@ -571,9 +571,9 @@ export default function PlotBookingEditPage() {
     const list = [];
     const sourceAgreements = form.projectId
       ? (availableLandSources || []).filter((src) => {
-          const pId = src.projectId?._id || src.projectId;
-          return pId && String(pId) === String(form.projectId);
-        })
+        const pId = src.projectId?._id || src.projectId;
+        return pId && String(pId) === String(form.projectId);
+      })
       : availableLandSources || [];
 
     sourceAgreements.forEach((agr) => {
@@ -729,9 +729,9 @@ export default function PlotBookingEditPage() {
   // Filter series based on selected project (if selected)
   const filteredSeries = selectedProjectId
     ? seriesList.filter((s) => {
-        const pId = s.projectId?._id || s.projectId;
-        return pId && String(pId) === String(selectedProjectId);
-      })
+      const pId = s.projectId?._id || s.projectId;
+      return pId && String(pId) === String(selectedProjectId);
+    })
     : seriesList;
 
   const currentProject = projects.find((p) => String(p._id) === String(selectedProjectId));
@@ -1008,9 +1008,8 @@ export default function PlotBookingEditPage() {
                               <span className="text-[9px] mt-1 opacity-80">{plot.plotSize} sqft</span>
                               {plot.plotType === 'CORNER' && (
                                 <span
-                                  className={`text-[8px] px-1 rounded-sm mt-0.5 font-bold uppercase ${
-                                    isSelected ? 'bg-teal-800 text-teal-100' : 'bg-amber-100 text-amber-800'
-                                  }`}
+                                  className={`text-[8px] px-1 rounded-sm mt-0.5 font-bold uppercase ${isSelected ? 'bg-teal-800 text-teal-100' : 'bg-amber-100 text-amber-800'
+                                    }`}
                                 >
                                   Corner
                                 </span>
@@ -1057,18 +1056,16 @@ export default function PlotBookingEditPage() {
 
               <div className="flex flex-col gap-1.5">
                 <select
-                  className={`w-full h-11 px-3.5 bg-white border rounded-xl text-sm font-semibold outline-none shadow-2xs cursor-pointer ${
-                    !currentSelectValue
-                      ? 'border-amber-300 text-amber-950 focus:ring-2 focus:ring-amber-500'
-                      : 'border-teal-300 text-teal-950 focus:ring-2 focus:ring-teal-600'
-                  }`}
+                  className={`w-full h-11 px-3.5 bg-white border rounded-xl text-sm font-semibold outline-none shadow-2xs cursor-pointer ${!currentSelectValue
+                    ? 'border-amber-300 text-amber-950 focus:ring-2 focus:ring-amber-500'
+                    : 'border-teal-300 text-teal-950 focus:ring-2 focus:ring-teal-600'
+                    }`}
                   value={currentSelectValue || ''}
                   onChange={(e) => handleSelectPlan(e.target.value)}
                 >
                   <option value="">-- Choose Scheme Plan (Optional / Pre-sets Rates & Slabs) --</option>
                   {availableSchemeSlabs.map((s, idx) => {
-                    const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
-                    const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months (${isZeroReturn ? 'Actual Plot Sale / Registry' : `RD: ${s.rdMaturityPercent}% | FD: ${s.fdMaturityPercent}%`})`;
+                    const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months`;
                     return (
                       <option key={idx} value={getSlabValue(s)}>
                         {label}
@@ -1107,14 +1104,16 @@ export default function PlotBookingEditPage() {
                         developerCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
                         bpCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
                         branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 0.5),
+                        branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                        downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                        emiBranchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
                       }));
                     }
                   }}
-                  className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col gap-1.5 ${
-                    paymentPlanMode === 'ONE_TIME'
-                      ? 'bg-white border-teal-700 shadow-sm ring-1 ring-teal-700/20'
-                      : 'bg-white/50 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col gap-1.5 ${paymentPlanMode === 'ONE_TIME'
+                    ? 'bg-white border-teal-700 shadow-sm ring-1 ring-teal-700/20'
+                    : 'bg-white/50 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
@@ -1145,14 +1144,16 @@ export default function PlotBookingEditPage() {
                         developerCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
                         bpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
                         branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0),
+                        branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
+                        downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                        emiBranchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
                       }));
                     }
                   }}
-                  className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col gap-1.5 ${
-                    paymentPlanMode === 'EMI'
-                      ? 'bg-white border-teal-700 shadow-sm ring-1 ring-teal-700/20'
-                      : 'bg-white/50 border-slate-200 hover:border-slate-300'
-                  }`}
+                  className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col gap-1.5 ${paymentPlanMode === 'EMI'
+                    ? 'bg-white border-teal-700 shadow-sm ring-1 ring-teal-700/20'
+                    : 'bg-white/50 border-slate-200 hover:border-slate-300'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
@@ -1256,11 +1257,10 @@ export default function PlotBookingEditPage() {
                       return (
                         <label
                           key={idx}
-                          className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                            head.active
-                              ? 'bg-white border-amber-400 shadow-xs ring-1 ring-amber-400'
-                              : 'bg-white/60 border-slate-200 opacity-60 hover:opacity-100'
-                          }`}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${head.active
+                            ? 'bg-white border-amber-400 shadow-xs ring-1 ring-amber-400'
+                            : 'bg-white/60 border-slate-200 opacity-60 hover:opacity-100'
+                            }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <input
@@ -1321,11 +1321,10 @@ export default function PlotBookingEditPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800">Discount</label>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      calculatedDiscount > 0
-                        ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-                        : 'text-slate-400'
-                    }`}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${calculatedDiscount > 0
+                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                      : 'text-slate-400'
+                      }`}
                   >
                     {calculatedDiscount > 0 ? `-₹${calculatedDiscount.toLocaleString('en-IN')}` : 'Optional'}
                   </span>
@@ -1351,8 +1350,8 @@ export default function PlotBookingEditPage() {
                       discountType === 'PERCENT'
                         ? 'e.g. 10 (%)'
                         : discountType === 'SQFT_RATE'
-                        ? 'e.g. 50 (₹/sqft)'
-                        : 'e.g. 25000 (Flat ₹)'
+                          ? 'e.g. 50 (₹/sqft)'
+                          : 'e.g. 25000 (Flat ₹)'
                     }
                   />
                 </div>
@@ -1374,10 +1373,10 @@ export default function PlotBookingEditPage() {
                     {paymentPlanMode === 'ONE_TIME'
                       ? '100% Full Net Value'
                       : dpType === 'SQFT_RATE'
-                      ? `₹${dpVal || 0}/sqft`
-                      : dpType === 'PERCENT'
-                      ? `${dpVal || 0}%`
-                      : `Flat ₹`}
+                        ? `₹${dpVal || 0}/sqft`
+                        : dpType === 'PERCENT'
+                          ? `${dpVal || 0}%`
+                          : `Flat ₹`}
                   </span>
                 </div>
 
@@ -1424,8 +1423,8 @@ export default function PlotBookingEditPage() {
                         dpType === 'PERCENT'
                           ? 'e.g. 25 (%)'
                           : dpType === 'SQFT_RATE'
-                          ? 'e.g. 500 (₹/sqft)'
-                          : 'e.g. 200000 (Flat ₹)'
+                            ? 'e.g. 500 (₹/sqft)'
+                            : 'e.g. 200000 (Flat ₹)'
                       }
                       required
                     />
@@ -1495,10 +1494,10 @@ export default function PlotBookingEditPage() {
                         {emiFrequency === 'MONTHLY'
                           ? 'every month'
                           : emiFrequency === 'QUARTERLY'
-                          ? 'every 3 months'
-                          : emiFrequency === 'HALF_YEARLY'
-                          ? 'every 6 months'
-                          : 'every 12 months'}
+                            ? 'every 3 months'
+                            : emiFrequency === 'HALF_YEARLY'
+                              ? 'every 6 months'
+                              : 'every 12 months'}
                       </span>
                     </div>
 

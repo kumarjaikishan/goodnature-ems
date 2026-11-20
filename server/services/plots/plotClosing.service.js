@@ -242,14 +242,12 @@ class PlotClosingService {
       const branch = c.branchId;
 
       let key = null;
-      if (isBranch && branch) {
-        key = `branch_${branch._id || branch}`;
-      } else if (isBranch && c.sponsorId) {
-        key = `branch_sp_${c.sponsorId._id || c.sponsorId}`;
-      } else if (sp && (sp._id || sp)) {
+      if (sp && (sp._id || sp)) {
         key = `sp_${sp._id || sp}`;
       } else if (c.sponsorId) {
         key = `sp_${c.sponsorId}`;
+      } else if (branch && (branch._id || branch)) {
+        key = `branch_${branch._id || branch}`;
       } else if (c.branchId) {
         key = `branch_${c.branchId._id || c.branchId}`;
       }
@@ -261,9 +259,26 @@ class PlotClosingService {
       const isIndirect = c.commissionRole === 'DEVELOPER_OVERRIDE';
 
       if (!sponsorMap[key]) {
-        if (isBranch && branch) {
-          const bpUser = branch.branchPartnerId || (sp && sp._id ? sp : null);
-          const bpName = bpUser?.name ? `${bpUser.name} (${branch.name || 'Branch'})` : (branch.name ? `${branch.name} BRANCH` : 'Branch Override');
+        if (sp && (sp._id || sp)) {
+          const spObj = typeof sp === 'object' ? sp : {};
+          sponsorMap[key] = {
+            branchId: branch ? (branch._id || branch) : null,
+            sponsorId: spObj._id || sp,
+            sponsorName: spObj.name ? spObj.name.toUpperCase() : (isBranch ? 'BRANCH PARTNER' : ''),
+            sponsorCode: spObj.sponsorCode || spObj.customerId || '',
+            customerId: spObj.customerId || spObj.sponsorCode || '',
+            mobile: spObj.mobile || '',
+            isDeveloper: !spObj.sponsorId || spObj.sponsorId === 'direct',
+            isBranchPartner: isBranch,
+            directBusiness: 0,
+            indirectBusiness: 0,
+            branchBusiness: 0,
+            totalBusiness: 0,
+            entries: [],
+          };
+        } else if (isBranch && branch) {
+          const bpUser = branch.branchPartnerId;
+          const bpName = bpUser?.name ? bpUser.name : (branch.name ? `${branch.name} BRANCH` : 'Branch Override');
           const branchCode = bpUser?.sponsorCode || bpUser?.customerId || branch.branchCode || branch.code || 'BRANCH';
           sponsorMap[key] = {
             branchId: branch._id || branch,
@@ -283,13 +298,13 @@ class PlotClosingService {
         } else {
           sponsorMap[key] = {
             branchId: null,
-            sponsorId: sp?._id || sp || c.sponsorId,
-            sponsorName: sp?.name || '',
-            sponsorCode: sp?.sponsorCode || '',
-            customerId: sp?.customerId || sp?.sponsorCode || '',
-            mobile: sp?.mobile || '',
-            isDeveloper: !sp?.sponsorId || sp?.sponsorId === 'direct',
-            isBranchPartner: false,
+            sponsorId: c.sponsorId || null,
+            sponsorName: '',
+            sponsorCode: '',
+            customerId: '',
+            mobile: '',
+            isDeveloper: false,
+            isBranchPartner: isBranch,
             directBusiness: 0,
             indirectBusiness: 0,
             branchBusiness: 0,
@@ -614,7 +629,7 @@ class PlotClosingService {
 
           await accountingService.recordLedgerEntry({
             sponsorId: sp.sponsorId || null,
-            branchId: sp.branchId || null,
+            branchId: sp.sponsorId ? null : (sp.branchId || null),
             date: closingDoc.endDate || new Date(),
             type: 'CREDIT',
             amount: creditAmt,
@@ -1000,7 +1015,7 @@ class PlotClosingService {
 
           await accountingService.recordLedgerEntry({
             sponsorId: sp.sponsorId || null,
-            branchId: sp.branchId || null,
+            branchId: sp.sponsorId ? null : (sp.branchId || null),
             date: closing.endDate || new Date(),
             type: 'CREDIT',
             amount: creditAmt,

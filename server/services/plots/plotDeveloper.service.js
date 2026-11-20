@@ -657,25 +657,50 @@ class PlotDeveloperService {
         if (defB) targetBranchId = defB._id;
       }
 
+      // Resolve Branch Partner through 3-tier hierarchy: BA -> BP -> BRP
       let targetBranchPartnerId = booking.branchPartnerId;
+      if (!targetBranchPartnerId) {
+        if (sponsorDoc.isBranchPartner || sponsorDoc.sponsorCode?.startsWith('BRP-')) {
+          targetBranchPartnerId = sponsorDoc._id;
+        } else if (sponsorDoc.sponsorId) {
+          const parentBp = await User.findById(sponsorDoc.sponsorId).select('_id sponsorId isBranchPartner sponsorCode').session(session);
+          if (parentBp) {
+            if (parentBp.isBranchPartner || parentBp.sponsorCode?.startsWith('BRP-')) {
+              targetBranchPartnerId = parentBp._id;
+            } else if (parentBp.sponsorId) {
+              const grandParent = await User.findById(parentBp.sponsorId).select('_id isBranchPartner sponsorCode').session(session);
+              if (grandParent && (grandParent.isBranchPartner || grandParent.sponsorCode?.startsWith('BRP-'))) {
+                targetBranchPartnerId = grandParent._id;
+              }
+            }
+          }
+        }
+      }
+      // Fallback: If still null, check branch's designated branch partners
       if (targetBranchId && !targetBranchPartnerId) {
         const bDoc = await Branch.findById(targetBranchId).select('branchPartnerId branchPartnerIds').session(session);
         if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
         else if (bDoc?.branchPartnerIds?.length > 0) targetBranchPartnerId = bDoc.branchPartnerIds[0];
       }
+      if (targetBranchPartnerId && !booking.branchPartnerId) {
+        booking.branchPartnerId = targetBranchPartnerId;
+        if (session) await booking.save({ session });
+        else await booking.save();
+      }
 
-      if (targetBranchId || targetBranchPartnerId) {
+      if (targetBranchPartnerId || targetBranchId) {
         const branchFixedAmt = Math.round(collectionPrincipal * (branchFixedPct / 100) * 100) / 100;
         let branchLedgerEntryId = null;
         const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override - ${paymentCategory} (${receiptTypeFormatted}) | Receipt #${receipt.receiptNumber || ''} | Booking #${booking.bookingNumber || ''}`;
 
         if (branchFixedAmt > 0 && receipt.status !== 'PENDING') {
-          const branchLedger = targetBranchId
-            ? await Ledger.findOne({ branchId: targetBranchId }).session(session)
-            : await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+          // Priority to Branch Partner's personal sponsor ledger!
+          const branchPartnerLedger = targetBranchPartnerId
+            ? await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session)
+            : await Ledger.findOne({ branchId: targetBranchId }).session(session);
 
-          let existingBranchEntry = branchLedger ? await Entry.findOne({
-            ledgerId: branchLedger._id,
+          let existingBranchEntry = branchPartnerLedger ? await Entry.findOne({
+            ledgerId: branchPartnerLedger._id,
             referenceId: receipt._id,
             source: 'commission_branch',
             status: 'active'
@@ -692,8 +717,8 @@ class PlotDeveloperService {
             branchLedgerEntryId = existingBranchEntry._id;
           } else {
             const entry = await accountingService.recordLedgerEntry({
-              branchId: targetBranchId || null,
               sponsorId: targetBranchPartnerId || null,
+              branchId: targetBranchPartnerId ? null : (targetBranchId || null),
               date: receiptDate,
               type: 'CREDIT',
               amount: branchFixedAmt,
@@ -1325,11 +1350,34 @@ class PlotDeveloperService {
         if (defB) prodBranchId = defB._id;
       }
 
+      // Resolve Branch Partner through 3-tier hierarchy: BA -> BP -> BRP
       let targetBranchPartnerId = booking.branchPartnerId;
+      if (!targetBranchPartnerId) {
+        if (sponsorDoc.isBranchPartner || sponsorDoc.sponsorCode?.startsWith('BRP-')) {
+          targetBranchPartnerId = sponsorDoc._id;
+        } else if (sponsorDoc.sponsorId) {
+          const parentBp = await User.findById(sponsorDoc.sponsorId).select('_id sponsorId isBranchPartner sponsorCode').session(session);
+          if (parentBp) {
+            if (parentBp.isBranchPartner || parentBp.sponsorCode?.startsWith('BRP-')) {
+              targetBranchPartnerId = parentBp._id;
+            } else if (parentBp.sponsorId) {
+              const grandParent = await User.findById(parentBp.sponsorId).select('_id isBranchPartner sponsorCode').session(session);
+              if (grandParent && (grandParent.isBranchPartner || grandParent.sponsorCode?.startsWith('BRP-'))) {
+                targetBranchPartnerId = grandParent._id;
+              }
+            }
+          }
+        }
+      }
       if (prodBranchId && !targetBranchPartnerId) {
         const bDoc = await Branch.findById(prodBranchId).select('branchPartnerId branchPartnerIds').session(session);
         if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
         else if (bDoc?.branchPartnerIds?.length > 0) targetBranchPartnerId = bDoc.branchPartnerIds[0];
+      }
+      if (targetBranchPartnerId && !booking.branchPartnerId) {
+        booking.branchPartnerId = targetBranchPartnerId;
+        if (session) await booking.save({ session });
+        else await booking.save();
       }
 
       if (prodBranchId || targetBranchPartnerId) {
@@ -1338,12 +1386,13 @@ class PlotDeveloperService {
         const branchRemarks = `F.Comm (${branchFixedPct}%) on ₹${colAmtFormatted} | Branch Override (${receiptTypeFormatted}) | Receipt #${col.receiptNumber} | Booking #${booking.bookingNumber}`;
 
         if (branchFixedAmt > 0) {
-          const branchLedger = prodBranchId
-            ? await Ledger.findOne({ branchId: prodBranchId }).session(session)
-            : await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session);
+          // Priority to Branch Partner's personal sponsor ledger!
+          const branchPartnerLedger = targetBranchPartnerId
+            ? await Ledger.findOne({ sponsorId: targetBranchPartnerId }).session(session)
+            : await Ledger.findOne({ branchId: prodBranchId }).session(session);
 
-          let existingBranchEntry = branchLedger ? await Entry.findOne({
-            ledgerId: branchLedger._id,
+          let existingBranchEntry = branchPartnerLedger ? await Entry.findOne({
+            ledgerId: branchPartnerLedger._id,
             referenceId: booking._id,
             particular: { $regex: col.receiptNumber },
             source: 'commission_branch',
@@ -1361,8 +1410,8 @@ class PlotDeveloperService {
             branchLedgerEntryId = existingBranchEntry._id;
           } else {
             const entry = await accountingService.recordLedgerEntry({
-              branchId: prodBranchId || null,
               sponsorId: targetBranchPartnerId || null,
+              branchId: targetBranchPartnerId ? null : (prodBranchId || null),
               date: receiptDate,
               type: 'CREDIT',
               amount: branchFixedAmt,
@@ -2421,7 +2470,31 @@ class PlotDeveloperService {
         { sponsorCode: { $regex: '^BRP-', $options: 'i' } }
       ];
     } else if (roleType === 'partner') {
-      const partnerOr = [{ sponsorId: null }, { sponsorId: { $exists: false } }];
+      const branchesWithPartners = await Branch.find({
+        $or: [
+          { branchPartnerId: { $ne: null } },
+          { 'branchPartnerIds.0': { $exists: true } }
+        ]
+      }).select('branchPartnerId branchPartnerIds').lean();
+      const bpPartnerIds = new Set();
+      branchesWithPartners.forEach(b => {
+        if (b.branchPartnerId) bpPartnerIds.add(b.branchPartnerId.toString());
+        if (Array.isArray(b.branchPartnerIds)) {
+          b.branchPartnerIds.forEach(id => id && bpPartnerIds.add(id.toString()));
+        }
+      });
+      const brpUsers = await User.find({
+        role: { $in: ['sponsor', 'agent'] },
+        $or: [{ isBranchPartner: true }, { sponsorCode: { $regex: '^(BRP-|BR-)', $options: 'i' } }]
+      }).select('_id').lean();
+      brpUsers.forEach(u => bpPartnerIds.add(u._id.toString()));
+
+      const partnerOr = [
+        { sponsorCode: { $regex: '^(BP-|P/)', $options: 'i' } },
+        { sponsorId: null },
+        { sponsorId: { $exists: false } },
+        ...(bpPartnerIds.size > 0 ? [{ sponsorId: { $in: Array.from(bpPartnerIds) } }] : [])
+      ];
       const bpExclusions = [
         { isBranchPartner: { $ne: true } },
         { sponsorCode: { $not: { $regex: '^(BRP-|BR-)', $options: 'i' } } }
@@ -2435,6 +2508,8 @@ class PlotDeveloperService {
       }
     } else if (roleType === 'associate' && !filter.sponsorId) {
       filter.sponsorId = { $ne: null, $exists: true };
+      filter.isBranchPartner = { $ne: true };
+      filter.sponsorCode = { $regex: '^(BA-|A/)', $options: 'i' };
     }
     if (search) {
       const searchOr = [
@@ -2509,18 +2584,9 @@ class PlotDeveloperService {
         const isBRP = Boolean(partnerBranch) || codeUpper.startsWith('BRP-') || codeUpper.startsWith('BR-') || s.isBranchPartner === true;
 
         let ledgerId = ledgerMap.get(s._id.toString());
-        if (isBRP) {
-          // Branch partners use their branch's ledger
-          if (partnerBranch) {
-            const bLedger = await Ledger.findOne({ branchId: partnerBranch._id }).select('_id').lean();
-            if (bLedger) ledgerId = bLedger._id.toString();
-          } else if (s.branchIds && s.branchIds.length > 0) {
-            const bLedger = await Ledger.findOne({ branchId: s.branchIds[0] }).select('_id').lean();
-            if (bLedger) ledgerId = bLedger._id.toString();
-          }
-        } else if (!ledgerId) {
+        if (!ledgerId) {
           const newLedger = new Ledger({
-            name: s.name || 'Sponsor',
+            name: s.name || (isBRP ? 'Branch Partner' : 'Sponsor'),
             sponsorId: s._id,
             empId: s.sponsorCode || s.customerId || '',
             profileImage: s.profileImage,
@@ -2606,6 +2672,8 @@ class PlotDeveloperService {
     }
 
     const isBranchPartnerRole = data.roleType === 'branch_partner' || data.isBranchPartner === true;
+    const isPartnerRole = data.roleType === 'partner';
+    const isAssociateRole = data.roleType === 'associate';
 
     if (isBranchPartnerRole && resolvedBranchIds.length === 0) {
       throw new Error('A valid Branch must be selected for a Branch Partner');
@@ -2616,16 +2684,30 @@ class PlotDeveloperService {
       if (!parentSponsor) {
         throw new Error('Referring sponsor not found');
       }
-      if (parentSponsor.sponsorId) {
-        throw new Error('Hierarchy limit reached: Sub-sponsors cannot have child sponsors under them. Referring sponsor must be a Developer Sponsor (Direct to Company).');
+
+      const parentCodeUpper = String(parentSponsor.sponsorCode || '').trim().toUpperCase();
+      const parentIsBRP = parentSponsor.isBranchPartner || parentCodeUpper.startsWith('BRP-') || parentCodeUpper.startsWith('BR-');
+      const parentIsBA = parentCodeUpper.startsWith('BA-') || parentCodeUpper.startsWith('A/');
+
+      if (isPartnerRole) {
+        // Business Partner can be under a Branch Partner or Direct to Company
+        if (!parentIsBRP && parentSponsor.sponsorId) {
+          throw new Error('A Business Partner can only be created under a Branch Partner or Direct to Branch.');
+        }
+      } else if (isAssociateRole) {
+        // Business Associate must be under a Business Partner
+        if (parentIsBA) {
+          throw new Error('Hierarchy limit reached: Sub-associates cannot have child associates under them. Referring sponsor must be a Business Partner.');
+        }
       }
+
       if (resolvedBranchIds.length === 0 && parentSponsor.branchIds && parentSponsor.branchIds.length > 0) {
         resolvedBranchIds = parentSponsor.branchIds;
       }
     }
 
-    // BRP for Branch Partner, BP for Business Partner (Direct to company), BA for Business Associate (Under Partner)
-    const prefixType = isBranchPartnerRole ? 'BRP' : (resolvedParentId ? 'BA' : 'BP');
+    // Explicit 3-Tier ID sequence: BRP for Branch Partner, BP for Business Partner, BA for Business Associate
+    const prefixType = isBranchPartnerRole ? 'BRP' : (isPartnerRole ? 'BP' : (isAssociateRole ? 'BA' : (resolvedParentId ? 'BA' : 'BP')));
     const counterKey = `GNE-${prefixType}-${fyStr}`;
     const seqNum = await Counter.getNextSequence(counterKey, null, 3);
     const sponsorCode = `${prefixType}-${sDay}/${sMonthNum}/${fyStr}/${seqNum}`;
@@ -2633,7 +2715,7 @@ class PlotDeveloperService {
     const sponsorData = {
       name,
       sponsorCode,
-      sponsorId: resolvedParentId,
+      sponsorId: isBranchPartnerRole ? null : resolvedParentId,
       branchIds: resolvedBranchIds,
       isBranchPartner: isBranchPartnerRole,
       password: password || '123456',
@@ -2666,6 +2748,23 @@ class PlotDeveloperService {
     const sponsor = new User(sponsorData);
     await sponsor.save();
 
+    // Dedicated Personal Ledger for Every Developer (BRP, BP, and BA all have personal ledgers for earned commissions)
+    let personalLedger = await Ledger.findOne({ sponsorId: sponsor._id });
+    if (!personalLedger) {
+      personalLedger = new Ledger({
+        name: sponsor.name || 'Business Developer',
+        sponsorId: sponsor._id,
+        empId: sponsor.sponsorCode || '',
+        profileImage: sponsor.profileImage,
+        ledgerType: 'sponsor',
+        isVoucherLedger: true,
+        advance: 0
+      });
+      await personalLedger.save();
+    }
+    sponsor.ledgerId = personalLedger._id;
+    await sponsor.save();
+
     // If created as Branch Partner, automatically link to the branch's branchPartnerIds array
     if (isBranchPartnerRole && resolvedBranchIds.length > 0) {
       await Branch.updateMany(
@@ -2679,12 +2778,6 @@ class PlotDeveloperService {
         { _id: { $in: resolvedBranchIds }, $or: [{ branchPartnerId: null }, { branchPartnerId: { $exists: false } }] },
         { $set: { branchPartnerId: sponsor._id } }
       );
-      // Link sponsor.ledgerId directly to the branch's ledger
-      const brLedger = await Ledger.findOne({ branchId: resolvedBranchIds[0] });
-      if (brLedger) {
-        sponsor.ledgerId = brLedger._id;
-        await sponsor.save();
-      }
     }
 
     return sponsor;
@@ -2714,21 +2807,51 @@ class PlotDeveloperService {
       }
     }
 
+    const isBranchPartnerRole = updateData.roleType === 'branch_partner' || updateData.isBranchPartner === true;
+    if (isBranchPartnerRole) {
+      updateData.isBranchPartner = true;
+      updateData.sponsorId = null;
+    } else if (updateData.roleType === 'partner' || updateData.roleType === 'associate') {
+      updateData.isBranchPartner = false;
+    }
+
     if (updateData.sponsorId !== undefined) {
-      if (updateData.sponsorId === 'company' || updateData.sponsorId === 'direct') {
+      if (updateData.sponsorId === 'company' || updateData.sponsorId === 'direct' || !updateData.sponsorId) {
         updateData.sponsorId = null;
       } else if (updateData.sponsorId) {
-        const hasChildren = await User.countDocuments({ sponsorId: id, role: { $in: ['sponsor', 'agent'] } });
-        if (hasChildren > 0) {
-          throw new Error('This Developer Sponsor already has sub-sponsors registered under them and cannot be converted into a Sub-Sponsor.');
-        }
-
         const parentSponsor = await User.findById(updateData.sponsorId);
         if (!parentSponsor) {
-          throw new Error('Parent sponsor not found');
+          throw new Error('Referring sponsor not found');
         }
-        if (parentSponsor.sponsorId) {
-          throw new Error('Hierarchy limit reached: Sub-sponsors cannot have child sponsors. Referring sponsor must be a Developer Sponsor (Direct to Company).');
+
+        const parentCodeUpper = String(parentSponsor.sponsorCode || '').trim().toUpperCase();
+        const parentIsBRP = parentSponsor.isBranchPartner === true || parentCodeUpper.startsWith('BRP-') || parentCodeUpper.startsWith('BR-');
+        const parentIsBA = parentCodeUpper.startsWith('BA-') || parentCodeUpper.startsWith('A/');
+
+        // In 3-tier hierarchy:
+        // Level 1: Branch Partner (BRP)
+        // Level 2: Business Partner (BP) -> Reports to Branch Partner or Direct
+        // Level 3: Business Associate (BA) -> Reports to Business Partner
+        //
+        // If assigning under a Branch Partner, this developer is a Business Partner (Level 2).
+        // Business Partners CAN have child sub-sponsors (Business Associates), so having children is 100% allowed!
+        // Only if assigning under a regular Business Partner (making this developer a Level 3 Business Associate)
+        // do we verify they don't have children, because Level 3 associates cannot have sub-developers!
+        if (!parentIsBRP) {
+          if (parentIsBA) {
+            throw new Error('Hierarchy limit reached: Business Associates cannot have child developers under them. Referring sponsor must be a Business Partner.');
+          }
+          const hasChildren = await User.countDocuments({ sponsorId: id, role: { $in: ['sponsor', 'agent'] } });
+          if (hasChildren > 0) {
+            throw new Error('This Business Partner already has Business Associates registered under them and cannot be converted into an Associate under another Partner.');
+          }
+          if (parentSponsor.sponsorId) {
+            const grandParent = await User.findById(parentSponsor.sponsorId);
+            const isGrandParentBRP = grandParent && (grandParent.isBranchPartner === true || String(grandParent.sponsorCode || '').trim().toUpperCase().startsWith('BRP-'));
+            if (!isGrandParentBRP) {
+              throw new Error('Hierarchy limit reached: Maximum 3 levels allowed (Branch Partner -> Business Partner -> Business Associate).');
+            }
+          }
         }
       }
     }

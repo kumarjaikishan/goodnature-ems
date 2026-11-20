@@ -245,8 +245,7 @@ export const StepTermsAndPayment = ({
           >
             <option value="">-- Choose Mandatory Scheme Plan --</option>
             {availableSchemeSlabs.map((s, idx) => {
-              const isZeroReturn = Number(s.rdMaturityPercent) === 0 && Number(s.fdMaturityPercent) === 0;
-              const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months (${isZeroReturn ? 'Actual Plot Sale / Registry' : `RD: ${s.rdMaturityPercent}% | FD: ${s.fdMaturityPercent}%`})`;
+              const label = `${s.planName ? `${s.planName} — ` : ''}${s.tenureMonths} Months`;
               return (
                 <option key={idx} value={getSlabValue(s)}>
                   {label}
@@ -289,7 +288,9 @@ export const StepTermsAndPayment = ({
                   promoterCommissionPercent: Number(currentSchemeSlab.fdPromoterCommissionPercent ?? 5.0),
                   developerCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
                   bpCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
-                  branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 0.5),
+                  branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                  downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                  emiBranchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
                 }));
               }
             }}
@@ -325,7 +326,9 @@ export const StepTermsAndPayment = ({
                   promoterCommissionPercent: Number(currentSchemeSlab.rdPromoterCommissionPercent ?? 4.0),
                   developerCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
                   bpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
-                  branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0),
+                  branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
+                  downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                  emiBranchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
                 }));
               }
             }}

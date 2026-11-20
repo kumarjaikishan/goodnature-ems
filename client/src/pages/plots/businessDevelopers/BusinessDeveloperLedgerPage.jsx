@@ -29,21 +29,11 @@ const BusinessDeveloperLedgerPage = () => {
 
           const defaultLabel = isBranchPartner ? 'Branch Partner' : (isAssociate ? 'Business Associate' : 'Business Partner');
           const branchSuffix = (isBranchPartner && sp?.branchName) ? ` (${sp.branchName})` : '';
-          const name = encodeURIComponent(
-            isBranchPartner
-              ? (sp?.branchName ? `${sp.branchName} BRANCH` : `${sp?.name || defaultLabel}${branchSuffix}`)
-              : `${sp?.name || defaultLabel}${branchSuffix}`
-          );
-          const empId = encodeURIComponent(
-            isBranchPartner
-              ? (sp?.branchCode || sp?.sponsorCode || sp?.customerId || '')
-              : (sp?.sponsorCode || sp?.customerId || '')
-          );
+          const name = encodeURIComponent(`${sp?.name || defaultLabel}${branchSuffix}`);
+          const empId = encodeURIComponent(sp?.sponsorCode || sp?.customerId || '');
           const imgParam = sp?.profileImage ? `&profileimage=${encodeURIComponent(sp.profileImage)}` : '';
 
-          const destinationLedgerId = (isBranchPartner && (res.data?.branchLedgerId || sp?.branchLedgerId))
-            ? (res.data?.branchLedgerId || sp?.branchLedgerId)
-            : targetId;
+          const destinationLedgerId = sp?.ledgerId || targetId;
 
           navigate(`/dashboard/ledger/${destinationLedgerId}?name=${name}&empid=${empId}&ledgertype=${computedType}${imgParam}`, { replace: true });
         })

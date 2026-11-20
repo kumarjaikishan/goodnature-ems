@@ -66,3 +66,23 @@
     - Hardened `isBRP` and `isDeveloperPartner` detection with prefix guarantees.
   - `client/src/pages/plots/businessDevelopers/CommissionStructurePage.jsx`:
     - Hardened `isBranchPartnerUser` guard with prefix checks.
+
+## 2026-11-20 — 3-Tier Business Developer Hierarchy & Personal Ledger Migration
+- **Hierarchy Established**:
+  - `Branch` (Organization entity)
+    └── `Branch Partner (BRP)` (Personal Developer, `BRP-...`, `isBranchPartner: true`, personal ledger `ledgerType: 'sponsor'`)
+          └── `Business Partner (BP)` (Personal Developer, `BP-...`, reports to Branch Partner or Direct, personal ledger `ledgerType: 'sponsor'`)
+                └── `Business Associate (BA)` (Personal Developer, `BA-...`, reports to Business Partner, personal ledger `ledgerType: 'sponsor'`)
+- **Ledger & Commission Routing**:
+  - Direct Commission -> Booking linked Business Associate (`PROMOTER` / `DIRECT_DEVELOPER`)
+  - Team Override -> Parent Business Partner (`DEVELOPER_OVERRIDE`)
+  - Branch Override -> Parent Branch Partner's personal sponsor ledger (`BRANCH_OVERRIDE`), NOT to the branch office entity ledger.
+  - Periodic Closings (Target Incentive & Extra Incentive) credit to respective developer's personal ledger (`sponsorId: sp.sponsorId`, `branchId: null`).
+- **Migration Script (`server/scripts/migrate_branch_partners.js`)**:
+  - Script is permanent and registered under `npm run migrate:branch-partners`.
+  - Reusable and idempotent for when the user connects their real / production database.
+  - Automatically deduplicates multiple ledgers for Branch Partners, transfers existing `commission_branch` override entries from Branch entity ledgers to the Branch Partner's personal sponsor ledger, updates `PlotSponsorCommission` and bookings, and recalculates running balances.
+- **Frontend Pages Updated**:
+  - `PlotBusinessDevelopers.jsx`: Modal supports Branch Partner selection for Business Partners, table displays 🏢 Branch Partner, 👑 Business Partner, and 👥 Business Associate badges, copyable IDs without background.
+  - `ledgerpagelist.jsx`: `/dashboard/ledger/branch-partners` lists only Branch Partners (`tier === 'branch_partner'`), separating them from Branch office entity ledgers.
+  - `BusinessDeveloperLedgerPage.jsx`: Forwards Branch Partners directly to their personal sponsor ledger (`sp.ledgerId`).

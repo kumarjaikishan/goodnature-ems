@@ -210,19 +210,25 @@ router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin',
 router.route("/entries/:id").get(authmiddlewre, async (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own ledger entries, allow access
   if (req.user?.role === 'sponsor') {
-    if (String(req.user.id || req.user._id) === String(req.params.id)) {
+    const loggedInUserId = String(req.user.id || req.user._id);
+    if (loggedInUserId === String(req.params.id)) {
       return next();
     }
-    // If user is a branch partner requesting their branch's ledger
+    if (req.user.ledgerId && String(req.user.ledgerId) === String(req.params.id)) {
+      return next();
+    }
     try {
       const Ledger = mongoose.model('Ledger');
-      const Branch = mongoose.model('Branch');
       const targetLedger = await Ledger.findById(req.params.id).lean();
+      if (targetLedger?.sponsorId && String(targetLedger.sponsorId) === loggedInUserId) {
+        return next();
+      }
       if (targetLedger?.branchId) {
         const userBranchIds = (req.user.branchIds || []).map(b => b.toString());
         if (userBranchIds.includes(targetLedger.branchId.toString())) {
           return next();
         }
+        const Branch = mongoose.model('Branch');
         const isBp = await Branch.exists({
           _id: targetLedger.branchId,
           $or: [{ branchPartnerId: req.user._id }, { branchPartnerIds: req.user._id }]

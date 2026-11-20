@@ -809,18 +809,35 @@ class PlotProductService {
     let resolvedBranchId = data.branchId || null;
     let resolvedBranchPartnerId = data.branchPartnerId || null;
     if (sponsorId && (!resolvedBranchId || !resolvedBranchPartnerId)) {
-      const spUser = await User.findById(sponsorId).select('branchIds sponsorId');
-      if (!resolvedBranchId && spUser?.branchIds?.length > 0) {
-        resolvedBranchId = spUser.branchIds[0];
-      }
-      if (!resolvedBranchId && spUser?.sponsorId) {
-        const parentSp = await User.findById(spUser.sponsorId).select('branchIds');
-        if (parentSp?.branchIds?.length > 0) resolvedBranchId = parentSp.branchIds[0];
+      const spUser = await User.findById(sponsorId).select('branchIds sponsorId isBranchPartner sponsorCode');
+      if (spUser) {
+        if (spUser.isBranchPartner || spUser.sponsorCode?.startsWith('BRP-')) {
+          resolvedBranchPartnerId = spUser._id;
+        } else if (spUser.sponsorId) {
+          const parentSp = await User.findById(spUser.sponsorId).select('branchIds sponsorId isBranchPartner sponsorCode');
+          if (parentSp) {
+            if (parentSp.isBranchPartner || parentSp.sponsorCode?.startsWith('BRP-')) {
+              resolvedBranchPartnerId = parentSp._id;
+            } else if (parentSp.sponsorId) {
+              const grandParent = await User.findById(parentSp.sponsorId).select('branchIds isBranchPartner sponsorCode');
+              if (grandParent && (grandParent.isBranchPartner || grandParent.sponsorCode?.startsWith('BRP-'))) {
+                resolvedBranchPartnerId = grandParent._id;
+              }
+            }
+            if (!resolvedBranchId && parentSp.branchIds?.length > 0) {
+              resolvedBranchId = parentSp.branchIds[0];
+            }
+          }
+        }
+        if (!resolvedBranchId && spUser.branchIds?.length > 0) {
+          resolvedBranchId = spUser.branchIds[0];
+        }
       }
     }
     if (resolvedBranchId && !resolvedBranchPartnerId) {
-      const bDoc = await Branch.findById(resolvedBranchId).select('branchPartnerId');
+      const bDoc = await Branch.findById(resolvedBranchId).select('branchPartnerId branchPartnerIds');
       if (bDoc?.branchPartnerId) resolvedBranchPartnerId = bDoc.branchPartnerId;
+      else if (bDoc?.branchPartnerIds?.length > 0) resolvedBranchPartnerId = bDoc.branchPartnerIds[0];
     }
 
     // Resolve scheme-configured commissions from InvestmentSchemeConfig
