@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../../utils/apiClient';
 import { useApi } from '../../../utils/useApi';
-import { ArrowLeft, CheckCircle2, UserPlus, Camera, PenTool, Trash2, User, Phone, Mail, Building2, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Plus, Camera, PenTool, Trash2, User, Phone, Mail, Building2, CreditCard, ShieldCheck } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import useImageUpload from '../../../utils/imageresizer';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
@@ -345,8 +345,8 @@ const PlotCustomerFormPage = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-800 text-xs font-semibold rounded-lg border border-teal-200 shadow-xs transition hover:border-teal-300 active:scale-95 cursor-pointer self-start sm:self-auto"
               title="Add a new business associate in Business Developers master"
             >
-              <UserPlus size={14} className="text-teal-700" />
-              + Add Business Associate
+              <Plus size={14} className="text-teal-700" />
+              Add Business Associate
             </button>
           </div>
 

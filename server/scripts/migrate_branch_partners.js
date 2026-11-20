@@ -121,20 +121,19 @@ try {
               { ledgerId: branchLedger._id, source: 'commission_branch' },
               { $set: { ledgerId: mainLedger._id } }
             );
-
-            // Recalculate branch ledger running balance
-            const remainingBranchEntries = await Entry.find({ ledgerId: branchLedger._id }).sort({ date: 1, createdAt: 1, _id: 1 });
-            let brRunning = 0;
-            for (const e of remainingBranchEntries) {
-              brRunning += (Number(e.credit) || 0) - (Number(e.debit) || 0);
-              if (e.balance !== brRunning) {
-                await Entry.findByIdAndUpdate(e._id, { $set: { balance: brRunning } });
-              }
-            }
-            branchLedger.advance = brRunning;
-            await branchLedger.save();
-            console.log(`    ✓ Recalculated Branch ledger balance: ₹${brRunning}`);
           }
+
+          // Recalculate branch ledger running balance
+          const remainingBranchEntries = await Entry.find({ ledgerId: branchLedger._id }).sort({ date: 1, createdAt: 1, _id: 1 });
+          let brRunning = 0;
+          for (const e of remainingBranchEntries) {
+            brRunning = Math.round((brRunning + (Number(e.credit) || 0) - (Number(e.debit) || 0)) * 100) / 100;
+            if (e.balance !== brRunning) {
+              await Entry.findByIdAndUpdate(e._id, { $set: { balance: brRunning } });
+            }
+          }
+          await Ledger.findByIdAndUpdate(branchLedger._id, { $set: { advance: brRunning } });
+          console.log(`    ✓ Recalculated Branch ledger balance: ₹${brRunning}`);
         }
 
         // Update PlotSponsorCommission records for this branch
@@ -165,13 +164,12 @@ try {
       const partnerEntries = await Entry.find({ ledgerId: mainLedger._id }).sort({ date: 1, createdAt: 1, _id: 1 });
       let pRunning = 0;
       for (const e of partnerEntries) {
-        pRunning += (Number(e.credit) || 0) - (Number(e.debit) || 0);
+        pRunning = Math.round((pRunning + (Number(e.credit) || 0) - (Number(e.debit) || 0)) * 100) / 100;
         if (e.balance !== pRunning) {
           await Entry.findByIdAndUpdate(e._id, { $set: { balance: pRunning } });
         }
       }
-      mainLedger.advance = pRunning;
-      await mainLedger.save();
+      await Ledger.findByIdAndUpdate(mainLedger._id, { $set: { advance: pRunning } });
       console.log(`  ✓ Recalculated Branch Partner ledger balance: ₹${pRunning} across ${partnerEntries.length} transaction(s).`);
     }
 

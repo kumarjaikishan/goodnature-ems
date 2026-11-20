@@ -132,9 +132,9 @@ export const getSidebarMenuConfig = ({ role, company, user }) => {
             { menu: 'Fund Transfers', link: '/dashboard/ledger/transfers', roles: OPERATIONAL_ROLES, resource: 'fund_transfer' },
             { menu: 'Employee', link: '/dashboard/ledger/employees', roles: OPERATIONAL_ROLES, resource: 'employee_ledger' },
             { menu: 'Seller', link: '/dashboard/ledger/sellers', roles: OPERATIONAL_ROLES, resource: 'kisan_ledger' },
-            { menu: 'Business Associate', link: '/dashboard/ledger/business-associates', roles: OPERATIONAL_ROLES, resource: 'associate_ledger' },
-            { menu: 'Business Partner', link: '/dashboard/ledger/business-partners', roles: OPERATIONAL_ROLES, resource: 'partner_ledger' },
             { menu: 'Branch Partner', link: '/dashboard/ledger/branch-partners', roles: OPERATIONAL_ROLES, resource: 'branch_ledger' },
+            { menu: 'Business Partner', link: '/dashboard/ledger/business-partners', roles: OPERATIONAL_ROLES, resource: 'partner_ledger' },
+            { menu: 'Business Associate', link: '/dashboard/ledger/business-associates', roles: OPERATIONAL_ROLES, resource: 'associate_ledger' },
           ],
         },
         {

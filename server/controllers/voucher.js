@@ -928,13 +928,19 @@ exports.deleteVoucher = async (req, res, next) => {
       }
     }
 
-    if (voucher.referenceType !== 'MANUAL') {
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (!isDev && voucher.referenceType !== 'MANUAL') {
       return res.status(400).json({ message: "Only manual vouchers can be deleted" });
     }
 
-    const entry = await Entry.findOne({ referenceId: voucher._id }).session(session);
-    if (entry) {
-      await accountingService.deleteLedgerEntry(entry._id, session);
+    // Delete any ledger entries linked to this voucher (voucherId or referenceId)
+    const entries = await Entry.find({
+      $or: [{ voucherId: voucher._id }, { referenceId: voucher._id }]
+    }).session(session);
+
+    for (const ent of entries) {
+      await accountingService.deleteLedgerEntry(ent._id, session);
     }
 
     await voucher.deleteOne({ session });

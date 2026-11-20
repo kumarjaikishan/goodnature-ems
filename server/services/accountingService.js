@@ -13,6 +13,55 @@ function toUtcDateOnly(input) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
+/**
+ * Generates strict chronological sort/filter criteria on (date, createdAt, _id).
+ * Guarantees identical order matching the compound index and avoids duplicate query logic.
+ *
+ * @param {mongoose.Types.ObjectId} ledgerId
+ * @param {Object} entry - The pivot entry with { date, createdAt, _id }
+ * @param {'before'|'after'} direction
+ */
+function _chronoFilter(ledgerId, entry, direction = 'before') {
+  const op = direction === 'before' ? '$lt' : '$gt';
+  return {
+    ledgerId,
+    _id: { $ne: entry._id },
+    $or: [
+      { date: { [op]: entry.date } },
+      { date: entry.date, createdAt: { [op]: entry.createdAt } },
+      { date: entry.date, createdAt: entry.createdAt, _id: { [op]: entry._id } }
+    ]
+  };
+}
+
+/**
+ * Synchronizes the final running balance of a ledger to Ledger.advance
+ * and Employee.advance (if employee ledger).
+ *
+ * @param {mongoose.Types.ObjectId} ledgerId
+ * @param {mongoose.ClientSession|null} session
+ */
+async function _syncLedgerFinalBalance(ledgerId, session = null) {
+  if (!ledgerId) return 0;
+  const lastEntry = await Entry.findOne({ ledgerId })
+    .sort({ date: -1, createdAt: -1, _id: -1 })
+    .session(session);
+
+  const finalBalance = lastEntry ? (Number(lastEntry.balance) || 0) : 0;
+
+  const ledger = await Ledger.findByIdAndUpdate(
+    ledgerId,
+    { $set: { advance: finalBalance } },
+    { session, new: true }
+  );
+
+  if (ledger?.ledgerType === 'employee' && ledger.employeeId) {
+    await Employee.findByIdAndUpdate(ledger.employeeId, { advance: finalBalance }, { session });
+  }
+
+  return finalBalance;
+}
+
 class AccountingService {
   /**
    * Create a voucher and corresponding ledger entries
@@ -50,7 +99,7 @@ class AccountingService {
              date: date || new Date(),
              type: entry.type, 
              amount: entry.amount,
-             source: referenceType.toLowerCase(),
+             source: (referenceType || 'voucher').toLowerCase(),
              voucherId: voucher._id,
              referenceId,
              remarks: remarks || `Voucher ${voucherNo}`
@@ -135,8 +184,6 @@ class AccountingService {
     } = data;
 
     const amountNum = Number(amount) || 0;
-    const Employee = mongoose.model('employee');
-    const User = mongoose.model('User');
     const postingDate = toUtcDateOnly(date);
 
     // 1. Find the Ledger
@@ -206,7 +253,7 @@ class AccountingService {
 
     if (!empLedger) throw new Error("Ledger account not found");
 
-    // 2. Atomic Update of Ledger Balance
+    // 2. Atomic Update of Ledger Balance (Transaction write lock)
     const netEffect = type === 'CREDIT' ? amountNum : -amountNum;
     
     const updatedLedger = await Ledger.findByIdAndUpdate(
@@ -237,46 +284,35 @@ class AccountingService {
 
     await newEntry.save({ session });
 
-    const nextEntry = await Entry.findOne({
-      ledgerId: updatedLedger._id,
-      $or: [
-        { date: { $gt: newEntry.date } },
-        { date: newEntry.date, createdAt: { $gt: newEntry.createdAt } },
-        { date: newEntry.date, createdAt: newEntry.createdAt, _id: { $gt: newEntry._id } }
-      ]
-    }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session);
+    // Always find the immediately preceding entry in chronological sort order
+    const prevEntry = await Entry.findOne(
+      _chronoFilter(updatedLedger._id, newEntry, 'before')
+    ).sort({ date: -1, createdAt: -1, _id: -1 }).session(session);
 
-    if (!nextEntry) {
-      newEntry.balance = updatedLedger.advance;
-      await newEntry.save({ session });
-      return newEntry;
-    }
-
-    const prevEntry = await Entry.findOne({
-      ledgerId: updatedLedger._id,
-      $or: [
-        { date: { $lt: newEntry.date } },
-        { date: newEntry.date, createdAt: { $lt: newEntry.createdAt } },
-        { date: newEntry.date, createdAt: newEntry.createdAt, _id: { $lt: newEntry._id } }
-      ]
-    }).sort({ date: -1, createdAt: -1, _id: -1 }).session(session);
-
-    const prevBalance = prevEntry?.balance || 0;
-    newEntry.balance = prevBalance + netEffect;
+    const prevBalance = prevEntry ? (Number(prevEntry.balance) || 0) : 0;
+    newEntry.balance = Math.round((prevBalance + netEffect) * 100) / 100;
     await newEntry.save({ session });
 
-    await Entry.updateMany(
-      {
-        ledgerId: updatedLedger._id,
-        $or: [
-          { date: { $gt: newEntry.date } },
-          { date: newEntry.date, createdAt: { $gt: newEntry.createdAt } },
-          { date: newEntry.date, createdAt: newEntry.createdAt, _id: { $gt: newEntry._id } }
-        ]
-      },
+    // Propagate netEffect to all subsequent entries
+    const updateResult = await Entry.updateMany(
+      _chronoFilter(updatedLedger._id, newEntry, 'after'),
       { $inc: { balance: netEffect } },
       { session }
     );
+
+    // Sync final balance
+    if (updateResult && updateResult.matchedCount > 0) {
+      await _syncLedgerFinalBalance(updatedLedger._id, session);
+    } else {
+      await Ledger.findByIdAndUpdate(
+        updatedLedger._id,
+        { $set: { advance: newEntry.balance } },
+        { session }
+      );
+      if (updatedLedger.ledgerType === 'employee' && updatedLedger.employeeId) {
+        await Employee.findByIdAndUpdate(updatedLedger.employeeId, { advance: newEntry.balance }, { session });
+      }
+    }
 
     return newEntry;
   }
@@ -293,6 +329,7 @@ class AccountingService {
     const amount = originalEntry.credit > 0 ? originalEntry.credit : originalEntry.debit;
 
     const reversalEntry = await this.recordLedgerEntry({
+      ledgerId: ledger._id,
       employeeId: ledger.employeeId,
       type,
       amount,
@@ -332,79 +369,37 @@ class AccountingService {
     if (!ledger) throw new Error("Ledger not found");
 
     const oldDate = originalEntry.date;
+    const targetDate = newData.date ? toUtcDateOnly(newData.date) : originalEntry.date;
 
     // 1. Calculate the delta
     const oldNet = (originalEntry.credit || 0) - (originalEntry.debit || 0);
-    const newCredit = Number(newData.credit) || 0;
-    const newDebit = Number(newData.debit) || 0;
+    const newCredit = newData.credit !== undefined ? (Number(newData.credit) || 0) : (originalEntry.credit || 0);
+    const newDebit = newData.debit !== undefined ? (Number(newData.debit) || 0) : (originalEntry.debit || 0);
     const newNet = newCredit - newDebit;
     
-    const delta = newNet - oldNet;
+    const delta = Math.round((newNet - oldNet) * 100) / 100;
 
     // 2. Update the current entry
-    originalEntry.date = newData.date || originalEntry.date;
+    originalEntry.date = targetDate;
     originalEntry.particular = newData.particular || originalEntry.particular;
     originalEntry.debit = newDebit;
     originalEntry.credit = newCredit;
-    originalEntry.balance += delta;
+    originalEntry.balance = Math.round((originalEntry.balance + delta) * 100) / 100;
     await originalEntry.save({ session });
 
     // If date changes, the entry's position in the running-order can change.
-    // In that case, a simple delta-propagation can corrupt balances.
-    if (newData.date && new Date(newData.date).getTime() !== new Date(oldDate).getTime()) {
-      const allEntries = await Entry.find({ ledgerId: ledger._id })
-        .sort({ date: 1, createdAt: 1, _id: 1 })
-        .session(session);
-
-      let running = 0;
-      const bulkOps = [];
-      for (const e of allEntries) {
-        running += (e.credit || 0) - (e.debit || 0);
-        if (e.balance !== running) {
-          bulkOps.push({ updateOne: { filter: { _id: e._id }, update: { $set: { balance: running } } } });
-        }
-      }
-      if (bulkOps.length) {
-        await Entry.bulkWrite(bulkOps, { session });
-      }
-
-      ledger.advance = running;
-      await ledger.save({ session });
-
-      if (ledger.employeeId) {
-        const Employee = mongoose.model('employee');
-        await Employee.findByIdAndUpdate(ledger.employeeId, { advance: ledger.advance }, { session });
-      }
-
+    if (newData.date && new Date(targetDate).getTime() !== new Date(oldDate).getTime()) {
+      await this.recalculateLedgerBalance(ledger._id, session);
       return originalEntry;
     }
 
     // 3. Propagate to ALL subsequent entries
-    // (mirrors the same shift used in recordLedgerEntry: a single bulk
-    // update instead of fetching every subsequent entry and saving each
-    // one individually - same result, one round trip instead of N)
-    const subsequentFilter = {
-      ledgerId: ledger._id,
-      $or: [
-        { date: { $gt: originalEntry.date } },
-        { date: originalEntry.date, createdAt: { $gt: originalEntry.createdAt } },
-        { date: originalEntry.date, createdAt: originalEntry.createdAt, _id: { $gt: originalEntry._id } }
-      ]
-    };
     if (delta !== 0) {
-      await Entry.updateMany(subsequentFilter, { $inc: { balance: delta } }, { session });
+      await Entry.updateMany(_chronoFilter(ledger._id, originalEntry, 'after'), { $inc: { balance: delta } }, { session });
     }
 
     // 4. Update the Ledger and Employee global balance
-    if (delta !== 0) {
-      ledger.advance += delta;
-      await ledger.save({ session });
-
-      if (ledger.employeeId) {
-        const Employee = mongoose.model('employee');
-        await Employee.findByIdAndUpdate(ledger.employeeId, { advance: ledger.advance }, { session });
-      }
-    }
+    await _syncLedgerFinalBalance(ledger._id, session);
 
     return originalEntry;
   }
@@ -423,42 +418,53 @@ class AccountingService {
     if (!ledger) throw new Error("Ledger not found");
 
     // 1. Calculate the delta (reversing the entry's effect)
-    // If it was credit 100, net was +100. Delta to remove it is -100.
     const netEffect = (entryToDelete.credit || 0) - (entryToDelete.debit || 0);
-    const delta = -netEffect;
+    const delta = Math.round((-netEffect) * 100) / 100;
 
-    // 2. Propagate to ALL subsequent entries (single bulk update instead
-    // of fetching + saving every subsequent entry one at a time)
+    // 2. Propagate to ALL subsequent entries
     if (delta !== 0) {
-      await Entry.updateMany(
-        {
-          ledgerId: ledger._id,
-          $or: [
-            { date: { $gt: entryToDelete.date } },
-            { date: entryToDelete.date, createdAt: { $gt: entryToDelete.createdAt } },
-            { date: entryToDelete.date, createdAt: entryToDelete.createdAt, _id: { $gt: entryToDelete._id } }
-          ]
-        },
-        { $inc: { balance: delta } },
-        { session }
-      );
+      await Entry.updateMany(_chronoFilter(ledger._id, entryToDelete, 'after'), { $inc: { balance: delta } }, { session });
     }
 
-    // 3. Update the Ledger and Employee global balance
-    if (delta !== 0) {
-      ledger.advance += delta;
-      await ledger.save({ session });
-
-      if (ledger.employeeId) {
-        const Employee = mongoose.model('employee');
-        await Employee.findByIdAndUpdate(ledger.employeeId, { advance: ledger.advance }, { session });
-      }
-    }
-
-    // 4. Hard Delete
+    // 3. Hard Delete
     await Entry.findByIdAndDelete(entryId).session(session);
 
+    // 4. Update the Ledger and Employee global balance
+    await _syncLedgerFinalBalance(ledger._id, session);
+
     return { success: true };
+  }
+
+  /**
+   * Fully recalculates running balances for all entries of a ledger
+   * in strict chronological order and syncs ledger.advance.
+   */
+  async recalculateLedgerBalance(ledgerId, session = null) {
+    if (!ledgerId) return 0;
+    const query = Entry.find({ ledgerId }).sort({ date: 1, createdAt: 1, _id: 1 });
+    if (session) query.session(session);
+    const allEntries = await query;
+
+    let running = 0;
+    const bulkOps = [];
+    for (const e of allEntries) {
+      running = Math.round((running + (Number(e.credit) || 0) - (Number(e.debit) || 0)) * 100) / 100;
+      if (e.balance !== running) {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: e._id },
+            update: { $set: { balance: running } }
+          }
+        });
+      }
+    }
+    if (bulkOps.length > 0) {
+      await Entry.bulkWrite(bulkOps, session ? { session } : {});
+    }
+
+    await _syncLedgerFinalBalance(ledgerId, session);
+
+    return running;
   }
 }
 

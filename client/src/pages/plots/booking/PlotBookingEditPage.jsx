@@ -5,7 +5,7 @@ import {
   ArrowLeft,
   Sparkles,
   Search,
-  UserPlus,
+  Plus,
   Edit3,
   Calculator,
   AlertCircle,
@@ -799,7 +799,7 @@ export default function PlotBookingEditPage() {
                 rel="noreferrer"
                 className="text-xs bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 shadow-2xs w-fit"
               >
-                <UserPlus size={14} /> + Register New Customer
+                <Plus size={14} /> Register New Customer
               </a>
             </div>
 

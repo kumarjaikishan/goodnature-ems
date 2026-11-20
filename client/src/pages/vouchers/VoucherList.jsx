@@ -735,18 +735,26 @@ const VoucherList = () => {
         const name = debitEntry ? debitEntry.accountName : (row.ledgerId?.name || row.employeeId?.userid?.name || row.sponsorId?.name || "N/A");
         const isSponsor = Boolean(row.sponsorId);
         const isEmployee = Boolean(row.employeeId);
+        const sponsorCode = row.sponsorId?.sponsorCode || row.ledgerId?.empId || "";
+        const employeeCode = row.employeeId?.empId || row.ledgerId?.empId || "";
 
         return (
           <div className="flex flex-col py-1 min-w-0 max-w-[130px]">
             <span className="font-semibold text-slate-800 text-xs truncate" title={name}>{name}</span>
             {isSponsor && (
-              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap truncate max-w-[125px]">
-                Sponsor {row.sponsorId?.sponsorCode ? `(${row.sponsorId.sponsorCode})` : ''}
+              <span
+                className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap truncate max-w-[125px] cursor-help"
+                title={sponsorCode || "Sponsor"}
+              >
+                Sponsor {sponsorCode ? `(${sponsorCode})` : ''}
               </span>
             )}
             {isEmployee && (
-              <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap">
-                Employee
+              <span
+                className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-fit mt-0.5 font-medium whitespace-nowrap cursor-help"
+                title={employeeCode || "Employee"}
+              >
+                Employee {employeeCode ? `(${employeeCode})` : ''}
               </span>
             )}
           </div>
@@ -793,10 +801,12 @@ const VoucherList = () => {
         }
 
         const isCash = source.toLowerCase().includes("cash");
-        // Split text like "Ghanshyam kumar (Cash Ledger)" into mainName: "Ghanshyam kumar" and subName: "Cash Ledger"
+        // Split text like "HDFC Bank (4321)" or "Ghanshyam (Cash)" into mainName and subName
         const match = source.match(/^(.*?)\s*\((.*?)\)$/);
         const mainName = match ? match[1].trim() : source;
-        const subName = match ? match[2].trim() : (isCash ? "Cash" : null);
+        const rawSub = match ? match[2].trim() : null;
+        // Avoid redundant duplicate subtitles like "Cash" under "Cash/Bank" or "Cash" under "Cash"
+        const subName = (rawSub && rawSub.toLowerCase() !== mainName.toLowerCase()) ? rawSub : null;
 
         return (
           <div className="flex items-start gap-1.5 py-1 min-w-0 max-w-[145px]" title={source}>
@@ -890,10 +900,10 @@ const VoucherList = () => {
               </button>
             )}
 
-            {/* Delete — only for manual PENDING vouchers and canDelete (voucher:4) */}
-            {canDelete && isManual && status === "PENDING" && (
+            {/* Delete — only for manual PENDING vouchers and canDelete (voucher:4), or in development mode for any voucher */}
+            {(import.meta.env.DEV || (canDelete && isManual && status === "PENDING")) && (
               <button
-                title="Delete Voucher"
+                title={import.meta.env.DEV ? "Delete Voucher (Dev Mode)" : "Delete Voucher"}
                 onClick={() => handleDeleteVoucher(row._id)}
                 className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-red-50 transition cursor-pointer"
               >
