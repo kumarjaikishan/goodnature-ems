@@ -65,7 +65,7 @@ class PlotReportService {
       return Plot.find().populate('seriesId').sort({ plotNumber: 1 });
     } else if (type === 'bookings') {
       const bookings = await PlotBooking.find({ status: { $ne: 'HOLD' } })
-        .populate('customerId', 'name customerId mobile')
+        .populate('customerId', 'name customerId customerCode mobile')
         .populate('sponsorId', 'name customerId')
         .populate('plotId', 'plotNumber plotSize plotType')
         .sort({ createdAt: -1 })
@@ -89,7 +89,7 @@ class PlotReportService {
       return bookings;
     } else if (type === 'holds') {
       const holds = await PlotBooking.find({ status: 'HOLD' })
-        .populate('customerId', 'name customerId mobile')
+        .populate('customerId', 'name customerId customerCode mobile')
         .populate('sponsorId', 'name customerId')
         .populate('plotId', 'plotNumber plotSize plotType')
         .sort({ createdAt: -1 })
@@ -189,7 +189,7 @@ class PlotReportService {
         .sort({ dueDate: 1 });
     } else if (type === 'dues') {
       const bookings = await PlotBooking.find({ status: { $ne: 'HOLD' } })
-        .populate('customerId', 'name customerId mobile')
+        .populate('customerId', 'name customerId customerCode mobile')
         .populate('sponsorId', 'name customerId')
         .populate('plotId', 'plotNumber plotSize plotType')
         .sort({ createdAt: -1 })

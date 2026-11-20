@@ -130,7 +130,18 @@ const BusinessDeveloperReportPage = () => {
   }
 
   const { sponsor: developer, summary = {}, items = [] } = reportData;
-  const isDeveloperPartner = developer.isDeveloperSponsor;
+  const isBRP = Boolean(
+    !developer?.sponsorCode?.startsWith('BA-') &&
+    !developer?.sponsorCode?.startsWith('BP-') &&
+    !developer?.sponsorCode?.startsWith('A/') &&
+    !developer?.sponsorCode?.startsWith('P/') &&
+    (developer?.isBranchPartner || developer?.sponsorCode?.startsWith('BRP-') || developer?.sponsorCode?.startsWith('BR-'))
+  );
+  const isDeveloperPartner = !isBRP && Boolean(
+    developer?.sponsorCode?.startsWith('BP-') ||
+    developer?.sponsorCode?.startsWith('P/') ||
+    (developer?.isDeveloperSponsor && !developer?.parentSponsor && !developer?.sponsorCode?.startsWith('BA-'))
+  );
 
   const hasActiveFilters = Boolean(appliedFilters.fromDate || appliedFilters.toDate || appliedFilters.typeFilter !== 'ALL' || appliedFilters.searchQuery);
 
@@ -173,14 +184,14 @@ const BusinessDeveloperReportPage = () => {
               <h1 className="text-xl font-bold text-slate-800 tracking-tight">{developer.name}</h1>
               <span
                 className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                  developer.isBranchPartner
+                  isBRP
                     ? 'bg-purple-50 text-purple-800 border-purple-200'
                     : isDeveloperPartner
                     ? 'bg-teal-50 text-teal-800 border-teal-200'
                     : 'bg-blue-50 text-blue-800 border-blue-200'
                 }`}
               >
-                {developer.isBranchPartner
+                {isBRP
                   ? `Branch Partner (${developer.branchName || 'Regional Head'})`
                   : (isDeveloperPartner ? 'Business Partner' : 'Business Associate')}
               </span>

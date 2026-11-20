@@ -5,6 +5,7 @@ import {
   Coins,
   Building2,
   Users,
+  Crown,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
@@ -33,9 +34,13 @@ const CommissionStructurePage = () => {
   const isAdminOrStaff = ['admin', 'superadmin', 'accountant', 'manager', 'developer', 'grant'].includes(userRole);
 
   const isBranchPartnerUser = Boolean(
-    activeUser.isBranchPartner === true ||
-    String(activeUser.sponsorCode || '').startsWith('BRP-') ||
-    String(activeUser.sponsorCode || '').startsWith('BR-')
+    !String(activeUser.sponsorCode || '').startsWith('BA-') &&
+    !String(activeUser.sponsorCode || '').startsWith('BP-') &&
+    !String(activeUser.sponsorCode || '').startsWith('A/') &&
+    !String(activeUser.sponsorCode || '').startsWith('P/') &&
+    (activeUser.isBranchPartner === true ||
+      String(activeUser.sponsorCode || '').startsWith('BRP-') ||
+      String(activeUser.sponsorCode || '').startsWith('BR-'))
   );
 
   const isDirectPartnerUser = !isBranchPartnerUser && Boolean(
@@ -77,9 +82,11 @@ const CommissionStructurePage = () => {
     : (isDirectPartnerUser || isBranchPartnerUser
         ? (partnerIncentiveViewRole === 'BUSINESS_ASSOCIATE'
             ? 'associate'
-            : isBranchPartnerUser
+            : partnerIncentiveViewRole === 'BUSINESS_PARTNER'
+            ? 'partner'
+            : partnerIncentiveViewRole === 'BRANCH_PARTNER'
             ? 'branch_partner'
-            : 'partner')
+            : (isBranchPartnerUser ? 'branch_partner' : 'partner'))
         : 'associate');
 
   useEffect(() => {
@@ -210,20 +217,35 @@ const CommissionStructurePage = () => {
       {/* Partner Perspective Selector */}
       {!isAdminOrStaff && (isDirectPartnerUser || isBranchPartnerUser) && (
         <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-bold text-slate-500 uppercase">View Policy For:</span>
-            <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+            <div className="flex flex-wrap items-center gap-1 p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+              {isBranchPartnerUser && (
+                <button
+                  type="button"
+                  onClick={() => setPartnerIncentiveViewRole('BRANCH_PARTNER')}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                    partnerIncentiveViewRole === 'BRANCH_PARTNER'
+                      ? 'bg-purple-700 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Building2 size={13} /> Branch Partner (Self)
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setPartnerIncentiveViewRole(isBranchPartnerUser ? 'BRANCH_PARTNER' : 'BUSINESS_PARTNER')}
+                onClick={() => setPartnerIncentiveViewRole('BUSINESS_PARTNER')}
                 className={`px-3 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                  partnerIncentiveViewRole !== 'BUSINESS_ASSOCIATE'
-                    ? 'bg-teal-700 text-white shadow-2xs'
+                  partnerIncentiveViewRole === 'BUSINESS_PARTNER'
+                    ? 'bg-amber-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span className="flex items-center gap-1.5">
-                  <Building2 size={13} /> {isBranchPartnerUser ? 'Branch Partner (Self)' : 'Business Partner (Self)'}
+                  <Crown size={13} /> {isBranchPartnerUser ? 'Business Partner (Downline)' : 'Business Partner (Self)'}
                 </span>
               </button>
               <button

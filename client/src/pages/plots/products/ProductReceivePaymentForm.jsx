@@ -1239,12 +1239,12 @@ const ProductReceivePaymentForm = ({ onBack, onSuccess, preselectedBookingId, mo
                   </button>
                 </div>
               ) : (
-                <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 p-4 rounded-2xl border border-teal-200/80 text-xs text-teal-900 flex items-start gap-3 shadow-2xs">
-                  <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-700 flex items-start gap-3 shadow-2xs">
+                  <div className="p-1.5 bg-slate-200 text-slate-800 rounded-lg">
                     <Layers size={16} />
                   </div>
                   <div>
-                    <span className="font-bold">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
+                    <span className="font-bold text-slate-900">Multi-EMI Auto-Spillover:</span> When a customer pays more than a single EMI amount (e.g. pays ₹2,00,000 for a ₹1,80,000 EMI), the system covers the active EMI and automatically spills over the remaining balance to clear subsequent EMIs in advance. All paid principal is fully credited to installments and sponsor commissions!
                   </div>
                 </div>
               )}

@@ -254,13 +254,13 @@ const LedgerDetailPage = () => {
         if (type === 'bank' || lowerName.includes('bank account') || lowerName.includes('(bank)')) return 'bank_ledger';
         if (type === 'employee') return 'employee_ledger';
         if (type === 'kisan') return 'kisan_ledger';
-        if (type === 'branch_partner' || (id && id.startsWith('BR-'))) return 'branch_ledger';
+        if (type === 'branch_partner' || (id && (id.startsWith('BR-') || id.startsWith('BRP-')))) return 'branch_ledger';
         if (type === 'associate' || (id && id.startsWith('BA-'))) return 'associate_ledger';
         if (type === 'partner' || (id && id.startsWith('BP-'))) return 'partner_ledger';
         if (type === 'sponsor') {
             if (id && id.startsWith('BA-')) return 'associate_ledger';
             if (id && id.startsWith('BP-')) return 'partner_ledger';
-            if (id && id.startsWith('BR-')) return 'branch_ledger';
+            if (id && (id.startsWith('BR-') || id.startsWith('BRP-'))) return 'branch_ledger';
             return ['associate_ledger', 'partner_ledger', 'branch_ledger'];
         }
         return 'ledger';
@@ -304,7 +304,7 @@ const LedgerDetailPage = () => {
                                 {ledgerName}
                             </h1>
                             <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                                (ledgerType === 'branch_partner' || empId?.startsWith('BR-'))
+                                (ledgerType === 'branch_partner' || empId?.startsWith('BR-') || empId?.startsWith('BRP-'))
                                     ? 'bg-purple-50 text-purple-800 border-purple-200'
                                     : (ledgerType === 'associate' || empId?.startsWith('BA-'))
                                     ? 'bg-blue-50 text-blue-800 border-blue-200'
@@ -316,7 +316,7 @@ const LedgerDetailPage = () => {
                                     ? 'bg-amber-50 text-amber-800 border-amber-200'
                                     : 'bg-slate-100 text-slate-700 border-slate-200'
                             }`}>
-                                {(ledgerType === 'branch_partner' || empId?.startsWith('BR-'))
+                                {(ledgerType === 'branch_partner' || empId?.startsWith('BR-') || empId?.startsWith('BRP-'))
                                     ? 'Branch Partner'
                                     : (ledgerType === 'associate' || empId?.startsWith('BA-'))
                                     ? 'Business Associate'

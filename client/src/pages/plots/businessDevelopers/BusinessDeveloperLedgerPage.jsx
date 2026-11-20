@@ -18,13 +18,34 @@ const BusinessDeveloperLedgerPage = () => {
       apiClient({ url: `plots/sponsors/${targetId}/ledger` })
         .then((res) => {
           const sp = res.data?.sponsor;
-          const isAssociate = sp?.isDeveloperSponsor === false || Boolean(sp?.parentSponsor) || sp?.sponsorCode?.startsWith('BA-');
-          const isBranchPartner = Boolean(sp?.isBranchPartner);
+          const isBranchPartner = Boolean(
+            sp?.isBranchPartner ||
+            sp?.sponsorCode?.startsWith('BRP-') ||
+            sp?.sponsorCode?.startsWith('BR-') ||
+            res.data?.isBranchPartner
+          );
+          const isAssociate = !isBranchPartner && (sp?.isDeveloperSponsor === false || Boolean(sp?.parentSponsor) || sp?.sponsorCode?.startsWith('BA-'));
           const computedType = isBranchPartner ? 'branch_partner' : (isAssociate ? 'associate' : 'partner');
-          const name = encodeURIComponent(sp?.name || (isAssociate ? 'Business Associate' : 'Business Partner'));
-          const empId = encodeURIComponent(sp?.sponsorCode || sp?.customerId || '');
+
+          const defaultLabel = isBranchPartner ? 'Branch Partner' : (isAssociate ? 'Business Associate' : 'Business Partner');
+          const branchSuffix = (isBranchPartner && sp?.branchName) ? ` (${sp.branchName})` : '';
+          const name = encodeURIComponent(
+            isBranchPartner
+              ? (sp?.branchName ? `${sp.branchName} BRANCH` : `${sp?.name || defaultLabel}${branchSuffix}`)
+              : `${sp?.name || defaultLabel}${branchSuffix}`
+          );
+          const empId = encodeURIComponent(
+            isBranchPartner
+              ? (sp?.branchCode || sp?.sponsorCode || sp?.customerId || '')
+              : (sp?.sponsorCode || sp?.customerId || '')
+          );
           const imgParam = sp?.profileImage ? `&profileimage=${encodeURIComponent(sp.profileImage)}` : '';
-          navigate(`/dashboard/ledger/${targetId}?name=${name}&empid=${empId}&ledgertype=${computedType}${imgParam}`, { replace: true });
+
+          const destinationLedgerId = (isBranchPartner && (res.data?.branchLedgerId || sp?.branchLedgerId))
+            ? (res.data?.branchLedgerId || sp?.branchLedgerId)
+            : targetId;
+
+          navigate(`/dashboard/ledger/${destinationLedgerId}?name=${name}&empid=${empId}&ledgertype=${computedType}${imgParam}`, { replace: true });
         })
         .catch(() => {
           navigate(`/dashboard/ledger/${targetId}?name=Business Developer&ledgertype=associate`, { replace: true });

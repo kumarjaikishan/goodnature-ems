@@ -659,8 +659,9 @@ class PlotDeveloperService {
 
       let targetBranchPartnerId = booking.branchPartnerId;
       if (targetBranchId && !targetBranchPartnerId) {
-        const bDoc = await Branch.findById(targetBranchId).select('branchPartnerId').session(session);
+        const bDoc = await Branch.findById(targetBranchId).select('branchPartnerId branchPartnerIds').session(session);
         if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+        else if (bDoc?.branchPartnerIds?.length > 0) targetBranchPartnerId = bDoc.branchPartnerIds[0];
       }
 
       if (targetBranchId || targetBranchPartnerId) {
@@ -1326,8 +1327,9 @@ class PlotDeveloperService {
 
       let targetBranchPartnerId = booking.branchPartnerId;
       if (prodBranchId && !targetBranchPartnerId) {
-        const bDoc = await Branch.findById(prodBranchId).select('branchPartnerId').session(session);
+        const bDoc = await Branch.findById(prodBranchId).select('branchPartnerId branchPartnerIds').session(session);
         if (bDoc?.branchPartnerId) targetBranchPartnerId = bDoc.branchPartnerId;
+        else if (bDoc?.branchPartnerIds?.length > 0) targetBranchPartnerId = bDoc.branchPartnerIds[0];
       }
 
       if (prodBranchId || targetBranchPartnerId) {
@@ -1430,15 +1432,41 @@ class PlotDeveloperService {
     }
 
     // Check if this sponsor is a designated Branch Partner
-    const branchDoc = await Branch.findOne({ branchPartnerId: sponsor._id }).lean();
-    const isBranchPartner = Boolean(branchDoc);
+    const isExplicitBRP = Boolean(sponsor.isBranchPartner) || Boolean(sponsor.sponsorCode && (sponsor.sponsorCode.startsWith('BRP-') || sponsor.sponsorCode.startsWith('BR-')));
+
+    // Find branch where this sponsor is the designated Branch Partner
+    let branchPartnerDoc = await Branch.findOne({
+      $or: [
+        { branchPartnerId: sponsor._id },
+        { branchPartnerIds: sponsor._id }
+      ]
+    }).lean();
+
+    // If explicitly marked as BRP but branch doesn't have them in branchPartnerId/branchPartnerIds yet, link with assigned branch
+    if (!branchPartnerDoc && isExplicitBRP && sponsor.branchIds?.length > 0) {
+      branchPartnerDoc = await Branch.findOne({ _id: { $in: sponsor.branchIds } }).lean();
+    }
+
+    const isBranchPartner = isExplicitBRP || Boolean(branchPartnerDoc);
+
+    // Assigned branch (for display and branchName, whether BRP, BP, or BA)
+    let assignedBranch = branchPartnerDoc;
+    if (!assignedBranch && sponsor.branchIds?.length > 0) {
+      assignedBranch = await Branch.findOne({ _id: { $in: sponsor.branchIds } }).lean();
+    }
+
+    const relevantBranchIds = [
+      ...(branchPartnerDoc ? [branchPartnerDoc._id] : []),
+      ...(isBranchPartner && sponsor.branchIds ? sponsor.branchIds : [])
+    ].map(id => id.toString());
+    const uniqueBranchIds = Array.from(new Set(relevantBranchIds));
 
     // Auto-sync active bookings for this sponsor (and branch bookings if Branch Partner)
     const activeBookingFilter = isBranchPartner
       ? {
           status: { $in: ['ACTIVE', 'COMPLETED'] },
           $or: [
-            { branchId: branchDoc._id },
+            ...(uniqueBranchIds.length > 0 ? [{ branchId: { $in: uniqueBranchIds } }] : []),
             { branchPartnerId: sponsor._id },
             { sponsorId: sponsor._id },
             { parentSponsorId: sponsor._id }
@@ -1459,7 +1487,7 @@ class PlotDeveloperService {
       ? {
           status: { $in: ['ACTIVE', 'COMPLETED'] },
           $or: [
-            { branchId: branchDoc._id },
+            ...(uniqueBranchIds.length > 0 ? [{ branchId: { $in: uniqueBranchIds } }] : []),
             { branchPartnerId: sponsor._id },
             { sponsorId: sponsor._id }
           ]
@@ -1481,7 +1509,7 @@ class PlotDeveloperService {
       subordinates = await User.find({
         role: { $in: ['sponsor', 'agent'] },
         _id: { $ne: sponsor._id },
-        branchIds: branchDoc._id
+        ...(uniqueBranchIds.length > 0 ? { branchIds: { $in: uniqueBranchIds } } : {})
       }).select('_id name sponsorCode customerId mobile email createdAt profileImage isBlocked sponsorId').lean();
     } else {
       subordinates = await User.find({
@@ -1496,7 +1524,7 @@ class PlotDeveloperService {
     const bookingQuery = isBranchPartner
       ? {
           $or: [
-            { branchId: branchDoc._id },
+            ...(uniqueBranchIds.length > 0 ? [{ branchId: { $in: uniqueBranchIds } }] : []),
             { branchPartnerId: sponsor._id },
             { sponsorId: sponsor._id },
             { sponsorId: { $in: subordinateIds } }
@@ -1667,7 +1695,7 @@ class PlotDeveloperService {
     const currentMonthTeamVol = await this.getSponsorPeriodVolume(sponsor._id, now, true);
     const activePolicy = await plotConfigService.getCommissionPolicy();
     const roleName = isBranchPartner ? 'BRANCH_PARTNER' : (sponsor.sponsorId ? 'BUSINESS_ASSOCIATE' : 'BUSINESS_PARTNER');
-    const roleDisplay = isBranchPartner ? `Branch Partner (${branchDoc.name})` : (sponsor.sponsorId ? 'Business Associate' : 'Business Partner');
+    const roleDisplay = isBranchPartner ? `Branch Partner (${branchPartnerDoc?.name || assignedBranch?.name || 'Branch'})` : (sponsor.sponsorId ? 'Business Associate' : 'Business Partner');
     const evalVolume = isBranchPartner ? (directPlotValue + teamPlotValue) : (sponsor.sponsorId ? currentMonthDirectVol : currentMonthTeamVol);
     const slabInfo = CommissionPolicyConfig.resolveSlab(activePolicy, roleName, evalVolume);
 
@@ -1675,7 +1703,7 @@ class PlotDeveloperService {
       roleName,
       roleDisplay,
       isBranchPartner,
-      branchName: branchDoc ? branchDoc.name : '',
+      branchName: assignedBranch ? assignedBranch.name : '',
       periodLabel: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       currentMonthVolume: evalVolume,
       directVolume: currentMonthDirectVol,
@@ -1699,7 +1727,9 @@ class PlotDeveloperService {
         profileImage: sponsor.profileImage || '',
         isDeveloperSponsor: !sponsor.sponsorId,
         isBranchPartner,
-        branchName: branchDoc ? branchDoc.name : '',
+        branchId: branchPartnerDoc?._id || assignedBranch?._id || (sponsor.branchIds?.[0]) || null,
+        branchIds: uniqueBranchIds,
+        branchName: assignedBranch ? assignedBranch.name : '',
         parentSponsor: sponsor.sponsorId || null,
         joinedDate: sponsor.createdAt
       },
@@ -2047,28 +2077,88 @@ class PlotDeveloperService {
       throw err;
     }
 
-    const activeBookings = await PlotBooking.find({
-      status: { $in: ['ACTIVE', 'COMPLETED'] },
-      $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
-    }).select('_id').lean();
+    const isBranchPartner = Boolean(
+      sponsor.isBranchPartner ||
+      sponsor.sponsorCode?.startsWith('BRP-') ||
+      sponsor.sponsorCode?.startsWith('BR-')
+    );
+
+    let bpBranches = [];
+    if (isBranchPartner) {
+      bpBranches = await Branch.find({
+        $or: [
+          { branchPartnerId: sponsor._id },
+          { branchPartnerIds: sponsor._id },
+          ...(sponsor.branchIds?.length > 0 ? [{ _id: { $in: sponsor.branchIds } }] : [])
+        ]
+      }).select('_id name branchCode').lean();
+    }
+    const bpBranchIds = bpBranches.map(b => b._id);
+
+    let branchLedger = null;
+    if (isBranchPartner && bpBranchIds.length > 0) {
+      branchLedger = await Ledger.findOne({
+        branchId: { $in: bpBranchIds },
+        ledgerType: 'branch'
+      }).lean();
+    }
+
+    const activeBookings = await PlotBooking.find(
+      isBranchPartner && bpBranchIds.length > 0
+        ? {
+            status: { $in: ['ACTIVE', 'COMPLETED'] },
+            $or: [
+              { branchId: { $in: bpBranchIds } },
+              { branchPartnerId: sponsor._id },
+              { sponsorId: sponsor._id },
+              { parentSponsorId: sponsor._id }
+            ]
+          }
+        : {
+            status: { $in: ['ACTIVE', 'COMPLETED'] },
+            $or: [{ sponsorId: sponsor._id }, { parentSponsorId: sponsor._id }]
+          }
+    ).select('_id').lean();
 
     for (const b of activeBookings) {
       await this.syncBookingSponsorCommissions(b._id);
     }
 
-    const activeProductBookings = await PlotProductBooking.find({
-      status: { $in: ['ACTIVE', 'COMPLETED'] },
-      sponsorId: sponsor._id,
-    }).select('_id').lean();
+    const activeProductBookings = await PlotProductBooking.find(
+      isBranchPartner && bpBranchIds.length > 0
+        ? {
+            status: { $in: ['ACTIVE', 'COMPLETED'] },
+            $or: [
+              { branchId: { $in: bpBranchIds } },
+              { branchPartnerId: sponsor._id },
+              { sponsorId: sponsor._id }
+            ]
+          }
+        : {
+            status: { $in: ['ACTIVE', 'COMPLETED'] },
+            sponsorId: sponsor._id,
+          }
+    ).select('_id').lean();
 
     for (const pb of activeProductBookings) {
       await this.syncProductBookingSponsorCommissions(pb._id);
     }
 
-    const commissions = await PlotSponsorCommission.find({
-      sponsorId: sponsor._id,
-      status: 'active'
-    })
+    const commissions = await PlotSponsorCommission.find(
+      isBranchPartner && bpBranchIds.length > 0
+        ? {
+            $or: [
+              { sponsorId: sponsor._id },
+              { branchId: { $in: bpBranchIds }, commissionRole: 'BRANCH_OVERRIDE' },
+              { branchPartnerId: sponsor._id }
+            ],
+            status: 'active'
+          }
+        : {
+            sponsorId: sponsor._id,
+            status: 'active'
+          }
+    )
       .populate('customerId', 'name customerId customerCode mobile')
       .populate('closingId', 'closingName closingNumber startDate endDate')
       .populate('receiptId', 'receiptNumber amount paymentMode transactionReference createdAt receiptType')
@@ -2208,9 +2298,19 @@ class PlotDeveloperService {
     });
 
     // 3. Payout Vouchers (Debits)
-    const vouchers = await PlotPayoutVoucher.find({
-      $or: [{ customerId: sponsor._id }, { sponsorId: sponsor._id }]
-    }).sort({ payoutDate: 1 }).lean().catch(() => []);
+    const vouchers = await PlotPayoutVoucher.find(
+      isBranchPartner && bpBranchIds.length > 0
+        ? {
+            $or: [
+              { customerId: sponsor._id },
+              { sponsorId: sponsor._id },
+              { branchId: { $in: bpBranchIds } }
+            ]
+          }
+        : {
+            $or: [{ customerId: sponsor._id }, { sponsorId: sponsor._id }]
+          }
+    ).sort({ payoutDate: 1 }).lean().catch(() => []);
 
     vouchers.forEach(v => {
       const debitAmt = Number(v.amountPaid || 0);
@@ -2255,7 +2355,15 @@ class PlotDeveloperService {
     computedTransactions.reverse();
 
     return {
-      sponsor,
+      sponsor: {
+        ...sponsor,
+        isBranchPartner,
+        branchLedgerId: branchLedger?._id || null,
+        branchName: bpBranches[0]?.name || '',
+        branchCode: bpBranches[0]?.branchCode || '',
+      },
+      branchLedgerId: branchLedger?._id || null,
+      isBranchPartner,
       summary: {
         totalCredits: Math.round(totalCredits * 100) / 100,
         totalDebits: Math.round(totalDebits * 100) / 100,
@@ -2273,17 +2381,59 @@ class PlotDeveloperService {
     const { search, branchId, roleType, parentSponsorId, page = 1, limit = 50 } = query;
     const filter = { role: { $in: ['sponsor', 'agent'] } };
     if (branchId && branchId !== 'all') {
-      filter.branchIds = branchId;
+      const bIds = Array.isArray(branchId) ? branchId : branchId.split(',').filter(Boolean);
+      const branchQuery = bIds.length > 1 ? { $in: bIds } : bIds[0];
+
+      if (roleType === 'associate') {
+        const branchPartners = await User.find({
+          role: { $in: ['sponsor', 'agent'] },
+          branchIds: branchQuery
+        }).select('_id').lean();
+        const partnerIds = branchPartners.map(p => p._id);
+
+        filter.sponsorId = { $ne: null, $exists: true };
+        filter.$or = [
+          { branchIds: branchQuery },
+          ...(partnerIds.length > 0 ? [{ sponsorId: { $in: partnerIds } }] : [])
+        ];
+      } else {
+        filter.branchIds = branchQuery;
+      }
     }
     if (parentSponsorId) {
       filter.sponsorId = parentSponsorId;
     } else if (roleType === 'branch_partner') {
-      const branchesWithPartners = await Branch.find({ branchPartnerId: { $ne: null } }).select('branchPartnerId').lean();
-      const bpPartnerIds = branchesWithPartners.map(b => b.branchPartnerId).filter(Boolean);
-      filter._id = { $in: bpPartnerIds };
+      const branchesWithPartners = await Branch.find({
+        $or: [
+          { branchPartnerId: { $ne: null } },
+          { 'branchPartnerIds.0': { $exists: true } }
+        ]
+      }).select('branchPartnerId branchPartnerIds').lean();
+      const bpPartnerIds = new Set();
+      branchesWithPartners.forEach(b => {
+        if (b.branchPartnerId) bpPartnerIds.add(b.branchPartnerId.toString());
+        if (Array.isArray(b.branchPartnerIds)) {
+          b.branchPartnerIds.forEach(id => id && bpPartnerIds.add(id.toString()));
+        }
+      });
+      filter.$or = [
+        { _id: { $in: Array.from(bpPartnerIds) } },
+        { sponsorCode: { $regex: '^BRP-', $options: 'i' } }
+      ];
     } else if (roleType === 'partner') {
-      filter.$or = [{ sponsorId: null }, { sponsorId: { $exists: false } }];
-    } else if (roleType === 'associate') {
+      const partnerOr = [{ sponsorId: null }, { sponsorId: { $exists: false } }];
+      const bpExclusions = [
+        { isBranchPartner: { $ne: true } },
+        { sponsorCode: { $not: { $regex: '^(BRP-|BR-)', $options: 'i' } } }
+      ];
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: partnerOr }, ...bpExclusions];
+        delete filter.$or;
+      } else {
+        filter.$or = partnerOr;
+        filter.$and = bpExclusions;
+      }
+    } else if (roleType === 'associate' && !filter.sponsorId) {
       filter.sponsorId = { $ne: null, $exists: true };
     }
     if (search) {
@@ -2330,17 +2480,45 @@ class PlotDeveloperService {
           }
         }
       ]),
-      Branch.find({ branchPartnerId: { $in: sponsorIds } }).select('_id name branchCode branchPartnerId').lean()
+      Branch.find({
+        $or: [
+          { branchPartnerId: { $in: sponsorIds } },
+          { branchPartnerIds: { $in: sponsorIds } }
+        ]
+      }).select('_id name branchCode branchPartnerId branchPartnerIds').lean()
     ]);
 
-    const branchPartnerMap = new Map(branchesWithPartners.map(b => [b.branchPartnerId.toString(), b]));
+    const branchPartnerMap = new Map();
+    branchesWithPartners.forEach(b => {
+      if (b.branchPartnerId) {
+        branchPartnerMap.set(b.branchPartnerId.toString(), b);
+      }
+      if (Array.isArray(b.branchPartnerIds)) {
+        b.branchPartnerIds.forEach(bpId => {
+          if (bpId) branchPartnerMap.set(bpId.toString(), b);
+        });
+      }
+    });
     const custCountMap = new Map(customerCounts.map(c => [c._id.toString(), c.count]));
     const bkStatsMap = new Map(bookingStats.map(b => [b._id.toString(), b]));
 
     const sponsors = await Promise.all(
       rawSponsors.map(async (s) => {
+        const partnerBranch = branchPartnerMap.get(s._id.toString()) || null;
+        const codeUpper = String(s.sponsorCode || '').trim().toUpperCase();
+        const isBRP = Boolean(partnerBranch) || codeUpper.startsWith('BRP-') || codeUpper.startsWith('BR-') || s.isBranchPartner === true;
+
         let ledgerId = ledgerMap.get(s._id.toString());
-        if (!ledgerId) {
+        if (isBRP) {
+          // Branch partners use their branch's ledger
+          if (partnerBranch) {
+            const bLedger = await Ledger.findOne({ branchId: partnerBranch._id }).select('_id').lean();
+            if (bLedger) ledgerId = bLedger._id.toString();
+          } else if (s.branchIds && s.branchIds.length > 0) {
+            const bLedger = await Ledger.findOne({ branchId: s.branchIds[0] }).select('_id').lean();
+            if (bLedger) ledgerId = bLedger._id.toString();
+          }
+        } else if (!ledgerId) {
           const newLedger = new Ledger({
             name: s.name || 'Sponsor',
             sponsorId: s._id,
@@ -2354,12 +2532,11 @@ class PlotDeveloperService {
           ledgerId = newLedger._id.toString();
         }
         const bStats = bkStatsMap.get(s._id.toString()) || {};
-        const partnerBranch = branchPartnerMap.get(s._id.toString()) || null;
         return {
           ...s,
-          isBranchPartner: Boolean(partnerBranch) || (s.sponsorCode && s.sponsorCode.startsWith('BRP-')),
+          isBranchPartner: isBRP,
           branchPartnerBranch: partnerBranch,
-          ledgerId,
+          ledgerId: ledgerId || null,
           customerCount: custCountMap.get(s._id.toString()) || 0,
           bookingCount: bStats.bookingCount || 0,
           totalValue: bStats.totalValue || 0,
@@ -2421,12 +2598,6 @@ class PlotDeveloperService {
     let endYear = startYear + 1;
     const fyStr = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
 
-    // BP for Business Partner (Direct to company), BA for Business Associate (Under Partner)
-    const prefixType = resolvedParentId ? 'BA' : 'BP';
-    const counterKey = `GNE-${prefixType}-${fyStr}`;
-    const seqNum = await Counter.getNextSequence(counterKey, null, 3);
-    const sponsorCode = `${prefixType}-${sDay}/${sMonthNum}/${fyStr}/${seqNum}`;
-
     let resolvedBranchIds = [];
     if (branchId) {
       resolvedBranchIds = [branchId];
@@ -2434,7 +2605,13 @@ class PlotDeveloperService {
       resolvedBranchIds = branchIds;
     }
 
-    if (resolvedParentId) {
+    const isBranchPartnerRole = data.roleType === 'branch_partner' || data.isBranchPartner === true;
+
+    if (isBranchPartnerRole && resolvedBranchIds.length === 0) {
+      throw new Error('A valid Branch must be selected for a Branch Partner');
+    }
+
+    if (resolvedParentId && !isBranchPartnerRole) {
       const parentSponsor = await User.findById(resolvedParentId);
       if (!parentSponsor) {
         throw new Error('Referring sponsor not found');
@@ -2447,11 +2624,18 @@ class PlotDeveloperService {
       }
     }
 
+    // BRP for Branch Partner, BP for Business Partner (Direct to company), BA for Business Associate (Under Partner)
+    const prefixType = isBranchPartnerRole ? 'BRP' : (resolvedParentId ? 'BA' : 'BP');
+    const counterKey = `GNE-${prefixType}-${fyStr}`;
+    const seqNum = await Counter.getNextSequence(counterKey, null, 3);
+    const sponsorCode = `${prefixType}-${sDay}/${sMonthNum}/${fyStr}/${seqNum}`;
+
     const sponsorData = {
       name,
       sponsorCode,
       sponsorId: resolvedParentId,
       branchIds: resolvedBranchIds,
+      isBranchPartner: isBranchPartnerRole,
       password: password || '123456',
       mobile: mobile || '',
       role: 'sponsor',
@@ -2481,6 +2665,28 @@ class PlotDeveloperService {
 
     const sponsor = new User(sponsorData);
     await sponsor.save();
+
+    // If created as Branch Partner, automatically link to the branch's branchPartnerIds array
+    if (isBranchPartnerRole && resolvedBranchIds.length > 0) {
+      await Branch.updateMany(
+        { _id: { $in: resolvedBranchIds } },
+        {
+          $addToSet: { branchPartnerIds: sponsor._id }
+        }
+      );
+      // If branch has no legacy single branchPartnerId set, set it as default
+      await Branch.updateMany(
+        { _id: { $in: resolvedBranchIds }, $or: [{ branchPartnerId: null }, { branchPartnerId: { $exists: false } }] },
+        { $set: { branchPartnerId: sponsor._id } }
+      );
+      // Link sponsor.ledgerId directly to the branch's ledger
+      const brLedger = await Ledger.findOne({ branchId: resolvedBranchIds[0] });
+      if (brLedger) {
+        sponsor.ledgerId = brLedger._id;
+        await sponsor.save();
+      }
+    }
+
     return sponsor;
   }
 
@@ -2643,9 +2849,47 @@ class PlotDeveloperService {
     const filter = {};
 
     if (sponsorId) {
-      const sponsorUser = await User.findById(sponsorId).select('_id sponsorId role').lean();
+      const sponsorUser = await User.findById(sponsorId).select('_id sponsorId role sponsorCode isBranchPartner branchIds').lean();
       if (sponsorUser) {
-        if (!sponsorUser.sponsorId) {
+        const isBRP = Boolean(sponsorUser.isBranchPartner) || Boolean(sponsorUser.sponsorCode && (sponsorUser.sponsorCode.startsWith('BRP-') || sponsorUser.sponsorCode.startsWith('BR-')));
+        let bpBranches = [];
+        if (isBRP) {
+          bpBranches = await Branch.find({
+            $or: [
+              { branchPartnerId: sponsorUser._id },
+              { branchPartnerIds: sponsorUser._id },
+              ...(sponsorUser.branchIds?.length > 0 ? [{ _id: { $in: sponsorUser.branchIds } }] : [])
+            ]
+          }).select('_id').lean();
+        } else {
+          bpBranches = await Branch.find({
+            $or: [
+              { branchPartnerId: sponsorUser._id },
+              { branchPartnerIds: sponsorUser._id }
+            ]
+          }).select('_id').lean();
+        }
+
+        const isBranchPartner = isBRP || bpBranches.length > 0;
+
+        if (isBranchPartner) {
+          // Branch Partner: can see customers across all partners and associates under their branch
+          const branchIds = bpBranches.map(b => b._id);
+          const allBranchSponsors = await User.find({
+            role: { $in: ['sponsor', 'agent'] },
+            $or: [
+              { branchIds: { $in: branchIds } },
+              { _id: sponsorUser._id }
+            ]
+          }).select('_id').lean();
+          const allSponsorIds = allBranchSponsors.map(s => s._id);
+
+          if (associateId && associateId !== 'all') {
+            filter.sponsorId = associateId;
+          } else {
+            filter.sponsorId = { $in: [sponsorUser._id, ...allSponsorIds] };
+          }
+        } else if (!sponsorUser.sponsorId) {
           // Business Partner: can see customers under all their Business Associates
           const subBAs = await User.find({
             sponsorId: sponsorUser._id,

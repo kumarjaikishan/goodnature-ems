@@ -45,8 +45,21 @@ const BusinessDeveloperDashboard = () => {
     parentSponsor: liveSponsor?.parentSponsor || loggedInProfile.parentSponsor || loggedInProfile.sponsorId,
   };
 
-  const isDeveloperPartner = developer.isDeveloperSponsor;
-  const roleTitle = developer.isBranchPartner
+  const isBRP = Boolean(
+    !developer.sponsorCode?.startsWith('BA-') &&
+    !developer.sponsorCode?.startsWith('BP-') &&
+    !developer.sponsorCode?.startsWith('A/') &&
+    !developer.sponsorCode?.startsWith('P/') &&
+    (developer.isBranchPartner || developer.sponsorCode?.startsWith('BRP-') || developer.sponsorCode?.startsWith('BR-'))
+  );
+
+  const isDeveloperPartner = !isBRP && Boolean(
+    developer.sponsorCode?.startsWith('BP-') ||
+    developer.sponsorCode?.startsWith('P/') ||
+    (developer.isDeveloperSponsor && !developer.parentSponsor && !developer.sponsorCode?.startsWith('BA-'))
+  );
+
+  const roleTitle = isBRP
     ? `Branch Partner (${developer.branchName || 'Regional Head'})`
     : isDeveloperPartner
     ? 'Business Partner'

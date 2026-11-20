@@ -60,15 +60,15 @@ export const getBookingColumns = ({
     selector: (row) => row.customerId?.name || row.customerName,
     cell: (row) => {
       const name = row.customerId?.name || row.customerName || 'N/A';
-      const phone = row.customerId?.mobile || row.customerMobile || '';
+      const custId = row.customerId?.customerId || row.customerId?.customerCode || row.customerCode || '';
       return (
         <div className="flex flex-col py-1">
           <span className="font-bold text-slate-900 text-[13px] tracking-tight leading-snug">
             {name}
           </span>
-          {phone && (
-            <span className="text-[11px] text-slate-400 font-medium font-mono mt-0.5">
-              {phone}
+          {custId && (
+            <span className="text-[11px] text-slate-500 font-medium font-mono mt-0.5">
+              {custId}
             </span>
           )}
         </div>

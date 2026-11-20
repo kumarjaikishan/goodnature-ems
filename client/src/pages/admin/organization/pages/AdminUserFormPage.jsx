@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     ArrowLeft,
     User,
-    Mail,
-    Lock,
-    Unlock,
     KeyRound,
     Building2,
     ShieldCheck,
@@ -20,8 +17,6 @@ import {
     XCircle,
     Search,
     Sparkles,
-    AlertCircle,
-    HelpCircle,
     Landmark,
     ArrowDownLeft,
     ArrowUpRight,
@@ -155,101 +150,100 @@ const AdminUserFormPage = () => {
     }, []);
 
     // Load admin data if edit mode
+    const fetchAdminDetails = useCallback(async (showLoader = true) => {
+        if (showLoader) setInitialLoading(true);
+        try {
+            let userRecord = null;
+
+            // Try direct single-user endpoint
+            try {
+                const res = await apiClient({ url: `getAdmin/${id}` });
+                if (res && res._id) {
+                    userRecord = res;
+                }
+            } catch {
+                // Fallback to getAdmin array
+            }
+
+            if (!userRecord) {
+                const allAdmins = await apiClient({ url: 'getAdmin' });
+                if (Array.isArray(allAdmins)) {
+                    userRecord = allAdmins.find((a) => a._id === id);
+                }
+            }
+
+            if (!userRecord) {
+                toast.error('User account not found');
+                navigate('/dashboard/organization/users');
+                return;
+            }
+
+            const assignedBranchIds = (userRecord.branchIds || []).map((b) =>
+                typeof b === 'object' ? b._id : b
+            );
+            const fallbackPerms = getPresetPermissions(userRecord.role);
+
+            const loadedBankPerms = userRecord.bankPermissions ? {
+                accessScope: userRecord.bankPermissions.accessScope || 'all',
+                allowedBankIds: (userRecord.bankPermissions.allowedBankIds || []).map((b) =>
+                    typeof b === 'object' ? b._id : b
+                ),
+                allowReceipts: userRecord.bankPermissions.allowReceipts !== false,
+                allowPayments: userRecord.bankPermissions.allowPayments !== false,
+            } : {
+                accessScope: 'all',
+                allowedBankIds: [],
+                allowReceipts: true,
+                allowPayments: true,
+            };
+
+            const loadedCashPerms = userRecord.cashPermissions ? {
+                accessScope: userRecord.cashPermissions.accessScope || 'all',
+                allowedCashLedgerIds: (userRecord.cashPermissions.allowedCashLedgerIds || []).map((c) =>
+                    typeof c === 'object' ? c._id : c
+                ),
+            } : {
+                accessScope: 'all',
+                allowedCashLedgerIds: [],
+            };
+
+            setForm({
+                name: userRecord.name || '',
+                email: (userRecord.email || '').split('@')[0],
+                password: '',
+                role: userRecord.role || 'admin',
+                branchIds: assignedBranchIds,
+                isBlocked: Boolean(userRecord.isBlocked),
+                profilePreview: userRecord.profileImage || '',
+                profileImage: null,
+                permissions: userRecord.permissions
+                    ? {
+                        ...fallbackPerms,
+                        ...userRecord.permissions,
+                        plot_purchase: userRecord.permissions.plot_purchase !== undefined
+                            ? userRecord.permissions.plot_purchase
+                            : (userRecord.permissions.plot_inventory || fallbackPerms.plot_purchase || []),
+                        kisan_seller: userRecord.permissions.kisan_seller !== undefined
+                            ? userRecord.permissions.kisan_seller
+                            : (userRecord.permissions.kisan_ledger || fallbackPerms.kisan_seller || []),
+                    }
+                    : fallbackPerms,
+                bankPermissions: loadedBankPerms,
+                cashPermissions: loadedCashPerms,
+                plotTransactionScope: userRecord.plotTransactionScope || 'both',
+            });
+        } catch (err) {
+            console.error('Failed to load user details:', err);
+            toast.error('Failed to load user details');
+        } finally {
+            if (showLoader) setInitialLoading(false);
+        }
+    }, [id, navigate]);
+
     useEffect(() => {
         if (!isEditMode) return;
-
-        const fetchAdminDetails = async () => {
-            setInitialLoading(true);
-            try {
-                let userRecord = null;
-
-                // Try direct single-user endpoint
-                try {
-                    const res = await apiClient({ url: `getAdmin/${id}` });
-                    if (res && res._id) {
-                        userRecord = res;
-                    }
-                } catch {
-                    // Fallback to getAdmin array
-                }
-
-                if (!userRecord) {
-                    const allAdmins = await apiClient({ url: 'getAdmin' });
-                    if (Array.isArray(allAdmins)) {
-                        userRecord = allAdmins.find((a) => a._id === id);
-                    }
-                }
-
-                if (!userRecord) {
-                    toast.error('User account not found');
-                    navigate('/dashboard/organization/users');
-                    return;
-                }
-
-                const assignedBranchIds = (userRecord.branchIds || []).map((b) =>
-                    typeof b === 'object' ? b._id : b
-                );
-                const fallbackPerms = getPresetPermissions(userRecord.role);
-
-                const loadedBankPerms = userRecord.bankPermissions ? {
-                    accessScope: userRecord.bankPermissions.accessScope || 'all',
-                    allowedBankIds: (userRecord.bankPermissions.allowedBankIds || []).map((b) =>
-                        typeof b === 'object' ? b._id : b
-                    ),
-                    allowReceipts: userRecord.bankPermissions.allowReceipts !== false,
-                    allowPayments: userRecord.bankPermissions.allowPayments !== false,
-                } : {
-                    accessScope: 'all',
-                    allowedBankIds: [],
-                    allowReceipts: true,
-                    allowPayments: true,
-                };
-
-                const loadedCashPerms = userRecord.cashPermissions ? {
-                    accessScope: userRecord.cashPermissions.accessScope || 'all',
-                    allowedCashLedgerIds: (userRecord.cashPermissions.allowedCashLedgerIds || []).map((c) =>
-                        typeof c === 'object' ? c._id : c
-                    ),
-                } : {
-                    accessScope: 'all',
-                    allowedCashLedgerIds: [],
-                };
-
-                setForm({
-                    name: userRecord.name || '',
-                    email: (userRecord.email || '').split('@')[0],
-                    password: '',
-                    role: userRecord.role || 'admin',
-                    branchIds: assignedBranchIds,
-                    isBlocked: Boolean(userRecord.isBlocked),
-                    profilePreview: userRecord.profileImage || '',
-                    profileImage: null,
-                    permissions: userRecord.permissions
-                        ? {
-                            ...fallbackPerms,
-                            ...userRecord.permissions,
-                            plot_purchase: userRecord.permissions.plot_purchase !== undefined
-                                ? userRecord.permissions.plot_purchase
-                                : (userRecord.permissions.plot_inventory || fallbackPerms.plot_purchase || []),
-                            kisan_seller: userRecord.permissions.kisan_seller !== undefined
-                                ? userRecord.permissions.kisan_seller
-                                : (userRecord.permissions.kisan_ledger || fallbackPerms.kisan_seller || []),
-                        }
-                        : fallbackPerms,
-                    bankPermissions: loadedBankPerms,
-                    cashPermissions: loadedCashPerms,
-                    plotTransactionScope: userRecord.plotTransactionScope || 'both',
-                });
-            } catch (err) {
-                console.error('Failed to load user details:', err);
-                toast.error('Failed to load user details');
-            } finally {
-                setInitialLoading(false);
-            }
-        };
-
-        fetchAdminDetails();
-    }, [id, isEditMode, navigate]);
+        fetchAdminDetails(true);
+    }, [isEditMode, fetchAdminDetails]);
 
     // Profile photo upload
     const handleProfileImageChange = (e) => {
@@ -583,7 +577,11 @@ const AdminUserFormPage = () => {
             });
 
             dispatch(FirstFetch());
-            navigate('/dashboard/organization/users');
+            if (!isEditMode) {
+                navigate('/dashboard/organization/users');
+            } else {
+                await fetchAdminDetails(false);
+            }
         } catch (error) {
             console.error('Error saving user:', error);
             toast.error(error.message || 'Failed to save user account');

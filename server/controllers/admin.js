@@ -864,6 +864,7 @@ const firstfetch = async (req, res, next) => {
             branch.find(branchQuery)
                 .populate({ path: 'managerIds', select: 'name role profileImage profileimage' })
                 .populate({ path: 'branchPartnerId', select: 'name sponsorCode mobile email role profileImage' })
+                .populate({ path: 'branchPartnerIds', select: 'name sponsorCode mobile email role profileImage' })
                 .lean(),
             departmentModal.find(deptQuery)
                 .populate('branchId', 'name')
@@ -966,7 +967,7 @@ const updateCompany = async (req, res, next) => {
 
 
 const addBranch = async (req, res, next) => {
-    const { defaultsetting, name, location, companyId, managerIds = [], branchPartnerId = null } = req.body;
+    const { defaultsetting, name, location, companyId, managerIds = [], branchPartnerId = null, branchPartnerIds = [] } = req.body;
 
     try {
         const now = new Date();
@@ -980,6 +981,13 @@ const addBranch = async (req, res, next) => {
         const seqNum = await Counter.getNextSequence(counterKey, null, 3);
         const branchCode = `B/${fyStr}/${seqNum}`;
 
+        // Normalise branchPartnerIds array
+        let finalBranchPartnerIds = Array.isArray(branchPartnerIds) ? branchPartnerIds.filter(Boolean) : [];
+        if (branchPartnerId && !finalBranchPartnerIds.some(id => id.toString() === branchPartnerId.toString())) {
+            finalBranchPartnerIds.push(branchPartnerId);
+        }
+        const primaryBranchPartnerId = branchPartnerId || (finalBranchPartnerIds.length > 0 ? finalBranchPartnerIds[0] : null);
+
         // Create new branch
         let fields = {
             name,
@@ -987,7 +995,8 @@ const addBranch = async (req, res, next) => {
             location,
             companyId,
             managerIds,
-            branchPartnerId: branchPartnerId || null,
+            branchPartnerId: primaryBranchPartnerId,
+            branchPartnerIds: finalBranchPartnerIds,
             defaultsetting
         };
         if (!defaultsetting) {
@@ -1003,8 +1012,11 @@ const addBranch = async (req, res, next) => {
             ));
         }
 
-        if (branchPartnerId) {
-            await usermodal.findByIdAndUpdate(branchPartnerId, { $addToSet: { branchIds: newBranch._id } });
+        if (finalBranchPartnerIds.length > 0) {
+            await usermodal.updateMany(
+                { _id: { $in: finalBranchPartnerIds } },
+                { $addToSet: { branchIds: newBranch._id } }
+            );
         }
 
         await newBranch.save();
@@ -1019,19 +1031,37 @@ const addBranch = async (req, res, next) => {
 
 
 const editBranch = async (req, res, next) => {
-    const { _id, name, location, companyId, defaultsetting, managerIds = [], branchPartnerId = null } = req.body;
+    const { _id, name, location, companyId, defaultsetting, managerIds = [], branchPartnerId = null, branchPartnerIds = null } = req.body;
 
     try {
         const existingBranch = await branch.findById(_id);
         if (!existingBranch) {
             return next({ status: 404, message: "Branch not found" });
         }
+
+        // Resolve branchPartnerIds
+        let finalBranchPartnerIds;
+        if (Array.isArray(branchPartnerIds)) {
+            finalBranchPartnerIds = branchPartnerIds.filter(Boolean);
+            if (branchPartnerId && !finalBranchPartnerIds.some(id => id.toString() === branchPartnerId.toString())) {
+                finalBranchPartnerIds.push(branchPartnerId);
+            }
+        } else if (branchPartnerId) {
+            finalBranchPartnerIds = [branchPartnerId];
+        } else {
+            finalBranchPartnerIds = existingBranch.branchPartnerIds || (existingBranch.branchPartnerId ? [existingBranch.branchPartnerId] : []);
+        }
+
+        const primaryBranchPartnerId = branchPartnerId !== undefined
+            ? (branchPartnerId || (finalBranchPartnerIds.length > 0 ? finalBranchPartnerIds[0] : null))
+            : (existingBranch.branchPartnerId || (finalBranchPartnerIds.length > 0 ? finalBranchPartnerIds[0] : null));
+
         let updateDoc = {
-            name, location, companyId, managerIds, defaultsetting, branchPartnerId: branchPartnerId || null
-        }
-        if (branchPartnerId) {
-            await usermodal.findByIdAndUpdate(branchPartnerId, { $addToSet: { branchIds: _id } });
-        }
+            name, location, companyId, managerIds, defaultsetting,
+            branchPartnerId: primaryBranchPartnerId || null,
+            branchPartnerIds: finalBranchPartnerIds
+        };
+
         if (!defaultsetting) {
             const setting = req.body.setting
             updateDoc.setting = setting
@@ -1043,10 +1073,17 @@ const editBranch = async (req, res, next) => {
         const newManagerIds = managerIds.map(id => id.toString());
 
         const removedManagerIds = previousManagerIds.filter(id => !newManagerIds.includes(id));
-        // console.log("removed id", removedManagerIds);
-
         const addedManagerIds = newManagerIds.filter(id => !previousManagerIds.includes(id));
-        // console.log("new to be added id", addedManagerIds);
+
+        // Manage removed and added branch partners
+        const prevPartnerIds = (existingBranch.branchPartnerIds || []).map(id => id.toString());
+        if (existingBranch.branchPartnerId && !prevPartnerIds.includes(existingBranch.branchPartnerId.toString())) {
+            prevPartnerIds.push(existingBranch.branchPartnerId.toString());
+        }
+        const nextPartnerIds = finalBranchPartnerIds.map(id => id.toString());
+
+        const removedPartnerIds = prevPartnerIds.filter(id => !nextPartnerIds.includes(id));
+        const addedPartnerIds = nextPartnerIds.filter(id => !prevPartnerIds.includes(id));
 
         await branch.findByIdAndUpdate(_id, updateDoc);
 
@@ -1054,7 +1091,7 @@ const editBranch = async (req, res, next) => {
         for (const removedId of removedManagerIds) {
             await usermodal.findByIdAndUpdate(
                 removedId,
-                { $pull: { branchIds: _id } } // remove this branch from their array
+                { $pull: { branchIds: _id } }
             );
         }
 
@@ -1062,8 +1099,16 @@ const editBranch = async (req, res, next) => {
         for (const addedId of addedManagerIds) {
             await usermodal.findByIdAndUpdate(
                 addedId,
-                { $addToSet: { branchIds: _id } } // add branch if not already in array
+                { $addToSet: { branchIds: _id } }
             );
+        }
+
+        // Update branchIds on branch partners
+        for (const rId of removedPartnerIds) {
+            await usermodal.findByIdAndUpdate(rId, { $pull: { branchIds: _id } });
+        }
+        for (const aId of addedPartnerIds) {
+            await usermodal.findByIdAndUpdate(aId, { $addToSet: { branchIds: _id } });
         }
 
         return res.status(200).json({ message: "Branch Edited Successfully" });

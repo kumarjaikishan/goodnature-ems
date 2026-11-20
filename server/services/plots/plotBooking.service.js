@@ -1410,11 +1410,44 @@ class PlotBookingService {
     if (filters.customerId) query.customerId = filters.customerId;
 
     if (filters.sponsorId) {
-      const subSponsors = await User.find({ sponsorId: filters.sponsorId }).select('_id').lean();
+      const sponsorUser = await User.findById(filters.sponsorId).select('_id sponsorCode branchIds isBranchPartner').lean();
+      const isExplicitBRP = Boolean(sponsorUser?.isBranchPartner) || Boolean(sponsorUser?.sponsorCode && (sponsorUser.sponsorCode.startsWith('BRP-') || sponsorUser.sponsorCode.startsWith('BR-')));
+      let bpBranches = await Branch.find({
+        $or: [
+          { branchPartnerId: filters.sponsorId },
+          { branchPartnerIds: filters.sponsorId }
+        ]
+      }).select('_id').lean();
+
+      if (bpBranches.length === 0 && isExplicitBRP && sponsorUser?.branchIds?.length > 0) {
+        bpBranches = await Branch.find({ _id: { $in: sponsorUser.branchIds } }).select('_id').lean();
+      }
+
+      const branchPartnerActive = isExplicitBRP || bpBranches.length > 0;
+      const bpBranchIds = bpBranches.map(b => b._id);
+
+      const subSponsors = await User.find(
+        branchPartnerActive && bpBranchIds.length > 0
+          ? {
+              $or: [
+                { sponsorId: filters.sponsorId },
+                { branchIds: { $in: bpBranchIds } }
+              ],
+              _id: { $ne: filters.sponsorId }
+            }
+          : { sponsorId: filters.sponsorId }
+      ).select('_id').lean();
       const subSponsorIds = subSponsors.map(s => s._id);
 
       if (filters.associateId && filters.associateId !== 'all') {
         query.sponsorId = filters.associateId;
+      } else if (branchPartnerActive) {
+        query.$or = [
+          { branchPartnerId: filters.sponsorId },
+          ...(bpBranchIds.length > 0 ? [{ branchId: { $in: bpBranchIds } }] : []),
+          { sponsorId: filters.sponsorId },
+          ...(subSponsorIds.length > 0 ? [{ sponsorId: { $in: subSponsorIds } }] : [])
+        ];
       } else {
         query.$or = [
           { sponsorId: filters.sponsorId },
@@ -1467,7 +1500,7 @@ class PlotBookingService {
 
     const [bookings, total] = await Promise.all([
       PlotBooking.find(query)
-        .populate('customerId', 'name mobile customerId accountHolderName bankName bankBranch accountNumber ifscCode')
+        .populate('customerId', 'name mobile customerId customerCode accountHolderName bankName bankBranch accountNumber ifscCode')
         .populate({
           path: 'sponsorId',
           select: 'name sponsorCode customerId mobile sponsorId',

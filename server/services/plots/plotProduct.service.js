@@ -414,8 +414,48 @@ class PlotProductService {
     if (query.status) filter.status = query.status;
     if (query.customerId) filter.customerId = query.customerId;
     if (query.productId) filter.productId = query.productId;
-    if (query.sponsorId) filter.sponsorId = query.sponsorId;
     if (query.plotId) filter.plotId = query.plotId;
+
+    if (query.sponsorId) {
+      const spUser = await User.findById(query.sponsorId).select('_id sponsorCode branchIds').lean();
+      const isBRP = (spUser?.sponsorCode && spUser.sponsorCode.startsWith('BRP-')) || false;
+      const bpBranches = await Branch.find({
+        $or: [
+          { branchPartnerId: query.sponsorId },
+          { branchPartnerIds: query.sponsorId },
+          ...(spUser?.branchIds?.length > 0 ? [{ _id: { $in: spUser.branchIds } }] : [])
+        ]
+      }).select('_id').lean();
+      const bpBranchIds = bpBranches.map(b => b._id);
+      const isBranchPartner = isBRP || bpBranches.length > 0;
+
+      const subSponsors = await User.find(
+        isBranchPartner && bpBranchIds.length > 0
+          ? {
+              $or: [
+                { sponsorId: query.sponsorId },
+                { branchIds: { $in: bpBranchIds } }
+              ],
+              _id: { $ne: query.sponsorId }
+            }
+          : { sponsorId: query.sponsorId }
+      ).select('_id').lean();
+      const subSponsorIds = subSponsors.map(s => s._id);
+
+      if (isBranchPartner) {
+        filter.$or = [
+          { branchPartnerId: query.sponsorId },
+          ...(bpBranchIds.length > 0 ? [{ branchId: { $in: bpBranchIds } }] : []),
+          { sponsorId: query.sponsorId },
+          ...(subSponsorIds.length > 0 ? [{ sponsorId: { $in: subSponsorIds } }] : [])
+        ];
+      } else {
+        filter.$or = [
+          { sponsorId: query.sponsorId },
+          ...(subSponsorIds.length > 0 ? [{ sponsorId: { $in: subSponsorIds } }] : [])
+        ];
+      }
+    }
 
     if (query.search) {
       const q = query.search.trim();

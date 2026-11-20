@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { apiClient } from '../../../utils/apiClient';
@@ -39,6 +39,8 @@ import {
   Award,
   ShieldCheck,
   Heart,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
@@ -53,7 +55,12 @@ const PlotBusinessDevelopers = () => {
   const { handleImage } = useImageUpload();
   const { branch, profile } = useSelector((state) => state.user || {});
 
-  // Granular Permissions for Business Partner (BP) and Business Associate (BA)
+  // Granular Permissions for Branch Partner (BRP), Business Partner (BP), and Business Associate (BA)
+  const canReadBranchPartner = usePermission('branch_partner', 1);
+  const canCreateBranchPartner = usePermission('branch_partner', 2);
+  const canUpdateBranchPartner = usePermission('branch_partner', 3);
+  const canDeleteBranchPartner = usePermission('branch_partner', 4);
+
   const canReadPartner = usePermission('partner', 1);
   const canCreatePartner = usePermission('partner', 2);
   const canUpdatePartner = usePermission('partner', 3);
@@ -83,6 +90,27 @@ const PlotBusinessDevelopers = () => {
   const [resetPasswordValue, setResetPasswordValue] = useState('123456');
   const [showResetPasswordText, setShowResetPasswordText] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyId = (e, text) => {
+    e.stopPropagation();
+    if (!text || text === 'N/A') return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const el = document.createElement('textarea');
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopiedId(text);
+    toast.success(`Copied ID: ${text}`, { autoClose: 1500 });
+    setTimeout(() => {
+      setCopiedId((prev) => (prev === text ? null : prev));
+    }, 1500);
+  };
 
   const customStyles = useCustomStyles();
 
@@ -135,8 +163,8 @@ const PlotBusinessDevelopers = () => {
   const { request, loading: submitLoading } = useApi();
 
   const fetchBusinessDevelopers = async () => {
-    // If user has no read permission for either role, do not fetch
-    if (!canReadPartner && !canReadAssociate) {
+    // If user has no read permission for any partner role, do not fetch
+    if (!canReadBranchPartner && !canReadPartner && !canReadAssociate) {
       setBusinessDevelopers([]);
       setLoading(false);
       return;
@@ -150,12 +178,14 @@ const PlotBusinessDevelopers = () => {
       }
       
       // Enforce roleType based on permissions
-      if (canReadPartner && !canReadAssociate) {
-        params.roleType = 'partner';
-      } else if (!canReadPartner && canReadAssociate) {
-        params.roleType = 'associate';
-      } else if (selectedRoleFilter && selectedRoleFilter !== 'all') {
+      if (selectedRoleFilter && selectedRoleFilter !== 'all') {
         params.roleType = selectedRoleFilter;
+      } else if (!canReadPartner && !canReadBranchPartner && canReadAssociate) {
+        params.roleType = 'associate';
+      } else if (!canReadPartner && !canReadAssociate && canReadBranchPartner) {
+        params.roleType = 'branch_partner';
+      } else if (canReadPartner && !canReadAssociate && !canReadBranchPartner) {
+        params.roleType = 'partner';
       }
 
       const res = await apiClient({
@@ -165,9 +195,11 @@ const PlotBusinessDevelopers = () => {
       const dataList = res.data || res.sponsors || res || [];
       // Client-side safety filter
       const filtered = dataList.filter((dev) => {
+        const isBRP = dev.isBranchPartner || (dev.sponsorCode && (dev.sponsorCode.startsWith('BRP-') || dev.sponsorCode.startsWith('BR-')));
         const isAssoc = Boolean(dev.sponsorId);
-        if (isAssoc && !canReadAssociate) return false;
-        if (!isAssoc && !canReadPartner) return false;
+        if (isBRP && !canReadBranchPartner) return false;
+        if (!isBRP && isAssoc && !canReadAssociate) return false;
+        if (!isBRP && !isAssoc && !canReadPartner) return false;
         return true;
       });
       setBusinessDevelopers(filtered);
@@ -278,7 +310,8 @@ const PlotBusinessDevelopers = () => {
 
     if (developer) {
       setEditingDeveloper(developer);
-      setCreateMode(developer.sponsorId ? 'associate' : 'partner');
+      const isDevBRP = developer.isBranchPartner || (developer.sponsorCode && developer.sponsorCode.startsWith('BRP-'));
+      setCreateMode(isDevBRP ? 'branch_partner' : (developer.sponsorId ? 'associate' : 'partner'));
       const existingBranchId = developer.branchIds?.[0]?._id || developer.branchIds?.[0] || '';
       setFormData({
         name: developer.name || '',
@@ -301,8 +334,10 @@ const PlotBusinessDevelopers = () => {
         photo: developer.photo || developer.profileImage || '',
         signature: developer.signature || '',
         commissionRate: developer.commissionRate || 0,
-        sponsorId: developer.sponsorId?._id || developer.sponsorId || 'direct',
+        sponsorId: isDevBRP ? 'direct' : (developer.sponsorId?._id || developer.sponsorId || 'direct'),
         branchId: existingBranchId || defaultBranch,
+        roleType: isDevBRP ? 'branch_partner' : (developer.sponsorId ? 'associate' : 'partner'),
+        isBranchPartner: isDevBRP,
       });
     } else {
       setEditingDeveloper(null);
@@ -328,8 +363,10 @@ const PlotBusinessDevelopers = () => {
         photo: '',
         signature: '',
         commissionRate: 0,
-        sponsorId: mode === 'partner' ? 'direct' : '',
-        branchId: mode === 'partner' ? defaultBranch : '',
+        sponsorId: mode === 'associate' ? '' : 'direct',
+        branchId: defaultBranch,
+        roleType: mode,
+        isBranchPartner: mode === 'branch_partner',
       });
     }
     setShowModal(true);
@@ -413,7 +450,9 @@ const PlotBusinessDevelopers = () => {
           body: formData,
         });
         toast.success(
-          createMode === 'partner'
+          createMode === 'branch_partner'
+            ? 'Branch Partner created successfully'
+            : createMode === 'partner'
             ? 'Business Partner created successfully'
             : 'Business Associate created successfully'
         );
@@ -490,17 +529,33 @@ const PlotBusinessDevelopers = () => {
       selector: (row) => row.sponsorCode || 'N/A',
       sortable: true,
       width: '195px',
-      cell: (row) => (
-        <span className={`font-mono font-bold text-xs px-2 py-0.5 rounded border whitespace-nowrap inline-block ${
-          row.sponsorCode?.startsWith('P/') 
-            ? 'bg-amber-50 text-amber-900 border-amber-200' 
-            : row.sponsorCode?.startsWith('A/')
-            ? 'bg-teal-50 text-teal-900 border-teal-200'
-            : 'bg-slate-100 text-slate-800 border-slate-200'
-        }`}>
-          {row.sponsorCode || 'N/A'}
-        </span>
-      ),
+      cell: (row) => {
+        const code = row.sponsorCode || 'N/A';
+        const hasCode = Boolean(row.sponsorCode && row.sponsorCode !== 'N/A');
+        const isCopied = copiedId === code;
+
+        return (
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            {hasCode && (
+              <button
+                type="button"
+                title="Copy ID"
+                onClick={(e) => handleCopyId(e, code)}
+                className="p-1 text-slate-400 hover:text-teal-700 hover:bg-slate-100 rounded transition-colors duration-150 focus:outline-hidden"
+              >
+                {isCopied ? (
+                  <Check size={13} className="text-emerald-600" />
+                ) : (
+                  <Copy size={13} />
+                )}
+              </button>
+            )}
+            <span className="font-mono font-semibold text-xs text-slate-800 tracking-tight">
+              {code}
+            </span>
+          </div>
+        );
+      },
     },
     {
       name: 'Designation / Role',
@@ -640,8 +695,13 @@ const PlotBusinessDevelopers = () => {
           {/* Row 2: Reset Password, Edit, Block/Unblock, Delete */}
           {(() => {
             const isAssoc = Boolean(row.sponsorId);
-            const canUpdateRow = isAssoc ? canUpdateAssociate : canUpdatePartner;
-            const canDeleteRow = isAssoc ? canDeleteAssociate : canDeletePartner;
+            const isBRP = row.isBranchPartner || (row.sponsorCode && (row.sponsorCode.startsWith('BRP-') || row.sponsorCode.startsWith('BR-')));
+            const canUpdateRow = isBRP
+              ? canUpdateBranchPartner
+              : (isAssoc ? canUpdateAssociate : canUpdatePartner);
+            const canDeleteRow = isBRP
+              ? canDeleteBranchPartner
+              : (isAssoc ? canDeleteAssociate : canDeletePartner);
             return (
               <div className="flex items-center gap-1.5">
                 {canUpdateRow && (
@@ -701,6 +761,17 @@ const PlotBusinessDevelopers = () => {
           <p className="text-slate-500 text-sm">Manage plot project business partners, associates, and hierarchy</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {canCreateBranchPartner && (
+            <Button
+              variant="primary"
+              size="md"
+              startIcon={Building2}
+              onClick={() => handleOpenModal(null, 'branch_partner')}
+              className="bg-purple-700 hover:bg-purple-800 text-white font-semibold shadow-xs"
+            >
+              Create Branch Partner
+            </Button>
+          )}
           {canCreatePartner && (
             <Button
               variant="primary"
@@ -747,21 +818,23 @@ const PlotBusinessDevelopers = () => {
                 size="sm"
                 value={selectedRoleFilter}
                 onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                options={
-                  canReadPartner && canReadAssociate
-                    ? [
-                        { value: 'all', label: 'All Roles (Branch, BP & BA)' },
-                        { value: 'branch_partner', label: '🏢 Branch Partners' },
-                        { value: 'partner', label: '👑 Business Partners (P/)' },
-                        { value: 'associate', label: '👥 Business Associates (A/)' },
-                      ]
-                    : canReadPartner && !canReadAssociate
-                    ? [
-                        { value: 'partner', label: '👑 Business Partners (P/)' },
-                        { value: 'branch_partner', label: '🏢 Branch Partners' },
-                      ]
-                    : [{ value: 'associate', label: '👥 Business Associates (A/)' }]
-                }
+                options={(() => {
+                  const opts = [];
+                  const allowedCount = (canReadBranchPartner ? 1 : 0) + (canReadPartner ? 1 : 0) + (canReadAssociate ? 1 : 0);
+                  if (allowedCount > 1) {
+                    opts.push({ value: 'all', label: 'All Roles (Branch, BP & BA)' });
+                  }
+                  if (canReadBranchPartner) {
+                    opts.push({ value: 'branch_partner', label: '🏢 Branch Partners' });
+                  }
+                  if (canReadPartner) {
+                    opts.push({ value: 'partner', label: '👑 Business Partners (P/)' });
+                  }
+                  if (canReadAssociate) {
+                    opts.push({ value: 'associate', label: '👥 Business Associates (A/)' });
+                  }
+                  return opts.length > 0 ? opts : [{ value: 'none', label: 'No Access' }];
+                })()}
               />
             </div>
           </div>
@@ -815,9 +888,13 @@ const PlotBusinessDevelopers = () => {
         size="2xl"
         title={
           editingDeveloper
-            ? createMode === 'partner'
+            ? createMode === 'branch_partner'
+              ? `Edit Branch Partner (${editingDeveloper.sponsorCode || ''})`
+              : createMode === 'partner'
               ? `Edit Business Partner (${editingDeveloper.sponsorCode || ''})`
               : `Edit Business Associate (${editingDeveloper.sponsorCode || ''})`
+            : createMode === 'branch_partner'
+            ? 'Create Branch Partner'
             : createMode === 'partner'
             ? 'Create Business Partner'
             : 'Create Business Associate'
@@ -825,6 +902,8 @@ const PlotBusinessDevelopers = () => {
         subtitle={
           editingDeveloper
             ? 'Update profile details, contact info, and nominee information'
+            : createMode === 'branch_partner'
+            ? 'Register a new branch partner assigned to a branch'
             : 'Register a new business partner or associate'
         }
         footer={
@@ -845,9 +924,13 @@ const PlotBusinessDevelopers = () => {
               loading={submitLoading}
             >
               {editingDeveloper
-                ? createMode === 'partner'
+                ? createMode === 'branch_partner'
+                  ? 'Update Branch Partner'
+                  : createMode === 'partner'
                   ? 'Update Business Partner'
                   : 'Update Business Associate'
+                : createMode === 'branch_partner'
+                ? 'Create Branch Partner'
                 : createMode === 'partner'
                 ? 'Create Business Partner'
                 : 'Create Business Associate'}
@@ -857,8 +940,8 @@ const PlotBusinessDevelopers = () => {
       >
         <form id="developer-form" onSubmit={handleSubmit} className="space-y-4">
 
-              {/* Partner Mode: Branch Selection */}
-              {createMode === 'partner' && (
+              {/* Branch Partner & Business Partner Mode: Branch Selection */}
+              {(createMode === 'branch_partner' || createMode === 'partner') && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Select Branch *
@@ -866,7 +949,7 @@ const PlotBusinessDevelopers = () => {
                   <SearchableSelect
                     required
                     value={formData.branchId}
-                    onChange={(val) => setFormData({ ...formData, branchId: val, sponsorId: 'direct' })}
+                    onChange={(val) => setFormData({ ...formData, branchId: val, sponsorId: 'direct', roleType: createMode, isBranchPartner: createMode === 'branch_partner' })}
                     options={availableBranches.map((b) => ({
                       value: b._id,
                       label: b.name,
@@ -875,6 +958,11 @@ const PlotBusinessDevelopers = () => {
                     placeholder="Select Branch..."
                     searchPlaceholder="Search branch by name or location..."
                   />
+                  {createMode === 'branch_partner' && (
+                    <p className="mt-1 text-[11px] text-purple-700 font-medium">
+                      🏢 Branch Partner will have branch-wide visibility over all bookings, partners, and associates under this branch.
+                    </p>
+                  )}
                 </div>
               )}
 

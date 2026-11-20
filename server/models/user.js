@@ -67,6 +67,7 @@ const userSchema = new mongoose.Schema({
     // Plot Customer & Sponsor fields
     sponsorCode: { type: String, unique: true, sparse: true, index: true },
     customerCode: { type: String, unique: true, sparse: true, index: true },
+    isBranchPartner: { type: Boolean, default: false },
     ledgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger' },
     isBlocked: { type: Boolean, default: false },
     mobile: { type: String, default: '' },

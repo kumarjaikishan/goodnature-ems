@@ -122,7 +122,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             if (category === 'seller' || category === 'kisan') return isKisan;
             if (category === 'associate') return tier === 'associate';
             if (category === 'partner') return tier === 'partner';
-            if (category === 'branch_partner') return isBranch || tier === 'branch_partner';
+            if (category === 'branch_partner') return isBranch;
             return true;
         });
     }, [ledgers, category]);
@@ -154,7 +154,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 if (typeFilter === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (typeFilter === 'seller' || typeFilter === 'kisan') return isKisan;
                 if (typeFilter === 'partner') return tier === 'partner';
-                if (typeFilter === 'branch_partner') return isBranch || tier === 'branch_partner';
+                if (typeFilter === 'branch_partner') return isBranch;
                 if (typeFilter === 'associate') return tier === 'associate';
                 if (typeFilter === 'sponsor') return isSponsor;
                 if (typeFilter === 'custom') return !isEmployee && !isSponsor && !isKisan && !isBranch;

@@ -4,6 +4,7 @@ const authorizeRoles = require('../middleware/Role_middleware');
 const checkPermission = require('../middleware/checkpermission');
 const upload = require('../middleware/multer_middleware');
 const ctrl = require('../controllers/plots.controller');
+const Branch = require('../models/branch');
 
 router.use(authmiddlewre);
 // Only staff roles and sponsors (for self-ledger) can touch the plots module
@@ -55,48 +56,77 @@ router.put('/series/:id', checkPermission('plot_inventory', 3), ctrl.updateSerie
 router.delete('/series/:id', checkPermission('plot_inventory', 4), ctrl.deleteSeries);
 
 // ── Sponsors ──
-router.get('/sponsors', (req, res, next) => {
+router.get('/sponsors', async (req, res, next) => {
   if (req.user?.role === 'sponsor') {
-    req.query.parentSponsorId = req.user.id || req.user._id;
+    const userId = req.user.id || req.user._id;
+    const isExplicitBRP = Boolean(req.user.isBranchPartner) || Boolean(req.user.sponsorCode && (req.user.sponsorCode.startsWith('BRP-') || req.user.sponsorCode.startsWith('BR-')));
+
+    let bpBranches = await Branch.find({
+      $or: [
+        { branchPartnerId: userId },
+        { branchPartnerIds: userId },
+        ...(isExplicitBRP && req.user.branchIds?.length > 0 ? [{ _id: { $in: req.user.branchIds } }] : [])
+      ]
+    }).select('_id').lean();
+
+    const isBranchPartner = isExplicitBRP || bpBranches.length > 0;
+
+    if (isBranchPartner) {
+      const branchIds = bpBranches.map(b => b._id.toString());
+      if (branchIds.length > 0 && !req.query.branchId) {
+        req.query.branchId = branchIds.length === 1 ? branchIds[0] : branchIds.join(',');
+      }
+      if (!req.query.parentSponsorId) {
+        delete req.query.parentSponsorId;
+      }
+    } else {
+      req.query.parentSponsorId = userId;
+    }
     return next();
   }
-  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
+  return checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsors);
 router.get('/sponsors/:id/dashboard', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own dashboard, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
     return next();
   }
-  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
+  return checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsorDashboardStats);
 router.get('/sponsors/:id/ledger', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own ledger, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
     return next();
   }
-  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
+  return checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsorLedger);
 router.get('/sponsors/:id/business-report', (req, res, next) => {
   // If the logged-in user is a sponsor requesting their own report, bypass staff permission
   if (req.user?.role === 'sponsor' && (req.user.id === req.params.id || req.user._id === req.params.id)) {
     return next();
   }
-  return checkPermission(['associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
+  return checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 1)(req, res, next);
 }, ctrl.getSponsorBusinessReport);
 router.post('/sponsors', (req, res, next) => {
   // If creating an associate (sponsorId present and not 'direct'), check 'associate' permission, else 'partner'
-  const isAssociate = req.body?.sponsorId && req.body.sponsorId !== 'direct';
-  const targetResource = isAssociate ? ['associate', 'plot_sponsor'] : ['partner', 'plot_sponsor'];
+  const isBranchPartner = req.body?.roleType === 'branch_partner' || req.body?.isBranchPartner === true;
+  const isAssociate = !isBranchPartner && req.body?.sponsorId && req.body.sponsorId !== 'direct';
+  const targetResource = isBranchPartner
+    ? ['branch_partner', 'plot_sponsor']
+    : (isAssociate ? ['associate', 'plot_sponsor'] : ['partner', 'plot_sponsor']);
   return checkPermission(targetResource, 2)(req, res, next);
 }, ctrl.createSponsor);
 router.put('/sponsors/:id', (req, res, next) => {
-  const isAssociate = req.body?.sponsorId && req.body.sponsorId !== 'direct';
-  const targetResource = isAssociate ? ['associate', 'plot_sponsor'] : ['partner', 'plot_sponsor'];
+  const isBranchPartner = req.body?.roleType === 'branch_partner' || req.body?.isBranchPartner === true;
+  const isAssociate = !isBranchPartner && req.body?.sponsorId && req.body.sponsorId !== 'direct';
+  const targetResource = isBranchPartner
+    ? ['branch_partner', 'plot_sponsor']
+    : (isAssociate ? ['associate', 'plot_sponsor'] : ['partner', 'plot_sponsor']);
   return checkPermission(targetResource, 3)(req, res, next);
 }, ctrl.updateSponsor);
-router.delete('/sponsors/:id', checkPermission(['associate', 'partner', 'plot_sponsor'], 4), ctrl.deleteSponsor);
-router.patch('/sponsors/:id/toggle-block', checkPermission(['associate', 'partner', 'plot_sponsor'], 3), ctrl.toggleSponsorBlock);
-router.post('/sponsors/:id/reset-password', checkPermission(['associate', 'partner', 'plot_sponsor'], 3), ctrl.resetSponsorPassword);
+router.delete('/sponsors/:id', checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 4), ctrl.deleteSponsor);
+router.patch('/sponsors/:id/toggle-block', checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 3), ctrl.toggleSponsorBlock);
+router.post('/sponsors/:id/reset-password', checkPermission(['branch_partner', 'associate', 'partner', 'plot_sponsor'], 3), ctrl.resetSponsorPassword);
 
 // ── Customers ──
 router.get('/customers', (req, res, next) => {

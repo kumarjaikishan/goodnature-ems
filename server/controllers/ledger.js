@@ -119,6 +119,17 @@ const createLedgerForEmployee = async () => {
 const createLedgerForSponsors = async () => {
   return await withTransaction(async (session) => {
     const User = mongoose.model('User');
+    const Branch = mongoose.model('Branch');
+
+    const branches = await Branch.find({}, null, session ? { session } : {}).lean();
+    const branchPartnerIdSet = new Set();
+    branches.forEach(b => {
+      if (b.branchPartnerId) branchPartnerIdSet.add(b.branchPartnerId.toString());
+      if (Array.isArray(b.branchPartnerIds)) {
+        b.branchPartnerIds.forEach(id => id && branchPartnerIdSet.add(id.toString()));
+      }
+    });
+
     const sponsors = await User.find(
       { role: { $in: ['sponsor', 'agent'] } },
       null,
@@ -126,9 +137,43 @@ const createLedgerForSponsors = async () => {
     );
 
     for (const sp of sponsors) {
-      const q = Ledger.findOne({ sponsorId: sp._id });
-      if (session) q.session(session);
-      let ledger = await q;
+      const codeUpper = String(sp.sponsorCode || '').trim().toUpperCase();
+      const isBRP = sp.isBranchPartner === true ||
+                    codeUpper.startsWith('BRP-') ||
+                    codeUpper.startsWith('BR-') ||
+                    branchPartnerIdSet.has(sp._id.toString());
+
+      // Branch Partners use their Branch's ledger exclusively, NOT a personal sponsor ledger
+      if (isBRP) {
+        let bpBranch = branches.find(b =>
+          (b.branchPartnerId && b.branchPartnerId.toString() === sp._id.toString()) ||
+          (Array.isArray(b.branchPartnerIds) && b.branchPartnerIds.some(id => id && id.toString() === sp._id.toString()))
+        );
+        if (!bpBranch && sp.branchIds && sp.branchIds.length > 0) {
+          bpBranch = branches.find(b => sp.branchIds.some(bid => bid && bid.toString() === b._id.toString()));
+        }
+        if (bpBranch) {
+          const brLedger = await Ledger.findOne({ branchId: bpBranch._id }, null, session ? { session } : {});
+          if (brLedger && (!sp.ledgerId || sp.ledgerId.toString() !== brLedger._id.toString())) {
+            sp.ledgerId = brLedger._id;
+            await sp.save(session ? { session } : {});
+          }
+        }
+        continue;
+      }
+
+      // Query all ledgers with this sponsorId to handle and deduplicate if any duplicates exist
+      const existingLedgers = await Ledger.find({ sponsorId: sp._id }, null, session ? { session } : {}).sort({ createdAt: 1 });
+      let ledger = existingLedgers[0] || null;
+
+      // Deduplicate: If multiple sponsor ledgers exist for this same sponsor, merge and remove extras
+      if (existingLedgers.length > 1) {
+        for (let i = 1; i < existingLedgers.length; i++) {
+          const dupLedger = existingLedgers[i];
+          await Entry.updateMany({ ledgerId: dupLedger._id }, { $set: { ledgerId: ledger._id } }, session ? { session } : {});
+          await Ledger.findByIdAndDelete(dupLedger._id, session ? { session } : {});
+        }
+      }
 
       if (!ledger) {
         const [newLedger] = await Ledger.create(
@@ -173,6 +218,39 @@ const createLedgerForSponsors = async () => {
       if (!sp.ledgerId || sp.ledgerId.toString() !== ledger._id.toString()) {
         sp.ledgerId = ledger._id;
         await sp.save(session ? { session } : {});
+      }
+    }
+
+    // Clean up any phantom/empty sponsor ledgers created for Branch Partners or matching BRP- code
+    const phantomBrpLedgers = await Ledger.find({
+      ledgerType: 'sponsor',
+      $or: [
+        { empId: { $regex: '^(BRP-|BR-)', $options: 'i' } },
+        ...(branchPartnerIdSet.size > 0 ? [{ sponsorId: { $in: Array.from(branchPartnerIdSet) } }] : [])
+      ]
+    }, null, session ? { session } : {});
+
+    for (const pbl of phantomBrpLedgers) {
+      const entryCount = await Entry.countDocuments({ ledgerId: pbl._id });
+      if (entryCount === 0) {
+        await Ledger.findByIdAndDelete(pbl._id, session ? { session } : {});
+      } else {
+        // If any entries were recorded on this phantom ledger, migrate them to their branch's ledger
+        const spDoc = await User.findById(pbl.sponsorId).lean();
+        const branchMatch = await Branch.findOne({
+          $or: [
+            { branchPartnerId: pbl.sponsorId },
+            { branchPartnerIds: pbl.sponsorId },
+            ...(spDoc?.branchIds?.length > 0 ? [{ _id: { $in: spDoc.branchIds } }] : [])
+          ]
+        }).lean();
+        if (branchMatch) {
+          const mainBranchLedger = await Ledger.findOne({ branchId: branchMatch._id });
+          if (mainBranchLedger) {
+            await Entry.updateMany({ ledgerId: pbl._id }, { $set: { ledgerId: mainBranchLedger._id } }, session ? { session } : {});
+            await Ledger.findByIdAndDelete(pbl._id, session ? { session } : {});
+          }
+        }
       }
     }
   });
@@ -595,6 +673,9 @@ const ledger = async (req, res) => {
         return l.employeeId && l.employeeId.status === true;
       }
       if (type === 'sponsor') {
+        const codeUpper = String(l.sponsorId?.sponsorCode || l.empId || '').trim().toUpperCase();
+        const isBRP = l.sponsorId?.isBranchPartner || codeUpper.startsWith('BRP-') || codeUpper.startsWith('BR-');
+        if (isBRP) return false;
         return Boolean(l.sponsorId);
       }
       if (type === 'kisan') {
@@ -621,13 +702,23 @@ const ledger = async (req, res) => {
       slicedLedgers = visibleLedgers.slice((page - 1) * limit, page * limit);
     }
 
-    const branchesWithPartners = await Branch.find({ branchPartnerId: { $ne: null } })
-      .select('branchPartnerId name branchCode')
+    const branchesWithPartners = await Branch.find({
+      $or: [
+        { branchPartnerId: { $ne: null } },
+        { branchPartnerIds: { $exists: true, $not: { $size: 0 } } }
+      ]
+    })
+      .select('branchPartnerId branchPartnerIds name branchCode')
       .lean();
     const branchPartnerMap = new Map();
     branchesWithPartners.forEach(b => {
       if (b.branchPartnerId) {
         branchPartnerMap.set(b.branchPartnerId.toString(), b);
+      }
+      if (Array.isArray(b.branchPartnerIds)) {
+        b.branchPartnerIds.forEach(bpId => {
+          if (bpId) branchPartnerMap.set(bpId.toString(), b);
+        });
       }
     });
 
@@ -1121,32 +1212,69 @@ const ledgerEntries = async (req, res) => {
 const Entries = async (req, res) => {
   try {
     let ledgerId = req.params.id;
+    let targetLedgerIds = [];
 
     // Check if req.params.id is a Ledger _id
     let ledgerExists = await Ledger.findById(ledgerId).lean();
     if (!ledgerExists) {
-      // Fallback: check if id is sponsorId, employeeId, or kisanSellerId
-      const foundLedger = await Ledger.findOne({
+      // Check if id is a User who is a Branch Partner
+      const spUser = await User.findById(ledgerId).select('_id sponsorCode branchIds isBranchPartner').lean();
+      const isBRP = spUser && (spUser.isBranchPartner || spUser.sponsorCode?.startsWith('BRP-') || spUser.sponsorCode?.startsWith('BR-'));
+
+      if (isBRP) {
+        let branchIds = spUser.branchIds || [];
+        let bpBranches = await Branch.find({
+          $or: [
+            { branchPartnerId: spUser._id },
+            { branchPartnerIds: spUser._id }
+          ]
+        }).select('_id').lean();
+
+        if (bpBranches.length === 0 && branchIds.length > 0) {
+          bpBranches = await Branch.find({ _id: { $in: branchIds } }).select('_id').lean();
+        }
+        branchIds = bpBranches.map(b => b._id);
+
+        if (branchIds.length > 0) {
+          const branchLedgers = await Ledger.find({
+            branchId: { $in: branchIds },
+            ledgerType: 'branch'
+          }).select('_id').lean();
+          if (branchLedgers.length > 0) {
+            targetLedgerIds = branchLedgers.map(l => l._id);
+          }
+        }
+      }
+
+      // Also check fallback for sponsorId, employeeId, kisanSellerId, branchId
+      const foundLedgers = await Ledger.find({
         $or: [
           { sponsorId: ledgerId },
           { employeeId: ledgerId },
           { kisanSellerId: ledgerId },
           { branchId: ledgerId }
         ]
-      }).lean();
-      if (foundLedger) {
-        ledgerId = foundLedger._id;
+      }).select('_id').lean();
+      if (foundLedgers.length > 0) {
+        targetLedgerIds = Array.from(new Set([...targetLedgerIds.map(String), ...foundLedgers.map(l => String(l._id))]));
       }
+
+      if (targetLedgerIds.length === 0) {
+        targetLedgerIds = [ledgerId];
+      }
+    } else {
+      targetLedgerIds = [ledgerExists._id];
     }
 
     const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : null;
     const limit = req.query.limit ? Math.max(1, parseInt(req.query.limit, 10)) : null;
 
-    let query = Entry.find({ ledgerId }).sort({ date: -1, createdAt: -1, _id: -1 }).lean();
+    const filter = targetLedgerIds.length === 1 ? { ledgerId: targetLedgerIds[0] } : { ledgerId: { $in: targetLedgerIds } };
+    let query = Entry.find(filter).sort({ date: -1, createdAt: -1, _id: -1 }).lean();
     let total = null;
 
     if (page && limit) {
-      total = await Entry.countDocuments({ ledgerId });
+      total = await Entry.countDocuments(filter);
       query = query.skip((page - 1) * limit).limit(limit);
     }
 
