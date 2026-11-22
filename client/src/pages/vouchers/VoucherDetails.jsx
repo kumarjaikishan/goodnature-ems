@@ -301,7 +301,9 @@ const VoucherDetails = () => {
   const paidAmount = Number(voucher.paidAmount) || 0;
   const remainingAmount = voucher.remainingAmount !== undefined ? Number(voucher.remainingAmount) : Math.max(totalDebit - paidAmount, 0);
   const status = voucher.status || "APPROVED";
-  const logoUrl = "/logo.webp";
+  const logoUrl = company?.logo
+    ? cloudinaryUrl(company.logo, { format: "webp", width: 400, height: 400, crop: "fit" })
+    : "/logo.webp";
 
   // Dynamically resolve payment mode & bank/cash source
   const getVoucherPaymentMode = () => {
@@ -521,7 +523,7 @@ const VoucherDetails = () => {
           style={{
             width: "794px",
             height: "535px",
-            border: activeVariant === "classic" ? "2px solid #1e293b" : "1px solid #cbd5e1",
+            border: "1px solid #cbd5e1",
             borderRadius: "10px",
             overflow: "hidden",
             background: "#ffffff",
@@ -568,13 +570,13 @@ const VoucherDetails = () => {
               top: "52%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "260px",
-              height: "260px",
+              width: "290px",
+              height: "290px",
               backgroundImage: `url(${logoUrl})`,
               backgroundSize: "contain",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
-              opacity: 0.06,
+              opacity: 0.12,
               zIndex: 0,
               pointerEvents: "none"
             }} />
@@ -589,11 +591,11 @@ const VoucherDetails = () => {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              opacity: 0.05,
+              opacity: 0.10,
               zIndex: 0,
               pointerEvents: "none"
             }}>
-              <span style={{ fontSize: "36px", fontWeight: "900", color: "#000", transform: "rotate(-25deg)", textTransform: "uppercase", letterSpacing: "2px" }}>
+              <span style={{ fontSize: "36px", fontWeight: "900", color: "#0f766e", transform: "rotate(-25deg)", textTransform: "uppercase", letterSpacing: "2px" }}>
                 {company?.fullname || company?.name || "Good Nature"}
               </span>
             </div>
@@ -605,7 +607,7 @@ const VoucherDetails = () => {
           {activeVariant === "classic" && (
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", position: "relative", zIndex: 1 }}>
               {/* Outer Double Border Header */}
-              <div style={{ border: "2px solid #0f172a", borderRadius: "6px", padding: "6px 12px", background: "#f8fafc", position: "relative" }}>
+              <div style={{ border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 12px", background: "transparent", position: "relative" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ width: "70px", display: "flex", justifyContent: "center" }}>
                     {company?.logo ? (
@@ -645,7 +647,7 @@ const VoucherDetails = () => {
               </div>
 
               {/* Meta details bar */}
-              <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1.2fr 1.2fr", gap: "8px", marginTop: "12px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1.2fr 1.2fr", gap: "8px", marginTop: "12px", background: "transparent", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 10px" }}>
                 <div>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Paid To (Ledger Account)</span>
                   <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>
@@ -674,27 +676,26 @@ const VoucherDetails = () => {
 
               {/* Description & Amount Row */}
               <div style={{ display: "flex", gap: "10px", margin: "6px 0" }}>
-                <div style={{ flex: 1, border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 10px", height: "88px", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#ffffff" }}>
-                  <span style={{ fontSize: "9.5px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Particulars / Narration</span>
+                <div style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: "6px", padding: "8px 10px", height: "88px", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "transparent" }}>
+                  <span style={{ fontSize: "9.5px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Narration</span>
                   <p style={{ margin: 0, fontSize: "12px", fontWeight: "500", color: "#1e293b", lineHeight: "1.35", overflow: "hidden" }}>
                     {voucher.remarks || "Payment disbursement against verified company ledger balance."}
                   </p>
-                  <span style={{ fontSize: "9px", color: "#94a3b8", fontStyle: "italic" }}>Authorized by Finance Department</span>
                 </div>
 
-                <div style={{ width: "230px", border: "2px solid #0f172a", borderRadius: "6px", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px", boxSizing: "border-box" }}>
-                  <span style={{ fontSize: "10px", fontWeight: "800", color: "#475569", textTransform: "uppercase", letterSpacing: "1px" }}>Total Amount</span>
-                  <span style={{ fontSize: "28px", fontWeight: "900", color: "#0f172a", marginTop: "2px", lineHeight: "1" }}>
+                <div style={{ width: "230px", border: "1px solid #e2e8f0", borderRadius: "6px", background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px", boxSizing: "border-box" }}>
+                  <span style={{ fontSize: "10px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Amount</span>
+                  <span style={{ fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "2px", lineHeight: "1" }}>
                     ₹ {totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
 
               {/* Amount in Words */}
-              <div style={{ border: "1px solid #cbd5e1", borderRadius: "6px", padding: "5px 10px", background: "#f8fafc", display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#475569", textTransform: "uppercase", whiteSpace: "nowrap" }}>In Words:</span>
-                <span style={{ fontSize: "11px", fontWeight: "800", color: "#0f172a" }}>
-                  {totalDebit > 0 ? `${numberToWords(totalDebit)} Rupees Only`.toUpperCase() : "ZERO RUPEES"}
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", padding: "6px 10px", background: "transparent", display: "flex", alignItems: "center", gap: "8px", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "9.5px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>In Words:</span>
+                <span style={{ fontSize: "11px", fontWeight: "normal", color: "#334155", display: "inline-flex", alignItems: "center" }}>
+                  {totalDebit > 0 ? numberToWords.amountInWords(totalDebit, { only: true }) : "Zero Rupees"}
                 </span>
               </div>
 
@@ -762,21 +763,21 @@ const VoucherDetails = () => {
 
               {/* Modern Info Grid */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", margin: "8px 0" }}>
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
+                <div style={{ background: "transparent", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
                   <span style={{ fontSize: "8.5px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", display: "block" }}>Date</span>
                   <span style={{ fontSize: "11.5px", fontWeight: "800", color: "#1e293b" }}>
                     {dayjs(voucher.date).format("DD MMMM YYYY")}
                   </span>
                 </div>
 
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
+                <div style={{ background: "transparent", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
                   <span style={{ fontSize: "8.5px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", display: "block" }}>Paid To (Ledger)</span>
                   <span style={{ fontSize: "11.5px", fontWeight: "800", color: "#1e293b" }}>
                     {formatLedgerName(voucher.entries?.find(e => e.type === 'DEBIT')?.accountName || voucher.ledgerId?.name)}
                   </span>
                 </div>
 
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
+                <div style={{ background: "transparent", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px" }}>
                   <span style={{ fontSize: "8.5px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", display: "block" }}>Payment Mode</span>
                   <span style={{ fontSize: "11.5px", fontWeight: "800", color: "#1e293b" }}>
                     {paymentModeDisplay}
@@ -787,22 +788,19 @@ const VoucherDetails = () => {
               {/* Modern Particulars & Amount Table */}
               <table style={{ width: "100%", borderCollapse: "collapse", margin: "2px 0" }}>
                 <thead>
-                  <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
-                    <th style={{ textAlign: "left", padding: "6px 10px", fontSize: "9.5px", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "70%" }}>Particulars / Description</th>
+                  <tr style={{ background: "transparent", borderBottom: "2px solid #cbd5e1" }}>
+                    <th style={{ textAlign: "left", padding: "6px 10px", fontSize: "9.5px", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "70%" }}>Narration</th>
                     <th style={{ textAlign: "right", padding: "6px 10px", fontSize: "9.5px", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "30%" }}>Amount (INR)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td style={{ padding: "8px 10px", fontSize: "11px", color: "#334155", verticalAlign: "top", borderBottom: "1px solid #e2e8f0", height: "65px" }}>
-                      <div style={{ fontWeight: "700", marginBottom: "2px" }}>
-                        Debit Entry to {formatLedgerName(voucher.entries?.find(e => e.type === 'DEBIT')?.accountName || voucher.ledgerId?.name)}
-                      </div>
-                      <div style={{ color: "#64748b", fontStyle: "italic" }}>
+                      <div style={{ color: "#334155", fontStyle: voucher.remarks ? "normal" : "italic", lineHeight: "1.4" }}>
                         {voucher.remarks || "No narration provided."}
                       </div>
                     </td>
-                    <td style={{ padding: "8px 10px", fontSize: "18px", fontWeight: "900", color: "#0f172a", textAlign: "right", verticalAlign: "middle", borderBottom: "1px solid #e2e8f0", background: "#fafafa" }}>
+                    <td style={{ padding: "8px 10px", fontSize: "18px", fontWeight: "900", color: "#0f172a", textAlign: "right", verticalAlign: "middle", borderBottom: "1px solid #e2e8f0", background: "transparent" }}>
                       ₹ {totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
@@ -810,10 +808,10 @@ const VoucherDetails = () => {
               </table>
 
               {/* Modern Amount in Words Section */}
-              <div style={{ display: "flex", gap: "8px", alignItems: "center", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px", margin: "4px 0" }}>
-                <span style={{ fontSize: "8.5px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>In Words:</span>
-                <span style={{ fontSize: "10.5px", fontWeight: "800", color: "#334155" }}>
-                  {totalDebit > 0 ? `${numberToWords(totalDebit)} Rupees Only`.toUpperCase() : "NO RUPEES"}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", background: "transparent", border: "1px solid #e2e8f0", padding: "5px 8px", borderRadius: "4px", margin: "4px 0", lineHeight: "1.2" }}>
+                <span style={{ fontSize: "8.5px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}>In Words:</span>
+                <span style={{ fontSize: "10.5px", fontWeight: "normal", color: "#334155", display: "inline-flex", alignItems: "center" }}>
+                  {totalDebit > 0 ? numberToWords.amountInWords(totalDebit, { only: true }) : "Zero Rupees"}
                 </span>
               </div>
 
