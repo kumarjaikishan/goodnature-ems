@@ -111,6 +111,49 @@ const Sidebar = () => {
     if (currentPath === childLink) return true;
 
     // Special routing associations:
+    // Ledger detail routing association: /dashboard/ledger/:id with query params
+    if (currentPath.startsWith('/dashboard/ledger/')) {
+      const searchParams = new URLSearchParams(location.search);
+      const ledgerType = (searchParams.get('ledgertype') || '').toLowerCase();
+      const empId = (searchParams.get('empid') || '').toUpperCase();
+
+      if (childLink === '/dashboard/ledger/branch-partners') {
+        if (ledgerType === 'branch_partner' || ledgerType === 'branch' || empId.startsWith('BRP-') || empId.startsWith('BR-')) {
+          return true;
+        }
+      }
+      if (childLink === '/dashboard/ledger/business-partners') {
+        if (ledgerType === 'partner' || (empId.startsWith('BP-') && ledgerType !== 'branch_partner')) {
+          return true;
+        }
+      }
+      if (childLink === '/dashboard/ledger/business-associates') {
+        if (ledgerType === 'associate' || empId.startsWith('BA-') || empId.startsWith('A/')) {
+          return true;
+        }
+      }
+      if (childLink === '/dashboard/ledger/employees') {
+        if (ledgerType === 'employee' || empId.startsWith('EMP') || empId.startsWith('E-')) {
+          return true;
+        }
+      }
+      if (childLink === '/dashboard/ledger/sellers') {
+        if (ledgerType === 'seller' || ledgerType === 'kisan') {
+          return true;
+        }
+      }
+      if (childLink === '/dashboard/ledger/banks') {
+        if (ledgerType === 'bank') {
+          return true;
+        }
+      }
+      if (childLink === '/dashboard/ledger/cash-accounts') {
+        if (ledgerType === 'cash' || ledgerType === 'user_cash') {
+          return true;
+        }
+      }
+    }
+
     // Investment Booking sub-item should be active on investment-booking and its new/edit routes
     if (childLink === '/dashboard/plots/investment-booking') {
       if (
@@ -143,11 +186,11 @@ const Sidebar = () => {
       }
     }
 
-    if (childLink !== '/dashboard' && (currentPath === childLink || currentPath.startsWith(childLink + '/'))) {
+    if (childLink !== '/dashboard' && (currentPath === childLink || (!currentPath.startsWith('/dashboard/ledger/') && currentPath.startsWith(childLink + '/')))) {
       return true;
     }
     return false;
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // Auto-expand parent submenu if current route matches any child link
   useEffect(() => {
@@ -167,7 +210,7 @@ const Sidebar = () => {
     if (activeMenuKey) {
       setOpenSubmenu(activeMenuKey);
     }
-  }, [location.pathname, role, isSubmenuItemActive]);
+  }, [location.pathname, location.search, role, isSubmenuItemActive]);
 
   useEffect(() => {
     setHoveredMenu(null);

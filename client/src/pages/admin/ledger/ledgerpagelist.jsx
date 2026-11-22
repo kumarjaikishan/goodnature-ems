@@ -309,7 +309,22 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             if (ledgerItem.empId) {
                 url += `&empid=${encodeURIComponent(ledgerItem.empId)}`;
             }
-            const itemType = ledgerItem.ledgerType || (ledgerItem.employeeId ? 'employee' : ledgerItem.sponsorId ? 'sponsor' : ledgerItem.kisanSellerId ? 'kisan' : 'custom');
+            
+            // Prioritize current category if viewing from a specific subcategory page
+            let itemType = category && category !== 'all' ? category : null;
+            if (!itemType) {
+                const tier = getSponsorTier(ledgerItem);
+                if (tier) {
+                    itemType = tier; // 'branch_partner', 'partner', 'associate', or 'branch'
+                } else if (ledgerItem.employeeId || ledgerItem.ledgerType === 'employee') {
+                    itemType = 'employee';
+                } else if (ledgerItem.kisanSellerId || ledgerItem.ledgerType === 'kisan' || ledgerItem.ledgerType === 'seller') {
+                    itemType = 'seller';
+                } else {
+                    itemType = ledgerItem.ledgerType || 'custom';
+                }
+            }
+
             url += `&ledgertype=${encodeURIComponent(itemType)}`;
             return navigate(url);
         }

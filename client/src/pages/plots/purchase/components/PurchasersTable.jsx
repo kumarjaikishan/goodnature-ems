@@ -275,25 +275,25 @@ const PurchasersTable = ({
                       )}
                     </td>
                     <td className="p-3.5 pr-5 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
                         {canUpdate && (
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(p)}
-                            className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                            className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
                             title="Edit Purchaser"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={15} />
                           </button>
                         )}
                         {canDelete && (
                           <button
                             type="button"
                             onClick={() => handleDelete(p)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
                             title="Delete Purchaser"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={15} />
                           </button>
                         )}
                       </div>

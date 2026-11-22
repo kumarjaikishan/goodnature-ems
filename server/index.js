@@ -90,17 +90,22 @@ console.log("Timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
 // console.log("UTC Hours:", new Date().getUTCHours());
 
 // ----------------------
-// Log incoming requests
+// Log incoming requests (Only /essl routes)
 // ----------------------
 app.use((req, res, next) => {
+  const url = req.originalUrl || req.url || '';
+  if (!url.startsWith('/essl')) {
+    return next();
+  }
+
   const start = Date.now();
   const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false });
-  console.log(`[${timeStr}] 📡 ${req.method} ${req.originalUrl || req.url}`);
+  console.log(`[${timeStr}] 📡 ${req.method} ${url}`);
 
   res.on('finish', () => {
     const duration = Date.now() - start;
     const statusIcon = res.statusCode >= 500 ? '❌' : res.statusCode >= 400 ? '⚠️' : '✅';
-    console.log(`[${timeStr}] ${statusIcon} ${req.method} ${req.originalUrl || req.url} -> ${res.statusCode} (${duration}ms)`);
+    console.log(`[${timeStr}] ${statusIcon} ${req.method} ${url} -> ${res.statusCode} (${duration}ms)`);
   });
 
   next();

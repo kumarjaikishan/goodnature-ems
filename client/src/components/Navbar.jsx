@@ -64,6 +64,15 @@ const Navbar = () => {
     "attandence-import": "Attendance Import",
     "vouchers": "Vouchers",
     "activity-logs": "Activity Logs",
+    // Ledger Titles
+    "banks": "Bank Accounts",
+    "cash-accounts": "Cash Accounts",
+    "transfers": "Fund Transfers",
+    "employees": "Employee Ledgers",
+    "sellers": "Seller Ledgers",
+    "branch-partners": "Branch Partner Ledgers",
+    "business-partners": "Business Partner Ledgers",
+    "business-associates": "Business Associate Ledgers",
     // Sponsor / Business Developer Titles
     "my-plans": "Plan",
     "plans": "Plan",
@@ -226,7 +235,12 @@ const Navbar = () => {
     else pageTitle = "Investment Management";
   } else if (lastPart && !commonTitles[lastPart]) {
     if (pathParts.includes("ledger") && pathParts.length > 2) {
-      pageTitle = "Ledger Detail";
+      const knownLedgerSubpages = ["banks", "cash-accounts", "transfers", "employees", "sellers", "branch-partners", "business-partners", "business-associates"];
+      if (knownLedgerSubpages.includes(lastPart)) {
+        pageTitle = commonTitles[lastPart] || lastPart.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      } else {
+        pageTitle = "Ledger Detail";
+      }
     } else if (pathParts.includes("vouchers") && pathParts.length > 2) {
       pageTitle = "Voucher Detail";
     } else if (pathParts.includes("performance")) {

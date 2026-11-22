@@ -709,7 +709,12 @@ const PlotBusinessDevelopers = () => {
                 const nameParam = encodeURIComponent(row.name || 'Business Developer');
                 const empIdParam = encodeURIComponent(row.sponsorCode || row.customerId || '');
                 const imgParam = row.profileImage ? `&profileimage=${encodeURIComponent(row.profileImage)}` : '';
-                navigate(`/dashboard/ledger/${targetLedgerId}?name=${nameParam}&empid=${empIdParam}&ledgertype=sponsor${imgParam}`);
+                
+                const isBRP = row.isBranchPartner || (row.sponsorCode && (row.sponsorCode.startsWith('BRP-') || row.sponsorCode.startsWith('BR-')));
+                const isBA = !isBRP && (row.sponsorCode?.startsWith('BA-') || (row.sponsorId && !row.sponsorCode?.startsWith('BP-') && !row.sponsorId?.isBranchPartner && !row.sponsorId?.sponsorCode?.startsWith('BRP-')));
+                const computedType = isBRP ? 'branch_partner' : (isBA ? 'associate' : 'partner');
+
+                navigate(`/dashboard/ledger/${targetLedgerId}?name=${nameParam}&empid=${empIdParam}&ledgertype=${computedType}${imgParam}`);
               }}
               className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg transition cursor-pointer"
               title="View Universal Account Ledger"

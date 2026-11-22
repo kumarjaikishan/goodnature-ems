@@ -259,32 +259,32 @@ const PlotCustomers = () => {
     },
     {
       name: 'Actions',
-      width: '130px',
+      width: '120px',
       cell: (row) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 py-1">
           <button
             onClick={() => openViewModal(row)}
-            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-            title="View Details"
+            className="p-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition cursor-pointer"
+            title="View Customer Details"
           >
-            <Eye size={18} />
+            <Eye size={15} />
           </button>
           {canUpdate && (
             <button
               onClick={() => navigate(`/dashboard/plots/customers/edit/${row._id}`)}
-              className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-lg transition cursor-pointer"
-              title="Edit Customer"
+              className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition cursor-pointer"
+              title="Edit Customer Information"
             >
-              <Edit2 size={18} />
+              <Edit2 size={15} />
             </button>
           )}
           {canDelete && (
             <button
               onClick={() => handleDeleteCustomer(row)}
-              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+              className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition cursor-pointer"
               title="Delete Customer"
             >
-              <Trash2 size={18} />
+              <Trash2 size={15} />
             </button>
           )}
         </div>
