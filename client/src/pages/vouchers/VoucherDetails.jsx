@@ -383,13 +383,6 @@ const VoucherDetails = () => {
             Classic Slip
           </Button>
           <Button
-            onClick={() => setActiveVariant("executive")}
-            variant={activeVariant === "executive" ? "primary" : "outline"}
-            size="sm"
-          >
-            Executive Teal
-          </Button>
-          <Button
             onClick={() => setActiveVariant("modern")}
             variant={activeVariant === "modern" ? "primary" : "outline"}
             size="sm"
@@ -729,120 +722,7 @@ const VoucherDetails = () => {
             </div>
           )}
 
-          {/* ─────────────────────────────────────────────────────────────
-              VARIANT 2: EXECUTIVE TEAL CORPORATE LOOK
-             ───────────────────────────────────────────────────────────── */}
-          {activeVariant === "executive" && (
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", width: "100%", position: "relative", zIndex: 1 }}>
-              {/* Executive Header with Deep Teal Banner */}
-              <div style={{ background: "linear-gradient(135deg, #134e4a 0%, #0f766e 100%)", color: "#ffffff", borderRadius: "6px", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  {company?.logo ? (
-                    <img
-                      src={cloudinaryUrl(company.logo, { format: "webp", width: 140, height: 140, crop: "fit" })}
-                      alt="Logo"
-                      style={{ maxHeight: "48px", maxWidth: "48px", objectFit: "contain", background: "#ffffff", borderRadius: "4px", padding: "2px" }}
-                    />
-                  ) : (
-                    <div style={{ width: "38px", height: "38px", borderRadius: "4px", background: "#ffffff", color: "#0f766e", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", fontSize: "15px" }}>
-                      GN
-                    </div>
-                  )}
-                  <div>
-                    <h1 style={{ margin: 0, fontSize: "16px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "1px", color: "#ffffff" }}>
-                      {company?.fullname || company?.name || "GOOD NATURE PROJECTS PVT. LTD."}
-                    </h1>
-                    <p style={{ margin: "2px 0 0 0", fontSize: "10px", color: "#ccfbf1", fontWeight: "500" }}>
-                      {company?.address || "Good Nature Commercial Complex, Main Road"}
-                    </p>
-                  </div>
-                </div>
 
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ background: "#ffffff", color: "#0f766e", padding: "2px 8px", borderRadius: "3px", fontSize: "10px", fontWeight: "900", letterSpacing: "1px", textTransform: "uppercase" }}>
-                    PAYMENT VOUCHER
-                  </span>
-                  <div style={{ fontSize: "10px", color: "#e6fffa", fontWeight: "700", marginTop: "4px" }}>
-                    NO: <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#ffffff" }}>{voucher.voucherNo.replace(/^(GN-)?INV-/, "INV-")}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3-Column Info Cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1fr 1fr", gap: "8px", margin: "8px 0" }}>
-                <div style={{ background: "#f0fdfa", border: "1px solid #ccfbf1", borderRadius: "5px", padding: "6px 10px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: "700", color: "#0f766e", textTransform: "uppercase", display: "block" }}>Paid To (Ledger)</span>
-                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#134e4a" }}>
-                    {formatLedgerName(voucher.entries?.find(e => e.type === 'DEBIT')?.accountName || voucher.ledgerId?.name)}
-                  </span>
-                </div>
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "5px", padding: "6px 10px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Payment Mode</span>
-                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>{paymentModeDisplay}</span>
-                </div>
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "5px", padding: "6px 10px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Voucher Date</span>
-                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>
-                    {dayjs(voucher.date).format("DD MMM YYYY")}
-                  </span>
-                </div>
-              </div>
-
-              {/* Ledger Particulars Table */}
-              <table style={{ width: "100%", borderCollapse: "collapse", margin: "2px 0" }}>
-                <thead>
-                  <tr style={{ background: "#134e4a", color: "#ffffff" }}>
-                    <th style={{ textAlign: "left", padding: "6px 10px", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", width: "70%", borderRadius: "4px 0 0 0" }}>Particulars / Description</th>
-                    <th style={{ textAlign: "right", padding: "6px 10px", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", width: "30%", borderRadius: "0 4px 0 0" }}>Amount (INR)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={{ padding: "8px 10px", fontSize: "11px", color: "#334155", verticalAlign: "top", border: "1px solid #ccfbf1", borderTop: "none", height: "70px", background: "#fcfdfe" }}>
-                      <div style={{ fontWeight: "700", color: "#134e4a", marginBottom: "3px" }}>
-                        Payment disbursed to {formatLedgerName(voucher.entries?.find(e => e.type === 'DEBIT')?.accountName || voucher.ledgerId?.name)}
-                      </div>
-                      <div style={{ color: "#64748b", fontStyle: "italic" }}>
-                        {voucher.remarks || "No specific narration provided."}
-                      </div>
-                    </td>
-                    <td style={{ padding: "8px 10px", fontSize: "22px", fontWeight: "900", color: "#0f766e", textAlign: "right", verticalAlign: "middle", border: "1px solid #ccfbf1", borderTop: "none", background: "#f0fdfa" }}>
-                      ₹ {totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* In words */}
-              <div style={{ background: "#f0fdfa", border: "1px solid #ccfbf1", borderRadius: "5px", padding: "5px 10px", display: "flex", alignItems: "center", gap: "8px", margin: "4px 0" }}>
-                <span style={{ fontSize: "9px", fontWeight: "800", color: "#0f766e", textTransform: "uppercase" }}>Amount In Words:</span>
-                <span style={{ fontSize: "11px", fontWeight: "800", color: "#134e4a" }}>
-                  {totalDebit > 0 ? `${numberToWords(totalDebit)} Rupees Only`.toUpperCase() : "ZERO RUPEES"}
-                </span>
-              </div>
-
-              {/* Signatures */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.3fr", gap: "25px", marginTop: "12px", padding: "0 5px" }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ borderBottom: "1.5px solid #0f766e", height: "35px" }}></div>
-                  <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#134e4a", textTransform: "uppercase", display: "block", marginTop: "3px" }}>Verified By</span>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ borderBottom: "1.5px solid #0f766e", height: "35px" }}></div>
-                  <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#134e4a", textTransform: "uppercase", display: "block", marginTop: "3px" }}>Cashier</span>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ borderBottom: "1.5px solid #0f766e", height: "35px" }}></div>
-                  <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#134e4a", textTransform: "uppercase", display: "block", marginTop: "3px" }}>Receiver Signature</span>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div style={{ borderTop: "1px solid #ccfbf1", paddingTop: "4px", marginTop: "6px", textAlign: "center", fontSize: "8.5px", color: "#0f766e", fontWeight: "600" }}>
-                ** Please check balance before leaving counter **
-              </div>
-            </div>
-          )}
 
           {/* ─────────────────────────────────────────────────────────────
               VARIANT 3: MODERN MINIMALIST LOOK

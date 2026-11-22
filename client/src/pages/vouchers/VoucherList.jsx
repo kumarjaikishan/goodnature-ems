@@ -71,6 +71,7 @@ const VoucherList = () => {
   const [endDate, setEndDate] = useState("");
   const [selectedFilterLedgerId, setSelectedFilterLedgerId] = useState("");
   const [selectedReferenceType, setSelectedReferenceType] = useState("all");
+  const [voucherSortKey, setVoucherSortKey] = useState("date"); // "date" | "voucherNo"
 
   // Create / Edit Voucher Modal State
   const [openModal, setOpenModal] = useState(false);
@@ -701,8 +702,60 @@ const VoucherList = () => {
       width: "50px",
     },
     {
-      name: "Voucher / Date",
-      selector: (row) => row.voucherNo,
+      name: (
+        <div className="flex flex-col py-0.5 leading-tight select-none">
+          <div className="flex items-center gap-1.5">
+            <span>Voucher / Date</span>
+          </div>
+          <div className="flex items-center gap-1 mt-1 font-sans font-normal normal-case">
+            <span className="text-[9px] text-teal-200/90 font-medium">Sort by:</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setVoucherSortKey("date");
+              }}
+              className={`px-1.5 py-0.2 rounded text-[9.5px] font-semibold transition cursor-pointer ${
+                voucherSortKey === "date"
+                  ? "bg-amber-300 text-teal-950 shadow-2xs font-bold"
+                  : "bg-teal-900/60 text-teal-100 hover:bg-teal-900"
+              }`}
+              title="Sort rows by Voucher Date"
+            >
+              Date
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setVoucherSortKey("voucherNo");
+              }}
+              className={`px-1.5 py-0.2 rounded text-[9.5px] font-semibold transition cursor-pointer ${
+                voucherSortKey === "voucherNo"
+                  ? "bg-amber-300 text-teal-950 shadow-2xs font-bold"
+                  : "bg-teal-900/60 text-teal-100 hover:bg-teal-900"
+              }`}
+              title="Sort rows by Voucher Number"
+            >
+              Voucher No
+            </button>
+          </div>
+        </div>
+      ),
+      selector: (row) => {
+        if (voucherSortKey === "date") {
+          return row.date ? new Date(row.date).getTime() : (row.createdAt ? new Date(row.createdAt).getTime() : 0);
+        }
+        return (row.voucherNo || "").toLowerCase();
+      },
+      sortFunction: (a, b) => {
+        if (voucherSortKey === "date") {
+          const timeA = a.date ? new Date(a.date).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const timeB = b.date ? new Date(b.date).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return timeA - timeB;
+        }
+        return (a.voucherNo || "").localeCompare(b.voucherNo || "", undefined, { numeric: true, sensitivity: 'base' });
+      },
       cell: (row) => (
         <div className="flex flex-col py-1">
           <button
@@ -722,7 +775,7 @@ const VoucherList = () => {
         </div>
       ),
       sortable: true,
-      width: "125px"
+      width: "145px"
     },
     {
       name: "Ledger",
