@@ -1,5 +1,26 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+## 2026-11-23 — Removed Branch Partner Ledger Banner from Branch Manager
+- **File Modified**: `client/src/pages/admin/organization/components/BranchManager.jsx`
+- **Behavior**:
+  - Removed the "Branch Partner Ledger (0.5% Commission & Target Slabs)" banner from the grid card view.
+  - Removed the "Branch Override (0.5%)" column from the table view.
+  - Cards now cleanly display branch code, name, location, timings, and assigned users without the commission override box.
+
+## 2026-11-23 — User Branch vs Branch ManagerIds Two-Way Synchronization Fix
+- **Context & Bug**:
+  - In User Management (`/dashboard/organization/users`), all users (including Nawraj Singh Nayan - Cashier/Billing) were assigned to `BHR SHARIF`.
+  - In Branch Manager (`/dashboard/organization/branches`), the `Depot` card was displaying Nawraj Singh Nayan as assigned user, while `BHR SHARIF` was missing him.
+  - **Root Cause**:
+    1. User Management reads `user.branchIds` from the `user` document.
+    2. Branch Manager card reads `branch.managerIds` from the `Branch` document.
+    3. When a user was edited via `editAdmin` in `server/controllers/admin.js`, it updated `user.branchIds` but **never synchronized `branch.managerIds`**. Therefore, old historical assignments in `branch.managerIds` were never removed or updated when moving a user to a different branch.
+    4. `deleteAdmin` only pulled the user if `role === 'manager'`, ignoring cashiers/accountants.
+- **Fixes Applied**:
+  - Synchronized existing database branch `managerIds` so `Depot` and `Good Feel` are clean (`[]`) and `BHR SHARIF` holds `[Nawraj Singh Nayan, Ghanshyam, Ravi Ranjan]`.
+  - Added two-way sync in `editAdmin`: whenever `parsedBranchIds` changes on a user, automatically `$pull` their ID from removed branches and `$addToSet` their ID on newly assigned branches.
+  - In `deleteAdmin`: unconditionally `$pull` deleted user from all `branch.managerIds`.
+
 ## 2026-11-23 — Edit Branch "Cast to ObjectId failed for value '[object Object]'" Fix
 - **Context & Bug**:
   - When editing a branch in Organization -> Branches (`/dashboard/organization/branches`) and saving (e.g., toggling "Override Company Default Rules"), the backend threw `500 Cast to ObjectId failed for value "[object Object]" (type string) at path "_id" for model "user"`.

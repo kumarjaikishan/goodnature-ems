@@ -762,6 +762,28 @@ const editAdmin = async (req, res, next) => {
             { new: true }
         );
 
+        // Two-way sync branch.managerIds when user.branchIds is updated
+        if (parsedBranchIds !== undefined && targetUser.role !== 'sponsor') {
+            const previousBranchIds = (targetUser.branchIds || []).map(b => b.toString());
+            const newBranchIds = parsedBranchIds.map(b => (b && typeof b === 'object' && b._id ? b._id.toString() : b.toString()));
+
+            const removedBranches = previousBranchIds.filter(bId => !newBranchIds.includes(bId));
+            const addedBranches = newBranchIds.filter(bId => !previousBranchIds.includes(bId));
+
+            if (removedBranches.length > 0) {
+                await branch.updateMany(
+                    { _id: { $in: removedBranches } },
+                    { $pull: { managerIds: id } }
+                );
+            }
+            if (addedBranches.length > 0) {
+                await branch.updateMany(
+                    { _id: { $in: addedBranches } },
+                    { $addToSet: { managerIds: id } }
+                );
+            }
+        }
+
         // Sync linked user_cash ledger name and image
         try {
             const Ledger = mongoose.model('Ledger');
@@ -821,12 +843,10 @@ const deleteAdmin = async (req, res, next) => {
             await removePhotoBySecureUrl([adminmanager.profileImage]);
         }
 
-        if (adminmanager.role === 'manager' && adminmanager.branchIds?.length > 0) {
-            await branch.updateMany(
-                { _id: { $in: adminmanager.branchIds } },
-                { $pull: { managerIds: adminmanager._id } }
-            );
-        }
+        await branch.updateMany(
+            { managerIds: adminmanager._id },
+            { $pull: { managerIds: adminmanager._id } }
+        );
 
         res.status(200).json({
             message: 'Admin deleted successfully',

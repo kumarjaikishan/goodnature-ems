@@ -111,23 +111,6 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
             )
         },
         {
-            name: "Branch Override (0.5%)",
-            cell: row => (
-                <div className="flex items-center gap-2 py-1">
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-teal-800 text-white text-[10px] font-bold shrink-0">
-                        <Building2 size={12} />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-slate-800">Branch Commission</span>
-                        <span className="text-[10px] text-emerald-700 font-medium inline-flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            0.5% Active Ledger
-                        </span>
-                    </div>
-                </div>
-            )
-        },
-        {
             name: "Assigned Users / Managers",
             cell: row => (
                 <div className="flex flex-col gap-1.5 py-1">
@@ -381,22 +364,6 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
                                                 Company Default
                                             </span>
                                         )}
-                                    </div>
-
-                                    {/* Branch Commission & Ledger Account */}
-                                    <div className="p-2 bg-gradient-to-r from-teal-50/80 to-emerald-50/40 rounded-xl border border-teal-200/80 flex items-center justify-between text-xs">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-teal-800 text-white text-[10px] font-bold shrink-0">
-                                                <Building2 size={12} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <span className="text-[10px] text-teal-700 uppercase font-bold tracking-wider block">Branch Partner Ledger</span>
-                                                <span className="text-xs font-bold text-slate-800 truncate block">0.5% Commission & Target Slabs</span>
-                                            </div>
-                                        </div>
-                                        <span className="font-mono text-[10px] font-bold text-emerald-700 bg-white border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0">
-                                            Active
-                                        </span>
                                     </div>
 
                                     {/* Assigned Users / Managers */}
