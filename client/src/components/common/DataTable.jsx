@@ -45,6 +45,7 @@ export const DataTable = ({
   keyField = '_id',
   onRowClicked,
   pointerOnHover = false,
+  footerComponent,
 }) => {
   // ── Pagination State ──
   const [currentPage, setCurrentPage] = useState(paginationDefaultPage);
@@ -257,9 +258,8 @@ export const DataTable = ({
                       paddingLeft: headStyle.paddingLeft || '12px',
                       paddingRight: headStyle.paddingRight || '12px',
                     }}
-                    className={`py-3 text-[11px] font-black uppercase tracking-wider ${
-                      col.sortable ? 'cursor-pointer hover:opacity-90' : ''
-                    }`}
+                    className={`py-3 text-[11px] font-black uppercase tracking-wider ${col.sortable ? 'cursor-pointer hover:opacity-90' : ''
+                      }`}
                     onClick={() => col.sortable && handleSort(col)}
                   >
                     <div className={`flex items-center gap-1.5 ${alignClass}`}>
@@ -331,11 +331,9 @@ export const DataTable = ({
                     key={rowKey}
                     style={rowStyleOverride}
                     onClick={() => onRowClicked && onRowClicked(row)}
-                    className={`transition-colors ${dense ? 'py-1.5' : 'py-2.5'} ${
-                      isSelected ? 'bg-teal-50/60' : striped && rowIdx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
-                    } ${highlightOnHover ? 'hover:bg-slate-50' : ''} ${
-                      pointerOnHover || onRowClicked ? 'cursor-pointer' : ''
-                    }`}
+                    className={`transition-colors ${dense ? 'py-1.5' : 'py-2.5'} ${isSelected ? 'bg-teal-50/60' : striped && rowIdx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
+                      } ${highlightOnHover ? 'hover:bg-slate-50' : ''} ${pointerOnHover || onRowClicked ? 'cursor-pointer' : ''
+                      }`}
                   >
                     {selectableRows && (
                       <td className="w-10 px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
@@ -373,119 +371,130 @@ export const DataTable = ({
 
       {/* ── React-Data-Table Style Pagination Footer ── */}
       {pagination && (
-        <div className="px-3 sm:px-4 py-2.5 bg-white border-t border-slate-100 flex items-center justify-between sm:justify-end gap-2 sm:gap-6 text-xs text-slate-500 font-sans select-none min-h-[44px]">
-          {/* Mobile Order: [|<] [<] on left */}
-          <div className="flex sm:hidden items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage <= 1 || progressPending}
-              onClick={() => handlePageChange(1)}
-              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="First Page"
-            >
-              <ChevronsLeft size={19} strokeWidth={1.8} />
-            </button>
-            <button
-              type="button"
-              disabled={currentPage <= 1 || progressPending}
-              onClick={() => handlePageChange(currentPage - 1)}
-              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="Previous Page"
-            >
-              <ChevronLeft size={19} strokeWidth={1.8} />
-            </button>
-          </div>
-
-          {/* Rows per page selector (Center on mobile, Left on desktop) */}
-          <div className="flex items-center gap-1 text-slate-500">
-            <span className="hidden sm:inline text-xs font-normal">Rows per page:</span>
-            <div className="relative inline-flex items-center">
-              <select
-                value={rowsPerPage}
-                onChange={handleRowsPerPageChange}
-                className="appearance-none bg-transparent hover:bg-slate-50 border-none outline-none py-1 pl-1 pr-4 text-xs font-normal text-slate-600 cursor-pointer focus:ring-0 focus:outline-none"
-              >
-                {paginationRowsPerPageOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
-                ▼
-              </span>
+        <div className="px-3 sm:px-4 py-2.5 bg-white border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 sm:gap-6 text-xs text-slate-500 font-sans select-none min-h-[44px]">
+          {/* Left Custom Footer Component (e.g. Total of visible entries) */}
+          {footerComponent ? (
+            <div className="flex items-center text-xs text-slate-700 mr-auto">
+              {typeof footerComponent === 'function' ? footerComponent({ displayData, totalItems, currentPage, rowsPerPage }) : footerComponent}
             </div>
-          </div>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
 
-          {/* Range: "1-3 of 3" (Hidden on very narrow mobile, visible on desktop) */}
-          <span className="hidden sm:inline text-slate-600 text-xs font-normal whitespace-nowrap">
-            {totalItems > 0 ? (
-              `${(currentPage - 1) * rowsPerPage + 1}-${Math.min(currentPage * rowsPerPage, totalItems)} of ${totalItems}`
-            ) : (
-              '0-0 of 0'
-            )}
-          </span>
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-6 w-full sm:w-auto">
+            {/* Mobile Order: [|<] [<] on left */}
+            <div className="flex sm:hidden items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1 || progressPending}
+                onClick={() => handlePageChange(1)}
+                className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="First Page"
+              >
+                <ChevronsLeft size={19} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage <= 1 || progressPending}
+                onClick={() => handlePageChange(currentPage - 1)}
+                className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="Previous Page"
+              >
+                <ChevronLeft size={19} strokeWidth={1.8} />
+              </button>
+            </div>
 
-          {/* Desktop Navigation Icons (|<  <  >  >|) */}
-          <div className="hidden sm:flex items-center gap-1 text-slate-400">
-            <button
-              type="button"
-              disabled={currentPage <= 1 || progressPending}
-              onClick={() => handlePageChange(1)}
-              className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="First Page"
-            >
-              <ChevronsLeft size={19} strokeWidth={1.8} />
-            </button>
-            <button
-              type="button"
-              disabled={currentPage <= 1 || progressPending}
-              onClick={() => handlePageChange(currentPage - 1)}
-              className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="Previous Page"
-            >
-              <ChevronLeft size={19} strokeWidth={1.8} />
-            </button>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages || progressPending}
-              onClick={() => handlePageChange(currentPage + 1)}
-              className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="Next Page"
-            >
-              <ChevronRight size={19} strokeWidth={1.8} />
-            </button>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages || progressPending}
-              onClick={() => handlePageChange(totalPages)}
-              className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="Last Page"
-            >
-              <ChevronsRight size={19} strokeWidth={1.8} />
-            </button>
-          </div>
+            {/* Rows per page selector (Center on mobile, Left on desktop) */}
+            <div className="flex items-center gap-1 text-slate-500">
+              <span className="hidden sm:inline text-xs font-normal">Rows per page:</span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={rowsPerPage}
+                  onChange={handleRowsPerPageChange}
+                  className="appearance-none bg-transparent hover:bg-slate-50 border-none outline-none py-1 pl-1 pr-4 text-xs font-normal text-slate-600 cursor-pointer focus:ring-0 focus:outline-none"
+                >
+                  {paginationRowsPerPageOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
+                  ▼
+                </span>
+              </div>
+            </div>
 
-          {/* Mobile Navigation Icons ([>] [>|] on right) */}
-          <div className="flex sm:hidden items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage >= totalPages || progressPending}
-              onClick={() => handlePageChange(currentPage + 1)}
-              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="Next Page"
-            >
-              <ChevronRight size={19} strokeWidth={1.8} />
-            </button>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages || progressPending}
-              onClick={() => handlePageChange(totalPages)}
-              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
-              title="Last Page"
-            >
-              <ChevronsRight size={19} strokeWidth={1.8} />
-            </button>
+            {/* Range: "1-3 of 3" (Hidden on very narrow mobile, visible on desktop) */}
+            <span className="hidden sm:inline text-slate-600 text-xs font-normal whitespace-nowrap">
+              {totalItems > 0 ? (
+                `${(currentPage - 1) * rowsPerPage + 1}-${Math.min(currentPage * rowsPerPage, totalItems)} of ${totalItems}`
+              ) : (
+                '0-0 of 0'
+              )}
+            </span>
+
+            {/* Desktop Navigation Icons (|<  <  >  >|) */}
+            <div className="hidden sm:flex items-center gap-1 text-slate-400">
+              <button
+                type="button"
+                disabled={currentPage <= 1 || progressPending}
+                onClick={() => handlePageChange(1)}
+                className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="First Page"
+              >
+                <ChevronsLeft size={19} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage <= 1 || progressPending}
+                onClick={() => handlePageChange(currentPage - 1)}
+                className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="Previous Page"
+              >
+                <ChevronLeft size={19} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages || progressPending}
+                onClick={() => handlePageChange(currentPage + 1)}
+                className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="Next Page"
+              >
+                <ChevronRight size={19} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages || progressPending}
+                onClick={() => handlePageChange(totalPages)}
+                className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="Last Page"
+              >
+                <ChevronsRight size={19} strokeWidth={1.8} />
+              </button>
+            </div>
+
+            {/* Mobile Navigation Icons ([>] [>|] on right) */}
+            <div className="flex sm:hidden items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage >= totalPages || progressPending}
+                onClick={() => handlePageChange(currentPage + 1)}
+                className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="Next Page"
+              >
+                <ChevronRight size={19} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages || progressPending}
+                onClick={() => handlePageChange(totalPages)}
+                className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center"
+                title="Last Page"
+              >
+                <ChevronsRight size={19} strokeWidth={1.8} />
+              </button>
+            </div>
           </div>
         </div>
       )}

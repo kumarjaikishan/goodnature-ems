@@ -91,7 +91,7 @@ const Attandence = () => {
     date: dayjs(),
     punchIn: null,
     punchOut: null,
-    status: "",
+    status: "present",
     reason: '',
   };
 

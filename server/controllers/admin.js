@@ -1039,48 +1039,77 @@ const editBranch = async (req, res, next) => {
             return next({ status: 404, message: "Branch not found" });
         }
 
+        // Helper to safely extract ObjectId string from string, ObjectId, or populated object
+        const toIdString = (item) => {
+            if (!item) return null;
+            if (typeof item === 'object') {
+                const rawId = item._id || item.id || item;
+                return rawId ? rawId.toString() : null;
+            }
+            return item.toString();
+        };
+
+        const cleanManagerIds = (Array.isArray(managerIds) ? managerIds : [])
+            .map(toIdString)
+            .filter(Boolean);
+
+        const cleanBranchPartnerId = toIdString(branchPartnerId);
+
         // Resolve branchPartnerIds
         let finalBranchPartnerIds;
         if (Array.isArray(branchPartnerIds)) {
-            finalBranchPartnerIds = branchPartnerIds.filter(Boolean);
-            if (branchPartnerId && !finalBranchPartnerIds.some(id => id.toString() === branchPartnerId.toString())) {
-                finalBranchPartnerIds.push(branchPartnerId);
+            finalBranchPartnerIds = branchPartnerIds.map(toIdString).filter(Boolean);
+            if (cleanBranchPartnerId && !finalBranchPartnerIds.includes(cleanBranchPartnerId)) {
+                finalBranchPartnerIds.push(cleanBranchPartnerId);
             }
-        } else if (branchPartnerId) {
-            finalBranchPartnerIds = [branchPartnerId];
+        } else if (cleanBranchPartnerId) {
+            finalBranchPartnerIds = [cleanBranchPartnerId];
         } else {
-            finalBranchPartnerIds = existingBranch.branchPartnerIds || (existingBranch.branchPartnerId ? [existingBranch.branchPartnerId] : []);
+            finalBranchPartnerIds = (existingBranch.branchPartnerIds || [])
+                .map(toIdString)
+                .filter(Boolean);
+            if (existingBranch.branchPartnerId) {
+                const existingPId = toIdString(existingBranch.branchPartnerId);
+                if (existingPId && !finalBranchPartnerIds.includes(existingPId)) {
+                    finalBranchPartnerIds.push(existingPId);
+                }
+            }
         }
 
-        const primaryBranchPartnerId = branchPartnerId !== undefined
-            ? (branchPartnerId || (finalBranchPartnerIds.length > 0 ? finalBranchPartnerIds[0] : null))
-            : (existingBranch.branchPartnerId || (finalBranchPartnerIds.length > 0 ? finalBranchPartnerIds[0] : null));
+        const primaryBranchPartnerId = cleanBranchPartnerId || (finalBranchPartnerIds.length > 0 ? finalBranchPartnerIds[0] : null);
 
         let updateDoc = {
-            name, location, companyId, managerIds, defaultsetting,
+            name,
+            location,
+            companyId: toIdString(companyId) || existingBranch.companyId,
+            managerIds: cleanManagerIds,
+            defaultsetting: Boolean(defaultsetting),
             branchPartnerId: primaryBranchPartnerId || null,
             branchPartnerIds: finalBranchPartnerIds
         };
 
         if (!defaultsetting) {
-            const setting = req.body.setting
-            updateDoc.setting = setting
+            const setting = req.body.setting;
+            updateDoc.setting = setting;
         } else {
             updateDoc.$unset = { setting: 1 };
         }
 
-        const previousManagerIds = existingBranch.managerIds.map(id => id.toString());
-        const newManagerIds = managerIds.map(id => id.toString());
+        const previousManagerIds = (existingBranch.managerIds || []).map(toIdString).filter(Boolean);
+        const newManagerIds = cleanManagerIds;
 
         const removedManagerIds = previousManagerIds.filter(id => !newManagerIds.includes(id));
         const addedManagerIds = newManagerIds.filter(id => !previousManagerIds.includes(id));
 
         // Manage removed and added branch partners
-        const prevPartnerIds = (existingBranch.branchPartnerIds || []).map(id => id.toString());
-        if (existingBranch.branchPartnerId && !prevPartnerIds.includes(existingBranch.branchPartnerId.toString())) {
-            prevPartnerIds.push(existingBranch.branchPartnerId.toString());
+        const prevPartnerIds = (existingBranch.branchPartnerIds || []).map(toIdString).filter(Boolean);
+        if (existingBranch.branchPartnerId) {
+            const prevPId = toIdString(existingBranch.branchPartnerId);
+            if (prevPId && !prevPartnerIds.includes(prevPId)) {
+                prevPartnerIds.push(prevPId);
+            }
         }
-        const nextPartnerIds = finalBranchPartnerIds.map(id => id.toString());
+        const nextPartnerIds = finalBranchPartnerIds;
 
         const removedPartnerIds = prevPartnerIds.filter(id => !nextPartnerIds.includes(id));
         const addedPartnerIds = nextPartnerIds.filter(id => !prevPartnerIds.includes(id));

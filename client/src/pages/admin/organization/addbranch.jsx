@@ -65,6 +65,7 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
         ...prev,
         ...editbranchdata,
         branchPartnerId: editbranchdata?.branchPartnerId?._id || editbranchdata?.branchPartnerId || '',
+        branchPartnerIds: (editbranchdata?.branchPartnerIds || []).map(p => p?._id || p),
         managerIds: (editbranchdata?.managerIds || []).map(m => m?._id || m),
         setting: {
           ...prev.setting,
@@ -135,13 +136,21 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
     }));
   };
 
+  const cleanId = (item) => (item && typeof item === 'object' && item._id ? item._id : item);
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      const payload = {
+        ...branch,
+        managerIds: (branch.managerIds || []).map(cleanId).filter(Boolean),
+        branchPartnerId: cleanId(branch.branchPartnerId) || null,
+        branchPartnerIds: (branch.branchPartnerIds || []).map(cleanId).filter(Boolean),
+      };
       const data = await apiClient({
         url: "addBranch",
         method: "POST",
-        body: branch
+        body: payload
       });
       toast.success(data.message || "Branch added successfully!");
       setopenviewmodal(false);
@@ -158,10 +167,17 @@ const Addbranch = ({ setopenviewmodal, employee, company, editbranch, editbranch
   const edite = async () => {
     try {
       setLoading(true);
+      const payload = {
+        ...branch,
+        _id: branch._id || branch.id,
+        managerIds: (branch.managerIds || []).map(cleanId).filter(Boolean),
+        branchPartnerId: cleanId(branch.branchPartnerId) || null,
+        branchPartnerIds: (branch.branchPartnerIds || []).map(cleanId).filter(Boolean),
+      };
       const data = await apiClient({
         url: "editBranch",
         method: "POST",
-        body: branch
+        body: payload
       });
       toast.success(data.message || "Branch updated successfully!");
       dispatch(FirstFetch());

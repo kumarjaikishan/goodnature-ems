@@ -10,6 +10,19 @@ import { apiClient } from "../../../utils/apiClient";
 
 
 export const submitAttandence = async ({ isPunchIn, inp, setisload, dispatch, onSuccess }) => {
+  if (!inp?.employeeId) {
+    toast.warning('Please select an employee');
+    return false;
+  }
+  if (!inp?.date) {
+    toast.warning('Please select an attendance date');
+    return false;
+  }
+  if (!isPunchIn && !inp?.punchOut) {
+    toast.warning('Please enter punch out time');
+    return false;
+  }
+
   setisload(true);
 
   const basePayload = {
@@ -22,7 +35,7 @@ export const submitAttandence = async ({ isPunchIn, inp, setisload, dispatch, on
     ? {
       ...basePayload,
       ...(inp.punchIn ? { punchIn: dayjs(inp.punchIn).toDate() } : {}),
-      status: inp.status,
+      status: inp.status || 'present',
     }
     : {
       ...basePayload,

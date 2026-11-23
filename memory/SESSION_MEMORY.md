@@ -1,5 +1,37 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+## 2026-11-23 — Edit Branch "Cast to ObjectId failed for value '[object Object]'" Fix
+- **Context & Bug**:
+  - When editing a branch in Organization -> Branches (`/dashboard/organization/branches`) and saving (e.g., toggling "Override Company Default Rules"), the backend threw `500 Cast to ObjectId failed for value "[object Object]" (type string) at path "_id" for model "user"`.
+  - **Root Cause**:
+    1. In Redux `firstfetch`, branches were populated with user objects for `managerIds`, `branchPartnerId`, and `branchPartnerIds`.
+    2. In `addbranch.jsx`, `branchPartnerIds` retained full objects from `editbranchdata`.
+    3. In `server/controllers/admin.js` (`editBranch`), calling `.toString()` on populated partner/manager objects evaluated to `"[object Object]"`. When `usermodal.findByIdAndUpdate` was called with those values, Mongoose failed to cast `"[object Object]"` to an ObjectId.
+- **Fixes Applied**:
+  - `client/src/pages/admin/organization/addbranch.jsx`:
+    - Cleaned `branchPartnerIds`, `managerIds`, and `branchPartnerId` in `useEffect` when populating `editbranchdata`.
+    - Added `cleanId` helper before dispatching `handleSubmit` and `edite` to guarantee only pure string IDs are posted.
+  - `server/controllers/admin.js`:
+    - Added safe `toIdString` helper in `editBranch` that extracts `_id` / `id` from objects, ObjectIds, or strings, preventing `"[object Object]"` from ever being passed into Mongoose user updates.
+
+## 2026-11-23 — Attendance Check-In "Missing required fields" 400 Validation Fix
+- **Context & Bug**:
+  - When submitting "Mark Individual Attendance" (`/dashboard/attandence`), the backend returned `400 Bad Request: {"message": "Missing required fields"}` even though all fields visually appeared filled in the modal.
+  - **Root Cause**:
+    1. In `Attandence.jsx`, `init.status` was initialized to empty string `""`.
+    2. In `MarkAttandence.jsx`, the Status `<Select>` had `value={inp.status || 'present'}` which rendered "Present" visually in the dropdown. Because the user saw "Present" already selected, they didn't touch the dropdown. Therefore, `onChange` never triggered and `inp.status` remained `""` in React state.
+    3. In `attandencehelper.jsx`, `payload.status` was sent as `""`.
+    4. In `server/controllers/attandence.js`, `if (!employeeId || !date || !status)` failed because `!""` is true.
+- **Fixes Applied**:
+  - `client/src/pages/admin/attandence/Attandence.jsx`: Initialized `status: "present"` in `init`.
+  - `client/src/pages/admin/attandence/attandencehelper.jsx`:
+    - Added safety fallback: `status: inp.status || 'present'`.
+    - Added client-side validation for `employeeId`, `date`, and `punchOut` (when check-out) with clear warning toasts before firing the network request.
+  - `server/controllers/attandence.js`:
+    - In `checkin`: Defaulted `status` to `'present'` if empty/falsy instead of throwing 400.
+    - Added specific error messages naming the missing field(s) if `employeeId` or `date` is absent.
+    - In `checkout`: Added specific error message detailing which required field is missing.
+
 ## 2026-11-20 — Branch Partner Ledger Separation & Branch Entity Only
 - **Context & Architecture**:
   - Branches are created in Organization -> Branches (`/dashboard/organization/branches`).

@@ -167,10 +167,14 @@ const deleteattandence = async (req, res, next) => {
 
 const checkin = async (req, res) => {
   try {
-    const { employeeId, date, punchIn, status, reason } = req.body;
+    let { employeeId, date, punchIn, status, reason } = req.body;
 
-    if (!employeeId || !date || !status) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    if (!employeeId || !date) {
+      return res.status(400).json({ message: 'Missing required fields: Employee and Date are required' });
+    }
+
+    if (!status) {
+      status = 'present';
     }
 
     // 🔹 Normalize date (UTC midnight)
@@ -368,7 +372,8 @@ const checkout = async (req, res) => {
     const { employeeId, date, punchOut } = req.body;
 
     if (!employeeId || !date || !punchOut) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      const missing = [!employeeId && 'Employee', !date && 'Date', !punchOut && 'Punch out time'].filter(Boolean).join(', ');
+      return res.status(400).json({ message: `Missing required fields: ${missing}` });
     }
 
     // 🔹 Normalize date

@@ -30,6 +30,8 @@ import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Input from '../../../components/ui/Input';
 import Modalbox from '@/components/custommodal/Modalbox';
+import DataTable from '@/components/common/DataTable';
+import { useCustomStyles } from '../../admin/attandence/attandencehelper';
 
 const ProductCollectionsPage = ({ initialView, type }) => {
   const navigate = useNavigate();
@@ -48,6 +50,7 @@ const ProductCollectionsPage = ({ initialView, type }) => {
   const canDelete = usePermission('plot_collection', 4);
   const profile = useSelector((state) => state.user?.profile);
   const { canViewCash, canViewBank } = getTransactionPermissions(profile);
+  const customStyles = useCustomStyles();
 
   const [collections, setCollections] = useState([]);
   const [summary, setSummary] = useState({
@@ -264,6 +267,230 @@ const ProductCollectionsPage = ({ initialView, type }) => {
     });
   };
 
+  const collectionColumns = useMemo(
+    () => [
+      {
+        name: 'Receipt # & Date',
+        selector: (row) => row.receiptNumber || '',
+        cell: (row) => (
+          <div className="flex flex-col gap-0.5 text-left py-0.5">
+            <span
+              onClick={() => {
+                const recId = row._id || row.receiptNumber;
+                navigate(`/dashboard/plots/receipts/${recId}`);
+              }}
+              className="font-mono font-bold text-teal-900 hover:text-teal-950 hover:underline text-xs cursor-pointer select-all"
+              title="Click to View / Print Receipt"
+            >
+              {row.receiptNumber || '-'}
+            </span>
+            <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-slate-400" />
+              {formatDate(row.paymentDate)}
+            </span>
+          </div>
+        ),
+        sortable: true,
+        minWidth: '150px',
+      },
+      {
+        name: 'Booking #',
+        selector: (row) => row.bookingNumber || '-',
+        cell: (row) => (
+          <span className="font-bold text-slate-900 tracking-tight font-mono text-xs whitespace-nowrap select-all">
+            {row.bookingNumber || '-'}
+          </span>
+        ),
+        sortable: true,
+        minWidth: '130px',
+      },
+      {
+        name: 'Customer & Associate',
+        selector: (row) => row.customer?.name || '-',
+        cell: (row) => (
+          <div className="flex flex-col py-0.5 text-left max-w-[200px]">
+            <span className="font-bold text-slate-900 text-xs truncate" title={row.customer?.name || ''}>
+              {row.customer?.name || 'Customer'}
+            </span>
+            <div className="text-[10px] text-slate-500 font-normal flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
+              <span className="font-mono text-slate-600 bg-slate-100 px-1 py-0.2 rounded border border-slate-200 text-[10px]">
+                {row.customer?.customerCode || row.customer?.customerId}
+              </span>
+              {row.sponsor?.name && (
+                <span className="text-teal-700 font-medium truncate" title={`BA: ${row.sponsor.name}`}>
+                  • BA: {row.sponsor.name}
+                </span>
+              )}
+            </div>
+          </div>
+        ),
+        sortable: true,
+        minWidth: '160px',
+        grow: 1,
+      },
+      {
+        name: 'Amount',
+        selector: (row) => Number(row.amountPaid) || 0,
+        cell: (row) => (
+          <div className="flex flex-col py-0.5 text-right">
+            <span className="text-xs font-black text-slate-900 font-mono tracking-tight">
+              ₹{(Number(row.amountPaid) || 0).toLocaleString('en-IN')}
+            </span>
+            <div className="text-[10px] text-slate-500 flex items-center justify-end gap-1 mt-0.5">
+              <span>Pr: ₹{(Number(row.principalPaid) || 0).toLocaleString('en-IN')}</span>
+              {row.lateFinePaid > 0 && (
+                <span className="text-amber-700 font-bold">• Fine: ₹{row.lateFinePaid.toLocaleString('en-IN')}</span>
+              )}
+              {row.lateFineRebate > 0 && (
+                <span className="text-emerald-700 font-medium">• Reb: ₹{row.lateFineRebate.toLocaleString('en-IN')}</span>
+              )}
+            </div>
+          </div>
+        ),
+        sortable: true,
+        minWidth: '130px',
+        right: true,
+      },
+      {
+        name: 'Mode & Ref',
+        selector: (row) => row.paymentMode || '',
+        cell: (row) => {
+          const modeLabel = row.paymentMode === 'bank_transfer' ? 'Bank Transfer' : (row.paymentMode || 'Cash');
+          return (
+            <div className="flex flex-col text-left gap-0.5">
+              <span className="inline-block px-1.5 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded text-[10px] font-bold uppercase tracking-wider w-fit">
+                {modeLabel}
+              </span>
+              {row.transactionReference ? (
+                <span className="font-mono text-[10px] text-slate-500 truncate max-w-[120px]" title={row.transactionReference}>
+                  Ref: {row.transactionReference}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+        sortable: true,
+        minWidth: '130px',
+      },
+      {
+        name: 'Status',
+        selector: (row) => (row.status || (String(row.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING')).toUpperCase(),
+        cell: (row) => {
+          const colStatus = (row.status || (String(row.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING')).toUpperCase();
+          const isPending = colStatus === 'PENDING';
+          const isRejected = colStatus === 'REJECTED';
+
+          if (isPending) {
+            return (
+              <div className="flex flex-col items-center gap-0.5">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap"
+                  title="Pending Manager / Admin verification"
+                >
+                  <Clock size={11} /> Pending
+                </span>
+                <span className="text-[9px] font-semibold text-slate-400">
+                  Requires Approval
+                </span>
+              </div>
+            );
+          }
+
+          if (isRejected) {
+            return (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap cursor-help"
+                title={row.rejectionReason || 'Rejected by Admin'}
+              >
+                <XCircle size={11} /> Rejected
+              </span>
+            );
+          }
+
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+              <CheckCircle2 size={11} /> Approved
+            </span>
+          );
+        },
+        sortable: true,
+        minWidth: '120px',
+        center: true,
+      },
+      {
+        name: 'Actions',
+        minWidth: '120px',
+        center: true,
+        cell: (row) => {
+          const colStatus = (row.status || (String(row.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING')).toUpperCase();
+          const isPending = colStatus === 'PENDING';
+
+          return (
+            <div className="flex items-center justify-center gap-1">
+              {isPending && canUpdate && (
+                <>
+                  <button
+                    onClick={() => setApprovingCol(row)}
+                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center gap-1 text-[11px] font-bold"
+                    title="Approve Bill & Realize into Ledger (Authorized)"
+                  >
+                    <Check size={12} />
+                    <span className="hidden sm:inline">Approve</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRejectingCol(row);
+                      setRejectionReason('');
+                    }}
+                    className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center justify-center"
+                    title="Reject Collection"
+                  >
+                    <XCircle size={13} />
+                  </button>
+                </>
+              )}
+              {isPending && !canUpdate && (
+                <span
+                  className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md whitespace-nowrap cursor-help"
+                  title="Awaiting authorized Admin or Manager approval"
+                >
+                  Awaiting Auth
+                </span>
+              )}
+
+              <button
+                onClick={() => {
+                  const recId = row._id || row.receiptNumber;
+                  navigate(`/dashboard/plots/receipts/${recId}`);
+                }}
+                className="p-1.5 text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 transition-colors cursor-pointer"
+                title="View & Print Receipt Bill"
+              >
+                <Eye className="w-3.5 h-3.5" />
+              </button>
+
+              {canDelete && (
+                <button
+                  onClick={() => handleDeleteCollection(row)}
+                  disabled={deletingReceiptId === row.receiptNumber}
+                  className="p-1.5 text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 rounded-lg border border-rose-200 transition-colors cursor-pointer"
+                  title="Delete Receipt"
+                >
+                  {deletingReceiptId === row.receiptNumber ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-700" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    [navigate, canUpdate, canDelete, deletingReceiptId]
+  );
+
   // If in 'add' view, render full-page collection form
   if (view === 'add') {
     return (
@@ -318,69 +545,6 @@ const ProductCollectionsPage = ({ initialView, type }) => {
               {isDpMode ? 'Record Down Payment' : 'Record EMI Collection'}
             </Button>
           )}
-        </div>
-      </div>
-
-      {/* KPI Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Realized</span>
-            <div className="p-1.5 bg-teal-50 text-teal-700 rounded-lg">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl font-black text-slate-900 tracking-tight">
-            ₹{summary.totalCollected.toLocaleString('en-IN')}
-          </div>
-          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-            Principal: <span className="font-semibold text-slate-700">₹{summary.totalPrincipalPaid.toLocaleString('en-IN')}</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Late Fine Collected</span>
-            <div className="p-1.5 bg-amber-50 text-amber-700 rounded-lg">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl font-black text-amber-700 tracking-tight">
-            ₹{summary.totalLateFinePaid.toLocaleString('en-IN')}
-          </div>
-          <div className="text-[11px] text-amber-600/90 font-medium mt-0.5">
-            Standard 24% p.a. Overdue Interest
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Late Fine Rebates</span>
-            <div className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg">
-              <Percent className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl font-black text-emerald-700 tracking-tight">
-            ₹{summary.totalLateFineRebate.toLocaleString('en-IN')}
-          </div>
-          <div className="text-[11px] text-emerald-600/90 font-medium mt-0.5">
-            Waivers granted during collection
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Bills Issued</span>
-            <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-lg">
-              <Receipt className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl font-black text-slate-900 tracking-tight">
-            {summary.totalReceiptsCount}
-          </div>
-          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-            Verified Customer Receipts
-          </div>
         </div>
       </div>
 
@@ -481,214 +645,57 @@ const ProductCollectionsPage = ({ initialView, type }) => {
       )}
 
       {/* Collections Data Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-16 flex flex-col items-center justify-center">
-            <PageLoader size="medium" />
-            <p className="text-xs text-slate-500 mt-3 font-medium">Loading collection records...</p>
-          </div>
-        ) : filteredCollections.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="w-16 h-16 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Receipt className="w-8 h-8" />
+      <div className="bg-white rounded-2xl shadow-2xs border border-slate-200 overflow-hidden">
+        <DataTable
+          columns={collectionColumns}
+          data={filteredCollections}
+          progressPending={loading}
+          progressComponent={
+            <PageLoader
+              fullScreen={false}
+              minHeight="min-h-[220px]"
+              title="Loading Collections Ledger..."
+              subtitle="Fetching investment collection receipts & transactions"
+            />
+          }
+          customStyles={customStyles}
+          pagination
+          responsive
+          highlightOnHover
+          footerComponent={({ displayData }) => {
+            const visibleSum = (displayData || []).reduce((acc, row) => {
+              const amt = Number(row.amountPaid) || 0;
+              return acc + amt;
+            }, 0);
+            return (
+              <div className="flex items-center gap-2 py-0.5 text-xs">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">TOTAL:</span>
+                <span className="font-extrabold text-teal-800 text-sm">
+                  ₹ {visibleSum.toLocaleString('en-IN')}
+                </span>
+              </div>
+            );
+          }}
+          noDataComponent={
+            <div className="p-16 text-center">
+              <div className="w-16 h-16 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Receipt className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">No Investment Collections Found</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                {searchQuery || paymentModeFilter !== 'ALL' || statusFilter !== 'ALL'
+                  ? 'No receipts matched your search filters. Try adjusting your query.'
+                  : 'No collections recorded yet. Click "Record New Collection" to record your first product collection.'}
+              </p>
+              <button
+                onClick={() => handleOpenAddCollection()}
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
+              >
+                <Plus className="w-4 h-4" /> Record New Collection
+              </button>
             </div>
-            <h3 className="text-base font-bold text-slate-900">No Investment Collections Found</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              {searchQuery || paymentModeFilter !== 'ALL' || statusFilter !== 'ALL'
-                ? 'No receipts matched your search filters. Try adjusting your query.'
-                : 'No collections recorded yet. Click "Add New Collection" to record your first product EMI collection.'}
-            </p>
-            <button
-              onClick={() => handleOpenAddCollection()}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
-            >
-              <Plus className="w-4 h-4" /> Record New Collection
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="p-3.5 pl-5">Receipt # &amp; Date</th>
-                  <th className="p-3.5">Booking #</th>
-                  <th className="p-3.5">Customer &amp; Associate</th>
-                  <th className="p-3.5 text-right">Amount</th>
-                  <th className="p-3.5">Mode &amp; Ref</th>
-                  <th className="p-3.5 text-center">Status</th>
-                  <th className="p-3.5 text-center pr-5">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-700">
-                {filteredCollections.map((col) => {
-                  const colStatus = (col.status || (String(col.paymentMode).toLowerCase() === 'cash' ? 'APPROVED' : 'PENDING')).toUpperCase();
-                  const isPending = colStatus === 'PENDING';
-                  const isRejected = colStatus === 'REJECTED';
-
-                  return (
-                    <tr key={col._id} className="hover:bg-teal-50/30 transition-colors">
-                      {/* Receipt # & Date */}
-                      <td className="p-3.5 pl-5">
-                        <div
-                          onClick={() => {
-                            const recId = col._id || col.receiptNumber;
-                            navigate(`/dashboard/plots/receipts/${recId}`);
-                          }}
-                          className="font-mono font-bold text-teal-900 hover:text-teal-950 hover:underline text-xs cursor-pointer"
-                          title="Click to View / Print Receipt"
-                        >
-                          {col.receiptNumber}
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1 mt-0.5">
-                          <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>{formatDate(col.paymentDate)}</span>
-                        </div>
-                      </td>
-
-                      {/* Booking # */}
-                      <td className="p-3.5">
-                        <span className="font-mono font-bold text-slate-800 text-xs bg-slate-100 px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap">
-                          {col.bookingNumber || '-'}
-                        </span>
-                      </td>
-
-                      {/* Customer & Associate */}
-                      <td className="p-3.5">
-                        <div className="font-bold text-slate-900">{col.customer?.name || 'Customer'}</div>
-                        <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
-                          <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 text-[10px]">{col.customer?.customerCode || col.customer?.customerId}</span>
-                          {col.sponsor?.name && (
-                            <span className="text-teal-700 font-medium">
-                              • BA: {col.sponsor.name}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Amount Breakdown */}
-                      <td className="p-3.5 text-right">
-                        <div className="text-sm font-black text-slate-900 tracking-tight">
-                          ₹{(Number(col.amountPaid) || 0).toLocaleString('en-IN')}
-                        </div>
-                        <div className="text-[10px] text-slate-500 flex items-center justify-end gap-1.5 mt-0.5">
-                          <span>Pr: ₹{(Number(col.principalPaid) || 0).toLocaleString('en-IN')}</span>
-                          {col.lateFinePaid > 0 && (
-                            <span className="text-amber-700 font-bold">• Fine: ₹{col.lateFinePaid.toLocaleString('en-IN')}</span>
-                          )}
-                          {col.lateFineRebate > 0 && (
-                            <span className="text-emerald-700 font-medium">• Reb: ₹{col.lateFineRebate.toLocaleString('en-IN')}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Payment Mode */}
-                      <td className="p-3.5">
-                        <span className="inline-block px-2 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
-                          {col.paymentMode === 'bank_transfer' ? 'Bank Transfer' : (col.paymentMode || 'Cash')}
-                        </span>
-                        {col.transactionReference && (
-                          <div className="text-[10px] font-mono text-slate-500 mt-0.5 truncate max-w-[130px]" title={col.transactionReference}>
-                            Ref: {col.transactionReference}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="p-3.5 text-center">
-                        {isPending ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span
-                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap"
-                              title="Pending Manager / Admin verification"
-                            >
-                              <Clock size={11} /> Pending
-                            </span>
-                            <span className="text-[9px] font-semibold text-slate-400">
-                              Requires Approval
-                            </span>
-                          </div>
-                        ) : isRejected ? (
-                          <span
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap cursor-help"
-                            title={col.rejectionReason || 'Rejected by Admin'}
-                          >
-                            <XCircle size={11} /> Rejected
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-                            <CheckCircle2 size={11} /> Approved
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Action Buttons */}
-                      <td className="p-3.5 pr-5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {isPending && canUpdate && (
-                            <>
-                              <button
-                                onClick={() => setApprovingCol(col)}
-                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center gap-1 text-[11px] font-bold"
-                                title="Approve Bill & Realize into Ledger (Authorized)"
-                              >
-                                <Check size={12} />
-                                <span className="hidden sm:inline">Approve</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setRejectingCol(col);
-                                  setRejectionReason('');
-                                }}
-                                className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors cursor-pointer shadow-2xs flex items-center justify-center"
-                                title="Reject Collection"
-                              >
-                                <XCircle size={13} />
-                              </button>
-                            </>
-                          )}
-                          {isPending && !canUpdate && (
-                            <span
-                              className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md whitespace-nowrap cursor-help"
-                              title="Awaiting authorized Admin or Manager approval"
-                            >
-                              Awaiting Auth
-                            </span>
-                          )}
-
-                          <button
-                            onClick={() => {
-                              const recId = col._id || col.receiptNumber;
-                              navigate(`/dashboard/plots/receipts/${recId}`);
-                            }}
-                            className="p-1.5 text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 transition-colors cursor-pointer"
-                            title="View & Print Receipt Bill"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDeleteCollection(col)}
-                              disabled={deletingReceiptId === col.receiptNumber}
-                              className="p-1.5 text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 rounded-lg border border-rose-200 transition-colors cursor-pointer"
-                              title="Delete Receipt"
-                            >
-                              {deletingReceiptId === col.receiptNumber ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-700" />
-                              ) : (
-                                <Trash2 className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          }
+        />
       </div>
 
       {/* Approve Collection Modal */}

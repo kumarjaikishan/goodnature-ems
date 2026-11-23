@@ -7,7 +7,7 @@ import DataTable from '@/components/common/DataTable';
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import {
   Edit2, Eye, Trash2, Plus, Search, X,
-  CheckCircle2, XCircle, CreditCard, Clock, FileText, Check, CheckSquare
+  CheckCircle2, XCircle, CreditCard, Clock, FileText, Check
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import { swal } from "../../utils/confirmDialog";
@@ -74,8 +74,6 @@ const VoucherList = () => {
   const [voucherSortKey, setVoucherSortKey] = useState(() => {
     return localStorage.getItem("voucher_sort_key") || "voucherNo";
   }); // "voucherNo" | "date"
-  const [isMarkMode, setIsMarkMode] = useState(false);
-  const [selectedVoucherRows, setSelectedVoucherRows] = useState([]);
 
   const handleSortKeyChange = (key) => {
     setVoucherSortKey(key);
@@ -636,13 +634,6 @@ const VoucherList = () => {
   }, 0);
   const totalPaidSum = filteredVouchers.reduce((sum, v) => sum + (Number(v.paidAmount) || 0), 0);
 
-  // Selected Vouchers Total for Mark Mode
-  const selectedVouchersTotalAmount = selectedVoucherRows.reduce((sum, v) => {
-    const amt = v.totalAmount || v.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
-    return sum + amt;
-  }, 0);
-  const selectedVouchersTotalPaid = selectedVoucherRows.reduce((sum, v) => sum + (Number(v.paidAmount) || 0), 0);
-
   // Helper to extract Payment Source (Cash / Bank Account Name)
   const getPaymentSource = (row) => {
     // If not paid at all and pending, show dash
@@ -1051,37 +1042,15 @@ const VoucherList = () => {
   return (
     <div className="w-full max-w-7xl mx-auto p-2 md:p-6 space-y-6">
       {/* Header section with Stats Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {isMarkMode && activeTab === "vouchers" && selectedVoucherRows.length > 0 ? (
-          <div className="bg-emerald-50/80 p-4 rounded-xl border border-emerald-300 shadow-xs flex flex-col justify-between transition-all">
-            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <CheckSquare size={13} className="text-emerald-700" />
-                Selected Total
-              </span>
-              <span className="bg-emerald-200 text-emerald-900 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                {selectedVoucherRows.length} marked
-              </span>
-            </span>
-            <span className="text-2xl font-black text-emerald-900 mt-1">
-              ₹ {selectedVouchersTotalAmount.toLocaleString('en-IN')}
-            </span>
-            {selectedVouchersTotalPaid > 0 && (
-              <span className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                Paid: ₹ {selectedVouchersTotalPaid.toLocaleString('en-IN')}
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              {activeTab === "vouchers" ? "Total Vouchers" : "Total Custom Ledgers"}
-            </span>
-            <span className="text-2xl font-black text-slate-800 mt-1">
-              {activeTab === "vouchers" ? vouchers.length : customLedgers.length}
-            </span>
-          </div>
-        )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            {activeTab === "vouchers" ? "Total Vouchers" : "Total Custom Ledgers"}
+          </span>
+          <span className="text-2xl font-black text-slate-800 mt-1">
+            {activeTab === "vouchers" ? vouchers.length : customLedgers.length}
+          </span>
+        </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <span className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
@@ -1093,13 +1062,22 @@ const VoucherList = () => {
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Volume</span>
-          <span className="text-2xl font-black text-slate-800 mt-1">₹ {totalAmountSum.toLocaleString()}</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <span className="text-xs font-bold text-teal-700 uppercase tracking-wider">Total Disbursed</span>
-          <span className="text-2xl font-black text-teal-700 mt-1">₹ {totalPaidSum.toLocaleString()}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount</span>
+            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 rounded px-1.5 py-0.5">
+              Paid: ₹ {totalPaidSum.toLocaleString('en-IN')}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-slate-800">
+              ₹ {totalAmountSum.toLocaleString('en-IN')}
+            </span>
+            {totalAmountSum - totalPaidSum > 0 && (
+              <span className="text-xs font-semibold text-amber-700">
+                Due: ₹ {(totalAmountSum - totalPaidSum).toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1128,23 +1106,7 @@ const VoucherList = () => {
             </button>
           </div>
 
-          <div className="pb-2 flex items-center gap-2">
-            {activeTab === "vouchers" && (
-              <Button
-                variant={isMarkMode ? "primary" : "outline"}
-                size="sm"
-                startIcon={CheckSquare}
-                onClick={() => {
-                  setIsMarkMode(!isMarkMode);
-                  if (isMarkMode) {
-                    setSelectedVoucherRows([]);
-                  }
-                }}
-              >
-                {isMarkMode ? `Mark Mode (${selectedVoucherRows.length})` : "Mark"}
-              </Button>
-            )}
-
+          <div className="pb-2">
             {activeTab === "vouchers" ? (
               canCreate && (
                 <Button
@@ -1292,13 +1254,22 @@ const VoucherList = () => {
               pagination
               customStyles={themes}
               highlightOnHover
-              selectableRows={isMarkMode}
-              onSelectedRowsChange={({ selectedRows }) => {
-                setSelectedVoucherRows(selectedRows || []);
-              }}
-              clearSelectedRows={!isMarkMode}
               progressPending={loading}
               progressComponent={<Loader />}
+              footerComponent={({ displayData }) => {
+                const visibleSum = (displayData || []).reduce((acc, row) => {
+                  const amt = row.totalAmount || row.entries?.filter(e => e.type === 'DEBIT').reduce((s, e) => s + e.amount, 0) || 0;
+                  return acc + amt;
+                }, 0);
+                return (
+                  <div className="flex items-center gap-2 py-0.5 text-xs">
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">TOTAL:</span>
+                    <span className="font-extrabold text-teal-800 text-sm">
+                      ₹ {visibleSum.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                );
+              }}
               noDataComponent={
                 <div className="py-12 text-center text-slate-500 font-medium text-sm">
                   No financial vouchers found matching the criteria.

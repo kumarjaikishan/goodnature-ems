@@ -1,4 +1,4 @@
-﻿const resolveSubmissionDateTime = (dateVal) => {
+const resolveSubmissionDateTime = (dateVal) => {
   if (!dateVal) return new Date().toISOString();
   const now = new Date();
   if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal.trim())) {
@@ -977,6 +977,20 @@ const InstallmentCollection = ({ type, initialView }) => {
               pagination
               responsive
               highlightOnHover
+              footerComponent={({ displayData }) => {
+                const visibleSum = (displayData || []).reduce((acc, row) => {
+                  const amt = Number(row.amount) || 0;
+                  return acc + amt;
+                }, 0);
+                return (
+                  <div className="flex items-center gap-2 py-0.5 text-xs">
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">TOTAL:</span>
+                    <span className="font-extrabold text-teal-800 text-sm">
+                      ₹ {visibleSum.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                );
+              }}
               noDataComponent={
                 <div className="p-8 text-center text-slate-400 italic text-xs font-medium">
                   {receipts.length === 0 ? 'No receipt records found.' : 'No matching records found.'}
