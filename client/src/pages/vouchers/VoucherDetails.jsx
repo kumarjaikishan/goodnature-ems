@@ -570,13 +570,13 @@ const VoucherDetails = () => {
               top: "52%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "290px",
-              height: "290px",
+              width: "200px",
+              height: "200px",
               backgroundImage: `url(${logoUrl})`,
               backgroundSize: "contain",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
-              opacity: 0.12,
+              opacity: 0.10,
               zIndex: 0,
               pointerEvents: "none"
             }} />
@@ -586,16 +586,16 @@ const VoucherDetails = () => {
               top: "52%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "300px",
-              height: "300px",
+              width: "220px",
+              height: "220px",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              opacity: 0.10,
+              opacity: 0.08,
               zIndex: 0,
               pointerEvents: "none"
             }}>
-              <span style={{ fontSize: "36px", fontWeight: "900", color: "#0f766e", transform: "rotate(-25deg)", textTransform: "uppercase", letterSpacing: "2px" }}>
+              <span style={{ fontSize: "28px", fontWeight: "900", color: "#0f766e", transform: "rotate(-25deg)", textTransform: "uppercase", letterSpacing: "2px" }}>
                 {company?.fullname || company?.name || "Good Nature"}
               </span>
             </div>

@@ -1,5 +1,12 @@
 # SESSION_MEMORY.md — Session Memory & Discoveries
 
+## 2026-11-23 — Voucher Details Watermark Size Adjustment
+- **File**: `client/src/pages/vouchers/VoucherDetails.jsx`
+- **Behavior**:
+  - Decreased watermark logo dimensions from `290px x 290px` to `200px x 200px` (and opacity from `0.12` to `0.10`).
+  - Decreased text fallback watermark dimensions from `300px x 300px` to `220px x 220px` (font size from `36px` to `28px`).
+  - Ensures watermark is subtle and tasteful behind accounting voucher line items and signatures.
+
 ## 2026-11-23 — Removed Branch Partner Ledger Banner from Branch Manager
 - **File Modified**: `client/src/pages/admin/organization/components/BranchManager.jsx`
 - **Behavior**:
