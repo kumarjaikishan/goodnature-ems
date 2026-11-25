@@ -52,7 +52,7 @@ const PlotInterestCalculator = () => {
   // Interest Return Parameters (for INTEREST_RETURN mode)
   const [asOnDate, setAsOnDate] = useState(new Date().toISOString().split('T')[0]);
   const [annualRate, setAnnualRate] = useState(10.88);
-  const [calculationMode, setCalculationMode] = useState('SIMPLE'); // 'SIMPLE' or 'COMPOUND_ANNUAL'
+  const [calculationMode, setCalculationMode] = useState('COMPOUND_ANNUAL'); // 'SIMPLE' or 'COMPOUND_ANNUAL'
   const [compoundingFrequency, setCompoundingFrequency] = useState('YEARLY'); // 'YEARLY' | 'HALF_YEARLY' | 'QUARTERLY'
   const [systemDefaultRate, setSystemDefaultRate] = useState(10.88);
   const [matchedSchemeInfo, setMatchedSchemeInfo] = useState('');
@@ -296,10 +296,10 @@ const PlotInterestCalculator = () => {
             bk?.paymentType === 'ONE_TIME';
 
           let resolvedRate = null;
-          let resolvedMode = 'SIMPLE';
+          const resolvedMode = 'COMPOUND_ANNUAL';
           let schemeLabel = '';
 
-          // Fetch Investment Scheme Config slabs (from Image 2)
+          // Fetch Investment Scheme Config slabs (from Scheme Matrix)
           let schemeSlabs = [];
           try {
             const invRes = await api.get('/investments/config');
@@ -316,19 +316,20 @@ const PlotInterestCalculator = () => {
             schemeSlabs = schemeRes?.data?.data?.schemeSlabs || [];
           }
 
-          const tenure = Number(bk?.tenureMonths) || 24;
-          const matchedSlab = schemeSlabs.find(
-            (s) => Number(s.tenureMonths) === tenure || (bk?.planName && s.planName === bk?.planName)
-          );
+          const tenure = Number(bk?.tenureMonths || 0);
+          const matchedSlab =
+            (bk?.planName && schemeSlabs.find((s) => s.planName === bk.planName)) ||
+            (tenure > 0 && schemeSlabs.find((s) => Number(s.tenureMonths) === tenure)) ||
+            null;
 
           if (matchedSlab) {
             const slabRate = isOneTime
               ? (matchedSlab.fdAnnualInterestRate ?? matchedSlab.annualInterestRate)
               : (matchedSlab.rdAnnualInterestRate ?? matchedSlab.annualInterestRate);
 
-            if (slabRate !== undefined && slabRate !== null && Number(slabRate) > 0) {
+            if (slabRate !== undefined && slabRate !== null && Number(slabRate) >= 0) {
               resolvedRate = Number(slabRate);
-              schemeLabel = `${tenure}M • ${isOneTime ? 'One-Time' : 'EMI'}`;
+              schemeLabel = `${matchedSlab.planName || `${matchedSlab.tenureMonths}M`} • ${isOneTime ? 'One-Time' : 'EMI'}`;
             }
           }
 
@@ -339,10 +340,10 @@ const PlotInterestCalculator = () => {
             Number(bk.annualInterestRate) > 0
           ) {
             resolvedRate = Number(bk.annualInterestRate);
-            schemeLabel = `${tenure}M Booking Rate`;
+            schemeLabel = `${tenure || matchedSlab?.tenureMonths || 0}M Booking Rate`;
           }
 
-          if (resolvedRate !== null && Number(resolvedRate) > 0) {
+          if (resolvedRate !== null && Number(resolvedRate) >= 0) {
             setAnnualRate(resolvedRate);
             setCalculationMode(resolvedMode);
             setMatchedSchemeInfo(schemeLabel);
@@ -399,7 +400,9 @@ const PlotInterestCalculator = () => {
   );
 
   if (isProduct) {
-    const cols = Array.isArray(selectedBooking?.collections) ? selectedBooking.collections : [];
+    const cols = (Array.isArray(selectedBooking?.collections) ? selectedBooking.collections : []).filter(
+      (c) => !c.status || c.status === 'APPROVED'
+    );
     if (cols.length > 0) {
       cols.forEach((col, idx) => {
         const lateFine = Number(col.lateFinePaid) || 0;
@@ -437,7 +440,9 @@ const PlotInterestCalculator = () => {
       });
     }
   } else if (receipts && receipts.length > 0) {
-    receipts.forEach((rc) => {
+    receipts
+      .filter((rc) => !rc.status || rc.status === 'APPROVED')
+      .forEach((rc) => {
       const depositDate = rc.createdAt
         ? new Date(rc.createdAt)
         : (selectedBooking?.bookingDate ? new Date(selectedBooking.bookingDate) : new Date());

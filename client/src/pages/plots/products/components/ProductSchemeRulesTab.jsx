@@ -11,7 +11,7 @@ import api from '../../../../api/axios';
 import PageLoader from '../../../../components/common/PageLoader';
 import { toast } from '../../../../utils/toast';
 import {
-  calculateRdReturnPercent,
+  calculateFdReturnPercent,
 } from '../../../../utils/schemeInterestCalculator';
 
 const COMPOUNDING_OPTIONS = [
@@ -51,18 +51,22 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           fdPrematureAnnualInterestPercent: res.data.data.fdPrematureAnnualInterestPercent ?? 6.0,
           compoundingFrequency: res.data.data.compoundingFrequency || 'YEARLY',
           slabs: (res.data.data.slabs || []).map((s) => {
+            const loadedFreq = res.data.data.compoundingFrequency || 'YEARLY';
             const defaultRate = s.rdMaturityPercent === 0 && s.fdMaturityPercent === 0 ? 0 : 10.5;
             const baseRate = s.rdAnnualInterestRate ?? s.annualInterestRate ?? s.fdAnnualInterestRate ?? defaultRate;
-            const baseReturn = s.rdMaturityPercent ?? s.fdMaturityPercent ?? 0;
+            const computedReturn =
+              Number(baseRate) > 0 && Number(s.tenureMonths) > 0
+                ? calculateFdReturnPercent(baseRate, s.tenureMonths, loadedFreq)
+                : 0;
             return {
               planName: s.planName || '',
-              planType: s.planType || (Number(baseReturn) === 0 ? 'REGISTRY_SALE' : 'INVESTMENT_BUYBACK'),
+              planType: s.planType || (Number(computedReturn) === 0 ? 'REGISTRY_SALE' : 'INVESTMENT_BUYBACK'),
               annualInterestRate: baseRate,
               rdAnnualInterestRate: baseRate,
               fdAnnualInterestRate: baseRate,
               tenureMonths: s.tenureMonths,
-              rdMaturityPercent: baseReturn,
-              fdMaturityPercent: baseReturn,
+              rdMaturityPercent: computedReturn,
+              fdMaturityPercent: computedReturn,
               rdPromoterCommissionPercent: s.rdPromoterCommissionPercent ?? 4.0,
               fdPromoterCommissionPercent: s.fdPromoterCommissionPercent ?? 5.0,
               bpRdCommissionPercent: s.bpRdCommissionPercent ?? s.developerCommissionPercent ?? 1.0,
@@ -94,7 +98,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
       if (rate <= 0 || tenure <= 0) {
         return { ...s, rdMaturityPercent: 0, fdMaturityPercent: 0 };
       }
-      const ret = calculateRdReturnPercent(rate, tenure, newFreq);
+      const ret = calculateFdReturnPercent(rate, tenure, newFreq);
       return { ...s, rdMaturityPercent: ret, fdMaturityPercent: ret };
     });
     setConfig({ ...config, compoundingFrequency: newFreq, slabs: updatedSlabs });
@@ -106,7 +110,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     const rate = lastSlab && Number(lastSlab.annualInterestRate ?? lastSlab.rdAnnualInterestRate) >= 0
       ? Number(lastSlab.annualInterestRate ?? lastSlab.rdAnnualInterestRate)
       : 10.5;
-    const returnPct = calculateRdReturnPercent(rate, newTenure, config.compoundingFrequency);
+    const returnPct = calculateFdReturnPercent(rate, newTenure, config.compoundingFrequency);
 
     setConfig({
       ...config,
@@ -156,7 +160,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
         item.rdMaturityPercent = 0;
         item.fdMaturityPercent = 0;
       } else if (rate > 0 && tenure > 0) {
-        const ret = calculateRdReturnPercent(rate, tenure, freq);
+        const ret = calculateFdReturnPercent(rate, tenure, freq);
         item.rdMaturityPercent = ret;
         item.fdMaturityPercent = ret;
       }
@@ -171,7 +175,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
         item.rdMaturityPercent = 0;
         item.fdMaturityPercent = 0;
       } else if (rate > 0 && tenure > 0) {
-        const ret = calculateRdReturnPercent(rate, tenure, freq);
+        const ret = calculateFdReturnPercent(rate, tenure, freq);
         item.rdMaturityPercent = ret;
         item.fdMaturityPercent = ret;
       }
@@ -195,7 +199,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
       toast.info('Rate is 0%: return set to 0% (Actual Plot Sale).');
     } else {
       const validRate = rate >= 0 ? rate : 10.5;
-      const ret = calculateRdReturnPercent(validRate, tenure, freq);
+      const ret = calculateFdReturnPercent(validRate, tenure, freq);
       item.annualInterestRate = validRate;
       item.rdAnnualInterestRate = validRate;
       item.fdAnnualInterestRate = validRate;
@@ -334,7 +338,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                         <span>Customer Return</span>
                       </div>
                       <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">
-                        Rate (% p.a.) | Return (%) • {COMPOUNDING_OPTIONS.find((o) => o.value === config.compoundingFrequency)?.label || 'Yearly'}
+                        Rate (% p.a.) | Total Maturity Return (%)
                       </span>
                     </div>
                   </th>
@@ -342,21 +346,21 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   <th className="p-3 bg-blue-50/70 border-l border-blue-200">
                     <div className="text-blue-900">
                       <span className="font-extrabold block">BA (Associate) Fixed %</span>
-                      <span className="text-[9px] font-semibold text-blue-700 block mt-0.5">EMI | Downpayment</span>
+                      <span className="text-[9px] font-semibold text-blue-700 block mt-0.5">Downpayment | EMI</span>
                     </div>
                   </th>
                   {/* Business Partner Fixed */}
                   <th className="p-3 bg-amber-50/70 border-l border-amber-200">
                     <div className="text-amber-900">
                       <span className="font-extrabold block">BP (Partner) Fixed %</span>
-                      <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">EMI | Downpayment</span>
+                      <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">Downpayment | EMI</span>
                     </div>
                   </th>
                   {/* Branch Partner Fixed */}
                   <th className="p-3 bg-teal-50/70 border-l border-teal-200">
                     <div className="text-teal-900">
                       <span className="font-extrabold block">Branch Partner Fixed %</span>
-                      <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">EMI | Downpayment</span>
+                      <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">Downpayment | EMI</span>
                     </div>
                   </th>
                   <th className="p-3 text-center border-l border-slate-200">Action</th>
@@ -455,28 +459,9 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                         </div>
                       </td>
 
-                      {/* Business Associate Fixed (EMI & One-Time) */}
+                      {/* Business Associate Fixed (Downpayment & EMI) */}
                       <td className="p-3 bg-blue-50/30 border-l border-blue-100">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="BA Monthly EMI Fixed %">
-                            <input
-                              type="tel"
-                              inputMode="decimal"
-                              className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold font-mono text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none"
-                              value={s.rdPromoterCommissionPercent ?? ''}
-                              placeholder="EMI %"
-                              onKeyDown={(e) => {
-                                if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
-                                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-                              }}
-                              onChange={(e) => {
-                                const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'rdPromoterCommissionPercent', cleanVal);
-                              }}
-                            />
-                            <span className="font-bold text-blue-700 text-xs">%</span>
-                          </div>
-                          <span className="text-slate-300">|</span>
                           <div className="flex items-center gap-1" title="BA Downpayment Fixed %">
                             <input
                               type="tel"
@@ -495,18 +480,13 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                             />
                             <span className="font-bold text-blue-700 text-xs">%</span>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Business Partner Fixed (EMI & One-Time) */}
-                      <td className="p-3 bg-amber-50/30 border-l border-amber-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="BP Monthly EMI Fixed %">
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center gap-1" title="BA Monthly EMI Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
-                              className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold font-mono text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none"
-                              value={s.bpRdCommissionPercent ?? ''}
+                              className="w-16 h-8 bg-white border border-blue-300 rounded-lg px-2 text-xs font-bold font-mono text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={s.rdPromoterCommissionPercent ?? ''}
                               placeholder="EMI %"
                               onKeyDown={(e) => {
                                 if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
@@ -514,12 +494,17 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                               }}
                               onChange={(e) => {
                                 const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'bpRdCommissionPercent', cleanVal);
+                                handleSlabChange(idx, 'rdPromoterCommissionPercent', cleanVal);
                               }}
                             />
-                            <span className="font-bold text-amber-800 text-xs">%</span>
+                            <span className="font-bold text-blue-700 text-xs">%</span>
                           </div>
-                          <span className="text-slate-300">|</span>
+                        </div>
+                      </td>
+
+                      {/* Business Partner Fixed (Downpayment & EMI) */}
+                      <td className="p-3 bg-amber-50/30 border-l border-amber-100">
+                        <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1" title="BP Downpayment Fixed %">
                             <input
                               type="tel"
@@ -538,18 +523,13 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                             />
                             <span className="font-bold text-amber-800 text-xs">%</span>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Branch Partner Fixed (EMI & Downpayment) */}
-                      <td className="p-3 bg-teal-50/30 border-l border-teal-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="Branch Partner Monthly EMI Fixed %">
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center gap-1" title="BP Monthly EMI Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
-                              className="w-16 h-8 bg-white border border-teal-300 rounded-lg px-2 text-xs font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-500 outline-none"
-                              value={s.branchRdCommissionPercent ?? ''}
+                              className="w-16 h-8 bg-white border border-amber-300 rounded-lg px-2 text-xs font-bold font-mono text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                              value={s.bpRdCommissionPercent ?? ''}
                               placeholder="EMI %"
                               onKeyDown={(e) => {
                                 if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
@@ -557,12 +537,17 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                               }}
                               onChange={(e) => {
                                 const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'branchRdCommissionPercent', cleanVal);
+                                handleSlabChange(idx, 'bpRdCommissionPercent', cleanVal);
                               }}
                             />
-                            <span className="font-bold text-teal-800 text-xs">%</span>
+                            <span className="font-bold text-amber-800 text-xs">%</span>
                           </div>
-                          <span className="text-slate-300">|</span>
+                        </div>
+                      </td>
+
+                      {/* Branch Partner Fixed (Downpayment & EMI) */}
+                      <td className="p-3 bg-teal-50/30 border-l border-teal-100">
+                        <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1" title="Branch Partner Downpayment Fixed %">
                             <input
                               type="tel"
@@ -577,6 +562,25 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                               onChange={(e) => {
                                 const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
                                 handleSlabChange(idx, 'branchFdCommissionPercent', cleanVal);
+                              }}
+                            />
+                            <span className="font-bold text-teal-800 text-xs">%</span>
+                          </div>
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center gap-1" title="Branch Partner Monthly EMI Fixed %">
+                            <input
+                              type="tel"
+                              inputMode="decimal"
+                              className="w-16 h-8 bg-white border border-teal-300 rounded-lg px-2 text-xs font-bold font-mono text-teal-900 focus:ring-2 focus:ring-teal-500 outline-none"
+                              value={s.branchRdCommissionPercent ?? ''}
+                              placeholder="EMI %"
+                              onKeyDown={(e) => {
+                                if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
+                                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                              }}
+                              onChange={(e) => {
+                                const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                                handleSlabChange(idx, 'branchRdCommissionPercent', cleanVal);
                               }}
                             />
                             <span className="font-bold text-teal-800 text-xs">%</span>

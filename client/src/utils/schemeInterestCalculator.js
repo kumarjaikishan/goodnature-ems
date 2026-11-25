@@ -81,20 +81,14 @@ export function calculateRateFromReturnPercent(returnPercent, tenureMonths, comp
  * @param {'QUARTERLY'|'YEARLY'} compoundMode - Compounding frequency (defaults to QUARTERLY as per bank standard)
  * @returns {number} Return % (e.g. 123.03 for 24M @ 10.5%)
  */
-export function calculateFdReturnPercent(annualRate, tenureMonths, compoundMode = 'QUARTERLY') {
+export function calculateFdReturnPercent(annualRate, tenureMonths, compoundMode = 'YEARLY') {
   const r = Number(annualRate);
   const m = Number(tenureMonths);
   if (!r || r <= 0 || !m || m <= 0) return 0;
 
+  const n = COMPOUND_PERIODS[compoundMode] || 1;
   const years = m / 12;
-  let returnPct = 100;
-
-  if (compoundMode === 'YEARLY') {
-    returnPct = 100 * Math.pow(1 + r / 100, years);
-  } else {
-    // Quarterly compound standard (matches standard Indian banking FD calculators)
-    returnPct = 100 * Math.pow(1 + r / 400, years * 4);
-  }
+  const returnPct = 100 * Math.pow(1 + r / (100 * n), n * years);
 
   return Number(returnPct.toFixed(2));
 }

@@ -10,13 +10,9 @@ import {
   Calculator,
   AlertCircle,
   CheckCircle2,
-  Trash2,
   Award,
-  Percent,
   Users,
   Info,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
@@ -24,6 +20,7 @@ import Button from '../../../components/ui/Button';
 import { DateInput } from '../../../components/ui/DateInput';
 import { toast } from '../../../utils/toast';
 import { BookingSummarySidebar } from './components/BookingSummarySidebar';
+import { LandAcquisitionSourcingSection } from './components/LandAcquisitionSourcingSection';
 
 const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
 const inputCls =
@@ -69,10 +66,6 @@ export default function PlotBookingEditPage() {
   const [dpVal, setDpVal] = useState(500);
   const [emiFrequency, setEmiFrequency] = useState('MONTHLY'); // 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'
   const [installmentCount, setInstallmentCount] = useState(1);
-
-  // Collapsible toggle for Commission overrides & Returns
-  const [showCommissionSection, setShowCommissionSection] = useState(true);
-  const [showReturnsSection, setShowReturnsSection] = useState(false);
 
   // Form State
   const [form, setForm] = useState({
@@ -150,11 +143,19 @@ export default function PlotBookingEditPage() {
       setAvailableLandSources(landSourcesData);
       setProjects(addBookingProjects);
 
-      // Populate customer
+      // Populate customer (preserve populated sponsor from booking if customer.sponsorId is unpopulated)
       const cust = b.customerId;
       if (cust) {
-        setSelectedCustomer(typeof cust === 'object' ? cust : { _id: cust, name: b.customerName });
-        setSearchQuery(typeof cust === 'object' ? (cust.name || '') : (b.customerName || ''));
+        const resolvedCust = typeof cust === 'object'
+          ? {
+            ...cust,
+            sponsorId: cust.sponsorId && typeof cust.sponsorId === 'object'
+              ? cust.sponsorId
+              : (b.sponsorId && typeof b.sponsorId === 'object' ? b.sponsorId : cust.sponsorId),
+          }
+          : { _id: cust, name: b.customerName, sponsorId: b.sponsorId };
+        setSelectedCustomer(resolvedCust);
+        setSearchQuery(resolvedCust.name || '');
       }
 
       // Populate plot & project
@@ -169,14 +170,19 @@ export default function PlotBookingEditPage() {
       } : null;
       setSelectedPlot(resolvedPlot);
 
-      // Populate Premium Heads
+      // Populate Premium Heads (respect previously applied/waived heads if recorded)
+      const appliedHeadNames = Array.isArray(b.appliedPremiumHeads)
+        ? b.appliedPremiumHeads.map((h) => h.name)
+        : null;
       const heads = [];
       if (Array.isArray(plotObj?.premiumHeads) && plotObj.premiumHeads.length > 0) {
         plotObj.premiumHeads.forEach((h) => {
-          heads.push({ name: h.name, extraPercent: Number(h.extraPercent) || 0, active: true });
+          const isActive = appliedHeadNames ? appliedHeadNames.includes(h.name) : true;
+          heads.push({ name: h.name, extraPercent: Number(h.extraPercent) || 0, active: isActive });
         });
       } else if (plotObj?.plotType === 'CORNER') {
-        heads.push({ name: 'Corner Plot', extraPercent: configData?.cornerExtraPercent || 20, active: true });
+        const isActive = appliedHeadNames ? appliedHeadNames.includes('Corner Plot') : true;
+        heads.push({ name: 'Corner Plot', extraPercent: configData?.cornerExtraPercent || 20, active: isActive });
       }
       setSelectedPremiumHeads(heads);
 
@@ -240,6 +246,12 @@ export default function PlotBookingEditPage() {
         developerCommissionPercent: b.developerCommissionPercent !== undefined ? Number(b.developerCommissionPercent) : 1.0,
         bpCommissionPercent: b.bpCommissionPercent !== undefined ? Number(b.bpCommissionPercent) : 1.0,
         branchCommissionPercent: b.branchCommissionPercent !== undefined ? Number(b.branchCommissionPercent) : 0,
+        downpaymentPromoterCommissionPercent: b.downpaymentPromoterCommissionPercent !== undefined ? Number(b.downpaymentPromoterCommissionPercent) : undefined,
+        emiPromoterCommissionPercent: b.emiPromoterCommissionPercent !== undefined ? Number(b.emiPromoterCommissionPercent) : undefined,
+        downpaymentBpCommissionPercent: b.downpaymentBpCommissionPercent !== undefined ? Number(b.downpaymentBpCommissionPercent) : undefined,
+        emiBpCommissionPercent: b.emiBpCommissionPercent !== undefined ? Number(b.emiBpCommissionPercent) : undefined,
+        downpaymentBranchCommissionPercent: b.downpaymentBranchCommissionPercent !== undefined ? Number(b.downpaymentBranchCommissionPercent) : undefined,
+        emiBranchCommissionPercent: b.emiBranchCommissionPercent !== undefined ? Number(b.emiBranchCommissionPercent) : undefined,
         rdMaturityPercent: b.rdMaturityPercent !== undefined ? Number(b.rdMaturityPercent) : 0,
         fdMaturityPercent: b.fdMaturityPercent !== undefined ? Number(b.fdMaturityPercent) : 0,
         annualInterestRate: b.annualInterestRate !== undefined ? Number(b.annualInterestRate) : 0,
@@ -375,9 +387,11 @@ export default function PlotBookingEditPage() {
 
   const availableSchemeSlabs = useMemo(() => {
     if (!schemeSlabs || schemeSlabs.length === 0) return [];
-    const filtered = schemeSlabs.filter((s) => Boolean(s.showInAddBooking));
+    const filtered = schemeSlabs.filter(
+      (s) => Boolean(s.showInAddBooking) || (form.planName && s.planName === form.planName)
+    );
     return filtered.length > 0 ? filtered : schemeSlabs;
-  }, [schemeSlabs]);
+  }, [schemeSlabs, form.planName]);
 
   // Helper to generate a consistent, unique identifier for each scheme slab
   const getSlabValue = (s) => ((s?.planName && s.planName.trim()) ? s.planName.trim() : `slab-${s?.tenureMonths}`);
@@ -431,16 +445,17 @@ export default function PlotBookingEditPage() {
       (s) => getSlabValue(s) === selectedVal || s.planName === selectedVal || String(s.tenureMonths) === selectedVal
     );
     if (matched) {
+      const dpBaPct = Number(matched.fdPromoterCommissionPercent ?? 5.0);
+      const emiBaPct = Number(matched.rdPromoterCommissionPercent ?? 4.0);
+      const dpBpPct = Number(matched.bpFdCommissionPercent ?? 1.0);
+      const emiBpPct = Number(matched.bpRdCommissionPercent ?? 1.0);
+      const dpBranchPct = Number(matched.branchFdCommissionPercent ?? 0.5);
+      const emiBranchPct = Number(matched.branchRdCommissionPercent ?? 0.5);
+
       const isOneTimeMode = paymentPlanMode === 'ONE_TIME';
-      const baPct = isOneTimeMode
-        ? Number(matched.fdPromoterCommissionPercent ?? 5.0)
-        : Number(matched.rdPromoterCommissionPercent ?? 4.0);
-      const bpPct = isOneTimeMode
-        ? Number(matched.bpFdCommissionPercent ?? 1.0)
-        : Number(matched.bpRdCommissionPercent ?? 1.0);
-      const branchPct = isOneTimeMode
-        ? Number(matched.branchFdCommissionPercent ?? 0)
-        : Number(matched.branchRdCommissionPercent ?? 0);
+      const baPct = isOneTimeMode ? dpBaPct : emiBaPct;
+      const bpPct = isOneTimeMode ? dpBpPct : emiBpPct;
+      const branchPct = isOneTimeMode ? dpBranchPct : emiBranchPct;
 
       const canonicalName = getSlabValue(matched);
 
@@ -452,6 +467,12 @@ export default function PlotBookingEditPage() {
         developerCommissionPercent: bpPct,
         bpCommissionPercent: bpPct,
         branchCommissionPercent: branchPct,
+        downpaymentPromoterCommissionPercent: dpBaPct,
+        emiPromoterCommissionPercent: emiBaPct,
+        downpaymentBpCommissionPercent: dpBpPct,
+        emiBpCommissionPercent: emiBpPct,
+        downpaymentBranchCommissionPercent: dpBranchPct,
+        emiBranchCommissionPercent: emiBranchPct,
         rdMaturityPercent: Number(matched.rdMaturityPercent || 0),
         fdMaturityPercent: Number(matched.fdMaturityPercent || 0),
         annualInterestRate: Number(matched.annualInterestRate ?? 10.5),
@@ -479,7 +500,42 @@ export default function PlotBookingEditPage() {
     ? Math.round(baseRate * (1 + totalPremiumExtra / 100) * 100) / 100
     : baseRate;
 
-  const calculatedPlotValue = Math.round(plotArea * effectiveSqFtRate);
+  const baseCalculatedPlotValue = Math.round(plotArea * effectiveSqFtRate);
+
+  const freqMultiplier = useMemo(() => {
+    switch (emiFrequency) {
+      case 'QUARTERLY': return 3;
+      case 'HALF_YEARLY': return 6;
+      case 'YEARLY': return 12;
+      default: return 1;
+    }
+  }, [emiFrequency]);
+
+  const totalTenureMonths = paymentPlanMode === 'ONE_TIME' ? 0 : (Number(installmentCount) || 1) * freqMultiplier;
+
+  const emiTenureAdjustment = useMemo(() => {
+    if (!rateConfig?.emiTenureAdjustments?.length) {
+      return { percent: 0, action: 'NONE', amount: 0 };
+    }
+    const matched = rateConfig.emiTenureAdjustments.find((s) => Number(s.tenureMonths) === Number(totalTenureMonths));
+    if (!matched || !Number(matched.percentage)) {
+      return { percent: 0, action: 'NONE', amount: 0 };
+    }
+    const percent = Number(matched.percentage) || 0;
+    const action = matched.action === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+    const amount = Math.round((baseCalculatedPlotValue * percent) / 100);
+    return { percent, action, amount };
+  }, [totalTenureMonths, rateConfig?.emiTenureAdjustments, baseCalculatedPlotValue]);
+
+  const calculatedPlotValue = useMemo(() => {
+    if (emiTenureAdjustment.action === 'ADD') {
+      return baseCalculatedPlotValue + emiTenureAdjustment.amount;
+    }
+    if (emiTenureAdjustment.action === 'DEDUCT') {
+      return Math.max(0, baseCalculatedPlotValue - emiTenureAdjustment.amount);
+    }
+    return baseCalculatedPlotValue;
+  }, [baseCalculatedPlotValue, emiTenureAdjustment]);
 
   // Discount calculation
   const calculatedDiscount = useMemo(() => {
@@ -521,17 +577,6 @@ export default function PlotBookingEditPage() {
   const emiPrincipalAmt = Math.max(0, netContractValue - downpaymentAmt);
   const isOneTime = paymentPlanMode === 'ONE_TIME' || emiPrincipalAmt === 0;
 
-  const freqMultiplier = useMemo(() => {
-    switch (emiFrequency) {
-      case 'QUARTERLY': return 3;
-      case 'HALF_YEARLY': return 6;
-      case 'YEARLY': return 12;
-      default: return 1;
-    }
-  }, [emiFrequency]);
-
-  const totalTenureMonths = isOneTime ? 0 : (Number(installmentCount) || 1) * freqMultiplier;
-
   const emiPerInstallmentAmt = useMemo(() => {
     if (isOneTime || !installmentCount || Number(installmentCount) <= 0) return 0;
     return Math.round(emiPrincipalAmt / Number(installmentCount));
@@ -566,73 +611,29 @@ export default function PlotBookingEditPage() {
     );
   }, [landSourcing, totalAllocatedArea, plotArea]);
 
-  // Combined source list for Land Sourcing
+  // Filter land sources strictly by selected project (matching StepTermsAndPayment)
   const allLandSources = useMemo(() => {
-    const list = [];
-    const sourceAgreements = form.projectId
-      ? (availableLandSources || []).filter((src) => {
-        const pId = src.projectId?._id || src.projectId;
-        return pId && String(pId) === String(form.projectId);
-      })
-      : availableLandSources || [];
-
-    sourceAgreements.forEach((agr) => {
-      // 1. Unregistered Agreement stock
-      const agreedAvail = Number(agr.unregisteredAvailableSqFt !== undefined ? agr.unregisteredAvailableSqFt : (agr.availableSqFt || 0));
-      if (agreedAvail > 0) {
-        list.push({
-          sourceType: 'AGREEMENT',
-          agreementId: agr._id,
-          agreementNumber: `${agr.agreementNumber} (Unregistered Agreement)`,
-          rawAgreementNumber: agr.agreementNumber,
-          kisanName: agr.kisanName || '',
-          mauja: agr.mauja || '',
-          khataNumber: agr.khataNumber || '',
-          khesraNumber: agr.khesraNumber || '',
-          availableSqFt: agreedAvail,
-          availableDismil: agr.unregisteredAvailableDismil || (agreedAvail ? Math.round((agreedAvail / 435.6) * 1000) / 1000 : 0),
-        });
-      }
-
-      // 2. Registry Deeds
-      if (Array.isArray(agr.registryDeeds)) {
-        agr.registryDeeds.forEach((deed) => {
-          const deedAvail = Number(deed.availableSqFt || 0);
-          if (deedAvail > 0) {
-            list.push({
-              sourceType: 'REGISTRY_DEED',
-              agreementId: agr._id,
-              agreementNumber: `${agr.agreementNumber} [Deed #${deed.deedNumber}]`,
-              rawAgreementNumber: agr.agreementNumber,
-              deedId: deed._id,
-              deedNumber: deed.deedNumber,
-              kisanName: agr.kisanName || '',
-              mauja: agr.mauja || '',
-              khataNumber: agr.khataNumber || '',
-              khesraNumber: agr.khesraNumber || '',
-              availableSqFt: deedAvail,
-              availableDismil: deed.registeredDismil || (deedAvail ? Math.round((deedAvail / 435.6) * 1000) / 1000 : 0),
-            });
-          }
-        });
-      }
+    if (!form.projectId) return availableLandSources || [];
+    return (availableLandSources || []).filter((src) => {
+      const pId = src.projectId?._id || src.projectId;
+      return pId && String(pId) === String(form.projectId);
     });
+  }, [form.projectId, availableLandSources]);
 
-    return list;
-  }, [availableLandSources, form.projectId]);
+  // Form validity & human-readable disabled reasons
+  const disabledReasons = useMemo(() => {
+    const reasons = [];
+    if (!selectedCustomer) reasons.push('Select a customer');
+    if (!selectedPlot) reasons.push('Select a plot');
+    if (!form.bookingDate) reasons.push('Booking Date is required');
+    if (!(Number(customSqFtRate) > 0)) reasons.push('Plot Selling Rate must be greater than ₹0');
+    if (!(Number(downpaymentAmt) > 0)) reasons.push('Downpayment Amount must be greater than ₹0');
+    if (!isLandStockValid) reasons.push(`Allocated Land Stock (${totalAllocatedArea} Sq.Ft.) must match Plot Area (${plotArea} Sq.Ft.)`);
+    if (!form.reason || !form.reason.trim()) reasons.push('Enter Edit Reason / Admin Narration');
+    return reasons;
+  }, [selectedCustomer, selectedPlot, form.bookingDate, customSqFtRate, downpaymentAmt, isLandStockValid, totalAllocatedArea, plotArea, form.reason]);
 
-  // Form validity
-  const isFormValid = useMemo(() => {
-    return (
-      Boolean(selectedCustomer) &&
-      Boolean(selectedPlot) &&
-      Boolean(form.bookingDate) &&
-      Number(customSqFtRate) > 0 &&
-      Number(downpaymentAmt) > 0 &&
-      isLandStockValid &&
-      Boolean(form.reason && form.reason.trim())
-    );
-  }, [selectedCustomer, selectedPlot, form.bookingDate, customSqFtRate, downpaymentAmt, isLandStockValid, form.reason]);
+  const isFormValid = disabledReasons.length === 0;
 
   // Submission handler
   const handleSubmit = async (e) => {
@@ -703,9 +704,21 @@ export default function PlotBookingEditPage() {
         developerCommissionPercent: Number(form.developerCommissionPercent || form.bpCommissionPercent) || 0,
         bpCommissionPercent: Number(form.bpCommissionPercent) || 0,
         branchCommissionPercent: Number(form.branchCommissionPercent) || 0,
+        downpaymentPromoterCommissionPercent: form.downpaymentPromoterCommissionPercent !== undefined ? Number(form.downpaymentPromoterCommissionPercent) : undefined,
+        emiPromoterCommissionPercent: form.emiPromoterCommissionPercent !== undefined ? Number(form.emiPromoterCommissionPercent) : undefined,
+        downpaymentBpCommissionPercent: form.downpaymentBpCommissionPercent !== undefined ? Number(form.downpaymentBpCommissionPercent) : undefined,
+        emiBpCommissionPercent: form.emiBpCommissionPercent !== undefined ? Number(form.emiBpCommissionPercent) : undefined,
+        downpaymentBranchCommissionPercent: form.downpaymentBranchCommissionPercent !== undefined ? Number(form.downpaymentBranchCommissionPercent) : undefined,
+        emiBranchCommissionPercent: form.emiBranchCommissionPercent !== undefined ? Number(form.emiBranchCommissionPercent) : undefined,
         rdMaturityPercent: Number(form.rdMaturityPercent) || 0,
         fdMaturityPercent: Number(form.fdMaturityPercent) || 0,
         annualInterestRate: Number(form.annualInterestRate) || 0,
+        emiTenureAdjustmentPercent: emiTenureAdjustment.percent,
+        emiTenureAdjustmentAction: emiTenureAdjustment.action,
+        emiTenureAdjustmentAmount: emiTenureAdjustment.amount,
+        appliedPremiumHeads: selectedPremiumHeads
+          .filter((h) => h.active)
+          .map((h) => ({ name: h.name, extraPercent: h.extraPercent })),
 
         reason: (form.reason || '').trim(),
         adminNarration: (form.reason || '').trim(),
@@ -774,6 +787,7 @@ export default function PlotBookingEditPage() {
             onClick={handleSubmit}
             loading={submitLoading}
             disabled={!isFormValid || submitLoading}
+            title={!isFormValid ? disabledReasons.join(' • ') : 'Save Booking Changes'}
           >
             Save Booking Changes
           </Button>
@@ -882,12 +896,29 @@ export default function PlotBookingEditPage() {
                     <span className="font-semibold text-slate-800">{selectedCustomer.mobile || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase">Sponsor / Agent</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedCustomer.sponsorId
-                        ? `${selectedCustomer.sponsorId.name || ''} (${selectedCustomer.sponsorId.sponsorCode || ''})`
-                        : 'Direct (Company)'}
-                    </span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Sponsor</span>
+                    {(() => {
+                      const sp =
+                        selectedCustomer?.sponsorId && typeof selectedCustomer.sponsorId === 'object'
+                          ? selectedCustomer.sponsorId
+                          : bookingData?.sponsorId && typeof bookingData.sponsorId === 'object'
+                            ? bookingData.sponsorId
+                            : null;
+                      if (!sp?.name) {
+                        return <span className="font-semibold text-slate-800 block">Direct (Company)</span>;
+                      }
+                      const spCode = sp.sponsorCode || sp.customerCode || sp.customerId || '';
+                      return (
+                        <div>
+                          <span className="font-semibold text-slate-800 block">{sp.name}</span>
+                          {spCode && (
+                            <span className="text-[11px] text-teal-700 font-mono font-bold block">
+                              {spCode}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1104,8 +1135,11 @@ export default function PlotBookingEditPage() {
                         developerCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
                         bpCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
                         branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 0.5),
-                        branchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
-                        downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                        downpaymentPromoterCommissionPercent: Number(currentSchemeSlab.fdPromoterCommissionPercent ?? 5.0),
+                        emiPromoterCommissionPercent: Number(currentSchemeSlab.rdPromoterCommissionPercent ?? 4.0),
+                        downpaymentBpCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
+                        emiBpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
+                        downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 0.5),
                         emiBranchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
                       }));
                     }
@@ -1143,9 +1177,12 @@ export default function PlotBookingEditPage() {
                         promoterCommissionPercent: Number(currentSchemeSlab.rdPromoterCommissionPercent ?? 4.0),
                         developerCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
                         bpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
-                        branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0),
                         branchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
-                        downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 1.0),
+                        downpaymentPromoterCommissionPercent: Number(currentSchemeSlab.fdPromoterCommissionPercent ?? 5.0),
+                        emiPromoterCommissionPercent: Number(currentSchemeSlab.rdPromoterCommissionPercent ?? 4.0),
+                        downpaymentBpCommissionPercent: Number(currentSchemeSlab.bpFdCommissionPercent ?? 1.0),
+                        emiBpCommissionPercent: Number(currentSchemeSlab.bpRdCommissionPercent ?? 1.0),
+                        downpaymentBranchCommissionPercent: Number(currentSchemeSlab.branchFdCommissionPercent ?? 0.5),
                         emiBranchCommissionPercent: Number(currentSchemeSlab.branchRdCommissionPercent ?? 0.5),
                       }));
                     }
@@ -1467,9 +1504,19 @@ export default function PlotBookingEditPage() {
                       <Calculator size={15} className="text-teal-700" />
                       EMI Frequency & Installments Schedule
                     </label>
-                    <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
-                      Total Tenure: {totalTenureMonths} Months
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-md border flex items-center gap-1 ${emiTenureAdjustment.action === 'ADD'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                          : 'bg-amber-50 text-amber-900 border-amber-300'
+                          }`}>
+                          {emiTenureAdjustment.action === 'ADD' ? '+' : '-'}{emiTenureAdjustment.percent}% Tenure {emiTenureAdjustment.action === 'ADD' ? 'Markup' : 'Discount'} (₹{emiTenureAdjustment.amount.toLocaleString('en-IN')})
+                        </span>
+                      )}
+                      <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
+                        Total Tenure: {totalTenureMonths} Months
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1552,443 +1599,39 @@ export default function PlotBookingEditPage() {
                       </p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-white text-emerald-800 border border-emerald-300 rounded-xl text-xs font-black font-mono">
-                    ₹0 EMI / Month
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Commission Hierarchy Overrides Section */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
-              <button
-                type="button"
-                onClick={() => setShowCommissionSection(!showCommissionSection)}
-                className="w-full p-4 bg-slate-50 hover:bg-slate-100/70 transition flex items-center justify-between text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
-                    <Percent size={15} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      Commission Structure & Hierarchies
-                    </h4>
-                    <p className="text-[11px] text-slate-500">
-                      Promoter / Business Associate, Business Partner, and Branch Partner commission rates
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    BA: {form.promoterCommissionPercent}% | BP: {form.bpCommissionPercent}% | Branch: {form.branchCommissionPercent}%
-                  </span>
-                  {showCommissionSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-              </button>
-
-              {showCommissionSection && (
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-200 bg-white">
-                  <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700">
-                      Promoter / Associate Commission %
-                    </label>
-                    <div className="relative flex items-center">
-                      <input
-                        className="w-full h-10 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.promoterCommissionPercent}
-                        onChange={(e) => setForm({ ...form, promoterCommissionPercent: e.target.value })}
-                      />
-                      <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">Direct booking initiator commission</span>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700">
-                      Business Partner Commission %
-                    </label>
-                    <div className="relative flex items-center">
-                      <input
-                        className="w-full h-10 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.bpCommissionPercent}
-                        onChange={(e) => setForm({ ...form, bpCommissionPercent: e.target.value, developerCommissionPercent: e.target.value })}
-                      />
-                      <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">Senior developer / team override rate</span>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700">
-                      Branch Partner Commission %
-                    </label>
-                    <div className="relative flex items-center">
-                      <input
-                        className="w-full h-10 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.branchCommissionPercent}
-                        onChange={(e) => setForm({ ...form, branchCommissionPercent: e.target.value })}
-                      />
-                      <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">Branch franchisee / regional manager share</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Customer Return & Maturity Rates Section */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
-              <button
-                type="button"
-                onClick={() => setShowReturnsSection(!showReturnsSection)}
-                className="w-full p-4 bg-slate-50 hover:bg-slate-100/70 transition flex items-center justify-between text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-teal-100 text-teal-800 rounded-lg">
-                    <Calculator size={15} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      Customer Return & Maturity Rates
-                    </h4>
-                    <p className="text-[11px] text-slate-500">
-                      RD Maturity %, FD Maturity %, and Annual Interest Rates for refund/settlement calculations
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    RD: {form.rdMaturityPercent}% | FD: {form.fdMaturityPercent}% | Interest: {form.annualInterestRate}%
-                  </span>
-                  {showReturnsSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-              </button>
-
-              {showReturnsSection && (
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-200 bg-white">
-                  <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700">
-                      RD Maturity Rate %
-                    </label>
-                    <div className="relative flex items-center">
-                      <input
-                        className="w-full h-10 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.rdMaturityPercent}
-                        onChange={(e) => setForm({ ...form, rdMaturityPercent: e.target.value })}
-                      />
-                      <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">Recurring deposit maturity return</span>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700">
-                      FD Maturity Rate %
-                    </label>
-                    <div className="relative flex items-center">
-                      <input
-                        className="w-full h-10 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.fdMaturityPercent}
-                        onChange={(e) => setForm({ ...form, fdMaturityPercent: e.target.value })}
-                      />
-                      <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">Fixed deposit maturity return</span>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700">
-                      Annual Interest Rate %
-                    </label>
-                    <div className="relative flex items-center">
-                      <input
-                        className="w-full h-10 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.annualInterestRate}
-                        onChange={(e) => setForm({ ...form, annualInterestRate: e.target.value })}
-                      />
-                      <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">Annual rate applied for returns/settlements</span>
+                  <div className="flex items-center gap-2">
+                    {emiTenureAdjustment && emiTenureAdjustment.amount > 0 && (
+                      <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-mono font-bold">
+                        -{emiTenureAdjustment.percent}% Full Payment Discount (₹{emiTenureAdjustment.amount.toLocaleString('en-IN')})
+                      </span>
+                    )}
+                    <span className="px-3 py-1 bg-white text-emerald-800 border border-emerald-300 rounded-xl text-xs font-black font-mono">
+                      ₹0 EMI / Month
+                    </span>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Section 4: Land Acquisition Sourcing */}
+          {/* Section 4: Land Acquisition Sourcing (Same cascading Khata -> Khesra -> Agreement component as New Plot Booking) */}
           <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
-              <div>
-                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
-                    4
-                  </span>
-                  <span>Land Acquisition Sourcing (किसान एग्रीमेंट स्टॉक) *</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Required: Sourced Area must match plot area ({plotArea} Sq.Ft.) from active Kisan Land Agreements or Registry Deeds.
-                </p>
-              </div>
-              {allLandSources.length > 0 && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    const currentTotal = landSourcing.reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
-                    const remaining = Math.max(0, plotArea - currentTotal);
-                    setLandSourcing([
-                      ...landSourcing,
-                      {
-                        sourceType: 'AGREEMENT',
-                        agreementId: '',
-                        agreementNumber: '',
-                        deedId: null,
-                        deedNumber: '',
-                        allocatedSqFt: remaining > 0 ? remaining : plotArea,
-                        allocatedDismil: Math.round(((remaining > 0 ? remaining : plotArea) / 435.6) * 1000) / 1000,
-                      },
-                    ]);
-                  }}
-                >
-                  + Add Land Source
-                </Button>
-              )}
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                4
+              </span>
+              <h3 className="text-base font-bold text-slate-800">
+                Land Acquisition Sourcing (किसान एग्रीमेंट स्टॉक)
+              </h3>
             </div>
-
-            {landSourcing.length === 0 ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
-                  <span>
-                    {allLandSources.length === 0
-                      ? 'No active agreements or registry deeds with available stock found. Please verify agreements in Purchase & Land Master.'
-                      : 'No agreement or deed selected. Click "+ Add Land Source" to allocate stock.'}
-                  </span>
-                </div>
-                {allLandSources.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setLandSourcing([
-                        {
-                          sourceType: '',
-                          agreementId: '',
-                          agreementNumber: '',
-                          deedId: null,
-                          deedNumber: '',
-                          allocatedSqFt: plotArea,
-                          allocatedDismil: Math.round((plotArea / 435.6) * 1000) / 1000,
-                        },
-                      ]);
-                    }}
-                  >
-                    + Add Land Source
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {landSourcing.map((src, idx) => {
-                  const selectedSourceObj = allLandSources.find((s) =>
-                    src.deedNumber
-                      ? s.deedNumber === src.deedNumber
-                      : String(s.agreementId) === String(src.agreementId)
-                  );
-
-                  return (
-                    <div
-                      key={idx}
-                      className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col gap-3"
-                    >
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div className="w-full sm:flex-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                            Agreement / Registry Deed *
-                          </label>
-                          <select
-                            value={src.deedNumber || src.agreementId || ''}
-                            onChange={(e) => {
-                              const chosen = allLandSources.find((s) =>
-                                s.deedNumber ? s.deedNumber === e.target.value : String(s.agreementId) === e.target.value
-                              );
-                              const updated = [...landSourcing];
-                              if (!chosen) {
-                                updated[idx] = {
-                                  sourceType: '',
-                                  agreementId: '',
-                                  agreementNumber: '',
-                                  deedId: null,
-                                  deedNumber: '',
-                                  allocatedSqFt: 0,
-                                  allocatedDismil: 0,
-                                };
-                              } else {
-                                const currentTotalWithoutThis = updated
-                                  .filter((_, i) => i !== idx)
-                                  .reduce((sum, s) => sum + (Number(s.allocatedSqFt) || 0), 0);
-                                const needed = Math.max(0, plotArea - currentTotalWithoutThis);
-                                const allocSqFt = Math.min(chosen.availableSqFt, needed > 0 ? needed : chosen.availableSqFt);
-
-                                updated[idx] = {
-                                  sourceType: chosen.sourceType,
-                                  agreementId: chosen.agreementId,
-                                  agreementNumber: chosen.rawAgreementNumber || chosen.agreementNumber,
-                                  deedId: chosen.deedId || null,
-                                  deedNumber: chosen.deedNumber || '',
-                                  mauja: chosen.mauja || '',
-                                  khataNumber: chosen.khataNumber || '',
-                                  khesraNumber: chosen.khesraNumber || '',
-                                  allocatedSqFt: allocSqFt,
-                                  allocatedDismil: Math.round((allocSqFt / 435.6) * 1000) / 1000,
-                                };
-                              }
-                              setLandSourcing(updated);
-                            }}
-                            className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-600 shadow-2xs cursor-pointer"
-                          >
-                            <option value="">-- Choose Stock Agreement / Deed --</option>
-                            {allLandSources.map((opt, oIdx) => (
-                              <option
-                                key={oIdx}
-                                value={opt.deedNumber || opt.agreementId}
-                              >
-                                {opt.agreementNumber} — Avail: {opt.availableSqFt?.toLocaleString('en-IN')} Sq.Ft. ({opt.availableDismil} Dismil) | Mauja: {opt.mauja || '-'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="w-full sm:w-44">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                            Allocated (Sq.Ft.) *
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={src.allocatedSqFt || ''}
-                            onChange={(e) => {
-                              const val = Number(e.target.value) || 0;
-                              const updated = [...landSourcing];
-                              updated[idx].allocatedSqFt = val;
-                              updated[idx].allocatedDismil = Math.round((val / 435.6) * 1000) / 1000;
-                              setLandSourcing(updated);
-                            }}
-                            className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-xs font-bold font-mono text-slate-800 outline-none focus:ring-2 focus:ring-teal-600 shadow-2xs"
-                            placeholder="Sq.Ft."
-                          />
-                        </div>
-
-                        <div className="w-full sm:w-28 text-center pt-3 sm:pt-0">
-                          <span className="text-[10px] text-slate-400 block uppercase font-bold">Dismil</span>
-                          <span className="font-mono text-xs font-bold text-emerald-800">
-                            {src.allocatedDismil || (src.allocatedSqFt ? (src.allocatedSqFt / 435.6).toFixed(2) : 0)}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLandSourcing(landSourcing.filter((_, i) => i !== idx));
-                          }}
-                          className="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0 mt-3 sm:mt-0"
-                          title="Remove allocation row"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-
-                      {/* Selected source info preview */}
-                      {selectedSourceObj && (
-                        <div className="bg-white border border-teal-100 rounded-lg p-2.5 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-700 font-medium">
-                          <div>
-                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Agreement No.</span>
-                            <span className="font-bold text-teal-950">
-                              {selectedSourceObj.agreementNumber}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Mauja / Khata / Khesra</span>
-                            <span className="font-semibold text-slate-800">
-                              {selectedSourceObj.mauja || '-'} (Khata: {selectedSourceObj.khataNumber || '-'}, Khesra: {selectedSourceObj.khesraNumber || '-'})
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Available (Sq.Ft.)</span>
-                            <span className="font-extrabold text-teal-900 font-mono">
-                              {selectedSourceObj.availableSqFt?.toLocaleString('en-IN') || 0} Sq.Ft.
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Available (Dismil)</span>
-                            <span className="font-extrabold text-emerald-800 font-mono">
-                              {selectedSourceObj.availableDismil ??
-                                (selectedSourceObj.availableSqFt
-                                  ? (selectedSourceObj.availableSqFt / 435.6).toFixed(2)
-                                  : 0)}{' '}
-                              Dismil
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {(() => {
-                  const isMatch = Math.abs(totalAllocatedArea - plotArea) <= 0.5 && isLandStockValid;
-                  return (
-                    <div className="flex justify-between items-center text-xs font-bold px-1 pt-1">
-                      <span
-                        className={
-                          isMatch ? 'text-emerald-700 flex items-center gap-1' : 'text-rose-600 flex items-center gap-1'
-                        }
-                      >
-                        {isMatch ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Land Stock Area Matched:</span>
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="w-3.5 h-3.5" />
-                            <span>
-                              {landSourcing.some((s) => !s.agreementId)
-                                ? '⚠️ Please choose an agreement for all rows'
-                                : '⚠️ Sourced Area Mismatch:'}
-                            </span>
-                          </>
-                        )}
-                      </span>
-                      <span className={`font-mono text-sm ${isMatch ? 'text-emerald-800' : 'text-rose-700'}`}>
-                        {totalAllocatedArea} / {plotArea} Sq. Ft.
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
+            <LandAcquisitionSourcingSection
+              landSources={allLandSources}
+              landSourcing={landSourcing}
+              setLandSourcing={setLandSourcing}
+              requiredSqFt={plotArea}
+              title="Land Acquisition Sourcing (किसान एग्रीमेंट / रजिस्ट्री डीड स्टॉक)"
+              subtitle={`Required: Allocate the entire plot area (${plotArea} Sq.Ft.) from active Kisan Agreements or Registry Deeds.`}
+            />
           </div>
 
           {/* Section 5: Payment Mode, Audit Reasons & Notes */}
@@ -2083,24 +1726,36 @@ export default function PlotBookingEditPage() {
           </div>
 
           {/* Bottom Action Footer */}
-          <div className="flex items-center justify-end gap-3 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => navigate(`/dashboard/plots/booking/${id}`)}
-              disabled={submitLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleSubmit}
-              loading={submitLoading}
-              disabled={!isFormValid || submitLoading}
-            >
-              Save Booking Changes
-            </Button>
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs space-y-3">
+            {!isFormValid && disabledReasons.length > 0 && (
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                <AlertCircle size={15} className="text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Required before saving: </span>
+                  <span>{disabledReasons.join(' • ')}</span>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => navigate(`/dashboard/plots/booking/${id}`)}
+                disabled={submitLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleSubmit}
+                loading={submitLoading}
+                disabled={!isFormValid || submitLoading}
+                title={!isFormValid ? disabledReasons.join(' • ') : 'Save Booking Changes'}
+              >
+                Save Booking Changes
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -2128,6 +1783,7 @@ export default function PlotBookingEditPage() {
             installmentCount={installmentCount}
             totalTenureMonths={totalTenureMonths}
             selectedPremiumHeads={selectedPremiumHeads}
+            emiTenureAdjustment={emiTenureAdjustment}
           />
         </div>
       </div>
