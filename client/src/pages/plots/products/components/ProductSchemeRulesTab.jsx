@@ -3,7 +3,6 @@ import {
   Plus,
   Trash2,
   Save,
-  TrendingUp,
   Coins,
   RotateCcw,
   Info,
@@ -13,8 +12,13 @@ import PageLoader from '../../../../components/common/PageLoader';
 import { toast } from '../../../../utils/toast';
 import {
   calculateRdReturnPercent,
-  calculateFdReturnPercent,
 } from '../../../../utils/schemeInterestCalculator';
+
+const COMPOUNDING_OPTIONS = [
+  { value: 'YEARLY', label: 'Yearly' },
+  { value: 'HALF_YEARLY', label: 'Half-Yearly' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+];
 
 const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const [loading, setLoading] = useState(true);
@@ -27,6 +31,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     prematureAnnualInterestPercent: 6.0,
     rdPrematureAnnualInterestPercent: 6.0,
     fdPrematureAnnualInterestPercent: 6.0,
+    compoundingFrequency: 'YEARLY',
     slabs: [],
     rulesAndRegulations: [],
   });
@@ -44,20 +49,20 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           prematureAnnualInterestPercent: res.data.data.prematureAnnualInterestPercent ?? 6.0,
           rdPrematureAnnualInterestPercent: res.data.data.rdPrematureAnnualInterestPercent ?? 6.0,
           fdPrematureAnnualInterestPercent: res.data.data.fdPrematureAnnualInterestPercent ?? 6.0,
+          compoundingFrequency: res.data.data.compoundingFrequency || 'YEARLY',
           slabs: (res.data.data.slabs || []).map((s) => {
             const defaultRate = s.rdMaturityPercent === 0 && s.fdMaturityPercent === 0 ? 0 : 10.5;
-            const baseRate = s.annualInterestRate !== undefined ? s.annualInterestRate : defaultRate;
-            const rdRate = s.rdAnnualInterestRate !== undefined ? s.rdAnnualInterestRate : baseRate;
-            const fdRate = s.fdAnnualInterestRate !== undefined ? s.fdAnnualInterestRate : baseRate;
+            const baseRate = s.rdAnnualInterestRate ?? s.annualInterestRate ?? s.fdAnnualInterestRate ?? defaultRate;
+            const baseReturn = s.rdMaturityPercent ?? s.fdMaturityPercent ?? 0;
             return {
               planName: s.planName || '',
-              planType: s.planType || (s.rdMaturityPercent === 0 && s.fdMaturityPercent === 0 ? 'REGISTRY_SALE' : 'INVESTMENT_BUYBACK'),
+              planType: s.planType || (Number(baseReturn) === 0 ? 'REGISTRY_SALE' : 'INVESTMENT_BUYBACK'),
               annualInterestRate: baseRate,
-              rdAnnualInterestRate: rdRate,
-              fdAnnualInterestRate: fdRate,
+              rdAnnualInterestRate: baseRate,
+              fdAnnualInterestRate: baseRate,
               tenureMonths: s.tenureMonths,
-              rdMaturityPercent: s.rdMaturityPercent,
-              fdMaturityPercent: s.fdMaturityPercent,
+              rdMaturityPercent: baseReturn,
+              fdMaturityPercent: baseReturn,
               rdPromoterCommissionPercent: s.rdPromoterCommissionPercent ?? 4.0,
               fdPromoterCommissionPercent: s.fdPromoterCommissionPercent ?? 5.0,
               bpRdCommissionPercent: s.bpRdCommissionPercent ?? s.developerCommissionPercent ?? 1.0,
@@ -82,17 +87,26 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     fetchConfig();
   }, []);
 
+  const handleCompoundingChange = (newFreq) => {
+    const updatedSlabs = config.slabs.map((s) => {
+      const rate = Number(s.annualInterestRate ?? s.rdAnnualInterestRate ?? 0);
+      const tenure = Number(s.tenureMonths) || 0;
+      if (rate <= 0 || tenure <= 0) {
+        return { ...s, rdMaturityPercent: 0, fdMaturityPercent: 0 };
+      }
+      const ret = calculateRdReturnPercent(rate, tenure, newFreq);
+      return { ...s, rdMaturityPercent: ret, fdMaturityPercent: ret };
+    });
+    setConfig({ ...config, compoundingFrequency: newFreq, slabs: updatedSlabs });
+  };
+
   const handleAddSlab = () => {
     const lastSlab = config.slabs[config.slabs.length - 1];
     const newTenure = lastSlab ? Number(lastSlab.tenureMonths) + 12 : 24;
-    const rdRate = lastSlab && Number(lastSlab.rdAnnualInterestRate ?? lastSlab.annualInterestRate) >= 0
-      ? Number(lastSlab.rdAnnualInterestRate ?? lastSlab.annualInterestRate)
+    const rate = lastSlab && Number(lastSlab.annualInterestRate ?? lastSlab.rdAnnualInterestRate) >= 0
+      ? Number(lastSlab.annualInterestRate ?? lastSlab.rdAnnualInterestRate)
       : 10.5;
-    const fdRate = lastSlab && Number(lastSlab.fdAnnualInterestRate ?? lastSlab.annualInterestRate) >= 0
-      ? Number(lastSlab.fdAnnualInterestRate ?? lastSlab.annualInterestRate)
-      : 10.5;
-    const rdReturn = calculateRdReturnPercent(rdRate, newTenure);
-    const fdReturn = calculateFdReturnPercent(fdRate, newTenure);
+    const returnPct = calculateRdReturnPercent(rate, newTenure, config.compoundingFrequency);
 
     setConfig({
       ...config,
@@ -100,12 +114,12 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
         ...config.slabs,
         {
           planName: `A-${newTenure}`,
-          annualInterestRate: rdRate,
-          rdAnnualInterestRate: rdRate,
-          fdAnnualInterestRate: fdRate,
+          annualInterestRate: rate,
+          rdAnnualInterestRate: rate,
+          fdAnnualInterestRate: rate,
           tenureMonths: newTenure,
-          rdMaturityPercent: rdReturn,
-          fdMaturityPercent: fdReturn,
+          rdMaturityPercent: returnPct,
+          fdMaturityPercent: returnPct,
           rdPromoterCommissionPercent: lastSlab ? Number(lastSlab.rdPromoterCommissionPercent || 4) : 4.0,
           fdPromoterCommissionPercent: lastSlab ? Number(lastSlab.fdPromoterCommissionPercent || 5) : 5.0,
           bpRdCommissionPercent: lastSlab ? Number(lastSlab.bpRdCommissionPercent || 1) : 1.0,
@@ -127,64 +141,39 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
   const handleSlabChange = (index, field, value) => {
     const updated = [...config.slabs];
     const item = { ...updated[index] };
+    const freq = config.compoundingFrequency || 'YEARLY';
 
     // Keep raw string in state so user can type "." or "10." without it being eaten by Number()
     item[field] = value;
 
-    // Auto-calculate RD return if rdAnnualInterestRate changes
-    if (field === 'rdAnnualInterestRate') {
-      const tenure = Number(item.tenureMonths) || 0;
-      const rate = Number(value);
-      item.annualInterestRate = value; // keep legacy in sync
-      if (rate === 0) {
-        item.rdMaturityPercent = 0;
-      } else if (rate > 0 && tenure > 0) {
-        item.rdMaturityPercent = calculateRdReturnPercent(rate, tenure);
-      }
-    }
-
-    // Auto-calculate FD return if fdAnnualInterestRate changes
-    if (field === 'fdAnnualInterestRate') {
-      const tenure = Number(item.tenureMonths) || 0;
-      const rate = Number(value);
-      if (rate === 0) {
-        item.fdMaturityPercent = 0;
-      } else if (rate > 0 && tenure > 0) {
-        item.fdMaturityPercent = calculateFdReturnPercent(rate, tenure);
-      }
-    }
-
-    // Auto-calculate both RD & FD returns if tenureMonths changes
-    if (field === 'tenureMonths') {
-      const tenure = Number(value) || 0;
-      const rdRate = Number(item.rdAnnualInterestRate ?? item.annualInterestRate ?? 10.5);
-      const fdRate = Number(item.fdAnnualInterestRate ?? item.annualInterestRate ?? 10.5);
-
-      if (rdRate === 0) {
-        item.rdMaturityPercent = 0;
-      } else if (rdRate > 0 && tenure > 0) {
-        item.rdMaturityPercent = calculateRdReturnPercent(rdRate, tenure);
-      }
-
-      if (fdRate === 0) {
-        item.fdMaturityPercent = 0;
-      } else if (fdRate > 0 && tenure > 0) {
-        item.fdMaturityPercent = calculateFdReturnPercent(fdRate, tenure);
-      }
-    }
-
-    // Auto-calculate both RD & FD if legacy annualInterestRate is changed
+    // Auto-calculate Return % when Rate (% p.a.) changes
     if (field === 'annualInterestRate') {
       item.rdAnnualInterestRate = value;
       item.fdAnnualInterestRate = value;
-      const rate = Number(value) || 0;
+      const rate = Number(value);
       const tenure = Number(item.tenureMonths) || 0;
       if (rate === 0) {
         item.rdMaturityPercent = 0;
         item.fdMaturityPercent = 0;
       } else if (rate > 0 && tenure > 0) {
-        item.rdMaturityPercent = calculateRdReturnPercent(rate, tenure);
-        item.fdMaturityPercent = calculateFdReturnPercent(rate, tenure);
+        const ret = calculateRdReturnPercent(rate, tenure, freq);
+        item.rdMaturityPercent = ret;
+        item.fdMaturityPercent = ret;
+      }
+    }
+
+    // Auto-calculate Return % when tenureMonths changes
+    if (field === 'tenureMonths') {
+      const tenure = Number(value) || 0;
+      const rate = Number(item.annualInterestRate ?? item.rdAnnualInterestRate ?? 10.5);
+
+      if (rate === 0) {
+        item.rdMaturityPercent = 0;
+        item.fdMaturityPercent = 0;
+      } else if (rate > 0 && tenure > 0) {
+        const ret = calculateRdReturnPercent(rate, tenure, freq);
+        item.rdMaturityPercent = ret;
+        item.fdMaturityPercent = ret;
       }
     }
 
@@ -197,22 +186,22 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     const updated = [...config.slabs];
     const item = { ...updated[index] };
     const tenure = Number(item.tenureMonths) || 24;
-    const rdRate = Number(item.rdAnnualInterestRate ?? item.annualInterestRate);
-    const fdRate = Number(item.fdAnnualInterestRate ?? item.annualInterestRate);
+    const rate = Number(item.annualInterestRate ?? item.rdAnnualInterestRate);
+    const freq = config.compoundingFrequency || 'YEARLY';
 
-    if (rdRate === 0 && fdRate === 0) {
+    if (rate === 0) {
       item.rdMaturityPercent = 0;
       item.fdMaturityPercent = 0;
-      toast.info('Both rates are 0%: returns set to 0% (Actual Plot Sale).');
+      toast.info('Rate is 0%: return set to 0% (Actual Plot Sale).');
     } else {
-      const validRd = rdRate >= 0 ? rdRate : 10.5;
-      const validFd = fdRate >= 0 ? fdRate : 10.5;
-      item.rdAnnualInterestRate = validRd;
-      item.fdAnnualInterestRate = validFd;
-      item.annualInterestRate = validRd;
-      item.rdMaturityPercent = validRd === 0 ? 0 : calculateRdReturnPercent(validRd, tenure);
-      item.fdMaturityPercent = validFd === 0 ? 0 : calculateFdReturnPercent(validFd, tenure);
-      toast.success(`Calculated for ${tenure}M: RD @ ${validRd}% (${item.rdMaturityPercent}%), FD @ ${validFd}% (${item.fdMaturityPercent}%)`);
+      const validRate = rate >= 0 ? rate : 10.5;
+      const ret = calculateRdReturnPercent(validRate, tenure, freq);
+      item.annualInterestRate = validRate;
+      item.rdAnnualInterestRate = validRate;
+      item.fdAnnualInterestRate = validRate;
+      item.rdMaturityPercent = ret;
+      item.fdMaturityPercent = ret;
+      toast.success(`Calculated for ${tenure}M (${freq.toLowerCase()}): ${validRate}% p.a. → ${ret}%`);
     }
 
     updated[index] = item;
@@ -223,18 +212,18 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
     e.preventDefault();
     setSubmitLoading(true);
 
-    // Sanitize slabs to numeric values for backend persistence
+    // Sanitize slabs to numeric values for backend persistence (keeping RD & FD fields synced)
     const sanitizedSlabs = config.slabs.map((s) => {
-      const rdRate = s.rdAnnualInterestRate === '' ? 0 : Number(s.rdAnnualInterestRate ?? s.annualInterestRate ?? 0);
-      const fdRate = s.fdAnnualInterestRate === '' ? 0 : Number(s.fdAnnualInterestRate ?? s.annualInterestRate ?? 0);
+      const rate = s.annualInterestRate === '' ? 0 : Number(s.annualInterestRate ?? s.rdAnnualInterestRate ?? 0);
+      const ret = s.rdMaturityPercent === '' ? 0 : Number(s.rdMaturityPercent ?? 0);
       return {
         ...s,
         tenureMonths: Number(s.tenureMonths) || 0,
-        annualInterestRate: rdRate,
-        rdAnnualInterestRate: rdRate,
-        fdAnnualInterestRate: fdRate,
-        rdMaturityPercent: s.rdMaturityPercent === '' ? 0 : Number(s.rdMaturityPercent),
-        fdMaturityPercent: s.fdMaturityPercent === '' ? 0 : Number(s.fdMaturityPercent),
+        annualInterestRate: rate,
+        rdAnnualInterestRate: rate,
+        fdAnnualInterestRate: rate,
+        rdMaturityPercent: ret,
+        fdMaturityPercent: ret,
         rdPromoterCommissionPercent: s.rdPromoterCommissionPercent === '' ? 0 : Number(s.rdPromoterCommissionPercent),
         fdPromoterCommissionPercent: s.fdPromoterCommissionPercent === '' ? 0 : Number(s.fdPromoterCommissionPercent),
         bpRdCommissionPercent: s.bpRdCommissionPercent === '' ? 0 : Number(s.bpRdCommissionPercent),
@@ -276,31 +265,49 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                 <span>Customer Tenure Returns &amp; Hierarchy Fixed Commission Matrix</span>
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Set customer returns (calculated via annual interest rate) and instant fixed commissions for Business Associate, Business Partner, and Branch Partner.
+                Set customer cancellation return rate (Rate % p.a. &amp; Return %) and instant fixed commissions for Business Associate, Business Partner, and Branch Partner.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleAddSlab}
-              className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shrink-0 shadow-2xs"
-            >
-              <Plus size={16} /> Add Tenure Slab
-            </button>
+            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+              {/* Compounding Frequency Selector (Default: Yearly) */}
+              <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-xl p-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase px-2">Compounding:</span>
+                {COMPOUNDING_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleCompoundingChange(opt.value)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      config.compoundingFrequency === opt.value
+                        ? 'bg-teal-700 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleAddSlab}
+                className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs cursor-pointer transition flex items-center gap-1.5 shrink-0 shadow-2xs"
+              >
+                <Plus size={16} /> Add Tenure Slab
+              </button>
+            </div>
           </div>
 
           {/* Formula Explanation Banner */}
           <div className="bg-teal-50/60 border border-teal-200 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-teal-950">
             <Info size={18} className="text-teal-700 shrink-0 mt-0.5" />
             <div className="space-y-0.5 leading-relaxed">
-              <span className="font-bold text-teal-900">Compound Calculation &amp; Actual Plot Sale:</span>
+              <span className="font-bold text-teal-900">Customer Return Rate &amp; Actual Plot Sale:</span>
               <p className="text-teal-800 text-[11px]">
-                • <b>EMI Scheme:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate the <b>Maturity Return %</b> on the right using Yearly Compounding.
+                • <b>Customer Return:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate <b>Return (%)</b> on the right (using <b>{COMPOUNDING_OPTIONS.find((o) => o.value === config.compoundingFrequency)?.label || 'Yearly'}</b> compounding).
                 <br />
-                • <b>One-Time Scheme:</b> Enter <b>Rate (% p.a.)</b> on the left to automatically calculate the <b>Maturity Return %</b> on the right using Standard Compounding.
+                • <b>Cancellation Calculator:</b> This rate is automatically used in the Interest &amp; Cancellation Calculator to compute interest from each deposit date to the settlement date.
                 <br />
-                • <b>Independent Rates:</b> EMI and One-Time each have their own rate input directly inside their respective scheme column for the same tenure.
-                <br />
-                • <b>Actual Plot Sale:</b> Enter <b>0%</b> for Rates/Returns. Customer return will be 0% while <b>Hierarchy Commissions (BA, BP, Branch Partner)</b> remain active.
+                • <b>Actual Plot Sale:</b> Enter <b>0%</b> for Rate/Return. Customer return will be 0% while <b>Hierarchy Commissions (BA, BP, Branch Partner)</b> remain active.
                 <br />
                 • <b>Add Booking Checkbox:</b> Check mark a plan to show it exclusively in <b>Add Booking (Step 3)</b> (at /dashboard/plots/addbooking). Unchecked plans will show in <b>Plot Product Book/Sale</b> (at /dashboard/plots/products/book).
               </p>
@@ -308,7 +315,7 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs min-w-[1080px]">
+            <table className="w-full border-collapse text-left text-xs min-w-[920px]">
               <thead>
                 <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider select-none">
                   <th className="p-3 text-center bg-teal-50/50 border-r border-slate-200">
@@ -319,27 +326,15 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   </th>
                   <th className="p-3">Plan Name</th>
                   <th className="p-3">Tenure (अवधि)</th>
-                  {/* EMI Scheme: Rate % p.a. | Return % */}
+                  {/* Unified Customer Return Scheme: Rate % p.a. | Return % */}
                   <th className="p-3 bg-teal-50/70 border-l border-teal-200">
                     <div className="text-teal-950">
                       <div className="flex items-center gap-1.5 font-extrabold">
                         <Coins size={14} className="text-teal-700" />
-                        <span>EMI Scheme</span>
+                        <span>Customer Return</span>
                       </div>
                       <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">
-                        Rate (% p.a.) | Return (%)
-                      </span>
-                    </div>
-                  </th>
-                  {/* One-Time Scheme: Rate % p.a. | Return % */}
-                  <th className="p-3 bg-emerald-50/70 border-l border-emerald-200">
-                    <div className="text-emerald-950">
-                      <div className="flex items-center gap-1.5 font-extrabold">
-                        <TrendingUp size={14} className="text-emerald-700" />
-                        <span>One-Time Scheme</span>
-                      </div>
-                      <span className="text-[9px] font-semibold text-emerald-700 block mt-0.5">
-                        Rate (% p.a.) | Return (%)
+                        Rate (% p.a.) | Return (%) • {COMPOUNDING_OPTIONS.find((o) => o.value === config.compoundingFrequency)?.label || 'Yearly'}
                       </span>
                     </div>
                   </th>
@@ -419,15 +414,15 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                         </div>
                       </td>
 
-                      {/* EMI (R.D.) Scheme: Rate % p.a. | Return % */}
+                      {/* Unified Customer Return: Rate % p.a. | Return % */}
                       <td className="p-3 bg-teal-50/20 border-l border-teal-100">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="EMI Annual Rate % p.a. (Used to calculate EMI Return %)">
+                          <div className="flex items-center gap-1" title="Annual Rate % p.a. (Used to calculate Return % & Cancellation Interest)">
                             <input
                               type="tel"
                               inputMode="decimal"
                               className="w-16 h-8 bg-white border border-teal-300 rounded-lg px-2 text-xs font-bold font-mono text-teal-950 focus:ring-2 focus:ring-teal-600 outline-none"
-                              value={s.rdAnnualInterestRate ?? s.annualInterestRate ?? 10.5}
+                              value={s.annualInterestRate ?? s.rdAnnualInterestRate ?? 10.5}
                               placeholder="Rate %"
                               onKeyDown={(e) => {
                                 if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
@@ -435,84 +430,27 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                               }}
                               onChange={(e) => {
                                 const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'rdAnnualInterestRate', cleanVal);
+                                handleSlabChange(idx, 'annualInterestRate', cleanVal);
                               }}
-                              title="EMI Annual Interest Rate % p.a."
+                              title="Annual Interest Rate % p.a."
                             />
                             <span className="font-bold text-teal-800 text-[11px]">%</span>
                           </div>
                           <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="EMI Maturity Return % (Yearly Compounded)">
+                          <div className="flex items-center gap-1" title="Auto-calculated Maturity Return % (read-only)">
                             <input
-                              type="tel"
-                              inputMode="decimal"
-                              className={`w-16 h-8 bg-white border rounded-lg px-2 text-xs font-bold font-mono outline-none ${
+                              type="text"
+                              readOnly
+                              tabIndex={-1}
+                              className={`w-16 h-8 border rounded-lg px-2 text-xs font-bold font-mono outline-none select-none cursor-not-allowed ${
                                 Number(s.rdMaturityPercent) === 0
-                                  ? 'border-emerald-300 text-emerald-800 font-extrabold focus:ring-2 focus:ring-emerald-500'
-                                  : 'border-teal-300 text-teal-900 focus:ring-2 focus:ring-teal-600'
+                                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800 font-extrabold'
+                                  : 'bg-slate-100/90 border-slate-200 text-slate-700'
                               }`}
-                              value={s.rdMaturityPercent ?? ''}
-                              placeholder="Return %"
-                              onKeyDown={(e) => {
-                                if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
-                                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-                              }}
-                              onChange={(e) => {
-                                const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'rdMaturityPercent', cleanVal);
-                              }}
-                              title="Auto-calculated using Yearly Compounding on monthly installments (enter 0 for actual plot sale)"
+                              value={s.rdMaturityPercent ?? 0}
+                              title="Auto-calculated from Annual Rate (% p.a.) and Tenure"
                             />
-                            <span className="font-bold text-teal-700 text-xs">%</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* One-Time Scheme: Rate % p.a. | Return % */}
-                      <td className="p-3 bg-emerald-50/20 border-l border-emerald-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="One-Time Annual Rate % p.a. (Used to calculate One-Time Return %)">
-                            <input
-                              type="tel"
-                              inputMode="decimal"
-                              className="w-16 h-8 bg-white border border-emerald-300 rounded-lg px-2 text-xs font-bold font-mono text-emerald-950 focus:ring-2 focus:ring-emerald-600 outline-none"
-                              value={s.fdAnnualInterestRate ?? s.annualInterestRate ?? 10.5}
-                              placeholder="Rate %"
-                              onKeyDown={(e) => {
-                                if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
-                                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-                              }}
-                              onChange={(e) => {
-                                const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'fdAnnualInterestRate', cleanVal);
-                              }}
-                              title="One-Time Annual Interest Rate % p.a."
-                            />
-                            <span className="font-bold text-emerald-800 text-[11px]">%</span>
-                          </div>
-                          <span className="text-slate-300">|</span>
-                          <div className="flex items-center gap-1" title="One-Time Return % (Holding Period)">
-                            <input
-                              type="tel"
-                              inputMode="decimal"
-                              className={`w-16 h-8 bg-white border rounded-lg px-2 text-xs font-bold font-mono outline-none ${
-                                Number(s.fdMaturityPercent) === 0
-                                  ? 'border-emerald-300 text-emerald-800 font-extrabold focus:ring-2 focus:ring-emerald-500'
-                                  : 'border-emerald-300 text-emerald-900 focus:ring-2 focus:ring-emerald-600'
-                              }`}
-                              value={s.fdMaturityPercent ?? ''}
-                              placeholder="Return %"
-                              onKeyDown={(e) => {
-                                if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey || e.key === '.' || e.key === 'Decimal') return;
-                                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-                              }}
-                              onChange={(e) => {
-                                const cleanVal = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
-                                handleSlabChange(idx, 'fdMaturityPercent', cleanVal);
-                              }}
-                              title="Auto-calculated using standard compounding for tenure (enter 0 for actual plot sale)"
-                            />
-                            <span className="font-bold text-emerald-700 text-xs">%</span>
+                            <span className="font-bold text-slate-600 text-xs">%</span>
                           </div>
                         </div>
                       </td>

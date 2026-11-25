@@ -53,6 +53,7 @@ const PlotInterestCalculator = () => {
   const [asOnDate, setAsOnDate] = useState(new Date().toISOString().split('T')[0]);
   const [annualRate, setAnnualRate] = useState(10.88);
   const [calculationMode, setCalculationMode] = useState('SIMPLE'); // 'SIMPLE' or 'COMPOUND_ANNUAL'
+  const [compoundingFrequency, setCompoundingFrequency] = useState('YEARLY'); // 'YEARLY' | 'HALF_YEARLY' | 'QUARTERLY'
   const [systemDefaultRate, setSystemDefaultRate] = useState(10.88);
   const [matchedSchemeInfo, setMatchedSchemeInfo] = useState('');
 
@@ -305,6 +306,9 @@ const PlotInterestCalculator = () => {
             if (invRes.data?.data?.slabs) {
               schemeSlabs = invRes.data.data.slabs;
             }
+            if (invRes.data?.data?.compoundingFrequency) {
+              setCompoundingFrequency(invRes.data.data.compoundingFrequency);
+            }
           } catch (e) {}
 
           if (!schemeSlabs.length) {
@@ -509,7 +513,8 @@ const PlotInterestCalculator = () => {
     let interest = 0;
     if (!isDeductionMode && rate > 0) {
       if (calculationMode === 'COMPOUND_ANNUAL') {
-        interest = principal * (Math.pow(1 + rate / 100, yearsElapsed) - 1);
+        const n = compoundingFrequency === 'QUARTERLY' ? 4 : compoundingFrequency === 'HALF_YEARLY' ? 2 : 1;
+        interest = principal * (Math.pow(1 + rate / (100 * n), n * yearsElapsed) - 1);
       } else {
         interest = (principal * rate * daysElapsed) / (365 * 100);
       }
@@ -832,6 +837,28 @@ const PlotInterestCalculator = () => {
                     Compounding
                   </button>
                 </div>
+                {calculationMode === 'COMPOUND_ANNUAL' && (
+                  <div className="grid grid-cols-3 p-0.5 bg-teal-50/70 border border-teal-200 rounded-lg mt-1">
+                    {[
+                      { value: 'YEARLY', label: 'Yearly' },
+                      { value: 'HALF_YEARLY', label: 'Half-Yearly' },
+                      { value: 'QUARTERLY', label: 'Quarterly' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setCompoundingFrequency(opt.value)}
+                        className={`py-1 rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          compoundingFrequency === opt.value
+                            ? 'bg-teal-700 text-white shadow-2xs'
+                            : 'text-teal-800 hover:bg-white/70'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-1">
@@ -1233,7 +1260,12 @@ const PlotInterestCalculator = () => {
                 {!isDeductionMode ? (
                   <>
                     <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg">
-                      Calculation: <strong className="text-teal-800">{calculationMode === 'SIMPLE' ? 'Simple Interest' : 'Annual Compounding'}</strong>
+                      Calculation:{' '}
+                      <strong className="text-teal-800">
+                        {calculationMode === 'SIMPLE'
+                          ? 'Simple Interest'
+                          : `${compoundingFrequency === 'QUARTERLY' ? 'Quarterly' : compoundingFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'} Compounding`}
+                      </strong>
                     </span>
                     <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg">
                       Rate: <strong className="text-teal-800">{annualRate}% P.A.</strong>
@@ -1431,7 +1463,24 @@ const PlotInterestCalculator = () => {
             {!isDeductionMode ? (
               <>
                 <p>
-                  • <strong>Interest Calculation:</strong> Simple Interest formula <code className="bg-white px-1.5 py-0.5 rounded text-teal-800 font-mono">Interest = (Principal × Rate × Days) / (365 × 100)</code> is applied individually to each deposit from its billing/deposit date to the specified evaluation date ({new Date(targetDate).toLocaleDateString('en-IN')}).
+                  • <strong>Interest Calculation:</strong>{' '}
+                  {calculationMode === 'SIMPLE' ? (
+                    <>
+                      Simple Interest formula <code className="bg-white px-1.5 py-0.5 rounded text-teal-800 font-mono">Interest = (Principal × Rate × Days) / (365 × 100)</code> is applied individually to each deposit from its billing/deposit date to the specified evaluation date ({new Date(targetDate).toLocaleDateString('en-IN')}).
+                    </>
+                  ) : (
+                    <>
+                      <strong>{compoundingFrequency === 'QUARTERLY' ? 'Quarterly' : compoundingFrequency === 'HALF_YEARLY' ? 'Half-Yearly' : 'Yearly'} Compounding</strong> formula{' '}
+                      <code className="bg-white px-1.5 py-0.5 rounded text-teal-800 font-mono">
+                        {compoundingFrequency === 'QUARTERLY'
+                          ? 'Interest = Principal × ((1 + Rate / 400)^(4 × Years) - 1)'
+                          : compoundingFrequency === 'HALF_YEARLY'
+                          ? 'Interest = Principal × ((1 + Rate / 200)^(2 × Years) - 1)'
+                          : 'Interest = Principal × ((1 + Rate / 100)^Years - 1)'}
+                      </code>{' '}
+                      is applied individually to each deposit from its billing/deposit date to the specified evaluation date ({new Date(targetDate).toLocaleDateString('en-IN')}).
+                    </>
+                  )}
                 </p>
                 <p>
                   • <strong>Configurable Rate:</strong> Default percentage is set to <strong>{annualRate}% P.A.</strong> as per scheme plan policy and can be adjusted above.

@@ -120,6 +120,11 @@ const investmentSchemeConfigSchema = new mongoose.Schema(
       type: Number,
       default: 6.0, // F.D. simple interest rate for premature settlement
     },
+    compoundingFrequency: {
+      type: String,
+      enum: ['YEARLY', 'HALF_YEARLY', 'QUARTERLY'],
+      default: 'YEARLY',
+    },
     slabs: {
       type: [schemeSlabSchema],
       default: [

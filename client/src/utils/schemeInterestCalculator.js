@@ -3,37 +3,66 @@
  * Implements Standard Banking & NBFC compounding formulas for RD and FD.
  */
 
+const COMPOUND_PERIODS = {
+  YEARLY: 1,
+  HALF_YEARLY: 2,
+  QUARTERLY: 4,
+};
+
 /**
- * Calculates RD (Recurring Deposit) Maturity Return % based on YEARLY COMPOUNDING
- * As requested: RD uses Yearly Compounding on regular monthly installments.
- * 
- * Formula:
- * For each monthly installment k (1 to M), holding period in years is: (M - k + 1) / 12
- * Compounded annually: Amount_k = P * (1 + annualRate / 100)^((M - k + 1) / 12)
- * Total Maturity = Sum(Amount_k)
- * Return % = (Total Maturity / (P * M)) * 100
- * 
- * @param {number|string} annualRate - Annual interest rate in percent (e.g. 10.5 for 10.5% p.a.)
- * @param {number|string} tenureMonths - Total tenure in months (e.g. 12, 24, 28, 36)
- * @returns {number} Return % (e.g. 111.14 for 24M @ 10.5%)
+ * Calculates Maturity Return % based on compounding frequency on monthly installments.
+ * Defaults to YEARLY compounding.
+ *
+ * @param {number|string} annualRate - Annual interest rate in percent (e.g. 11.286)
+ * @param {number|string} tenureMonths - Total tenure in months (e.g. 24, 36)
+ * @param {'YEARLY'|'HALF_YEARLY'|'QUARTERLY'} compoundMode - Compounding frequency (defaults to YEARLY)
+ * @returns {number} Return % (e.g. 112 for 24M @ 11.286% Yearly)
  */
-export function calculateRdReturnPercent(annualRate, tenureMonths) {
+export function calculateRdReturnPercent(annualRate, tenureMonths, compoundMode = 'YEARLY') {
   const r = Number(annualRate);
   const m = Number(tenureMonths);
   if (!r || r <= 0 || !m || m <= 0) return 0;
 
+  const n = COMPOUND_PERIODS[compoundMode] || 1;
   const P = 100; // Base reference installment amount
-  const rateFraction = r / 100;
+  const periodRate = r / (100 * n);
   let totalMaturity = 0;
 
   for (let k = 1; k <= m; k++) {
     const yearsInvested = (m - k + 1) / 12;
-    totalMaturity += P * Math.pow(1 + rateFraction, yearsInvested);
+    totalMaturity += P * Math.pow(1 + periodRate, n * yearsInvested);
   }
 
   const totalPrincipal = P * m;
   const returnPct = (totalMaturity / totalPrincipal) * 100;
   return Number(returnPct.toFixed(2));
+}
+
+/**
+ * Reverse-calculates Annual Interest Rate (% p.a.) from a target Return % and tenure.
+ *
+ * @param {number|string} returnPercent - Target maturity return % (e.g. 112)
+ * @param {number|string} tenureMonths - Total tenure in months (e.g. 24)
+ * @param {'YEARLY'|'HALF_YEARLY'|'QUARTERLY'} compoundMode - Compounding frequency (defaults to YEARLY)
+ * @returns {number} Annual interest rate % p.a. (rounded to 3 decimal places)
+ */
+export function calculateRateFromReturnPercent(returnPercent, tenureMonths, compoundMode = 'YEARLY') {
+  const target = Number(returnPercent);
+  const m = Number(tenureMonths);
+  if (!target || target <= 100 || !m || m <= 0) return 0;
+
+  let low = 0;
+  let high = 200;
+  for (let i = 0; i < 45; i++) {
+    const mid = (low + high) / 2;
+    const calc = calculateRdReturnPercent(mid, m, compoundMode);
+    if (calc < target) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  return Number(((low + high) / 2).toFixed(3));
 }
 
 /**

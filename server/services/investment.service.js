@@ -48,6 +48,9 @@ class InvestmentService {
     if (data.fdPrematureAnnualInterestPercent !== undefined) {
       config.fdPrematureAnnualInterestPercent = Number(data.fdPrematureAnnualInterestPercent);
     }
+    if (data.compoundingFrequency && ['YEARLY', 'HALF_YEARLY', 'QUARTERLY'].includes(data.compoundingFrequency)) {
+      config.compoundingFrequency = data.compoundingFrequency;
+    }
     if (data.slabs && Array.isArray(data.slabs)) {
       config.slabs = data.slabs.map((s) => ({
         planName: (s.planName || '').trim(),
